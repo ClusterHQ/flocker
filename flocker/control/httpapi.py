@@ -74,6 +74,31 @@ class DatasetAPIUserV1(object):
         """
         return {u"flocker":  __version__}
 
+
+    @app.route("/datasets", methods=['GET'])
+    @user_documentation(
+        """
+        Get the cluster's dataset configuration.
+        """,
+        examples=[u"get configured datasets"],
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={
+            '$ref': '/v1/endpoints.json#/definitions/datasets_array',
+        },
+        schema_store=SCHEMAS,
+    )
+    def get_dataset_configuration(self):
+        """
+        Get the configured datasets.
+
+        :return: A ``list`` of ``dict`` representing each of dataset
+            that is configured to exist anywhere on the cluster.
+        """
+        return list(datasets_from_deployment(self.persistence_service.get()))
+
+
     @app.route("/datasets", methods=['POST'])
     @user_documentation(
         """
@@ -92,8 +117,8 @@ class DatasetAPIUserV1(object):
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
     )
-    def create_dataset(self, primary, dataset_id=None, maximum_size=None,
-                       metadata=None):
+    def create_dataset_configuration(self, primary, dataset_id=None,
+                                     maximum_size=None, metadata=None):
         """
         Create a new dataset in the cluster configuration.
 
@@ -196,7 +221,7 @@ class DatasetAPIUserV1(object):
             },
         schema_store=SCHEMAS
     )
-    def datasets(self):
+    def state_datasets(self):
         """
         Return the current primary datasets in the cluster.
 
