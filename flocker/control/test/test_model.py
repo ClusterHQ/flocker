@@ -245,13 +245,13 @@ class DeploymentTests(SynchronousTestCase):
 
     def test_update_node_new(self):
         """
-        When donig ``update_node()``, if the given ``Node`` has hostname not
+        When doing ``update_node()``, if the given ``Node`` has hostname not
         in existing ``Deployment`` then just add new ``Node`` to new
         ``Deployment``.
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'mysql-clusterhq',
+            applications=frozenset({Application(name=u'postgresql-clusterhq',
                                                 image=object())}))
         another_node = Node(
             hostname=u"node2.example.com",
@@ -266,13 +266,13 @@ class DeploymentTests(SynchronousTestCase):
 
     def test_update_node_replace(self):
         """
-        When donig ``update_node()``, if the given ``Node`` has hostname in
+        When doing ``update_node()``, if the given ``Node`` has hostname in
         existing ``Deployment`` node then replace that ``Node`` in the new
         ``Deployment``.
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'mysql-clusterhq',
+            applications=frozenset({Application(name=u'postgresql-clusterhq',
                                                 image=object())}))
         another_node = Node(
             hostname=u"node2.example.com",

@@ -2356,8 +2356,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         result = api.calculate_necessary_state_changes(
             self.successResultOf(api.discover_local_state()), desired, actual)
 
-        # Desired configuration was changed to set the correct dataset ID,
-        # which is why a resize is happening:
+        # Desired configuration mentions dataset by name, but not the ID. It
+        # indicates the dataset should not have a maximum size.
+        # The actual state knows that the specific dataset with that same name
+        # has a maximum size.
+        # If we get a resize that means the code figured out that the
+        # dataset only mentioned by name in desired config is the same as
+        # the one with a specific dataset ID in the actual cluster state.
         self.assertEqual(result.changes[0].changes[0],
                          ResizeDataset(
                              dataset=APPLICATION_WITH_VOLUME.volume.dataset))

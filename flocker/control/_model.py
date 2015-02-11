@@ -253,7 +253,9 @@ class Deployment(object):
 
     def update_node(self, node):
         """
-        Replace existing ``Node`` with updated version.
+        Create new ``Deployment`` based on this one which replaces existing
+        ``Node`` with updated version, or just adds given ``Node`` if no
+        existing ones have matching hostname.
 
         :param Node node: An update for ``Node`` with same hostname in
              this ``Deployment``.
@@ -267,7 +269,7 @@ class Deployment(object):
 
 @attributes(['internal_port', 'external_port'])
 class Port(object):
-        """
+    """
     A record representing the mapping between a port exposed internally by an
     application and the corresponding port exposed to the outside world.
 
