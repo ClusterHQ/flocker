@@ -203,9 +203,10 @@ class DatasetAPIUserV1(object):
         """
         Update an existing dataset in the cluster configuration.
 
-        :param unicode primary: The address of the node on which the primary
-            manifestation of the dataset will be created.
-
+        :param unicode dataset_id: The dataset_id UUID of the dataset to be
+            updated.
+        :param unicode primary: The address of the node to which the dataset
+            will be moved.
         :return: A ``dict`` describing the updated dataset configuration or
             giving error information if this is not possible.
         """
