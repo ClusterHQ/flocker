@@ -437,10 +437,14 @@ class CreateDatasetTestsMixin(APITestsMixin):
         return creating
 
 
-class UpdateDatasetTestsMixin(APITestsMixin):
+class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     """
     Tests for the dataset modification endpoint at ``/datasets/<dataset_id>``.
     """
+    # These addresses taken from RFC 5737 (TEST-NET-1)
+    NODE_A = u"192.0.2.1"
+    NODE_B = u"192.0.2.2"
+
     def test_unknown_dataset(self):
         """
         NOT_FOUND is returned if the requested dataset_id doesn't exist.
@@ -448,7 +452,7 @@ class UpdateDatasetTestsMixin(APITestsMixin):
         """
         unknown_dataset_id = unicode(uuid4())
         updating = self.assertResponseCode(
-            b"POST", b"/configuration/datasets/%s" % (unknown_dataset_id,), {},
+            b"POST", b"/configuration/datasets/%s" % (unknown_dataset_id.encode('ascii'),), {},
             NOT_FOUND)
         updating.addCallback(readBody)
         updating.addCallback(loads)
@@ -471,9 +475,50 @@ class UpdateDatasetTestsMixin(APITestsMixin):
         If a different primary IP address is supplied, the modification request
         succeeds.
         """
-        # Pre-populate the persistence service with a primary other_manifestation on node1
-        # Request it move to node2.
-        # Assert that the returned code is OK
+        expected_dataset_id = unicode(uuid4())
+        node = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([
+                Manifestation(dataset=Dataset(dataset_id=expected_dataset_id),
+                              primary=True)
+            ])
+        )
+
+        deployment = Deployment(nodes=frozenset([node]))
+
+        saving = self.persistence_service.save(deployment)
+
+        def saved(_):
+            creating = self.assertResponseCode(
+                b"POST",
+                b"/configuration/datasets/%s" % (expected_dataset_id.encode('ascii'),),
+                {u"primary": self.NODE_B},
+                OK
+            )
+            creating.addCallback(readBody)
+            creating.addCallback(loads)
+
+            def got_result(result):
+                dataset_id = result.pop(u"dataset_id")
+                self.assertEqual(
+                        {u"primary": self.NODE_B, u"metadata": {}}, result
+                    )
+                deployment = self.persistence_service.get()
+
+                for node in deployment.nodes():
+                    if node.hostname == self.NODE_B:
+                        dataset_ids = [(m.primary, m.dataset.dataset_id) for m in node.manifestations()]
+                        self.assertIn((True, dataset_id), dataset_ids)
+                        break
+                else:
+                    self.fail('Node not found. {}'.format(self.NODE_B))
+
+                creating.addCallback(got_result)
+
+            return creating
+        saving.addCallback(saved)
+        return saving
 
     def test_primary_unchanged(self):
         """
@@ -515,6 +560,10 @@ class UpdateDatasetTestsMixin(APITestsMixin):
         # Pre-populate the persistence service with a primary other_manifestation on node1
         # Request it move to node2.
         # Assert that the Deployment returned by the persistence service now has the primary manifestation on node2.
+
+RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = buildIntegrationTests(
+    UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
+
 
 # XXX This might be moved to _control and re-used as part of
 # manifestations_from_deployment?

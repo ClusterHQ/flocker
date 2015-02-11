@@ -185,7 +185,7 @@ class DatasetAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
-    @app.route("/datasets/<dataset_id>", methods=['POST'])
+    @app.route("/configuration/datasets/<dataset_id>", methods=['POST'])
     @user_documentation(
         """
         Update an existing dataset.
