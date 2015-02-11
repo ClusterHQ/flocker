@@ -452,12 +452,18 @@ class UpdateDatasetTestsMixin(APITestsMixin):
         If a different primary IP address is supplied, the modification request
         succeeds.
         """
+        # Pre-populate the persistence service with a primary other_manifestation on node1
+        # Request it move to node2.
+        # Assert that the returned code is OK
 
     def test_primary_unchanged(self):
         """
         If the current primary IP address is supplied, the modification request
         succeeds.
         """
+        # Pre-populate the persistence service with a primary other_manifestation on node1
+        # Request it move to node1.
+        # Assert that the returned code is OK
 
     def test_primary_unknown(self):
         """
@@ -477,12 +483,19 @@ class UpdateDatasetTestsMixin(APITestsMixin):
         A successful modification request returns the modified dataset
         attributes.
         """
+        # Pre-populate the persistence service with a primary other_manifestation on node1
+        # Request it move to node2.
+        # Assert that the returned dataset primary attribute is node2
+
 
     def test_dataset_state_persisted(self):
         """
         A successful modification request updates the state of the
         manifestation in the persistence_state service.
         """
+        # Pre-populate the persistence service with a primary other_manifestation on node1
+        # Request it move to node2.
+        # Assert that the Deployment returned by the persistence service now has the primary manifestation on node2.
 
 # XXX This might be moved to _control and re-used as part of
 # manifestations_from_deployment?
