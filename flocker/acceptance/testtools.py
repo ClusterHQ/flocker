@@ -129,8 +129,13 @@ def _run_SSH(port, user, node, command, input, key=None,
     :type command: ``list`` of ``bytes``.
     :param bytes input: Input to send to command.
     :param FilePath key: If not None, the path to a private key to use.
+    :param background: If ``True``, don't block waiting for SSH process to
+         end or read its stdout. I.e. it will run "in the background".
+         Also ensures remote process has pseudo-tty so killing the local SSH
+         process will kill the remote one.
 
-    :return: stdout as ``bytes``.
+    :return: stdout as ``bytes`` if ``background`` is false, otherwise
+        return the ``subprocess.Process`` object.
     """
     quotedCommand = ' '.join(map(shell_quote, command))
     command = [
