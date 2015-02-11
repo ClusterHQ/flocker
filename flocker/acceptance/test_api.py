@@ -12,7 +12,6 @@ from uuid import uuid4
 from json import dumps, loads
 
 from twisted.trial.unittest import TestCase
-
 from treq import get, post, content
 
 from .testtools import get_nodes, _run_SSH
@@ -82,11 +81,11 @@ class DatasetAPITests(TestCase):
         dataset = {u"primary": node_1,
                    u"dataset_id": uuid,
                    u"metadata": {u"name": u"my_volume"}}
-        base_url = "http://{}:{}/v1".format(node_1, REST_API_PORT)
+        base_url = b"http://{}:{}/v1".format(node_1, REST_API_PORT)
         d.addCallback(
-            lambda _: post(base_url + "/configuration/datasets",
+            lambda _: post(base_url + b"/configuration/datasets",
                            data=dumps(dataset),
-                           headers={"content-type": "application/json"},
+                           headers={b"content-type": b"application/json"},
                            persistent=False))
         d.addCallback(content)
 
@@ -96,14 +95,14 @@ class DatasetAPITests(TestCase):
         d.addCallback(got_result)
 
         def created():
-            result = get(base_url + "/state/datasets", persistent=False)
+            result = get(base_url + b"/state/datasets", persistent=False)
             result.addCallback(content)
 
             def got_body(body):
                 body = loads(body)
                 # Current state listing doesn't include metadata.
                 expected_dataset = dataset.copy()
-                expected_dataset["metadata"].clear()
+                expected_dataset[u"metadata"].clear()
                 return expected_dataset in body
             result.addCallback(got_body)
             return result
