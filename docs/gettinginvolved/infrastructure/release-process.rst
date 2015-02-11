@@ -272,7 +272,7 @@ This review step is to ensure that all acceptance tests pass on the release bran
    - For a development release, the following redirects should work.
 
      - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
-     - https://docs.staging.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
+     - https://docs.staging.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
@@ -434,7 +434,7 @@ Post-Release Review Process
    - For a development release, the following redirects should work.
 
      - https://docs.clusterhq.com/en/devel/ should redirect to ``https://docs.clusterhq.com/en/${VERSION}/``
-     - https://docs.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
+     - https://docs.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Verify that the tutorial works on all supported platforms:
 
