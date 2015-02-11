@@ -77,6 +77,8 @@ DatasetsSchemaTests = build_schema_test(
          u"dataset_id": u"x" * 36},
 
         # non-IPv4-address for primary
+        # XXX The validation of primary address IPv4 address is already done
+        # here.
         {u"primary": u"10.0.0.257",
          u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
