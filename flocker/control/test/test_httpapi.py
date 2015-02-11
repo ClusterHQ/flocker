@@ -475,6 +475,12 @@ class UpdateDatasetTestsMixin(APITestsMixin):
         attributes.
         """
 
+    def test_dataset_state_persisted(self):
+        """
+        A successful modification request updates the state of the
+        manifestation in the persistence_state service.
+        """
+
 
 def get_dataset_ids(deployment):
     """
