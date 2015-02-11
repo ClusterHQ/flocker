@@ -22,9 +22,15 @@ Interactions:
   NodeStateCommand, the control service then aggregates that update with
   the rest of the nodes' state and sends a ClusterStatusCommand to all
   convergence agents.
+
+Eliot contexts are transferred along with AMP commands, allowing tracing
+of logged actions across processes (see
+http://eliot.readthedocs.org/en/0.6.0/threads.html).
 """
 
 from pickle import dumps, loads
+
+from eliot import Logger, MessageType, Action
 
 from characteristic import with_cmp
 
@@ -32,7 +38,7 @@ from zope.interface import Interface
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, CommandLocator, AMP,
+    Argument, Command, Integer, CommandLocator, AMP, Unicode,
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
@@ -81,7 +87,8 @@ class ClusterStatusCommand(Command):
     in the convergence agent during startup.
     """
     arguments = [('configuration', DeploymentArgument()),
-                 ('state', DeploymentArgument())]
+                 ('state', DeploymentArgument(),
+                  'eliot_context', Unicode())]
     response = []
 
 
@@ -90,8 +97,26 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
-    arguments = [('node_state', NodeStateArgument())]
+    arguments = [('node_state', NodeStateArgument(),
+                  'eliot_context', Unicode())]
     response = []
+
+
+def with_eliot_context(function):
+    """
+    Decorator for responders that accept an ``eliot_context`` argument
+    that deserializes the given Eliot context and runs the wrapped
+    function using that as the Eliot context.
+
+    No support for returned ``Deferreds`` at this point.
+
+    :param function: A method of an object that will have ``logger``
+         attribute and whose caller will be passing in a serialized Eliot
+         task ID to in a ``eliot_context`` keyword argument.
+    """
+    def responder(self, eliot_context, **kwargs):
+        with Action.continue_task(self.logger, eliot_context):
+            return function(self, **kwargs)
 
 
 class ControlServiceLocator(CommandLocator):
@@ -111,6 +136,7 @@ class ControlServiceLocator(CommandLocator):
         return {"major": 1}
 
     @NodeStateCommand.responder
+#    @with_eliot_context
     def node_changed(self, node_state):
         self.control_amp_service.node_changed(node_state)
         return {}
@@ -137,12 +163,26 @@ class ControlAMP(AMP):
         self.control_amp_service.disconnected(self)
 
 
+LOG_SEND_CLUSTER_STATE = MessageType(
+    "flocker:controlservice:send_cluster_state",
+    # XXX Fields would be configuration, cluster state,
+    "Sending the configuration and state of the cluster.")
+
+LOG_SEND_TO_AGENT = MessageType(
+    "flocker:controlservice:send_state_to_agent",
+    # XXX Fields would be the specific agent we're sending to - host and port
+    # probably, lacking per-connection identity for now...
+    "Send the configuration and state of the cluster to a specific agent.")
+
+
 class ControlAMPService(Service):
     """
     Control Service AMP server.
 
     Convergence agents connect to this server.
     """
+    logger = Logger()
+
     def __init__(self, cluster_state, configuration_service, endpoint):
         """
         :param ClusterStateService cluster_state: Object that records known
@@ -176,12 +216,19 @@ class ControlAMPService(Service):
         """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
-        for connection in connections:
-            connection.callRemote(ClusterStatusCommand,
-                                  configuration=configuration,
-                                  state=state)
-            # Handle errors from callRemote by logging them
-            # https://clusterhq.atlassian.net/browse/FLOC-1311
+        with LOG_SEND_CLUSTER_STATE(self.logger,
+                                    configuration=configuration,
+                                    state=state):
+            for connection in connections:
+                with LOG_SEND_TO_AGENT(
+                        self.logger, connection=connection) as action:
+                    connection.callRemote(ClusterStatusCommand,
+                                          configuration=configuration,
+                                          state=state,
+                                          #eliot_context=action.serialize_task_id(),
+                )
+                # Handle errors from callRemote by logging them
+                # https://clusterhq.atlassian.net/browse/FLOC-1311
 
     def connected(self, connection):
         """
@@ -254,6 +301,7 @@ class _AgentLocator(CommandLocator):
         self.agent = agent
 
     @ClusterStatusCommand.responder
+#    @with_eliot_context
     def cluster_updated(self, configuration, state):
         self.agent.cluster_updated(configuration, state)
         return {}
