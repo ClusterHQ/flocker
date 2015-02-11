@@ -210,13 +210,14 @@ class DatasetAPIUserV1(object):
             giving error information if this is not possible.
         """
         # Lookup the dataset, it may exist but only as a replica
+
         # dataset = self._get_dataset(dataset_id)
         # if dataset is None:
         #     raise NotFound('no dataset with the specified id')
 
         # Lookup the node that has a primary Manifestation (if any)
-        # expected_manifestation = Manifestation(dataset=dataset, primary=True)
 
+        # expected_manifestation = Manifestation(dataset=dataset, primary=True)
         # deployment = self.persistence_service.get()
         # primary_nodes = list(
         #     node for node in deployment.nodes if node.hostname == primary
@@ -227,15 +228,20 @@ class DatasetAPIUserV1(object):
         #     # Spec says not
         #     # "ie, don't accept non-IP addresses but do accept IP addresses that aren't part of the cluster"
               # Ah there's already a comment about that....
+
               # XXX Check cluster state to determine if the given primary node
               # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
               # See FLOC-1278
         #     primary_node = None
         # else:
+
         #     # New primary was found.
         #     # There should only be one.
+
         #     (primary_node,) = primary_nodes
+
         # if expected_manifestation in primary_node.manifestations():
+
         #     # No change needed. return early?
         #     pass
 
@@ -243,6 +249,7 @@ class DatasetAPIUserV1(object):
         # But what if the dataset is associated with an Application? Should the Application be moved to the new node too?
         # And do we need to mark the manifestation as a replica on the existing primary node?
         # Or will that be up to the convergence agent and state API
+
         # new_node_config = Node(
         #     hostname=primary_node.hostname,
         #     applications=primary_node.applications,
@@ -262,6 +269,7 @@ class DatasetAPIUserV1(object):
         # and the found existing primary manifestation.
         # What if there wasn't an existing primary manifestation?
         # Should the returned and maximum size be that found on a lone replica?
+
         # def saved(ignored):
         #     result = {
         #         u"dataset_id": dataset_id,

@@ -437,6 +437,40 @@ class CreateDatasetTestsMixin(APITestsMixin):
         return creating
 
 
+class UpdateDatasetTestsMixin(APITestsMixin):
+    """
+    Tests for the dataset modification endpoint at ``/datasets/<dataset_id>``.
+    """
+    def test_unknown_dataset(self):
+        """
+        NOT_FOUND is returned if the requested dataset_id doesn't exist.
+        """
+
+    def test_primary_changed(self):
+        """
+        If a different primary IP address is supplied, the modification request
+        succeeds.
+        """
+
+    def test_primary_unchanged(self):
+        """
+        If the current primary IP address is supplied, the modification request
+        succeeds.
+        """
+
+    def test_primary_unknown(self):
+        """
+        A dataset's primary IP address can be changed to a non-node IP address.
+        XXX: Add followup issue to prevent this.
+        """
+
+    def test_dataset_returned(self):
+        """
+        A successful modification request returns the modified dataset
+        attributes.
+        """
+
+
 def get_dataset_ids(deployment):
     """
     Get an iterator of all of the ``dataset_id`` values on all nodes in the
