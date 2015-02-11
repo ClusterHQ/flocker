@@ -45,9 +45,9 @@ Access
 - Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation and your :doc:`Flocker development machine <vagrant>`.
   Set up ``gsutil`` authentication by following the instructions from the following command:
 
-  .. code-block:: console
+  .. prompt:: bash $
 
-      $ gsutil config
+      gsutil config
 
 - Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
@@ -72,7 +72,7 @@ Preparing For a Release
 
 #. Export the version number of the release being created as an environment variable for later use:
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       export VERSION=0.1.2
 
@@ -94,7 +94,7 @@ Preparing For a Release
       For a maintenance release, replace ``origin/master`` below with ``origin/flocker-${BASE_VERSION}``,
       where ``${BASE_VERSION}`` is the release receiving the maintenance.
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
@@ -117,15 +117,15 @@ Preparing For a Release
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-             .. code-block:: console
+            .. prompt:: bash $
 
                 # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
-                $ export OLD_VERSION=0.3.0
-                $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+                export OLD_VERSION=0.3.0
+                git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
-   .. code-block:: console
+   .. prompt:: bash $
 
-      $ git commit -am "Updated NEWS"
+      git commit -am "Updated NEWS"
 
 #. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
 
@@ -139,9 +139,9 @@ Preparing For a Release
 
    Finally, commit the changes:
 
-   .. code-block:: console
+   .. prompt:: bash $
 
-      $ git commit -am "Updated What's New"
+      git commit -am "Updated What's New"
 
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
@@ -149,13 +149,13 @@ Preparing For a Release
    - This is already the case up to and including 2015.
    - If any such years are not present in the list, add them and commit the changes:
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       git commit -am "Updated copyright"
 
 #. Push the changes:
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       git push
 
@@ -199,7 +199,7 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
 #. Export the version number of the release being reviewed as an environment variable for later use:
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       export VERSION=0.1.2
 
@@ -207,12 +207,14 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
    - Add the tutorial vagrant box that BuildBot has created from the release branch.
 
-     .. code-block:: console
+     .. prompt:: bash $
 
         vagrant box add http://build.clusterhq.com/results/vagrant/release/flocker-${VERSION}/flocker-tutorial.json
 
      You should now see the ``flocker-tutorial`` box listed:
 
+     .. Use code-block instead of prompt, to allow emphasis of last line
+     
      .. code-block:: console
         :emphasize-lines: 4
 
@@ -225,7 +227,7 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
      .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
-     .. code-block:: console
+     .. prompt:: bash $
 
         git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
         cd "flocker-${VERSION}"
@@ -239,7 +241,7 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
    - Add the Vagrant key to your agent:
 
-     .. code-block:: console
+     .. prompt:: bash $
 
         ssh-add ~/.vagrant.d/insecure_private_key
 
@@ -248,9 +250,9 @@ This review step is to ensure that all acceptance tests pass on the release bran
      They will start the appropriate VMs.
      Ensure that they all pass, with no skips:
 
-     .. code-block:: console
+     .. prompt:: bash $
 
-        $ admin/run-acceptance-tests --distribution fedora-20
+        admin/run-acceptance-tests --distribution fedora-20
 
 #. Check documentation.
 
@@ -288,19 +290,19 @@ Release
 .. warning:: The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
              Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
-             .. code-block:: console
+             .. prompt:: bash $
 
                 vagrant ssh -- -A
 
 #. Export the version number of the release being completed as an environment variable for later use:
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       export VERSION=0.1.2
 
 #. Create a clean, local copy of the Flocker and `homebrew-tap`_ release branches with no modifications:
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
@@ -314,14 +316,14 @@ Release
 
    .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
 
 #. Tag the version being released:
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
@@ -339,7 +341,7 @@ Release
 
    .. note:: Skip this step for a documentation release.
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       python setup.py sdist bdist_wheel
       gsutil cp -a public-read \
@@ -351,7 +353,7 @@ Release
 
    .. note:: Skip this step for a documentation release.
 
-   .. code-block:: console
+   .. prompt:: bash $
 
       admin/upload-rpms "${VERSION}"
 
@@ -370,7 +372,7 @@ Release
 
    - Create a recipe file and push it to the `homebrew-tap`_ repository:
 
-     .. code-block:: console
+     .. prompt:: bash $
 
         cd ../homebrew-tap-${VERSION}
         ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
@@ -382,7 +384,7 @@ Release
 
      Try installing the new recipe directly from a GitHub link
 
-     .. code-block:: console
+     .. prompt:: bash $
 
         brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
         brew test flocker-${VERSION}.rb
@@ -410,9 +412,9 @@ Post-Release Review Process
 
 #. Remove the Vagrant box which was added as part of :ref:`pre-tag-review`:
 
-   .. code-block:: console
+   .. prompt:: bash $
 
-      $ vagrant box remove clusterhq/flocker-tutorial
+      vagrant box remove clusterhq/flocker-tutorial
 
 #. Check that the documentation is set up correctly:
 
@@ -445,7 +447,7 @@ Post-Release Review Process
    * The node package (``flocker-node``) should be installed on all supported platforms.
      You can use vagrant to boot a clean Fedora 20 machine as follows:
 
-     .. code-block:: console
+     .. prompt:: bash $
 
         mkdir /tmp/fedora20
         cd /tmp/fedora20

@@ -19,14 +19,16 @@ from ...volume.testtools import make_volume_options_tests
 from ...route import make_memory_network
 
 from ..script import (
-    VolumeServeOptions, VolumeServeScript,
+    ZFSAgentOptions, ZFSAgentScript,
     ChangeStateOptions, ChangeStateScript,
     ReportStateOptions, ReportStateScript)
+from .. import script as script_module
 from .._docker import FakeDockerClient, Unit
-from .._deploy import Deployer
 from ...control._model import (
     Application, Deployment, DockerImage, Node, AttachedVolume, Dataset,
     Manifestation)
+from .._loop import AgentLoopService
+from .._deploy import P2PNodeDeployer
 
 from ...volume.testtools import create_volume_service
 
@@ -49,24 +51,25 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
     """
     def test_main_calls_deployer_change_node_state(self):
         """
-        ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with
+        ``ChangeStateScript.main`` calls ``change_node_state`` with
         the ``Deployment`` and `hostname` supplied on the command line.
         """
         script = ChangeStateScript()
 
         change_node_state_calls = []
 
-        def spy_change_node_state(self, desired_state, current_cluster_state,
-                                  hostname):
+        def spy_change_node_state(
+                deployer, desired_state, current_cluster_state):
             """
             A stand in for ``Deployer.change_node_state`` which records calls
             made to it.
             """
             change_node_state_calls.append((desired_state,
-                                            current_cluster_state, hostname))
+                                            current_cluster_state,
+                                            deployer.hostname))
 
         self.patch(
-            Deployer, 'change_node_state', spy_change_node_state)
+            script_module, 'change_node_state', spy_change_node_state)
 
         expected_deployment = object()
         expected_current = object()
@@ -403,28 +406,82 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         self.assertEqual(safe_load(content.getvalue()), expected)
 
 
-class VolumeServeScriptOptions(SynchronousTestCase):
+class ZFSAgentScriptTests(SynchronousTestCase):
     """
-    Tests for ``VolumeServeScript``.
+    Tests for ``ZFSAgentScript``.
     """
     def test_main_starts_service(self):
         """
-        ``VolumeServeScript.main`` starts the given service.
+        ``ZFSAgentScript.main`` starts the given service.
         """
         service = Service()
-        VolumeServeScript().main(MemoryCoreReactor(), None, service)
+        options = ZFSAgentOptions()
+        options.parseOptions([b"example.com"])
+        ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
     def test_no_immediate_stop(self):
         """
-        The ``Deferred`` returned from ``VolumeServeScript`` is not fired.
+        The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
         """
-        script = VolumeServeScript()
-        self.assertNoResult(script.main(MemoryCoreReactor(), None, Service()))
+        script = ZFSAgentScript()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"example.com"])
+        self.assertNoResult(script.main(MemoryCoreReactor(), options,
+                                        Service()))
+
+    def test_starts_convergence_loop(self):
+        """
+        ``ZFSAgentScript.main`` starts a convergence loop service.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--destination-port", b"1234", b"example.com"])
+        test_reactor = MemoryCoreReactor()
+        ZFSAgentScript().main(test_reactor, options, service)
+        parent_service = service.parent
+        # P2PNodeDeployer is difficult to compare automatically, so do so
+        # manually:
+        deployer = parent_service.deployer
+        parent_service.deployer = None
+        self.assertEqual((parent_service, deployer.__class__,
+                          deployer.hostname, deployer.volume_service,
+                          parent_service.running),
+                         (AgentLoopService(reactor=test_reactor,
+                                           deployer=None,
+                                           host=u"example.com",
+                                           port=1234),
+                          P2PNodeDeployer, u"example.com", service, True))
 
 
-class StandardServeOptionsTests(
-        make_volume_options_tests(VolumeServeOptions)):
+class ZFSAgentOptionsTests(
+        make_volume_options_tests(ZFSAgentOptions, [b"example.com"])):
     """
-    Tests for the volume configuration arguments of ``VolumeServeOptions``.
+    Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """
+    def test_default_port(self):
+        """
+        The default AMP destination port configured by ``ZFSAgentOptions`` is
+        4524.
+        """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"example.com"])
+        self.assertEqual(options["destination-port"], 4524)
+
+    def test_custom_port(self):
+        """
+        The ``--destination-port`` command-line option allows configuring the
+        destination port.
+        """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--destination-port", b"1234", b"example.com"])
+        self.assertEqual(options["destination-port"], 1234)
+
+    def test_host(self):
+        """
+        The required command-line argument allows configuring the
+        destination host.
+        """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"control.example.com"])
+        self.assertEqual(options["destination-host"], u"control.example.com")

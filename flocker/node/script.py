@@ -29,13 +29,14 @@ from ..common.script import (
 from ..control import (
     ConfigurationError, current_from_configuration, model_from_configuration,
 )
-from . import Deployer
+from . import P2PNodeDeployer, change_node_state
+from ._loop import AgentLoopService
 
 
 __all__ = [
     "flocker_changestate_main",
     "flocker_reportstate_main",
-    "flocker_volume_main",
+    "flocker_zfs_agent_main",
 ]
 
 
@@ -147,12 +148,10 @@ class ChangeStateScript(object):
         self._docker_client = docker_client
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._docker_client)
-        return deployer.change_node_state(
-            desired_state=options['deployment'],
-            current_cluster_state=options['current'],
-            hostname=options['hostname']
-        )
+        deployer = P2PNodeDeployer(
+            options['hostname'], volume_service, self._docker_client)
+        return change_node_state(deployer, options['deployment'],
+                                 options['current'])
 
 
 def flocker_changestate_main():
@@ -198,8 +197,13 @@ class ReportStateScript(object):
         self._network = network
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._docker_client, self._network)
-        d = deployer.discover_node_configuration()
+        # Discovery doesn't actually care about hostname, so don't bother
+        # figuring out correct one. Especially since this code is going
+        # away someday soon: https://clusterhq.atlassian.net/browse/FLOC-1353
+        deployer = P2PNodeDeployer(
+            u"localhost",
+            volume_service, self._docker_client, self._network)
+        d = deployer.discover_local_state()
         d.addCallback(marshal_configuration)
         d.addCallback(safe_dump)
         d.addCallback(self._stdout.write)
@@ -215,24 +219,44 @@ def flocker_reportstate_main():
 
 @flocker_standard_options
 @flocker_volume_options
-class VolumeServeOptions(Options):
+class ZFSAgentOptions(Options):
     """
     Command line options for ``flocker-zfs-agent`` cluster management process.
     """
+    longdesc = """\
+    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
+    """
+
+    synopsis = "Usage: flocker-zfs-agent [OPTIONS] <control-service-hostname>"
+
+    optParameters = [
+        ["destination-port", "p", 4524,
+         "The port on the control service to connect to.", int],
+    ]
+
+    def parseArgs(self, host):
+        self["destination-host"] = unicode(host, "ascii")
 
 
 @implementer(ICommandLineVolumeScript)
-class VolumeServeScript(object):
+class ZFSAgentScript(object):
     """
     A command to start a long-running process to manage volumes on one node of
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        return main_for_service(reactor, volume_service)
+        host = options["destination-host"]
+        port = options["destination-port"]
+        loop = AgentLoopService(reactor=reactor,
+                                deployer=P2PNodeDeployer(host, volume_service),
+                                host=host,
+                                port=port)
+        volume_service.setServiceParent(loop)
+        return main_for_service(reactor, loop)
 
 
-def flocker_volume_main():
+def flocker_zfs_agent_main():
     return FlockerScriptRunner(
-        script=VolumeScript(VolumeServeScript()),
-        options=VolumeServeOptions()
+        script=VolumeScript(ZFSAgentScript()),
+        options=ZFSAgentOptions()
     ).main()

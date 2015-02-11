@@ -26,11 +26,13 @@ Interactions:
 
 from pickle import dumps, loads
 
+from characteristic import with_cmp
+
 from zope.interface import Interface
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, String, CommandLocator, BoxDispatcher, AMP,
+    Argument, Command, Integer, CommandLocator, AMP,
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
@@ -88,8 +90,7 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
-    arguments = [('hostname', String()),
-                 ('node_state', NodeStateArgument())]
+    arguments = [('node_state', NodeStateArgument())]
     response = []
 
 
@@ -110,8 +111,8 @@ class ControlServiceLocator(CommandLocator):
         return {"major": 1}
 
     @NodeStateCommand.responder
-    def node_changed(self, hostname, node_state):
-        self.control_amp_service.node_changed(hostname, node_state)
+    def node_changed(self, node_state):
+        self.control_amp_service.node_changed(node_state)
         return {}
 
 
@@ -199,27 +200,26 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
-    def node_changed(self, hostname, node_state):
+    def node_changed(self, node_state):
         """
         We've received a node state update from a connected client.
 
         :param bytes hostname: The hostname of the node.
         :param NodeState node_state: The changed state for the node.
         """
-        self.cluster_state.update_node_state(hostname, node_state)
+        self.cluster_state.update_node_state(node_state)
         self._send_state_to_connections(self.connections)
 
 
 class IConvergenceAgent(Interface):
     """
     The agent that will receive notifications from control service.
-
-    This is a little sketchy; it will be solidified in
-    https://clusterhq.atlassian.net/browse/FLOC-1255
     """
-    def connected():
+    def connected(client):
         """
         The client has connected to the control service.
+
+        :param AgentClient client: The connected client.
         """
 
     def disconnected():
@@ -241,6 +241,7 @@ class IConvergenceAgent(Interface):
         """
 
 
+@with_cmp(["agent"])
 class _AgentLocator(CommandLocator):
     """
     Command locator for convergence agent.
@@ -258,35 +259,24 @@ class _AgentLocator(CommandLocator):
         return {}
 
 
-class _AgentBoxReceiver(BoxDispatcher):
+class AgentAMP(AMP):
     """
-    Box receiver for convergence agent.
+    AMP protocol for convergence agent side of the protocol.
+
+    This is the client protocol that will connect to the control service.
     """
-    def __init__(self, agent, locator):
+    def __init__(self, agent):
         """
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
-        :param _AgentLocator locator: The locator.
         """
-        BoxDispatcher.__init__(self, locator)
+        locator = _AgentLocator(agent)
+        AMP.__init__(self, locator=locator)
         self.agent = agent
 
-    def startReceivingBoxes(self, box_sender):
-        BoxDispatcher.startReceivingBoxes(self, box_sender)
-        self.agent.connected()
+    def connectionMade(self):
+        AMP.connectionMade(self)
+        self.agent.connected(self)
 
-    def stopReceivingBoxes(self, reason):
-        BoxDispatcher.stopReceivingBoxes(self, reason)
+    def connectionLost(self, reason):
+        AMP.connectionLost(self, reason)
         self.agent.disconnected()
-
-
-def build_agent_client(agent):
-    """
-    Create convergence agent side of the protocol.
-
-    :param IConvergenceAgent agent: Convergence agent to notify of changes.
-
-    :return AMP: protocol instance setup for client.
-    """
-    locator = _AgentLocator(agent)
-    return AMP(boxReceiver=_AgentBoxReceiver(agent, locator),
-               locator=locator)
