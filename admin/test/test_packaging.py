@@ -473,15 +473,15 @@ class CreateLinksTests(TestCase):
         )
 
 
-def canned_package(root):
+def canned_package(root, version=b'0.3.2'):
     """
     Create a directory containing an empty Python package which can be
     installed and with a name and version which can later be tested.
 
     :param test_case: The ``TestCase`` whose mktemp method will be called.
+    :param version: The version of the created package.
     :return: A ``PythonPackage`` instance.
     """
-    version = '1.2.3'
     name = 'FooBar'
     root.makedirs()
     setup_py = root.child('setup.py')
@@ -517,16 +517,18 @@ class GetPackageVersionTests(TestCase):
         step = GetPackageVersion(virtualenv=None, package_name=None)
         self.assertIs(None, step.version)
 
-    def test_version_found(self):
+    def assert_version_found(self, version):
         """
-        ``GetPackageVersion`` assigns the version of a found package to its
-        ``version`` attribute.
+        ``GetPackageVersion`` assigns the exact version of a found package to
+        its ``version`` attribute.
+
+        :param version: The version of the package to test package.
         """
         test_env = FilePath(self.mktemp())
         virtualenv = VirtualEnv(root=test_env)
         InstallVirtualEnv(virtualenv=virtualenv).run()
         package_root = FilePath(self.mktemp())
-        test_package = canned_package(root=package_root)
+        test_package = canned_package(root=package_root, version=version)
         InstallApplication(
             virtualenv=virtualenv, package_uri=package_root.path).run()
 
@@ -534,6 +536,27 @@ class GetPackageVersionTests(TestCase):
             virtualenv=virtualenv, package_name=test_package.name)
         step.run()
         self.assertEqual(test_package.version, step.version)
+
+    def test_version_found(self):
+        """
+        ``GetPackageVersion`` assigns the exact version of a found package to
+        its ``version`` attribute.
+
+        In particular, newer versions of pip/setuptools normalize the version
+        accoding to PEP440. We aren't prepared to handle that yet.
+        """
+        versions = [
+            '0.3.2',
+            '0.3.3dev5',
+            '0.3.2+doc1',
+            '0.3.2-1-gf661a6a',
+            '0.3.2+doc1-1-gf661a6a',
+            '0.3.2pre1',
+            '0.3.2-1-gf661a6a-dirty'
+            '0.3.2+doc1-dirty'
+        ]
+        for version in versions:
+            self.assert_version_found(version=version)
 
     def test_version_not_found(self):
         """
