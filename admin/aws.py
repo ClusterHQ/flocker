@@ -30,6 +30,9 @@ class UpdateS3RoutingRule(object):
 
 @sync_performer
 def perform_update_s3_routing_rule(dispatcher, intent):
+    """
+    See :class:`UpdateS3RoutingRule`.
+    """
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
     config = bucket.get_website_configuration_obj()
@@ -60,6 +63,9 @@ class CreateCloudFrontInvalidation(object):
 
 @sync_performer
 def perform_create_cloudfront_invalidation(dispatcher, intent):
+    """
+    See :class:`CreateCloudFrontInvalidation`.
+    """
     cf = boto.connect_cloudfront()
     distribution = [dist for dist in cf.get_all_distributions()
                     if intent.cname in dist.cnames][0]
@@ -82,6 +88,9 @@ class DeleteS3Keys(object):
 
 @sync_performer
 def perform_delete_s3_keys(dispatcher, intent):
+    """
+    See :class:`DeleteS3Keys`.
+    """
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
     bucket.delete_keys(
@@ -112,6 +121,9 @@ class CopyS3Keys(object):
 
 @sync_performer
 def perform_copy_s3_keys(dispatcher, intent):
+    """
+    See :class:`CopyS3Keys`.
+    """
     s3 = boto.connect_s3()
     destination_bucket = s3.get_bucket(intent.destination_bucket)
     for key in intent.keys:
@@ -138,6 +150,9 @@ class ListS3Keys(object):
 
 @sync_performer
 def perform_list_s3_keys(dispatcher, intent):
+    """
+    see :class:`ListS3Keys`.
+    """
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
     return {key.name[len(intent.prefix):]
