@@ -48,8 +48,17 @@ class DatasetAPITests(TestCase):
         """
         A dataset can be created on a specific node.
         """
-        # This is blocking for now, may as well due this the succinct way:
-        node_1, = self.successResultOf(get_nodes(self, 1))
+        d = get_nodes(self, 1)
+        d.addCallback(self._test_dataset_creation)
+        return d
+
+    def _test_dataset_creation(self, nodes):
+        """
+        Run the actual test now that the nodes are available.
+
+        :param nodes: Sequence of available hostnames, of size 1.
+        """
+        node_1, = nodes
         # Start servers; eventually we will have these already running on
         # nodes, but for now needs to be done manually.
         # https://clusterhq.atlassian.net/browse/FLOC-1383
