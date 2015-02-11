@@ -313,15 +313,6 @@ class DatasetAPIUserV1(object):
         # saving.addCallback(saved)
         # return saving
 
-
-    # def _get_dataset(self, dataset_id):
-    #     deployment = self.persistence_service.get()
-    #     for node in deployment.nodes:
-    #         for manifestation in node.manifestations():
-    #             if manifestation.dataset.dataset_id == dataset_id:
-    #                 return manifestation.dataset
-
-
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
         Get current cluster datasets.
@@ -342,6 +333,16 @@ class DatasetAPIUserV1(object):
         deployment = self.cluster_state_service.as_deployment()
         return list(datasets_from_deployment(deployment))
 
+# def manifestations_from_deployment(deployment, dataset_id):
+#     """
+#     Extract all manifestations of the supplied dataset_id from the supplied
+#     deployment.
+#     """
+#     for node in deployment.nodes:
+#         for manifestation in node.manifestations():
+#             if manifestation.dataset.dataset_id == dataset_id:
+#                 yield manifestation
+# This looks very similar to the function below. Refactor?
 
 def datasets_from_deployment(deployment):
     """
