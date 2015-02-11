@@ -118,7 +118,7 @@ def get_node_state(node):
 
 
 def run_SSH(port, user, node, command, input, key=None,
-             background=False):
+            background=False):
     """
     Run a command via SSH.
 
@@ -198,7 +198,7 @@ def _clean_node(test_case, node):
     # A tool or flocker-deploy option to purge the state of a node does
     # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
     run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
-             [b"flocker"], None)
+            [b"flocker"], None)
 
 
 def get_nodes(test_case, num_nodes):
