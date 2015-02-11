@@ -251,6 +251,21 @@ class Deployment(object):
             for application in node.applications:
                 yield application
 
+    def update_node(self, node):
+        """
+        Create new ``Deployment`` based on this one which replaces existing
+        ``Node`` with updated version, or just adds given ``Node`` if no
+        existing ones have matching hostname.
+
+        :param Node node: An update for ``Node`` with same hostname in
+             this ``Deployment``.
+
+        :return Deployment: Updated with new ``Node``.
+        """
+        return Deployment(nodes=frozenset(
+            list(n for n in self.nodes if n.hostname != node.hostname) +
+            [node]))
+
 
 @attributes(['internal_port', 'external_port'])
 class Port(object):
@@ -337,3 +352,12 @@ class NodeState(object):
         are present on the node but are not attached as volumes to any
         applications.
     """
+    def to_node(self):
+        """
+        Convert into a ``Node`` instance.
+
+        :return Node: Equivalent ``Node`` object.
+        """
+        return Node(hostname=self.hostname,
+                    other_manifestations=self.other_manifestations,
+                    applications=frozenset(self.running + self.not_running))

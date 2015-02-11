@@ -6,7 +6,7 @@ Combine and retrieve current cluster state.
 
 from twisted.application.service import Service
 
-from ._model import Deployment, Node
+from ._model import Deployment
 
 
 class ClusterStateService(Service):
@@ -38,9 +38,5 @@ class ClusterStateService(Service):
 
         :return Deployment: Current state of the cluster.
         """
-        return Deployment(nodes=frozenset([
-            Node(hostname=hostname,
-                 other_manifestations=node_state.other_manifestations,
-                 applications=frozenset(
-                     node_state.running + node_state.not_running))
-            for hostname, node_state in self._nodes.items()]))
+        return Deployment(nodes=frozenset(
+            (node_state.to_node() for node_state in self._nodes.values())))
