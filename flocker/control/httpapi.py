@@ -201,16 +201,30 @@ class DatasetAPIUserV1(object):
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
     )
-    def update_dataset(self, dataset_id, primary=None):
+    def update_dataset(self, dataset_id, primary=None, maximum_size=None,
+                       metadata=None):
         """
         Update an existing dataset in the cluster configuration.
 
-        :param unicode dataset_id: The dataset_id UUID of the dataset to be
-            updated.
+        :param unicode dataset_id: The unique identifier of the dataset.  This
+            is a string giving a UUID (per RFC 4122).
+
         :param unicode primary: The address of the node to which the dataset
             will be moved.
-        :return: A ``dict`` describing the updated dataset configuration or
-            giving error information if this is not possible.
+
+        :param int maximum_size: The maximum number of bytes the dataset will
+            be capable of storing.  This may be optional or required depending
+            on the dataset backend.
+
+        :param dict metadata: A small collection of unicode key/value pairs to
+            associate with the dataset.  These items are not interpreted.  They
+            are only stored and made available for later retrieval.  Use this
+            for things like human-friendly dataset naming, ownership
+            information, etc.
+
+        :return: A ``dict`` describing the dataset which has been added to the
+            cluster configuration or giving error information if this is not
+            possible.
         """
         # Get the current configuration
         # deployment = self.persistence_service.get()
@@ -224,8 +238,6 @@ class DatasetAPIUserV1(object):
         #         'There are no manifestations of the requested dataset. '
         #         'dataset_id: {}'.format(dataset_id)
         #     )
-
-
 
         # Lookup the node that has a primary Manifestation (if any)
 
