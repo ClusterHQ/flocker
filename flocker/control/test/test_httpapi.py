@@ -317,7 +317,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def saved(ignored):
             return self.assertResponseCode(
-                b"POST", b"/configuration/datasets", {u"primary": self.NODE_B}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_B},
+                CREATED
             )
         saving.addCallback(saved)
 
@@ -344,10 +345,12 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         creating = gatherResults([
             self.assertResponseCode(
-                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+                CREATED
             ).addCallback(readBody).addCallback(loads),
             self.assertResponseCode(
-                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+                CREATED
             ).addCallback(readBody).addCallback(loads),
         ])
 
@@ -478,7 +481,9 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         When the cluster configuration includes no datasets, the
         endpoint returns an empty list.
         """
-        return self.assertResult(b"GET", b"/configuration/datasets", None, OK, [])
+        return self.assertResult(
+            b"GET", b"/configuration/datasets", None, OK, []
+        )
 
     def _dataset_test(self, deployment, expected):
         """
