@@ -136,6 +136,10 @@ def is_release(version):
 def is_weekly_release(version):
     """
     Return whether the version corresponds to a weekly release.
+
+    :param bytes version: A version of flocker.
+
+    :return bool: Wether the version is a weekly release.
     """
     parsed_version = parse_version(version)
     return (parsed_version.weekly_release is not None

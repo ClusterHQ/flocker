@@ -73,8 +73,8 @@ class PublishDocsTests(TestCase):
         Call :func:``publish_docs``, interacting with a fake AWS.
 
         :param FakeAWS aws: Fake AWS to interact with.
-        :param flocker_version: See :py:func:`flocker_version`.
-        :param doc_version: See :py:func:`doc_version`.
+        :param flocker_version: See :py:func:`publish_docs`.
+        :param doc_version: See :py:func:`publish_docs`.
         :param production: See :py:func:`production`.
         """
         sync_perform(
@@ -85,7 +85,7 @@ class PublishDocsTests(TestCase):
     def test_copies_documentation(self):
         """
         Calling :func:`publish_docs` copies documentation from
-        ``s3://clusterhq-dev-docs/<flocker_version/`` to
+        ``s3://clusterhq-dev-docs/<flocker_version>/`` to
         ``s3://clusterhq-staging-docs/en/<doc_version>/``.
         """
         aws = FakeAWS(
@@ -124,7 +124,7 @@ class PublishDocsTests(TestCase):
     def test_copies_documentation_production(self):
         """
         Calling :func:`publish_docs` in production copies documentation from
-        ``s3://clusterhq-dev-docs/<flocker_version/`` to
+        ``s3://clusterhq-dev-docs/<flocker_version>/`` to
         ``s3://clusterhq-docs/en/<doc_version>/``.
         """
         aws = FakeAWS(
@@ -164,7 +164,7 @@ class PublishDocsTests(TestCase):
         """
         Calling :func:`publish_docs` replaces documentation from
         ``s3://clusterhq-staging-docs/en/<doc_version>/``.
-        with documentation from ``s3://clusterhq-dev-docs/<flocker_version/``.
+        with documentation from ``s3://clusterhq-dev-docs/<flocker_version>/``.
         In particular, files with changed content are updated, and removed
         files are deleted.
         """

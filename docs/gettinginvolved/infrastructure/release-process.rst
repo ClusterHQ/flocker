@@ -81,7 +81,7 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that a maintenance release is in progress.
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that a maintenance release is in progress.
 
    ::
 
@@ -466,7 +466,7 @@ Post-Release Review Process
 
 #. Merge the release pull request.
 
-#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that the maintenance release is in complete.
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that the maintenance release is in complete.
 
    ::
 

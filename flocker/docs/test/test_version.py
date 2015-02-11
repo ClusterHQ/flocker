@@ -273,7 +273,7 @@ class IsWeeklyReleaseTests(SynchronousTestCase):
 
     def test_weekly_release(self):
         """
-        When the version is from a weekly release, it ist a weekly release.
+        When the version is from a weekly release, it isn't a weekly release.
         """
         self.assertTrue(is_weekly_release('0.3.2dev1'))
 
@@ -298,14 +298,14 @@ class IsWeeklyReleaseTests(SynchronousTestCase):
 
     def test_doc(self):
         """
-        When the documentation version is from a documentation weekly release,
-        it is a release.
+        When the documentation version is from a documentation release,
+        it isn't a weekly release.
         """
         self.assertFalse(is_weekly_release('0.3.2+doc11'))
 
     def test_doc_dirty(self):
         """
         When the version is from a documentation weekly release but is dirty,
-        it isn't a release.
+        it isn't a weekly release.
         """
         self.assertFalse(is_weekly_release('0.3.2+doc1-dirty'))

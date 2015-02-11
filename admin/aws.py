@@ -40,7 +40,7 @@ def perform_update_s3_routing_rule(dispatcher, intent):
     else:
         old_prefix = rule.redirect.replace_key_prefix
         rule.redirect.replace_key_prefix = intent.target_prefix
-        bucket.set_website_configuration()
+        bucket.set_website_configuration(config)
         return old_prefix
 
 
@@ -50,7 +50,7 @@ def perform_update_s3_routing_rule(dispatcher, intent):
 ])
 class CreateCloudFrontInvalidation(object):
     """
-    Crete a CloudFront invalidation request.
+    Create a CloudFront invalidation request.
 
     :ivar bytes cname: A CNAME associated to the distribution to create an
         invalidation for.
@@ -129,7 +129,7 @@ class ListS3Keys(object):
     """
     List the S3 keys in a bucket.
 
-    Note that returns a list with the prefixes stripped.
+    Note that this returns a list with the prefixes stripped.
 
     :ivar bytes bucket: Name of bucket to list keys from.
     :ivar bytes prefix: Prefix of keys to be listed.
@@ -168,17 +168,17 @@ class FakeAWS(object):
         return old_target
 
     @sync_performer
-    def _perform_create_cloudfront_invalidation(self, dispathcer, intent):
+    def _perform_create_cloudfront_invalidation(self, dispatcher, intent):
         self.cloudfront_invalidations.append(intent)
 
     @sync_performer
-    def _perform_delete_s3_keys(self, dispathcer, intent):
+    def _perform_delete_s3_keys(self, dispatcher, intent):
         bucket = self.s3_buckets[intent.bucket]
         for key in intent.keys:
             del bucket[intent.prefix + key]
 
     @sync_performer
-    def _perform_copy_s3_keys(self, dispathcer, intent):
+    def _perform_copy_s3_keys(self, dispatcher, intent):
         source_bucket = self.s3_buckets[intent.source_bucket]
         destination_bucket = self.s3_buckets[intent.destination_bucket]
         for key in intent.keys:
@@ -186,7 +186,7 @@ class FakeAWS(object):
                 source_bucket[intent.source_prefix + key])
 
     @sync_performer
-    def _perform_list_s3_keys(self, dispathcer, intent):
+    def _perform_list_s3_keys(self, dispatcher, intent):
         bucket = self.s3_buckets[intent.bucket]
         return {key[len(intent.prefix):]
                 for key in bucket

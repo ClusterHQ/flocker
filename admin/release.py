@@ -17,8 +17,6 @@ from twisted.python.constants import Names, NamedConstant
 
 import flocker
 
-
-# TODO: Get this from https://github.com/ClusterHQ/flocker/pull/1092
 from flocker.docs import get_doc_version, is_release, is_weekly_release
 
 from .aws import (
@@ -170,6 +168,9 @@ def publish_docs(flocker_version, doc_version, environment):
     dev_prefix = '%s/' % (flocker_version,)
     version_prefix = 'en/%s/' % (doc_version,)
 
+    # This might be clearer as ``is_weekly_release(doc_version)``,
+    # but it is more important to never publish a non-marketing release as
+    # /latest/, so we key off being a marketing release.
     is_dev = not is_release(doc_version)
     if is_dev:
         stable_prefix = "en/devel/"
@@ -298,6 +299,6 @@ def publish_docs_main(args, base_path, top_level):
                          % (base_path.basename(),))
         raise SystemExit(1)
     except NotTagged:
-        sys.stderr.write("%s: Can't non-tagged version to production."
+        sys.stderr.write("%s: Can't publish non-tagged version to production."
                          % (base_path.basename(),))
         raise SystemExit(1)
