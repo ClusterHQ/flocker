@@ -25,6 +25,9 @@ def wait_for_api(hostname):
     """
     Wait until REST API is available.
 
+    :param str hostname: The host where the control service is
+         running.
+
     :return Deferred: Fires when REST API is available.
     """
     def api_available():
