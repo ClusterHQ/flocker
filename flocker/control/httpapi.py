@@ -195,6 +195,8 @@ class DatasetAPIUserV1(object):
         ]
     )
     @structured(
+        # XXX Validation of the supplied primary address is performed by input
+        # schema validation. Any further checks required?
         inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
@@ -210,16 +212,24 @@ class DatasetAPIUserV1(object):
         :return: A ``dict`` describing the updated dataset configuration or
             giving error information if this is not possible.
         """
-        # Lookup the dataset, it may exist but only as a replica
+        # Get the current configuration
+        # deployment = self.persistence_service.get()
 
-        # dataset = self._get_dataset(dataset_id)
-        # if dataset is None:
-        #     raise NotFound('no dataset with the specified id')
+        # Find all manifestations of dataset
+        # manifestations = manifestations_from_deployment(deployment, dataset_id)
+
+        # if not manifestations:
+        #     raise NotFound(
+        #         'Dataset not found. '
+        #         'There are no manifestations of the requested dataset. '
+        #         'dataset_id: {}'.format(dataset_id)
+        #     )
+
+
 
         # Lookup the node that has a primary Manifestation (if any)
 
         # expected_manifestation = Manifestation(dataset=dataset, primary=True)
-        # deployment = self.persistence_service.get()
         # primary_nodes = list(
         #     node for node in deployment.nodes if node.hostname == primary
         # )

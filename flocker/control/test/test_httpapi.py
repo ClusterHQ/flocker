@@ -444,6 +444,7 @@ class UpdateDatasetTestsMixin(APITestsMixin):
     def test_unknown_dataset(self):
         """
         NOT_FOUND is returned if the requested dataset_id doesn't exist.
+        The error includes the requested dataset_id.
         """
 
     def test_primary_changed(self):
@@ -460,13 +461,15 @@ class UpdateDatasetTestsMixin(APITestsMixin):
 
     def test_primary_unknown(self):
         """
-        A dataset's primary IP address can be changed to a non-node IP address.
-        XXX: Add followup issue to prevent this.
+        A dataset's primary IP address must belong to a node in the cluster.
+        XXX: Skip this test until FLOC-1278 is implemented.
         """
 
     def test_primary_invalid(self):
         """
         A request with an invalid (non-IPv4) primary IP address is rejected.
+        XXX: Perhaps this test isn't necessary if json input schema validation
+        checks this already.
         """
 
     def test_dataset_returned(self):
@@ -481,7 +484,8 @@ class UpdateDatasetTestsMixin(APITestsMixin):
         manifestation in the persistence_state service.
         """
 
-
+# XXX This might be moved to _control and re-used as part of
+# manifestations_from_deployment?
 def get_dataset_ids(deployment):
     """
     Get an iterator of all of the ``dataset_id`` values on all nodes in the
