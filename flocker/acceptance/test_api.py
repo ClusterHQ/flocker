@@ -100,7 +100,8 @@ class DatasetAPITests(TestCase):
 
             def got_body(body):
                 body = loads(body)
-                # Current state listing doesn't include metadata.
+                # Current state listing includes bogus metadata
+                # https://clusterhq.atlassian.net/browse/FLOC-1386
                 expected_dataset = dataset.copy()
                 expected_dataset[u"metadata"].clear()
                 return expected_dataset in body
