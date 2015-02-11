@@ -173,27 +173,51 @@ boto_dispatcher = TypeDispatcher({
     Attribute('s3_buckets')
 ])
 class FakeAWS(object):
+    """
+    Enough of a fake implementation of AWS to test
+    :fucn:`admin.release.publish_docs`.
+
+    :ivar routing_rules: Dictionary of routing rules for S3 buckets. They are
+        represented as dictonaries mapping key prefixes to replacements. Other
+        types of rules and attributes are supported or represented.
+    :ivar s3_buckets: Dictionary of fake S3 buckets. Each bucket is represented
+        as a dictonary mapping keys to contents. Other attributes are ignored.
+    :ivar cloudfront_invalidations: List of
+        :class:`CreateCloudFrontInvalidation` that have been requested.
+    """
     def __init__(self):
         self.cloudfront_invalidations = []
 
     @sync_performer
     def _perform_update_s3_routing_rule(self, dispatcher, intent):
+        """
+        See :class:`UpdateS3RoutingRule`.
+        """
         old_target = self.routing_rules[intent.bucket][intent.prefix]
         self.routing_rules[intent.bucket][intent.prefix] = intent.target_prefix
         return old_target
 
     @sync_performer
     def _perform_create_cloudfront_invalidation(self, dispatcher, intent):
+        """
+        See :class:`CreateCloudFrontInvalidation`.
+        """
         self.cloudfront_invalidations.append(intent)
 
     @sync_performer
     def _perform_delete_s3_keys(self, dispatcher, intent):
+        """
+        See :class:`DeleteS3Keys`.
+        """
         bucket = self.s3_buckets[intent.bucket]
         for key in intent.keys:
             del bucket[intent.prefix + key]
 
     @sync_performer
     def _perform_copy_s3_keys(self, dispatcher, intent):
+        """
+        See :class:`CopyS3Keys`.
+        """
         source_bucket = self.s3_buckets[intent.source_bucket]
         destination_bucket = self.s3_buckets[intent.destination_bucket]
         for key in intent.keys:
@@ -202,12 +226,19 @@ class FakeAWS(object):
 
     @sync_performer
     def _perform_list_s3_keys(self, dispatcher, intent):
+        """
+        see :class:`ListS3Keys`.
+        """
         bucket = self.s3_buckets[intent.bucket]
         return {key[len(intent.prefix):]
                 for key in bucket
                 if key.startswith(intent.prefix)}
 
     def get_dispatcher(self):
+        """
+        Get an :module:`effect` dispatcher for interacting with this
+        :class:`FaleAWS`.
+        """
         return TypeDispatcher({
             UpdateS3RoutingRule: self._perform_update_s3_routing_rule,
             ListS3Keys: self._perform_list_s3_keys,
