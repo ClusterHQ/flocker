@@ -399,7 +399,6 @@ Release
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
 #. Update the documentation.
-   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
    .. prompt:: bash $
 
