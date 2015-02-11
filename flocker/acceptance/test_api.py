@@ -59,20 +59,21 @@ class DatasetAPITests(TestCase):
         :param nodes: Sequence of available hostnames, of size 1.
         """
         node_1, = nodes
+
+        def close(process):
+            process.stdin.close()
+            kill(process.pid, SIGINT)
         # Start servers; eventually we will have these already running on
         # nodes, but for now needs to be done manually.
         # https://clusterhq.atlassian.net/browse/FLOC-1383
         p1 = _run_SSH(22, 'root', node_1, [b"flocker-control"],
                       b"", None, True)
+        self.addCleanup(close, p1)
+
         # https://clusterhq.atlassian.net/browse/FLOC-1382
         p2 = _run_SSH(22, 'root', node_1,
                       [b"flocker-zfs-agent", node_1, b"localhost"],
                       b"", None, True)
-
-        def close(process):
-            process.stdin.close()
-            kill(process.pid, SIGINT)
-        self.addCleanup(close, p1)
         self.addCleanup(close, p2)
 
         d = wait_for_api(node_1)
