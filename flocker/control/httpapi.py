@@ -262,58 +262,42 @@ class DatasetAPIUserV1(object):
         deployment = self.persistence_service.get()
 
         # Find all manifestations of dataset
-        manifestations = list(manifestations_from_deployment(deployment, dataset_id))
+        manifestations = list(other_manifestations_from_deployment(deployment, dataset_id))
 
         if not manifestations:
             raise DATASET_NOT_FOUND
 
         # Lookup the node that has a primary Manifestation (if any)
-
-        # expected_manifestation = Manifestation(dataset=dataset, primary=True)
-        # primary_nodes = list(
-        #     node for node in deployment.nodes if node.hostname == primary
-        # )
-        # if len(primary_nodes) == 0:
-        #     # No primary node
-        #     # raise something here?
-        #     # Spec says not
-        #     # "ie, don't accept non-IP addresses but do accept IP addresses that aren't part of the cluster"
-              # Ah there's already a comment about that....
-
-              # XXX Check cluster state to determine if the given primary node
-              # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
-              # See FLOC-1278
-        #     primary_node = None
+        for primary_node, primary_manifestation in manifestations:
+            if primary_manifestation.primary:
+                break
         # else:
-
-        #     # New primary was found.
-        #     # There should only be one.
-
-        #     (primary_node,) = primary_nodes
-
-        # if expected_manifestation in primary_node.manifestations():
-
-        #     # No change needed. return early?
-        #     pass
+        #     raise Exception('Primary not found')
 
         # Now construct a new_deployment where the primary manifestation of the dataset is on the requested primary node
         # But what if the dataset is associated with an Application? Should the Application be moved to the new node too?
         # And do we need to mark the manifestation as a replica on the existing primary node?
         # Or will that be up to the convergence agent and state API
+        origin_node = Node(
+            hostname=primary_node.hostname,
+            applications=primary_node.applications,
+            other_manifestations=(
+                primary_node.other_manifestations - frozenset({primary_manifestation})
+            )
+        )
 
-        # new_node_config = Node(
-        #     hostname=primary_node.hostname,
-        #     applications=primary_node.applications,
-        #     other_manifestations=(
-        #         primary_node.other_manifestations | frozenset({manifestation})
-        #     )
-        # )
-        # other_nodes = frozenset(
-        #     node for node in deployment.nodes if node is not primary_node
-        # )
-        # new_deployment = Deployment(
-        #     nodes=other_nodes | frozenset({new_node_config})
-        # )
+        target_node = [node for node in deployment.nodes if node.hostname == primary][0]
+        new_target_node = Node(
+            hostname=target_node.hostname,
+            applications=target_node.applications,
+            other_manifestations=(
+                target_node.other_manifestations | frozenset({primary_manifestation})
+            )
+        )
+
+        new_deployment = Deployment(
+            nodes=other_nodes | frozenset({new_node_config})
+        )
         # saving = self.persistence_service.save(new_deployment)
 
         # Construct the return dictionary from the supplied dataset_id, primary
@@ -353,15 +337,15 @@ class DatasetAPIUserV1(object):
         deployment = self.cluster_state_service.as_deployment()
         return list(datasets_from_deployment(deployment))
 
-def manifestations_from_deployment(deployment, dataset_id):
+def other_manifestations_from_deployment(deployment, dataset_id):
     """
-    Extract all manifestations of the supplied dataset_id from the supplied
+    Extract all other manifestations of the supplied dataset_id from the supplied
     deployment.
     """
     for node in deployment.nodes:
-        for manifestation in node.manifestations():
+        for manifestation in node.other_manifestations:
             if manifestation.dataset.dataset_id == dataset_id:
-                yield manifestation
+                yield node, manifestation
 # This looks very similar to the function below. Refactor?
 
 def datasets_from_deployment(deployment):
