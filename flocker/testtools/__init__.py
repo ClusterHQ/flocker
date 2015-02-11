@@ -14,21 +14,28 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import random
 import shutil
-from subprocess import check_call
+from subprocess import check_call, check_output
 from functools import wraps
 from unittest import skipIf
+from unittest import skipUnless
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
 
-from twisted.internet.interfaces import IProcessTransport, IReactorProcess
+from twisted.internet.interfaces import (
+    IProcessTransport, IReactorProcess, IReactorCore,
+    )
 from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.task import Clock, deferLater
-from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.internet.protocol import Factory, Protocol
+from twisted.test.proto_helpers import MemoryReactor
+from twisted.python.procutils import which
+from twisted.trial.unittest import TestCase
+from twisted.protocols.amp import AMP, InvalidSignature
 
 from characteristic import attributes
 
@@ -342,7 +349,7 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required.
-        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['--verbose'])
@@ -356,7 +363,7 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required.
-        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v'])
@@ -369,7 +376,7 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required.
-        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v', '--verbose'])
@@ -573,7 +580,7 @@ class DockerImageBuilder(object):
         # XXX: This dumps lots of debug output to stderr which messes up the
         # test results output. It's useful debug info incase of a test failure
         # so it would be better to send it to the test.log file. See
-        # https://github.com/ClusterHQ/flocker/issues/171
+        # https://clusterhq.atlassian.net/browse/FLOC-171
         command = [
             b'docker', b'build',
             # Always clean up intermediate containers in case of failures.
@@ -582,7 +589,7 @@ class DockerImageBuilder(object):
             docker_dir.path
         ]
         check_call(command)
-        # XXX until https://github.com/ClusterHQ/flocker/issues/409 is
+        # XXX until https://clusterhq.atlassian.net/browse/FLOC-409 is
         # fixed we will often have a container lying around which is still
         # using the new image, so removing the image will fail.
         # self.test.addCleanup(check_call, [b"docker", b"rmi", tag])
@@ -669,3 +676,110 @@ def assertContainsAll(haystack, needles, test_case):
 
 # Skip decorator for tests:
 if_root = skipIf(os.getuid() != 0, "Must run as root.")
+
+
+# TODO: This should be provided by Twisted (also it should be more complete
+# instead of 1/3rd done).
+from twisted.internet.base import _ThreePhaseEvent
+
+
+@implementer(IReactorCore)
+class MemoryCoreReactor(MemoryReactor):
+    """
+    Fake reactor with listenTCP and just enough of an implementation of
+    IReactorCore.
+    """
+    def __init__(self):
+        MemoryReactor.__init__(self)
+        self._triggers = {}
+
+    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
+        event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
+        event.addTrigger(phase, callable, *args, **kw)
+        # removeSystemEventTrigger isn't implemented so the return value here
+        # isn't useful.
+        return object()
+
+    def fireSystemEvent(self, eventType):
+        event = self._triggers.get(eventType)
+        if event is not None:
+            event.fireEvent()
+
+
+def make_script_tests(executable):
+    """
+    Generate a test suite which applies to any Flocker-installed node script.
+
+    :param bytes executable: The basename of the script to be tested.
+
+    :return: A ``TestCase`` subclass which defines some tests applied to the
+        given executable.
+    """
+    class ScriptTests(TestCase):
+        @skipUnless(which(executable), executable + " not installed")
+        def test_version(self):
+            """
+            The script is a command available on the system path.
+            """
+            result = check_output([executable] + [b"--version"])
+            self.assertEqual(result, b"%s\n" % (__version__,))
+    return ScriptTests
+
+
+class FakeAMPClient(object):
+    """
+    Emulate an AMP client's ability to send commands.
+
+    A minimal amount of validation is done on registered responses and sent
+    requests, but this should not be relied upon.
+
+    :ivar list calls: ``(command, kwargs)`` tuples of commands that have
+        been sent using ``callRemote``.
+    """
+
+    def __init__(self):
+        self._responses = {}
+        self.calls = []
+
+    def _makeKey(self, command, kwargs):
+        """
+        Create a key for the responses dictionary.
+
+        @param commandType: a subclass of C{amp.Command}.
+
+        @param kwargs: a dictionary.
+
+        @return: A value that can be used as a dictionary key.
+        """
+        return (command, tuple(sorted(kwargs.items())))
+
+    def register_response(self, command, kwargs, response):
+        """
+        Register a response to a L{callRemote} command.
+
+        @param commandType: a subclass of C{amp.Command}.
+
+        @param kwargs: Keyword arguments taken by the command, a C{dict}.
+
+        @param response: The response to the command.
+        """
+        try:
+            command.makeResponse(response, AMP())
+        except KeyError:
+            raise InvalidSignature("Bad registered response")
+        self._responses[self._makeKey(command, kwargs)] = response
+
+    def callRemote(self, command, **kwargs):
+        """
+        Return a previously registered response.
+
+        @param commandType: a subclass of C{amp.Command}.
+
+        @param kwargs: Keyword arguments taken by the command, a C{dict}.
+
+        @return: A C{Deferred} that fires with the registered response for
+            this particular combination of command and arguments.
+        """
+        self.calls.append((command, kwargs))
+        command.makeArguments(kwargs, AMP())
+        return succeed(self._responses[self._makeKey(command, kwargs)])

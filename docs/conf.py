@@ -13,7 +13,11 @@
 
 from twisted.python.filepath import FilePath
 
-import sys, os
+import sys
+import os
+import re
+
+sys.path.insert(0, FilePath(__file__).parent().parent().path)
 
 # Check if we are building on readthedocs
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
@@ -25,7 +29,17 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.intersphinx', 'sphinx.ext.ifconfig']
+extensions = [
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.ifconfig',
+    'flocker.provision._sphinx',
+    'flocker.docs.version_extensions',
+    'sphinx-prompt',
+    'sphinxcontrib.httpdomain',
+    'flocker.restapi.docs.publicapi',
+    'flocker.restapi.docs.hidden_code_block',
+    'flocker.docs.bootstrap',
+]
 
 if not on_rtd:
     # readthedocs doesn't install dependencies
@@ -51,12 +65,15 @@ copyright = u'2014, ClusterHQ'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
+from flocker import __version__
+from flocker.docs import get_doc_version, is_release
 # The short X.Y version.
-sys.path.insert(0, FilePath(__file__).parent().parent().path)
-from flocker import __version__ as version
-if version.endswith("-dirty"):
-    version = version[:-6]
-del sys.path[0]
+version = get_doc_version(__version__)
+
+html_context = {
+    # This is used to show the development version warning.
+    'is_release': is_release(__version__),
+}
 
 # The full version, including alpha/beta/rc tags.
 release = version
@@ -66,6 +83,7 @@ release = version
 # We override with our own variant to improve search results slightly.
 from sphinx.search.en import SearchEnglish
 from sphinx.search import languages as sphinx_languages
+
 
 class FlockerLanguage(SearchEnglish):
     """
@@ -94,7 +112,7 @@ if not on_rtd:
     sys.path.insert(0, FilePath(__file__).parent().path)
     from filters import IgnoreWordsFilterFactory
     # Don't spell check the version:
-    spelling_filters = [IgnoreWordsFilterFactory({version})]
+    spelling_filters = [IgnoreWordsFilterFactory(words={version})]
     del sys.path[0]
 
 # There are two options for replacing |today|: either, you set today to some
@@ -130,9 +148,11 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
+# The HTMLTranslator class
+html_translator_class = 'flocker.docs.bootstrap.HTMLWriter'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'bootstrap'
+html_theme = 'clusterhq'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -290,5 +310,9 @@ intersphinx_mapping = {'http://docs.python.org/': None}
 # http://sphinx-doc.org/config.html#confval-linkcheck_anchors
 linkcheck_anchors = False
 
-# Don't check links to tutorial IPs
-linkcheck_ignore = [r'http://172\.16\.255\.']
+linkcheck_ignore = [
+    # Don't check links to tutorial IPs
+    r'http://172\.16\.255\.',
+    # This is an example GitHub URL
+    r'https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234\?expand=1'
+]

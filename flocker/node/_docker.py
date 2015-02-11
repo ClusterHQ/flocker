@@ -13,6 +13,7 @@ from zope.interface import Interface, implementer
 
 from docker import Client
 from docker.errors import APIError
+from docker.utils import create_host_config
 
 from characteristic import attributes, Attribute
 
@@ -22,7 +23,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
-from flocker.node._model import RestartNever, RestartAlways, RestartOnFailure
+from ..control._model import RestartNever, RestartAlways, RestartOnFailure
 
 
 class AlreadyExists(Exception):
@@ -74,7 +75,7 @@ class Unit(object):
     Information about a unit managed by Docker.
 
     XXX "Unit" is geard terminology, and should be renamed. See
-    https://github.com/ClusterHQ/flocker/issues/819
+    https://clusterhq.atlassian.net/browse/FLOC-819
 
     :ivar unicode name: The name of the unit, which may not be the same as
         the container name.
@@ -85,7 +86,7 @@ class Unit(object):
     :ivar unicode activation_state: The state of the
         container. ``u"active"`` indicates it is running, ``u"inactive"``
         indicates it is not running. See
-        https://github.com/ClusterHQ/flocker/issues/187 about using
+        https://clusterhq.atlassian.net/browse/FLOC-187 about using
         constants instead of strings and other improvements.
 
     :ivar unicode container_image: The docker image name associated with this
@@ -276,7 +277,7 @@ class DockerClient(object):
     Talk to the real Docker server directly.
 
     Some operations can take a while (e.g. stopping a container), so we
-    use a thread pool. See https://github.com/ClusterHQ/flocker/issues/718
+    use a thread pool. See https://clusterhq.atlassian.net/browse/FLOC-718
     for using a custom thread pool.
 
     :ivar unicode namespace: A namespace prefix to add to container names
@@ -399,32 +400,32 @@ class DockerClient(object):
         restart_policy_dict = self._serialize_restart_policy(restart_policy)
 
         def _create():
-            config = self._client._container_config(
-                image_name,
+            binds = {
+                volume.node_path.path: {
+                    'bind': volume.container_path.path,
+                    'ro': False,
+                }
+                for volume in volumes
+            }
+            port_bindings = {
+                p.internal_port: p.external_port
+                for p in ports
+            }
+            host_config = create_host_config(
+                binds=binds,
+                port_bindings=port_bindings,
+                restart_policy=restart_policy_dict,
+            )
+            self._client.create_container(
+                name=container_name,
+                image=image_name,
                 command=None,
                 environment=environment,
                 ports=[p.internal_port for p in ports],
                 mem_limit=mem_limit,
                 cpu_shares=cpu_shares,
+                host_config=host_config,
             )
-            binds = [
-                u'{}:{}'.format(volume.node_path.path,
-                                volume.container_path.path)
-                for volume in volumes
-            ]
-            port_bindings = {}
-            for p in ports:
-                key = u'%s/tcp' % (p.internal_port,)
-                port_bindings[key] = [
-                    {u"HostPort": unicode(p.external_port)},
-                ]
-            config[u'HostConfig'] = {
-                u'Binds': binds,
-                u'PortBindings': port_bindings,
-                u'RestartPolicy': restart_policy_dict,
-            }
-            self._client.create_container_from_config(
-                config=config, name=container_name)
 
         def _add():
             try:
@@ -444,14 +445,7 @@ class DockerClient(object):
             while not self._blocking_exists(container_name):
                 sleep(0.001)
                 continue
-            self._client.start(container_name,
-                               binds={volume.node_path.path:
-                                      {u"bind": volume.container_path.path,
-                                       u"ro": False}
-                                      for volume in volumes},
-                               port_bindings={p.internal_port: p.external_port
-                                              for p in ports},
-                               restart_policy=restart_policy_dict)
+            self._client.start(container_name)
         d = deferToThread(_add)
 
         def _extract_error(failure):

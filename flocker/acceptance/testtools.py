@@ -15,8 +15,12 @@ from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from flocker.node._config import FlockerConfiguration
-from flocker.node._model import Application, AttachedVolume, DockerImage
+from pyrsistent import pmap
+
+from ..control import (
+    Application, AttachedVolume, DockerImage, Manifestation, Dataset,
+    FlockerConfiguration
+)
 from flocker.testtools import loop_until
 
 try:
@@ -76,13 +80,31 @@ def create_application(name, image, ports=frozenset(), volume=None,
     )
 
 
-def create_attached_volume(name, mountpoint, maximum_size=None):
+def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
+                           metadata=pmap()):
     """
     Create an ``AttachedVolume`` instance with the supplied parameters and
     return it.
+
+    :param unicode dataset_id: The unique identifier of the dataset of the
+        attached volume.
+    :param bytes mountpoint: The path at which the volume is attached.
+    :param int maximum_size: An optional maximum size for the volume.
+
+    :return: A new ``AttachedVolume`` instance referencing a primary
+        manifestation of a dataset with the given unique identifier.
     """
     return AttachedVolume(
-        name=name, mountpoint=FilePath(mountpoint), maximum_size=maximum_size)
+        manifestation=Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id,
+                maximum_size=maximum_size,
+                metadata=metadata,
+            ),
+            primary=True,
+        ),
+        mountpoint=FilePath(mountpoint),
+    )
 
 
 def get_node_state(node):
@@ -90,12 +112,13 @@ def get_node_state(node):
     Call flocker-reportstate on the specified node and return its output,
     as ``Application`` instances parsed via class ``FlockerConfiguration``.
     """
-    yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+    yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
     state = safe_load(yaml)
     return FlockerConfiguration(state).applications()
 
 
-def _run_SSH(port, user, node, command, input, key=None):
+def run_SSH(port, user, node, command, input, key=None,
+            background=False):
     """
     Run a command via SSH.
 
@@ -106,23 +129,40 @@ def _run_SSH(port, user, node, command, input, key=None):
     :type command: ``list`` of ``bytes``.
     :param bytes input: Input to send to command.
     :param FilePath key: If not None, the path to a private key to use.
+    :param background: If ``True``, don't block waiting for SSH process to
+         end or read its stdout. I.e. it will run "in the background".
+         Also ensures remote process has pseudo-tty so killing the local SSH
+         process will kill the remote one.
 
-    :return: stdout as ``bytes``.
+    :return: stdout as ``bytes`` if ``background`` is false, otherwise
+        return the ``subprocess.Process`` object.
     """
     quotedCommand = ' '.join(map(shell_quote, command))
     command = [
         b'ssh',
         b'-p', b'%d' % (port,),
         ]
+
     if key is not None:
         command.extend([
             b"-i",
             key.path])
+
+    if background:
+        # Force pseudo-tty so that remote process exists when the ssh
+        # client does:
+        command.extend([b"-t", b"-t"])
+
     command.extend([
         b'@'.join([user, node]),
         quotedCommand
     ])
-    process = Popen(command, stdout=PIPE, stdin=PIPE)
+    if background:
+        process = Popen(command, stdin=PIPE)
+        process.stdin.write(input)
+        return process
+    else:
+        process = Popen(command, stdout=PIPE, stdin=PIPE)
 
     result = process.communicate(input)
     if process.returncode != 0:
@@ -151,12 +191,12 @@ def _clean_node(test_case, node):
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
     # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
-    containers = _run_SSH(22, 'root', node, ['docker', 'ps', '-aq'], None)
+    containers = run_SSH(22, 'root', node, ['docker', 'ps', '-aq'], None)
     containers = containers.split(b"\n")[:-1]
     for c in containers:
-        _run_SSH(22, 'root', node, ['docker', 'rm', '-f', c], None)
-    _run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
-             [b"flocker"], None)
+        run_SSH(22, 'root', node, ['docker', 'rm', '-f', c], None)
+    run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
+            [b"flocker"], None)
 
 
 def get_nodes(test_case, num_nodes):
@@ -196,7 +236,6 @@ def get_nodes(test_case, num_nodes):
 
     for node in nodes:
         sock = socket()
-        sock.settimeout(0.1)
         try:
             can_connect = not sock.connect_ex((node, 22))
         except gaierror:
@@ -208,7 +247,7 @@ def get_nodes(test_case, num_nodes):
 
     if len(reachable_nodes) < num_nodes:
         unreachable_nodes = set(nodes) - reachable_nodes
-        raise SkipTest(
+        test_case.fail(
             "At least {min} node(s) must be running and reachable on port 22. "
             "The following node(s) are reachable: {reachable}. "
             "The following node(s) are not reachable: {unreachable}.".format(
@@ -292,7 +331,7 @@ def assert_expected_deployment(test_case, expected_deployment):
         addresses.
     """
     for node, expected in expected_deployment.items():
-        yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+        yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
         state = safe_load(yaml)
         test_case.assertSetEqual(
             set(FlockerConfiguration(state).applications().values()),

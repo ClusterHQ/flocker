@@ -139,7 +139,7 @@ class DirectoryFilesystem(object):
             tarball.extractall(self.path.path)
         except:
             # This should really be dealt with, e.g. logged:
-            # https://github.com/ClusterHQ/flocker/issues/122
+            # https://clusterhq.atlassian.net/browse/FLOC-122
             pass
 
 
@@ -171,11 +171,12 @@ class FilesystemStoragePool(Service):
     def set_maximum_size(self, volume):
         filesystem = self.get(volume)
         root = filesystem.get_path()
+        size_path = root.child(b".size")
         if volume.size.maximum_size is not None:
-            root.child(b".size").setContent(
+            size_path.setContent(
                 u"{0}".format(volume.size.maximum_size).encode("ascii"))
-        else:
-            root.child(b".size").remove()
+        elif size_path.exists():
+            size_path.remove()
         return succeed(filesystem)
 
     def clone_to(self, parent, volume):
@@ -207,7 +208,7 @@ class FilesystemStoragePool(Service):
     def get(self, volume):
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
-                volume.uuid.encode("ascii"), volume.name.to_bytes())),
+                volume.node_id.encode("ascii"), volume.name.to_bytes())),
             size=volume.size)
 
     def enumerate(self):

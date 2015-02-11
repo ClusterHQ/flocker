@@ -56,17 +56,17 @@ class IStoragePoolTests(make_istoragepool_tests(build_pool)):
     """
 
 
-MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvolume")
-MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
+MY_VOLUME = VolumeName(namespace=u"myns", dataset_id=u"myvolume")
+MY_VOLUME2 = VolumeName(namespace=u"myns", dataset_id=u"myvolume2")
 
 
 class VolumeToDatasetTests(TestCase):
     """Tests for ``volume_to_dataset``."""
     def test_volume_to_dataset(self):
-        """``volume_to_dataset`` includes the UUID, dataset
+        """``volume_to_dataset`` includes the node ID, dataset
         name and (for future functionality) a default branch name.
         """
-        volume = Volume(uuid=u"my-uuid", name=MY_VOLUME, service=None)
+        volume = Volume(node_id=u"my-uuid", name=MY_VOLUME, service=None)
         self.assertEqual(volume_to_dataset(volume),
                          b"my-uuid.myns.myvolume")
 
@@ -201,7 +201,7 @@ class StoragePoolTests(TestCase):
                            FilePath(self.mktemp()))
         service = service_for_pool(self, pool)
         volume = service.get(MY_VOLUME)
-        new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+        new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                             service=service)
         original_mount = volume.get_filesystem().get_path()
         d = pool.create(volume)
@@ -260,7 +260,7 @@ class StoragePoolTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        volume = Volume(uuid=u"remoteone", name=MY_VOLUME, service=service)
+        volume = Volume(node_id=u"remoteone", name=MY_VOLUME, service=service)
 
         d = pool.create(volume)
 
@@ -295,7 +295,7 @@ class StoragePoolTests(TestCase):
         pool = build_pool(self)
         service = service_for_pool(self, pool)
         parent = service.get(MY_VOLUME2)
-        volume = Volume(uuid=u"remoteone", name=MY_VOLUME, service=service)
+        volume = Volume(node_id=u"remoteone", name=MY_VOLUME, service=service)
 
         d = pool.create(parent)
         d.addCallback(lambda _: pool.clone_to(parent, volume))
@@ -325,7 +325,7 @@ class StoragePoolTests(TestCase):
         pool = build_pool(self)
         service = service_for_pool(self, pool)
         local_volume = service.get(MY_VOLUME)
-        remote_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+        remote_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                service=service)
 
         d = pool.create(remote_volume)
@@ -348,7 +348,7 @@ class StoragePoolTests(TestCase):
         pool = build_pool(self)
         service = service_for_pool(self, pool)
         local_volume = service.get(MY_VOLUME)
-        remote_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+        remote_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                service=service)
 
         d = pool.create(local_volume)

@@ -68,9 +68,6 @@ docs/_build/
 vagrant/tutorial/*.box
 vagrant/dev/*.box
 
-# RPM stuff
-python-flocker.spec
-
 # Mac stuff
 .DS_Store
 .DS_Store?

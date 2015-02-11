@@ -12,7 +12,7 @@ from .._docker import (
     IDockerClient, FakeDockerClient, AlreadyExists, PortMap, Unit,
     Environment, Volume)
 
-from .._model import RestartAlways, RestartNever, RestartOnFailure
+from ...control._model import RestartAlways, RestartNever, RestartOnFailure
 
 
 def make_idockerclient_tests(fixture):

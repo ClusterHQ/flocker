@@ -6,27 +6,29 @@ Tests for :module:`flocker.node.script`.
 
 from StringIO import StringIO
 
-from zope.interface import implementer
+from pyrsistent import pmap
 
-from twisted.internet.interfaces import IReactorCore
-from twisted.internet.defer import Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 
 from yaml import safe_dump, safe_load
-from ...testtools import StandardOptionsTestsMixin
+from ...testtools import StandardOptionsTestsMixin, MemoryCoreReactor
 from ...volume.testtools import make_volume_options_tests
 from ...route import make_memory_network
 
 from ..script import (
-    ServeOptions, ServeScript,
+    ZFSAgentOptions, ZFSAgentScript,
     ChangeStateOptions, ChangeStateScript,
     ReportStateOptions, ReportStateScript)
+from .. import script as script_module
 from .._docker import FakeDockerClient, Unit
-from .._deploy import Deployer
-from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
+from ...control._model import (
+    Application, Deployment, DockerImage, Node, AttachedVolume, Dataset,
+    Manifestation)
+from .._loop import AgentLoopService
+from .._deploy import P2PNodeDeployer
 
 from ...volume.testtools import create_volume_service
 
@@ -49,24 +51,25 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
     """
     def test_main_calls_deployer_change_node_state(self):
         """
-        ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with
+        ``ChangeStateScript.main`` calls ``change_node_state`` with
         the ``Deployment`` and `hostname` supplied on the command line.
         """
         script = ChangeStateScript()
 
         change_node_state_calls = []
 
-        def spy_change_node_state(self, desired_state, current_cluster_state,
-                                  hostname):
+        def spy_change_node_state(
+                deployer, desired_state, current_cluster_state):
             """
             A stand in for ``Deployer.change_node_state`` which records calls
             made to it.
             """
             change_node_state_calls.append((desired_state,
-                                            current_cluster_state, hostname))
+                                            current_cluster_state,
+                                            deployer.hostname))
 
         self.patch(
-            Deployer, 'change_node_state', spy_change_node_state)
+            script_module, 'change_node_state', spy_change_node_state)
 
         expected_deployment = object()
         expected_current = object()
@@ -179,7 +182,11 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                     ports=frozenset(),
                     links=frozenset(),
                     volume=AttachedVolume(
-                        name='mysql-something',
+                        manifestation=Manifestation(
+                            dataset=Dataset(
+                                dataset_id=None,
+                                metadata=pmap({'name': 'mysql-something'})),
+                            primary=True),
                         mountpoint=FilePath(b'/var/lib/data'),
                     )
                 ),
@@ -237,7 +244,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [deployment_bad_yaml, b'', b'{}', b'node1.example.com'])
 
-        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # See https://clusterhq.atlassian.net/browse/FLOC-282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Deployment config could not be parsed as YAML')
@@ -254,7 +261,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [b'', application_bad_yaml, b'{}', b'node1.example.com'])
 
-        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # See https://clusterhq.atlassian.net/browse/FLOC-282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Application config could not be parsed as YAML')
@@ -271,7 +278,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [b'', b'', bad_yaml, b'node1.example.com'])
 
-        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # See https://clusterhq.atlassian.net/browse/FLOC-282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Current config could not be parsed as YAML')
@@ -399,128 +406,93 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         self.assertEqual(safe_load(content.getvalue()), expected)
 
 
-# TODO: This should be provided by Twisted (also it should be more complete
-# instead of 1/3rd done).
-from twisted.internet.base import _ThreePhaseEvent
-
-
-@implementer(IReactorCore)
-class MemoryCoreReactor(object):
+class ZFSAgentScriptTests(SynchronousTestCase):
     """
-    Just enough of an implementation of IReactorCore to pass to
-    ``_main_for_service`` in the unit tests.
+    Tests for ``ZFSAgentScript``.
     """
-    def __init__(self):
-        self._triggers = {}
+    def test_main_starts_service(self):
+        """
+        ``ZFSAgentScript.main`` starts the given service.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"1.2.3.4", b"example.com"])
+        ZFSAgentScript().main(MemoryCoreReactor(), options, service)
+        self.assertTrue(service.running)
 
-    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
-        event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
-        event.addTrigger(phase, callable, *args, **kw)
-        # removeSystemEventTrigger isn't implemented so the return value here
-        # isn't useful.
-        return object()
+    def test_no_immediate_stop(self):
+        """
+        The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
+        """
+        script = ZFSAgentScript()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"1.2.3.4", b"example.com"])
+        self.assertNoResult(script.main(MemoryCoreReactor(), options,
+                                        Service()))
 
-    def fireSystemEvent(self, eventType):
-        event = self._triggers.get(eventType)
-        if event is not None:
-            event.fireEvent()
+    def test_starts_convergence_loop(self):
+        """
+        ``ZFSAgentScript.main`` starts a convergence loop service.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--destination-port", b"1234", b"1.2.3.4",
+                              b"example.com"])
+        test_reactor = MemoryCoreReactor()
+        ZFSAgentScript().main(test_reactor, options, service)
+        parent_service = service.parent
+        # P2PNodeDeployer is difficult to compare automatically, so do so
+        # manually:
+        deployer = parent_service.deployer
+        parent_service.deployer = None
+        self.assertEqual((parent_service, deployer.__class__,
+                          deployer.hostname, deployer.volume_service,
+                          parent_service.running),
+                         (AgentLoopService(reactor=test_reactor,
+                                           deployer=None,
+                                           host=u"example.com",
+                                           port=1234),
+                          P2PNodeDeployer, b"1.2.3.4", service, True))
 
 
-class AsyncStopService(Service):
+class ZFSAgentOptionsTests(make_volume_options_tests(
+        ZFSAgentOptions, [b"1.2.3.4", b"example.com"])):
     """
-    An ``IService`` implementation which can return an unfired ``Deferred``
-    from its ``stopService`` method.
-
-    :ivar Deferred stop_result: The object to return from ``stopService``.
-        ``AsyncStopService`` won't do anything more than return it.  If it is
-        ever going to fire, some external code is responsible for firing it.
+    Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """
-    def __init__(self, stop_result):
-        self.stop_result = stop_result
-
-    def stopService(self):
-        Service.stopService(self)
-        return self.stop_result
-
-
-class ServeScriptMainTests(SynchronousTestCase):
-    """
-    Tests for ``ServeScript.main``.
-    """
-    def setUp(self):
-        self.reactor = MemoryCoreReactor()
-        self.service = Service()
-        self.script = ServeScript()
-
-    def main(self, reactor, service):
-        return self.script.main(reactor, {}, service)
-
-    def _shutdown_reactor(self, reactor):
+    def test_default_port(self):
         """
-        Simulate reactor shutdown.
+        The default AMP destination port configured by ``ZFSAgentOptions`` is
+        4524.
+        """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"1.2.3.4", b"example.com"])
+        self.assertEqual(options["destination-port"], 4524)
 
-        :param IReactorCore reactor: The reactor to shut down.
+    def test_custom_port(self):
         """
-        reactor.fireSystemEvent("shutdown")
+        The ``--destination-port`` command-line option allows configuring the
+        destination port.
+        """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--destination-port", b"1234",
+                              b"1.2.3.4", b"example.com"])
+        self.assertEqual(options["destination-port"], 1234)
 
-    def test_starts_service(self):
+    def test_host(self):
         """
-        ``ServeScript.main`` accepts an ``IService`` provider and starts it.
+        The second required command-line argument allows configuring the
+        destination host.
         """
-        self.main(self.reactor, self.service)
-        self.assertTrue(
-            self.service.running, "The service should have been started.")
+        options = ZFSAgentOptions()
+        options.parseOptions([b"1.2.3.4", b"control.example.com"])
+        self.assertEqual(options["destination-host"], u"control.example.com")
 
-    def test_returns_unfired_deferred(self):
+    def test_hostname(self):
         """
-        ``ServeScript.main`` returns a ``Deferred`` which has not fired.
+        The first required command-line argument allows configuring the
+        hostname of the node the agent is operating on.
         """
-        result = self.main(self.reactor, self.service)
-        self.assertNoResult(result)
-
-    def test_fire_on_stop(self):
-        """
-        The ``Deferred`` returned by ``ServeScript.main`` fires with ``None``
-        when the reactor is stopped.
-        """
-        result = self.main(self.reactor, self.service)
-        self._shutdown_reactor(self.reactor)
-        self.assertIs(None, self.successResultOf(result))
-
-    def test_stops_service(self):
-        """
-        When the reactor is stopped, ``ServeScript.main`` stops the service it
-        was called with.
-        """
-        self.main(self.reactor, self.service)
-        self._shutdown_reactor(self.reactor)
-        self.assertFalse(
-            self.service.running, "The service should have been stopped.")
-
-    def test_wait_for_service_stop(self):
-        """
-        The ``Deferred`` returned by ``ServeScript.main`` does not fire before
-        the ``Deferred`` returned by the service's ``stopService`` method
-        fires.
-        """
-        result = self.main(self.reactor, AsyncStopService(Deferred()))
-        self._shutdown_reactor(self.reactor)
-        self.assertNoResult(result)
-
-    def test_fire_after_service_stop(self):
-        """
-        The ``Deferred`` returned by ``ServeScript.main`` fires once the
-        ``Deferred`` returned by the service's ``stopService`` method fires.
-        """
-        async = Deferred()
-        result = self.main(self.reactor, AsyncStopService(async))
-        self._shutdown_reactor(self.reactor)
-        async.callback(None)
-        self.assertIs(None, self.successResultOf(result))
-
-
-class StandardServeOptionsTests(
-        make_volume_options_tests(ServeOptions)):
-    """
-    Tests for the volume configuration arguments of ``ServeOptions``.
-    """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"5.6.7.8", b"control.example.com"])
+        self.assertEqual(options["hostname"], u"5.6.7.8")

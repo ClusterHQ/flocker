@@ -5,9 +5,10 @@ Tests for ``admin.packaging``.
 """
 
 from glob import glob
-from subprocess import check_output, CalledProcessError, check_call
+from subprocess import check_output
 from textwrap import dedent
 from unittest import skipIf
+from StringIO import StringIO
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
@@ -17,8 +18,6 @@ from twisted.trial.unittest import TestCase
 from virtualenv import REQUIRED_MODULES as VIRTUALENV_REQUIRED_MODULES
 
 from flocker.testtools import FakeSysModule
-from flocker.node.testtools import if_docker_configured
-from flocker import __version__
 
 from .. import packaging
 from ..packaging import (
@@ -29,13 +28,12 @@ from ..packaging import (
     Dependency, build_in_docker, DockerBuild, DockerRun,
     PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
     make_dependencies,
+    LintPackage,
 )
-from ..release import rpm_version, make_rpm_version
+from ..release import rpm_version
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
-# XXX: Get fpm installed on the build slaves.
-# See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
 require_fpm = skipIf(not which('fpm'), "Tests require the ``fpm`` command.")
 require_rpm = skipIf(not which('rpm'), "Tests require the ``rpm`` command.")
 require_rpmlint = skipIf(not which('rpmlint'),
@@ -475,15 +473,15 @@ class CreateLinksTests(TestCase):
         )
 
 
-def canned_package(root):
+def canned_package(root, version=b'0.3.2'):
     """
     Create a directory containing an empty Python package which can be
     installed and with a name and version which can later be tested.
 
     :param test_case: The ``TestCase`` whose mktemp method will be called.
+    :param version: The version of the created package.
     :return: A ``PythonPackage`` instance.
     """
-    version = '1.2.3'
     name = 'FooBar'
     root.makedirs()
     setup_py = root.child('setup.py')
@@ -494,8 +492,15 @@ def canned_package(root):
         setup(
             name="{package_name}",
             version="{package_version}",
+            py_modules=["{package_name}"],
         )
         """).format(package_name=name, package_version=version)
+    )
+    package_module = root.child(name + ".py")
+    package_module.setContent(
+        dedent("""
+        __version__ = "{package_version}"
+        """).format(package_version=version)
     )
 
     return PythonPackage(name=name, version=version)
@@ -512,16 +517,18 @@ class GetPackageVersionTests(TestCase):
         step = GetPackageVersion(virtualenv=None, package_name=None)
         self.assertIs(None, step.version)
 
-    def test_version_found(self):
+    def assert_version_found(self, version):
         """
-        ``GetPackageVersion`` assigns the version of a found package to its
-        ``version`` attribute.
+        ``GetPackageVersion`` assigns the exact version of a found package to
+        its ``version`` attribute.
+
+        :param version: The version of the package to test package.
         """
         test_env = FilePath(self.mktemp())
         virtualenv = VirtualEnv(root=test_env)
         InstallVirtualEnv(virtualenv=virtualenv).run()
         package_root = FilePath(self.mktemp())
-        test_package = canned_package(root=package_root)
+        test_package = canned_package(root=package_root, version=version)
         InstallApplication(
             virtualenv=virtualenv, package_uri=package_root.path).run()
 
@@ -530,11 +537,31 @@ class GetPackageVersionTests(TestCase):
         step.run()
         self.assertEqual(test_package.version, step.version)
 
+    def test_version_found(self):
+        """
+        ``GetPackageVersion`` assigns the exact version of a found package to
+        its ``version`` attribute.
+
+        In particular, newer versions of pip/setuptools normalize the version
+        accoding to PEP440. We aren't prepared to handle that yet.
+        """
+        versions = [
+            '0.3.2',
+            '0.3.3dev5',
+            '0.3.2+doc1',
+            '0.3.2-1-gf661a6a',
+            '0.3.2+doc1-1-gf661a6a',
+            '0.3.2pre1',
+            '0.3.2-1-gf661a6a-dirty'
+            '0.3.2+doc1-dirty'
+        ]
+        for version in versions:
+            self.assert_version_found(version=version)
+
     def test_version_not_found(self):
         """
-        ``GetPackageVersion.run`` leaves the ``version`` attribute set to
-        ``None`` if the supplied ``package_name`` is not installed in the
-        supplied ``virtual_env``.
+        ``GetPackageVersion.run`` raises an exception if the supplied
+        ``package_name`` is not installed in the supplied ``virtual_env``.
         """
         test_env = FilePath(self.mktemp())
         virtualenv = VirtualEnv(root=test_env)
@@ -544,8 +571,7 @@ class GetPackageVersionTests(TestCase):
             virtualenv=virtualenv,
             package_name='PackageWhichIsNotInstalled'
         )
-        step.run()
-        self.assertIs(None, step.version)
+        self.assertRaises(Exception, step.run)
 
 
 class BuildPackageTests(TestCase):
@@ -600,6 +626,7 @@ class BuildPackageTests(TestCase):
             maintainer=expected_maintainer,
             architecture=expected_architecture,
             description=expected_description,
+            category="Applications/System",
             dependencies=[
                 Dependency(package='test-dep'),
                 Dependency(package='version-dep', compare='>=', version='42')],
@@ -618,6 +645,7 @@ class BuildPackageTests(TestCase):
             Vendor=expected_vendor,
             Packager=expected_maintainer,
             Architecture=expected_architecture,
+            Group="Applications/System",
         )
         rpm_path = FilePath(rpms[0])
         assert_rpm_requires(self, expected_dependencies, rpm_path)
@@ -671,6 +699,7 @@ class BuildPackageTests(TestCase):
             maintainer=expected_maintainer,
             architecture=expected_architecture,
             description=expected_description,
+            category="admin",
             dependencies=[
                 Dependency(package='test-dep'),
                 Dependency(package='version-dep', compare='>=', version='42')],
@@ -693,36 +722,154 @@ class BuildPackageTests(TestCase):
             Architecture=expected_architecture,
             Maintainer=expected_maintainer,
             Homepage=expected_url,
-            Depends=', '.join(['test-dep', 'version-dep (>= 42)'])
+            Depends=', '.join(['test-dep', 'version-dep (>= 42)']),
+            Section="admin",
         )
         assert_deb_headers(self, expected_headers, FilePath(packages[0]))
         assert_deb_content(self, expected_paths, FilePath(packages[0]))
+
+
+class LintPackageTests(TestCase):
+    """
+    Tests for ``LintPackage``.
+    """
+
+    @require_fpm
+    def setUp(self):
+        pass
+
+    def assert_lint(self, package_type, expected_output):
+        """
+        ``LintPackage.run`` reports only unfiltered errors and raises
+        ``SystemExit``.
+
+        :param PackageTypes package_type: The type of package to test.
+        :param bytes expected_output: The expected output of the linting.
+        """
+        destination_path = FilePath(self.mktemp())
+        destination_path.makedirs()
+        source_path = FilePath(self.mktemp())
+        source_path.makedirs()
+        source_path.child('Foo').touch()
+        source_path.child('Bar').touch()
+        BuildPackage(
+            package_type=package_type,
+            destination_path=destination_path,
+            source_paths={
+                source_path: FilePath('/foo/bar'),
+                source_path.child('Foo'): FilePath('/opt/file'),
+            },
+            name="package-name",
+            prefix=FilePath('/'),
+            epoch=b'3',
+            rpm_version=rpm_version('0.3', '0.dev.1'),
+            license="Example",
+            url="https://package.example/",
+            vendor="Acme Corporation",
+            maintainer='Someone <noreply@example.com>',
+            architecture="all",
+            description="Description\n\nExtended",
+            category="none",
+            dependencies=[]
+        ).run()
+
+        step = LintPackage(
+            package_type=package_type,
+            destination_path=destination_path,
+            epoch=b'3',
+            rpm_version=rpm_version('0.3', '0.dev.1'),
+            package='package-name',
+            architecture='all'
+        )
+        step.output = StringIO()
+        self.assertRaises(SystemExit, step.run)
+        self.assertEqual(step.output.getvalue(), expected_output)
+
+    @require_rpmlint
+    def test_rpm(self):
+        """
+        rpmlint doesn't report filtered errors.
+        """
+        # The following warnings and errors are filtered.
+        # - E: no-changelogname-tag
+        # - W: no-documentation
+        # - E: zero-length
+        self.assert_lint(PackageTypes.RPM, b"""\
+Package errors (package-name):
+package-name.noarch: W: non-standard-group default
+package-name.noarch: W: invalid-license Example
+package-name.noarch: W: invalid-url URL: https://package.example/ \
+<urlopen error [Errno -2] Name or service not known>
+package-name.noarch: W: cross-directory-hard-link /foo/bar/Foo /opt/file
+""")
+
+    @require_lintian
+    def test_deb(self):
+        """
+        lintian doesn't report filtered errors.
+        """
+        # The following warnings and errors are filtered.
+        # - E: package-name: no-copyright-file
+        # - E: package-name: dir-or-file-in-opt
+        # - W: package-name: file-missing-in-md5sums .../changelog.Debian.gz
+        self.assert_lint(PackageTypes.DEB, b"""\
+Package errors (package-name):
+W: package-name: unknown-section default
+E: package-name: non-standard-toplevel-dir foo/
+W: package-name: file-in-unusual-dir foo/bar/Bar
+W: package-name: file-in-unusual-dir foo/bar/Foo
+W: package-name: package-contains-hardlink foo/bar/Foo -> opt/file
+""")
 
 
 class OmnibusPackageBuilderTests(TestCase):
     """
     Tests for ``omnibus_package_builder``.
     """
-    def test_steps(self):
+    def test_centos_7(self):
+        self.assert_omnibus_steps(
+            distribution=Distribution(name='centos', version='7'),
+            expected_category='Applications/System',
+            expected_package_type=PackageTypes.RPM,
+        )
+
+    def test_ubuntu_14_04(self):
+        self.assert_omnibus_steps(
+            distribution=Distribution(name='ubuntu', version='14.04'),
+            expected_category='admin',
+            expected_package_type=PackageTypes.DEB,
+        )
+
+    def test_fedora_20(self):
+        self.assert_omnibus_steps(
+            distribution=Distribution(name='fedora', version='20'),
+            expected_category='Applications/System',
+            expected_package_type=PackageTypes.RPM,
+        )
+
+    def assert_omnibus_steps(
+            self,
+            distribution=Distribution(name='fedora', version='20'),
+            expected_category='Applications/System',
+            expected_package_type=PackageTypes.RPM,
+            ):
         """
         A sequence of build steps is returned.
         """
-        self.patch(packaging, 'CURRENT_DISTRIBUTION',
-                   Distribution(name='test-distro', version='30'))
+        self.patch(packaging, 'CURRENT_DISTRIBUTION', distribution)
 
         fake_dependencies = {
-            'python': {'test-distro': [Dependency(package='python-dep')]},
-            'node': {'test-distro': [Dependency(package='node-dep')]},
-            'cli': {'test-distro': [Dependency(package='cli-dep')]},
+            'python': [Dependency(package='python-dep')],
+            'node': [Dependency(package='node-dep')],
+            'cli': [Dependency(package='cli-dep')],
         }
 
         def fake_make_dependencies(
                 package_name, package_version, distribution):
-            return fake_dependencies[package_name][distribution]
+            return fake_dependencies[package_name]
 
         self.patch(packaging, 'make_dependencies', fake_make_dependencies)
 
-        expected_package_type = 'rpm'
         expected_destination_path = FilePath(self.mktemp())
 
         target_path = FilePath(self.mktemp())
@@ -735,7 +882,7 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_package_uri = b'https://www.example.com/foo/Bar-1.2.3.whl'
         expected_package_version_step = GetPackageVersion(
             virtualenv=VirtualEnv(root=expected_virtualenv_path),
-            package_name='Flocker'
+            package_name='flocker'
         )
         expected_version = DelayedRpmVersion(
             package_version_step=expected_package_version_step
@@ -747,7 +894,7 @@ class OmnibusPackageBuilderTests(TestCase):
 
         expected = BuildSequence(
             steps=(
-                # python-flocker steps
+                # clusterhq-python-flocker steps
                 InstallVirtualEnv(
                     virtualenv=VirtualEnv(root=expected_virtualenv_path)),
                 InstallApplication(
@@ -771,10 +918,20 @@ class OmnibusPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture='native',
                     description=PACKAGE_PYTHON.DESCRIPTION.value,
+                    category=expected_category,
+                    directories=[expected_virtualenv_path],
                     dependencies=[Dependency(package='python-dep')],
                 ),
+                LintPackage(
+                    package_type=expected_package_type,
+                    destination_path=expected_destination_path,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    package='clusterhq-python-flocker',
+                    architecture="native",
+                ),
 
-                # flocker-cli steps
+                # clusterhq-flocker-cli steps
                 CreateLinks(
                     links=[
                         (FilePath('/opt/flocker/bin/flocker-deploy'),
@@ -795,9 +952,19 @@ class OmnibusPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture='all',
                     description=PACKAGE_CLI.DESCRIPTION.value,
+                    category=expected_category,
                     dependencies=[Dependency(package='cli-dep')],
                 ),
-                # flocker-node steps
+                LintPackage(
+                    package_type=expected_package_type,
+                    destination_path=expected_destination_path,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    package='clusterhq-flocker-cli',
+                    architecture="all",
+                ),
+
+                # clusterhq-flocker-node steps
                 CreateLinks(
                     links=[
                         (FilePath('/opt/flocker/bin/flocker-reportstate'),
@@ -805,6 +972,10 @@ class OmnibusPackageBuilderTests(TestCase):
                         (FilePath('/opt/flocker/bin/flocker-changestate'),
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-volume'),
+                         flocker_node_path),
+                        (FilePath('/opt/flocker/bin/flocker-control'),
+                         flocker_node_path),
+                        (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
                          flocker_node_path),
                     ]
                 ),
@@ -822,233 +993,26 @@ class OmnibusPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture='all',
                     description=PACKAGE_NODE.DESCRIPTION.value,
+                    category=expected_category,
                     dependencies=[Dependency(package='node-dep')],
+                ),
+                LintPackage(
+                    package_type=expected_package_type,
+                    destination_path=expected_destination_path,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    package='clusterhq-flocker-node',
+                    architecture="all",
                 ),
             )
         )
         assert_equal_steps(
             self,
             expected,
-            omnibus_package_builder(package_type=expected_package_type,
+            omnibus_package_builder(distribution=distribution,
                                     destination_path=expected_destination_path,
                                     package_uri=expected_package_uri,
                                     target_dir=target_path))
-
-    @if_docker_configured
-    @require_rpm
-    def test_functional_fedora_20(self):
-        """
-        The expected RPM files are built for Fedora 20
-        """
-        output_dir = FilePath(self.mktemp())
-        check_call([
-            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
-            '--destination-path', output_dir.path,
-            '--distribution', 'fedora-20',
-            FLOCKER_PATH.path
-        ])
-        python_version = __version__
-        rpm_version = make_rpm_version(python_version)
-
-        expected_basenames = (
-            ('clusterhq-python-flocker', 'x86_64'),
-            ('clusterhq-flocker-cli', 'noarch'),
-            ('clusterhq-flocker-node', 'noarch'),
-        )
-        expected_filenames = []
-        for basename, arch in expected_basenames:
-            f = '{}-{}-{}.{}.rpm'.format(
-                basename, rpm_version.version, rpm_version.release, arch)
-            expected_filenames.append(f)
-
-        self.assertEqual(
-            set(expected_filenames),
-            set(f.basename() for f in output_dir.children())
-        )
-
-        for f in output_dir.children():
-            assert_rpm_lint(self, f)
-
-    @if_docker_configured
-    @require_rpm
-    def test_functional_centos_7(self):
-        """
-        The expected RPM files are built for CentOS 7
-        """
-        output_dir = FilePath(self.mktemp())
-        check_call([
-            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
-            '--destination-path', output_dir.path,
-            '--distribution', 'centos-7',
-            FLOCKER_PATH.path
-        ])
-        python_version = __version__
-        rpm_version = make_rpm_version(python_version)
-
-        expected_basenames = (
-            ('clusterhq-python-flocker', 'x86_64'),
-            ('clusterhq-flocker-cli', 'noarch'),
-            ('clusterhq-flocker-node', 'noarch'),
-        )
-        expected_filenames = []
-        for basename, arch in expected_basenames:
-            f = '{}-{}-{}.{}.rpm'.format(
-                basename, rpm_version.version, rpm_version.release, arch)
-            expected_filenames.append(f)
-
-        self.assertEqual(
-            set(expected_filenames),
-            set(f.basename() for f in output_dir.children())
-        )
-
-        for f in output_dir.children():
-            assert_rpm_lint(self, f)
-
-    @if_docker_configured
-    @require_dpkg
-    def test_functional_ubuntu_1404(self):
-        """
-        The expected deb files are generated on Ubuntu14.04.
-        """
-        output_dir = FilePath(self.mktemp())
-        check_call([
-            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
-            '--destination-path', output_dir.path,
-            '--distribution', 'ubuntu-14.04',
-            FLOCKER_PATH.path
-        ])
-        python_version = __version__
-        rpm_version = make_rpm_version(python_version)
-
-        expected_basenames = (
-            ('clusterhq-python-flocker', 'amd64'),
-            ('clusterhq-flocker-cli', 'all'),
-            ('clusterhq-flocker-node', 'all'),
-        )
-        expected_filenames = []
-        for basename, arch in expected_basenames:
-            f = '{}_{}-{}_{}.deb'.format(
-                basename, rpm_version.version, rpm_version.release, arch)
-            expected_filenames.append(f)
-
-        self.assertEqual(
-            set(expected_filenames),
-            set(f.basename() for f in output_dir.children())
-        )
-
-        for f in output_dir.children():
-            assert_deb_lint(self, f)
-
-
-RPMLINT_IGNORED_WARNINGS = (
-    # This isn't an distribution package, so we deliberately install in /opt
-    'dir-or-file-in-opt',
-    # /opt/flocker/lib/python2.7/no-global-site-packages.txt will be empty.
-    'zero-length',
-    # XXX: These warnings are being ignored but should probably be fixed.
-    'non-standard-executable-perm',
-    'incorrect-fsf-address',
-    'pem-certificate',
-    'non-executable-script',
-    'devel-file-in-non-devel-package',
-    'dangling-relative-symlink',
-    'dangling-symlink',
-    'no-documentation',
-    'no-changelogname-tag',
-    'non-standard-group',
-    'backup-file-in-package',
-    'no-manual-page-for-binary',
-    'unstripped-binary-or-object',
-    # Only on CentOS 7 (not Fedora)
-    # See http://fedoraproject.org/wiki/Common_Rpmlint_issues#no-binary
-    'no-binary',
-    'python-bytecode-without-source',
-    'python-bytecode-inconsistent-mtime',
-    'wrong-script-interpreter',
-)
-
-
-@require_rpmlint
-def assert_rpm_lint(test_case, rpm_path):
-    """
-    Fail for certain rpmlint warnings on a supplied RPM file.
-
-    :param test_case: The ``TestCase`` whose assert methods will be called.
-    :param FilePath rpm_path: The path to the RPM file to check.
-    """
-    try:
-        check_output(['rpmlint', rpm_path.path])
-    except CalledProcessError as e:
-        output = []
-        for line in e.output.splitlines():
-            # Ignore certain warning lines
-            show_line = True
-            for ignored in RPMLINT_IGNORED_WARNINGS:
-                if ignored in line:
-                    show_line = False
-                    break
-            if show_line:
-                output.append(line)
-
-        # Don't print out the summary line unless there are some unfiltered
-        # warnings.
-        if len(output) > 1:
-            test_case.fail('rpmlint warnings:\n{}'.format('\n'.join(output)))
-
-
-# See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian
-LINTIAN_IGNORED_WARNINGS = (
-    'script-not-executable',
-    'binary-without-manpage',
-    'dir-or-file-in-opt',
-    'unstripped-binary-or-object',
-    'missing-dependency-on-libc',
-    'no-copyright-file',
-    'debian-revision-not-well-formed',
-    'unknown-section',
-    'non-standard-file-perm',
-    'extra-license-file',
-    'non-standard-executable-perm',
-    'package-installs-python-bytecode',
-    'embedded-javascript-library',
-    'wrong-path-for-interpreter',
-    # Not sure about this one. We do have a python2.7 dependency.
-    # https://lintian.debian.org/tags/python-script-but-no-python-dep.html
-    'python-script-but-no-python-dep',
-    # Virtualenv creates symlinks for local/{bin,include,lib}. Ignore them.
-    'symlink-should-be-relative',
-    # Werkzeug installs various images with executable permissions.
-    # https://github.com/mitsuhiko/werkzeug/issues/629
-    'executable-not-elf-or-script',
-)
-
-
-@require_lintian
-def assert_deb_lint(test_case, package_path):
-    """
-    Fail for certain lintian warnings on a supplied ``package_path``.
-
-    :param test_case: The ``TestCase`` whose assert methods will be called.
-    :param FilePath package_path: The path to the deb file to check.
-    """
-    try:
-        check_output(['lintian', package_path.path])
-    except CalledProcessError as e:
-        output = []
-        for line in e.output.splitlines():
-            # Ignore certain warning lines
-            show_line = True
-            for ignored in LINTIAN_IGNORED_WARNINGS:
-                if ignored in line:
-                    show_line = False
-                    break
-            if show_line:
-                output.append(line)
-
-        # Don't print out the summary line unless there are some unfiltered
-        # warnings.
-        if len(output) > 1:
-            test_case.fail('lintian warnings:\n{}'.format('\n'.join(output)))
 
 
 class DockerBuildOptionsTests(TestCase):
@@ -1073,19 +1037,8 @@ class DockerBuildOptionsTests(TestCase):
         """
         expected_defaults = {
             'destination-path': '.',
-            'package-type': 'native',
         }
         self.assertEqual(expected_defaults, DockerBuildOptions())
-
-    def test_native(self):
-        """
-        ``DockerBuildOptions`` package-type is selected automatically if the
-        keyword ``native`` is supplied.
-        """
-        options = DockerBuildOptions()
-        options.parseOptions(
-            ['--package-type=native', 'http://example.com/fake/uri'])
-        self.assertEqual(self.native_package_type, options['package-type'])
 
     def test_package_uri_missing(self):
         """
@@ -1156,9 +1109,10 @@ class DockerBuildScriptTests(TestCase):
             argv=[
                 'build-command-name',
                 '--destination-path=%s' % (expected_destination_path.path,),
-                '--package-type=rpm',
                 expected_package_uri]
         )
+        distribution = Distribution(name='test-distro', version='30')
+        self.patch(packaging, 'CURRENT_DISTRIBUTION', distribution)
         script = DockerBuildScript(sys_module=fake_sys_module)
         build_step = SpyStep()
         arguments = []
@@ -1172,7 +1126,7 @@ class DockerBuildScriptTests(TestCase):
             (),
             dict(destination_path=expected_destination_path,
                  package_uri=expected_package_uri,
-                 package_type=PackageTypes.RPM)
+                 distribution=distribution)
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)
@@ -1353,7 +1307,7 @@ class MakeDependenciesTests(TestCase):
     def test_node(self):
         """
         ``make_dependencies`` includes the supplied ``version`` of
-        ``python-flocker`` for ``flocker-node``.
+        ``clusterhq-python-flocker`` for ``clusterhq-flocker-node``.
         """
         expected_version = '1.2.3'
         self.assertIn(
@@ -1362,13 +1316,14 @@ class MakeDependenciesTests(TestCase):
                 compare='=',
                 version=expected_version
             ),
-            make_dependencies('node', expected_version, 'fedora')
+            make_dependencies('node', expected_version,
+                              Distribution(name='fedora', version='20'))
         )
 
     def test_cli(self):
         """
         ``make_dependencies`` includes the supplied ``version`` of
-        ``python-flocker`` for ``flocker-cli``.
+        ``clusterhq-python-flocker`` for ``clusterhq-flocker-cli``.
         """
         expected_version = '1.2.3'
         self.assertIn(
@@ -1377,5 +1332,6 @@ class MakeDependenciesTests(TestCase):
                 compare='=',
                 version=expected_version
             ),
-            make_dependencies('cli', expected_version, 'fedora')
+            make_dependencies('cli', expected_version,
+                              Distribution(name='fedora', version='20'))
         )
