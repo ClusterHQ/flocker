@@ -464,6 +464,11 @@ class UpdateDatasetTestsMixin(APITestsMixin):
         XXX: Add followup issue to prevent this.
         """
 
+    def test_primary_invalid(self):
+        """
+        A request with an invalid (non-IPv4) primary IP address is rejected.
+        """
+
     def test_dataset_returned(self):
         """
         A successful modification request returns the modified dataset
