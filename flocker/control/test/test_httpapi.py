@@ -15,7 +15,7 @@ from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
-from twisted.web.http import CREATED, OK, CONFLICT, BAD_REQUEST
+from twisted.web.http import CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
 from twisted.web.client import FileBodyProducer, readBody
@@ -446,6 +446,25 @@ class UpdateDatasetTestsMixin(APITestsMixin):
         NOT_FOUND is returned if the requested dataset_id doesn't exist.
         The error includes the requested dataset_id.
         """
+        unknown_dataset_id = unicode(uuid4())
+        updating = self.assertResponseCode(
+            b"POST", b"/configuration/datasets/%s" % (unknown_dataset_id,), {},
+            NOT_FOUND)
+        updating.addCallback(readBody)
+        updating.addCallback(loads)
+
+        def got_result(result):
+            expected_description = (
+                u'Dataset not found. '
+                u'There are no manifestations of the requested dataset. '
+                u'dataset_id: {}'.format(unknown_dataset_id)
+            )
+            description = result.pop(u"description")
+            self.assertEqual(expected_description, description)
+        updating.addCallback(got_result)
+
+        return updating
+
 
     def test_primary_changed(self):
         """
