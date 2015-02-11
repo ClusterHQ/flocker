@@ -18,6 +18,8 @@ from treq import get, post, content
 from .testtools import get_nodes, _run_SSH
 from ..testtools import loop_until
 
+from ..control.httpapi import REST_API_PORT
+
 
 def wait_for_api(hostname):
     """
@@ -28,7 +30,7 @@ def wait_for_api(hostname):
     def api_available():
         try:
             s = socket.socket()
-            s.connect((hostname, 4523))
+            s.connect((hostname, REST_API_PORT))
             return True
         except socket.error:
             return False
@@ -67,8 +69,9 @@ class DatasetAPITests(TestCase):
         dataset = {u"primary": node_1,
                    u"dataset_id": uuid,
                    u"metadata": {u"name": u"my_volume"}}
+        base_url = "http://{}:{}/v1".format(node_1, REST_API_PORT)
         d.addCallback(
-            lambda _: post("http://{}:4523/v1/datasets".format(node_1),
+            lambda _: post(base_url + "/datasets",
                            data=dumps(dataset),
                            headers={"content-type": "application/json"},
                            persistent=False))
@@ -80,8 +83,7 @@ class DatasetAPITests(TestCase):
         d.addCallback(got_result)
 
         def created():
-            result = get("http://{}:4523/v1/state/datasets".format(node_1),
-                         persistent=False)
+            result = get(base_url + "/state/datasets", persistent=False)
             result.addCallback(content)
 
             def got_body(body):
