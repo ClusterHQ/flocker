@@ -240,6 +240,8 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
      You should now see the ``flocker-tutorial`` box listed:
 
+     .. Use code-block instead of prompt, to allow emphasis of last line
+     
      .. code-block:: console
         :emphasize-lines: 4
 
