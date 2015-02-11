@@ -466,54 +466,71 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         return updating
 
-
-    def test_primary_changed(self):
-        """
-        If a different primary IP address is supplied, the modification request
-        succeeds.
-        """
-        expected_manifestation = _manifestation()
-        expected_dataset_id = expected_manifestation.dataset.dataset_id
-        node = Node(
-            hostname=self.NODE_A,
-            applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
-        )
-
-        deployment = Deployment(nodes=frozenset([node]))
-
+    def _test_change_primary(self, dataset, deployment, origin, target):
         saving = self.persistence_service.save(deployment)
+        def saved(ignored):
 
-        def saved(_):
+            expected_dataset_id = dataset.dataset_id
             creating = self.assertResponseCode(
                 b"POST",
                 b"/configuration/datasets/%s" % (expected_dataset_id.encode('ascii'),),
-                {u"primary": self.NODE_B},
+                {u"primary": target},
                 OK
             )
             creating.addCallback(readBody)
             creating.addCallback(loads)
 
             def got_result(result):
-                dataset_id = result.pop(u"dataset_id")
                 self.assertEqual(
-                        {u"primary": self.NODE_B, u"metadata": {}}, result
+                        {u"dataset_id": expected_dataset_id, u"primary": target, u"metadata": {}}, result
                     )
                 deployment = self.persistence_service.get()
 
-                for node in deployment.nodes():
-                    if node.hostname == self.NODE_B:
+                for node in deployment.nodes:
+                    if node.hostname == target:
                         dataset_ids = [(m.primary, m.dataset.dataset_id) for m in node.manifestations()]
-                        self.assertIn((True, dataset_id), dataset_ids)
+                        self.assertIn((True, expected_dataset_id), dataset_ids)
                         break
                 else:
-                    self.fail('Node not found. {}'.format(self.NODE_B))
+                    self.fail('Node not found. {}'.format(target))
 
-                creating.addCallback(got_result)
-
+            creating.addCallback(got_result)
             return creating
         saving.addCallback(saved)
         return saving
+
+    def test_change_primary_to_unconfigured_node(self):
+        """
+        If a different primary IP address is supplied and it identifies a node
+        which is not yet part of the cluster configuration, the modification
+        request succeeds and the dataset's primary becomes the given address.
+        """
+        expected_manifestation = _manifestation()
+        node = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        deployment = Deployment(nodes=frozenset([node]))
+
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_B
+        )
+
+    def test_change_primary_to_configured_node(self):
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        node_b = Node(hostname=self.NODE_B)
+        deployment = Deployment(nodes=frozenset([node_a, node_b]))
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_B
+        )
 
     def test_primary_unchanged(self):
         """

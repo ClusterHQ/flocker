@@ -285,6 +285,7 @@ class DatasetAPIUserV1(object):
                 primary_node.other_manifestations - frozenset({primary_manifestation})
             )
         )
+        deployment = deployment.update_node(origin_node)
 
         target_node = [node for node in deployment.nodes if node.hostname == primary][0]
         new_target_node = Node(
@@ -295,10 +296,9 @@ class DatasetAPIUserV1(object):
             )
         )
 
-        new_deployment = Deployment(
-            nodes=other_nodes | frozenset({new_node_config})
-        )
-        # saving = self.persistence_service.save(new_deployment)
+        deployment = deployment.update_node(new_target_node)
+
+        saving = self.persistence_service.save(deployment)
 
         # Construct the return dictionary from the supplied dataset_id, primary
         # and the found existing primary manifestation.
@@ -316,6 +316,7 @@ class DatasetAPIUserV1(object):
         #     return EndpointResponse(CREATED, result)
         # saving.addCallback(saved)
         # return saving
+        return api_dataset_from_dataset_and_node(primary_manifestation.dataset, new_target_node.hostname)
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
