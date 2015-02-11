@@ -1,3 +1,18 @@
+Flocker Next Release
+====================
+
+- New getting started guide. (FLOC-1261)
+- Updated to Twisted 15.0. (FLOC-1302)
+- Applications can now be configured with a limit on the maximum size of their volume. (FLOC-729)
+- Applications can now be configured with an automatic restart policy. (FLOC-727)
+- Docker 1.3 is now required (1.4.1-8 required for Fedora). (FLOC-721, FLOC-1272)
+- The documentation has a new theme. (FLOC-1257)
+- Omnibus packages are now used for distribution. (FLOC-508)
+- Added instructions for reporting security issues. (FLOC-1183)
+- Added a Volume REST API for version and dataset management. (FLOC-1152, FLOC-1162, FLOC-1271)
+- Flocker no longer conflicts with Homebrew's Python. (FLOC-660)
+- Flocker is now supported on Fedora 20 on Rackspace Cloud Servers and AWS. (FLOC-965)
+
 Flocker 0.3.2 (2014-11-19)
 ==========================
 
