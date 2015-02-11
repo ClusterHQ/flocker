@@ -444,9 +444,6 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     """
     Tests for the dataset modification endpoint at ``/datasets/<dataset_id>``.
     """
-    # These addresses taken from RFC 5737 (TEST-NET-1)
-    NODE_A = u"192.0.2.1"
-    NODE_B = u"192.0.2.2"
 
     def test_unknown_dataset(self):
         """
