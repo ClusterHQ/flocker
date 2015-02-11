@@ -199,7 +199,7 @@ class DatasetAPIUserV1(object):
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
     )
-    def update_dataset(self, dataset_id, primary):
+    def update_dataset(self, dataset_id, primary=None):
         """
         Update an existing dataset in the cluster configuration.
 
