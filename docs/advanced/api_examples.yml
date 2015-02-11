@@ -13,7 +13,7 @@
 #     cluster.  Use any integer suffix for N starting with 0.  For example,
 #     NODE_3 is replaced with the hostname for a hypothetical fourth cluster
 #     node.  (Only NODE_0 is implemented.  See FLOC-1288.)
-
+# Add a NODE_1 / implement FLOC-1288 first.
 -
   # Every element must have a unique identifier.  Documentation can use these
   # identifiers to select examples to include.  Examples can also declare other
