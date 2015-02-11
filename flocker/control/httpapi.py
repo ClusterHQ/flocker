@@ -9,7 +9,7 @@ from uuid import uuid4
 from pyrsistent import pmap, thaw
 
 from twisted.python.filepath import FilePath
-from twisted.web.http import CONFLICT, CREATED
+from twisted.web.http import CONFLICT, CREATED, NOT_FOUND
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
@@ -36,7 +36,8 @@ DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
 PRIMARY_NODE_NOT_FOUND = make_bad_request(
     description=u"The provided primary node is not part of the cluster.")
-
+DATASET_NOT_FOUND = make_bad_request(
+    code=NOT_FOUND, description=u"Dataset not found.")
 
 class DatasetAPIUserV1(object):
     """
@@ -258,17 +259,13 @@ class DatasetAPIUserV1(object):
         #     raise NotImplemented()
 
         # Get the current configuration
-        # deployment = self.persistence_service.get()
+        deployment = self.persistence_service.get()
 
         # Find all manifestations of dataset
-        # manifestations = manifestations_from_deployment(deployment, dataset_id)
+        manifestations = list(manifestations_from_deployment(deployment, dataset_id))
 
-        # if not manifestations:
-        #     raise NotFound(
-        #         'Dataset not found. '
-        #         'There are no manifestations of the requested dataset. '
-        #         'dataset_id: {}'.format(dataset_id)
-        #     )
+        if not manifestations:
+            raise DATASET_NOT_FOUND
 
         # Lookup the node that has a primary Manifestation (if any)
 
@@ -356,15 +353,15 @@ class DatasetAPIUserV1(object):
         deployment = self.cluster_state_service.as_deployment()
         return list(datasets_from_deployment(deployment))
 
-# def manifestations_from_deployment(deployment, dataset_id):
-#     """
-#     Extract all manifestations of the supplied dataset_id from the supplied
-#     deployment.
-#     """
-#     for node in deployment.nodes:
-#         for manifestation in node.manifestations():
-#             if manifestation.dataset.dataset_id == dataset_id:
-#                 yield manifestation
+def manifestations_from_deployment(deployment, dataset_id):
+    """
+    Extract all manifestations of the supplied dataset_id from the supplied
+    deployment.
+    """
+    for node in deployment.nodes:
+        for manifestation in node.manifestations():
+            if manifestation.dataset.dataset_id == dataset_id:
+                yield manifestation
 # This looks very similar to the function below. Refactor?
 
 def datasets_from_deployment(deployment):

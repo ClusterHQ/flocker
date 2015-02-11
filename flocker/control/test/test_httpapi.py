@@ -452,17 +452,14 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         unknown_dataset_id = unicode(uuid4())
         updating = self.assertResponseCode(
-            b"POST", b"/configuration/datasets/%s" % (unknown_dataset_id.encode('ascii'),), {},
+            b"POST", b"/configuration/datasets/%s" % (unknown_dataset_id.encode('ascii'),),
+            {u'primary': self.NODE_A},
             NOT_FOUND)
         updating.addCallback(readBody)
         updating.addCallback(loads)
 
         def got_result(result):
-            expected_description = (
-                u'Dataset not found. '
-                u'There are no manifestations of the requested dataset. '
-                u'dataset_id: {}'.format(unknown_dataset_id)
-            )
+            expected_description = u'Dataset not found.'
             description = result.pop(u"description")
             self.assertEqual(expected_description, description)
         updating.addCallback(got_result)
