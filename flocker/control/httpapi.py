@@ -188,10 +188,10 @@ class DatasetAPIUserV1(object):
     @app.route("/datasets/<dataset_id>", methods=['POST'])
     @user_documentation(
         """
-        Update an existing dataset
+        Update an existing dataset.
         """,
         examples=[
-            u"update dataset",
+            u"update dataset with primary",
         ]
     )
     @structured(
