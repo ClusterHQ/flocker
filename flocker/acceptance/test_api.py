@@ -84,7 +84,7 @@ class DatasetAPITests(TestCase):
                    u"metadata": {u"name": u"my_volume"}}
         base_url = "http://{}:{}/v1".format(node_1, REST_API_PORT)
         d.addCallback(
-            lambda _: post(base_url + "/datasets",
+            lambda _: post(base_url + "/configuration/datasets",
                            data=dumps(dataset),
                            headers={"content-type": "application/json"},
                            persistent=False))
