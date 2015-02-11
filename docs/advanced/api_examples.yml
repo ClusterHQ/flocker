@@ -55,7 +55,7 @@
     server and returned with the response.
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"primary": "%(NODE_0)s"}
 
@@ -73,7 +73,7 @@
     the server generate it.
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"dataset_id": "ad0a05dd-a1ed-449f-b44b-e1e2757bda00", "primary": "%(NODE_0)s"}
 
@@ -100,7 +100,7 @@
     - "create dataset with dataset_id"
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"dataset_id": "ad0a05dd-a1ed-449f-b44b-e1e2757bda00", "primary": "%(NODE_0)s"}
 
@@ -118,7 +118,7 @@
     store.
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"primary": "%(NODE_0)s", "maximum_size": 1073741824}
 
@@ -135,7 +135,7 @@
     Create a new dataset with some arbitrary key/value data associated with it.
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
 
@@ -159,7 +159,7 @@
     - "create dataset with metadata"
 
   request: |
-    GET /v1/datasets HTTP/1.1
+    GET /v1/configuration/datasets HTTP/1.1
 
   response: |
     HTTP/1.0 200 OK
