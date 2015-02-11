@@ -160,7 +160,7 @@ RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
 
 class CreateDatasetTestsMixin(APITestsMixin):
     """
-    Tests for the dataset creation endpoint at ``/datasets``.
+    Tests for the dataset creation endpoint at ``/configuration/datasets``.
     """
     def test_wrong_schema(self):
         """
@@ -169,7 +169,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         error indication a validation failure.
         """
         return self.assertResult(
-            b"POST", b"/datasets",
+            b"POST", b"/configuration/datasets",
             {u"primary": self.NODE_A, u"junk": u"garbage"},
             BAD_REQUEST, {
                 u'description':
@@ -211,7 +211,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def saved(ignored):
             return self.assertResult(
-                b"POST", b"/datasets",
+                b"POST", b"/configuration/datasets",
                 {u"primary": primary, u"dataset_id": modifier(dataset_id)},
                 CONFLICT,
                 {u"description": u"The provided dataset_id is already in use."}
@@ -266,7 +266,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         unchanged and an error response is returned to the client.
         """
         return self.assertResult(
-            b"POST", b"/datasets", {u"primary": self.NODE_A},
+            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
             BAD_REQUEST, {
                 u"description":
                     u"The provided primary node is not part of the cluster."
@@ -289,7 +289,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         client.
         """
         creating = self.assertResponseCode(
-            b"POST", b"/datasets", {u"primary": self.NODE_A},
+            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
             CREATED)
         creating.addCallback(readBody)
         creating.addCallback(loads)
@@ -317,7 +317,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def saved(ignored):
             return self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_B}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_B}, CREATED
             )
         saving.addCallback(saved)
 
@@ -344,10 +344,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         creating = gatherResults([
             self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_A}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A}, CREATED
             ).addCallback(readBody).addCallback(loads),
             self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_A}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A}, CREATED
             ).addCallback(readBody).addCallback(loads),
         ])
 
@@ -371,7 +371,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             u"metadata": metadata,
         }
         creating = self.assertResult(
-            b"POST", b"/datasets", dataset, CREATED, dataset
+            b"POST", b"/configuration/datasets", dataset, CREATED, dataset
         )
 
         def created(ignored):
@@ -411,7 +411,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         response = dataset.copy()
         response[u"metadata"] = {}
         creating = self.assertResult(
-            b"POST", b"/datasets", dataset, CREATED, response
+            b"POST", b"/configuration/datasets", dataset, CREATED, response
         )
 
         def created(ignored):
@@ -475,7 +475,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         When the cluster configuration includes no datasets, the
         endpoint returns an empty list.
         """
-        return self.assertResult(b"GET", b"/datasets", None, OK, [])
+        return self.assertResult(b"GET", b"/configuration/datasets", None, OK, [])
 
     def _dataset_test(self, deployment, expected):
         """
@@ -498,7 +498,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
 
         def saved(ignored):
             return self.assertResultItems(
-                b"GET", b"/datasets", None, OK, expected
+                b"GET", b"/configuration/datasets", None, OK, expected
             )
         saving.addCallback(saved)
         return saving

@@ -74,7 +74,7 @@ class DatasetAPIUserV1(object):
         """
         return {u"flocker":  __version__}
 
-    @app.route("/datasets", methods=['GET'])
+    @app.route("/configuration/datasets", methods=['GET'])
     @user_documentation(
         """
         Get the cluster's dataset configuration.
@@ -97,7 +97,7 @@ class DatasetAPIUserV1(object):
         """
         return list(datasets_from_deployment(self.persistence_service.get()))
 
-    @app.route("/datasets", methods=['POST'])
+    @app.route("/configuration/datasets", methods=['POST'])
     @user_documentation(
         """
         Create a new dataset.
