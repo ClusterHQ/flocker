@@ -8,6 +8,7 @@ from ..script import ControlOptions, ControlScript
 from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin
 from .._clusterstate import ClusterStateService
 from .._protocol import ControlAMP, ControlAMPService
+from ..httpapi import REST_API_PORT
 
 
 class ControlOptionsTests(StandardOptionsTestsMixin,
@@ -19,11 +20,12 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
 
     def test_default_port(self):
         """
-        The default REST API port configured by ``ControlOptions`` is 4523.
+        The default REST API port configured by ``ControlOptions`` is the
+        appropriate shared constant.
         """
         options = ControlOptions()
         options.parseOptions([])
-        self.assertEqual(options["port"], 4523)
+        self.assertEqual(options["port"], REST_API_PORT)
 
     def test_custom_port(self):
         """
@@ -53,7 +55,7 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
 
     def test_default_agent_port(self):
         """
-        The default AMP port configured by ``ControlOptions`` is 4523.
+        The default AMP port configured by ``ControlOptions`` is 4524.
         """
         options = ControlOptions()
         options.parseOptions([])
