@@ -586,23 +586,24 @@ RealTestsCreateDataset, MemoryTestsCreateDataset = buildIntegrationTests(
     CreateDatasetTestsMixin, "CreateDataset", _build_app)
 
 
+def _manifestation(**kwargs):
+    """
+    :param kwargs: Additional keyword arguments to use to initialize the
+        manifestation's ``Dataset``.
+
+    :return: A primary ``Manifestation`` for a dataset with a new
+        random identifier.
+    """
+    dataset_id = unicode(uuid4())
+    existing_dataset = Dataset(dataset_id=dataset_id, **kwargs)
+    return Manifestation(dataset=existing_dataset, primary=True)
+
+
 class GetDatasetConfigurationTestsMixin(APITestsMixin):
     """
     Tests for the dataset configuration retrieval endpoint at
     ``/datasets``.
     """
-    def _manifestation(self, **kwargs):
-        """
-        :param kwargs: Additional keyword arguments to use to initialize the
-            manifestation's ``Dataset``.
-
-        :return: A primary ``Manifestation`` for a dataset with a new
-            random identifier.
-        """
-        dataset_id = unicode(uuid4())
-        existing_dataset = Dataset(dataset_id=dataset_id, **kwargs)
-        return Manifestation(dataset=existing_dataset, primary=True)
-
     def test_empty(self):
         """
         When the cluster configuration includes no datasets, the
@@ -649,7 +650,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
 
         :return: A ``Deferred`` that fires when the assertion has been made.
         """
-        manifestation = self._manifestation(**kwargs)
+        manifestation = _manifestation(**kwargs)
         deployment = Deployment(
             nodes={
                 Node(
@@ -687,8 +688,8 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         with a dataset, the endpoint returns a list containing
         information for the dataset on each node.
         """
-        manifestation_a = self._manifestation()
-        manifestation_b = self._manifestation()
+        manifestation_a = _manifestation()
+        manifestation_b = _manifestation()
         deployment = Deployment(
             nodes={
                 Node(
@@ -717,8 +718,8 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         datasets, the endpoint returns a list containing information
         for each dataset.
         """
-        manifestation_a = self._manifestation()
-        manifestation_b = self._manifestation()
+        manifestation_a = _manifestation()
+        manifestation_b = _manifestation()
         deployment = Deployment(
             nodes={
                 Node(
