@@ -492,8 +492,15 @@ def canned_package(root):
         setup(
             name="{package_name}",
             version="{package_version}",
+            py_modules=["{package_name}"],
         )
         """).format(package_name=name, package_version=version)
+    )
+    package_module = root.child(name + ".py")
+    package_module.setContent(
+        dedent("""
+        __version__ = "{package_version}"
+        """).format(package_version=version)
     )
 
     return PythonPackage(name=name, version=version)
@@ -852,7 +859,7 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_package_uri = b'https://www.example.com/foo/Bar-1.2.3.whl'
         expected_package_version_step = GetPackageVersion(
             virtualenv=VirtualEnv(root=expected_virtualenv_path),
-            package_name='Flocker'
+            package_name='flocker'
         )
         expected_version = DelayedRpmVersion(
             package_version_step=expected_package_version_step

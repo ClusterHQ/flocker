@@ -6,7 +6,7 @@ Combine and retrieve current cluster state.
 
 from twisted.application.service import Service
 
-from ._model import Deployment, Node
+from ._model import Deployment
 
 
 class ClusterStateService(Service):
@@ -21,17 +21,16 @@ class ClusterStateService(Service):
     def __init__(self):
         self._nodes = {}
 
-    def update_node_state(self, hostname, node_state):
+    def update_node_state(self, node_state):
         """
         Update the state of a given node.
 
         XXX: Multiple nodes may report being primary for a dataset. Enforce
         consistency here. See https://clusterhq.atlassian.net/browse/FLOC-1303
 
-        :param unicode hostname: The node's identifier.
         :param NodeState node_state: The state of the node.
         """
-        self._nodes[hostname] = node_state
+        self._nodes[node_state.hostname] = node_state
 
     def as_deployment(self):
         """
@@ -39,9 +38,5 @@ class ClusterStateService(Service):
 
         :return Deployment: Current state of the cluster.
         """
-        return Deployment(nodes=frozenset([
-            Node(hostname=hostname,
-                 other_manifestations=node_state.other_manifestations,
-                 applications=frozenset(
-                     node_state.running + node_state.not_running))
-            for hostname, node_state in self._nodes.items()]))
+        return Deployment(nodes=frozenset(
+            (node_state.to_node() for node_state in self._nodes.values())))

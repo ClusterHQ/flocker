@@ -391,12 +391,7 @@ class CreateLinks(object):
 class GetPackageVersion(object):
     """
     Record the version of ``package_name`` installed in ``virtualenv_path`` by
-    parsing the output of ``pip show``.
-
-    XXX: This wouldn't be necessary if pip had a way to report the version of
-    the package that it is about to install eg
-    ``pip install --dry-run http://www.example.com/my/wheel.whl``
-    See: https://github.com/pypa/pip/issues/53
+    examining ``<package_name>.__version__``.
 
     :ivar VirtualEnv virtualenv: The ``virtualenv`` containing the package.
     :ivar bytes package_name: The name of the package whose version will be
@@ -409,20 +404,15 @@ class GetPackageVersion(object):
     version = None
 
     def run(self):
-        # We can't just call pip directly, because in the virtualenvs created
-        # in tests, the shebang line becomes too long and triggers an
-        # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
         python_path = self.virtualenv.root.child('bin').child('python').path
         output = check_output(
-            [python_path, '-m', 'pip', 'show', self.package_name])
+            [python_path,
+             '-c', '; '.join([
+                 'from sys import stdout',
+                 'stdout.write(__import__(%r).__version__)' % self.package_name
+             ])])
 
-        for line in output.splitlines():
-            parts = [part.strip() for part in line.split(':', 1)]
-            if len(parts) == 2:
-                key, value = parts
-                if key.lower() == 'version':
-                    self.version = value
-                    return
+        self.version = output
 
 
 @attributes([
@@ -618,6 +608,11 @@ IGNORED_WARNINGS = {
         # https://github.com/mitsuhiko/werkzeug/issues/629
         # Fixed upstream, but not released.
         'executable-not-elf-or-script',
+
+        # Our omnibus packages are never going to be used by upstream so
+        # there's no bug to close.
+        # https://lintian.debian.org/tags/new-package-should-close-itp-bug.html
+        'new-package-should-close-itp-bug'
     ),
 }
 
@@ -766,7 +761,7 @@ def omnibus_package_builder(
     virtualenv = VirtualEnv(root=virtualenv_dir)
 
     get_package_version_step = GetPackageVersion(
-        virtualenv=virtualenv, package_name='Flocker')
+        virtualenv=virtualenv, package_name='flocker')
     rpm_version = DelayedRpmVersion(
         package_version_step=get_package_version_step)
 

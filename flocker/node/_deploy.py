@@ -44,13 +44,16 @@ def _to_volume_name(dataset_id):
 
 class IStateChange(Interface):
     """
-    An operation that changes the state of the local node.
+    An operation that changes local state.
     """
     def run(deployer):
         """
-        Run the change.
+        Apply the change to local state.
 
-        :param Deployer deployer: The ``Deployer`` to use.
+        :param IDeployer deployer: The ``IDeployer`` to use. Specific
+            ``IStateChange`` providers may require specific ``IDeployer``
+            providers that provide relevant functionality for applying the
+            change.
 
         :return: ``Deferred`` firing when the change is done.
         """
@@ -63,6 +66,43 @@ class IStateChange(Interface):
     def __ne__(other):
         """
         Return whether this change is not equivalent to another.
+        """
+
+
+class IDeployer(Interface):
+    """
+    An object that can discover local state and calculate necessary
+    changes to bring local state and desired cluster configuration into
+    alignment.
+    """
+    def discover_local_state():
+        """
+        Discover the local state, i.e. the state which is exclusively under
+        the purview of the convergence agent running this instance.
+
+        :return: A ``Deferred`` which fires with an object describing
+             local state. This object will be passed to the control
+             service (see ``flocker.control._protocol``) and may also be
+             passed to this object's
+             ``calculate_necessary_state_changes()`` method.
+        """
+
+    def calculate_necessary_state_changes(local_state,
+                                          desired_configuration,
+                                          current_cluster_state):
+        """
+        Calculate the state changes necessary to make the local state match
+        the desired cluster configuration.
+
+        :param local_state: The recent output of ``discover_local_state``.
+        :param Deployment desired_configuration: The intended
+            configuration of all nodes.
+        :param Deployment current_cluster_state: The current state of all
+            nodes. While technically this may also includes the local
+            state, that information is likely out of date so should be
+            overriden by ``local_state``.
+
+        :return: A ``IStateChange`` provider.
         """
 
 
@@ -307,17 +347,22 @@ class SetProxies(object):
         return gather_deferreds(results)
 
 
-class Deployer(object):
+@implementer(IDeployer)
+class P2PNodeDeployer(object):
     """
     Start and stop applications.
 
+    :ivar unicode hostname: The hostname of the node that this is running
+            on.
     :ivar VolumeService volume_service: The volume manager for this node.
     :ivar IDockerClient docker_client: The Docker client API to use in
         deployment operations. Default ``DockerClient``.
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, volume_service, docker_client=None, network=None):
+    def __init__(self, hostname, volume_service, docker_client=None,
+                 network=None):
+        self.hostname = hostname
         if docker_client is None:
             docker_client = DockerClient()
         self.docker_client = docker_client
@@ -326,7 +371,7 @@ class Deployer(object):
         self.network = network
         self.volume_service = volume_service
 
-    def discover_node_configuration(self):
+    def discover_local_state(self):
         """
         List all the ``Application``\ s running on this node.
 
@@ -424,6 +469,7 @@ class Deployer(object):
                 for (dataset_id, maximum_size) in
                 available_manifestations.values()))
             return NodeState(
+                hostname=self.hostname,
                 running=running,
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
@@ -432,7 +478,7 @@ class Deployer(object):
         d.addCallback(applications_from_units)
         return d
 
-    def _add_dataset_ids(self, desired_state, current_cluster_state):
+    def _add_dataset_ids(self, desired_configuration, current_cluster_state):
         """
         Add missing dataset IDs to the desired configuration.
 
@@ -447,8 +493,8 @@ class Deployer(object):
         Should be done elsewhere:
         https://clusterhq.atlassian.net/browse/FLOC-1199
 
-        :param Deployment desired_state: The intended configuration of all
-            nodes.
+        :param Deployment desired_configuration: The intended
+            configuration of all nodes.
         :param Deployment current_cluster_state: The current configuration
             of all nodes.
 
@@ -459,10 +505,10 @@ class Deployer(object):
         # This is, of course, utterly terrible. At some point we'll
         # switching everything over to persistent data structures so we
         # don't have to do this.
-        desired_state = loads(dumps(desired_state))
+        desired_configuration = loads(dumps(desired_configuration))
 
         datasets_with_no_id = []
-        for application in desired_state.applications():
+        for application in desired_configuration.applications():
             if application.volume:
                 dataset = application.volume.dataset
                 if dataset.dataset_id is None:
@@ -481,10 +527,11 @@ class Deployer(object):
                 dataset.dataset_id = matching.dataset_id
             else:
                 dataset.dataset_id = unicode(uuid4())
-        return desired_state
+        return desired_configuration
 
-    def calculate_necessary_state_changes(self, desired_state,
-                                          current_cluster_state, hostname):
+    def calculate_necessary_state_changes(self, local_state,
+                                          desired_configuration,
+                                          current_cluster_state):
         """
         Work out which changes need to happen to the local state to match
         the given desired state.
@@ -499,8 +546,9 @@ class Deployer(object):
         5. Create volumes.
         6. Start and restart any relevant containers.
 
-        :param Deployment desired_state: The intended configuration of all
-            nodes.
+        :param NodeState local_state: The local state of the node.
+        :param Deployment desired_configuration: The intended
+            configuration of all nodes.
         :param Deployment current_cluster_state: The current configuration
             of all nodes. While technically this also includes the current
             node's state, this information may be out of date so we check
@@ -508,17 +556,21 @@ class Deployer(object):
         :param unicode hostname: The hostname of the node that this is running
             on.
 
-        :return: A ``Deferred`` which fires with a ``IStateChange``
-            provider.
+        :return: A ``IStateChange`` provider.
         """
-        desired_state = self._add_dataset_ids(desired_state,
-                                              current_cluster_state)
+        # Current cluster state is likely out of date as regards the
+        # local state, so update it accordingly:
+        current_cluster_state = current_cluster_state.update_node(
+            local_state.to_node())
+
+        desired_configuration = self._add_dataset_ids(desired_configuration,
+                                                      current_cluster_state)
         phases = []
 
         desired_proxies = set()
         desired_node_applications = []
-        for node in desired_state.nodes:
-            if node.hostname == hostname:
+        for node in desired_configuration.nodes:
+            if node.hostname == self.hostname:
                 desired_node_applications = node.applications
             else:
                 for application in node.applications:
@@ -530,137 +582,132 @@ class Deployer(object):
         if desired_proxies != set(self.network.enumerate_proxies()):
             phases.append(SetProxies(ports=desired_proxies))
 
-        d = self.discover_node_configuration()
+        # We are a node-specific IDeployer:
+        current_node_state = local_state
+        current_node_applications = current_node_state.running
+        all_applications = (current_node_state.running +
+                            current_node_state.not_running)
 
-        def find_differences(current_node_state):
-            current_node_applications = current_node_state.running
-            all_applications = (current_node_state.running +
-                                current_node_state.not_running)
+        # Compare the applications being changed by name only.  Other
+        # configuration changes aren't important at this point.
+        current_state = {app.name for app in current_node_applications}
+        desired_local_state = {app.name for app in
+                               desired_node_applications}
+        not_running = {app.name for app in current_node_state.not_running}
 
-            # Compare the applications being changed by name only.  Other
-            # configuration changes aren't important at this point.
-            current_state = {app.name for app in current_node_applications}
-            desired_local_state = {app.name for app in
-                                   desired_node_applications}
-            not_running = {app.name for app in current_node_state.not_running}
+        # Don't start applications that exist on this node but aren't
+        # running; instead they should be restarted:
+        start_names = desired_local_state.difference(
+            current_state | not_running)
+        stop_names = {app.name for app in all_applications}.difference(
+            desired_local_state)
 
-            # Don't start applications that exist on this node but aren't
-            # running; instead they should be restarted:
-            start_names = desired_local_state.difference(
-                current_state | not_running)
-            stop_names = {app.name for app in all_applications}.difference(
-                desired_local_state)
+        start_containers = [
+            StartApplication(application=app, hostname=self.hostname)
+            for app in desired_node_applications
+            if app.name in start_names
+        ]
+        stop_containers = [
+            StopApplication(application=app) for app in all_applications
+            if app.name in stop_names
+        ]
+        restart_containers = [
+            Sequentially(changes=[StopApplication(application=app),
+                                  StartApplication(application=app,
+                                                   hostname=self.hostname)])
+            for app in desired_node_applications
+            if app.name in not_running
+        ]
 
-            start_containers = [
-                StartApplication(application=app, hostname=hostname)
-                for app in desired_node_applications
-                if app.name in start_names
-            ]
-            stop_containers = [
-                StopApplication(application=app) for app in all_applications
-                if app.name in stop_names
-            ]
-            restart_containers = [
-                Sequentially(changes=[StopApplication(application=app),
-                                      StartApplication(application=app,
-                                                       hostname=hostname)])
-                for app in desired_node_applications
-                if app.name in not_running
-            ]
+        applications_to_inspect = current_state & desired_local_state
+        current_applications_dict = dict(zip(
+            [a.name for a in current_node_applications],
+            current_node_applications
+        ))
+        desired_applications_dict = dict(zip(
+            [a.name for a in desired_node_applications],
+            desired_node_applications
+        ))
+        for application_name in applications_to_inspect:
+            inspect_desired = desired_applications_dict[application_name]
+            inspect_current = current_applications_dict[application_name]
+            if inspect_desired != inspect_current:
+                changes = [
+                    StopApplication(application=inspect_current),
+                    StartApplication(application=inspect_desired,
+                                     hostname=self.hostname)
+                ]
+                sequence = Sequentially(changes=changes)
+                if sequence not in restart_containers:
+                    restart_containers.append(sequence)
 
-            applications_to_inspect = current_state & desired_local_state
-            current_applications_dict = dict(zip(
-                [a.name for a in current_node_applications],
-                current_node_applications
-            ))
-            desired_applications_dict = dict(zip(
-                [a.name for a in desired_node_applications],
-                desired_node_applications
-            ))
-            for application_name in applications_to_inspect:
-                inspect_desired = desired_applications_dict[application_name]
-                inspect_current = current_applications_dict[application_name]
-                if inspect_desired != inspect_current:
-                    changes = [
-                        StopApplication(application=inspect_current),
-                        StartApplication(application=inspect_desired,
-                                         hostname=hostname)
-                    ]
-                    sequence = Sequentially(changes=changes)
-                    if sequence not in restart_containers:
-                        restart_containers.append(sequence)
+        # Find any dataset that are moving to or from this node - or
+        # that are being newly created by this new configuration.
+        dataset_changes = find_dataset_changes(
+            self.hostname, current_cluster_state, desired_configuration)
 
-            # Find any dataset that are moving to or from this node - or
-            # that are being newly created by this new configuration.
-            dataset_changes = find_dataset_changes(
-                hostname, current_cluster_state, desired_state)
+        if dataset_changes.resizing:
+            phases.append(InParallel(changes=[
+                ResizeDataset(dataset=dataset)
+                for dataset in dataset_changes.resizing]))
 
-            if dataset_changes.resizing:
-                phases.append(InParallel(changes=[
-                    ResizeDataset(dataset=dataset)
-                    for dataset in dataset_changes.resizing]))
+        # Do an initial push of all volumes that are going to move, so
+        # that the final push which happens during handoff is a quick
+        # incremental push. This should significantly reduces the
+        # application downtime caused by the time it takes to copy
+        # data.
+        if dataset_changes.going:
+            phases.append(InParallel(changes=[
+                PushDataset(dataset=handoff.dataset,
+                            hostname=handoff.hostname)
+                for handoff in dataset_changes.going]))
 
-            # Do an initial push of all volumes that are going to move, so
-            # that the final push which happens during handoff is a quick
-            # incremental push. This should significantly reduces the
-            # application downtime caused by the time it takes to copy
-            # data.
-            if dataset_changes.going:
-                phases.append(InParallel(changes=[
-                    PushDataset(dataset=handoff.dataset,
-                                hostname=handoff.hostname)
-                    for handoff in dataset_changes.going]))
+        if stop_containers:
+            phases.append(InParallel(changes=stop_containers))
+        if dataset_changes.going:
+            phases.append(InParallel(changes=[
+                HandoffDataset(dataset=handoff.dataset,
+                               hostname=handoff.hostname)
+                for handoff in dataset_changes.going]))
+        # any datasets coming to this node should also be
+        # resized to the appropriate quota max size once they
+        # have been received
+        if dataset_changes.coming:
+            phases.append(InParallel(changes=[
+                WaitForDataset(dataset=dataset)
+                for dataset in dataset_changes.coming]))
+            phases.append(InParallel(changes=[
+                ResizeDataset(dataset=dataset)
+                for dataset in dataset_changes.coming]))
+        if dataset_changes.creating:
+            phases.append(InParallel(changes=[
+                CreateDataset(dataset=dataset)
+                for dataset in dataset_changes.creating]))
+        start_restart = start_containers + restart_containers
+        if start_restart:
+            phases.append(InParallel(changes=start_restart))
+        return Sequentially(changes=phases)
 
-            if stop_containers:
-                phases.append(InParallel(changes=stop_containers))
-            if dataset_changes.going:
-                phases.append(InParallel(changes=[
-                    HandoffDataset(dataset=handoff.dataset,
-                                   hostname=handoff.hostname)
-                    for handoff in dataset_changes.going]))
-            # any datasets coming to this node should also be
-            # resized to the appropriate quota max size once they
-            # have been received
-            if dataset_changes.coming:
-                phases.append(InParallel(changes=[
-                    WaitForDataset(dataset=dataset)
-                    for dataset in dataset_changes.coming]))
-                phases.append(InParallel(changes=[
-                    ResizeDataset(dataset=dataset)
-                    for dataset in dataset_changes.coming]))
-            if dataset_changes.creating:
-                phases.append(InParallel(changes=[
-                    CreateDataset(dataset=dataset)
-                    for dataset in dataset_changes.creating]))
-            start_restart = start_containers + restart_containers
-            if start_restart:
-                phases.append(InParallel(changes=start_restart))
 
-        d.addCallback(find_differences)
-        d.addCallback(lambda _: Sequentially(changes=phases))
-        return d
+def change_node_state(deployer, desired_configuration,  current_cluster_state):
+    """
+    Change the local state to match the given desired state.
 
-    def change_node_state(self, desired_state,
-                          current_cluster_state,
-                          hostname):
-        """
-        Change the local state to match the given desired state.
+    :param IDeployer deployer: Deployer to discover local state and
+        calculate changes.
+    :param Deployment desired_configuration: The intended configuration of all
+        nodes.
+    :param Deployment current_cluster_state: The current configuration
+        of all nodes.
 
-        :param Deployment desired_state: The intended configuration of all
-            nodes.
-        :param Deployment current_cluster_state: The current configuration
-            of all nodes.
-        :param unicode hostname: The hostname of the node that this is running
-            on.
-
-        :return: ``Deferred`` that fires when the necessary changes are done.
-        """
-        d = self.calculate_necessary_state_changes(
-            desired_state=desired_state,
-            current_cluster_state=current_cluster_state,
-            hostname=hostname)
-        d.addCallback(lambda change: change.run(self))
-        return d
+    :return: ``Deferred`` that fires when the necessary changes are done.
+    """
+    d = deployer.discover_local_state()
+    d.addCallback(deployer.calculate_necessary_state_changes,
+                  desired_configuration=desired_configuration,
+                  current_cluster_state=current_cluster_state)
+    d.addCallback(lambda change: change.run(deployer))
+    return d
 
 
 def find_dataset_changes(hostname, current_state, desired_state):
