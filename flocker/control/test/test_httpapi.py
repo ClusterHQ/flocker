@@ -475,14 +475,12 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         If a different primary IP address is supplied, the modification request
         succeeds.
         """
-        expected_dataset_id = unicode(uuid4())
+        expected_manifestation = _manifestation()
+        expected_dataset_id = expected_manifestation.dataset.dataset_id
         node = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([
-                Manifestation(dataset=Dataset(dataset_id=expected_dataset_id),
-                              primary=True)
-            ])
+            other_manifestations=frozenset([expected_manifestation])
         )
 
         deployment = Deployment(nodes=frozenset([node]))
