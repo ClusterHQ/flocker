@@ -461,13 +461,16 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
     Tests for the dataset configuration retrieval endpoint at
     ``/datasets``.
     """
-    def _manifestation(self):
+    def _manifestation(self, **kwargs):
         """
+        :param kwargs: Additional keyword arguments to use to initialize the
+            manifestation's ``Dataset``.
+
         :return: A primary ``Manifestation`` for a dataset with a new
             random identifier.
         """
         dataset_id = unicode(uuid4())
-        existing_dataset = Dataset(dataset_id=dataset_id)
+        existing_dataset = Dataset(dataset_id=dataset_id, **kwargs)
         return Manifestation(dataset=existing_dataset, primary=True)
 
     def test_empty(self):
@@ -503,12 +506,18 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         saving.addCallback(saved)
         return saving
 
-    def test_one_dataset(self):
+    def _one_dataset_test(self, **kwargs):
         """
-        When the cluster configuration includes one dataset, the
-        endpoint returns a single-element list containing the dataset.
+        Assert that when a single manifestation exists on the cluster a ``GET``
+        request to the ``/configuration/datasets`` returns a list of one object
+        that represents that manifestation.
+
+        :param kwargs: Additional arguments to use when creating the
+            manifestation.  See ``_manifestation``.
+
+        :return: A ``Deferred`` that fires when the assertion has been made.
         """
-        manifestation = self._manifestation()
+        manifestation = self._manifestation(**kwargs)
         deployment = Deployment(
             nodes={
                 Node(
@@ -523,6 +532,22 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             )
         ]
         return self._dataset_test(deployment, expected)
+
+    def test_one_dataset(self):
+        """
+        When the cluster configuration includes one dataset, the
+        endpoint returns a single-element list containing the dataset.
+        """
+        return self._one_dataset_test()
+
+    def test_dataset_with_other_properties(self):
+        """
+        A dataset with a maximum size and non-empty metadata has both
+        of those values included in the response from the endpoint.
+        """
+        return self._one_dataset_test(
+            maximum_size=1024 * 1024 * 100, metadata=pmap({u"foo": u"bar"})
+        )
 
     def test_several_nodes(self):
         """
