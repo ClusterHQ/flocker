@@ -479,6 +479,7 @@ def canned_package(root, version=b'0.3.2'):
     installed and with a name and version which can later be tested.
 
     :param test_case: The ``TestCase`` whose mktemp method will be called.
+    :param version: The version of the created package.
     :return: A ``PythonPackage`` instance.
     """
     name = 'FooBar'
@@ -520,6 +521,8 @@ class GetPackageVersionTests(TestCase):
         """
         ``GetPackageVersion`` assigns the exact version of a found package to
         its ``version`` attribute.
+
+        :param version: The version of the package to test package.
         """
         test_env = FilePath(self.mktemp())
         virtualenv = VirtualEnv(root=test_env)
@@ -538,6 +541,9 @@ class GetPackageVersionTests(TestCase):
         """
         ``GetPackageVersion`` assigns the exact version of a found package to
         its ``version`` attribute.
+
+        In particular, newer versions of pip/setuptools normalize the version
+        accoding to PEP440. We aren't prepared to handle that yet.
         """
         versions = [
             '0.3.2',
