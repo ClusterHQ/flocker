@@ -14,7 +14,7 @@ from json import dumps, loads
 from twisted.trial.unittest import TestCase
 from treq import get, post, content
 
-from .testtools import get_nodes, _run_SSH
+from .testtools import get_nodes, run_SSH
 from ..testtools import loop_until
 
 from ..control.httpapi import REST_API_PORT
@@ -65,14 +65,14 @@ class DatasetAPITests(TestCase):
         # Start servers; eventually we will have these already running on
         # nodes, but for now needs to be done manually.
         # https://clusterhq.atlassian.net/browse/FLOC-1383
-        p1 = _run_SSH(22, 'root', node_1, [b"flocker-control"],
-                      b"", None, True)
+        p1 = run_SSH(22, 'root', node_1, [b"flocker-control"],
+                     b"", None, True)
         self.addCleanup(close, p1)
 
         # https://clusterhq.atlassian.net/browse/FLOC-1382
-        p2 = _run_SSH(22, 'root', node_1,
-                      [b"flocker-zfs-agent", node_1, b"localhost"],
-                      b"", None, True)
+        p2 = run_SSH(22, 'root', node_1,
+                     [b"flocker-zfs-agent", node_1, b"localhost"],
+                     b"", None, True)
         self.addCleanup(close, p2)
 
         d = wait_for_api(node_1)

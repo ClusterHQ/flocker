@@ -112,12 +112,12 @@ def get_node_state(node):
     Call flocker-reportstate on the specified node and return its output,
     as ``Application`` instances parsed via class ``FlockerConfiguration``.
     """
-    yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+    yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
     state = safe_load(yaml)
     return FlockerConfiguration(state).applications()
 
 
-def _run_SSH(port, user, node, command, input, key=None,
+def run_SSH(port, user, node, command, input, key=None,
              background=False):
     """
     Run a command via SSH.
@@ -197,7 +197,7 @@ def _clean_node(test_case, node):
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
     # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
-    _run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
+    run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
              [b"flocker"], None)
 
 
@@ -333,7 +333,7 @@ def assert_expected_deployment(test_case, expected_deployment):
         addresses.
     """
     for node, expected in expected_deployment.items():
-        yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+        yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
         state = safe_load(yaml)
         test_case.assertSetEqual(
             set(FlockerConfiguration(state).applications().values()),
