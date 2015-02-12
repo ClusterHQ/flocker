@@ -295,17 +295,10 @@ class DatasetAPIUserV1(object):
         )
         deployment = deployment.update_node(new_origin_node)
 
-        for target_node in deployment.nodes:
-            if target_node.hostname == primary:
-                new_target_node = Node(
-                    hostname=target_node.hostname,
-                    applications=target_node.applications,
-                    other_manifestations=(
-                        target_node.other_manifestations
-                        | frozenset({primary_manifestation})
-                    )
-                )
-        else:
+        primary_nodes = list(
+            node for node in deployment.nodes if primary == node.hostname
+        )
+        if len(primary_nodes) == 0:
             # `primary` is not in cluster. Add it.
             # XXX Check cluster state to determine if the given primary node
             # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
@@ -313,6 +306,18 @@ class DatasetAPIUserV1(object):
             new_target_node = Node(
                 hostname=primary,
                 other_manifestations=frozenset({primary_manifestation})
+            )
+        else:
+            # There should only be one node with the requested primary
+            # hostname. ``IndexError`` here if that's not the case.
+            (target_node,) = primary_nodes
+            new_target_node = Node(
+                hostname=target_node.hostname,
+                applications=target_node.applications,
+                other_manifestations=(
+                    target_node.other_manifestations
+                    | frozenset({primary_manifestation})
+                )
             )
 
         deployment = deployment.update_node(new_target_node)
