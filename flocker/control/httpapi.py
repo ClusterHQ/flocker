@@ -220,8 +220,6 @@ class DatasetAPIUserV1(object):
         ]
     )
     @structured(
-        # XXX Validation of the supplied primary address is performed by input
-        # schema validation. Any further checks required?
         inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
