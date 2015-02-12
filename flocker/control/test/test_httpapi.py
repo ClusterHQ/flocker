@@ -614,7 +614,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
                 ),
                 {u"primary": self.NODE_B},
                 INTERNAL_SERVER_ERROR,
-                {}
+                u'ELIOT LOG REFERENCE'
             )
             return creating
         saving.addCallback(saved)
