@@ -224,8 +224,7 @@ class DatasetAPIUserV1(object):
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
     )
-    def update_dataset(self, dataset_id, primary=None, maximum_size=None,
-                       metadata=None):
+    def update_dataset(self, dataset_id, primary=None):
         """
         Update an existing dataset in the cluster configuration.
 
@@ -249,14 +248,6 @@ class DatasetAPIUserV1(object):
             cluster configuration or giving error information if this is not
             possible.
         """
-        # XXX Changing volume size and metadata via the API is beyond the scope
-        # of this issue. Decide how to react.
-        # if maximum_size is None:
-        #     raise NotImplemented()
-
-        # if metadata is None:
-        #     raise NotImplemented()
-
         # Get the current configuration.
         deployment = self.persistence_service.get()
 
