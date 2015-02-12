@@ -684,6 +684,11 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             return creating
         saving.addCallback(saved)
         return saving
+    test_no_primary.todo = (
+        'It should be possible to submit a dataset update request without a '
+        'primary address, but the input schema currently requires the primary '
+        'attribute.'
+    )
 
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
     buildIntegrationTests(
