@@ -216,6 +216,7 @@ class DatasetAPIUserV1(object):
         """,
         examples=[
             u"update dataset with primary",
+            u"update dataset with unknown dataset id",
         ]
     )
     @structured(
