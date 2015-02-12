@@ -152,31 +152,6 @@ class LoggingScript(object):
         return succeed(None)
 
 
-class FlockerScriptRunnerLoggingTests(SynchronousTestCase):
-    """
-    Tests for :py:class:`FlockerScriptRunner` logging."""
-
-    def test_logs_arguments(self):
-        """
-        ``FlockerScriptRunner.main`` logs ``self.sys_module.argv``.
-        """
-        options = usage.Options()
-        sys = FakeSysModule(argv=[b"mythingie", b"--version"])
-        logs = FilePath(self.mktemp())
-        from twisted.test.test_task import _FakeReactor
-        fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(LoggingScript(), options,
-                                     reactor=fakeReactor,
-                                     sys_module=sys)
-        runner.log_directory = logs
-        try:
-            runner.main()
-        except SystemExit:
-            pass
-        path = logs.child(b"mythingie-%d.log" % (getpid(),))
-        self.assertIn(b"--version", path.getContent())
-
-
 @flocker_standard_options
 class TestOptions(usage.Options):
     """An unmodified ``usage.Options`` subclass for use in testing."""
