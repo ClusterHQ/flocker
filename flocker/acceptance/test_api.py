@@ -140,24 +140,22 @@ class DatasetAPITests(TestCase):
 
         # https://clusterhq.atlassian.net/browse/FLOC-1382
         agent1 = run_SSH(22, 'root', node_1,
-                         [b"flocker-zfs-agent", node_1, b"localhost"],
+                         [b"flocker-zfs-agent", node_1, node_1],
                          b"", None, True)
         self.addCleanup(close, agent1)
 
         agent2 = run_SSH(22, 'root', node_2,
-                         [b"flocker-zfs-agent", node_2, b"localhost"],
+                         [b"flocker-zfs-agent", node_2, node_1],
                          b"", None, True)
         self.addCleanup(close, agent2)
 
-        services_starting = gatherResults(
-            wait_for_api(p) for p in (control_service, agent1, agent2))
-
+        api_starting = wait_for_api(node_1)
         uuid = unicode(uuid4())
         dataset = {u"primary": node_1,
                    u"dataset_id": uuid,
                    u"metadata": {u"name": u"my_volume"}}
         base_url = b"http://{}:{}/v1".format(node_1, REST_API_PORT)
-        dataset_requested = services_starting.addCallback(
+        dataset_requested = api_starting.addCallback(
             lambda _: post(base_url + b"/configuration/datasets",
                            data=dumps(dataset),
                            headers={b"content-type": b"application/json"},
@@ -183,4 +181,30 @@ class DatasetAPITests(TestCase):
             result.addCallback(got_body)
             return result
         dataset_created = dataset_acknowledged.addCallback(lambda _: loop_until(created))
-        return dataset_created
+        def move(ignored):
+            moved_dataset = {
+                u'primary': node_2
+            }
+            post(base_url + b"/configuration/datasets/%s" % (dataset['dataset_id'].encode('ascii')),
+                           data=dumps(moved_dataset),
+                           headers={b"content-type": b"application/json"},
+                           persistent=False)
+        dataset_moving = dataset_created.addCallback(move)
+
+        def moved():
+            result = get(base_url + b"/state/datasets", persistent=False)
+            result.addCallback(content)
+
+            def got_body(body):
+                body = loads(body)
+                # Current state listing includes bogus metadata
+                # https://clusterhq.atlassian.net/browse/FLOC-1386
+                expected_dataset = dataset.copy()
+                expected_dataset[u'primary'] = node_2
+                expected_dataset[u"metadata"].clear()
+                return expected_dataset in body
+            result.addCallback(got_body)
+            return result
+        dataset_moved = dataset_moving.addCallback(lambda _: loop_until(moved))
+
+        return dataset_moved
