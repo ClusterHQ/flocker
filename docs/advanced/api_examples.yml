@@ -194,7 +194,7 @@
     "update dataset with unknown dataset id"
 
   doc: |
-    .
+    An attempt to update an unknown dataset results in a 404 Not Found response.
 
   request: |
     POST /v1/configuration/datasets/<unknown_dataset_id> HTTP/1.1
