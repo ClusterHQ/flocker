@@ -631,6 +631,13 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             return creating
         saving.addCallback(saved)
         return saving
+    test_only_replicas.todo = (
+        "XXX: Perhaps this test isn't necessary. "
+        "There should always be a primary."
+        "But perhaps there should be a test that demonstrates the general 500 "
+        "response message format."
+        "See https://clusterhq.atlassian.net/browse/FLOC-1393"
+    )
 
     def test_primary_invalid(self):
         """
