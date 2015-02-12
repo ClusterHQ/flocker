@@ -593,6 +593,9 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         If there are only replica manifestations of the requested dataset, 500
         response is returned and ``IndexError`` is logged.
+
+        XXX The 500 error message really should be clearer.
+        See https://clusterhq.atlassian.net/browse/FLOC-1393
         """
         expected_manifestation = _manifestation(primary=False)
         node_a = Node(
