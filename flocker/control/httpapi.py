@@ -287,7 +287,13 @@ class DatasetAPIUserV1(object):
         )
         deployment = deployment.update_node(origin_node)
 
-        target_node = [node for node in deployment.nodes if node.hostname == primary][0]
+        for target_node in deployment.nodes:
+            if target_node.hostname == primary:
+                break
+        else:
+            raise Exception('Target node not found. {}'.format(primary))
+
+
         new_target_node = Node(
             hostname=target_node.hostname,
             applications=target_node.applications,
@@ -316,7 +322,10 @@ class DatasetAPIUserV1(object):
         #     return EndpointResponse(CREATED, result)
         # saving.addCallback(saved)
         # return saving
-        return api_dataset_from_dataset_and_node(primary_manifestation.dataset, new_target_node.hostname)
+        return api_dataset_from_dataset_and_node(
+            primary_manifestation.dataset,
+            new_target_node.hostname
+        )
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""

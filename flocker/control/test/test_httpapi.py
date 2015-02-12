@@ -482,8 +482,9 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
             def got_result(result):
                 self.assertEqual(
-                        {u"dataset_id": expected_dataset_id, u"primary": target, u"metadata": {}}, result
-                    )
+                    {u"dataset_id": expected_dataset_id, u"primary": target, u"metadata": {}},
+                    result
+                )
                 deployment = self.persistence_service.get()
 
                 for node in deployment.nodes:
@@ -506,12 +507,12 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         request succeeds and the dataset's primary becomes the given address.
         """
         expected_manifestation = _manifestation()
-        node = Node(
+        current_primary_node = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
             other_manifestations=frozenset([expected_manifestation])
         )
-        deployment = Deployment(nodes=frozenset([node]))
+        deployment = Deployment(nodes=frozenset([current_primary_node]))
 
         return self._test_change_primary(
             expected_manifestation.dataset, deployment,
