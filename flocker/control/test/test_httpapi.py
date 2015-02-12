@@ -519,6 +519,44 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             self.NODE_A, self.NODE_B
         )
 
+    def test_unknown_primary_node(self):
+        """
+        A dataset's primary IP address must belong to a node in the cluster.
+        XXX: Skip this test until FLOC-1278 is implemented.
+
+        This is an alternative to the behaviour above.
+        The dataset creation API currently behaves this way.
+        Perhaps it shouldn't.
+        And instead allow datasets to be created with an as yet unknown node.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        saving = self.persistence_service.save(deployment)
+        def saved(ignored):
+            creating = self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {u"primary": self.NODE_B},
+                BAD_REQUEST, {
+                    u"description": u"The provided primary node is not part of the cluster."
+                }
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+    test_unknown_primary_node.todo = (
+        "See FLOC-1278.  Make this pass by inspecting cluster state "
+        "instead of desired configuration to determine whether a node is "
+        "valid or not."
+    )
+
     def test_change_primary_to_configured_node(self):
         expected_manifestation = _manifestation()
         node_a = Node(
