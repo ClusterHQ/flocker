@@ -307,6 +307,9 @@ class DatasetAPIUserV1(object):
                 )
         else:
             # `primary` is not in cluster. Add it.
+            # XXX Check cluster state to determine if the given primary node
+            # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
+            # See FLOC-1278
             new_target_node = Node(
                 hostname=primary,
                 other_manifestations=frozenset({primary_manifestation})
