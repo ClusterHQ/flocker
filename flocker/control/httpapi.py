@@ -289,18 +289,19 @@ class DatasetAPIUserV1(object):
 
         for target_node in deployment.nodes:
             if target_node.hostname == primary:
-                break
+                new_target_node = Node(
+                    hostname=target_node.hostname,
+                    applications=target_node.applications,
+                    other_manifestations=(
+                        target_node.other_manifestations | frozenset({primary_manifestation})
+                    )
+                )
         else:
-            raise Exception('Target node not found. {}'.format(primary))
-
-
-        new_target_node = Node(
-            hostname=target_node.hostname,
-            applications=target_node.applications,
-            other_manifestations=(
-                target_node.other_manifestations | frozenset({primary_manifestation})
+            # `primary` is not in cluster. Add it.
+            new_target_node = Node(
+                hostname=primary,
+                other_manifestations=frozenset({primary_manifestation})
             )
-        )
 
         deployment = deployment.update_node(new_target_node)
 
