@@ -646,25 +646,6 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         saving.addCallback(saved)
         return saving
 
-    def test_dataset_returned(self):
-        """
-        A successful modification request returns the modified dataset
-        attributes.
-        """
-        # Pre-populate the persistence service with a primary other_manifestation on node1
-        # Request it move to node2.
-        # Assert that the returned dataset primary attribute is node2
-
-
-    def test_dataset_state_persisted(self):
-        """
-        A successful modification request updates the state of the
-        manifestation in the persistence_state service.
-        """
-        # Pre-populate the persistence service with a primary other_manifestation on node1
-        # Request it move to node2.
-        # Assert that the Deployment returned by the persistence service now has the primary manifestation on node2.
-
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = buildIntegrationTests(
     UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
 
