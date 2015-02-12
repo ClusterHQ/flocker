@@ -352,7 +352,6 @@ def other_manifestations_from_deployment(deployment, dataset_id):
         for manifestation in node.other_manifestations:
             if manifestation.dataset.dataset_id == dataset_id:
                 yield manifestation, node
-# This looks very similar to the function below. Refactor?
 
 
 def datasets_from_deployment(deployment):
