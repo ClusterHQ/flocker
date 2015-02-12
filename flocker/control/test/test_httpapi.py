@@ -622,10 +622,29 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
     def test_primary_invalid(self):
         """
-        A request with an invalid (non-IPv4) primary IP address is rejected.
-        XXX: Perhaps this test isn't necessary if json input schema validation
-        checks this already.
+        A request with an invalid (non-IPv4) primary IP address is rejected
+        with ``BAD_REQUEST``.
         """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        saving = self.persistence_service.save(deployment)
+        def saved(ignored):
+            creating = self.assertResponseCode(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {u"primary": u'192.0.2.257'},
+                BAD_REQUEST,
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
 
     def test_dataset_returned(self):
         """
