@@ -9,7 +9,7 @@ from uuid import uuid4
 from pyrsistent import pmap, thaw
 
 from twisted.python.filepath import FilePath
-from twisted.web.http import CONFLICT, CREATED, NOT_FOUND
+from twisted.web.http import CONFLICT, CREATED, NOT_FOUND, OK
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
@@ -304,23 +304,16 @@ class DatasetAPIUserV1(object):
 
         saving = self.persistence_service.save(deployment)
 
-        # Construct the return dictionary from the supplied dataset_id, primary
-        # and the found existing primary manifestation.
-        # def saved(ignored):
-        #     result = {
-        #         u"dataset_id": dataset_id,
-        #         u"primary": primary,
-        #         u"metadata": metadata,
-        #     }
-        #     if maximum_size is not None:
-        #         result[u"maximum_size"] = maximum_size
-        #     return EndpointResponse(CREATED, result)
-        # saving.addCallback(saved)
-        # return saving
-        return api_dataset_from_dataset_and_node(
-            primary_manifestation.dataset,
-            new_target_node.hostname
-        )
+        # Return an API response dictionary containing the dataset with updated
+        # primary address.
+        def saved(ignored):
+            result = api_dataset_from_dataset_and_node(
+                primary_manifestation.dataset,
+                new_target_node.hostname
+            )
+            return EndpointResponse(OK, result)
+        saving.addCallback(saved)
+        return saving
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
