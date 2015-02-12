@@ -306,9 +306,6 @@ class DatasetAPIUserV1(object):
 
         # Construct the return dictionary from the supplied dataset_id, primary
         # and the found existing primary manifestation.
-        # What if there wasn't an existing primary manifestation?
-        # Should the returned and maximum size be that found on a lone replica?
-
         # def saved(ignored):
         #     result = {
         #         u"dataset_id": dataset_id,
