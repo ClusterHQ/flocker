@@ -31,13 +31,13 @@ SCHEMAS = {
         SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
 
-
 DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
 PRIMARY_NODE_NOT_FOUND = make_bad_request(
     description=u"The provided primary node is not part of the cluster.")
 DATASET_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Dataset not found.")
+
 
 class DatasetAPIUserV1(object):
     """
@@ -273,13 +273,14 @@ class DatasetAPIUserV1(object):
         # Lookup the node that has a primary Manifestation (if any)
         primary_manifestation, origin_node = [
             (manifestation, node)
-            for manifestation, node in  manifestations_and_nodes
+            for manifestation, node in manifestations_and_nodes
             if manifestation.primary
         ][0]
 
         if origin_node.hostname == primary:
-            # Maybe return early here rather than bother the persistence_service.
-            # raise Exception('New primary is the same as existing primary')
+            # Maybe return early here rather than bother the
+            # persistence_service.  raise Exception('New primary is the same as
+            # existing primary')
             pass
 
         # Now construct a new_deployment where the primary manifestation of the
@@ -288,7 +289,8 @@ class DatasetAPIUserV1(object):
             hostname=origin_node.hostname,
             applications=origin_node.applications,
             other_manifestations=(
-                origin_node.other_manifestations - frozenset({primary_manifestation})
+                origin_node.other_manifestations
+                - frozenset({primary_manifestation})
             )
         )
         deployment = deployment.update_node(new_origin_node)
@@ -299,7 +301,8 @@ class DatasetAPIUserV1(object):
                     hostname=target_node.hostname,
                     applications=target_node.applications,
                     other_manifestations=(
-                        target_node.other_manifestations | frozenset({primary_manifestation})
+                        target_node.other_manifestations
+                        | frozenset({primary_manifestation})
                     )
                 )
         else:
@@ -354,16 +357,18 @@ class DatasetAPIUserV1(object):
         deployment = self.cluster_state_service.as_deployment()
         return list(datasets_from_deployment(deployment))
 
+
 def other_manifestations_from_deployment(deployment, dataset_id):
     """
-    Extract all other manifestations of the supplied dataset_id from the supplied
-    deployment.
+    Extract all other manifestations of the supplied dataset_id from the
+    supplied deployment.
     """
     for node in deployment.nodes:
         for manifestation in node.other_manifestations:
             if manifestation.dataset.dataset_id == dataset_id:
                 yield manifestation, node
 # This looks very similar to the function below. Refactor?
+
 
 def datasets_from_deployment(deployment):
     """
