@@ -274,6 +274,9 @@ class DatasetAPIUserV1(object):
         # else:
         #     raise Exception('Primary not found')
 
+        if primary_node.hostname == primary:
+            raise Exception('New primary is the same as existing primary')
+
         # Now construct a new_deployment where the primary manifestation of the dataset is on the requested primary node
         # But what if the dataset is associated with an Application? Should the Application be moved to the new node too?
         # And do we need to mark the manifestation as a replica on the existing primary node?

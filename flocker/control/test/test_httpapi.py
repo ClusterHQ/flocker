@@ -538,9 +538,18 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         If the current primary IP address is supplied, the modification request
         succeeds.
         """
-        # Pre-populate the persistence service with a primary other_manifestation on node1
-        # Request it move to node1.
-        # Assert that the returned code is OK
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        node_b = Node(hostname=self.NODE_B)
+        deployment = Deployment(nodes=frozenset([node_a, node_b]))
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_A
+        )
 
     def test_primary_unknown(self):
         """
