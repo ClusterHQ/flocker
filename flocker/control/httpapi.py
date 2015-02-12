@@ -340,6 +340,13 @@ def other_manifestations_from_deployment(deployment, dataset_id):
     """
     Extract all other manifestations of the supplied dataset_id from the
     supplied deployment.
+
+    :param Deployment deployment: A ``Deployment`` describing the state
+        of the cluster.
+    :param unicode dataset_id: The uuid of the ``Dataset`` for the
+        ``Manifestation`` s that are to be returned.
+    :return: Iterable returning all manifestations of the supplied
+        ``dataset_id``.
     """
     for node in deployment.nodes:
         for manifestation in node.other_manifestations:
