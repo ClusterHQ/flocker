@@ -55,7 +55,7 @@
     server and returned with the response.
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"primary": "%(NODE_0)s"}
 
@@ -73,7 +73,7 @@
     the server generate it.
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"dataset_id": "ad0a05dd-a1ed-449f-b44b-e1e2757bda00", "primary": "%(NODE_0)s"}
 
@@ -100,7 +100,7 @@
     - "create dataset with dataset_id"
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"dataset_id": "ad0a05dd-a1ed-449f-b44b-e1e2757bda00", "primary": "%(NODE_0)s"}
 
@@ -118,7 +118,7 @@
     store.
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"primary": "%(NODE_0)s", "maximum_size": 1073741824}
 
@@ -135,7 +135,7 @@
     Create a new dataset with some arbitrary key/value data associated with it.
 
   request: |
-    POST /v1/datasets HTTP/1.1
+    POST /v1/configuration/datasets HTTP/1.1
 
     {"primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
 
@@ -143,6 +143,31 @@
     HTTP/1.1 201 Created
 
     {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
+
+
+-
+  id:
+    "get configured datasets"
+
+  doc: |
+    Get a list of all datasets that have been configured for a
+    deployment.  These datasets may or may not actually exist on the
+    cluster.
+
+  requires:
+    - "create dataset with dataset_id"
+    - "create dataset with metadata"
+
+  request: |
+    GET /v1/configuration/datasets HTTP/1.1
+
+  response: |
+    HTTP/1.0 200 OK
+
+    [
+      {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}},
+      {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
+    ]
 
 -
   id:
