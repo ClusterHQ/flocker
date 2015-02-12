@@ -703,8 +703,6 @@ RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
 )
 
 
-# XXX This might be moved to _control and re-used as part of
-# manifestations_from_deployment?
 def get_dataset_ids(deployment):
     """
     Get an iterator of all of the ``dataset_id`` values on all nodes in the
