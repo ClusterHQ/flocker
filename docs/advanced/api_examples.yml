@@ -177,7 +177,7 @@
     Update a dataset with a new primary address.
 
   request: |
-    POST /v1/datasets/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
+    POST /v1/configuration/datasets/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
 
     {"primary": "%(NODE_1)s"}
 
