@@ -5,17 +5,22 @@
 import sys
 from os import getpid
 
+from eliot.testing import validateLogging, assertHasMessage
+
 from twisted.internet import task
 from twisted.internet.defer import succeed
 from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
-from twisted.python.log import msg
+from twisted.python.log import msg, LogPublisher
+from twisted.python import log as twisted_log
 from twisted.internet.defer import Deferred
 from twisted.application.service import Service
 
 from ..script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
+    EliotObserver, TWISTED_LOG_MESSAGE,
     )
 from ...testtools import (
     help_problems, FakeSysModule, StandardOptionsTestsMixin,
@@ -151,49 +156,6 @@ class FlockerScriptRunnerLoggingTests(SynchronousTestCase):
     """
     Tests for :py:class:`FlockerScriptRunner` logging."""
 
-    def test_adds_log_observer(self):
-        """
-        ``FlockerScriptRunner.main`` logs to the given directory using a
-        filename composed of process name and pid.
-        """
-        options = usage.Options()
-        sys = FakeSysModule(argv=[b"/usr/bin/mythingie"])
-        logs = FilePath(self.mktemp())
-        from twisted.test.test_task import _FakeReactor
-        fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(LoggingScript(), options,
-                                     reactor=fakeReactor,
-                                     sys_module=sys)
-        runner.log_directory = logs
-        try:
-            runner.main()
-        except SystemExit:
-            pass
-        path = logs.child(b"mythingie-%d.log" % (getpid(),))
-        self.assertIn(b"it's alive", path.getContent())
-
-    def test_adds_log_observer_existing_directory(self):
-        """
-        ``FlockerScriptRunner.main`` logs to the given directory even if it
-        already exists.
-        """
-        options = usage.Options()
-        sys = FakeSysModule(argv=[b"/usr/bin/mythingie"])
-        logs = FilePath(self.mktemp())
-        logs.makedirs()
-        from twisted.test.test_task import _FakeReactor
-        fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(LoggingScript(), options,
-                                     reactor=fakeReactor,
-                                     sys_module=sys)
-        runner.log_directory = logs
-        try:
-            runner.main()
-        except SystemExit:
-            pass
-        path = logs.child(b"mythingie-%d.log" % (getpid(),))
-        self.assertIn(b"it's alive", path.getContent())
-
     def test_logs_arguments(self):
         """
         ``FlockerScriptRunner.main`` logs ``self.sys_module.argv``.
@@ -213,46 +175,6 @@ class FlockerScriptRunnerLoggingTests(SynchronousTestCase):
             pass
         path = logs.child(b"mythingie-%d.log" % (getpid(),))
         self.assertIn(b"--version", path.getContent())
-
-    def test_default_log_directory(self):
-        """
-        ``FlockerScriptRunner.main`` logs to ``/var/log/flocker/`` by default.
-        """
-        runner = FlockerScriptRunner(None, None)
-        self.assertEqual(runner.log_directory, FilePath(b"/var/log/flocker"))
-
-    @skip_on_broken_permissions
-    def test_no_logging_if_permission_denied(self):
-        """
-        If there is no permission to write to the given directory this does
-        not prevent the script from running.
-        """
-        options = usage.Options()
-        sys = FakeSysModule(argv=[b"mythingie"])
-        logs = FilePath(self.mktemp())
-        logs.makedirs()
-        logs.chmod(0)
-        self.addCleanup(logs.chmod, 0o777)
-
-        class Script(object):
-            ran = False
-
-            def main(self, *args, **kwargs):
-                self.ran = True
-                return succeed(None)
-
-        script = Script()
-        from twisted.test.test_task import _FakeReactor
-        fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(script, options, reactor=fakeReactor,
-                                     sys_module=sys)
-        runner.log_directory = logs
-        try:
-            with attempt_effective_uid('nobody', suppress_errors=True):
-                runner.main()
-        except SystemExit:
-            pass
-        self.assertTrue(script.ran)
 
 
 @flocker_standard_options
@@ -356,3 +278,72 @@ class MainForServiceTests(SynchronousTestCase):
         self._shutdown_reactor(self.reactor)
         async.callback(None)
         self.assertIs(None, self.successResultOf(result))
+
+
+class EliotObserverTests(SynchronousTestCase):
+    """
+    Tests for ``EliotObserver``.
+    """
+    def test_start(self):
+        """
+        ``EliotObserver.start`` adds the observer to the given
+        ``LogPublisher``.
+        """
+        publisher = LogPublisher()
+        observer = EliotObserver(publisher)
+        original_observers = publisher.observers[:]
+        observer.start()
+        self.assertEqual((original_observers, publisher.observers),
+                         ([], [observer]))
+
+    def test_stop(self):
+        """
+        ``EliotObserver.start`` removes the observer from the given
+        ``LogPublisher``.
+        """
+        publisher = LogPublisher()
+        observer = EliotObserver(publisher)
+        observer.start()
+        observer.stop()
+        self.assertNotIn(observer, publisher.observers)
+
+    @validateLogging(None)
+    def test_message(self, logger):
+        """
+        A message logged to the given ``LogPublisher`` is converted to an
+        Eliot log message.
+        """
+        publisher = LogPublisher()
+        observer = EliotObserver(publisher)
+        observer.logger = logger
+        observer.start()
+        publisher.msg(b"Hello", b"world")
+        assertHasMessage(self, logger, TWISTED_LOG_MESSAGE,
+                         dict(error=False, message=u"Hello world"))
+
+    @validateLogging(None)
+    def test_error(self, logger):
+        """
+        An error logged to the given ``LogPublisher`` is converted to an Eliot
+        log message.
+        """
+        publisher = LogPublisher()
+        observer = EliotObserver(publisher)
+        observer.logger = logger
+        observer.start()
+        # No public API for this unfortunately, so emulate error logging:
+        publisher.msg(failure=Failure(ZeroDivisionError("onoes")),
+                      why=b"A zero division ono",
+                      isError=True)
+        message = (u'A zero division ono\nTraceback (most recent call '
+                   u'last):\nFailure: exceptions.ZeroDivisionError: onoes\n')
+        assertHasMessage(self, logger, TWISTED_LOG_MESSAGE,
+                         dict(error=True, message=message))
+
+    def test_default_publisher(self):
+        """
+        The default ``LogPublisher`` for an ``EliotObserver`` is
+        ``twisted.python.log``.
+        """
+        observer = EliotObserver()
+        self.assertIs(observer.publisher, twisted_log)

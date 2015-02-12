@@ -12,6 +12,7 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from twisted.python.log import addObserver, removeObserver, textFromEventDict
+from twisted.python import log as twisted_log
 
 from zope.interface import Interface
 
@@ -82,19 +83,30 @@ class EliotObserver(object):
     """
     A Twisted log observer that logs to Eliot.
     """
-    def __init__(self):
+    def __init__(self, publisher=twisted_log):
+        """
+        :param publisher: A ``LogPublisher`` to capture logs from, or if no
+            argument is given the default Twisted log system.
+        """
         self.logger = Logger()
+        self.publisher = publisher
 
     def __call__(self, msg):
         error = bool(msg.get("isError"))
-        message = textFromEventDict(msg)
+        message = unicode(textFromEventDict(msg), "charmap")
         TWISTED_LOG_MESSAGE(error=error, message=message).write(self.logger)
 
     def start(self):
-        # add observer
+        """
+        Start capturing Twisted logs.
+        """
+        self.publisher.addObserver(self)
 
     def stop(self):
-        # stop observer
+        """
+        Stop capturing Twisted logs.
+        """
+        self.publisher.removeObserver(self)
 
 
 class FlockerScriptRunner(object):
