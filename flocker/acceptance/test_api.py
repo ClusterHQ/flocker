@@ -11,6 +11,7 @@ from os import kill
 from uuid import uuid4
 from json import dumps, loads
 
+from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
 from treq import get, post, content
 
@@ -109,3 +110,77 @@ class DatasetAPITests(TestCase):
             return result
         d.addCallback(lambda _: loop_until(created))
         return d
+
+
+    def test_dataset_move(self):
+        """
+        A dataset can be moved from one node to another.
+        """
+        d = get_nodes(self, 2)
+        d.addCallback(self._test_dataset_move)
+        return d
+
+    def _test_dataset_move(self, nodes):
+        """
+        Run the actual test now that the nodes are available.
+
+        :param nodes: Sequence of available hostnames, of size 2.
+        """
+        node_1, node_2 = nodes
+
+        def close(process):
+            process.stdin.close()
+            kill(process.pid, SIGINT)
+        # Start servers; eventually we will have these already running on
+        # nodes, but for now needs to be done manually.
+        # https://clusterhq.atlassian.net/browse/FLOC-1383
+        control_service = run_SSH(22, 'root', node_1, [b"flocker-control"],
+                                  b"", None, True)
+        self.addCleanup(close, control_service)
+
+        # https://clusterhq.atlassian.net/browse/FLOC-1382
+        agent1 = run_SSH(22, 'root', node_1,
+                         [b"flocker-zfs-agent", node_1, b"localhost"],
+                         b"", None, True)
+        self.addCleanup(close, agent1)
+
+        agent2 = run_SSH(22, 'root', node_2,
+                         [b"flocker-zfs-agent", node_2, b"localhost"],
+                         b"", None, True)
+        self.addCleanup(close, agent2)
+
+        services_starting = gatherResults(
+            wait_for_api(p) for p in (control_service, agent1, agent2))
+
+        uuid = unicode(uuid4())
+        dataset = {u"primary": node_1,
+                   u"dataset_id": uuid,
+                   u"metadata": {u"name": u"my_volume"}}
+        base_url = b"http://{}:{}/v1".format(node_1, REST_API_PORT)
+        dataset_requested = services_starting.addCallback(
+            lambda _: post(base_url + b"/configuration/datasets",
+                           data=dumps(dataset),
+                           headers={b"content-type": b"application/json"},
+                           persistent=False))
+        dataset_requested.addCallback(content)
+
+        def got_result(result):
+            result = loads(result)
+            self.assertEqual(dataset, result)
+        dataset_acknowledged = dataset_requested.addCallback(got_result)
+
+        def created():
+            result = get(base_url + b"/state/datasets", persistent=False)
+            result.addCallback(content)
+
+            def got_body(body):
+                body = loads(body)
+                # Current state listing includes bogus metadata
+                # https://clusterhq.atlassian.net/browse/FLOC-1386
+                expected_dataset = dataset.copy()
+                expected_dataset[u"metadata"].clear()
+                return expected_dataset in body
+            result.addCallback(got_body)
+            return result
+        dataset_created = dataset_acknowledged.addCallback(lambda _: loop_until(created))
+        return dataset_created
