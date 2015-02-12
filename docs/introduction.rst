@@ -116,6 +116,7 @@ Managing Volumes
   * Association is done based on container names.
 
 * Data model
+
   * Volumes are owned by a specific node.
 
   * Node A can push a copy to node B but node A still owns the volume.
