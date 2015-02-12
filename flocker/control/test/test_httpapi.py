@@ -15,7 +15,9 @@ from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
-from twisted.web.http import CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR
+from twisted.web.http import (
+    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR
+)
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
 from twisted.web.client import FileBodyProducer, readBody
@@ -444,7 +446,6 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     """
     Tests for the dataset modification endpoint at ``/datasets/<dataset_id>``.
     """
-
     def test_unknown_dataset(self):
         """
         NOT_FOUND is returned if the requested dataset_id doesn't exist.
@@ -452,7 +453,9 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         unknown_dataset_id = unicode(uuid4())
         updating = self.assertResponseCode(
-            b"POST", b"/configuration/datasets/%s" % (unknown_dataset_id.encode('ascii'),),
+            b"POST",
+            b"/configuration/datasets/%s" % (
+                unknown_dataset_id.encode('ascii'),),
             {u'primary': self.NODE_A},
             NOT_FOUND)
         updating.addCallback(readBody)
@@ -468,12 +471,13 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
     def _test_change_primary(self, dataset, deployment, origin, target):
         saving = self.persistence_service.save(deployment)
-        def saved(ignored):
 
+        def saved(ignored):
             expected_dataset_id = dataset.dataset_id
             creating = self.assertResponseCode(
                 b"POST",
-                b"/configuration/datasets/%s" % (expected_dataset_id.encode('ascii'),),
+                b"/configuration/datasets/%s" % (
+                    expected_dataset_id.encode('ascii'),),
                 {u"primary": target},
                 OK
             )
@@ -482,14 +486,19 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
             def got_result(result):
                 self.assertEqual(
-                    {u"dataset_id": expected_dataset_id, u"primary": target, u"metadata": {}},
+                    {u"dataset_id": expected_dataset_id,
+                     u"primary": target,
+                     u"metadata": {}},
                     result
                 )
                 deployment = self.persistence_service.get()
 
                 for node in deployment.nodes:
                     if node.hostname == target:
-                        dataset_ids = [(m.primary, m.dataset.dataset_id) for m in node.manifestations()]
+                        dataset_ids = [
+                            (m.primary, m.dataset.dataset_id)
+                            for m in node.manifestations()
+                        ]
                         self.assertIn((True, expected_dataset_id), dataset_ids)
                         break
                 else:
@@ -537,6 +546,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)
+
         def saved(ignored):
             creating = self.assertResult(
                 b"POST",
@@ -545,7 +555,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
                 ),
                 {u"primary": self.NODE_B},
                 BAD_REQUEST, {
-                    u"description": u"The provided primary node is not part of the cluster."
+                    u"description":
+                    u"The provided primary node is not part of the cluster."
                 }
             )
             return creating
@@ -606,6 +617,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
         saving = self.persistence_service.save(deployment)
+
         def saved(ignored):
             creating = self.assertResult(
                 b"POST",
@@ -633,6 +645,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)
+
         def saved(ignored):
             creating = self.assertResponseCode(
                 b"POST",
@@ -646,8 +659,10 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         saving.addCallback(saved)
         return saving
 
-RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = buildIntegrationTests(
-    UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
+RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
+    buildIntegrationTests(
+        UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
+)
 
 
 # XXX This might be moved to _control and re-used as part of
