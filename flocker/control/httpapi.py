@@ -263,18 +263,19 @@ class DatasetAPIUserV1(object):
 
         # Find all manifestations of requested dataset.
         manifestations_and_nodes = list(
-            other_manifestations_from_deployment(deployment, dataset_id))
+            other_manifestations_from_deployment(deployment, dataset_id)
+        )
 
         # There are no manifestations containing the requested dataset.
         if not manifestations_and_nodes:
             raise DATASET_NOT_FOUND
 
         # Lookup the node that has a primary Manifestation (if any)
-        for primary_manifestation, origin_node in manifestations_and_nodes:
-            if primary_manifestation.primary:
-                break
-        # else:
-        #     raise Exception('Primary not found')
+        primary_manifestation, origin_node = [
+            (manifestation, node)
+            for manifestation, node in  manifestations_and_nodes
+            if manifestation.primary
+        ][0]
 
         if origin_node.hostname == primary:
             # Maybe return early here rather than bother the persistence_service.

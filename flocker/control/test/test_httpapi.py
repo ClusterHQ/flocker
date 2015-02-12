@@ -15,7 +15,7 @@ from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
-from twisted.web.http import CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND
+from twisted.web.http import CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
 from twisted.web.client import FileBodyProducer, readBody
@@ -466,7 +466,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         return updating
 
-    def _test_change_primary(self, dataset, deployment, origin, target):
+    def _test_change_primary(self, dataset, deployment, origin, target, expected_response_code=OK):
         saving = self.persistence_service.save(deployment)
         def saved(ignored):
 
@@ -475,7 +475,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
                 b"POST",
                 b"/configuration/datasets/%s" % (expected_dataset_id.encode('ascii'),),
                 {u"primary": target},
-                OK
+                expected_response_code
             )
             creating.addCallback(readBody)
             creating.addCallback(loads)
@@ -551,6 +551,25 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             self.NODE_A, self.NODE_A
         )
 
+    def test_only_replicas(self):
+        """
+        If there are only replica manifestations of the requested dataset, 500
+        response is returned and ``IndexError`` is logged.
+        """
+        expected_manifestation = _manifestation(primary=False)
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        node_b = Node(hostname=self.NODE_B)
+        deployment = Deployment(nodes=frozenset([node_a, node_b]))
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_B,
+            INTERNAL_SERVER_ERROR
+        )
+
     def test_primary_unknown(self):
         """
         A dataset's primary IP address must belong to a node in the cluster.
@@ -610,15 +629,18 @@ RealTestsCreateDataset, MemoryTestsCreateDataset = buildIntegrationTests(
 
 def _manifestation(**kwargs):
     """
+    :param bool primary: Whether to create a primary or replica
+        ``Manifestation``. Defaults to ``True``.
     :param kwargs: Additional keyword arguments to use to initialize the
         manifestation's ``Dataset``.
 
-    :return: A primary ``Manifestation`` for a dataset with a new
+    :return: A ``Manifestation`` for a dataset with a new
         random identifier.
     """
+    primary = kwargs.pop('primary', True)
     dataset_id = unicode(uuid4())
     existing_dataset = Dataset(dataset_id=dataset_id, **kwargs)
-    return Manifestation(dataset=existing_dataset, primary=True)
+    return Manifestation(dataset=existing_dataset, primary=primary)
 
 
 class GetDatasetConfigurationTestsMixin(APITestsMixin):
