@@ -268,13 +268,13 @@ class DatasetAPIUserV1(object):
             raise DATASET_NOT_FOUND
 
         # Lookup the node that has a primary Manifestation (if any)
-        for primary_node, primary_manifestation in manifestations:
+        for origin_node, primary_manifestation in manifestations:
             if primary_manifestation.primary:
                 break
         # else:
         #     raise Exception('Primary not found')
 
-        if primary_node.hostname == primary:
+        if origin_node.hostname == primary:
             # Maybe return early here rather than bother the persistence_service.
             # raise Exception('New primary is the same as existing primary')
             pass
@@ -283,14 +283,14 @@ class DatasetAPIUserV1(object):
         # But what if the dataset is associated with an Application? Should the Application be moved to the new node too?
         # And do we need to mark the manifestation as a replica on the existing primary node?
         # Or will that be up to the convergence agent and state API
-        origin_node = Node(
-            hostname=primary_node.hostname,
-            applications=primary_node.applications,
+        new_origin_node = Node(
+            hostname=origin_node.hostname,
+            applications=origin_node.applications,
             other_manifestations=(
-                primary_node.other_manifestations - frozenset({primary_manifestation})
+                origin_node.other_manifestations - frozenset({primary_manifestation})
             )
         )
-        deployment = deployment.update_node(origin_node)
+        deployment = deployment.update_node(new_origin_node)
 
         for target_node in deployment.nodes:
             if target_node.hostname == primary:
