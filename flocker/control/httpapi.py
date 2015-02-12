@@ -234,16 +234,6 @@ class DatasetAPIUserV1(object):
         :param unicode primary: The address of the node to which the dataset
             will be moved.
 
-        :param int maximum_size: The maximum number of bytes the dataset will
-            be capable of storing.  This may be optional or required depending
-            on the dataset backend.
-
-        :param dict metadata: A small collection of unicode key/value pairs to
-            associate with the dataset.  These items are not interpreted.  They
-            are only stored and made available for later retrieval.  Use this
-            for things like human-friendly dataset naming, ownership
-            information, etc.
-
         :return: A ``dict`` describing the dataset which has been added to the
             cluster configuration or giving error information if this is not
             possible.
