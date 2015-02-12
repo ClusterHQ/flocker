@@ -659,6 +659,32 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         saving.addCallback(saved)
         return saving
 
+    def test_no_primary(self):
+        """
+        An update request without a primary address is allowed.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResponseCode(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {},
+                OK,
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
     buildIntegrationTests(
         UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
