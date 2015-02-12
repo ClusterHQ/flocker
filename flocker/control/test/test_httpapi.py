@@ -466,7 +466,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         return updating
 
-    def _test_change_primary(self, dataset, deployment, origin, target, expected_response_code=OK):
+    def _test_change_primary(self, dataset, deployment, origin, target):
         saving = self.persistence_service.save(deployment)
         def saved(ignored):
 
@@ -475,7 +475,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
                 b"POST",
                 b"/configuration/datasets/%s" % (expected_dataset_id.encode('ascii'),),
                 {u"primary": target},
-                expected_response_code
+                OK
             )
             creating.addCallback(readBody)
             creating.addCallback(loads)
@@ -564,17 +564,20 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         )
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
-        return self._test_change_primary(
-            expected_manifestation.dataset, deployment,
-            self.NODE_A, self.NODE_B,
-            INTERNAL_SERVER_ERROR
-        )
-
-    def test_primary_unknown(self):
-        """
-        A dataset's primary IP address must belong to a node in the cluster.
-        XXX: Skip this test until FLOC-1278 is implemented.
-        """
+        saving = self.persistence_service.save(deployment)
+        def saved(ignored):
+            creating = self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {u"primary": self.NODE_B},
+                INTERNAL_SERVER_ERROR,
+                {}
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
 
     def test_primary_invalid(self):
         """
