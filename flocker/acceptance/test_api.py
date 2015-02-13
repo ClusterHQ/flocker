@@ -43,6 +43,11 @@ def wait_for_api(hostname):
 @attributes(['address', 'agents'])
 class Node(object):
     """
+    A record of a cluster node and its agents.
+
+    :ivar bytes address: The IPv4 address of the node.
+    :ivar list agents: A list of ``RemoteService`` instances for the
+        convergence agent processes that have been started on this node.
     """
 
 
@@ -50,18 +55,34 @@ class Node(object):
 class RemoteService(object):
     """
     A record of a background SSH process and the node that it's running on.
+
+    :ivar bytes address: The IPv4 address on which the service is running.
+    :ivar Subprocess.Popen process: The running ``SSH`` process that is running
+        the remote process.
     """
 
 
 def close(process):
+    """
+    Kill a process.
+
+    :param subprocess.Popen process: The process to be killed.
+    """
     process.stdin.close()
     kill(process.pid, SIGINT)
 
 
 def remote_service_for_test(test_case, address, command):
     """
-    Start a remote service for a test and register a cleanup function to stop
-    it when the test finishes.
+    Start a remote process (via SSH) for a test and register a cleanup function
+    to stop it when the test finishes.
+
+    :param TestCase test_case: The test case instance on which to register
+        cleanup operations.
+    :param bytes address: The IPv4 address of the node on which to run
+        ``command``.
+    :param list command: The command line arguments to run remotely via SSH.
+    :returns: A ``RemoteService`` instance.
     """
     service = RemoteService(
         address=address,
@@ -82,15 +103,36 @@ def remote_service_for_test(test_case, address, command):
 @attributes(['control_service', 'nodes'])
 class Cluster(object):
     """
+    A record of the control service and the nodes in a cluster for acceptance
+    testing.
+
+    :param RemoteService control_service: The remotely running
+        ``flocker-control`` process.
+    :param list nodes: The ``Node`` s in this cluster.
     """
     @property
     def base_url(self):
+        """
+        :returns: The base url for API requests to this cluster's control
+            service.
+        """
         return b"http://{}:{}/v1".format(
             self.control_service.address, REST_API_PORT
         )
 
     def wait_for_dataset(self, dataset_properties):
+        """
+        Poll the dataset state API until the supplied dataset exists.
+
+        :param dict dataset_properties: The attributes of the dataset that
+            we're waiting for.
+        :returns: A ``Deferred`` which fires when a dataset with the supplied
+            properties appears in the cluster.
+        """
         def created():
+            """
+            Check the dataset state list for the expected dataset.
+            """
             request = get(self.base_url + b"/state/datasets", persistent=False)
             request.addCallback(content)
 
@@ -109,6 +151,13 @@ class Cluster(object):
         return waiting
 
     def create_dataset(self, dataset_properties):
+        """
+        Create a dataset with the supplied ``dataset_properties``.
+
+        :param dict dataset_properties: The properties of the dataset to
+            create.
+        :returns: A 2-tuple of (cluster, api_response)
+        """
         request = post(
             self.base_url + b"/configuration/datasets",
             data=dumps(dataset_properties),
@@ -123,6 +172,14 @@ class Cluster(object):
         return request
 
     def update_dataset(self, dataset_id, dataset_properties):
+        """
+        Update a dataset with the supplied ``dataset_properties``.
+
+        :param bytes dataset_id: The uuid of the dataset to be modified.
+        :param dict dataset_properties: The properties of the dataset to
+            create.
+        :returns: A 2-tuple of (cluster, api_response)
+        """
         request = post(
             self.base_url + b"/configuration/datasets/%s" % (
                 dataset_id.encode('ascii'),
@@ -140,12 +197,25 @@ class Cluster(object):
 
 
 def cluster_for_test(test_case, node_addresses):
+    """
+    Build a ``Cluster`` instance with the supplied ``node_addresses``.
+
+    ``flocker-control`` is started on the node with the lowest address and with
+    a blank database.
+
+    ``flocker-zfs-agent`` is started on every node.
+
+    The processes will be killed after each test.
+
+    :param TestCase test_case: The test case instance on which to register
+        cleanup operations.
+    :param list node_address: The IPv4 addresses of the nodes in the cluster.
+    :returns: A ``Cluster`` instance.
+    """
     # Start servers; eventually we will have these already running on
     # nodes, but for now needs to be done manually.
     # https://clusterhq.atlassian.net/browse/FLOC-1383
 
-    # Start ``flocker-control`` on the node with the lowest address.
-    # And with a blank database.
     control_service = remote_service_for_test(
         test_case,
         sorted(node_addresses)[0],
@@ -171,10 +241,16 @@ def cluster_for_test(test_case, node_addresses):
     return Cluster(control_service=control_service, nodes=nodes)
 
 
-def create_cluster_and_wait_for_api(test_case, nodes):
+def create_cluster_and_wait_for_api(test_case, node_addresses):
     """
+    Build a ``Cluster`` instance with the supplied ``node_addresses``.
+
+    :param TestCase test_case: The test case instance on which to register
+        cleanup operations.
+    :param list node_addresses: The IPv4 addresses of the nodes in the cluster.
+    :returns: A ``Cluster`` instance.
     """
-    cluster = cluster_for_test(test_case, nodes)
+    cluster = cluster_for_test(test_case, node_addresses)
     waiting = wait_for_api(cluster.control_service.address)
     api_ready = waiting.addCallback(lambda ignored: cluster)
     return api_ready
@@ -182,6 +258,13 @@ def create_cluster_and_wait_for_api(test_case, nodes):
 
 def wait_for_cluster(test_case, node_count):
     """
+    Build a ``Cluster`` instance with ``node_count`` nodes.
+
+    :param TestCase test_case: The test case instance on which to register
+        cleanup operations.
+    :param list node_count: The number of nodes to create in the cluster.
+    :returns: A ``Deferred`` which fires with a ``Cluster`` instance when the
+        ``control_service`` is accepting API requests.
     """
     getting_nodes = get_nodes(test_case, node_count)
 
