@@ -3,7 +3,6 @@
 """Helpers for flocker shell commands."""
 
 import sys
-import os
 
 from eliot import MessageType, fields, Logger
 from eliot.logwriter import ThreadedFileWriter
@@ -11,8 +10,7 @@ from eliot.logwriter import ThreadedFileWriter
 from twisted.internet import task, reactor as global_reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
-from twisted.python.filepath import FilePath
-from twisted.python.log import addObserver, removeObserver, textFromEventDict
+from twisted.python.log import textFromEventDict
 from twisted.python import log as twisted_log
 
 from zope.interface import Interface
