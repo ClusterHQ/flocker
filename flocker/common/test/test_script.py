@@ -11,6 +11,7 @@ from twisted.internet.defer import succeed
 from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.failure import Failure
+from twisted.python.log import LogPublisher
 from twisted.python import log as twisted_log
 from twisted.internet.defer import Deferred
 from twisted.application.service import Service
@@ -137,6 +138,29 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
                                      logging=False)
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(b"world", script.arguments.value)
+
+    def test_disabled_logging(self):
+        """
+        If ``logging`` is set to ``False``, ``FlockerScriptRunner.main``
+        does not log to ``sys.stdout``.
+        """
+        class Script(object):
+            def main(self, reactor, arguments):
+                twisted_log.msg(b"hello!")
+                return succeed(None)
+
+        script = Script()
+        sys = FakeSysModule(argv=[])
+        # XXX: We shouldn't be using this private fake and Twisted probably
+        # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
+        # https://twistedmatrix.com/trac/ticket/7527
+        from twisted.test.test_task import _FakeReactor
+        fakeReactor = _FakeReactor()
+        runner = FlockerScriptRunner(script, usage.Options(),
+                                     reactor=fakeReactor, sys_module=sys,
+                                     logging=False)
+        self.assertRaises(SystemExit, runner.main)
+        self.assertEqual(sys.stdout.getvalue(), b"")
 
 
 @flocker_standard_options

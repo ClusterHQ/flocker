@@ -133,6 +133,7 @@ class FlockerScriptRunner(object):
         # and flocker-changestate should all set logging to False.
         self.script = script
         self.options = options
+        self.logging = logging
         if reactor is None:
             reactor = global_reactor
         self._reactor = reactor
@@ -162,9 +163,10 @@ class FlockerScriptRunner(object):
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
         if self.logging:
-            log_writer = ThreadedFileWriter(sys.stdout, self._reactor)
+            log_writer = ThreadedFileWriter(self.sys_module.stdout,
+                                            self._reactor)
             log_writer.startService()
-            self._reactor.addSystemEventTrigger("after", "shutdown",
+            self._reactor.addSystemEventTrigger("during", "shutdown",
                                                 log_writer.stopService)
             observer = EliotObserver()
             observer.start()
