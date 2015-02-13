@@ -15,17 +15,19 @@ The Flocker cluster is composed of two sets of services:
 Control service
 ===============
 
-The control service is the integration point between the desires of whoever is configuring the cluster, e.g. a human administrator or an orchestration framework, and the convergence agents that attempt to execute these desires.
-In particular it controls the configuration of the cluster.
+The control service is the integration point between:
 
-The service consists of three parts:
+* the human administrators or automated orchestration framework which determine the cluster configuration, and
+* the convergence agents that modify the cluster state accordingly.
 
-* A data storage system stores the configuration of the system.
+The service consists of three components:
+
 * An external API allowing changes to the desired configuration, e.g. "create a new dataset on node A".
   The external API also allows checking the actual state of the cluster.
 * An internal API used to communicate with the convergence agents.
+* A data storage system stores the configuration of the system.
 
-All three of the above are encapsulated in a single server, for the moment limited to running on a single machine.
+All three are encapsulated in a single server, for the moment limited to running on a single machine.
 
 
 Convergence agents
