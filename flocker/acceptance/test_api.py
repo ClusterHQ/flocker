@@ -195,68 +195,32 @@ class DatasetAPITests(TestCase):
         """
         A dataset can be created on a specific node.
         """
-        d = get_nodes(self, 1)
-        d.addCallback(self._test_dataset_creation)
-        return d
+        # Create a 1 node cluster
+        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
 
-    def _test_dataset_creation(self, nodes):
-        """
-        Run the actual test now that the nodes are available.
+        # Configure a dataset on node1
+        def configure_dataset(cluster):
+            """
+            Send a dataset creation request on node1.
+            """
+            requested_dataset = {
+                u"primary": cluster.nodes[0].address,
+                u"dataset_id": unicode(uuid4()),
+                u"metadata": {u"name": u"my_volume"}
+            }
 
-        :param nodes: Sequence of available hostnames, of size 1.
-        """
-        node_1, = nodes
+            return cluster.create_dataset(requested_dataset)
+        configuring_dataset = waiting_for_cluster.addCallback(
+            configure_dataset
+        )
 
-        def close(process):
-            process.stdin.close()
-            kill(process.pid, SIGINT)
-        # Start servers; eventually we will have these already running on
-        # nodes, but for now needs to be done manually.
-        # https://clusterhq.atlassian.net/browse/FLOC-1383
-        p1 = run_SSH(22, 'root', node_1, [b"flocker-control"],
-                     b"", None, True)
-        self.addCleanup(close, p1)
+        # Wait for the dataset to be created
+        waiting_for_create = configuring_dataset.addCallback(
+            lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
+        )
 
-        # https://clusterhq.atlassian.net/browse/FLOC-1382
-        p2 = run_SSH(22, 'root', node_1,
-                     [b"flocker-zfs-agent", node_1, b"localhost"],
-                     b"", None, True)
-        self.addCleanup(close, p2)
+        return waiting_for_create
 
-        d = wait_for_api(node_1)
-
-        uuid = unicode(uuid4())
-        dataset = {u"primary": node_1,
-                   u"dataset_id": uuid,
-                   u"metadata": {u"name": u"my_volume"}}
-        base_url = b"http://{}:{}/v1".format(node_1, REST_API_PORT)
-        d.addCallback(
-            lambda _: post(base_url + b"/configuration/datasets",
-                           data=dumps(dataset),
-                           headers={b"content-type": b"application/json"},
-                           persistent=False))
-        d.addCallback(content)
-
-        def got_result(result):
-            result = loads(result)
-            self.assertEqual(dataset, result)
-        d.addCallback(got_result)
-
-        def created():
-            result = get(base_url + b"/state/datasets", persistent=False)
-            result.addCallback(content)
-
-            def got_body(body):
-                body = loads(body)
-                # Current state listing includes bogus metadata
-                # https://clusterhq.atlassian.net/browse/FLOC-1386
-                expected_dataset = dataset.copy()
-                expected_dataset[u"metadata"].clear()
-                return expected_dataset in body
-            result.addCallback(got_body)
-            return result
-        d.addCallback(lambda _: loop_until(created))
-        return d
 
     def test_dataset_move(self):
         """
