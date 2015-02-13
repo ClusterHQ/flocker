@@ -41,7 +41,7 @@ Some convergence agents may be in charge of state related to a specific node, e.
 Others may be in charge of some cluster-wide state.
 Multiple agents may run on a specific node depending on the cluster setup.
 
-Each convergence agent runs a loop to converge the state is in charge of with the desired configuration.
+Each convergence agent runs a loop to converge the local state it manages with the desired cluster configuration managed by the control service.
 The agent:
 
 #. Checks the local state it is in charge of (e.g. by listing local ZFS filesystems).
