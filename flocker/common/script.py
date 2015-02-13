@@ -71,8 +71,8 @@ class ICommandLineScript(Interface):
         :return: A ``Deferred`` which fires when the script has completed.
         """
 
-# XXX FLOC-936 This should probably be built-in functionality in Eliot;
-# open issue to that effect.
+# This should probably be built-in functionality in Eliot;
+# see https://github.com/ClusterHQ/eliot/issues/143
 TWISTED_LOG_MESSAGE = MessageType("twisted:log",
                                   fields(error=bool, message=unicode),
                                   u"A log message from Twisted.")
