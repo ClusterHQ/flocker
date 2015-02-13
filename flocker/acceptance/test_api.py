@@ -309,7 +309,6 @@ class DatasetAPITests(TestCase):
 
         return waiting_for_create
 
-
     def test_dataset_move(self):
         """
         A dataset can be moved from one node to another.
