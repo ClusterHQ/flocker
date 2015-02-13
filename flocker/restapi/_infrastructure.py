@@ -72,7 +72,7 @@ def _logging(original):
         # Can't construct a good identifier without using private things.
         # See https://github.com/ClusterHQ/eliot/issues/29
         uuid = action._identification[u"task_uuid"]
-        level = action._identification[u"task_level"]
+        level = action._task_level.toString()
         incidentIdentifier = uuid + u"," + level
 
         with action.context():
