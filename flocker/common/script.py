@@ -171,8 +171,11 @@ class FlockerScriptRunner(object):
             self._reactor.addSystemEventTrigger("during", "shutdown",
                                                 log_writer.stopService)
             observer = EliotObserver()
+            # We don't bother shutting this down; the process will exit
+            # once we return from this function. The ThreadedFileWriter in
+            # contrast needs to be shutdown because it starts a thread
+            # that will keep the process from existing.
             observer.start()
-
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
