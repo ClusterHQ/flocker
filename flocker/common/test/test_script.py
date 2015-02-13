@@ -3,7 +3,6 @@
 """Tests for :module:`flocker.common.script`."""
 
 import sys
-from os import getpid
 
 from eliot.testing import validateLogging, assertHasMessage
 
@@ -12,8 +11,6 @@ from twisted.internet.defer import succeed
 from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.failure import Failure
-from twisted.python.filepath import FilePath
-from twisted.python.log import msg, LogPublisher
 from twisted.python import log as twisted_log
 from twisted.internet.defer import Deferred
 from twisted.application.service import Service
@@ -24,7 +21,6 @@ from ..script import (
     )
 from ...testtools import (
     help_problems, FakeSysModule, StandardOptionsTestsMixin,
-    skip_on_broken_permissions, attempt_effective_uid,
     MemoryCoreReactor,
     )
 
@@ -137,19 +133,10 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
         runner = FlockerScriptRunner(script, options,
-                                     reactor=fakeReactor, sys_module=sys)
-
+                                     reactor=fakeReactor, sys_module=sys,
+                                     logging=False)
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(b"world", script.arguments.value)
-
-
-class LoggingScript(object):
-    """
-    Log a message.
-    """
-    def main(self, *args, **kwargs):
-        msg("it's alive")
-        return succeed(None)
 
 
 @flocker_standard_options

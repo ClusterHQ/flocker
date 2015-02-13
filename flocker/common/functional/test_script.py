@@ -74,7 +74,7 @@ FlockerScriptRunner({}(), Options()).main()
         """
         d = self.run_script(TwistedScript)
         d.addCallback(lambda messages: assertContainsFields(
-            self, messages[0], {u"message_type": u"eliot:twisted",
+            self, messages[0], {u"message_type": u"twisted:log",
                                 u"message": u"hello",
                                 u"error": False}))
         return d

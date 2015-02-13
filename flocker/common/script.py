@@ -8,7 +8,7 @@ import os
 from eliot import MessageType, fields, Logger
 from eliot.logwriter import ThreadedFileWriter
 
-from twisted.internet import task
+from twisted.internet import task, reactor as global_reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
 from twisted.python.filepath import FilePath
@@ -133,6 +133,8 @@ class FlockerScriptRunner(object):
         # and flocker-changestate should all set logging to False.
         self.script = script
         self.options = options
+        if reactor is None:
+            reactor = global_reactor
         self._reactor = reactor
 
         if sys_module is None:
@@ -159,25 +161,19 @@ class FlockerScriptRunner(object):
 
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
-        # XXX FLOC-936
-        # 0. If self.logging is False, don't do anything. Otherwise:
-        log_writer = ThreadedFileWriter(sys.stdout)
-        log_writer.startService()
-        observer = EliotObserver()
-        observer.start()
+        if self.logging:
+            log_writer = ThreadedFileWriter(sys.stdout, self._reactor)
+            log_writer.startService()
+            self._reactor.addSystemEventTrigger("after", "shutdown",
+                                                log_writer.stopService)
+            observer = EliotObserver()
+            observer.start()
 
         options = self._parse_options(self.sys_module.argv[1:])
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
         self._react(self.script.main, (options,), _reactor=self._reactor)
-        log_writer.stopService()
-
-        # Not strictly necessary, but nice cleanup for tests:
-        # XXX FLOC-936
-        # 0. If self.logging is False, don't do anything. Otherwise:
-        # 1. Remove EliotObserver
-        # 2. Stop ThreadedLogWriter
 
 
 def _chain_stop_result(service, stop):
