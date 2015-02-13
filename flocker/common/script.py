@@ -160,6 +160,10 @@ class FlockerScriptRunner(object):
 
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
+        # If e.g. --version is called this may throw a SystemExit, so we
+        # always do this first before any side-effecty code is run:
+        options = self._parse_options(self.sys_module.argv[1:])
+
         if self.logging:
             log_writer = ThreadedFileWriter(self.sys_module.stdout,
                                             self._reactor)
@@ -169,7 +173,6 @@ class FlockerScriptRunner(object):
             observer = EliotObserver()
             observer.start()
 
-        options = self._parse_options(self.sys_module.argv[1:])
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
