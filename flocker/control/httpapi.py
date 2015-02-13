@@ -293,7 +293,7 @@ class DatasetAPIUserV1(object):
             )
         else:
             # There should only be one node with the requested primary
-            # hostname. ``IndexError`` here if that's not the case.
+            # hostname. ``ValueError`` here if that's not the case.
             (target_node,) = primary_nodes
             new_target_node = Node(
                 hostname=target_node.hostname,
