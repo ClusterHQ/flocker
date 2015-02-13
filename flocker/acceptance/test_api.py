@@ -16,7 +16,7 @@ from treq import get, post, content
 from characteristic import attributes
 
 from .testtools import get_nodes, run_SSH
-from ..testtools import loop_until
+from ..testtools import loop_until, random_name
 
 from ..control.httpapi import REST_API_PORT
 
@@ -144,9 +144,14 @@ def cluster_for_test(test_case, node_addresses):
     # nodes, but for now needs to be done manually.
     # https://clusterhq.atlassian.net/browse/FLOC-1383
 
-    # Control service is always started on node1
+    # Start ``flocker-control`` on the node with the lowest address.
+    # And with a blank database.
     control_service = remote_service_for_test(
-        test_case, sorted(node_addresses)[0], [b"flocker-control"]
+        test_case,
+        sorted(node_addresses)[0],
+        [b"flocker-control",
+         b"--data-path",
+         b"/var/lib/flocker/%s" % (random_name(),)]
     )
 
     # https://clusterhq.atlassian.net/browse/FLOC-1382
