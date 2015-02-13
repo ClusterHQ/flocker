@@ -444,7 +444,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
 class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     """
-    Tests for the dataset modification endpoint at ``/datasets/<dataset_id>``.
+    Tests for the dataset modification endpoint at
+    ``/configuration/datasets/<dataset_id>``.
     """
     def test_unknown_dataset(self):
         """
@@ -470,6 +471,22 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         return updating
 
     def _test_change_primary(self, dataset, deployment, origin, target):
+        """
+        Helper method which pre-populates the persistence_service with the
+        supplied ``dataset``, makes an API call to move the supplied
+        ``dataset`` from ``origin`` to ``target`` and finally asserts that the
+        API call returned the expected result and that the persistence_service
+        has been updated.
+
+        :param Dataset dataset: The dataset which will be moved.
+        :param Deployment deployment: The deployment that contains the dataset.
+        :param bytes origin: The node IP address of the node that holds the
+            current primary manifestation of the ``dataset``.
+        :param bytes target: The node IP address of the node to which the
+            dataset will be moved.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
         saving = self.persistence_service.save(deployment)
 
         def saved(ignored):
