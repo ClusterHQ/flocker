@@ -586,6 +586,11 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     )
 
     def test_change_primary_to_configured_node(self):
+        """
+        If a different primary IP address is supplied and it identifies a node
+        which is already part of the cluster configuration, the modification
+        request succeeds and the dataset's primary becomes the given address.
+        """
         expected_manifestation = _manifestation()
         node_a = Node(
             hostname=self.NODE_A,
