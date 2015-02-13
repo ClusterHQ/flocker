@@ -11,7 +11,6 @@ from os import kill
 from uuid import uuid4
 from json import dumps, loads
 
-from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
 from treq import get, post, content
 
@@ -111,7 +110,6 @@ class DatasetAPITests(TestCase):
         d.addCallback(lambda _: loop_until(created))
         return d
 
-
     def test_dataset_move(self):
         """
         A dataset can be moved from one node to another.
@@ -180,15 +178,22 @@ class DatasetAPITests(TestCase):
                 return expected_dataset in body
             result.addCallback(got_body)
             return result
-        dataset_created = dataset_acknowledged.addCallback(lambda _: loop_until(created))
+        dataset_created = dataset_acknowledged.addCallback(
+            lambda _: loop_until(created)
+        )
+
         def move(ignored):
             moved_dataset = {
                 u'primary': node_2
             }
-            post(base_url + b"/configuration/datasets/%s" % (dataset['dataset_id'].encode('ascii')),
-                           data=dumps(moved_dataset),
-                           headers={b"content-type": b"application/json"},
-                           persistent=False)
+            post(
+                base_url + b"/configuration/datasets/%s" % (
+                    dataset['dataset_id'].encode('ascii')
+                ),
+                data=dumps(moved_dataset),
+                headers={b"content-type": b"application/json"},
+                persistent=False
+            )
         dataset_moving = dataset_created.addCallback(move)
 
         def moved():
