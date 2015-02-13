@@ -746,10 +746,12 @@ RealTestsCreateDataset, MemoryTestsCreateDataset = buildIntegrationTests(
 
 def _manifestation(**kwargs):
     """
-    :param bool primary: Whether to create a primary or replica
-        ``Manifestation``. Defaults to ``True``.
     :param kwargs: Additional keyword arguments to use to initialize the
         manifestation's ``Dataset``.
+        If ``kwargs`` includes a ``primary`` key its value will be supplied to
+        the ``Manifestation`` initialiser as the ``primary`` argument in order
+        to control whether to create a primary or replica
+        ``Manifestation``. Defaults to ``True``.
 
     :return: A ``Manifestation`` for a dataset with a new
         random identifier.
