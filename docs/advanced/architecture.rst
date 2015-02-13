@@ -54,6 +54,7 @@ For example, imagine the control service notifies the agent on node A that node 
 
 #. The agent discovers there are no datasets on the node.
 #. The agent tells the control service that there exist no datasets on the node.
+   The agent always reports its latest local state to the control service to ensure it is up-to-date, even if it may change in near future.
 #. The agent decides it needs to create dataset D, and does so.
 #. The loop begins again - the agent discovers that dataset D exists on the node.
 #. The agent tells the control service that dataset D exists on the node.
