@@ -20,9 +20,9 @@ from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..node import (FlockerConfiguration, ConfigurationError,
-                    FigConfiguration, applications_to_flocker_yaml,
-                    model_from_configuration)
+from ..control import (FlockerConfiguration, ConfigurationError,
+                       FigConfiguration, applications_to_flocker_yaml,
+                       model_from_configuration)
 
 from ..common import ProcessNode, gather_deferreds
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
@@ -243,7 +243,7 @@ class DeployScript(object):
         for target in self._get_destinations(deployment):
             # XXX if number of nodes is bigger than number of available
             # threads we won't get the required parallelism...
-            # https://github.com/ClusterHQ/flocker/issues/347
+            # https://clusterhq.atlassian.net/browse/FLOC-347
             results.append(
                 deferToThread(
                     target.node.get_output, command + [target.hostname]))

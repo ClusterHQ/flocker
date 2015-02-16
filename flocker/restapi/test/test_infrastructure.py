@@ -17,7 +17,7 @@ from twisted.web.http import (
 from twisted.trial.unittest import SynchronousTestCase
 
 from .._infrastructure import (
-    EndpointResponse, userDocumentation, structured)
+    EndpointResponse, user_documentation, structured)
 from .._logging import REQUEST
 from .._error import (
     ILLEGAL_CONTENT_TYPE_DESCRIPTION, DECODING_ERROR_DESCRIPTION,
@@ -26,7 +26,7 @@ from .._error import (
 
 from eliot.testing import validateLogging, LoggedAction
 
-from ..testtools import (EventChannel, dumps, loads, goodResult, badResult,
+from ..testtools import (EventChannel, dumps, loads,
                          CloseEnoughJSONResponse, dummyRequest, render,
                          asResponse)
 from .utils import (
@@ -79,7 +79,7 @@ class StructuredResultHandlingMixin(object):
 
         self.render(self.application(logger, objects).app.resource(), request)
 
-        self.assertEqual(goodResult(objects), loads(request._responseBody))
+        self.assertEqual(objects, loads(request._responseBody))
 
     @validateLogging(_assertTracebackLogged(TypeError))
     # This should be logged but stacking validateLogging decorators seems
@@ -116,7 +116,7 @@ class StructuredResultHandlingMixin(object):
         expected = CloseEnoughJSONResponse(
             application.EXPLICIT_RESPONSE_CODE,
             Headers({b"content-type": [b"application/json"]}),
-            goodResult(application.EXPLICIT_RESPONSE_RESULT))
+            application.EXPLICIT_RESPONSE_RESULT)
         return expected.verify(asResponse(request))
 
     @validateLogging(_assertRequestLogged(b"/foo/badrequest"))
@@ -137,7 +137,7 @@ class StructuredResultHandlingMixin(object):
         expected = CloseEnoughJSONResponse(
             application.BAD_REQUEST_CODE,
             Headers({b"content-type": [b"application/json"]}),
-            badResult(application.BAD_REQUEST_RESULT))
+            application.BAD_REQUEST_RESULT)
         return expected.verify(asResponse(request))
 
     @validateLogging(_assertTracebackLogged(ArbitraryException))
@@ -153,33 +153,18 @@ class StructuredResultHandlingMixin(object):
         self.render(app.app.resource(), request)
         self.assertEqual(INTERNAL_SERVER_ERROR, request._code)
 
-    @validateLogging(_assertTracebackLogged(ArbitraryException))
-    # See above
-    # @validateLogging(_assertRequestLogged(b"/foo/exception"))
-    def test_responseMarkedError(self, logger):
-        """
-        If the decorated function raises an exception, the HTTP response body
-        is a json-encoded object with C{u"error"} item set to C{True}.
-        """
-        request = dummyRequest(b"GET", b"/foo/exception", Headers(), b"")
-        app = self.application(logger, None)
-        self.render(app.app.resource(), request)
-        response = loads(request._responseBody)
-        self.assertEqual(True, response[u"error"])
-
     @validateLogging(None)
     def test_responseResultContainsIncident(self, logger):
         """
         If the decorated function raises an exception, the HTTP response body
-        is a json-encoded object with a C{u"result"} item set to an incident
+        is a json-encoded object with a item set to an incident
         identifier.
         """
         request = dummyRequest(b"GET", b"/foo/exception", Headers(), b"")
         app = self.application(logger, None)
         self.render(app.app.resource(), request)
         logger.flushTracebacks(ArbitraryException)
-        response = loads(request._responseBody)
-        incident = response[u"result"]
+        incident = loads(request._responseBody)
         action = LoggedAction.ofType(logger.messages, REQUEST)[0]
         self.assertEqual(
             u",".join((
@@ -435,7 +420,7 @@ class StructuredJSONTests(SynchronousTestCase):
         expected = CloseEnoughJSONResponse(
             BAD_REQUEST,
             Headers({b"content-type": [b"application/json"]}),
-            badResult({u"description": DECODING_ERROR_DESCRIPTION}))
+            {u"description": DECODING_ERROR_DESCRIPTION})
         return expected.verify(asResponse(request))
 
     @validateLogging(_assertRequestLogged(b"/foo/validation"))
@@ -455,12 +440,9 @@ class StructuredJSONTests(SynchronousTestCase):
         response = loads(request._responseBody)
 
         self.assertEqual(
-            (request._code, response[u'error'],
-             response[u'result'][u'description'],
-             len(response[u'result'][u'errors'])),
-            (BAD_REQUEST, True,
-             FAILED_INPUT_VALIDATION,
-             2))
+            (request._code, response[u'description'],
+             len(response[u'errors'])),
+            (BAD_REQUEST, FAILED_INPUT_VALIDATION, 2))
 
     @validateLogging(_assertTracebackLogged(ValidationError))
     # See above
@@ -477,10 +459,7 @@ class StructuredJSONTests(SynchronousTestCase):
         app = self.Application(logger, None)
         render(app.app.resource(), request)
 
-        response = loads(request._responseBody)
-
-        self.assertEqual((request._code, response[u'error']),
-                         (INTERNAL_SERVER_ERROR, True))
+        self.assertEqual(request._code, INTERNAL_SERVER_ERROR)
 
     @validateLogging(_assertRequestLogged(b"/foo/bar"))
     def test_wrongContentTypeRequest(self, logger):
@@ -499,7 +478,7 @@ class StructuredJSONTests(SynchronousTestCase):
         expected = CloseEnoughJSONResponse(
             BAD_REQUEST,
             Headers({b"content-type": [b"application/json"]}),
-            badResult({u"description": ILLEGAL_CONTENT_TYPE_DESCRIPTION}))
+            {u"description": ILLEGAL_CONTENT_TYPE_DESCRIPTION})
         return expected.verify(asResponse(request))
 
     @validateLogging(_assertRequestLogged(b"/baz/quux"))
@@ -535,16 +514,16 @@ class StructuredJSONTests(SynchronousTestCase):
 
 class UserDocumentationTests(SynchronousTestCase):
     """
-    Tests for L{userDocumentation}.
+    Tests for L{user_documentation}.
     """
 
     def test_decoration(self):
         """
-        Decorating a function with L{userDocumentation} sets the
-        C{userDocumentation} attribtue of the function to the passed
+        Decorating a function with L{user_documentation} sets the
+        C{user_documentation} attribtue of the function to the passed
         argument.
         """
-        @userDocumentation("Some text")
+        @user_documentation("Some text")
         def f():
             pass
         self.assertEqual(f.userDocumentation, "Some text")

@@ -76,7 +76,7 @@ class ProcessNode(object):
             exit_code = process.wait()
             if exit_code:
                 # We should really capture this and stderr better:
-                # https://github.com/ClusterHQ/flocker/issues/155
+                # https://clusterhq.atlassian.net/browse/FLOC-155
                 raise IOError("Bad exit", remote_command, exit_code)
 
     def get_output(self, remote_command):
@@ -86,7 +86,7 @@ class ProcessNode(object):
                 tuple(map(self._quote, remote_command)))
         except CalledProcessError as e:
             # We should really capture this and stderr better:
-            # https://github.com/ClusterHQ/flocker/issues/155
+            # https://clusterhq.atlassian.net/browse/FLOC-155
             raise IOError("Bad exit", remote_command, e.returncode, e.output)
 
     @classmethod
@@ -112,11 +112,16 @@ class ProcessNode(object):
             b"-o", b"StrictHostKeyChecking=no",
             # The tests hang if ControlMaster is set, since OpenSSH won't
             # ever close the connection to the test server.
-            b"-oControlMaster=no",
-            # On some Ubuntu versions (and perhaps elsewhere) not
-            # disabling this leads for mDNS lookups on every SSH, which
-            # can slow down connections very noticeably:
-            b"-o", b"GSSAPIAuthentication=no",
+            b"-o", b"ControlMaster=no",
+            # Some systems (notably Ubuntu) enable GSSAPI authentication which
+            # involves a slow DNS operation before failing and moving on to a
+            # working mechanism.  The expectation is that key-based auth will
+            # be in use so just jump straight to that.  An alternate solution,
+            # explicitly disabling GSSAPI, has cross-version platform and
+            # cross-version difficulties (the options aren't always recognized
+            # and result in an immediate failure).  As mentioned above, we'll
+            # switch away from SSH soon.
+            b"-o", b"PreferredAuthentications=publickey",
             b"-p", b"%d" % (port,), host), quote=quote)
 
 

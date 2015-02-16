@@ -158,7 +158,7 @@ class CreateTests(TestCase):
 
         self.network = make_host_network()
 
-        # https://github.com/ClusterHQ/flocker/issues/135
+        # https://clusterhq.atlassian.net/browse/FLOC-135
         # Don't hardcode addresses in the created namespace
         self.server_ip = self.namespace.ADDRESSES[0]
         self.proxy_ip = self.namespace.ADDRESSES[1]

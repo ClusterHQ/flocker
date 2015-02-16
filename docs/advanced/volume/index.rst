@@ -43,6 +43,14 @@ Cloning a volume relies on ZFS's underlying cloning functionality.
 * The cost of cloning is trivial because ZFS is a copy-on-write filesystem.
 * Any on-disk data in the parent volume that is referenced by the clone will not be freed so long as the clone exists.
 
+Sizes
+^^^^^
+
+Volumes may be configured with a maximum size.
+This functionality relies on ZFS's ``refquota`` feature.
+The maximum size of a volume is set as the value of the ``refquota`` property for the underlying ZFS filesystem.
+This does not allocate any space for the filesystem but it does prevent the filesystem from growing above that size.
+
 
 Implementation Details
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -77,7 +85,7 @@ Push and Handoff
 
 Push and handoffs are currently done over SSH between nodes, with ad hoc calls to the ``flocker-volume`` command-line tool.
 In future releases this will be switched to a real protocol and later on to communication between long-running daemons rather than short-lived scripts.
-(See `#154 <https://github.com/ClusterHQ/flocker/issues/154>`_\ .)
+(See `#154 <https://clusterhq.atlassian.net/browse/FLOC-154>`_\ .)
 
 When a volume is pushed a ``zfs send`` is used to serialize its data for transmission to the remote machine, which does a ``zfs receive`` to decode the data and create or update the corresponding ZFS dataset.
 

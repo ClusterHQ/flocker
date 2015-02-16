@@ -16,14 +16,18 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.defer import gatherResults
 from twisted.application.service import IService
 
-from ...testtools import assertNoFDsLeaked
+from ...testtools import (
+    assertNoFDsLeaked, assert_equal_comparison, assert_not_equal_comparison)
+
 from ..testtools import service_for_pool
 
 from ..filesystems.interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists,
     )
+from ..filesystems.errors import MaximumSizeTooSmall
 from ..service import Volume, VolumeName
+from .._model import VolumeSize
 
 
 def make_ifilesystemsnapshots_tests(fixture):
@@ -89,8 +93,8 @@ class CopyVolumes(object):
 
 
 # VolumeNames for tests:
-MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvolume")
-MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
+MY_VOLUME = VolumeName(namespace=u"myns", dataset_id=u"myvolume")
+MY_VOLUME2 = VolumeName(namespace=u"myns", dataset_id=u"myvolume2")
 
 
 def create_and_copy(test, fixture):
@@ -111,7 +115,7 @@ def create_and_copy(test, fixture):
     pool2 = fixture(test)
     service2 = service_for_pool(test, pool2)
     volume2 = Volume(
-        uuid=service.uuid,
+        node_id=service.node_id,
         name=MY_VOLUME,
         service=service2,
     )
@@ -125,7 +129,7 @@ def create_and_copy(test, fixture):
         copying = copy(volume, volume2)
         copying.addCallback(
             lambda ignored:
-                CopyVolumes(from_volume=volume, to_volume=volume2)
+            CopyVolumes(from_volume=volume, to_volume=volume2)
         )
         return copying
     d.addCallback(created_filesystem)
@@ -206,6 +210,153 @@ def make_istoragepool_tests(fixture):
             d.addCallback(created_filesystem)
             return d
 
+        def test_create_with_maximum_size(self):
+            """
+            If a maximum size is specified by the volume, the resulting
+            ``IFilesystem`` provider has the same size information.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+
+            size = VolumeSize(maximum_size=1024 * 1024 * 1024)
+            volume_with_size = Volume(
+                node_id=volume.node_id,
+                name=volume.name,
+                service=volume.service,
+                size=size,
+            )
+
+            d = pool.create(volume_with_size)
+
+            def created_filesystem(filesystem):
+                self.assertEqual(size, filesystem.size)
+            d.addCallback(created_filesystem)
+            return d
+
+        def test_resize_volume_new_max_size(self):
+            """
+            If an existing volume is resized to a new maximum size, the
+            resulting ``IFilesystem`` provider has the same new size
+            information.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+
+            size = VolumeSize(maximum_size=1024 * 1024 * 1024)
+            resized = VolumeSize(maximum_size=1024 * 1024 * 10)
+            volume_with_size = Volume(
+                node_id=volume.node_id,
+                name=volume.name,
+                service=volume.service,
+                size=size,
+            )
+
+            d = pool.create(volume_with_size)
+
+            def created_filesystem(filesystem):
+                self.assertEqual(size, filesystem.size)
+                volume_with_size.size = resized
+                return pool.set_maximum_size(volume_with_size)
+
+            def resized_filesystem(filesystem):
+                self.assertEqual(resized, filesystem.size)
+
+            d.addCallback(created_filesystem)
+            d.addCallback(resized_filesystem)
+            return d
+
+        def test_resize_volume_unlimited_max_size(self):
+            """
+            If an existing volume is resized to a new maximum size of None, the
+            resulting ``IFilesystem`` provider has the same new size
+            information.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+
+            size = VolumeSize(maximum_size=1024 * 1024 * 1024)
+            resized = VolumeSize(maximum_size=None)
+            volume_with_size = Volume(
+                node_id=volume.node_id,
+                name=volume.name,
+                service=volume.service,
+                size=size,
+            )
+
+            d = pool.create(volume_with_size)
+
+            def created_filesystem(filesystem):
+                self.assertEqual(size, filesystem.size)
+                volume_with_size.size = resized
+                return pool.set_maximum_size(volume_with_size)
+
+            def resized_filesystem(filesystem):
+                self.assertEqual(resized, filesystem.size)
+
+            d.addCallback(created_filesystem)
+            d.addCallback(resized_filesystem)
+            return d
+
+        def test_resize_volume_already_unlimited_size(self):
+            """
+            If an attempt is made to remove the limit on maximum size of an
+            existing volume which already has no maximum size limit, no change
+            is made.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                return pool.set_maximum_size(volume)
+            d.addCallback(created_filesystem)
+
+            def didnt_resize(filesystem):
+                self.assertEqual(
+                    VolumeSize(maximum_size=None), filesystem.size)
+            d.addCallback(didnt_resize)
+            return d
+
+        def test_resize_volume_invalid_max_size(self):
+            """
+            If an existing volume is resized to a new maximum size which is
+            less than the used size of the existing filesystem, a
+            ``MaximumSizeTooSmall`` error is raised.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+
+            size = VolumeSize(maximum_size=1024 * 1024 * 1024)
+            resized = VolumeSize(maximum_size=1)
+            volume_with_size = Volume(
+                node_id=volume.node_id,
+                name=volume.name,
+                service=volume.service,
+                size=size,
+            )
+
+            d = pool.create(volume_with_size)
+
+            def created_filesystem(filesystem):
+                self.assertEqual(size, filesystem.size)
+                volume_with_size.size = resized
+                return pool.set_maximum_size(volume_with_size)
+
+            def resized_filesystem(filesystem):
+                self.assertEqual(resized, filesystem.size)
+
+            def maximum_too_small(reason):
+                self.assertTrue(isinstance(reason.value, MaximumSizeTooSmall))
+
+            d.addCallback(created_filesystem)
+            d.addErrback(maximum_too_small)
+            return d
+
         def test_two_names_create_different_filesystems(self):
             """
             Two calls to ``create()`` with different volume names return
@@ -219,16 +370,13 @@ def make_istoragepool_tests(fixture):
 
             def created_filesystems(filesystems):
                 first, second = filesystems
-                # Thanks Python! *Obviously* you should have two code paths
-                # for equality to work correctly.
-                self.assertTrue(first != second)
-                self.assertFalse(first == second)
+                assert_not_equal_comparison(self, first, second)
             d.addCallback(created_filesystems)
             return d
 
-        def test_two_uuid_create_different_filesystems(self):
+        def test_two_node_id_create_different_filesystems(self):
             """
-            Two calls to ``create()`` with different volume manager UUIDs
+            Two calls to ``create()`` with different volume manager node IDs
             return different filesystems.
             """
             pool = fixture(self)
@@ -239,10 +387,7 @@ def make_istoragepool_tests(fixture):
 
             def created_filesystems(filesystems):
                 first, second = filesystems
-                # Thanks Python! *Obviously* you should have two code paths
-                # for equality to work correctly.
-                self.assertTrue(first != second)
-                self.assertFalse(first == second)
+                assert_not_equal_comparison(self, first, second)
             d.addCallback(created_filesystems)
             return d
 
@@ -258,8 +403,7 @@ def make_istoragepool_tests(fixture):
 
             def created_filesystem(filesystem):
                 filesystem2 = pool.get(volume)
-                self.assertTrue(filesystem == filesystem2)
-                self.assertFalse(filesystem != filesystem2)
+                assert_equal_comparison(self, filesystem, filesystem2)
             d.addCallback(created_filesystem)
             return d
 
@@ -529,6 +673,50 @@ def make_istoragepool_tests(fixture):
                 self.assertEqual(expected, result)
             return enumerating.addCallback(enumerated)
 
+        def test_enumerate_provides_null_size(self):
+            """
+            The ``IStoragePool.enumerate`` implementation produces
+            ``IFilesystem`` results which specify a ``None`` ``maximum_size``
+            when the filesystem was created with no maximum size.
+            """
+            size = VolumeSize(maximum_size=None)
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME, size=size)
+            creating = pool.create(volume)
+
+            def created(ignored):
+                return pool.enumerate()
+            enumerating = creating.addCallback(created)
+
+            def enumerated(result):
+                [filesystem] = result
+                self.assertEqual(size, filesystem.size)
+            enumerating.addCallback(enumerated)
+            return enumerating
+
+        def test_enumerate_provides_size(self):
+            """
+            The ``IStoragePool.enumerate`` implementation produces
+            ``IFilesystem`` results which reflect the size configuration
+            those filesystems were created with.
+            """
+            size = VolumeSize(maximum_size=54321)
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME, size=size)
+            creating = pool.create(volume)
+
+            def created(ignored):
+                return pool.enumerate()
+            enumerating = creating.addCallback(created)
+
+            def enumerated(result):
+                [filesystem] = result
+                self.assertEqual(size, filesystem.size)
+            enumerating.addCallback(enumerated)
+            return enumerating
+
         def test_enumerate_spaces(self):
             """
             The ``IStoragePool.enumerate`` implementation doesn't return
@@ -538,7 +726,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(
-                VolumeName(namespace=u"ns", id=u"spaced name"))
+                VolumeName(namespace=u"ns", dataset_id=u"spaced name"))
             creating = pool.create(volume)
 
             def created(ignored):
@@ -556,19 +744,19 @@ def make_istoragepool_tests(fixture):
             pattern.
 
             This test should be removed as part of:
-                https://github.com/ClusterHQ/flocker/issues/78
+                https://clusterhq.atlassian.net/browse/FLOC-78
             """
             pool = fixture(self)
             volume_name = MY_VOLUME
             service = service_for_pool(self, pool)
-            uuid = service.uuid
+            node_id = service.node_id
             volume = service.get(volume_name)
             d = pool.create(volume)
 
             def createdFilesystem(filesystem):
                 name = filesystem.get_path().basename()
-                expected = u"{uuid}.{name}".format(
-                    uuid=uuid, name=volume_name.to_bytes())
+                expected = u"{node_id}.{name}".format(
+                    node_id=node_id, name=volume_name.to_bytes())
                 self.assertEqual(name, expected)
             d.addCallback(createdFilesystem)
             return d
@@ -581,7 +769,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"new-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -606,7 +794,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"new-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -632,7 +820,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -660,7 +848,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = gatherResults([pool.create(volume), pool.create(new_volume)])
 
@@ -697,7 +885,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"new-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
             d.addCallback(lambda _: pool.clone_to(volume, new_volume))
@@ -718,7 +906,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -773,7 +961,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = gatherResults([pool.create(volume), pool.create(new_volume)])
 

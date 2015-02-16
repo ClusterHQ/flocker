@@ -39,10 +39,10 @@ def flocker_volume_options(cls):
     cls.optParameters = original_parameters + [
         ["config", None, DEFAULT_CONFIG_PATH.path,
          "The path to the Flocker volume configuration file, "
-         "containing the UUID of the Flocker volume service on this node. "
+         "containing the node ID of the Flocker volume service on this node. "
          "This file will be created if it does not already exist."],
         # Maybe we can come up with something better in
-        # https://github.com/ClusterHQ/flocker/issues/125
+        # https://clusterhq.atlassian.net/browse/FLOC-125
         ["pool", None, FLOCKER_POOL,
          "The ZFS pool to use for volumes."],
         ["mountpoint", None, FLOCKER_MOUNTPOINT.path,
@@ -69,17 +69,17 @@ class _SnapshotsSubcommandOptions(Options):
 
     Parameters:
 
-    * owner-uuid: The UUID of the volume manager that owns the volume.
+    * owner-node-id: The node ID of the volume manager that owns the volume.
 
     * name: The name of the volume.
     """
 
-    def parseArgs(self, uuid, name):
-        self["uuid"] = uuid.decode("ascii")
+    def parseArgs(self, node_id, name):
+        self["node_id"] = node_id.decode("ascii")
         self["name"] = name
 
     def run(self, service):
-        volume = Volume(uuid=self["uuid"],
+        volume = Volume(node_id=self["node_id"],
                         name=VolumeName.from_bytes(self["name"]),
                         service=service)
         filesystem = volume.get_filesystem()
@@ -103,15 +103,15 @@ class _ReceiveSubcommandOptions(Options):
 
     Parameters:
 
-    * owner-uuid: The UUID of the volume manager that owns the volume.
+    * owner-node-id: The node ID of the volume manager that owns the volume.
 
     * name: The name of the volume.
     """
 
-    synopsis = "<owner-uuid> <name>"
+    synopsis = "<owner-node-id> <name>"
 
-    def parseArgs(self, uuid, name):
-        self["uuid"] = uuid.decode("ascii")
+    def parseArgs(self, node_id, name):
+        self["node_id"] = node_id.decode("ascii")
         self["name"] = name
 
     def run(self, service):
@@ -119,7 +119,7 @@ class _ReceiveSubcommandOptions(Options):
 
         :param VolumeService service: The volume manager service to utilize.
         """
-        service.receive(self["uuid"], VolumeName.from_bytes(self["name"]),
+        service.receive(self["node_id"], VolumeName.from_bytes(self["name"]),
                         sys.stdin)
 
 
@@ -136,15 +136,15 @@ class _AcquireSubcommandOptions(Options):
 
     Parameters:
 
-    * owner-uuid: The UUID of the volume manager that owns the volume.
+    * owner-node-id: The node ID of the volume manager that owns the volume.
 
     * name: The name of the volume.
     """
 
-    synopsis = "<owner-uuid> <name>"
+    synopsis = "<owner-node-id> <name>"
 
-    def parseArgs(self, uuid, name):
-        self["uuid"] = uuid.decode("ascii")
+    def parseArgs(self, node_id, name):
+        self["node_id"] = node_id.decode("ascii")
         self["name"] = name
 
     def run(self, service):
@@ -153,10 +153,11 @@ class _AcquireSubcommandOptions(Options):
 
         :param VolumeService service: The volume manager service to utilize.
         """
-        d = service.acquire(self["uuid"], VolumeName.from_bytes(self["name"]))
+        d = service.acquire(self["node_id"],
+                            VolumeName.from_bytes(self["name"]))
 
         def acquired(_):
-            sys.stdout.write(service.uuid.encode("ascii"))
+            sys.stdout.write(service.node_id.encode("ascii"))
             sys.stdout.flush()
         d.addCallback(acquired)
         return d
@@ -172,17 +173,18 @@ class _CloneToSubcommandOptions(Options):
 
     Parameters:
 
-    * owner uuid: The UUID of the volume manager that owns the parent volume.
+    * owner node-id: The node ID of the volume manager that owns the
+      parent volume.
 
     * parent name: The name of the parent volume.
 
     * child name: The name of the new volume.
     """
 
-    synopsis = "<owner uuid> <parent name> <child name>"
+    synopsis = "<owner node id> <parent name> <child name>"
 
-    def parseArgs(self, uuid, parent_name, child_name):
-        self["uuid"] = uuid.decode("ascii")
+    def parseArgs(self, node_id, parent_name, child_name):
+        self["node_id"] = node_id.decode("ascii")
         self["parent_name"] = parent_name
         self["child_name"] = child_name
 
@@ -192,7 +194,7 @@ class _CloneToSubcommandOptions(Options):
 
         :param VolumeService service: The volume manager service to utilize.
         """
-        parent = Volume(uuid=self["uuid"],
+        parent = Volume(node_id=self["node_id"],
                         name=VolumeName.from_bytes(self["parent_name"]),
                         service=service)
         return service.clone_to(
