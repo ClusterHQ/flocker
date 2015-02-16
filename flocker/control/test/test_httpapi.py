@@ -640,6 +640,10 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         XXX The 500 error message really should be clearer.
         See https://clusterhq.atlassian.net/browse/FLOC-1393
+
+        XXX This situation should return a more friendly error code and
+        message.
+        See https://clusterhq.atlassian.net/browse/FLOC-1403.
         """
         expected_manifestation = _manifestation(primary=False)
         node_a = Node(
@@ -669,7 +673,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         "There should always be a primary."
         "But perhaps there should be a test that demonstrates the general 500 "
         "response message format."
-        "See https://clusterhq.atlassian.net/browse/FLOC-1393"
+        "See https://clusterhq.atlassian.net/browse/FLOC-1393 and "
+        "https://clusterhq.atlassian.net/browse/FLOC-1403"
     )
 
     def test_primary_invalid(self):
