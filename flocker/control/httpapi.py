@@ -266,12 +266,6 @@ class DatasetAPIUserV1(object):
                         dataset_id)
                 )
 
-        if origin_node.hostname == primary:
-            # Maybe return early here rather than bother the
-            # persistence_service.  raise Exception('New primary is the same as
-            # existing primary')
-            pass
-
         # Now construct a new_deployment where the primary manifestation of the
         # dataset is on the requested primary node.
         new_origin_node = Node(
