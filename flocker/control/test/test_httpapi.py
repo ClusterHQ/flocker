@@ -110,8 +110,18 @@ class APITestsMixin(object):
             method, path, request_body, expected_code)
         requesting.addCallback(readBody)
         requesting.addCallback(loads)
+
+        def assertEqualAndReturn(expected, actual):
+            """
+            Assert that ``expected`` is equal to ``actual`` and return
+            ``actual`` for further processing.
+            """
+            self.assertEqual(expected, actual)
+            return actual
+
         requesting.addCallback(
-            lambda actual_result: self.assertEqual(expected_result, actual_result)
+            lambda actual_result: assertEqualAndReturn(
+                expected_result, actual_result)
         )
         return requesting
 
