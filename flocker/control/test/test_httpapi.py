@@ -499,29 +499,28 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         :returns: A ``Deferred`` which fires when all assertions have been
             executed.
         """
+        expected_dataset_id = dataset.dataset_id
+
+        expected_dataset = {
+            u"dataset_id": expected_dataset_id,
+            u"primary": target,
+            u"metadata": {}
+        }
+
         saving = self.persistence_service.save(deployment)
 
         def saved(ignored):
-            expected_dataset_id = dataset.dataset_id
-            creating = self.assertResponseCode(
+            creating = self.assertResult(
                 b"POST",
                 b"/configuration/datasets/%s" % (
                     expected_dataset_id.encode('ascii'),),
                 {u"primary": target},
-                OK
+                OK,
+                expected_dataset
             )
-            creating.addCallback(readBody)
-            creating.addCallback(loads)
 
             def got_result(result):
-                self.assertEqual(
-                    {u"dataset_id": expected_dataset_id,
-                     u"primary": target,
-                     u"metadata": {}},
-                    result
-                )
                 deployment = self.persistence_service.get()
-
                 for node in deployment.nodes:
                     if node.hostname == target:
                         dataset_ids = [
