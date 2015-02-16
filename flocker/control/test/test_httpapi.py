@@ -109,8 +109,10 @@ class APITestsMixin(object):
         requesting = self.assertResponseCode(
             method, path, request_body, expected_code)
         requesting.addCallback(readBody)
-        requesting.addCallback(lambda body: self.assertEqual(
-            expected_result, loads(body)))
+        requesting.addCallback(loads)
+        requesting.addCallback(
+            lambda actual_result: self.assertEqual(expected_result, actual_result)
+        )
         return requesting
 
     def assertResultItems(self, method, path, request_body,
