@@ -732,7 +732,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     test_no_primary.todo = (
         'It should be possible to submit a dataset update request without a '
         'primary address, but the input schema currently requires the primary '
-        'attribute.'
+        'attribute. This will need to be addressed before or as part of '
+        'https://clusterhq.atlassian.net/browse/FLOC-1404'
     )
 
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
