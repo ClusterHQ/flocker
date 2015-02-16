@@ -171,6 +171,43 @@
 
 -
   id:
+    "update dataset with primary"
+
+  doc: |
+    Update a dataset with a new primary address.
+
+  requires:
+    - "create dataset with dataset_id"
+
+  request: |
+    POST /v1/configuration/datasets/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
+
+    {"primary": "%(NODE_1)s"}
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_1)s"}
+
+-
+  id:
+    "update dataset with unknown dataset id"
+
+  doc: |
+    An attempt to update an unknown dataset results in a 404 Not Found response.
+
+  request: |
+    POST /v1/configuration/datasets/<unknown_dataset_id> HTTP/1.1
+
+    {"primary": "%(NODE_1)s"}
+
+  response: |
+    HTTP/1.1 404 Not Found
+
+    {"description": "Dataset not found."}
+
+-
+  id:
     "get state datasets"
 
   doc: |
