@@ -112,12 +112,13 @@ def get_node_state(node):
     Call flocker-reportstate on the specified node and return its output,
     as ``Application`` instances parsed via class ``FlockerConfiguration``.
     """
-    yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+    yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
     state = safe_load(yaml)
     return FlockerConfiguration(state).applications()
 
 
-def _run_SSH(port, user, node, command, input, key=None):
+def run_SSH(port, user, node, command, input, key=None,
+            background=False):
     """
     Run a command via SSH.
 
@@ -128,23 +129,40 @@ def _run_SSH(port, user, node, command, input, key=None):
     :type command: ``list`` of ``bytes``.
     :param bytes input: Input to send to command.
     :param FilePath key: If not None, the path to a private key to use.
+    :param background: If ``True``, don't block waiting for SSH process to
+         end or read its stdout. I.e. it will run "in the background".
+         Also ensures remote process has pseudo-tty so killing the local SSH
+         process will kill the remote one.
 
-    :return: stdout as ``bytes``.
+    :return: stdout as ``bytes`` if ``background`` is false, otherwise
+        return the ``subprocess.Process`` object.
     """
     quotedCommand = ' '.join(map(shell_quote, command))
     command = [
         b'ssh',
         b'-p', b'%d' % (port,),
         ]
+
     if key is not None:
         command.extend([
             b"-i",
             key.path])
+
+    if background:
+        # Force pseudo-tty so that remote process exists when the ssh
+        # client does:
+        command.extend([b"-t", b"-t"])
+
     command.extend([
         b'@'.join([user, node]),
         quotedCommand
     ])
-    process = Popen(command, stdout=PIPE, stdin=PIPE)
+    if background:
+        process = Popen(command, stdin=PIPE)
+        process.stdin.write(input)
+        return process
+    else:
+        process = Popen(command, stdout=PIPE, stdin=PIPE)
 
     result = process.communicate(input)
     if process.returncode != 0:
@@ -179,8 +197,8 @@ def _clean_node(test_case, node):
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
     # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
-    _run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
-             [b"flocker"], None)
+    run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
+            [b"flocker"], None)
 
 
 def get_nodes(test_case, num_nodes):
@@ -315,7 +333,7 @@ def assert_expected_deployment(test_case, expected_deployment):
         addresses.
     """
     for node, expected in expected_deployment.items():
-        yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+        yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
         state = safe_load(yaml)
         test_case.assertSetEqual(
             set(FlockerConfiguration(state).applications().values()),
