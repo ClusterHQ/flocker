@@ -245,21 +245,26 @@ class DatasetAPIUserV1(object):
         # Get the current configuration.
         deployment = self.persistence_service.get()
 
-        # Find all manifestations of requested dataset.
-        manifestations_and_nodes = list(
-            other_manifestations_from_deployment(deployment, dataset_id)
-        )
-
-        # There are no manifestations containing the requested dataset.
-        if not manifestations_and_nodes:
-            raise DATASET_NOT_FOUND
-
         # Lookup the node that has a primary Manifestation (if any)
-        primary_manifestation, origin_node = [
-            (manifestation, node)
-            for manifestation, node in manifestations_and_nodes
-            if manifestation.primary
-        ][0]
+        manifestations_and_nodes = other_manifestations_from_deployment(
+            deployment, dataset_id)
+        index = 0
+        for index, (manifestation, node) in enumerate(
+                manifestations_and_nodes):
+            if manifestation.primary:
+                primary_manifestation, origin_node = manifestation, node
+                break
+        else:
+            # There are no manifestations containing the requested dataset.
+            if index == 0:
+                raise DATASET_NOT_FOUND
+            else:
+                # There were no primary manifestations
+                raise IndexError(
+                    'No primary manifestations for dataset: {!r}. See '
+                    'https://clusterhq.atlassian.net/browse/FLOC-1403'.format(
+                        dataset_id)
+                )
 
         if origin_node.hostname == primary:
             # Maybe return early here rather than bother the
