@@ -126,8 +126,9 @@ class Cluster(object):
 
         :param dict dataset_properties: The attributes of the dataset that
             we're waiting for.
-        :returns: A ``Deferred`` which fires when a dataset with the supplied
-            properties appears in the cluster.
+        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
+            API response when a dataset with the supplied properties appears in
+            the cluster.
         """
         def created():
             """
@@ -156,7 +157,9 @@ class Cluster(object):
 
         :param dict dataset_properties: The properties of the dataset to
             create.
-        :returns: A 2-tuple of (cluster, api_response)
+        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
+            API response when a dataset with the supplied properties has been
+            persisted to the cluster configuration.
         """
         request = post(
             self.base_url + b"/configuration/datasets",
