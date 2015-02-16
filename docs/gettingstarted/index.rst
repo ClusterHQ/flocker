@@ -8,15 +8,16 @@ Getting started with Flocker
 
 .. intro-text::
 
-   Flocker lets you run microservices apps with database containers and move them around between servers. It comes in two pieces and you’ll need both.
+   Flocker lets you run microservices apps with database containers and move them around between servers.
+   It comes in two pieces and you'll need both.
 
 .. contents::
    :local:
 
 .. tutorial-step::
 
-   Step 1: Installing Flocker CLI & Node
-   =====================================
+   Step 1: Installing Flocker Client & Node
+   ========================================
 
    .. parallel::
 
@@ -26,10 +27,10 @@ Getting started with Flocker
 
       .. image:: images/macbook.png
          :class: center-block img-responsive
-         :alt: Flocker CLI diagram
+         :alt: Flocker Client diagram
 
-      Flocker CLI
-      -----------
+      Flocker Client
+      --------------
 
       +--------------------------------------------------------------------------+
       | Runs on your laptop                                                      |
@@ -78,7 +79,7 @@ Getting started with Flocker
          OS X
          ^^^^
 
-         Install the flocker-cli client on your Mac (requires Homebrew):
+         Install the Flocker client on your Mac (requires Homebrew):
 
          .. version-code-block:: console
 
@@ -91,7 +92,7 @@ Getting started with Flocker
          Ubuntu / Debian
          ^^^^^^^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the Flocker client on your Linux machine:
 
          .. version-code-block:: console
 
@@ -103,7 +104,7 @@ Getting started with Flocker
          Fedora 20
          ^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the Flocker client on your Linux machine:
 
          .. version-code-block:: console
 
@@ -118,7 +119,7 @@ Getting started with Flocker
          OS X
          ^^^^
 
-         Install the flocker-cli client on your Mac (requires Homebrew):
+         Install the Flocker client on your Mac (requires Homebrew):
 
          .. version-code-block:: console
 
@@ -129,7 +130,7 @@ Getting started with Flocker
          Ubuntu / Debian
          ^^^^^^^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the Flocker client on your Linux machine:
 
          .. version-code-block:: console
 
@@ -141,7 +142,7 @@ Getting started with Flocker
          Fedora 20
          ^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the Flocker client on your Linux machine:
 
          .. version-code-block:: console
 
@@ -213,7 +214,7 @@ Getting started with Flocker
 
    .. tutorial-step-condensed::
 
-      You should have flocker-cli installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.
+      You should have the Flocker client installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.
       Now you can try our simple tutorial: a Python web application and a Redis server.
 
       .. code-block:: console
