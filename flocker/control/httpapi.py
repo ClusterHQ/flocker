@@ -9,7 +9,7 @@ from uuid import uuid4
 from pyrsistent import pmap, thaw
 
 from twisted.python.filepath import FilePath
-from twisted.web.http import CONFLICT, CREATED
+from twisted.web.http import CONFLICT, CREATED, NOT_FOUND, OK
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
@@ -35,11 +35,12 @@ SCHEMAS = {
         SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
 
-
 DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
 PRIMARY_NODE_NOT_FOUND = make_bad_request(
     description=u"The provided primary node is not part of the cluster.")
+DATASET_NOT_FOUND = make_bad_request(
+    code=NOT_FOUND, description=u"Dataset not found.")
 
 
 class DatasetAPIUserV1(object):
@@ -212,6 +213,111 @@ class DatasetAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
+    @app.route("/configuration/datasets/<dataset_id>", methods=['POST'])
+    @user_documentation(
+        """
+        Update an existing dataset.
+        """,
+        examples=[
+            u"update dataset with primary",
+            u"update dataset with unknown dataset id",
+        ]
+    )
+    @structured(
+        inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        schema_store=SCHEMAS
+    )
+    def update_dataset(self, dataset_id, primary=None):
+        """
+        Update an existing dataset in the cluster configuration.
+
+        :param unicode dataset_id: The unique identifier of the dataset.  This
+            is a string giving a UUID (per RFC 4122).
+
+        :param unicode primary: The address of the node to which the dataset
+            will be moved.
+
+        :return: A ``dict`` describing the dataset which has been added to the
+            cluster configuration or giving error information if this is not
+            possible.
+        """
+        # Get the current configuration.
+        deployment = self.persistence_service.get()
+
+        # Lookup the node that has a primary Manifestation (if any)
+        manifestations_and_nodes = other_manifestations_from_deployment(
+            deployment, dataset_id)
+        index = 0
+        for index, (manifestation, node) in enumerate(
+                manifestations_and_nodes):
+            if manifestation.primary:
+                primary_manifestation, origin_node = manifestation, node
+                break
+        else:
+            # There are no manifestations containing the requested dataset.
+            if index == 0:
+                raise DATASET_NOT_FOUND
+            else:
+                # There were no primary manifestations
+                raise IndexError(
+                    'No primary manifestations for dataset: {!r}. See '
+                    'https://clusterhq.atlassian.net/browse/FLOC-1403'.format(
+                        dataset_id)
+                )
+
+        # Now construct a new_deployment where the primary manifestation of the
+        # dataset is on the requested primary node.
+        new_origin_node = Node(
+            hostname=origin_node.hostname,
+            applications=origin_node.applications,
+            other_manifestations=(
+                origin_node.other_manifestations
+                - frozenset({primary_manifestation})
+            )
+        )
+        deployment = deployment.update_node(new_origin_node)
+
+        primary_nodes = list(
+            node for node in deployment.nodes if primary == node.hostname
+        )
+        if len(primary_nodes) == 0:
+            # `primary` is not in cluster. Add it.
+            # XXX Check cluster state to determine if the given primary node
+            # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
+            # See FLOC-1278
+            new_target_node = Node(
+                hostname=primary,
+                other_manifestations=frozenset({primary_manifestation})
+            )
+        else:
+            # There should only be one node with the requested primary
+            # hostname. ``ValueError`` here if that's not the case.
+            (target_node,) = primary_nodes
+            new_target_node = Node(
+                hostname=target_node.hostname,
+                applications=target_node.applications,
+                other_manifestations=(
+                    target_node.other_manifestations
+                    | frozenset({primary_manifestation})
+                )
+            )
+
+        deployment = deployment.update_node(new_target_node)
+
+        saving = self.persistence_service.save(deployment)
+
+        # Return an API response dictionary containing the dataset with updated
+        # primary address.
+        def saved(ignored):
+            result = api_dataset_from_dataset_and_node(
+                primary_manifestation.dataset,
+                new_target_node.hostname
+            )
+            return EndpointResponse(OK, result)
+        saving.addCallback(saved)
+        return saving
+
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
         Get current cluster datasets.
@@ -231,6 +337,24 @@ class DatasetAPIUserV1(object):
         """
         deployment = self.cluster_state_service.as_deployment()
         return list(datasets_from_deployment(deployment))
+
+
+def other_manifestations_from_deployment(deployment, dataset_id):
+    """
+    Extract all other manifestations of the supplied dataset_id from the
+    supplied deployment.
+
+    :param Deployment deployment: A ``Deployment`` describing the state
+        of the cluster.
+    :param unicode dataset_id: The uuid of the ``Dataset`` for the
+        ``Manifestation`` s that are to be returned.
+    :return: Iterable returning all manifestations of the supplied
+        ``dataset_id``.
+    """
+    for node in deployment.nodes:
+        for manifestation in node.other_manifestations:
+            if manifestation.dataset.dataset_id == dataset_id:
+                yield manifestation, node
 
 
 def datasets_from_deployment(deployment):
