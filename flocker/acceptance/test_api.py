@@ -224,7 +224,8 @@ def cluster_for_test(test_case, node_addresses):
         sorted(node_addresses)[0],
         [b"flocker-control",
          b"--data-path",
-         b"/var/lib/flocker/%s" % (random_name(),)]
+         b"/tmp/flocker.acceptance.test_api.cluster_for_test.%s" % (
+             random_name(),)]
     )
 
     # https://clusterhq.atlassian.net/browse/FLOC-1382
