@@ -31,9 +31,11 @@ obsolete releases that are no longer hosted are permanently redirected to the la
      <!-- Marketing Release Documentation -->
      <RoutingRule>
        <Condition>
-         <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
+         <KeyPrefixEquals>en/latest</KeyPrefixEquals>
        </Condition>
        <Redirect>
+         <HostName>docs.clusterhq.com</HostName>
+         <Protocol>https</Protocol>
          <ReplaceKeyPrefixWith>en/0.3.2/</ReplaceKeyPrefixWith>
          <HttpRedirectCode>302</HttpRedirectCode>
        </Redirect>
@@ -41,9 +43,11 @@ obsolete releases that are no longer hosted are permanently redirected to the la
      <!-- Development Release Documentation -->
      <RoutingRule>
        <Condition>
-         <KeyPrefixEquals>en/devel/</KeyPrefixEquals>
+         <KeyPrefixEquals>en/devel</KeyPrefixEquals>
        </Condition>
        <Redirect>
+         <HostName>docs.clusterhq.com</HostName>
+         <Protocol>https</Protocol>
          <ReplaceKeyPrefixWith>en/0.3.3dev3/</ReplaceKeyPrefixWith>
          <HttpRedirectCode>302</HttpRedirectCode>
        </Redirect>
@@ -51,36 +55,67 @@ obsolete releases that are no longer hosted are permanently redirected to the la
      <!-- Obsolete Release Documentation -->
      <RoutingRule>
        <Condition>
-         <KeyPrefixEquals>en/0.3.1/</KeyPrefixEquals>
+         <KeyPrefixEquals>en/0.3.1</KeyPrefixEquals>
        </Condition>
        <Redirect>
+         <HostName>docs.clusterhq.com</HostName>
+         <Protocol>https</Protocol>
          <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
          <HttpRedirectCode>301</HttpRedirectCode>
        </Redirect>
      </RoutingRule>
      <RoutingRule>
        <Condition>
-         <KeyPrefixEquals>en/0.3.0/</KeyPrefixEquals>
+         <KeyPrefixEquals>en/0.3.1.post1</KeyPrefixEquals>
        </Condition>
        <Redirect>
+         <HostName>docs.clusterhq.com</HostName>
+         <Protocol>https</Protocol>
          <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
          <HttpRedirectCode>301</HttpRedirectCode>
        </Redirect>
      </RoutingRule>
      <RoutingRule>
        <Condition>
-         <KeyPrefixEquals>en/0.2.1/</KeyPrefixEquals>
+         <KeyPrefixEquals>en/0.3.0</KeyPrefixEquals>
        </Condition>
        <Redirect>
+         <HostName>docs.clusterhq.com</HostName>
+         <Protocol>https</Protocol>
+         <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
+         <HttpRedirectCode>301</HttpRedirectCode>
+       </Redirect>
+     </RoutingRule>
+     <!-- For these, we just redirect any possible version, even if they never existed. -->
+     <RoutingRule>
+       <Condition>
+         <KeyPrefixEquals>en/0.2</KeyPrefixEquals>
+       </Condition>
+       <Redirect>
+         <HostName>docs.clusterhq.com</HostName>
+         <Protocol>https</Protocol>
          <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
          <HttpRedirectCode>301</HttpRedirectCode>
        </Redirect>
      </RoutingRule>
      <RoutingRule>
        <Condition>
-         <KeyPrefixEquals>en/0.1.2/</KeyPrefixEquals>
+         <KeyPrefixEquals>en/0.1</KeyPrefixEquals>
        </Condition>
        <Redirect>
+         <HostName>docs.clusterhq.com</HostName>
+         <Protocol>https</Protocol>
+         <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
+         <HttpRedirectCode>301</HttpRedirectCode>
+       </Redirect>
+     </RoutingRule>
+     <RoutingRule>
+       <Condition>
+         <KeyPrefixEquals>en/0.0</KeyPrefixEquals>
+       </Condition>
+       <Redirect>
+         <HostName>docs.clusterhq.com</HostName>
+         <Protocol>https</Protocol>
          <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
          <HttpRedirectCode>301</HttpRedirectCode>
        </Redirect>

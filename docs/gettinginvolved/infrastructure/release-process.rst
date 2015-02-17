@@ -52,6 +52,8 @@ Access
 - Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
 
+- Access to `S3` and CloudFront via web.
+
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
 
@@ -79,7 +81,18 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that a maintenance release is in progress.
+
+   ::
+
+      @engineering I am releasing from release/flocker-0.3.2. Please don't land anything on that branch until the release is complete.
+
 #. Create a clean, local Flocker release branch with no modifications:
+
+   .. note::
+
+      For a maintenance release, replace ``origin/master`` below with ``origin/flocker-${BASE_VERSION}``,
+      where ``${BASE_VERSION}`` is the release receiving the maintenance.
 
    .. prompt:: bash $
 
@@ -155,49 +168,9 @@ Preparing For a Release
 #. Update the staging documentation.
    (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
-   .. TODO: The following steps should be automated
+   .. prompt:: bash $
 
-   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-staging-docs``.
-
-      .. prompt:: bash $
-
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
-
-   #. Update redirects to point to new documentation.
-
-      .. warning:: Skip this step for weekly releases and pre-releases.
-
-      .. prompt:: bash $
-
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
-
-   #. Update the redirect rules in `S3`_ to point to the new release.
-
-      In the properties of the ``clusterhq-staging-docs`` bucket under static website hosting,
-      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
-      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
-
-      .. code-block:: xml
-
-         <RoutingRule>
-           <Condition>
-             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
-           </Condition>
-           <Redirect>
-             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
-             <HttpRedirectCode>302</HttpRedirectCode>
-           </Redirect>
-         </RoutingRule>
-
-   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.staging.clusterhq.com`` distribution::
-
-         /
-         /index.html
-         /en/
-         /en/index.html
-         /en/latest/*
-         /en/devel/*
+      admin/publish-docs --doc-version ${VERSION}
 
 #. Make a pull request on GitHub
 
@@ -428,50 +401,9 @@ Release
 #. Update the documentation.
    (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
-   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
+   .. prompt:: bash $
 
-      .. prompt:: bash $
-
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
-
-   #. Update redirects to point to new documentation.
-
-      .. warning:: Skip this step for weekly releases and pre-releases.
-
-         The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
-         We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
-
-      .. prompt:: bash $
-
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
-
-   #. Update the redirect rules in `S3`_ to point to the new release.
-
-      In the properties of the ``clusterhq-docs`` bucket under static website hosting,
-      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
-      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
-
-      .. code-block:: xml
-
-         <RoutingRule>
-           <Condition>
-             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
-           </Condition>
-           <Redirect>
-             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
-             <HttpRedirectCode>302</HttpRedirectCode>
-           </Redirect>
-         </RoutingRule>
-
-   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.clusterhq.com`` distribution::
-
-         /
-         /index.html
-         /en/
-         /en/index.html
-         /en/latest/*
-         /en/devel/*
+      admin/publish-docs --production
 
 #. Submit the release pull request for review again.
 
@@ -535,6 +467,12 @@ Post-Release Review Process
    * Follow the :doc:`ELK example documentation<../../indepth/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
+
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that the maintenance release is in complete.
+
+   ::
+
+      @engineering The release from release/flocker-0.3.2 is complete. Branches targeting it can now land.
 
 
 Improving the Release Process
