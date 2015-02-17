@@ -13,6 +13,7 @@ from characteristic import attributes, Attribute
 
 from eliot import ActionType
 from eliot.testing import validate_logging, LoggedAction
+from eliot.twisted import DeferredContext
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
@@ -379,17 +380,34 @@ class AgentClientTests(SynchronousTestCase):
         ``ClusterStatusCommand`` sent to the ``AgentClient`` result in agent
         having cluster state updated.
         """
+        LOCAL_ACTION = ActionType(
+            u'test:local_action',
+            [],
+            [],
+            u'A parent action on the local side.'
+        )
+
+        self.agent.logger = logger
         self.client.makeConnection(StringTransport())
         actual = Deployment(nodes=frozenset())
-        d = self.server.callRemote(ClusterStatusCommand,
-                                   configuration=TEST_DEPLOYMENT,
-                                   state=actual,
-                                   eliot_context=u"abc")
-        self.successResultOf(d)
-        self.assertEqual(self.agent, FakeAgent(is_connected=True,
-                                               client=self.client,
-                                               desired=TEST_DEPLOYMENT,
-                                               actual=actual))
+        with LOCAL_ACTION(logger) as action:
+            with action.context():
+                d = self.server.callRemote(ClusterStatusCommand,
+                                           configuration=TEST_DEPLOYMENT,
+                                           state=actual,
+                                           eliot_context=action.serialize_task_id())
+                context = DeferredContext(d)
+                context.addActionFinish()
+                self.successResultOf(context.result)
+                self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                                       client=self.client,
+                                                       desired=TEST_DEPLOYMENT,
+                                                       actual=actual))
+        (local_action,) = LoggedAction.of_type(logger.messages, LOCAL_ACTION)
+        # TODO figure out what we're looking for next...
+        # Fake IConvergenceAgent doesn't do any logging,
+        # Real IConvergenceAgent probably does, but it we can't keep track of what it logs and log messages it triggers.
+        # ...so what do we test here?
 
 
 def iconvergence_agent_tests_factory(fixture):

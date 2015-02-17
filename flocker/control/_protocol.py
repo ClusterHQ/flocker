@@ -308,6 +308,17 @@ class _AgentLocator(CommandLocator):
         CommandLocator.__init__(self)
         self.agent = agent
 
+    @property
+    def logger(self):
+        """
+        ``with_eliot_context`` assumes that the decorated method's bound
+        instance has a logger, which it could, but for testing, it needs to use
+        the same logger as the supplied agent.
+
+        XXX This seems ugly.
+        """
+        return self.agent.logger
+
     @ClusterStatusCommand.responder
     @with_eliot_context
     def cluster_updated(self, configuration, state):
