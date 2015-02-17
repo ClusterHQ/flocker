@@ -479,7 +479,9 @@ class WithEliotContextTests(SynchronousTestCase):
 
         self.assertEqual(
             {'expected_result': expected_result},
-            self.return_keyword_arguments(expected_result=expected_result)
+            self.return_keyword_arguments(
+                eliot_context=object(), expected_result=expected_result
+            )
         )
 
     def test_decorated_name(self):
