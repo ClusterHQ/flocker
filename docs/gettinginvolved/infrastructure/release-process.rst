@@ -418,13 +418,9 @@ Release
 Post-Release Review Process
 ---------------------------
 
-#. Remove the Vagrant box which was added as part of :ref:`pre-tag-review`:
-
-   .. prompt:: bash $
-
-      vagrant box remove clusterhq/flocker-tutorial
-
 #. Check that the documentation is set up correctly:
+
+   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
    - The documentation should be available at https://docs.clusterhq.com/en/${VERSION}/.
 
