@@ -459,13 +459,23 @@ class FakeAgentInterfaceTests(iconvergence_agent_tests_factory(
     """
 
 
-class Client(object):
+class ClientProcess(object):
+    logger = None
+
+    def ping_send(self, **kwargs):
+        """
+        Ping send
+        """
+        return kwargs
+
+
+class ServerProcess(object):
     logger = None
 
     @with_eliot_context
-    def return_keyword_arguments(self, **kwargs):
+    def ping_respond(self, **kwargs):
         """
-        Foo bar baz
+        Ping respond
         """
         return kwargs
 
@@ -475,7 +485,8 @@ class WithEliotContextTests(SynchronousTestCase):
     Tests for ``with_eliot_context``.
     """
     def setUp(self):
-        self.client = Client()
+        self.client = ClientProcess()
+        self.server = ServerProcess()
 
     @validate_logging(None)
     def test_decorated_called(self, logger):
@@ -484,11 +495,11 @@ class WithEliotContextTests(SynchronousTestCase):
         function with the keyword arguments supplied to it and returns its
         return value.
         """
-        self.client.logger = logger
+        self.server.logger = logger
         expected_result = object()
         TEST_ACTION = ActionType(u'test:update_node_state', [], [], u'node sends state to control service.')
         with TEST_ACTION(logger) as action:
-            actual_result = self.client.return_keyword_arguments(
+            actual_result = self.server.ping_respond(
                 eliot_context=action.serialize_task_id(),
                 expected_result=expected_result
             )
@@ -504,8 +515,8 @@ class WithEliotContextTests(SynchronousTestCase):
         as the decorated function.
         """
         self.assertEqual(
-            'return_keyword_arguments',
-            self.client.return_keyword_arguments.__name__
+            'ping_respond',
+            self.server.ping_respond.__name__
         )
 
     def test_decorated_docstring(self):
@@ -514,8 +525,8 @@ class WithEliotContextTests(SynchronousTestCase):
         docstring as the decorated function.
         """
         self.assertEqual(
-            'Foo bar baz',
-            self.client.return_keyword_arguments.__doc__.strip()
+            'Ping respond',
+            self.server.ping_respond.__doc__.strip()
         )
 
     @with_eliot_context
