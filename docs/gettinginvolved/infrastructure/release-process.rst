@@ -215,73 +215,14 @@ Pre-tag Review Process
 
 A tag cannot be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
 So it is important to check that the code in the release branch is working before it is tagged.
-This review step is to ensure that all acceptance tests pass on the release branch before it is tagged.
 
 .. note::
 
    Make sure to follow the latest version of this documentation when reviewing a release.
 
-.. warning:: This process requires ``Vagrant`` and should be performed on your own workstation;
-            **not** on a :doc:`Flocker development machine <vagrant>`.
-
-#. Export the version number of the release being reviewed as an environment variable for later use:
-
-   .. prompt:: bash $
-
-      export VERSION=0.1.2
-
-#. Do the acceptance tests:
-
-   - Add the tutorial vagrant box that BuildBot has created from the release branch.
-
-     .. prompt:: bash $
-
-        vagrant box add http://build.clusterhq.com/results/vagrant/release/flocker-${VERSION}/flocker-tutorial.json
-
-     You should now see the ``flocker-tutorial`` box listed:
-
-     .. Use code-block instead of prompt, to allow emphasis of last line
-     
-     .. code-block:: console
-        :emphasize-lines: 4
-
-        $ vagrant box list
-        clusterhq/fedora20-updated (virtualbox, 2014.09.19)
-        clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-        clusterhq/flocker-tutorial (virtualbox, <RELEASE_BRANCH_VERSION>)
-
-   - Clone Flocker on your local workstation and install all ``dev`` requirements:
-
-     .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
-
-     .. prompt:: bash $
-
-        git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-        cd "flocker-${VERSION}"
-        git checkout "release/flocker-${VERSION}"
-        mkvirtualenv "flocker-release-${VERSION}"
-        pip install --editable .[dev]
-
-   - Install `PhantomJS`_:
-
-     On Linux you will need to ensure that that the ``phantomjs`` binary is on your ``PATH`` before running the acceptance tests below.
-
-   - Add the Vagrant key to your agent:
-
-     .. prompt:: bash $
-
-        ssh-add ~/.vagrant.d/insecure_private_key
-
-   - Run the automated acceptance tests.
-
-     They will start the appropriate VMs.
-     Ensure that they all pass, with no skips:
-
-     .. prompt:: bash $
-
-        admin/run-acceptance-tests --distribution fedora-20
-
 #. Check documentation.
+
+   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
    - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
 
@@ -307,7 +248,6 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
    - If rejecting the issue, any problems must be resolved before repeating the review process.
 
-.. _PhantomJS: http://phantomjs.org/download.html
 
 .. _release:
 
@@ -478,13 +418,9 @@ Release
 Post-Release Review Process
 ---------------------------
 
-#. Remove the Vagrant box which was added as part of :ref:`pre-tag-review`:
-
-   .. prompt:: bash $
-
-      vagrant box remove clusterhq/flocker-tutorial
-
 #. Check that the documentation is set up correctly:
+
+   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
    - The documentation should be available at https://docs.clusterhq.com/en/${VERSION}/.
 
