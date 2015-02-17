@@ -305,9 +305,9 @@ class _AgentLocator(CommandLocator):
         CommandLocator.__init__(self)
         self.agent = agent
 
+    @with_eliot_context
     @ClusterStatusCommand.responder
-#    @with_eliot_context
-    def cluster_updated(self, configuration, state):
+    def cluster_updated(self, configuration, state, eliot_context):
         self.agent.cluster_updated(configuration, state)
         return {}
 
