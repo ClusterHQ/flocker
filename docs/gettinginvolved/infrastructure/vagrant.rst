@@ -31,7 +31,7 @@ This will generate a :file:`flocker-<box>-<version>.box` file.
 Upload this file to `Google Cloud Storage <https://console.developers.google.com/project/apps~hybridcluster-docker/storage/clusterhq-vagrant/>`_,
 using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
 
-   gsutil cp -a public_read flocker-dev-$(python ../../setup.py --version).box gs://clusterhq-vagrant/
+   gsutil cp -a public-read flocker-dev-$(python ../../setup.py --version).box gs://clusterhq-vagrant/
 
 (If you're uploading the tutorial box the image will be ``flocker-tutorial-...`` instead of ``flocker-dev-...``.)
 
