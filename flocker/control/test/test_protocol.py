@@ -462,6 +462,33 @@ class WithEliotContextTests(SynchronousTestCase):
     """
     Tests for ``with_eliot_context``.
     """
+    def test_decorated_called(self):
+        """
+        ``with_eliot_context`` calls the decorated function
+        """
+        expected_result = object()
+        side_effects = []
+        @with_eliot_context
+        def foo_bar_baz():
+            side_effects.append(expected_result)
+
+        (actual_result,) = side_effects
+        self.assertEqual(expected_result, actual_result)
+
+
+    def test_decorated_return_value(self):
+        """
+        ``with_eliot_context`` returns the value returned by the decorated
+        function.
+        """
+        expected_result = object()
+        @with_eliot_context
+        def foo_bar_baz():
+            return expected_result
+
+        self.assertEqual(expected_result, foo_bar_baz())
+
+
     def test_decorated_name(self):
         """
         """

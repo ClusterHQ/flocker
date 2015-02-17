@@ -114,11 +114,11 @@ def with_eliot_context(function):
          attribute and whose caller will be passing in a serialized Eliot
          task ID to in a ``eliot_context`` keyword argument.
     """
-    return
-    @functools.wraps(function)
-    def responder(self, eliot_context, **kwargs):
-        with Action.continue_task(self.logger, eliot_context):
-            return function(self, **kwargs)
+#    @functools.wraps(function)
+    def responder(): #self, eliot_context, **kwargs):
+        # with Action.continue_task(self.logger, eliot_context):
+        #     return function(self, **kwargs)
+        pass
     return responder
 
 class ControlServiceLocator(CommandLocator):
