@@ -475,7 +475,6 @@ class WithEliotContextTests(SynchronousTestCase):
         (actual_result,) = side_effects
         self.assertEqual(expected_result, actual_result)
 
-
     def test_decorated_return_value(self):
         """
         ``with_eliot_context`` returns the value returned by the decorated
@@ -488,7 +487,6 @@ class WithEliotContextTests(SynchronousTestCase):
 
         self.assertEqual(expected_result, foo_bar_baz())
 
-
     def test_decorated_name(self):
         """
         ``with_eliot_context`` returns a decorator function with the same name
@@ -499,7 +497,6 @@ class WithEliotContextTests(SynchronousTestCase):
             pass
 
         self.assertEqual('foo_bar_baz', foo_bar_baz.__name__)
-
 
     def test_decorated_docstring(self):
         """
