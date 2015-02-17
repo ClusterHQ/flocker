@@ -12,7 +12,7 @@ from zope.interface.verify import verifyObject
 from characteristic import attributes, Attribute
 
 from eliot import ActionType
-from eliot.testing import validate_logging
+from eliot.testing import validate_logging, LoggedAction
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
@@ -458,36 +458,50 @@ class FakeAgentInterfaceTests(iconvergence_agent_tests_factory(
     ``IConvergenceAgent`` tests for ``FakeAgent``.
     """
 
+SEND_REQUEST = ActionType(
+    u'test:send_request',
+    [],
+    [],
+    u'client makes request to server.'
+)
+
+HANDLE_REQUEST = ActionType(
+    u'test:handle_request',
+    [],
+    [],
+    u'server receives request from client.'
+)
 
 class ClientProcess(object):
     logger = None
 
-    def ping_send(self, **kwargs):
+    def send_request(self, server, **kwargs):
         """
-        Ping send
+        Send request.
         """
-        return kwargs
+        with SEND_REQUEST(self.logger) as action:
+            return server.handle_request(
+                eliot_context=action.serialize_task_id(),
+                **kwargs
+            )
 
 
 class ServerProcess(object):
     logger = None
 
     @with_eliot_context
-    def ping_respond(self, **kwargs):
+    def handle_request(self, **kwargs):
         """
-        Ping respond
+        Handle request.
         """
-        return kwargs
+        with HANDLE_REQUEST(self.logger):
+            return kwargs
 
 
 class WithEliotContextTests(SynchronousTestCase):
     """
     Tests for ``with_eliot_context``.
     """
-    def setUp(self):
-        self.client = ClientProcess()
-        self.server = ServerProcess()
-
     @validate_logging(None)
     def test_decorated_called(self, logger):
         """
@@ -495,19 +509,30 @@ class WithEliotContextTests(SynchronousTestCase):
         function with the keyword arguments supplied to it and returns its
         return value.
         """
-        self.server.logger = logger
+        client = ClientProcess()
+        client.logger = logger
+
+        server = ServerProcess()
+        server.logger = logger
+
         expected_result = object()
-        TEST_ACTION = ActionType(u'test:update_node_state', [], [], u'node sends state to control service.')
-        with TEST_ACTION(logger) as action:
-            actual_result = self.server.ping_respond(
-                eliot_context=action.serialize_task_id(),
-                expected_result=expected_result
-            )
+        actual_result = client.send_request(
+            server,
+            expected_result=expected_result
+        )
 
         self.assertEqual(
             {'expected_result': expected_result},
             actual_result
         )
+        # There should only be one...
+        (client_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
+        server_actions = LoggedAction.of_type(logger.messages, HANDLE_REQUEST)
+        for server_action in server_actions:
+            self.assertIn(server_action, client_action.children)
+
+        import pdb; pdb.set_trace()
+
 
     def test_decorated_name(self):
         """
@@ -515,8 +540,8 @@ class WithEliotContextTests(SynchronousTestCase):
         as the decorated function.
         """
         self.assertEqual(
-            'ping_respond',
-            self.server.ping_respond.__name__
+            'handle_request',
+            ServerProcess().handle_request.__name__
         )
 
     def test_decorated_docstring(self):
@@ -525,8 +550,8 @@ class WithEliotContextTests(SynchronousTestCase):
         docstring as the decorated function.
         """
         self.assertEqual(
-            'Ping respond',
-            self.server.ping_respond.__doc__.strip()
+            'Handle request.',
+            ServerProcess().handle_request.__doc__.strip()
         )
 
     @with_eliot_context
