@@ -55,7 +55,7 @@ Access
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
 - An OS X (most recent release) system.
 
-.. note:: For a documentation release, access to Google Cloud Storage and Vagrant Cloud is not required.
+.. note:: For a documentation release, access to Google Cloud Storage and Atlas is not required.
 
 
 Preparing For a Release
