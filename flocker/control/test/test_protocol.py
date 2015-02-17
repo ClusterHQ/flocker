@@ -11,6 +11,7 @@ from zope.interface.verify import verifyObject
 
 from characteristic import attributes, Attribute
 
+from eliot import ActionType
 from eliot.testing import validate_logging
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -469,19 +470,24 @@ class WithEliotContextTests(SynchronousTestCase):
         """
         return kwargs
 
-    def test_decorated_called(self):
+    @validate_logging(None)
+    def test_decorated_called(self, logger):
         """
         The decorator returned by ``with_eliot_context`` calls the decorated
         function with the keyword arguments supplied to it and returns its
         return value.
         """
+        self.logger = logger
         expected_result = object()
+        TEST_ACTION = ActionType(u'test:update_node_state', [], [], u'node sends state to control service.')
+        with TEST_ACTION(logger) as action:
+            actual_result = self.return_keyword_arguments(
+                eliot_context=action.serialize_task_id(), expected_result=expected_result
+            )
 
         self.assertEqual(
             {'expected_result': expected_result},
-            self.return_keyword_arguments(
-                eliot_context=object(), expected_result=expected_result
-            )
+            actual_result
         )
 
     def test_decorated_name(self):
