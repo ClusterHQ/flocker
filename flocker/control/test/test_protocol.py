@@ -462,47 +462,53 @@ class WithEliotContextTests(SynchronousTestCase):
     """
     Tests for ``with_eliot_context``.
     """
-    def setUp(self):
-        """
-        Reset the expected result and side effects list which will be modified
-        in each test.
-        """
-        self.expected_result = object()
-        self.side_effects = []
-
     @with_eliot_context
-    def foo_bar_baz(self):
+    def return_keyword_arguments(self, **kwargs):
         """
         Foo bar baz
         """
-        self.side_effects.append(self.expected_result)
-        return self.expected_result
+        return kwargs
 
     def test_decorated_called(self):
         """
-        ``with_eliot_context`` calls the decorated function.
+        The decorator returned by ``with_eliot_context`` calls the decorated
+        function with the keyword arguments supplied to it and returns its
+        return value.
         """
-        self.foo_bar_baz()
-        (actual_result,) = self.side_effects
-        self.assertIs(self.expected_result, actual_result)
+        expected_result = object()
 
-    def test_decorated_return_value(self):
-        """
-        ``with_eliot_context`` returns the value returned by the decorated
-        function.
-        """
-        self.assertIs(self.expected_result, self.foo_bar_baz())
+        self.assertEqual(
+            {'expected_result': expected_result},
+            self.return_keyword_arguments(expected_result=expected_result)
+        )
 
     def test_decorated_name(self):
         """
         ``with_eliot_context`` returns a decorator function with the same name
         as the decorated function.
         """
-        self.assertEqual('foo_bar_baz', self.foo_bar_baz.__name__)
+        self.assertEqual(
+            'return_keyword_arguments',
+            self.return_keyword_arguments.__name__
+        )
 
     def test_decorated_docstring(self):
         """
         ``with_eliot_context`` returns a decorator function with the same
         docstring as the decorated function.
         """
-        self.assertEqual('Foo bar baz', self.foo_bar_baz.__doc__.strip())
+        self.assertEqual(
+            'Foo bar baz',
+            self.return_keyword_arguments.__doc__.strip()
+        )
+
+    @with_eliot_context
+    def method_with_positional_arguments(self, *args):
+        """
+        A method that makes use of positional arguments.
+        """
+        return args
+
+    def test_positional_args_rejected(self):
+        """
+        """
