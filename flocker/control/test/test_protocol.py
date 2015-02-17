@@ -463,11 +463,18 @@ class WithEliotContextTests(SynchronousTestCase):
     Tests for ``with_eliot_context``.
     """
     def setUp(self):
+        """
+        Reset the expected result and side effects list which will be modified
+        in each test.
+        """
         self.expected_result = object()
         self.side_effects = []
 
     @with_eliot_context
     def foo_bar_baz(self):
+        """
+        A decorated method to be tested.
+        """
         self.side_effects.append(self.expected_result)
         return self.expected_result
 
