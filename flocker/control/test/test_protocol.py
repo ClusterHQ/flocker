@@ -462,51 +462,40 @@ class WithEliotContextTests(SynchronousTestCase):
     """
     Tests for ``with_eliot_context``.
     """
+    def setUp(self):
+        self.expected_result = object()
+        self.side_effects = []
+
+    @with_eliot_context
+    def foo_bar_baz(self):
+        self.side_effects.append(self.expected_result)
+        return self.expected_result
+
     def test_decorated_called(self):
         """
         ``with_eliot_context`` calls the decorated function.
         """
-        expected_result = object()
-        side_effects = []
-        @with_eliot_context
-        def foo_bar_baz():
-            side_effects.append(expected_result)
-        foo_bar_baz()
-        (actual_result,) = side_effects
-        self.assertEqual(expected_result, actual_result)
+        self.foo_bar_baz()
+        (actual_result,) = self.side_effects
+        self.assertIs(self.expected_result, actual_result)
 
     def test_decorated_return_value(self):
         """
         ``with_eliot_context`` returns the value returned by the decorated
         function.
         """
-        expected_result = object()
-        @with_eliot_context
-        def foo_bar_baz():
-            return expected_result
-
-        self.assertEqual(expected_result, foo_bar_baz())
+        self.assertIs(self.expected_result, self.foo_bar_baz())
 
     def test_decorated_name(self):
         """
         ``with_eliot_context`` returns a decorator function with the same name
         as the decorated function.
         """
-        @with_eliot_context
-        def foo_bar_baz():
-            pass
-
-        self.assertEqual('foo_bar_baz', foo_bar_baz.__name__)
+        self.assertEqual('foo_bar_baz', self.foo_bar_baz.__name__)
 
     def test_decorated_docstring(self):
         """
         ``with_eliot_context`` returns a decorator function with the same
         docstring as the decorated function.
         """
-        @with_eliot_context
-        def foo_bar_baz():
-            """
-            Foo bar baz
-            """
-
-        self.assertEqual('Foo bar baz', foo_bar_baz.__doc__.strip())
+        self.assertEqual('Foo bar baz', self.foo_bar_baz.__doc__.strip())
