@@ -102,6 +102,7 @@ class NodeStateCommand(Command):
                   'eliot_context', Unicode())]
     response = []
 
+
 def with_eliot_context(function):
     """
     Decorator for responders that accept an ``eliot_context`` argument
@@ -119,6 +120,7 @@ def with_eliot_context(function):
         with Action.continue_task(self.logger, eliot_context):
             return function(self, **kwargs)
     return responder
+
 
 class ControlServiceLocator(CommandLocator):
     """

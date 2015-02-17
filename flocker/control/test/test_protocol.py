@@ -379,7 +379,6 @@ class AgentClientTests(SynchronousTestCase):
         ``ClusterStatusCommand`` sent to the ``AgentClient`` result in agent
         having cluster state updated.
         """
-        import pdb;pdb.set_trace()
         self.client.makeConnection(StringTransport())
         actual = Deployment(nodes=frozenset())
         d = self.server.callRemote(ClusterStatusCommand,
@@ -471,6 +470,7 @@ HANDLE_REQUEST = ActionType(
     [],
     u'server receives request from client.'
 )
+
 
 class ClientProcess(object):
     logger = None
