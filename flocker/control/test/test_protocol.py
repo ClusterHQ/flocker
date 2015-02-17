@@ -11,6 +11,8 @@ from zope.interface.verify import verifyObject
 
 from characteristic import attributes, Attribute
 
+from eliot.testing import validate_logging
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError, AMP
@@ -370,16 +372,19 @@ class AgentClientTests(SynchronousTestCase):
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
 
-    def test_cluster_updated(self):
+    @validate_logging(None)
+    def test_cluster_updated(self, logger):
         """
         ``ClusterStatusCommand`` sent to the ``AgentClient`` result in agent
         having cluster state updated.
         """
+        import pdb;pdb.set_trace()
         self.client.makeConnection(StringTransport())
         actual = Deployment(nodes=frozenset())
         d = self.server.callRemote(ClusterStatusCommand,
                                    configuration=TEST_DEPLOYMENT,
-                                   state=actual)
+                                   state=actual,
+                                   eliot_context=u"abc")
         self.successResultOf(d)
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client,

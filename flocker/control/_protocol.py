@@ -30,7 +30,7 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
 
 from pickle import dumps, loads
 
-from eliot import Logger, MessageType, Action
+from eliot import Logger, MessageType, Action, Field
 
 from characteristic import with_cmp
 
@@ -87,8 +87,8 @@ class ClusterStatusCommand(Command):
     in the convergence agent during startup.
     """
     arguments = [('configuration', DeploymentArgument()),
-                 ('state', DeploymentArgument(),
-                  'eliot_context', Unicode())]
+                 ('state', DeploymentArgument()),
+                 ('eliot_context', Unicode())]
     response = []
 
 
@@ -163,15 +163,20 @@ class ControlAMP(AMP):
         self.control_amp_service.disconnected(self)
 
 
+DEPLOYMENT_CONFIG = Field(u"configuration", repr, u"The cluster configuration")
+CLUSTER_STATE = Field(u"state", repr, u"The cluster state.")
+
 LOG_SEND_CLUSTER_STATE = MessageType(
     "flocker:controlservice:send_cluster_state",
+    [DEPLOYMENT_CONFIG, CLUSTER_STATE],
     # XXX Fields would be configuration, cluster state,
     "Sending the configuration and state of the cluster.")
 
+AGENT = Field(u"agent", repr, u"The agent we're sending to")
+
 LOG_SEND_TO_AGENT = MessageType(
     "flocker:controlservice:send_state_to_agent",
-    # XXX Fields would be the specific agent we're sending to - host and port
-    # probably, lacking per-connection identity for now...
+    [AGENT],
     "Send the configuration and state of the cluster to a specific agent.")
 
 
