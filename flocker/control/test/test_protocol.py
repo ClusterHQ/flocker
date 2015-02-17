@@ -471,7 +471,7 @@ class WithEliotContextTests(SynchronousTestCase):
         @with_eliot_context
         def foo_bar_baz():
             side_effects.append(expected_result)
-
+        foo_bar_baz()
         (actual_result,) = side_effects
         self.assertEqual(expected_result, actual_result)
 
