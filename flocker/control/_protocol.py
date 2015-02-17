@@ -115,7 +115,7 @@ def with_eliot_context(function):
          task ID to in a ``eliot_context`` keyword argument.
     """
     @functools.wraps(function)
-    def responder(self, **kwargs): # eliot_context, **kwargs):
+    def responder(self, eliot_context, **kwargs):
         # with Action.continue_task(self.logger, eliot_context):
         #     return function(self, **kwargs)
         return function(self, **kwargs)
