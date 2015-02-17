@@ -459,16 +459,23 @@ class FakeAgentInterfaceTests(iconvergence_agent_tests_factory(
     """
 
 
-class WithEliotContextTests(SynchronousTestCase):
-    """
-    Tests for ``with_eliot_context``.
-    """
+class Client(object):
+    logger = None
+
     @with_eliot_context
     def return_keyword_arguments(self, **kwargs):
         """
         Foo bar baz
         """
         return kwargs
+
+
+class WithEliotContextTests(SynchronousTestCase):
+    """
+    Tests for ``with_eliot_context``.
+    """
+    def setUp(self):
+        self.client = Client()
 
     @validate_logging(None)
     def test_decorated_called(self, logger):
@@ -477,12 +484,13 @@ class WithEliotContextTests(SynchronousTestCase):
         function with the keyword arguments supplied to it and returns its
         return value.
         """
-        self.logger = logger
+        self.client.logger = logger
         expected_result = object()
         TEST_ACTION = ActionType(u'test:update_node_state', [], [], u'node sends state to control service.')
         with TEST_ACTION(logger) as action:
-            actual_result = self.return_keyword_arguments(
-                eliot_context=action.serialize_task_id(), expected_result=expected_result
+            actual_result = self.client.return_keyword_arguments(
+                eliot_context=action.serialize_task_id(),
+                expected_result=expected_result
             )
 
         self.assertEqual(
@@ -497,7 +505,7 @@ class WithEliotContextTests(SynchronousTestCase):
         """
         self.assertEqual(
             'return_keyword_arguments',
-            self.return_keyword_arguments.__name__
+            self.client.return_keyword_arguments.__name__
         )
 
     def test_decorated_docstring(self):
@@ -507,7 +515,7 @@ class WithEliotContextTests(SynchronousTestCase):
         """
         self.assertEqual(
             'Foo bar baz',
-            self.return_keyword_arguments.__doc__.strip()
+            self.client.return_keyword_arguments.__doc__.strip()
         )
 
     @with_eliot_context
