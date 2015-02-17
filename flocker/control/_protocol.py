@@ -101,7 +101,7 @@ class NodeStateCommand(Command):
                   'eliot_context', Unicode())]
     response = []
 
-
+import functools
 def with_eliot_context(function):
     """
     Decorator for responders that accept an ``eliot_context`` argument
@@ -114,6 +114,7 @@ def with_eliot_context(function):
          attribute and whose caller will be passing in a serialized Eliot
          task ID to in a ``eliot_context`` keyword argument.
     """
+    @functools.wraps(function)
     def responder(self, eliot_context, **kwargs):
         with Action.continue_task(self.logger, eliot_context):
             return function(self, **kwargs)
