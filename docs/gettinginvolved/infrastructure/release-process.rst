@@ -248,7 +248,6 @@ So it is important to check that the code in the release branch is working befor
 
    - If rejecting the issue, any problems must be resolved before repeating the review process.
 
-.. _PhantomJS: http://phantomjs.org/download.html
 
 .. _release:
 
