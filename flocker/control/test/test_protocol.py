@@ -7,12 +7,13 @@ Tests for ``flocker.control._protocol``.
 from uuid import uuid4
 
 from zope.interface import implementer
+from zope.interface.verify import verifyObject
 
 from characteristic import attributes, Attribute
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
-from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError
+from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError, AMP
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
@@ -23,7 +24,7 @@ from twisted.application.internet import StreamServerEndpointService
 from .._protocol import (
     NodeStateArgument, DeploymentArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    build_agent_client, ControlAMPService, ControlAMP
+    AgentAMP, ControlAMPService, ControlAMP
 )
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -87,7 +88,8 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
          applications=frozenset([APP1, APP2]))]))
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
-NODE_STATE = NodeState(running=[APP1], not_running=[APP2],
+NODE_STATE = NodeState(hostname=u'node1.example.com',
+                       running=[APP1], not_running=[APP2],
                        used_ports=[1, 2],
                        other_manifestations=frozenset([MANIFESTATION]))
 
@@ -165,8 +167,7 @@ class ControlAMPTests(SynchronousTestCase):
                    lambda *args, **kwargs: sent.append((args, kwargs))
                    or succeed(None))
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
-        self.control_amp_service.cluster_state.update_node_state(
-            u"example3", NODE_STATE)
+        self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
 
         self.protocol.makeConnection(StringTransport())
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
@@ -203,13 +204,13 @@ class ControlAMPTests(SynchronousTestCase):
         ``NodeStateCommand`` updates the node state.
         """
         self.successResultOf(
-            self.client.callRemote(NodeStateCommand, hostname=u"example1",
+            self.client.callRemote(NodeStateCommand,
                                    node_state=NODE_STATE))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
             Deployment(
                 nodes=frozenset([
-                    Node(hostname=u'example1',
+                    Node(hostname=u'node1.example.com',
                          applications=frozenset([APP1, APP2]),
                          other_manifestations=frozenset(
                              [MANIFESTATION]))])))
@@ -234,7 +235,7 @@ class ControlAMPTests(SynchronousTestCase):
                    or succeed(None))
 
         self.successResultOf(
-            self.client.callRemote(NodeStateCommand, hostname=u"example2",
+            self.client.callRemote(NodeStateCommand,
                                    node_state=NODE_STATE))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
@@ -313,20 +314,19 @@ class ControlAMPServiceTests(SynchronousTestCase):
 @attributes([Attribute("is_connected", default_value=False),
              Attribute("is_disconnected", default_value=False),
              Attribute("desired", default_value=None),
-             Attribute("actual", default_value=None)])
+             Attribute("actual", default_value=None),
+             Attribute("client", default_value=None)])
 class FakeAgent(object):
     """
     Fake agent for testing.
-
-    Not a full verified fake since
-    https://clusterhq.atlassian.net/browse/FLOC-1255 may change this a
-    little.
     """
-    def connected(self):
+    def connected(self, client):
         self.is_connected = True
+        self.client = client
 
     def disconnected(self):
         self.is_disconnected = True
+        self.client = None
 
     def cluster_updated(self, configuration, cluster_state):
         self.desired = configuration
@@ -335,11 +335,11 @@ class FakeAgent(object):
 
 class AgentClientTests(SynchronousTestCase):
     """
-    Tests for ``build_agent_client``.
+    Tests for ``AgentAMP``.
     """
     def setUp(self):
         self.agent = FakeAgent()
-        self.client = build_agent_client(self.agent)
+        self.client = AgentAMP(self.agent)
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard. Due to https://tm.tl/7761 we need
         # to access the passed in locator directly.
@@ -358,7 +358,8 @@ class AgentClientTests(SynchronousTestCase):
         Connection made events are passed on to the agent.
         """
         self.client.makeConnection(StringTransport())
-        self.assertEqual(self.agent, FakeAgent(is_connected=True))
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client))
 
     def test_connection_lost(self):
         """
@@ -381,5 +382,72 @@ class AgentClientTests(SynchronousTestCase):
                                    state=actual)
         self.successResultOf(d)
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
                                                desired=TEST_DEPLOYMENT,
                                                actual=actual))
+
+
+def iconvergence_agent_tests_factory(fixture):
+    """
+    Create tests that verify basic ``IConvergenceAgent`` compliance.
+
+    :param fixture: Callable that takes ``SynchronousTestCase`` instance
+        and returns a ``IConvergenceAgent`` provider.
+
+    :return: ``SynchronousTestCase`` subclass.
+    """
+    class IConvergenceAgentTests(SynchronousTestCase):
+        """
+        Tests for ``IConvergenceAgent``.
+        """
+        def test_connected(self):
+            """
+            ``IConvergenceAgent.connected()`` takes an AMP instance.
+            """
+            agent = fixture(self)
+            agent.connected(AMP())
+
+        def test_disconnected(self):
+            """
+            ``IConvergenceAgent.disconnected()`` can be called after
+            ``IConvergenceAgent.connected()``.
+            """
+            agent = fixture(self)
+            agent.connected(AMP())
+            agent.disconnected()
+
+        def test_reconnected(self):
+            """
+            ``IConvergenceAgent.connected()`` can be called after
+            ``IConvergenceAgent.disconnected()``.
+            """
+            agent = fixture(self)
+            agent.connected(AMP())
+            agent.disconnected()
+            agent.connected(AMP())
+
+        def test_cluster_updated(self):
+            """
+            ``IConvergenceAgent.cluster_updated()`` takes two ``Deployment``
+            instances.
+            """
+            agent = fixture(self)
+            agent.connected(AMP())
+            agent.cluster_updated(
+                Deployment(nodes=frozenset()), Deployment(nodes=frozenset()))
+
+        def test_interface(self):
+            """
+            The object provides ``IConvergenceAgent``.
+            """
+            agent = fixture(self)
+            self.assertTrue(verifyObject(IConvergenceAgent, agent))
+
+    return IConvergenceAgentTests
+
+
+class FakeAgentInterfaceTests(iconvergence_agent_tests_factory(
+        lambda test: FakeAgent())):
+    """
+    ``IConvergenceAgent`` tests for ``FakeAgent``.
+    """
