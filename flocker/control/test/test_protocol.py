@@ -26,7 +26,7 @@ from twisted.application.internet import StreamServerEndpointService
 from .._protocol import (
     NodeStateArgument, DeploymentArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    AgentAMP, ControlAMPService, ControlAMP
+    AgentAMP, ControlAMPService, ControlAMP, with_eliot_context
 )
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -456,3 +456,29 @@ class FakeAgentInterfaceTests(iconvergence_agent_tests_factory(
     """
     ``IConvergenceAgent`` tests for ``FakeAgent``.
     """
+
+
+class WithEliotContextTests(SynchronousTestCase):
+    """
+    Tests for ``with_eliot_context``.
+    """
+    def test_decorated_name(self):
+        """
+        """
+        @with_eliot_context
+        def foo_bar_baz():
+            pass
+
+        self.assertEqual('foo_bar_baz', foo_bar_baz.__name__)
+
+
+    def test_decorated_docstring(self):
+        """
+        """
+        @with_eliot_context
+        def foo_bar_baz():
+            """
+            Foo bar baz
+            """
+
+        self.assertEqual('Foo bar baz', foo_bar_baz.__doc__.strip())
