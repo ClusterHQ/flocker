@@ -215,22 +215,14 @@ Pre-tag Review Process
 
 A tag cannot be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
 So it is important to check that the code in the release branch is working before it is tagged.
-This review step is to ensure that all acceptance tests pass on the release branch before it is tagged.
 
 .. note::
 
    Make sure to follow the latest version of this documentation when reviewing a release.
 
-.. warning:: This process requires ``Vagrant`` and should be performed on your own workstation;
-            **not** on a :doc:`Flocker development machine <vagrant>`.
-
-#. Export the version number of the release being reviewed as an environment variable for later use:
-
-   .. prompt:: bash $
-
-      export VERSION=0.1.2
-
 #. Check documentation.
+
+   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
    - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
 
