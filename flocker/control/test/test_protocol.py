@@ -527,12 +527,15 @@ class WithEliotContextTests(SynchronousTestCase):
         )
         # There should only be one...
         (client_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
-        server_actions = LoggedAction.of_type(logger.messages, HANDLE_REQUEST)
-        for server_action in server_actions:
-            self.assertIn(server_action, client_action.children)
-
-        import pdb; pdb.set_trace()
-
+        (server_action,) = LoggedAction.of_type(logger.messages, HANDLE_REQUEST)
+        for child_action in client_action.descendants():
+            if child_action == server_action:
+                break
+        else:
+            self.fail(
+                'Child action not found. Expected: {!r} in {!r}'.format(
+                    server_action, list(client_action.descendants()))
+            )
 
     def test_decorated_name(self):
         """
