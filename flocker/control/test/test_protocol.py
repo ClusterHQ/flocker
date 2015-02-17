@@ -561,13 +561,19 @@ class WithEliotContextTests(SynchronousTestCase):
             ServerProcess().handle_request.__doc__.strip()
         )
 
-    @with_eliot_context
-    def method_with_positional_arguments(self, *args):
+    def test_positional_arguments_error(self):
         """
-        A method that makes use of positional arguments.
+        The decorator returned by ``with_eliot_context`` does not accept
+        positional arguments, regardless of whether the decorated function
+        accepts them.
         """
-        return args
-
-    def test_positional_args_rejected(self):
-        """
-        """
+        server = ServerProcess()
+        dummy_eliot_context = object()
+        error = self.assertRaises(
+            TypeError,
+            server.handle_request, dummy_eliot_context, 'arg1', 'arg2'
+        )
+        self.assertEqual(
+            'responder() takes exactly 2 arguments (4 given)',
+            str(error)
+        )
