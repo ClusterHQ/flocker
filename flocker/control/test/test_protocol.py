@@ -464,7 +464,7 @@ class WithEliotContextTests(SynchronousTestCase):
     """
     def test_decorated_called(self):
         """
-        ``with_eliot_context`` calls the decorated function
+        ``with_eliot_context`` calls the decorated function.
         """
         expected_result = object()
         side_effects = []
@@ -491,6 +491,8 @@ class WithEliotContextTests(SynchronousTestCase):
 
     def test_decorated_name(self):
         """
+        ``with_eliot_context`` returns a decorator function with the same name
+        as the decorated function.
         """
         @with_eliot_context
         def foo_bar_baz():
@@ -501,6 +503,8 @@ class WithEliotContextTests(SynchronousTestCase):
 
     def test_decorated_docstring(self):
         """
+        ``with_eliot_context`` returns a decorator function with the same
+        docstring as the decorated function.
         """
         @with_eliot_context
         def foo_bar_baz():
