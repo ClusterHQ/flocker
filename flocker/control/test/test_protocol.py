@@ -490,19 +490,37 @@ class ServerProcess(object):
     logger = None
 
     @with_eliot_context
-    def handle_request(self, **kwargs):
+    def handle_request(self, arg1, arg2):
         """
         Handle request.
         """
         with HANDLE_REQUEST(self.logger):
-            return kwargs
+            return dict(arg1=arg1, arg2=arg2)
 
 
 class WithEliotContextTests(SynchronousTestCase):
     """
     Tests for ``with_eliot_context``.
     """
-    @validate_logging(None)
+    def assert_child_action(self, logger):
+        """
+        The Client sets the logging context which means that Server Actions
+        appear as children of the Client Action.
+        """
+        # There should only be one...
+        (client_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
+        (server_action,) = LoggedAction.of_type(
+            logger.messages, HANDLE_REQUEST)
+        for child_action in client_action.descendants():
+            if child_action == server_action:
+                break
+        else:
+            self.fail(
+                'Child action not found. Expected: {!r} in {!r}'.format(
+                    server_action, list(client_action.descendants()))
+            )
+
+    @validate_logging(assert_child_action)
     def test_decorated_called(self, logger):
         """
         The decorator returned by ``with_eliot_context`` calls the decorated
@@ -515,27 +533,13 @@ class WithEliotContextTests(SynchronousTestCase):
         server = ServerProcess()
         server.logger = logger
 
-        expected_result = object()
-        actual_result = client.send_request(
-            server,
-            expected_result=expected_result
+        expected_results = dict(
+            arg1=object(),
+            arg2=object()
         )
+        actual_result = client.send_request(server, **expected_results)
 
-        self.assertEqual(
-            {'expected_result': expected_result},
-            actual_result
-        )
-        # There should only be one...
-        (client_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
-        (server_action,) = LoggedAction.of_type(logger.messages, HANDLE_REQUEST)
-        for child_action in client_action.descendants():
-            if child_action == server_action:
-                break
-        else:
-            self.fail(
-                'Child action not found. Expected: {!r} in {!r}'.format(
-                    server_action, list(client_action.descendants()))
-            )
+        self.assertEqual(expected_results, actual_result)
 
     def test_decorated_name(self):
         """
