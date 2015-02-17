@@ -473,7 +473,7 @@ class WithEliotContextTests(SynchronousTestCase):
     @with_eliot_context
     def foo_bar_baz(self):
         """
-        A decorated method to be tested.
+        Foo bar baz
         """
         self.side_effects.append(self.expected_result)
         return self.expected_result
