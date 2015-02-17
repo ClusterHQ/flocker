@@ -118,7 +118,7 @@ def with_eliot_context(function):
     def responder(): #self, eliot_context, **kwargs):
         # with Action.continue_task(self.logger, eliot_context):
         #     return function(self, **kwargs)
-        function()
+        return function()
     return responder
 
 class ControlServiceLocator(CommandLocator):
