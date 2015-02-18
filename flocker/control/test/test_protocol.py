@@ -314,7 +314,8 @@ class ControlAMPServiceTests(SynchronousTestCase):
         self.assertEqual(expected_args, actual_args)
         self.assertDictEqual(expected_kwargs, actual_kwargs)
 
-    def test_configuration_change(self):
+    @validate_logging(None)
+    def test_configuration_change(self, logger):
         """
         A configuration change results in connected protocols being notified
         of new cluster status.
@@ -327,14 +328,17 @@ class ControlAMPServiceTests(SynchronousTestCase):
         self.patch(protocol, "callRemote",
                    lambda *args, **kwargs: sent.append((args, kwargs))
                    or succeed(None))
-        service.configuration_service.save(TEST_DEPLOYMENT)
+
+        with start_action(logger, 'test:action') as parent_action:
+            service.configuration_service.save(TEST_DEPLOYMENT)
         # Should only be one callRemote call.
         (sent,) = sent
         self.assertArgsEqual(
             sent,
             ((ClusterStatusCommand,),
               dict(configuration=TEST_DEPLOYMENT,
-                   state=Deployment(nodes=frozenset())))
+                   state=Deployment(nodes=frozenset()),
+                   eliot_context=parent_action.serialize_task_id()))
         )
 
 
