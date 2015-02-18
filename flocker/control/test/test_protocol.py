@@ -633,6 +633,7 @@ class WithEliotContextTests(SynchronousTestCase):
             str(error)
         )
 
+
 class ClusterStatusCommandTests(SynchronousTestCase):
     """
     Tests for ``ClusterStatusCommand``.
@@ -657,7 +658,7 @@ class AgentLocatorTests(SynchronousTestCase):
         attribute of the ``Agent`` supplied to its initialiser.
         """
         fake_agent = FakeAgent()
-        fake_agent.logger = logger
+        self.patch(fake_agent, 'logger', logger)
         locator = _AgentLocator(agent=fake_agent)
         self.assertIs(logger, locator.logger)
 
@@ -675,7 +676,7 @@ class ClusterUpdatedTests(SynchronousTestCase):
         method.
         """
         fake_agent = FakeAgent()
-        fake_agent.logger = logger
+        self.patch(fake_agent, 'logger', logger)
         locator = _AgentLocator(agent=fake_agent)
         with SEND_REQUEST(logger) as action:
             locator.cluster_updated(
@@ -705,6 +706,41 @@ class NodeStateCommandTests(SynchronousTestCase):
             sorted(v[0] for v in NodeStateCommand.arguments))
 
 
+class NodeChangedTests(SynchronousTestCase):
+    """
+    Tests for the responder for ``NodeStateCommand``.
+    """
+    @validate_logging(None)
+    def test_responder_logging(self, logger):
+        """
+        ``node_changed`` is decorated using ``with_eliot_context`` and
+        therefore requires an eliot_context argument. The supplied
+        eliot_context is used as the context for messages logged in that
+        method.
+        """
+        fake_control_amp_service = build_control_amp_service(self)
+        self.patch(fake_control_amp_service, 'logger', logger)
+        self.patch(
+            fake_control_amp_service, 'node_changed', lambda node_state: None)
+
+        locator = ControlServiceLocator(
+            control_amp_service=fake_control_amp_service
+        )
+
+        with SEND_REQUEST(logger) as action:
+            locator.node_changed(
+                eliot_context=action.serialize_task_id(),
+                node_state=object()
+            )
+        (test_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
+        (child_action,) = test_action.children
+
+        self.assertEqual(
+            u'eliot:remote_task',
+            child_action.start_message['action_type']
+        )
+
+
 class ControlServiceLocatorTests(SynchronousTestCase):
     """
     Tests for ``ControlServiceLocator``.
@@ -717,7 +753,7 @@ class ControlServiceLocatorTests(SynchronousTestCase):
         initialiser.
         """
         fake_control_amp_service = build_control_amp_service(self)
-        fake_control_amp_service.logger = logger
+        self.patch(fake_control_amp_service, 'logger', logger)
         locator = ControlServiceLocator(
             control_amp_service=fake_control_amp_service
         )
