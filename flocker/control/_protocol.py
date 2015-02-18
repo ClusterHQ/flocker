@@ -98,8 +98,8 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
-    arguments = [('node_state', NodeStateArgument(),
-                  'eliot_context', Unicode())]
+    arguments = [('node_state', NodeStateArgument()),
+                 ('eliot_context', Unicode())]
     response = []
 
 

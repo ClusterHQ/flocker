@@ -58,6 +58,7 @@ class LoopbackAMPClient(object):
 
         @return: A C{Deferred} that fires with the result of the responder.
         """
+        import pdb; pdb.set_trace()
         arguments = command.makeArguments(kwargs, self._locator)
         responder = self._locator.locateResponder(command.commandName)
         d = responder(arguments)
