@@ -692,6 +692,19 @@ class ClusterUpdatedTests(SynchronousTestCase):
         )
 
 
+class NodeStateCommandTests(SynchronousTestCase):
+    """
+    Tests for ``NodeStateCommand``.
+    """
+    def test_command_arguments(self):
+        """
+        ``NodeStateCommand`` requires the following arguments.
+        """
+        self.assertEqual(
+            sorted(['node_state', 'eliot_context']),
+            sorted(v[0] for v in NodeStateCommand.arguments))
+
+
 class ControlServiceLocatorTests(SynchronousTestCase):
     """
     Tests for ``ControlServiceLocator``.
