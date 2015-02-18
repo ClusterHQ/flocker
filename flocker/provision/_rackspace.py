@@ -64,7 +64,7 @@ def rackspace_provisioner(username, key, region, keyname):
             "ex_config_drive": "true",
         },
         provision=provision_rackspace,
-        default_size="performance1-2",
+        default_size="performance1-8",
     )
 
     return provisioner
