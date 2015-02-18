@@ -140,6 +140,14 @@ def build_control_amp_service(test):
                              TCP4ServerEndpoint(MemoryReactor(), 1234))
 
 
+def capturing_call_remote(capture_list, *args, **kwargs):
+    # Ditch the eliot context whose context level is difficult to
+    # predict.
+    kwargs.pop('eliot_context')
+    capture_list.append((args, kwargs))
+    return succeed(None)
+
+
 class ControlAMPTests(SynchronousTestCase):
     """
     Tests for ``ControlAMP`` and ``ControlServiceLocator``.
@@ -166,9 +174,11 @@ class ControlAMPTests(SynchronousTestCase):
         When a connection is made the cluster status is sent to the new client.
         """
         sent = []
-        self.patch(self.protocol, "callRemote",
-                   lambda *args, **kwargs: sent.append((args, kwargs))
-                   or succeed(None))
+        self.patch(
+            self.protocol,
+            "callRemote",
+            lambda *args, **kwargs: capturing_call_remote(sent, *args, **kwargs)
+        )
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
 
@@ -231,13 +241,6 @@ class ControlAMPTests(SynchronousTestCase):
         another_protocol.makeConnection(StringTransport())
         sent1 = []
         sent2 = []
-
-        def capturing_call_remote(capture_list, *args, **kwargs):
-            # Ditch the eliot context whose context level is difficult to
-            # predict.
-            kwargs.pop('eliot_context')
-            capture_list.append((args, kwargs))
-            return succeed(None)
 
         self.patch(
             self.protocol,
