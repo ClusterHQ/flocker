@@ -645,6 +645,22 @@ class ClusterStatusCommandTests(SynchronousTestCase):
             sorted(v[0] for v in ClusterStatusCommand.arguments))
 
 
+class AgentLocatorTests(SynchronousTestCase):
+    """
+    Tests for ``_AgentLocator``.
+    """
+    @validate_logging(None)
+    def test_logger(self, logger):
+        """
+        ``_AgentLocator.logger`` is a property that returns the ``logger``
+        attribute of the ``Agent`` supplied to its initialiser.
+        """
+        fake_agent = FakeAgent()
+        fake_agent.logger = logger
+        locator = _AgentLocator(agent=fake_agent)
+        self.assertIs(logger, locator.logger)
+
+
 class ClusterUpdatedTests(SynchronousTestCase):
     """
     Tests for the responder for ``ClusterStatusCommand``.
