@@ -373,7 +373,7 @@ Release
       python setup.py sdist bdist_wheel
       gsutil cp -a public-read \
           "dist/Flocker-${VERSION}.tar.gz" \
-          "dist/Flocker-$(python setup.py --version)-py2-none-any.whl" \
+          "dist/Flocker-${VERSION}-py2-none-any.whl" \
           gs://archive.clusterhq.com/downloads/flocker/
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
