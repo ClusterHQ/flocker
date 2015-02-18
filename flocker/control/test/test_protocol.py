@@ -631,3 +631,14 @@ class WithEliotContextTests(SynchronousTestCase):
             'responder() takes exactly 2 arguments (4 given)',
             str(error)
         )
+
+class ClusterStatusCommandTests(SynchronousTestCase):
+    """
+    """
+    def test_command_arguments(self):
+        """
+        ClusterStatusCommand requires the following arguments.
+        """
+        self.assertEqual(
+            sorted(['configuration', 'state', 'eliot_context']),
+            sorted(v[0] for v in ClusterStatusCommand.arguments))
