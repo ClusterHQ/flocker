@@ -31,7 +31,7 @@ import functools
 
 from pickle import dumps, loads
 
-from eliot import Logger, MessageType, Action, Field
+from eliot import Logger, ActionType, Action, Field
 
 from characteristic import with_cmp
 
@@ -169,17 +169,18 @@ class ControlAMP(AMP):
 DEPLOYMENT_CONFIG = Field(u"configuration", repr, u"The cluster configuration")
 CLUSTER_STATE = Field(u"state", repr, u"The cluster state.")
 
-LOG_SEND_CLUSTER_STATE = MessageType(
+LOG_SEND_CLUSTER_STATE = ActionType(
     "flocker:controlservice:send_cluster_state",
     [DEPLOYMENT_CONFIG, CLUSTER_STATE],
-    # XXX Fields would be configuration, cluster state,
+    [],
     "Sending the configuration and state of the cluster.")
 
 AGENT = Field(u"agent", repr, u"The agent we're sending to")
 
-LOG_SEND_TO_AGENT = MessageType(
+LOG_SEND_TO_AGENT = ActionType(
     "flocker:controlservice:send_state_to_agent",
     [AGENT],
+    [],
     "Send the configuration and state of the cluster to a specific agent.")
 
 
@@ -233,7 +234,7 @@ class ControlAMPService(Service):
                     connection.callRemote(ClusterStatusCommand,
                                           configuration=configuration,
                                           state=state,
-                                          #eliot_context=action.serialize_task_id(),
+                                          eliot_context=action.serialize_task_id()
                 )
                 # Handle errors from callRemote by logging them
                 # https://clusterhq.atlassian.net/browse/FLOC-1311
