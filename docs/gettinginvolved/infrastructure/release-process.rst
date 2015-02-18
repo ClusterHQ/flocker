@@ -57,6 +57,7 @@ Access
 
 .. note:: For a documentation release, access to Google Cloud Storage and Atlas is not required.
 
+.. _preparing-for-a-release
 
 Preparing For a Release
 -----------------------
@@ -254,12 +255,14 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-.. warning:: The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
-             Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+Create and login to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
-             .. prompt:: bash $
+From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
-                vagrant ssh -- -A
+.. prompt:: bash $
+
+   vagrant up
+   vagrant ssh -- -A
 
 #. Export the version number of the release being completed as an environment variable for later use:
 
