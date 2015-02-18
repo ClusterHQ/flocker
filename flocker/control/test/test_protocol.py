@@ -209,7 +209,7 @@ class ControlAMPTests(SynchronousTestCase):
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
                                    node_state=NODE_STATE,
-                                   eliot_context=TEST_ACTION.serialize_task_id()))
+                                   eliot_context=TEST_ACTION_ID))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
             Deployment(
@@ -242,15 +242,16 @@ class ControlAMPTests(SynchronousTestCase):
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
                                    node_state=NODE_STATE,
-                                   # XXX TODO understand why the
-                                   eliot_context=TEST_ACTION.serialize_task_id()))
+                                   # XXX TODO understand why the task ID changes between here...
+                                   eliot_context=TEST_ACTION_ID))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
             [sent1[-1], sent2[-1]],
             [(((ClusterStatusCommand,),
               dict(configuration=TEST_DEPLOYMENT,
                    state=cluster_state,
-                   eliot_context=TEST_ACTION.serialize_task_id())))] * 2)
+                   # ...and here.
+                   eliot_context=TEST_ACTION_ID)))] * 2)
 
 
 class ControlAMPServiceTests(SynchronousTestCase):
@@ -372,7 +373,7 @@ class FakeAgent(object):
 
 
 TEST_ACTION = start_action(MemoryLogger(), 'test:action')
-
+TEST_ACTION_ID = TEST_ACTION.serialize_task_id()
 
 class AgentClientTests(SynchronousTestCase):
     """
@@ -422,7 +423,7 @@ class AgentClientTests(SynchronousTestCase):
             ClusterStatusCommand,
             configuration=TEST_DEPLOYMENT,
             state=actual,
-            eliot_context=TEST_ACTION.serialize_task_id()
+            eliot_context=TEST_ACTION_ID
         )
 
         self.successResultOf(d)
