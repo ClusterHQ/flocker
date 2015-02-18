@@ -92,6 +92,10 @@ class EliotObserver(object):
 
     def __call__(self, msg):
         error = bool(msg.get("isError"))
+        # Twisted log messages on Python 2 are bytes. We don't know the
+        # encoding, but assume it's ASCII superset. Charmap will translate
+        # ASCII correctly, and higher-bit characters just map to
+        # corresponding Unicode code points, and will never fail at decoding.
         message = unicode(textFromEventDict(msg), "charmap")
         TWISTED_LOG_MESSAGE(error=error, message=message).write(self.logger)
 
