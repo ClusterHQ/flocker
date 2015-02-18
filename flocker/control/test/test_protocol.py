@@ -331,8 +331,7 @@ class ControlAMPServiceTests(SynchronousTestCase):
         self.assertEqual(expected_args, actual_args)
         self.assertDictEqual(expected_kwargs, actual_kwargs)
 
-    @validate_logging(None)
-    def test_configuration_change(self, logger):
+    def test_configuration_change(self):
         """
         A configuration change results in connected protocols being notified
         of new cluster status.
