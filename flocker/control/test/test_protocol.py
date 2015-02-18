@@ -634,6 +634,7 @@ class WithEliotContextTests(SynchronousTestCase):
 
 class ClusterStatusCommandTests(SynchronousTestCase):
     """
+    Tests for ``ClusterStatusCommand``.
     """
     def test_command_arguments(self):
         """
@@ -643,8 +644,11 @@ class ClusterStatusCommandTests(SynchronousTestCase):
             sorted(['configuration', 'state', 'eliot_context']),
             sorted(v[0] for v in ClusterStatusCommand.arguments))
 
-class ClusterUpdatedTests(SynchronousTestCase):
 
+class ClusterUpdatedTests(SynchronousTestCase):
+    """
+    Tests for the responder for ``ClusterStatusCommand``.
+    """
     @validate_logging(None)
     def test_responder_logging(self, logger):
         """
