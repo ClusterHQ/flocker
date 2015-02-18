@@ -134,12 +134,16 @@ class ControlServiceLocator(CommandLocator):
         CommandLocator.__init__(self)
         self.control_amp_service = control_amp_service
 
+    @property
+    def logger(self):
+        return self.control_amp_service.logger
+
     @VersionCommand.responder
     def version(self):
         return {"major": 1}
 
     @NodeStateCommand.responder
-#    @with_eliot_context
+    @with_eliot_context
     def node_changed(self, node_state):
         self.control_amp_service.node_changed(node_state)
         return {}
