@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>Flocker Control Service</short>
+  <description>The Flocker control service manages the state of a flocker cluster.</description>
+  <port protocol="tcp" port="4233"/>
+  <port protocol="tcp" port="4234"/>
+</service>

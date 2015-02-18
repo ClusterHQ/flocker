@@ -718,7 +718,7 @@ class PACKAGE_NODE(PACKAGE):
 
 
 def omnibus_package_builder(
-        distribution, destination_path, package_uri, target_dir=None):
+        distribution, destination_path, package_uri, base_path, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
     ``destination_path``, containing the package installed from ``package_uri``
@@ -864,7 +864,15 @@ def omnibus_package_builder(
             BuildPackage(
                 package_type=distribution.package_type(),
                 destination_path=destination_path,
-                source_paths={flocker_node_path: FilePath("/usr/sbin")},
+                source_paths={
+                    flocker_node_path: FilePath("/usr/sbin"),
+                    # Fedora/CentOS firewall configuration
+                    base_path.sibling('package-files').child('flocker-control.firewalld.xml'):
+                        FilePath("/usr/lib/firewalld/services/flocker-control.xml"),
+                    # Ubuntu firewall configuration
+                    base_path.sibling('package-files').child('flocker-control.ufw'):
+                        FilePath("/etc/ufw/applications.d/flocker-control"),
+                },
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
@@ -1044,6 +1052,7 @@ class DockerBuildScript(object):
             distribution=CURRENT_DISTRIBUTION,
             destination_path=options['destination-path'],
             package_uri=options['package-uri'],
+            base_path=base_path,
         ).run()
 
 docker_main = DockerBuildScript().main
