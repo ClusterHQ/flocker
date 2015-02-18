@@ -180,7 +180,8 @@ class FlockerScriptRunner(object):
             d = maybeDeferred(self.script.main, reactor, options)
 
             def got_error(failure):
-                err(failure)
+                if not failure.check(SystemExit):
+                    err(failure)
                 return failure
             d.addErrback(got_error)
             return d
