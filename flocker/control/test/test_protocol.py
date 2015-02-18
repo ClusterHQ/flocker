@@ -293,6 +293,27 @@ class ControlAMPServiceTests(SynchronousTestCase):
              [c.transport.disconnecting for c in connections]),
             ([False] * 3, [True] * 3))
 
+    def assertDictEqual(self, expected, actual):
+        """
+        """
+        actual = actual.copy()
+        for expected_key, expected_value in expected.items():
+            actual_value = actual.pop(expected_key)
+            self.assertEqual(
+                expected_value, actual_value,
+                'Non-equal dictionary value. '
+                'Key: {!r} Expected: {!r} Actual: {!r}'.format(
+                    expected_key, expected_value, actual_value)
+            )
+        self.assertEqual({}, actual)
+
+    def assertArgsEqual(self, expected, actual):
+        expected_args, expected_kwargs = expected
+        actual_args, actual_kwargs = actual
+
+        self.assertEqual(expected_args, actual_args)
+        self.assertDictEqual(expected_kwargs, actual_kwargs)
+
     def test_configuration_change(self):
         """
         A configuration change results in connected protocols being notified
@@ -307,10 +328,14 @@ class ControlAMPServiceTests(SynchronousTestCase):
                    lambda *args, **kwargs: sent.append((args, kwargs))
                    or succeed(None))
         service.configuration_service.save(TEST_DEPLOYMENT)
-
-        self.assertEqual(sent, [((ClusterStatusCommand,),
-                                 dict(configuration=TEST_DEPLOYMENT,
-                                      state=Deployment(nodes=frozenset())))])
+        # Should only be one callRemote call.
+        (sent,) = sent
+        self.assertArgsEqual(
+            sent,
+            ((ClusterStatusCommand,),
+              dict(configuration=TEST_DEPLOYMENT,
+                   state=Deployment(nodes=frozenset())))
+        )
 
 
 @implementer(IConvergenceAgent)
