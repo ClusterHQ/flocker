@@ -342,20 +342,23 @@ class ControlAMPServiceTests(SynchronousTestCase):
         protocol = ControlAMP(service)
         protocol.makeConnection(StringTransport())
         sent = []
-        self.patch(protocol, "callRemote",
-                   lambda *args, **kwargs: sent.append((args, kwargs))
-                   or succeed(None))
+        self.patch(
+            protocol,
+            "callRemote",
+            lambda *args, **kwargs: capturing_call_remote(sent, *args, **kwargs)
+        )
 
-        with start_action(logger, 'test:action') as parent_action:
-            service.configuration_service.save(TEST_DEPLOYMENT)
+        service.configuration_service.save(TEST_DEPLOYMENT)
         # Should only be one callRemote call.
         (sent,) = sent
         self.assertArgsEqual(
             sent,
-            ((ClusterStatusCommand,),
-              dict(configuration=TEST_DEPLOYMENT,
-                   state=Deployment(nodes=frozenset()),
-                   eliot_context=parent_action.serialize_task_id()))
+            (
+                (ClusterStatusCommand,),
+                dict(configuration=TEST_DEPLOYMENT,
+                     state=Deployment(nodes=frozenset())
+                )
+            )
         )
 
 
