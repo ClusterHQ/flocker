@@ -7,6 +7,7 @@ from __future__ import print_function
 import os
 import sys
 from json import loads
+from signal import SIGINT
 
 from zope.interface import implementer
 
@@ -15,7 +16,7 @@ from eliot.testing import assertContainsFields
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.utils import getProcessOutput
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, Deferred
 from twisted.python.log import msg, err
 
 from ..script import ICommandLineScript
@@ -55,6 +56,13 @@ class StdoutStderrScript(object):
 class FailScript(object):
     def main(self, reactor, options):
         raise ZeroDivisionError("ono")
+
+
+@implementer(ICommandLineScript)
+class SigintScript(object):
+    def main(self, reactor, options):
+        reactor.callLater(0.05, os.kill, os.getpid(), SIGINT)
+        return Deferred()
 
 
 class FlockerScriptRunnerTests(TestCase):
@@ -152,4 +160,15 @@ FlockerScriptRunner({}(), Options()).main()
             self.assertTrue(messages[1][u"message"].endswith(
                 u"ZeroDivisionError: ono\n"))
         d.addCallback(got_messages)
+        return d
+
+    def test_sigint(self):
+        """
+        A script that is killed by signal exits, logging the signal.
+        """
+        d = self.run_script(SigintScript)
+        d.addCallback(lambda messages: assertContainsFields(
+            self, messages[1], {u"message_type": u"twisted:log",
+                                u"message": u"Received SIGINT, shutting down.",
+                                u"error": False}))
         return d
