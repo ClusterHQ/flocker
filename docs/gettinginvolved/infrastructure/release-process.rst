@@ -54,7 +54,7 @@ Access
 
 .. note:: For a documentation release, access to Google Cloud Storage and Atlas is not required.
 
-.. _preparing-for-a-release
+.. _preparing-for-a-release:
 
 Preparing For a Release
 -----------------------
