@@ -255,24 +255,24 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-Create and login to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+#. Create and login to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
-From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
+   From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
-.. prompt:: bash $
+   .. prompt:: bash $
 
-   vagrant up
-   vagrant ssh -- -A
+      vagrant up
+      vagrant ssh -- -A
 
 #. Export the version number of the release being completed as an environment variable for later use:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       export VERSION=0.1.2
 
 #. Create a clean, local copy of the Flocker and `homebrew-tap`_ release branches with no modifications:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
@@ -284,14 +284,14 @@ From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
 #. Create and activate the Flocker release virtual environment:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
 
 #. Tag the version being released:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
@@ -309,7 +309,7 @@ From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    .. note:: Skip this step for a documentation release.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       python setup.py sdist bdist_wheel
       gsutil cp -a public-read \
@@ -321,7 +321,7 @@ From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    .. note:: Skip this step for a documentation release.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       admin/upload-rpms "${VERSION}"
 
@@ -340,7 +340,7 @@ From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    - Create a recipe file and push it to the `homebrew-tap`_ repository:
 
-     .. prompt:: bash $
+     .. prompt:: bash [vagrant@localhost]$
 
         cd ../homebrew-tap-${VERSION}
         ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
@@ -352,7 +352,7 @@ From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
      Try installing the new recipe directly from a GitHub link
 
-     .. prompt:: bash $
+     .. prompt:: bash [vagrant@localhost]$
 
         brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
         brew test flocker-${VERSION}.rb
@@ -371,7 +371,7 @@ From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
 
-      .. prompt:: bash $
+      .. prompt:: bash [vagrant@localhost]$
 
          gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
 
@@ -382,7 +382,7 @@ From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
          The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
          We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
 
-      .. prompt:: bash $
+      .. prompt:: bash [vagrant@localhost]$
 
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
