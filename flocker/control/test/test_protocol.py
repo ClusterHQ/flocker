@@ -178,7 +178,8 @@ class ControlAMPTests(SynchronousTestCase):
         self.patch(
             self.protocol,
             "callRemote",
-            lambda *args, **kwargs: capturing_call_remote(sent, *args, **kwargs)
+            lambda *args, **kwargs: capturing_call_remote(
+                sent, *args, **kwargs)
         )
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
@@ -246,12 +247,14 @@ class ControlAMPTests(SynchronousTestCase):
         self.patch(
             self.protocol,
             "callRemote",
-            lambda *args, **kwargs: capturing_call_remote(sent1, *args, **kwargs)
+            lambda *args, **kwargs: capturing_call_remote(
+                sent1, *args, **kwargs)
         )
         self.patch(
             another_protocol,
             "callRemote",
-            lambda *args, **kwargs: capturing_call_remote(sent2, *args, **kwargs)
+            lambda *args, **kwargs: capturing_call_remote(
+                sent2, *args, **kwargs)
         )
 
         self.successResultOf(
@@ -345,7 +348,8 @@ class ControlAMPServiceTests(SynchronousTestCase):
         self.patch(
             protocol,
             "callRemote",
-            lambda *args, **kwargs: capturing_call_remote(sent, *args, **kwargs)
+            lambda *args, **kwargs: capturing_call_remote(
+                sent, *args, **kwargs)
         )
 
         service.configuration_service.save(TEST_DEPLOYMENT)
@@ -355,8 +359,9 @@ class ControlAMPServiceTests(SynchronousTestCase):
             sent,
             (
                 (ClusterStatusCommand,),
-                dict(configuration=TEST_DEPLOYMENT,
-                     state=Deployment(nodes=frozenset())
+                dict(
+                    configuration=TEST_DEPLOYMENT,
+                    state=Deployment(nodes=frozenset())
                 )
             )
         )
@@ -373,6 +378,7 @@ class FakeAgent(object):
     Fake agent for testing.
     """
     logger = Logger()
+
     def connected(self, client):
         self.is_connected = True
         self.client = client
@@ -388,6 +394,7 @@ class FakeAgent(object):
 
 TEST_ACTION = start_action(MemoryLogger(), 'test:action')
 TEST_ACTION_ID = TEST_ACTION.serialize_task_id()
+
 
 class AgentClientTests(SynchronousTestCase):
     """
