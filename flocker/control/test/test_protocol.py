@@ -225,6 +225,7 @@ class ControlAMPTests(SynchronousTestCase):
         connections getting the updated cluster state along with the
         desired configuration.
         """
+        import pdb; pdb.set_trace()
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.protocol.makeConnection(StringTransport())
         another_protocol = ControlAMP(self.control_amp_service)
@@ -240,13 +241,16 @@ class ControlAMPTests(SynchronousTestCase):
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE))
+                                   node_state=NODE_STATE,
+                                   # XXX TODO understand why the
+                                   eliot_context=TEST_ACTION.serialize_task_id()))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
             [sent1[-1], sent2[-1]],
             [(((ClusterStatusCommand,),
               dict(configuration=TEST_DEPLOYMENT,
-                   state=cluster_state)))] * 2)
+                   state=cluster_state,
+                   eliot_context=TEST_ACTION.serialize_task_id())))] * 2)
 
 
 class ControlAMPServiceTests(SynchronousTestCase):
