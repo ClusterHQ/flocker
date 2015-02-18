@@ -52,10 +52,10 @@ Access
 - Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
 
-- A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
+- A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
 - An OS X (most recent release) system.
 
-.. note:: For a documentation release, access to Google Cloud Storage and Vagrant Cloud is not required.
+.. note:: For a documentation release, access to Google Cloud Storage and Atlas is not required.
 
 
 Preparing For a Release
