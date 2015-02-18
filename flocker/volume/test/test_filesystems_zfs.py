@@ -15,7 +15,7 @@ from twisted.python.filepath import FilePath
 
 from eliot import Logger
 from eliot.testing import (
-    LoggedMessage, validateLogging, assertContainsFields, assertHasMessage,
+    LoggedMessage, validateLogging, assertHasMessage,
     )
 
 from ...testtools import (
