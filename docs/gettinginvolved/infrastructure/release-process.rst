@@ -324,12 +324,23 @@ Release
 
       admin/upload-rpms "${VERSION}"
 
-#. Build and upload the tutorial :ref:`Vagrant box <build-vagrant-box>`.
+#. Copy the tutorial box to the final location:
+   
+   .. note:: Skip this step for a documentation release.
+
+   .. prompt:: bash $
+
+      gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+
+#. Add the tutorial box to Atlas:
 
    .. note:: Skip this step for a documentation release.
 
-   .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
-                **not** on a :doc:`Flocker development machine <vagrant>`.
+   .. prompt:: bash $
+
+      echo http://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+
+   Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
 #. Create a version specific ``Homebrew`` recipe for this release:
 
