@@ -231,12 +231,24 @@ class ControlAMPTests(SynchronousTestCase):
         another_protocol.makeConnection(StringTransport())
         sent1 = []
         sent2 = []
-        self.patch(self.protocol, "callRemote",
-                   lambda *args, **kwargs: sent1.append((args, kwargs))
-                   or succeed(None))
-        self.patch(another_protocol, "callRemote",
-                   lambda *args, **kwargs: sent2.append((args, kwargs))
-                   or succeed(None))
+
+        def capturing_call_remote(capture_list, *args, **kwargs):
+            # Ditch the eliot context whose context level is difficult to
+            # predict.
+            kwargs.pop('eliot_context')
+            capture_list.append((args, kwargs))
+            return succeed(None)
+
+        self.patch(
+            self.protocol,
+            "callRemote",
+            lambda *args, **kwargs: capturing_call_remote(sent1, *args, **kwargs)
+        )
+        self.patch(
+            another_protocol,
+            "callRemote",
+            lambda *args, **kwargs: capturing_call_remote(sent2, *args, **kwargs)
+        )
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
@@ -247,8 +259,7 @@ class ControlAMPTests(SynchronousTestCase):
             [sent1[-1], sent2[-1]],
             [(((ClusterStatusCommand,),
               dict(configuration=TEST_DEPLOYMENT,
-                   state=cluster_state,
-                   eliot_context=TEST_ACTION_ID)))] * 2)
+                   state=cluster_state)))] * 2)
 
 
 class ControlAMPServiceTests(SynchronousTestCase):
