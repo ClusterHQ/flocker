@@ -27,7 +27,7 @@ from twisted.application.internet import StreamServerEndpointService
 from .._protocol import (
     NodeStateArgument, DeploymentArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    AgentAMP, ControlAMPService, ControlAMP, with_eliot_context
+    AgentAMP, ControlAMPService, ControlAMP, with_eliot_context, _AgentLocator
 )
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -642,3 +642,30 @@ class ClusterStatusCommandTests(SynchronousTestCase):
         self.assertEqual(
             sorted(['configuration', 'state', 'eliot_context']),
             sorted(v[0] for v in ClusterStatusCommand.arguments))
+
+class ClusterUpdatedTests(SynchronousTestCase):
+
+    @validate_logging(None)
+    def test_responder_logging(self, logger):
+        """
+        ``cluster_updated`` is decorated using ``with_eliot_context`` and
+        therefore requires an eliot_context argument. The supplied
+        eliot_context is used as the context for messages logged in that
+        method.
+        """
+        fake_agent = FakeAgent()
+        fake_agent.logger = logger
+        locator = _AgentLocator(agent=fake_agent)
+        with SEND_REQUEST(logger) as action:
+            locator.cluster_updated(
+                eliot_context=action.serialize_task_id(),
+                configuration=object(),
+                state=object()
+            )
+        (test_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
+        (child_action,) = test_action.children
+
+        self.assertEqual(
+            u'eliot:remote_task',
+            child_action.start_message['action_type']
+        )
