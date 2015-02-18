@@ -234,7 +234,7 @@ class ControlAMPService(Service):
                                     state=state):
             for connection in connections:
                 with LOG_SEND_TO_AGENT(
-                        self.logger, connection=connection) as action:
+                        self.logger, agent=connection) as action:
                     connection.callRemote(ClusterStatusCommand,
                                           configuration=configuration,
                                           state=state,

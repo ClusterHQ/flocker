@@ -12,7 +12,7 @@ from zope.interface.verify import verifyObject
 from characteristic import attributes, Attribute
 
 from eliot import ActionType, start_action, MemoryLogger, Logger
-from eliot.testing import validate_logging, LoggedAction
+from eliot.testing import validate_logging, LoggedAction, assertHasAction
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
@@ -28,7 +28,7 @@ from .._protocol import (
     NodeStateArgument, DeploymentArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     AgentAMP, ControlAMPService, ControlAMP, with_eliot_context, _AgentLocator,
-    ControlServiceLocator
+    ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
 )
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -758,3 +758,48 @@ class ControlServiceLocatorTests(SynchronousTestCase):
             control_amp_service=fake_control_amp_service
         )
         self.assertIs(logger, locator.logger)
+
+
+class SendStateToConnectionsTests(SynchronousTestCase):
+    """
+    Tests for ``ControlAMPService._send_state_to_connections``.
+    """
+    @validate_logging(None)
+    def test_logging(self, logger):
+        """
+        ``_send_state_to_connections`` logs a single LOG_SEND_CLUSTER_STATE
+        action and a LOG_SEND_TO_AGENT action for the remote calls to each of
+        its connections.
+        """
+        control_amp_service = build_control_amp_service(self)
+        self.patch(control_amp_service, 'logger', logger)
+
+        connection_protocol = ControlAMP(control_amp_service)
+        connection_protocol.makeConnection(StringTransport())
+
+        # XXX Maybe supply multiple connections and check that each is logged?
+        control_amp_service._send_state_to_connections(
+            connections=[connection_protocol])
+
+        assertHasAction(
+            self,
+            logger,
+            LOG_SEND_CLUSTER_STATE,
+            succeeded=True,
+            startFields={
+                "configuration": (
+                    control_amp_service.configuration_service.get()
+                ),
+                "state": control_amp_service.cluster_state.as_deployment()
+            }
+        )
+        # XXX Check that there's an action for each connection.
+        assertHasAction(
+            self,
+            logger,
+            LOG_SEND_TO_AGENT,
+            succeeded=True,
+            startFields={
+                "agent": connection_protocol,
+            }
+        )
