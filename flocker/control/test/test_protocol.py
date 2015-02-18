@@ -27,7 +27,8 @@ from twisted.application.internet import StreamServerEndpointService
 from .._protocol import (
     NodeStateArgument, DeploymentArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    AgentAMP, ControlAMPService, ControlAMP, with_eliot_context, _AgentLocator
+    AgentAMP, ControlAMPService, ControlAMP, with_eliot_context, _AgentLocator,
+    ControlServiceLocator
 )
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -689,3 +690,22 @@ class ClusterUpdatedTests(SynchronousTestCase):
             u'eliot:remote_task',
             child_action.start_message['action_type']
         )
+
+
+class ControlServiceLocatorTests(SynchronousTestCase):
+    """
+    Tests for ``ControlServiceLocator``.
+    """
+    @validate_logging(None)
+    def test_logger(self, logger):
+        """
+        ``ControlServiceLocator.logger`` is a property that returns the
+        ``logger`` attribute of the ``ControlAMPService`` supplied to its
+        initialiser.
+        """
+        fake_control_amp_service = build_control_amp_service(self)
+        fake_control_amp_service.logger = logger
+        locator = ControlServiceLocator(
+            control_amp_service=fake_control_amp_service
+        )
+        self.assertIs(logger, locator.logger)
