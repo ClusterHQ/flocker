@@ -170,7 +170,7 @@ class FlockerScriptRunner(object):
             # We don't bother shutting this down; the process will exit
             # once we return from this function. The ThreadedFileWriter in
             # contrast needs to be shutdown because it starts a thread
-            # that will keep the process from existing.
+            # that will keep the process from exiting.
             observer.start()
 
         # XXX: We shouldn't be using this private _reactor API. See
