@@ -343,10 +343,13 @@ Release
 
    .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
+   .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
+
    .. prompt:: bash $
 
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
+      pip install setuptools==3.6
 
 #. Tag the version being released:
 
