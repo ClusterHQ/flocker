@@ -242,12 +242,14 @@ So it is important to check that the code in the release branch is working befor
      - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
      - https://docs.staging.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
 
-#. Accept or reject the release issue depending on whether everything has worked.
+#. Update GitHub:
 
-   - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
+   If there are no problems spotted, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
+   Otherwise, add comments to the Pull Request for any problems, and comment that they must be resolved before repeating this review process.
 
-   - If rejecting the issue, any problems must be resolved before repeating the review process.
+#.  Reject the JIRA issue.
 
+    This is necessary because the release branch will need another review.
 
 .. _release:
 
