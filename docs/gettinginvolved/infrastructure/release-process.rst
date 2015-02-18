@@ -281,8 +281,6 @@ Release
 
 #. Create and activate the Flocker release virtual environment:
 
-   .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
-
    .. prompt:: bash $
 
       mkvirtualenv flocker-release-${VERSION}
