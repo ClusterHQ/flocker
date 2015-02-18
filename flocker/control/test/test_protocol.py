@@ -11,9 +11,8 @@ from zope.interface.verify import verifyObject
 
 from characteristic import attributes, Attribute
 
-from eliot import ActionType
+from eliot import ActionType, start_action, MemoryLogger, Logger
 from eliot.testing import validate_logging, LoggedAction
-from eliot.twisted import DeferredContext
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
@@ -324,6 +323,7 @@ class FakeAgent(object):
     """
     Fake agent for testing.
     """
+    logger = Logger()
     def connected(self, client):
         self.is_connected = True
         self.client = client
@@ -335,6 +335,9 @@ class FakeAgent(object):
     def cluster_updated(self, configuration, cluster_state):
         self.desired = configuration
         self.actual = cluster_state
+
+
+TEST_ACTION = start_action(MemoryLogger(), 'test:action')
 
 
 class AgentClientTests(SynchronousTestCase):
@@ -374,40 +377,25 @@ class AgentClientTests(SynchronousTestCase):
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
 
-    @validate_logging(None)
-    def test_cluster_updated(self, logger):
+    def test_cluster_updated(self):
         """
         ``ClusterStatusCommand`` sent to the ``AgentClient`` result in agent
         having cluster state updated.
         """
-        LOCAL_ACTION = ActionType(
-            u'test:local_action',
-            [],
-            [],
-            u'A parent action on the local side.'
-        )
-
-        self.agent.logger = logger
         self.client.makeConnection(StringTransport())
         actual = Deployment(nodes=frozenset())
-        with LOCAL_ACTION(logger) as action:
-            with action.context():
-                d = self.server.callRemote(ClusterStatusCommand,
-                                           configuration=TEST_DEPLOYMENT,
-                                           state=actual,
-                                           eliot_context=action.serialize_task_id())
-                context = DeferredContext(d)
-                context.addActionFinish()
-                self.successResultOf(context.result)
-                self.assertEqual(self.agent, FakeAgent(is_connected=True,
-                                                       client=self.client,
-                                                       desired=TEST_DEPLOYMENT,
-                                                       actual=actual))
-        (local_action,) = LoggedAction.of_type(logger.messages, LOCAL_ACTION)
-        # TODO figure out what we're looking for next...
-        # Fake IConvergenceAgent doesn't do any logging,
-        # Real IConvergenceAgent probably does, but it we can't keep track of what it logs and log messages it triggers.
-        # ...so what do we test here?
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=TEST_DEPLOYMENT,
+            state=actual,
+            eliot_context=TEST_ACTION.serialize_task_id()
+        )
+
+        self.successResultOf(d)
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
+                                               desired=TEST_DEPLOYMENT,
+                                               actual=actual))
 
 
 def iconvergence_agent_tests_factory(fixture):
