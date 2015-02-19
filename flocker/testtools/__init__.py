@@ -110,6 +110,7 @@ def assertNoFDsLeaked(test_case):
     """Context manager that asserts no file descriptors are leaked.
 
     :param test_case: The ``TestCase`` running this unit test.
+    :raise SkipTest: when /proc virtual filesystem is not available.
     """
     # Make sure there's no file descriptors that will be cleared by GC
     # later on:
@@ -117,6 +118,9 @@ def assertNoFDsLeaked(test_case):
 
     def process_fds():
         path = FilePath(b"/proc/self/fd")
+        if not path.exists():
+            raise SkipTest("/proc is not available.")
+
         return set([child.basename() for child in path.children()])
 
     fds = process_fds()
