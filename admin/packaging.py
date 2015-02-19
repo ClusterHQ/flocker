@@ -567,6 +567,10 @@ IGNORED_WARNINGS = {
         'non-executable-script',
         'devel-file-in-non-devel-package',
         'unstripped-binary-or-object',
+
+        # FIXME
+        'only-non-binary-in-usr-lib',
+        'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
