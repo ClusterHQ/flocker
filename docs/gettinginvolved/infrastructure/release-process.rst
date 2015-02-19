@@ -63,7 +63,7 @@ Preparing For a Release
 
 #. Confirm that the release and the proposed version number have been approved.
 
-   The release must have been approved.
+   The release must have been approved, unless it is a weekly development release.
    Refer to the ClusterHQ `Flocker Releases and Versioning <https://docs.google.com/a/clusterhq.com/document/d/1xYbcU6chShgQQtqjFPcU1rXzDbi6ZsIg1n0DZpw6FfQ>`_ policy document.
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
