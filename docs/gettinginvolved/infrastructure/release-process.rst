@@ -34,8 +34,8 @@ Software
 
 - A web browser.
 - `gsutil Python package <https://pypi.python.org/pypi/gsutil>`_ on your workstation.
-* `Vagrant`_ (1.6.2 or newer)
-* `VirtualBox`_
+- `Vagrant`_ (1.6.2 or newer)
+- `VirtualBox`_
 
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
@@ -257,7 +257,7 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-#. Create and login to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+#. Create and log in to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
    From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
