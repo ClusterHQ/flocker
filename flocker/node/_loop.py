@@ -15,7 +15,7 @@ control service, and sends inputs to the ConvergenceLoop state machine.
 
 from zope.interface import implementer
 
-from eliot import Logger, MessageType
+from eliot import Logger, ActionType, DeferredContext, MessageType
 
 from characteristic import attributes
 
@@ -233,13 +233,18 @@ class ConvergenceLoopOutputs(Names):
     CONVERGE = NamedConstant()
 
 
-
 LOG_SEND_TO_CONTROL_SERVICE = MessageType(
     u"flocker:agent:send_to_control_service",
     # XXX fields would just be the address of the control service, we can
     # rely on the higher-level logged action of the convergence loop to
     # log the local state (in FLOC-1379).
     "Send the local state to the control service.")
+
+LOG_DISCOVER_LOCAL_STATE = ActionType(
+    u"flocker:agent:discover_local_state",
+    # XXX something here
+    "Discover the local node state."
+)
 
 
 class ConvergenceLoop(object):
