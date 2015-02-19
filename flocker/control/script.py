@@ -9,7 +9,7 @@ from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.python.filepath import FilePath
 from twisted.application.service import MultiService
 
-from .httpapi import create_api_service
+from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
 from ..common.script import (
@@ -25,7 +25,8 @@ class ControlOptions(Options):
     optParameters = [
         ["data-path", "d", FilePath(b"/var/lib/flocker"),
          "The directory where data will be persisted.", FilePath],
-        ["port", "p", 4523, "The external API port to listen on.", int],
+        ["port", "p", REST_API_PORT, "The external API port to listen on.",
+         int],
         ["agent-port", "a", 4524,
          "The port convergence agents will connect to.", int],
     ]
