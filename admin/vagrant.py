@@ -106,7 +106,7 @@ def build_box(path, name, version, branch, build_server):
     # a clean build.
     run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
-    # Update the base box to the latest version on vagrant cloud.
+    # Update the base box to the latest version on Atlas.
     run(['vagrant', 'box', 'update'], cwd=path.path)
 
     # Generate the enviroment variables used to pass options down to the

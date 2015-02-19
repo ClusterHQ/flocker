@@ -10,7 +10,7 @@ from eliot.logwriter import ThreadedFileWriter
 from twisted.internet import task, reactor as global_reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
-from twisted.python.log import textFromEventDict
+from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
 
 from zope.interface import Interface
@@ -92,6 +92,10 @@ class EliotObserver(object):
 
     def __call__(self, msg):
         error = bool(msg.get("isError"))
+        # Twisted log messages on Python 2 are bytes. We don't know the
+        # encoding, but assume it's ASCII superset. Charmap will translate
+        # ASCII correctly, and higher-bit characters just map to
+        # corresponding Unicode code points, and will never fail at decoding.
         message = unicode(textFromEventDict(msg), "charmap")
         TWISTED_LOG_MESSAGE(error=error, message=message).write(self.logger)
 
@@ -99,13 +103,7 @@ class EliotObserver(object):
         """
         Start capturing Twisted logs.
         """
-        self.publisher.addObserver(self)
-
-    def stop(self):
-        """
-        Stop capturing Twisted logs.
-        """
-        self.publisher.removeObserver(self)
+        startLoggingWithObserver(self)
 
 
 class FlockerScriptRunner(object):
@@ -168,18 +166,30 @@ class FlockerScriptRunner(object):
             log_writer = ThreadedFileWriter(self.sys_module.stdout,
                                             self._reactor)
             log_writer.startService()
-            self._reactor.addSystemEventTrigger("during", "shutdown",
-                                                log_writer.stopService)
             observer = EliotObserver()
             # We don't bother shutting this down; the process will exit
             # once we return from this function. The ThreadedFileWriter in
             # contrast needs to be shutdown because it starts a thread
-            # that will keep the process from existing.
+            # that will keep the process from exiting.
             observer.start()
+
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
-        self._react(self.script.main, (options,), _reactor=self._reactor)
+        def run_and_log(reactor):
+            d = maybeDeferred(self.script.main, reactor, options)
+
+            def got_error(failure):
+                if not failure.check(SystemExit):
+                    err(failure)
+                return failure
+            d.addErrback(got_error)
+            return d
+        try:
+            self._react(run_and_log, [], _reactor=self._reactor)
+        finally:
+            if self.logging:
+                log_writer.stopService()
 
 
 def _chain_stop_result(service, stop):

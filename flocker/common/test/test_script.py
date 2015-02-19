@@ -270,29 +270,6 @@ class EliotObserverTests(SynchronousTestCase):
     """
     Tests for ``EliotObserver``.
     """
-    def test_start(self):
-        """
-        ``EliotObserver.start`` adds the observer to the given
-        ``LogPublisher``.
-        """
-        publisher = LogPublisher()
-        observer = EliotObserver(publisher)
-        original_observers = publisher.observers[:]
-        observer.start()
-        self.assertEqual((original_observers, publisher.observers),
-                         ([], [observer]))
-
-    def test_stop(self):
-        """
-        ``EliotObserver.start`` removes the observer from the given
-        ``LogPublisher``.
-        """
-        publisher = LogPublisher()
-        observer = EliotObserver(publisher)
-        observer.start()
-        observer.stop()
-        self.assertNotIn(observer, publisher.observers)
-
     @validateLogging(None)
     def test_message(self, logger):
         """
@@ -302,7 +279,7 @@ class EliotObserverTests(SynchronousTestCase):
         publisher = LogPublisher()
         observer = EliotObserver(publisher)
         observer.logger = logger
-        observer.start()
+        publisher.addObserver(observer)
         publisher.msg(b"Hello", b"world")
         assertHasMessage(self, logger, TWISTED_LOG_MESSAGE,
                          dict(error=False, message=u"Hello world"))
@@ -316,7 +293,7 @@ class EliotObserverTests(SynchronousTestCase):
         publisher = LogPublisher()
         observer = EliotObserver(publisher)
         observer.logger = logger
-        observer.start()
+        publisher.addObserver(observer)
         # No public API for this unfortunately, so emulate error logging:
         publisher.msg(failure=Failure(ZeroDivisionError("onoes")),
                       why=b"A zero division ono",
@@ -325,11 +302,3 @@ class EliotObserverTests(SynchronousTestCase):
                    u'last):\nFailure: exceptions.ZeroDivisionError: onoes\n')
         assertHasMessage(self, logger, TWISTED_LOG_MESSAGE,
                          dict(error=True, message=message))
-
-    def test_default_publisher(self):
-        """
-        The default ``LogPublisher`` for an ``EliotObserver`` is
-        ``twisted.python.log``.
-        """
-        observer = EliotObserver()
-        self.assertIs(observer.publisher, twisted_log)
