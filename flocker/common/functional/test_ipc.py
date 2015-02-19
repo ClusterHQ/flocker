@@ -37,9 +37,9 @@ class ProcessNodeTests(TestCase):
         """
         node = ProcessNode(initial_command_arguments=[b"sh"])
         temp_file = self.mktemp()
-        with node.run([b"-c", b"echo -n hello > " + temp_file]):
+        with node.run([b"-c", b"echo hello > " + temp_file]):
             pass
-        self.assertEqual(FilePath(temp_file).getContent(), b"hello")
+        self.assertEqual(FilePath(temp_file).getContent(), b"hello\n")
 
     def test_run_stdin(self):
         """
