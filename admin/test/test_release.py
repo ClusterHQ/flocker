@@ -75,7 +75,7 @@ class PublishDocsTests(TestCase):
         :param FakeAWS aws: Fake AWS to interact with.
         :param flocker_version: See :py:func:`publish_docs`.
         :param doc_version: See :py:func:`publish_docs`.
-        :param production: See :py:func:`production`.
+        :param environment: See :py:func:`environment`.
         """
         sync_perform(
             ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
@@ -201,9 +201,9 @@ class PublishDocsTests(TestCase):
 
     def test_updates_redirects(self):
         """
-        Calling :func:`publish_docs` with a release or documentation version
-        updates the redirect for ``en/latest/*`` to point at
-        ``en/<doc_version>/*``. Any other redirects are left untouched.
+        Calling :func:`publish_docs` with a release version updates the
+        redirect for ``en/latest/*`` to point at ``en/<doc_version>/*``. Any
+        other redirects are left untouched.
         """
         aws = FakeAWS(
             routing_rules={

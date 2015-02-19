@@ -175,7 +175,7 @@ boto_dispatcher = TypeDispatcher({
 class FakeAWS(object):
     """
     Enough of a fake implementation of AWS to test
-    :fucn:`admin.release.publish_docs`.
+    :func:`admin.release.publish_docs`.
 
     :ivar routing_rules: Dictionary of routing rules for S3 buckets. They are
         represented as dictonaries mapping key prefixes to replacements. Other
