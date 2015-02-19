@@ -4,16 +4,21 @@
 
 import sys
 
+from eliot.testing import validateLogging, assertHasMessage
+
 from twisted.internet import task
 from twisted.internet.defer import succeed
 from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.failure import Failure
+from twisted.python.log import LogPublisher
 from twisted.python import log as twisted_log
 from twisted.internet.defer import Deferred
 from twisted.application.service import Service
 
 from ..script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service,
+    EliotObserver, TWISTED_LOG_MESSAGE,
     )
 from ...testtools import (
     help_problems, FakeSysModule, StandardOptionsTestsMixin,
@@ -259,3 +264,41 @@ class MainForServiceTests(SynchronousTestCase):
         self._shutdown_reactor(self.reactor)
         async.callback(None)
         self.assertIs(None, self.successResultOf(result))
+
+
+class EliotObserverTests(SynchronousTestCase):
+    """
+    Tests for ``EliotObserver``.
+    """
+    @validateLogging(None)
+    def test_message(self, logger):
+        """
+        A message logged to the given ``LogPublisher`` is converted to an
+        Eliot log message.
+        """
+        publisher = LogPublisher()
+        observer = EliotObserver(publisher)
+        observer.logger = logger
+        publisher.addObserver(observer)
+        publisher.msg(b"Hello", b"world")
+        assertHasMessage(self, logger, TWISTED_LOG_MESSAGE,
+                         dict(error=False, message=u"Hello world"))
+
+    @validateLogging(None)
+    def test_error(self, logger):
+        """
+        An error logged to the given ``LogPublisher`` is converted to an Eliot
+        log message.
+        """
+        publisher = LogPublisher()
+        observer = EliotObserver(publisher)
+        observer.logger = logger
+        publisher.addObserver(observer)
+        # No public API for this unfortunately, so emulate error logging:
+        publisher.msg(failure=Failure(ZeroDivisionError("onoes")),
+                      why=b"A zero division ono",
+                      isError=True)
+        message = (u'A zero division ono\nTraceback (most recent call '
+                   u'last):\nFailure: exceptions.ZeroDivisionError: onoes\n')
+        assertHasMessage(self, logger, TWISTED_LOG_MESSAGE,
+                         dict(error=True, message=message))
