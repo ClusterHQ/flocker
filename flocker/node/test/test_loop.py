@@ -251,6 +251,8 @@ class ControllableDeployer(object):
         self.calculate_inputs = []
 
     def discover_local_state(self):
+        # If we supply a Failure here, the errback chain will be triggered.
+        # This is used for testing Eliot logging of errors.
         return self.local_states.pop(0)
 
     def calculate_necessary_state_changes(self, local_state,
@@ -594,3 +596,23 @@ class AgentLoopServiceInterfaceTests(
     """
     ``IConvergenceAgent`` tests for ``AgentLoopService``.
     """
+
+class ConvergenceLoopErrorLoggingTests(SynchronousTestCase):
+    """
+    Tests for Eliot logging when errors are encountered in the convergence
+    loop.
+    """
+    def test_discover_local_state_failure_logged(self):
+        """
+        Exceptions raised by the convergence loop's deployer when discovering
+        local state are logged by Eliot.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_discover_local_state_failure_ignored(self):
+        """
+        Exceptions raised by the convergence loop's deployer when discovering
+        local state do not prevent the loop from continuing.
+        """
+        self.fail("Not implemented yet.")
+        
