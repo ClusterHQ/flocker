@@ -4,14 +4,26 @@
 Testing utilities for ``flocker.node``.
 """
 
-from unittest import skipIf
+from unittest import skipUnless
 from subprocess import Popen
 
 from ..testtools import loop_until
 
-# This is terible (https://clusterhq.atlassian.net/browse/FLOC-85):
-if_docker_configured = skipIf(Popen([b"docker", b"version"]).wait(),
-                              "Docker must be installed and running.")
+
+def docker_running():
+    """
+    :return: ``True`` if Docker is installed and running, else ``False``.
+
+    XXX This is terrible (https://clusterhq.atlassian.net/browse/FLOC-85)
+    """
+    try:
+        return not Popen([b"docker", b"version"]).wait()
+    except OSError as e:
+        if e.args == (2, 'No such file or directory'):
+            return False
+
+if_docker_configured = skipUnless(docker_running(),
+    "Docker must be installed and running.")
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
