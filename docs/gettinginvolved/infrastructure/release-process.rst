@@ -66,7 +66,7 @@ Preparing For a Release
 
 #. Confirm that the release and the proposed version number have been approved.
 
-   The release must have been approved.
+   The release must have been approved, unless it is a weekly development release.
    Refer to the ClusterHQ `Flocker Releases and Versioning <https://docs.google.com/a/clusterhq.com/document/d/1xYbcU6chShgQQtqjFPcU1rXzDbi6ZsIg1n0DZpw6FfQ>`_ policy document.
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
@@ -245,12 +245,14 @@ So it is important to check that the code in the release branch is working befor
      - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
      - https://docs.staging.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
 
-#. Accept or reject the release issue depending on whether everything has worked.
+#. Update GitHub:
 
-   - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
+   If there are no problems spotted, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
+   Otherwise, add comments to the Pull Request for any problems, and comment that they must be resolved before repeating this review process.
 
-   - If rejecting the issue, any problems must be resolved before repeating the review process.
+#.  Reject the JIRA issue.
 
+    This is necessary because the release branch will need another review.
 
 .. _release:
 
@@ -285,11 +287,14 @@ Release
       git checkout release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
+   
+   .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
 
    .. prompt:: bash [vagrant@localhost]$
 
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
+      pip install setuptools==3.6
 
 #. Tag the version being released:
 
@@ -335,12 +340,25 @@ Release
 
       admin/upload-rpms "${VERSION}"
 
-#. Build and upload the tutorial :ref:`Vagrant box <build-vagrant-box>`.
+#. Copy the tutorial box to the final location:
+   
+   .. note:: Skip this step for a documentation release.
+
+   .. prompt:: bash $
+
+      gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+
+#. Add the tutorial box to Atlas:
 
    .. note:: Skip this step for a documentation release.
 
-   .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
-                **not** on a :doc:`Flocker development machine <vagrant>`.
+   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
+
+   .. prompt:: bash $
+
+      echo http://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+
+   Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
 #. Create a version specific ``Homebrew`` recipe for this release:
 
