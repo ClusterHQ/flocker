@@ -3,14 +3,15 @@
 """Helpers for flocker shell commands."""
 
 import sys
-import os
 
-from twisted.internet import task
+from eliot import MessageType, fields, Logger
+from eliot.logwriter import ThreadedFileWriter
+
+from twisted.internet import task, reactor as global_reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
-from twisted.python.filepath import FilePath
-from twisted.python.log import (
-    addObserver, removeObserver, FileLogObserver, msg)
+from twisted.python.log import textFromEventDict
+from twisted.python import log as twisted_log
 
 from zope.interface import Interface
 
@@ -70,6 +71,42 @@ class ICommandLineScript(Interface):
         :return: A ``Deferred`` which fires when the script has completed.
         """
 
+# This should probably be built-in functionality in Eliot;
+# see https://github.com/ClusterHQ/eliot/issues/143
+TWISTED_LOG_MESSAGE = MessageType("twisted:log",
+                                  fields(error=bool, message=unicode),
+                                  u"A log message from Twisted.")
+
+
+class EliotObserver(object):
+    """
+    A Twisted log observer that logs to Eliot.
+    """
+    def __init__(self, publisher=twisted_log):
+        """
+        :param publisher: A ``LogPublisher`` to capture logs from, or if no
+            argument is given the default Twisted log system.
+        """
+        self.logger = Logger()
+        self.publisher = publisher
+
+    def __call__(self, msg):
+        error = bool(msg.get("isError"))
+        message = unicode(textFromEventDict(msg), "charmap")
+        TWISTED_LOG_MESSAGE(error=error, message=message).write(self.logger)
+
+    def start(self):
+        """
+        Start capturing Twisted logs.
+        """
+        self.publisher.addObserver(self)
+
+    def stop(self):
+        """
+        Stop capturing Twisted logs.
+        """
+        self.publisher.removeObserver(self)
+
 
 class FlockerScriptRunner(object):
     """An API for running standard flocker scripts.
@@ -80,18 +117,23 @@ class FlockerScriptRunner(object):
     """
     _react = staticmethod(task.react)
 
-    # Location where logs will be written, overrideable by tests:
-    log_directory = FilePath(b"/var/log/flocker/")
-
-    def __init__(self, script, options, reactor=None, sys_module=None):
+    def __init__(self, script, options, logging=True,
+                 reactor=None, sys_module=None):
         """
         :param ICommandLineScript script: The script object to be run.
         :param usage.Options options: An option parser object.
+        :param logging: If ``True``, log to stdout; otherwise don't log.
+        :param reactor: Optional reactor to override default one.
         :param sys_module: An optional ``sys`` like module for use in
             testing. Defaults to ``sys``.
         """
+        # XXX FLOC-936 flocker-deploy, flocker-volume, flocker-reportstate
+        # and flocker-changestate should all set logging to False.
         self.script = script
         self.options = options
+        self.logging = logging
+        if reactor is None:
+            reactor = global_reactor
         self._reactor = reactor
 
         if sys_module is None:
@@ -118,30 +160,26 @@ class FlockerScriptRunner(object):
 
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
-        observer = None
-        try:
-            if not self.log_directory.exists():
-                self.log_directory.makedirs()
-            log_path = self.log_directory.child(
-                b"%s-%d.log" % (os.path.basename(self.sys_module.argv[0]),
-                                os.getpid()))
-            log_file = log_path.open("a")
-            observer = FileLogObserver(log_file).emit
-            addObserver(observer)
-            msg("Arguments: %s" % (self.sys_module.argv,))
-        except (OSError, IOError):
-            pass
-
+        # If e.g. --version is called this may throw a SystemExit, so we
+        # always do this first before any side-effecty code is run:
         options = self._parse_options(self.sys_module.argv[1:])
+
+        if self.logging:
+            log_writer = ThreadedFileWriter(self.sys_module.stdout,
+                                            self._reactor)
+            log_writer.startService()
+            self._reactor.addSystemEventTrigger("during", "shutdown",
+                                                log_writer.stopService)
+            observer = EliotObserver()
+            # We don't bother shutting this down; the process will exit
+            # once we return from this function. The ThreadedFileWriter in
+            # contrast needs to be shutdown because it starts a thread
+            # that will keep the process from existing.
+            observer.start()
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
         self._react(self.script.main, (options,), _reactor=self._reactor)
-
-        # Not strictly necessary, but nice cleanup for tests:
-        if observer is not None:
-            removeObserver(observer)
-            log_file.close()
 
 
 def _chain_stop_result(service, stop):

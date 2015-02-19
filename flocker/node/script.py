@@ -157,7 +157,8 @@ class ChangeStateScript(object):
 def flocker_changestate_main():
     return FlockerScriptRunner(
         script=VolumeScript(ChangeStateScript()),
-        options=ChangeStateOptions()
+        options=ChangeStateOptions(),
+        logging=False,
     ).main()
 
 
@@ -213,7 +214,8 @@ class ReportStateScript(object):
 def flocker_reportstate_main():
     return FlockerScriptRunner(
         script=VolumeScript(ReportStateScript()),
-        options=ReportStateOptions()
+        options=ReportStateOptions(),
+        logging=False,
     ).main()
 
 

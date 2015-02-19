@@ -15,6 +15,9 @@ control service, and sends inputs to the ConvergenceLoop state machine.
 
 from zope.interface import implementer
 
+from eliot import Logger, ActionType, MessageType
+from eliot.twisted import DeferredContext
+
 from characteristic import attributes
 
 from machinist import (
@@ -231,6 +234,20 @@ class ConvergenceLoopOutputs(Names):
     CONVERGE = NamedConstant()
 
 
+LOG_SEND_TO_CONTROL_SERVICE = MessageType(
+    u"flocker:agent:send_to_control_service",
+    # XXX fields would just be the address of the control service, we can
+    # rely on the higher-level logged action of the convergence loop to
+    # log the local state (in FLOC-1379).
+    "Send the local state to the control service.")
+
+LOG_DISCOVER_LOCAL_STATE = ActionType(
+    u"flocker:agent:discover_local_state",
+    # XXX something here
+    "Discover the local node state."
+)
+
+
 class ConvergenceLoop(object):
     """
     World object for the convergence loop state machine, executing the actions
@@ -246,6 +263,8 @@ class ConvergenceLoop(object):
 
     :ivar fsm: The finite state machine this is part of.
     """
+    logger = Logger()
+
     def __init__(self, deployer):
         """
         :param IDeployer deployer: Used to discover local state and calcualte
@@ -258,10 +277,22 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
+        #with LOG_DISCOVER_LOCAL_STATE(self.logger) as discovery_action:
+        #    d = DeferredContext(self.deployer.discover_local_state())
+        #    XXX everything else already here will happen in this context
+
         d = self.deployer.discover_local_state()
+        #XXX this can be removed and replaced with the above instead
 
         def got_local_state(local_state):
-            self.client.callRemote(NodeStateCommand, node_state=local_state)
+            with LOG_SEND_TO_CONTROL_SERVICE(
+                    self.logger, connection=self.client) as action:
+                # Does this need a callback (DeferredContext)?
+                # What happens at the moment in respect of the
+                # Eliot log if this call to callRemote fails?
+                self.client.callRemote(NodeStateCommand, node_state=local_state,
+                                       eliot_context=action.serialize_task_id())
+            # little bit confusing to have this also called action
             action = self.deployer.calculate_necessary_state_changes(
                 local_state, self.configuration, self.cluster_state)
             return action.run(self.deployer)
@@ -270,7 +301,9 @@ class ConvergenceLoop(object):
             ConvergenceLoopInputs.ITERATION_DONE))
         # This needs error handling:
         # https://clusterhq.atlassian.net/browse/FLOC-1357
-
+        # d.addActionFinish()
+        # XXX Should we be returning the deferred d.result here?
+        # Why do we not currently return the original deferred here?
 
 def build_convergence_loop_fsm(deployer):
     """

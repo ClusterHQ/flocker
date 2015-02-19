@@ -166,10 +166,10 @@ class StructuredResultHandlingMixin(object):
         logger.flushTracebacks(ArbitraryException)
         incident = loads(request._responseBody)
         action = LoggedAction.ofType(logger.messages, REQUEST)[0]
+        # First message in action was action start with task_level /1, so
+        # next task_level is /2:
         self.assertEqual(
-            u",".join((
-                action.startMessage[u"task_uuid"],
-                action.startMessage[u"task_level"])),
+            u"{}@/2".format(action.startMessage[u"task_uuid"]),
             incident)
 
 

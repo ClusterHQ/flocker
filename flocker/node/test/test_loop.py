@@ -4,19 +4,20 @@
 Tests for ``flocker.node._loop``.
 """
 
+from eliot.testing import validate_logging, assertHasAction
 from zope.interface import implementer
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
-from twisted.internet.defer import succeed, Deferred
+from twisted.internet.defer import succeed, fail, Deferred
 
 from ...testtools import FakeAMPClient
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
-    ClusterStatus, ConvergenceLoop,
+    ClusterStatus, ConvergenceLoop, LOG_DISCOVER_LOCAL_STATE
     )
 from .._deploy import IDeployer, IStateChange
 from ...control._protocol import NodeStateCommand, _AgentLocator, AgentAMP
@@ -251,6 +252,8 @@ class ControllableDeployer(object):
         self.calculate_inputs = []
 
     def discover_local_state(self):
+        # If we supply a Failure here, the errback chain will be triggered.
+        # This is used for testing Eliot logging of errors.
         return self.local_states.pop(0)
 
     def calculate_necessary_state_changes(self, local_state,
@@ -594,3 +597,58 @@ class AgentLoopServiceInterfaceTests(
     """
     ``IConvergenceAgent`` tests for ``AgentLoopService``.
     """
+
+
+class ConvergenceLoopErrorLoggingTests(SynchronousTestCase):
+    """
+    Tests for Eliot logging when errors are encountered in the convergence
+    loop.
+    """
+    @validate_logging(None)
+    def test_discover_local_state_failure_logged(self, logger):
+        """
+        Exceptions raised by the convergence loop's deployer when discovering
+        local state are logged by Eliot.
+        """
+        expected_failure = fail()
+        deployer = ControllableDeployer(
+            local_states=[expected_failure],
+            calculated_actions=None
+        )
+        loop = ConvergenceLoop(deployer)
+        loop.logger = logger
+        # Look up appropriate dummy context and supply that instead of None.
+        loop.output_CONVERGE(context=None)
+        # do some assertion on the logger hasAction
+        action = assertHasAction(self, logger, LOG_DISCOVER_LOCAL_STATE,
+            succeeded=False)
+        self.fail("Not implemented yet.")
+
+    def test_discover_local_state_failure_ignored(self):
+        """
+        Exceptions raised by the convergence loop's deployer when discovering
+        local state do not prevent the loop from continuing.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_control_service_remote_call_failure_logged(self):
+        """
+        Failure to communicate the local state to the control service is
+        logged.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_apply_local_changes_failure_logged(self):
+        """
+        Failure to apply local changes after calculating difference between
+        existing local state and desired local state is logged.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_apply_local_changes_failure_ignored(self):
+        """
+        Failure to apply local state changes after calculating differences
+        is ignored, i.e. does not prevent the next iteration of the
+        convergence loop.
+        """
+        self.fail("Not implemented yet.")

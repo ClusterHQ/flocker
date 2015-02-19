@@ -69,11 +69,10 @@ def _logging(original):
         path = repr(request.path).decode("ascii")
         action = REQUEST(logger, request_path=path)
 
-        # Can't construct a good identifier without using private things.
-        # See https://github.com/ClusterHQ/eliot/issues/29
-        uuid = action._identification[u"task_uuid"]
-        level = action._identification[u"task_level"]
-        incidentIdentifier = uuid + u"," + level
+        # Generate a serialized action context that uniquely identifies
+        # position within the logs, though there won't actually be any log
+        # message with that particular task level:
+        incidentIdentifier = action.serialize_task_id()
 
         with action.context():
             d = DeferredContext(original(self, request, **routeArguments))
