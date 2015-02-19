@@ -597,6 +597,7 @@ class AgentLoopServiceInterfaceTests(
     ``IConvergenceAgent`` tests for ``AgentLoopService``.
     """
 
+
 class ConvergenceLoopErrorLoggingTests(SynchronousTestCase):
     """
     Tests for Eliot logging when errors are encountered in the convergence
@@ -615,4 +616,25 @@ class ConvergenceLoopErrorLoggingTests(SynchronousTestCase):
         local state do not prevent the loop from continuing.
         """
         self.fail("Not implemented yet.")
-        
+
+    def test_control_service_remote_call_failure_logged(self):
+        """
+        Failure to communicate the local state to the control service is
+        logged.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_apply_local_changes_failure_logged(self):
+        """
+        Failure to apply local changes after calculating difference between
+        existing local state and desired local state is logged.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_apply_local_changes_failure_ignored(self):
+        """
+        Failure to apply local state changes after calculating differences
+        is ignored, i.e. does not prevent the next iteration of the
+        convergence loop.
+        """
+        self.fail("Not implemented yet.")
