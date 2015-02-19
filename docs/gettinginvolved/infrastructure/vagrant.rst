@@ -55,8 +55,8 @@ To add to Atlas, you will need a public link to the relevant Vagrant box.
 
 #. Set the "Version" to the relevant version.
 
-   If releasing the development machine, ensure the version number increases using the semantic versioning format. This usually involves
-   replacing instances of ``-`` and ``+`` with ``.`` and removing any alphanumeric segments.
+   If adding the ``flocker-dev`` box, ensure that the version number increases using the semantic versioning format.
+   This usually involves replacing instances of ``-`` and ``+`` with ``.`` and removing any alphanumeric segments.
 
    No description is needed.
 
