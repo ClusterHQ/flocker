@@ -153,7 +153,7 @@ def task_disable_firewall():
     return [
         Run.from_args(command + rule)
         for command in [['firewall-cmd', '--permanent'],
-                        ['firewall-cmd', '--direct']]
+                        ['firewall-cmd']]
         for rule in rules
     ]
 
