@@ -20,8 +20,6 @@ Tutorial Box (:file:`vagrant/tutorial`)
    This is the box the :ref:`tutorial <vagrant-setup>` is based on.
 
 
-.. _build-vagrant-box:
-
 Building
 ^^^^^^^^
 
@@ -35,12 +33,19 @@ using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
 
 (If you're uploading the tutorial box the image will be ``flocker-tutorial-...`` instead of ``flocker-dev-...``.)
 
-Then add a version on Atlas:
-
-#. Retrieve the public link:
+#. For the following step, retrieve the public link:
 
    - Visit https://console.developers.google.com/project/hybridcluster-docker/storage/clusterhq-vagrant/.
    - Right click and copy the "Public link" for the relevant box.
+
+#. :ref:`add-vagrant-box-to-atlas`\ .
+
+.. _add-vagrant-box-to-atlas:
+
+Add a Vagrant Box to Atlas
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To add to Atlas, you will need a public link to the relevant Vagrant box.
 
 #. Visit `Atlas (flocker-dev) <https://atlas.hashicorp.com/clusterhq/boxes/flocker-dev>`_ or `Atlas (flocker-tutorial) <https://atlas.hashicorp.com/clusterhq/boxes/flocker-tutorial>`_ as applicable.
 
