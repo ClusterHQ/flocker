@@ -64,7 +64,8 @@ class ConfigureSSHTests(TestCase):
 
         exc = self.assertRaises(CalledProcessError,
                                 self.configure_ssh, b"127.0.0.1", port)
-        self.assertIn(b"refused", exc.output)
+        self.assertTrue(b"refused" in exc.output or "Operation timed out" in
+                        exc.output)
 
     def test_authorized_keys(self):
         """
