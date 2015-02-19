@@ -47,18 +47,30 @@ Add a Vagrant Box to Atlas
 
 To add to Atlas, you will need a public link to the relevant Vagrant box.
 
-#. Visit `Atlas (flocker-dev) <https://atlas.hashicorp.com/clusterhq/boxes/flocker-dev>`_ or `Atlas (flocker-tutorial) <https://atlas.hashicorp.com/clusterhq/boxes/flocker-tutorial>`_ as applicable.
+#. Visit `Atlas <https://atlas.hashicorp.com/>`_ and sign in.
 
-#. In the dropdown of versions select "Create a version".
+#. At the top of the page, select "Development", and from the "Boxes" menu on the left, select "``clusterhq/flocker-dev``" or "``clusterhq/flocker-tutorial``" as applicable.
+
+#. In the menu at the left select "Create new version".
 
 #. Set the "Version" to the relevant version.
+
+   If adding the ``flocker-dev`` box, ensure that the version number increases using the semantic versioning format.
+   This usually involves replacing instances of ``-`` and ``+`` with ``.`` and removing any alphanumeric segments.
+
    No description is needed.
 
 #. Click "Create version" and then "Create new provider".
 
-#. Set the new provider as "``virtualbox``" and set the URL to be the public link retrieved earlier.
+#. Set the new provider as "``virtualbox``" and set the URL to be the public link to the Vagrant box.
 
-#. Click "Release now".
+   Click the "Create provider" button.
+
+#. Click the "Edit" button that appears next to the button containing the version.
+
+#. A message should appear, saying "This version hasn't been released. Upon releasing, it will be available to users from Vagrant".
+
+   Click the "Release version" button next to this message.
 
 Testing
 ^^^^^^^
