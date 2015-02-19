@@ -15,7 +15,8 @@ control service, and sends inputs to the ConvergenceLoop state machine.
 
 from zope.interface import implementer
 
-from eliot import Logger, ActionType, DeferredContext, MessageType
+from eliot import Logger, ActionType, MessageType
+from eliot.twisted import DeferredContext
 
 from characteristic import attributes
 
