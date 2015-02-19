@@ -336,6 +336,8 @@ Release
 
    .. note:: Skip this step for a documentation release.
 
+   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
+
    .. prompt:: bash $
 
       echo http://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
