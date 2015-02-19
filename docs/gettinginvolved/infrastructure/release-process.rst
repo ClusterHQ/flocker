@@ -44,14 +44,14 @@ Access
 ~~~~~~
 
 
-- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation and your :doc:`Flocker development machine <vagrant>`.
+- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation.
   Set up ``gsutil`` authentication by following the instructions from the following command:
 
   .. prompt:: bash $
 
       gsutil config
 
-- Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
+- Access to Amazon `S3`_ using `gsutil`_ on your workstation.
   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
 
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
@@ -306,6 +306,14 @@ Release
              Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
 
    Wait for the build to complete successfully.
+
+#. Set up Google Cloud Storage credentials on the Vagrant development machine:
+
+   .. prompt:: bash $
+
+      gsutil config
+
+   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
