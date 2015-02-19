@@ -32,24 +32,26 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- A :doc:`Flocker development machine <vagrant>`.
 - A web browser.
-- An up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_.
-- An up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_.
 - `gsutil Python package <https://pypi.python.org/pypi/gsutil>`_ on your workstation.
+- `Vagrant`_ (1.6.2 or newer)
+- `VirtualBox`_
+
+.. _`Vagrant`: https://docs.vagrantup.com/
+.. _`VirtualBox`: https://www.virtualbox.org/
 
 Access
 ~~~~~~
 
 
-- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation and your :doc:`Flocker development machine <vagrant>`.
+- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation.
   Set up ``gsutil`` authentication by following the instructions from the following command:
 
   .. prompt:: bash $
 
       gsutil config
 
-- Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
+- Access to Amazon `S3`_ using `gsutil`_ on your workstation.
   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
 
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
@@ -57,6 +59,7 @@ Access
 
 .. note:: For a documentation release, access to Google Cloud Storage and Atlas is not required.
 
+.. _preparing-for-a-release:
 
 Preparing For a Release
 -----------------------
@@ -256,22 +259,24 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-.. warning:: The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
-             Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+#. Create and log in to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
-             .. prompt:: bash $
+   From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
-                vagrant ssh -- -A
+   .. prompt:: bash $
+
+      vagrant up
+      vagrant ssh -- -A
 
 #. Export the version number of the release being completed as an environment variable for later use:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       export VERSION=0.1.2
 
 #. Create a clean, local copy of the Flocker and `homebrew-tap`_ release branches with no modifications:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
@@ -282,12 +287,10 @@ Release
       git checkout release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
-
-   .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
-
+   
    .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
@@ -295,7 +298,7 @@ Release
 
 #. Tag the version being released:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
@@ -309,11 +312,19 @@ Release
 
    Wait for the build to complete successfully.
 
+#. Set up Google Cloud Storage credentials on the Vagrant development machine:
+
+   .. prompt:: bash $
+
+      gsutil config
+
+   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
+
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
    .. note:: Skip this step for a documentation release.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       python setup.py sdist bdist_wheel
       gsutil cp -a public-read \
@@ -325,7 +336,7 @@ Release
 
    .. note:: Skip this step for a documentation release.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       admin/upload-rpms "${VERSION}"
 
@@ -357,7 +368,7 @@ Release
 
    - Create a recipe file and push it to the `homebrew-tap`_ repository:
 
-     .. prompt:: bash $
+     .. prompt:: bash [vagrant@localhost]$
 
         cd ../homebrew-tap-${VERSION}
         ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
@@ -369,7 +380,7 @@ Release
 
      Try installing the new recipe directly from a GitHub link
 
-     .. prompt:: bash $
+     .. prompt:: bash [vagrant@localhost]$
 
         brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
         brew test flocker-${VERSION}.rb
@@ -388,7 +399,7 @@ Release
 
    #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
 
-      .. prompt:: bash $
+      .. prompt:: bash [vagrant@localhost]$
 
          gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
 
@@ -399,7 +410,7 @@ Release
          The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
          We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
 
-      .. prompt:: bash $
+      .. prompt:: bash [vagrant@localhost]$
 
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
