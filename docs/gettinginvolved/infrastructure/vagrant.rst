@@ -54,15 +54,23 @@ To add to Atlas, you will need a public link to the relevant Vagrant box.
 #. In the menu at the left select "Create new version".
 
 #. Set the "Version" to the relevant version.
+
+   If releasing the development machine, ensure the version number increases using the semantic versioning format. This usually involves
+   replacing instances of ``-`` and ``+`` with ``.`` and removing any alphanumeric segments.
+
    No description is needed.
 
 #. Click "Create version" and then "Create new provider".
 
-#. Set the new provider as "``virtualbox``" and set the URL to be the public link to the Vagrant box. Click "Create provider".
+#. Set the new provider as "``virtualbox``" and set the URL to be the public link to the Vagrant box.
+
+   Click the "Create provider" button.
 
 #. Click the "Edit" button that appears next to the button containing the version.
 
-#. A message should appear, saying "This version hasn't been released. Upon releasing, it will be available to users from Vagrant". Click the "Release version" button next to this message.
+#. A message should appear, saying "This version hasn't been released. Upon releasing, it will be available to users from Vagrant".
+
+   Click the "Release version" button next to this message.
 
 Testing
 ^^^^^^^
