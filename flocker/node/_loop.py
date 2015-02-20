@@ -15,7 +15,7 @@ control service, and sends inputs to the ConvergenceLoop state machine.
 
 from zope.interface import implementer
 
-from eliot import Logger, MessageType
+from eliot import Logger, ActionType, Field
 
 from characteristic import attributes
 
@@ -233,12 +233,18 @@ class ConvergenceLoopOutputs(Names):
     CONVERGE = NamedConstant()
 
 
+_FIELD_CONNECTION = Field(
+    u"connection",
+    lambda client: repr(client),
+    "The AMP connection to control service")
 
-LOG_SEND_TO_CONTROL_SERVICE = MessageType(
+LOG_SEND_TO_CONTROL_SERVICE = ActionType(
     u"flocker:agent:send_to_control_service",
     # XXX fields would just be the address of the control service, we can
     # rely on the higher-level logged action of the convergence loop to
     # log the local state (in FLOC-1379).
+    # XXX what's the success field here?
+    [_FIELD_CONNECTION], [],
     "Send the local state to the control service.")
 
 
