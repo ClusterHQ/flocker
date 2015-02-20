@@ -325,20 +325,6 @@ class ControlAMPServiceTests(ControlTestCase):
              [c.transport.disconnecting for c in connections]),
             ([False] * 3, [True] * 3))
 
-    def assertDictEqual(self, expected, actual):
-        """
-        """
-        actual = actual.copy()
-        for expected_key, expected_value in expected.items():
-            actual_value = actual.pop(expected_key)
-            self.assertEqual(
-                expected_value, actual_value,
-                'Non-equal dictionary value. '
-                'Key: {!r} Expected: {!r} Actual: {!r}'.format(
-                    expected_key, expected_value, actual_value)
-            )
-        self.assertEqual({}, actual)
-
     def assertArgsEqual(self, expected, actual):
         expected_args, expected_kwargs = expected
         actual_args, actual_kwargs = actual
