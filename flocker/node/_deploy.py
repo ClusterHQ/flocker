@@ -735,6 +735,7 @@ def find_dataset_changes(hostname, current_state, desired_state):
     :return DatasetChanges: Changes to datasets that will be needed in
          order to match desired configuration.
     """
+    # XXX will need to change manifestations() to manifestations.values()
     desired_datasets = {node.hostname:
                         set(manifestation.dataset for manifestation
                             in node.manifestations())
