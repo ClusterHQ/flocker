@@ -282,8 +282,11 @@ class ConvergenceLoop(object):
         def got_local_state(local_state):
             with LOG_SEND_TO_CONTROL_SERVICE(
                     self.logger, connection=self.client) as action:
-                self.client.callRemote(NodeStateCommand, node_state=local_state,
-                                       eliot_context=action.serialize_task_id())
+                self.client.callRemote(
+                    NodeStateCommand,
+                    node_state=local_state,
+                    eliot_context=action.serialize_task_id()
+                )
             action = self.deployer.calculate_necessary_state_changes(
                 local_state, self.configuration, self.cluster_state)
             return action.run(self.deployer)
