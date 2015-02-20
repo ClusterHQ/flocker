@@ -23,7 +23,7 @@ def docker_running():
             return False
 
 if_docker_configured = skipUnless(docker_running(),
-    "Docker must be installed and running.")
+                                  "Docker must be installed and running.")
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
