@@ -420,6 +420,7 @@ class GetPackageVersion(object):
     'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
     'architecture', 'description', 'dependencies', 'category',
     Attribute('directories', default_factory=list),
+    'post_install',
 ])
 class BuildPackage(object):
     """
@@ -452,23 +453,7 @@ class BuildPackage(object):
     def run(self):
         architecture = self.architecture
 
-        depends_arguments = []
-        for requirement in self.dependencies:
-            depends_arguments.extend(
-                ['--depends', requirement.format(self.package_type)])
-
-        for directory in self.directories:
-            depends_arguments.extend(
-                ['--directories', directory.path])
-
-        path_arguments = []
-        for source_path, package_path in self.source_paths.items():
-            # Think of /= as a separate operator. It causes fpm to copy the
-            # content of the directory rather than the directory its self.
-            path_arguments.append(
-                "%s/=%s" % (source_path.path, package_path.path))
-
-        run_command([
+        command = [
             'fpm',
             '--force',
             '-s', 'dir',
@@ -486,10 +471,30 @@ class BuildPackage(object):
             '--architecture', architecture,
             '--description', self.description,
             # From `%firewalld_reload`
-            '--after-install', 'test -f %{_bindir}/firewall-cmd && firewall-cmd --reload --quiet || :\n',
+            '--after-install', self.post_install.path,
             '--category', self.category,
-            ] + depends_arguments + path_arguments
-        )
+        ]
+
+        command = []
+        for requirement in self.dependencies:
+            command.extend(
+                ['--depends', requirement.format(self.package_type)])
+
+        for directory in self.directories:
+            command.extend(
+                ['--directories', directory.path])
+
+        if self.post_install:
+            command.extend(
+                ['--post-install', self.post_install.path])
+
+        for source_path, package_path in self.source_paths.items():
+            # Think of /= as a separate operator. It causes fpm to copy the
+            # content of the directory rather than the directory its self.
+            command.append(
+                "%s/=%s" % (source_path.path, package_path.path))
+
+        run_command(command)
 
 
 @attributes(['package_version_step'])
