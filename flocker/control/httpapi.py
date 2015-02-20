@@ -271,7 +271,7 @@ class DatasetAPIUserV1(object):
         # Now construct a new_deployment where the primary manifestation of the
         # dataset is on the requested primary node.
         new_origin_node = origin_node.transform(
-            "manifestations", dataset_id, discard)
+            ("manifestations", dataset_id), discard)
         deployment = deployment.update_node(new_origin_node)
 
         primary_nodes = list(
@@ -291,7 +291,7 @@ class DatasetAPIUserV1(object):
             # hostname. ``ValueError`` here if that's not the case.
             (target_node,) = primary_nodes
             new_target_node = target_node.transform(
-                "manifestations", dataset_id, primary_manifestation)
+                ("manifestations", dataset_id), primary_manifestation)
 
         deployment = deployment.update_node(new_target_node)
 
