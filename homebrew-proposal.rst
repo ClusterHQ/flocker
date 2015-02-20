@@ -12,7 +12,8 @@ Unless there is a release which uploads the .tar.gz file to GCS, the Homebrew re
 Testing often with CI would test that the links to the dependencies have not gone down, and that a change to Homebrew itself does not interfere with our recipe.
 
 This led to the conclusion that this issue should be covered by an admin script (perhaps put in the current ``admin/make-homebrew-recipe``).
-This script would:
+This script would be run during the release process, in the place of the current Homebrew steps (including the review step).
+It would:
    * Log into the Mac mini.
    * Start an OS X VM with a script very similar to https://github.com/ClusterHQ/internal-tools/blob/master/bin/start_homebrew_machine.
    * Instead of just SSHing into the VM and leaving the user to test the recipe, the script would use fabric (or similar) to run the brew test commands on the VM.
