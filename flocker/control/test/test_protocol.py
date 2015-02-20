@@ -326,6 +326,15 @@ class ControlAMPServiceTests(ControlTestCase):
             ([False] * 3, [True] * 3))
 
     def assertArgsEqual(self, expected, actual):
+        """
+        Utility method to assert that two sets of arguments are equal.
+        This method takes two tuples that are unpacked in to a list (args)
+        and a dictionary (kwargs) and performs separate comparisons of these
+        between the supplied expected and actual parameters.
+
+        :param expected: A `tuple` of the expected args and kwargs.
+        :param actual: A `tuple` of the actual args and kwargs.
+        """
         expected_args, expected_kwargs = expected
         actual_args, actual_kwargs = actual
 
