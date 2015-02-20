@@ -420,7 +420,7 @@ class GetPackageVersion(object):
     'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
     'architecture', 'description', 'dependencies', 'category',
     Attribute('directories', default_factory=list),
-    'post_install',
+    Attribute('after_install', default_value=None),
 ])
 class BuildPackage(object):
     """
@@ -471,11 +471,9 @@ class BuildPackage(object):
             '--architecture', architecture,
             '--description', self.description,
             # From `%firewalld_reload`
-            '--after-install', self.post_install.path,
             '--category', self.category,
         ]
 
-        command = []
         for requirement in self.dependencies:
             command.extend(
                 ['--depends', requirement.format(self.package_type)])
@@ -484,9 +482,9 @@ class BuildPackage(object):
             command.extend(
                 ['--directories', directory.path])
 
-        if self.post_install:
+        if self.after_install is not None:
             command.extend(
-                ['--post-install', self.post_install.path])
+                ['--after-install', self.after_install.path])
 
         for source_path, package_path in self.source_paths.items():
             # Think of /= as a separate operator. It causes fpm to copy the
@@ -769,6 +767,8 @@ def omnibus_package_builder(
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt  # noqa
     virtualenv_dir = FilePath('/opt/flocker')
 
+    package_files = base_path.sibling('package-files')
+
     virtualenv = VirtualEnv(root=virtualenv_dir)
 
     get_package_version_step = GetPackageVersion(
@@ -878,10 +878,10 @@ def omnibus_package_builder(
                 source_paths={
                     flocker_node_path: FilePath("/usr/sbin"),
                     # Fedora/CentOS firewall configuration
-                    base_path.sibling('package-files').child('flocker-control.firewalld.xml'):
+                    package_files.child('flocker-control.firewalld.xml'):
                         FilePath("/usr/lib/firewalld/services/flocker-control.xml"),
                     # Ubuntu firewall configuration
-                    base_path.sibling('package-files').child('flocker-control.ufw'):
+                    package_files.child('flocker-control.ufw'):
                         FilePath("/etc/ufw/applications.d/flocker-control"),
                 },
                 name='clusterhq-flocker-node',
@@ -897,6 +897,7 @@ def omnibus_package_builder(
                 category=category,
                 dependencies=make_dependencies(
                     'node', rpm_version, distribution),
+                after_install=package_files.child('after-install.sh'),
             ),
             LintPackage(
                 package_type=distribution.package_type(),
