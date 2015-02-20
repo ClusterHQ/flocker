@@ -235,6 +235,8 @@ class Node(PRecord):
     applications = field(type=frozenset)
     # XXX with invariant ensuring keys are same as corresponding values'
     # dataset_id attribute, and correct types, probably.
+    # XXX possible to make factory that accepts both mappings and sequences
+    # given that key is implicit in value? not sure if worth doing.
     manifestations = field(type=PMap, factory=pmap)
 
 
