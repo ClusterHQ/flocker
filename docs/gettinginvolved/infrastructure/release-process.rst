@@ -294,7 +294,7 @@ Release
 
 #. Set up Google Cloud Storage credentials on the Vagrant development machine:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       gsutil config
 
@@ -307,10 +307,7 @@ Release
    .. prompt:: bash [vagrant@localhost]$
 
       python setup.py sdist bdist_wheel
-      gsutil cp -a public-read \
-          "dist/Flocker-${VERSION}.tar.gz" \
-          "dist/Flocker-${VERSION}-py2-none-any.whl" \
-          gs://archive.clusterhq.com/downloads/flocker/
+      gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
@@ -324,7 +321,7 @@ Release
    
    .. note:: Skip this step for a documentation release.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
@@ -334,7 +331,7 @@ Release
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       echo http://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
@@ -360,7 +357,7 @@ Release
 
      Try installing the new recipe directly from a GitHub link
 
-     .. prompt:: bash [vagrant@localhost]$
+     .. prompt:: bash $
 
         brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
         brew test flocker-${VERSION}.rb
@@ -376,7 +373,7 @@ Release
 
 #. Update the documentation.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       admin/publish-docs --production
 
