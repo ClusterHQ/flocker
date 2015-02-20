@@ -543,10 +543,8 @@ class ClientProcess(object):
         Send request.
         """
         with SEND_REQUEST(self.logger) as action:
-            return server.handle_request(
-                eliot_context=action.serialize_task_id(),
-                **kwargs
-            )
+            task_id = action.serialize_task_id()
+        return server.handle_request(eliot_context=task_id, **kwargs)
 
 
 class ServerProcess(object):
