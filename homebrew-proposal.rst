@@ -24,5 +24,5 @@ I don’t think that just because the tap is a git repository that it should be 
 The tap is no different to our other repositories which scripts upload artefacts to e.g. GCS.
 If this is agreed upon, the release process will require even less human interaction than if there was a PR which Travis had given the green light to.
 
-This would fit into the broader vision where the release process  is run by Buildbot (see https://zulip.com/#narrow/stream/engineering/subject/release.20process.20improvements.20after.200.2E3.2E3dev7 for discussion). 
+This would fit into the broader vision where the release process is run by one script (by Buildbot?) (see https://clusterhq.atlassian.net/browse/FLOC-1458). 
 If we could do very regular releases because of that, we would achieve something closer to CI with Homebrew.
