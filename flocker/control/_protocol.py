@@ -235,12 +235,13 @@ class ControlAMPService(Service):
             for connection in connections:
                 with LOG_SEND_TO_AGENT(
                         self.logger, agent=connection) as action:
-                    connection.callRemote(
-                        ClusterStatusCommand,
-                        configuration=configuration,
-                        state=state,
-                        eliot_context=action.serialize_task_id()
-                    )
+                    task_id = action.serialize_task_id()
+                connection.callRemote(
+                    ClusterStatusCommand,
+                    configuration=configuration,
+                    state=state,
+                    eliot_context=task_id
+                )
                 # Handle errors from callRemote by logging them
                 # https://clusterhq.atlassian.net/browse/FLOC-1311
 
