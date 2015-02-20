@@ -485,6 +485,8 @@ class BuildPackage(object):
             '--maintainer', self.maintainer,
             '--architecture', architecture,
             '--description', self.description,
+            # From `%firewalld_reload`
+            '--after-install', 'test -f %{_bindir}/firewall-cmd && firewall-cmd --reload --quiet || :\n'
             '--category', self.category,
             ] + depends_arguments + path_arguments
         )
