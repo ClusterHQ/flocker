@@ -678,11 +678,12 @@ class ClusterUpdatedTests(SynchronousTestCase):
         self.patch(fake_agent, 'logger', logger)
         locator = _AgentLocator(agent=fake_agent)
         with SEND_REQUEST(logger) as action:
-            locator.cluster_updated(
-                eliot_context=action.serialize_task_id(),
-                configuration=object(),
-                state=object()
-            )
+            task_id = action.serialize_task_id()
+        locator.cluster_updated(
+            eliot_context=task_id,
+            configuration=object(),
+            state=object()
+        )
         (test_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
         (child_action,) = test_action.children
 
@@ -727,10 +728,8 @@ class NodeChangedTests(SynchronousTestCase):
         )
 
         with SEND_REQUEST(logger) as action:
-            locator.node_changed(
-                eliot_context=action.serialize_task_id(),
-                node_state=object()
-            )
+            task_id = action.serialize_task_id()
+        locator.node_changed(eliot_context=task_id, node_state=object())
         (test_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
         (child_action,) = test_action.children
 
