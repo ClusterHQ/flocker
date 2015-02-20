@@ -16,6 +16,8 @@ from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
+from pyrsistent import discard
+
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
@@ -246,7 +248,7 @@ class DatasetAPIUserV1(object):
         deployment = self.persistence_service.get()
 
         # Lookup the node that has a primary Manifestation (if any)
-        manifestations_and_nodes = other_manifestations_from_deployment(
+        manifestations_and_nodes = manifestations_from_deployment(
             deployment, dataset_id)
         index = 0
         for index, (manifestation, node) in enumerate(
@@ -268,14 +270,8 @@ class DatasetAPIUserV1(object):
 
         # Now construct a new_deployment where the primary manifestation of the
         # dataset is on the requested primary node.
-        new_origin_node = Node(
-            hostname=origin_node.hostname,
-            applications=origin_node.applications,
-            other_manifestations=(
-                origin_node.other_manifestations
-                - frozenset({primary_manifestation})
-            )
-        )
+        new_origin_node = origin_node.transform(
+            "manifestations", dataset_id, discard)
         deployment = deployment.update_node(new_origin_node)
 
         primary_nodes = list(
@@ -288,20 +284,14 @@ class DatasetAPIUserV1(object):
             # See FLOC-1278
             new_target_node = Node(
                 hostname=primary,
-                other_manifestations=frozenset({primary_manifestation})
+                manifestations={dataset_id: primary_manifestation},
             )
         else:
             # There should only be one node with the requested primary
             # hostname. ``ValueError`` here if that's not the case.
             (target_node,) = primary_nodes
-            new_target_node = Node(
-                hostname=target_node.hostname,
-                applications=target_node.applications,
-                other_manifestations=(
-                    target_node.other_manifestations
-                    | frozenset({primary_manifestation})
-                )
-            )
+            new_target_node = target_node.transform(
+                "manifestations", dataset_id, primary_manifestation)
 
         deployment = deployment.update_node(new_target_node)
 
@@ -339,7 +329,7 @@ class DatasetAPIUserV1(object):
         return list(datasets_from_deployment(deployment))
 
 
-def other_manifestations_from_deployment(deployment, dataset_id):
+def manifestations_from_deployment(deployment, dataset_id):
     """
     Extract all other manifestations of the supplied dataset_id from the
     supplied deployment.
@@ -352,9 +342,8 @@ def other_manifestations_from_deployment(deployment, dataset_id):
         ``dataset_id``.
     """
     for node in deployment.nodes:
-        for manifestation in node.other_manifestations:
-            if manifestation.dataset.dataset_id == dataset_id:
-                yield manifestation, node
+        if dataset_id in node.manifestations:
+                yield node.manifestations[dataset_id], node
 
 
 def datasets_from_deployment(deployment):
@@ -371,7 +360,7 @@ def datasets_from_deployment(deployment):
     :return: Iterable returning all datasets.
     """
     for node in deployment.nodes:
-        for manifestation in node.manifestations():
+        for manifestation in node.manifestations.values():
             if manifestation.primary:
                 # There may be multiple datasets marked as primary until we
                 # implement consistency checking when state is reported by each
