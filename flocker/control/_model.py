@@ -6,7 +6,9 @@ Record types for representing deployment models.
 """
 
 from characteristic import attributes, Attribute
-from pyrsistent import pmap
+
+from pyrsistent import pmap, PRecord, field, PMap
+
 from zope.interface import Interface, implementer
 
 
@@ -200,13 +202,13 @@ class Dataset(object):
     """
 
 
-@attributes(["hostname",
-             Attribute("applications", default_value=frozenset()),
-             Attribute("other_manifestations", default_value=frozenset())])
-class Node(object):
+class Node(PRecord):
     """
     A single node on which applications will be managed (deployed,
     reconfigured, destroyed, etc).
+
+    Manifestations attached to applications must also be present in the
+    ``manifestations`` attribute.
 
     :ivar unicode hostname: The hostname of the node.  This must be a
         resolveable name so that Flocker can connect to the node.  This may be
@@ -215,20 +217,25 @@ class Node(object):
     :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
 
-    :ivar frozenset other_manifestations: ``Manifestation`` instances that
-        are present on the node but are not attached as volumes to any
-        applications.
+    :ivar PMap manifestations: Mapping between dataset IDs and
+        corresponding ``Manifestation`` instances that are present on the
+        node. Includes both those attached as volumes to any applications,
+        and those that are unattached.
     """
-    def manifestations(self):
-        """
-        All manifestations present on this node.
+    def __invariant__(self):
+        manifestations = self.manifestations.values()
+        for app in self.applications:
+            if app.volume is not None:
+                if app.volume.manifestation not in manifestations:
+                    return (False, '%r manifestation is not on node' % (app,))
+        return (True, "")
 
-        :return frozenset: All ``Manifestation`` instances from this node.
-        """
-        return self.other_manifestations | frozenset(
-            [application.volume.manifestation
-             for application in self.applications
-             if application.volume is not None])
+    hostname = field(type=unicode)
+    # XXX with invariant ensuring correct type
+    applications = field(type=frozenset)
+    # XXX with invariant ensuring keys are same as corresponding values'
+    # dataset_id attribute, and correct types, probably.
+    manifestations = field(type=PMap, factory=pmap)
 
 
 @attributes(["nodes"])
