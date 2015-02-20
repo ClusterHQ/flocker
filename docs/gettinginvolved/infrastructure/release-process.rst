@@ -383,7 +383,7 @@ Release
      .. prompt:: bash [vagrant@localhost]$
 
         brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
-        brew test flocker-${VERSION}.rb
+        brew test flocker-${VERSION}
 
    - Make a pull request:
 
