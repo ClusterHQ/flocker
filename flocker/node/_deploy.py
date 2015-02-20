@@ -558,6 +558,11 @@ class P2PNodeDeployer(object):
 
         :return: A ``IStateChange`` provider.
         """
+        # Current cluster state is likely out of date as regards the
+        # local state, so update it accordingly:
+        current_cluster_state = current_cluster_state.update_node(
+            local_state.to_node())
+
         desired_configuration = self._add_dataset_ids(desired_configuration,
                                                       current_cluster_state)
         phases = []

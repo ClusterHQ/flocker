@@ -15,7 +15,9 @@ from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
-from twisted.web.http import CREATED, OK, CONFLICT, BAD_REQUEST
+from twisted.web.http import (
+    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR
+)
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
 from twisted.web.client import FileBodyProducer, readBody
@@ -42,6 +44,10 @@ class APITestsMixin(object):
     """
     Helpers for writing integration tests for the Dataset Manager API.
     """
+    # These addresses taken from RFC 5737 (TEST-NET-1)
+    NODE_A = u"192.0.2.1"
+    NODE_B = u"192.0.2.2"
+
     def initialize(self):
         """
         Create initial objects for the ``DatasetAPIUserV1``.
@@ -103,8 +109,20 @@ class APITestsMixin(object):
         requesting = self.assertResponseCode(
             method, path, request_body, expected_code)
         requesting.addCallback(readBody)
-        requesting.addCallback(lambda body: self.assertEqual(
-            expected_result, loads(body)))
+        requesting.addCallback(loads)
+
+        def assertEqualAndReturn(expected, actual):
+            """
+            Assert that ``expected`` is equal to ``actual`` and return
+            ``actual`` for further processing.
+            """
+            self.assertEqual(expected, actual)
+            return actual
+
+        requesting.addCallback(
+            lambda actual_result: assertEqualAndReturn(
+                expected_result, actual_result)
+        )
         return requesting
 
     def assertResultItems(self, method, path, request_body,
@@ -156,12 +174,8 @@ RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
 
 class CreateDatasetTestsMixin(APITestsMixin):
     """
-    Tests for the dataset creation endpoint at ``/datasets``.
+    Tests for the dataset creation endpoint at ``/configuration/datasets``.
     """
-    # These addresses taken from RFC 5737 (TEST-NET-1)
-    NODE_A = u"192.0.2.1"
-    NODE_B = u"192.0.2.2"
-
     def test_wrong_schema(self):
         """
         If a ``POST`` request made to the endpoint includes a body which
@@ -169,7 +183,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         error indication a validation failure.
         """
         return self.assertResult(
-            b"POST", b"/datasets",
+            b"POST", b"/configuration/datasets",
             {u"primary": self.NODE_A, u"junk": u"garbage"},
             BAD_REQUEST, {
                 u'description':
@@ -211,7 +225,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def saved(ignored):
             return self.assertResult(
-                b"POST", b"/datasets",
+                b"POST", b"/configuration/datasets",
                 {u"primary": primary, u"dataset_id": modifier(dataset_id)},
                 CONFLICT,
                 {u"description": u"The provided dataset_id is already in use."}
@@ -266,7 +280,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         unchanged and an error response is returned to the client.
         """
         return self.assertResult(
-            b"POST", b"/datasets", {u"primary": self.NODE_A},
+            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
             BAD_REQUEST, {
                 u"description":
                     u"The provided primary node is not part of the cluster."
@@ -289,7 +303,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         client.
         """
         creating = self.assertResponseCode(
-            b"POST", b"/datasets", {u"primary": self.NODE_A},
+            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
             CREATED)
         creating.addCallback(readBody)
         creating.addCallback(loads)
@@ -317,7 +331,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def saved(ignored):
             return self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_B}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_B},
+                CREATED
             )
         saving.addCallback(saved)
 
@@ -344,10 +359,12 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         creating = gatherResults([
             self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_A}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+                CREATED
             ).addCallback(readBody).addCallback(loads),
             self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_A}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+                CREATED
             ).addCallback(readBody).addCallback(loads),
         ])
 
@@ -371,7 +388,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             u"metadata": metadata,
         }
         creating = self.assertResult(
-            b"POST", b"/datasets", dataset, CREATED, dataset
+            b"POST", b"/configuration/datasets", dataset, CREATED, dataset
         )
 
         def created(ignored):
@@ -411,7 +428,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         response = dataset.copy()
         response[u"metadata"] = {}
         creating = self.assertResult(
-            b"POST", b"/datasets", dataset, CREATED, response
+            b"POST", b"/configuration/datasets", dataset, CREATED, response
         )
 
         def created(ignored):
@@ -437,6 +454,294 @@ class CreateDatasetTestsMixin(APITestsMixin):
         return creating
 
 
+class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
+    """
+    Tests for the dataset modification endpoint at
+    ``/configuration/datasets/<dataset_id>``.
+    """
+    def test_unknown_dataset(self):
+        """
+        NOT_FOUND is returned if the requested dataset_id doesn't exist.
+        The error includes the requested dataset_id.
+        """
+        unknown_dataset_id = unicode(uuid4())
+        updating = self.assertResponseCode(
+            b"POST",
+            b"/configuration/datasets/%s" % (
+                unknown_dataset_id.encode('ascii'),),
+            {u'primary': self.NODE_A},
+            NOT_FOUND)
+        updating.addCallback(readBody)
+        updating.addCallback(loads)
+
+        def got_result(result):
+            expected_description = u'Dataset not found.'
+            description = result.pop(u"description")
+            self.assertEqual(expected_description, description)
+        updating.addCallback(got_result)
+
+        return updating
+
+    def _test_change_primary(self, dataset, deployment, origin, target):
+        """
+        Helper method which pre-populates the persistence_service with the
+        supplied ``dataset``, makes an API call to move the supplied
+        ``dataset`` from ``origin`` to ``target`` and finally asserts that the
+        API call returned the expected result and that the persistence_service
+        has been updated.
+
+        :param Dataset dataset: The dataset which will be moved.
+        :param Deployment deployment: The deployment that contains the dataset.
+        :param bytes origin: The node IP address of the node that holds the
+            current primary manifestation of the ``dataset``.
+        :param bytes target: The node IP address of the node to which the
+            dataset will be moved.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
+        expected_dataset_id = dataset.dataset_id
+
+        expected_dataset = {
+            u"dataset_id": expected_dataset_id,
+            u"primary": target,
+            u"metadata": {}
+        }
+
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_dataset_id.encode('ascii'),),
+                {u"primary": target},
+                OK,
+                expected_dataset
+            )
+
+            def got_result(result):
+                deployment = self.persistence_service.get()
+                for node in deployment.nodes:
+                    if node.hostname == target:
+                        dataset_ids = [
+                            (m.primary, m.dataset.dataset_id)
+                            for m in node.manifestations()
+                        ]
+                        self.assertIn((True, expected_dataset_id), dataset_ids)
+                        break
+                else:
+                    self.fail('Node not found. {}'.format(target))
+
+            creating.addCallback(got_result)
+            return creating
+        saving.addCallback(saved)
+        return saving
+
+    def test_change_primary_to_unconfigured_node(self):
+        """
+        If a different primary IP address is supplied and it identifies a node
+        which is not yet part of the cluster configuration, the modification
+        request succeeds and the dataset's primary becomes the given address.
+        """
+        expected_manifestation = _manifestation()
+        current_primary_node = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        deployment = Deployment(nodes=frozenset([current_primary_node]))
+
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_B
+        )
+
+    def test_unknown_primary_node(self):
+        """
+        A dataset's primary IP address must belong to a node in the cluster.
+        XXX: Skip this test until FLOC-1278 is implemented.
+
+        This is an alternative to the behaviour above.
+        The dataset creation API currently behaves this way.
+        Perhaps it shouldn't.
+        And instead allow datasets to be created with an as yet unknown node.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {u"primary": self.NODE_B},
+                BAD_REQUEST, {
+                    u"description":
+                    u"The provided primary node is not part of the cluster."
+                }
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+    test_unknown_primary_node.todo = (
+        "See FLOC-1278.  Make this pass by inspecting cluster state "
+        "instead of desired configuration to determine whether a node is "
+        "valid or not."
+    )
+
+    def test_change_primary_to_configured_node(self):
+        """
+        If a different primary IP address is supplied and it identifies a node
+        which is already part of the cluster configuration, the modification
+        request succeeds and the dataset's primary becomes the given address.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        node_b = Node(hostname=self.NODE_B)
+        deployment = Deployment(nodes=frozenset([node_a, node_b]))
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_B
+        )
+
+    def test_primary_unchanged(self):
+        """
+        If the current primary IP address is supplied, the modification request
+        succeeds.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        node_b = Node(hostname=self.NODE_B)
+        deployment = Deployment(nodes=frozenset([node_a, node_b]))
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_A
+        )
+
+    def test_only_replicas(self):
+        """
+        If there are only replica manifestations of the requested dataset, 500
+        response is returned and ``IndexError`` is logged.
+
+        XXX The 500 error message really should be clearer.
+        See https://clusterhq.atlassian.net/browse/FLOC-1393
+
+        XXX This situation should return a more friendly error code and
+        message.
+        See https://clusterhq.atlassian.net/browse/FLOC-1403.
+        """
+        expected_manifestation = _manifestation(primary=False)
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        node_b = Node(hostname=self.NODE_B)
+        deployment = Deployment(nodes=frozenset([node_a, node_b]))
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {u"primary": self.NODE_B},
+                INTERNAL_SERVER_ERROR,
+                u'ELIOT LOG REFERENCE'
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+    test_only_replicas.todo = (
+        "XXX: Perhaps this test isn't necessary. "
+        "There should always be a primary."
+        "But perhaps there should be a test that demonstrates the general 500 "
+        "response message format."
+        "See https://clusterhq.atlassian.net/browse/FLOC-1393 and "
+        "https://clusterhq.atlassian.net/browse/FLOC-1403"
+    )
+
+    def test_primary_invalid(self):
+        """
+        A request with an invalid (non-IPv4) primary IP address is rejected
+        with ``BAD_REQUEST``.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResponseCode(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {u"primary": u'192.0.2.257'},
+                BAD_REQUEST,
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+
+    def test_no_primary(self):
+        """
+        An update request without a primary address is allowed.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResponseCode(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {},
+                OK,
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+    test_no_primary.todo = (
+        'It should be possible to submit a dataset update request without a '
+        'primary address, but the input schema currently requires the primary '
+        'attribute. This will need to be addressed before or as part of '
+        'https://clusterhq.atlassian.net/browse/FLOC-1404'
+    )
+
+RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
+    buildIntegrationTests(
+        UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
+)
+
+
 def get_dataset_ids(deployment):
     """
     Get an iterator of all of the ``dataset_id`` values on all nodes in the
@@ -451,8 +756,177 @@ def get_dataset_ids(deployment):
         for manifestation in node.manifestations():
             yield manifestation.dataset.dataset_id
 
+
 RealTestsCreateDataset, MemoryTestsCreateDataset = buildIntegrationTests(
     CreateDatasetTestsMixin, "CreateDataset", _build_app)
+
+
+def _manifestation(**kwargs):
+    """
+    :param kwargs: Additional keyword arguments to use to initialize the
+        manifestation's ``Dataset``.
+        If ``kwargs`` includes a ``primary`` key its value will be supplied to
+        the ``Manifestation`` initialiser as the ``primary`` argument in order
+        to control whether to create a primary or replica
+        ``Manifestation``. Defaults to ``True``.
+
+    :return: A ``Manifestation`` for a dataset with a new
+        random identifier.
+    """
+    primary = kwargs.pop('primary', True)
+    dataset_id = unicode(uuid4())
+    existing_dataset = Dataset(dataset_id=dataset_id, **kwargs)
+    return Manifestation(dataset=existing_dataset, primary=primary)
+
+
+class GetDatasetConfigurationTestsMixin(APITestsMixin):
+    """
+    Tests for the dataset configuration retrieval endpoint at
+    ``/datasets``.
+    """
+    def test_empty(self):
+        """
+        When the cluster configuration includes no datasets, the
+        endpoint returns an empty list.
+        """
+        return self.assertResult(
+            b"GET", b"/configuration/datasets", None, OK, []
+        )
+
+    def _dataset_test(self, deployment, expected):
+        """
+        Verify that when the control service has ``deployment``
+        persisted as its configuration, the response from the
+        configuration listing endpoint includes the items in
+        ``expected``.
+
+        :param Deployment deployment: The deployment configuration to
+            use.
+
+        :param list expected: The objects expected to be returned by
+            the endpoint, disregarding order.
+
+        :return: A ``Deferred`` that fires successfully if the
+            expected results are received or which fires with a
+            failure if there is a problem.
+        """
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            return self.assertResultItems(
+                b"GET", b"/configuration/datasets", None, OK, expected
+            )
+        saving.addCallback(saved)
+        return saving
+
+    def _one_dataset_test(self, **kwargs):
+        """
+        Assert that when a single manifestation exists on the cluster a ``GET``
+        request to the ``/configuration/datasets`` returns a list of one object
+        that represents that manifestation.
+
+        :param kwargs: Additional arguments to use when creating the
+            manifestation.  See ``_manifestation``.
+
+        :return: A ``Deferred`` that fires when the assertion has been made.
+        """
+        manifestation = _manifestation(**kwargs)
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    other_manifestations=frozenset({manifestation}),
+                ),
+            },
+        )
+        expected = [
+            api_dataset_from_dataset_and_node(
+                manifestation.dataset, self.NODE_A
+            )
+        ]
+        return self._dataset_test(deployment, expected)
+
+    def test_one_dataset(self):
+        """
+        When the cluster configuration includes one dataset, the
+        endpoint returns a single-element list containing the dataset.
+        """
+        return self._one_dataset_test()
+
+    def test_dataset_with_other_properties(self):
+        """
+        A dataset with a maximum size and non-empty metadata has both
+        of those values included in the response from the endpoint.
+        """
+        return self._one_dataset_test(
+            maximum_size=1024 * 1024 * 100, metadata=pmap({u"foo": u"bar"})
+        )
+
+    def test_several_nodes(self):
+        """
+        When the cluster configuration includes several nodes, each
+        with a dataset, the endpoint returns a list containing
+        information for the dataset on each node.
+        """
+        manifestation_a = _manifestation()
+        manifestation_b = _manifestation()
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    other_manifestations=frozenset({manifestation_a}),
+                ),
+                Node(
+                    hostname=self.NODE_B,
+                    other_manifestations=frozenset({manifestation_b}),
+                ),
+            },
+        )
+        expected = [
+            api_dataset_from_dataset_and_node(
+                manifestation_a.dataset, self.NODE_A
+            ),
+            api_dataset_from_dataset_and_node(
+                manifestation_b.dataset, self.NODE_B
+            ),
+        ]
+        return self._dataset_test(deployment, expected)
+
+    def test_several_datasets(self):
+        """
+        When the cluster configuration includes a node with several
+        datasets, the endpoint returns a list containing information
+        for each dataset.
+        """
+        manifestation_a = _manifestation()
+        manifestation_b = _manifestation()
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    other_manifestations=frozenset({
+                        manifestation_a, manifestation_b
+                    }),
+                ),
+            },
+        )
+        expected = [
+            api_dataset_from_dataset_and_node(
+                manifestation_a.dataset, self.NODE_A
+            ),
+            api_dataset_from_dataset_and_node(
+                manifestation_b.dataset, self.NODE_A
+            ),
+        ]
+        return self._dataset_test(deployment, expected)
+
+
+RealTestsGetDatasetConfiguration, MemoryTestsGetDatasetConfiguration = (
+    buildIntegrationTests(
+        GetDatasetConfigurationTestsMixin, "GetDatasetConfiguration",
+        _build_app
+    )
+)
 
 
 class CreateAPIServiceTests(SynchronousTestCase):
