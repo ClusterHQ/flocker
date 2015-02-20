@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+"""
+Publish documentation to S3 and CloudFront.
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+if __name__ == '__main__':
+    from admin.release import publish_docs_main as main
+    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)
