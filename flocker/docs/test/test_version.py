@@ -9,7 +9,7 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from .._version import (
     parse_version, FlockerVersion, UnparseableVersion,
-    get_doc_version, get_installable_version, is_release,
+    get_doc_version, get_installable_version, is_release, is_weekly_release,
 )
 
 
@@ -247,7 +247,8 @@ class IsReleaseTests(SynchronousTestCase):
     def test_doc(self):
         """
         When the documentation version is from a documentation release, it is a
-        release.  """
+        release.
+        """
         self.assertTrue(is_release('0.3.2+doc11'))
 
     def test_doc_dirty(self):
@@ -256,3 +257,55 @@ class IsReleaseTests(SynchronousTestCase):
         a release.
         """
         self.assertFalse(is_release('0.3.2+doc1-dirty'))
+
+
+class IsWeeklyReleaseTests(SynchronousTestCase):
+    """
+    Tests for :function:`is_weekly_release`.
+    """
+
+    def test_marketing_release(self):
+        """
+        When the version is from a marketing release, it isn't a weekly
+        release.
+        """
+        self.assertFalse(is_weekly_release('0.3.2'))
+
+    def test_weekly_release(self):
+        """
+        When the version is from a weekly release, it isn't a weekly release.
+        """
+        self.assertTrue(is_weekly_release('0.3.2dev1'))
+
+    def test_pre_release(self):
+        """
+        When the version is from a pre-release, it isn't a weekly release.
+        """
+        self.assertFalse(is_weekly_release('0.3.2pre1'))
+
+    def test_development_vesion(self):
+        """
+        When the version is from a development version, it isn't a weekly
+        release.
+        """
+        self.assertFalse(is_weekly_release('0.3.2-1-gf661a6a'))
+
+    def test_dirty(self):
+        """
+        When the version is dirty, it isn't a weekly release.
+        """
+        self.assertFalse(is_weekly_release('0.3.2-1-gf661a6a-dirty'))
+
+    def test_doc(self):
+        """
+        When the documentation version is from a documentation release,
+        it isn't a weekly release.
+        """
+        self.assertFalse(is_weekly_release('0.3.2+doc11'))
+
+    def test_doc_dirty(self):
+        """
+        When the version is from a documentation weekly release but is dirty,
+        it isn't a weekly release.
+        """
+        self.assertFalse(is_weekly_release('0.3.2+doc1-dirty'))
