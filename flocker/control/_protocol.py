@@ -105,7 +105,7 @@ class NodeStateCommand(Command):
 
 def with_eliot_context(function):
     """
-    Decorator for responders that accept an ``eliot_context`` argument
+    Decorator for responders who accept an ``eliot_context`` argument
     that deserializes the given Eliot context and runs the wrapped
     function using that as the Eliot context.
 
@@ -229,11 +229,12 @@ class ControlAMPService(Service):
         """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
-        with LOG_SEND_CLUSTER_STATE(
-                self.logger, configuration=configuration, state=state):
+        with LOG_SEND_CLUSTER_STATE(self.logger,
+                                    configuration=configuration,
+                                    state=state):
             for connection in connections:
                 with LOG_SEND_TO_AGENT(
-                        self.logger, agent=connection) as action:
+                        self.logger, connection=connection) as action:
                     connection.callRemote(
                         ClusterStatusCommand,
                         configuration=configuration,

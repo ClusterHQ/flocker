@@ -141,15 +141,41 @@ def build_control_amp_service(test):
                              TCP4ServerEndpoint(MemoryReactor(), 1234))
 
 
-def capturing_call_remote(capture_list, *args, **kwargs):
-    # Ditch the eliot context whose context level is difficult to
-    # predict.
-    kwargs.pop('eliot_context')
-    capture_list.append((args, kwargs))
-    return succeed(None)
+class ControlTestCase(SynchronousTestCase):
+    """
+    Base TestCase for control tests that supplies a utility
+    method to patch the callRemote method of the AMP protocol instance,
+    discarding Eliot contexts whose context level may be unknown.
+    """
+
+    def patch_call_remote(self, capture_list, protocol=None):
+        """
+        Patch the callRemote method for this test case's protocol.
+
+        :param capture_list: A `list` to which results will be added.
+
+        :param protocol: Either `None` to default to self.protocol, or
+            a ``ControlAMP`` instance.
+        """
+        if protocol is None:
+            protocol = self.protocol
+
+        def capture_call_remote(capture, *args, **kwargs):
+            # Ditch the eliot context whose context level is difficult to
+            # predict.
+            kwargs.pop('eliot_context')
+            capture.append((args, kwargs))
+            return succeed(None)
+
+        self.patch(
+            protocol,
+            "callRemote",
+            lambda *args, **kwargs: capture_call_remote(
+                capture_list, *args, **kwargs)
+        )
 
 
-class ControlAMPTests(SynchronousTestCase):
+class ControlAMPTests(ControlTestCase):
     """
     Tests for ``ControlAMP`` and ``ControlServiceLocator``.
     """
@@ -175,12 +201,7 @@ class ControlAMPTests(SynchronousTestCase):
         When a connection is made the cluster status is sent to the new client.
         """
         sent = []
-        self.patch(
-            self.protocol,
-            "callRemote",
-            lambda *args, **kwargs: capturing_call_remote(
-                sent, *args, **kwargs)
-        )
+        self.patch_call_remote(sent)
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
 
@@ -244,18 +265,8 @@ class ControlAMPTests(SynchronousTestCase):
         sent1 = []
         sent2 = []
 
-        self.patch(
-            self.protocol,
-            "callRemote",
-            lambda *args, **kwargs: capturing_call_remote(
-                sent1, *args, **kwargs)
-        )
-        self.patch(
-            another_protocol,
-            "callRemote",
-            lambda *args, **kwargs: capturing_call_remote(
-                sent2, *args, **kwargs)
-        )
+        self.patch_call_remote(sent1)
+        self.patch_call_remote(sent2, protocol=another_protocol)
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
@@ -269,7 +280,7 @@ class ControlAMPTests(SynchronousTestCase):
                    state=cluster_state)))] * 2)
 
 
-class ControlAMPServiceTests(SynchronousTestCase):
+class ControlAMPServiceTests(ControlTestCase):
     """
     Unit tests for ``ControlAMPService``.
     """
@@ -345,12 +356,7 @@ class ControlAMPServiceTests(SynchronousTestCase):
         protocol = ControlAMP(service)
         protocol.makeConnection(StringTransport())
         sent = []
-        self.patch(
-            protocol,
-            "callRemote",
-            lambda *args, **kwargs: capturing_call_remote(
-                sent, *args, **kwargs)
-        )
+        self.patch_call_remote(sent, protocol=protocol)
 
         service.configuration_service.save(TEST_DEPLOYMENT)
         # Should only be one callRemote call.
