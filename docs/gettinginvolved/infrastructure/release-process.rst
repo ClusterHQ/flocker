@@ -104,6 +104,13 @@ Preparing For a Release
       git checkout -b release/flocker-${VERSION} origin/master
       git push --set-upstream origin release/flocker-${VERSION}
 
+#. Create and activate the Flocker release virtual environment:
+
+   .. prompt:: bash $
+
+      mkvirtualenv flocker-release-${VERSION}
+      pip install --editable .[release]
+
 #. Back port features from master (optional)
 
    The release may require certain changes to be back ported from the master branch.
@@ -462,7 +469,6 @@ XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
-.. _virtualenvwrapper: https://pypi.python.org/pypi/virtualenvwrapper
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home
