@@ -104,16 +104,6 @@ Preparing For a Release
       git checkout -b release/flocker-${VERSION} origin/master
       git push --set-upstream origin release/flocker-${VERSION}
 
-#. Create and activate the Flocker release virtual environment:
-
-   .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      mkvirtualenv flocker-release-${VERSION}
-      pip install --editable .[release]
-      pip install setuptools==3.6
-
 #. Back port features from master (optional)
 
    The release may require certain changes to be back ported from the master branch.
@@ -269,11 +259,15 @@ Release
       cd ../flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
-#. Activate the Flocker release virtual environment:
+#. Create and activate the Flocker release virtual environment:
    
+   .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
+
    .. prompt:: bash [vagrant@localhost]$
 
-      workon flocker-release-${VERSION}
+      mkvirtualenv flocker-release-${VERSION}
+      pip install --editable .[release]
+      pip install setuptools==3.6
 
 #. Tag the version being released:
 
