@@ -572,14 +572,7 @@ class WithEliotContextTests(SynchronousTestCase):
         (client_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
         (server_action,) = LoggedAction.of_type(
             logger.messages, HANDLE_REQUEST)
-        for child_action in client_action.descendants():
-            if child_action == server_action:
-                break
-        else:
-            self.fail(
-                'Child action not found. Expected: {!r} in {!r}'.format(
-                    server_action, list(client_action.descendants()))
-            )
+        self.assertIn(server_action, client_action.descendants())
 
     @validate_logging(assert_child_action)
     def test_decorated_called(self, logger):
