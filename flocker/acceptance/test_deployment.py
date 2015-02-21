@@ -191,12 +191,10 @@ class DeploymentTests(TestCase):
 
             flocker_deploy(self, minimal_deployment, minimal_application)
 
-            d = assert_expected_deployment(self, {
+            return assert_expected_deployment(self, {
                 node_1: set([get_mongo_application()]),
                 node_2: set([]),
             })
-
-            return d
 
         getting_nodes.addCallback(deploy)
         return getting_nodes

@@ -59,12 +59,10 @@ class MovingApplicationTests(TestCase):
 
             flocker_deploy(self, minimal_deployment_moved, minimal_application)
 
-            d = assert_expected_deployment(self, {
+            return assert_expected_deployment(self, {
                 node_1: set([]),
                 node_2: set([get_mongo_application()])
             })
-
-            return d
 
         getting_nodes.addCallback(deploy_and_move)
         return getting_nodes

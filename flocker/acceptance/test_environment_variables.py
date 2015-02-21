@@ -118,12 +118,10 @@ class EnvironmentVariableTests(TestCase):
         """
         The test setUp deploys MySQL.
         """
-        d = assert_expected_deployment(self, {
+        return assert_expected_deployment(self, {
             self.node_1: set([MYSQL_APPLICATION]),
             self.node_2: set([]),
         })
-
-        return d
 
     def test_moving_mysql(self):
         """
@@ -132,12 +130,10 @@ class EnvironmentVariableTests(TestCase):
         flocker_deploy(self, self.mysql_deployment_moved,
                        self.mysql_application)
 
-        asserting_mysql_moved = assert_expected_deployment(self, {
+        return assert_expected_deployment(self, {
             self.node_1: set([]),
             self.node_2: set([MYSQL_APPLICATION]),
         })
-
-        return asserting_mysql_moved
 
     def _get_mysql_connection(self, host, port, user, passwd, db=None):
         """

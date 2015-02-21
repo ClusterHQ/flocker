@@ -73,12 +73,10 @@ class PortsTests(TestCase):
         application = get_mongo_application()
         application.ports = ports
 
-        d = assert_expected_deployment(self, {
+        return assert_expected_deployment(self, {
             self.node_1: set([application]),
             self.node_2: set([]),
         })
-
-        return d
 
     @require_mongo
     def test_mongo_accessible(self):
