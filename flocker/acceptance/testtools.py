@@ -333,8 +333,6 @@ def assert_expected_deployment(test_case, expected_deployment):
         addresses.
     """
     for node, expected in expected_deployment.items():
-        yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
-        state = safe_load(yaml)
+        applications = get_node_state(node)
         test_case.assertSetEqual(
-            set(FlockerConfiguration(state).applications().values()),
-            expected)
+            set(applications.values()), expected)
