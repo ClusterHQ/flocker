@@ -5,6 +5,7 @@ Testing utilities for ``flocker.acceptance``.
 """
 
 from os import environ
+from os.path import expanduser
 from pipes import quote as shell_quote
 from socket import gaierror, socket
 from subprocess import check_call
@@ -200,10 +201,14 @@ def run_SSH(port, user, node, command, input, key=None,
     :return: stdout as ``bytes`` if ``background`` is false, otherwise
         return the ``subprocess.Process`` object.
     """
-    if key:
-        keys = [Key.fromString(key.getContent())]
-    else:
-        keys = None
+    keys = []
+    for key_path in [
+            key,
+            FilePath(expanduser('~/.ssh/id_rsa')),
+            FilePath(expanduser('~/.vagrant.d/insecure_private_key'))
+            ]:
+        if key_path and key_path.exists():
+            keys.append(Key.fromString(key_path.getContent()))
     try:
         agentEndpoint = UNIXClientEndpoint(
             reactor, environ["SSH_AUTH_SOCK"])
