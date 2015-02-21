@@ -11,6 +11,7 @@ from os import kill
 from uuid import uuid4
 from json import dumps, loads
 
+from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
 from treq import get, post, content
 from characteristic import attributes
@@ -51,7 +52,7 @@ class Node(object):
     """
 
 
-@attributes(['address', 'process'])
+@attributes(['address', 'protocol'])
 class RemoteService(object):
     """
     A record of a background SSH process and the node that it's running on.
@@ -84,20 +85,24 @@ def remote_service_for_test(test_case, address, command):
     :param list command: The command line arguments to run remotely via SSH.
     :returns: A ``RemoteService`` instance.
     """
-    service = RemoteService(
-        address=address,
-        process=run_SSH(
-            port=22,
-            user='root',
-            node=address,
-            command=command,
-            input=b"",
-            key=None,
-            background=True
-        )
-    )
-    test_case.addCleanup(close, service.process)
-    return service
+    process = run_SSH(
+        port=22,
+        user='root',
+        node=address,
+        command=command,
+        input=b"",
+        key=None,
+        background=True)
+
+    def cb(protocol):
+        service = RemoteService(
+            address=address,
+            protocol=protocol,
+            )
+        test_case.addCleanup(lambda: protocol.sendSignal("TERM"))
+        return service
+    process.addCallback(cb)
+    return process
 
 
 @attributes(['control_service', 'nodes'])
@@ -236,13 +241,22 @@ def cluster_for_test(test_case, node_addresses):
             node_address,
             [b"flocker-zfs-agent", node_address, control_service.address],
         )
-        node = Node(
-            address=node_address,
-            agents=[agent_service]
-        )
-        nodes.append(node)
 
-    return Cluster(control_service=control_service, nodes=nodes)
+        def make_node(agent_service, node_address=node_address):
+            return Node(
+                address=node_address,
+                agents=[agent_service]
+            )
+        agent_service.addCallback(make_node)
+        nodes.append(make_node)
+
+    d = gatherResults([control_service, gatherResults(nodes)])
+
+    def cb((control_service, nodes)):
+        return Cluster(control_service=control_service, nodes=nodes)
+
+    d.addCallback(cb)
+    return d
 
 
 def create_cluster_and_wait_for_api(test_case, node_addresses):
@@ -255,9 +269,12 @@ def create_cluster_and_wait_for_api(test_case, node_addresses):
     :returns: A ``Cluster`` instance.
     """
     cluster = cluster_for_test(test_case, node_addresses)
-    waiting = wait_for_api(cluster.control_service.address)
-    api_ready = waiting.addCallback(lambda ignored: cluster)
-    return api_ready
+
+    def cb(cluster):
+        waiting = wait_for_api(cluster.control_service.address)
+        api_ready = waiting.addCallback(lambda ignored: cluster)
+        return api_ready
+    return cluster.addCallback(cb)
 
 
 def wait_for_cluster(test_case, node_count):

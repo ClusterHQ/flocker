@@ -7,11 +7,21 @@ Testing utilities for ``flocker.acceptance``.
 from os import environ
 from pipes import quote as shell_quote
 from socket import gaierror, socket
-from subprocess import check_call, PIPE, Popen
+from subprocess import check_call
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump, safe_load
+from characteristic import attributes, Attribute
 
-from twisted.internet.defer import succeed
+from twisted.conch.endpoints import (
+    SSHCommandClientEndpoint, _ReadFile, ConsoleUI)
+from twisted.conch.ssh.keys import Key
+from twisted.internet import reactor
+from twisted.internet.defer import succeed, Deferred
+from twisted.internet.error import ConnectionDone
+from twisted.internet.protocol import Protocol
+from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
+from twisted.protocols.basic import LineOnlyReceiver
+from twisted.python import log
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
@@ -117,6 +127,59 @@ def get_node_state(node):
     return FlockerConfiguration(state).applications()
 
 
+@attributes([
+    'username', 'hostname', 'command'
+])
+class LoggingProtocol(LineOnlyReceiver, object):
+    delimiter = b'\n'
+
+    def __init__(self):
+        self._deferred = Deferred()
+
+    def connectionMade(self):
+        self.transport.disconnecting = False
+
+    def connectionLost(self, reason):
+        if reason.check(ConnectionDone):
+            self.deferred.callback(None)
+        else:
+            self.deferred.errback(reason)
+
+    def lineReceived(self, line):
+        log.msg(format="%(line)s",
+                system="%s@%s:%s" % (
+                    self.username, self.address, self.command),
+                username=self.username, address=self.address,
+                command=self.command, line=line)
+
+    def sendSignal(self, signal):
+        self.transport.sendRequest(
+            self.transport, 'signal', signal, wantReply=False)
+        return self.deferred
+
+
+@attributes([
+    'username', 'hostname', 'command',
+    Attribute('deferred', exclude_from_repr=True)
+])
+class CollectingProtocol(Protocol, object):
+    def __init__(self):
+        self.buffer = ''
+
+    def connectionLost(self, reason):
+        if reason.check(ConnectionDone):
+            self.deferred.callback(self.buffer)
+        else:
+            self.deferred.errback(reason)
+
+    def lineReceived(self, line):
+        log.msg(format="%(line)s",
+                system="%s@%s:%s" % (
+                    self.username, self.address, self.command),
+                username=self.username, address=self.address,
+                command=self.command, line=line)
+
+
 def run_SSH(port, user, node, command, input, key=None,
             background=False):
     """
@@ -137,38 +200,48 @@ def run_SSH(port, user, node, command, input, key=None,
     :return: stdout as ``bytes`` if ``background`` is false, otherwise
         return the ``subprocess.Process`` object.
     """
-    quotedCommand = ' '.join(map(shell_quote, command))
-    command = [
-        b'ssh',
-        b'-p', b'%d' % (port,),
-        ]
-
-    if key is not None:
-        command.extend([
-            b"-i",
-            key.path])
-
-    if background:
-        # Force pseudo-tty so that remote process exists when the ssh
-        # client does:
-        command.extend([b"-t", b"-t"])
-
-    command.extend([
-        b'@'.join([user, node]),
-        quotedCommand
-    ])
-    if background:
-        process = Popen(command, stdin=PIPE)
-        process.stdin.write(input)
-        return process
+    if key:
+        keys = [Key.fromString(key.getContent())]
     else:
-        process = Popen(command, stdout=PIPE, stdin=PIPE)
+        keys = None
+    try:
+        agentEndpoint = UNIXClientEndpoint(
+            reactor, environ["SSH_AUTH_SOCK"])
+    except KeyError:
+        agentEndpoint = None
 
-    result = process.communicate(input)
-    if process.returncode != 0:
-        raise Exception('Command Failed', command, process.returncode)
+    quoted_command = ' '.join(map(shell_quote, command))
 
-    return result[0]
+    endpoint = SSHCommandClientEndpoint.newConnection(
+        reactor=reactor,
+        command=quoted_command,
+        username=user,
+        hostname=node,
+        port=port,
+        keys=keys,
+        agentEndpoint=agentEndpoint,
+        knownHosts=None,
+        ui=ConsoleUI(lambda: _ReadFile(b"yes")))
+
+    if background:
+        protocol = LoggingProtocol(
+            username=user, hostname=node, command=command)
+    else:
+        process_done = Deferred()
+        protocol = CollectingProtocol(
+            username=user, hostname=node, command=command,
+            deferred=process_done)
+    d = connectProtocol(endpoint, protocol)
+
+    def write_input(protocol):
+        protocol.transport.write(input)
+        return protocol
+    d.addCallback(write_input)
+
+    if background:
+        return d
+    else:
+        return process_done
 
 
 def _clean_node(test_case, node):
