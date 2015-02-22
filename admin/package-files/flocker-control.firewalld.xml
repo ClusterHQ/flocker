@@ -2,6 +2,6 @@
 <service>
   <short>Flocker Control Service</short>
   <description>The Flocker control service manages the state of a flocker cluster.</description>
-  <port protocol="tcp" port="4533"/>
-  <port protocol="tcp" port="4534"/>
+  <port protocol="tcp" port="4523"/>
+  <port protocol="tcp" port="4524"/>
 </service>
