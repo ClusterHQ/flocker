@@ -1,4 +1,4 @@
 [Samba]
 title=Flocker Control Service
 description=The Flocker control service manages the state of a flocker cluster.
-ports=4233/tcp,4234/tcp
+ports=4533/tcp,4534/tcp
