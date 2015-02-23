@@ -1,0 +1,9 @@
+[Unit]
+Description=Flocker Control REST API
+
+[Socket]
+ListenStream=4523
+NonBlocking=true
+
+[Install]
+WantedBy=sockets.target

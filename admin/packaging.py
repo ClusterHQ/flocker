@@ -769,6 +769,7 @@ def omnibus_package_builder(
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt  # noqa
     virtualenv_dir = FilePath('/opt/flocker')
+    systemd_dir = FilePath('/usr/lib/systemd/system')
 
     virtualenv = VirtualEnv(root=virtualenv_dir)
 
@@ -885,6 +886,13 @@ def omnibus_package_builder(
                     # Ubuntu firewall configuration
                     package_files.child('flocker-control.ufw'):
                         FilePath("/etc/ufw/applications.d/flocker-control"),
+                    # SystemD configuration
+                    package_files.child('flocker-control.service'):
+                        systemd_dir.child("flocker-control.service"),
+                    package_files.child('flocker-control-api.socket'):
+                        systemd_dir.child("flocker-control-api.socket"),
+                    package_files.child('flocker-control-agent.socket'):
+                        systemd_dir.child("flocker-control-agent.socket"),
                 },
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),
