@@ -10,7 +10,14 @@ from ._rackspace import rackspace_provisioner
 from ._aws import aws_provisioner
 from ._digitalocean import digitalocean_provisioner
 
+CLOUD_PROVIDERS = {
+    'rackspace': rackspace_provisioner,
+    'aws': aws_provisioner,
+    'digitalocean': digitalocean_provisioner,
+}
+
 __all__ = [
     'PackageSource', 'provision',
-    'rackspace_provisioner', 'aws_provisioner', 'digitalocean_provisioner'
+    'rackspace_provisioner', 'aws_provisioner', 'digitalocean_provisioner',
+    'CLOUD_PROVIDERS',
 ]
