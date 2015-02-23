@@ -892,7 +892,7 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_vendor = PACKAGE.VENDOR.value
         expected_maintainer = PACKAGE.MAINTAINER.value
 
-        package_files = FilePath('/top-level/admin/package-files')
+        package_files = FilePath('/package-files')
 
         expected = BuildSequence(
             steps=(
@@ -1026,7 +1026,7 @@ class OmnibusPackageBuilderTests(TestCase):
                                     destination_path=expected_destination_path,
                                     package_uri=expected_package_uri,
                                     target_dir=target_path,
-                                    package_files=FilePath('/top-level'),
+                                    package_files=FilePath('/package-files'),
                                     ))
 
 
@@ -1130,20 +1130,19 @@ class DockerBuildScriptTests(TestCase):
         self.patch(packaging, 'CURRENT_DISTRIBUTION', distribution)
         script = DockerBuildScript(sys_module=fake_sys_module)
         build_step = SpyStep()
-        base_path = object()
         arguments = []
 
         def record_arguments(*args, **kwargs):
             arguments.append((args, kwargs))
             return build_step
         script.build_command = record_arguments
-        script.main(base_path=base_path)
+        script.main(top_level=FilePath('/top-level'))
         expected_build_arguments = [(
             (),
             dict(destination_path=expected_destination_path,
                  package_uri=expected_package_uri,
                  distribution=distribution,
-                 base_path=base_path)
+                 package_files=FilePath('/top-level/admin/package-files'))
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)

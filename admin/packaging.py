@@ -1066,7 +1066,7 @@ class DockerBuildScript(object):
             distribution=CURRENT_DISTRIBUTION,
             destination_path=options['destination-path'],
             package_uri=options['package-uri'],
-            package_files=base_path.descendants(['admin', 'package-files']),
+            package_files=top_level.descendant(['admin', 'package-files']),
         ).run()
 
 docker_main = DockerBuildScript().main
