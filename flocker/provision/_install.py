@@ -13,8 +13,11 @@ from characteristic import attributes
 
 from ._common import PackageSource
 
-ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
-            "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
+ZFS_REPO = {
+    'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
+                 "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
+    'centos-7': "http://archive.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm"
+}
 CLUSTERHQ_REPO = ("https://storage.googleapis.com/archive.clusterhq.com/"
                   "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm")
 
@@ -114,6 +117,26 @@ def task_upgrade_kernel():
     ]
 
 
+def task_upgrade_kernel_centos():
+    return [
+        Run.from_args([
+            "yum", "install", "-y",
+            "http://www.elrepo.org/elrepo-release-7.0-2.el7.elrepo.noarch.rpm"
+        ]),
+        Run.from_args(["yum-config-manager", "--disable", "elrepo"]),
+        Run.from_args(["yum-config-manager", "--enable", "elrepo-kernel"]),
+        Run.from_args([
+            "sed", "-i", "s/DEFAULTKERNEL=kernel/DEFAULTKERNEL=kernel-ml/",
+            "/etc/sysconfig/kernel"]),
+        Run.from_args([
+            "yum", "install", "-y", "kernel-ml-devel", "kernel-ml"]),
+        # For dkms and ... ?
+        Run.from_args([
+            "yum", "install", "-y", "epel-release"]),
+        Run.from_args(['sync'])
+    ]
+
+
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
@@ -173,8 +196,9 @@ def task_install_flocker(package_source=PackageSource(),
         package.
     """
     commands = [
-        Run(command="yum install -y " + ZFS_REPO),
-        Run(command="yum install -y " + CLUSTERHQ_REPO)
+        Run(command="yum install -y " + ZFS_REPO[distribution]),
+        # Not for centos yet
+        # Run(command="yum install -y " + CLUSTERHQ_REPO)
     ]
 
     if package_source.branch:
@@ -200,7 +224,7 @@ def task_install_flocker(package_source=PackageSource(),
         package = 'clusterhq-flocker-node'
 
     commands.append(Run.from_args(
-        ["yum", "install"] + branch_opt + ["-y", package]))
+        ["yum", "install", '--enablerepo=zfs-testing'] + branch_opt + ["-y", package]))
 
     return commands
 
@@ -240,7 +264,8 @@ def provision(distribution, package_source):
     :param PackageSource package_source: See func:`task_install`
     """
     commands = []
-    commands += task_install_kernel_devel()
+    if distribution in ('fedora-20',):
+        commands += task_install_kernel_devel()
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
     commands += task_enable_docker()
