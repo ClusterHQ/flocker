@@ -141,21 +141,34 @@ def task_enable_docker():
     ]
 
 
-def task_disable_firewall():
+def configure_firewalld(rule):
     """
-    Disable the firewall.
+    Configure firewalld with a given rule.
+
+    :param list rule: List of `firewall-cmd` arguments.
     """
-    rules = [
-        ['--direct', '--add-rule', 'ipv4', 'filter',
-         'FORWARD', '0', '-j', 'ACCEPT'],
-        ['--add-service', 'flocker-control'],
-    ]
     return [
         Run.from_args(command + rule)
         for command in [['firewall-cmd', '--permanent'],
                         ['firewall-cmd']]
-        for rule in rules
     ]
+
+
+def task_disable_firewall():
+    """
+    Disable the firewall.
+    """
+    return configure_firewalld(
+        ['--direct', '--add-rule', 'ipv4', 'filter',
+         'FORWARD', '0', '-j', 'ACCEPT'])
+
+
+def task_open_control_firewall():
+    """
+    Open the firewall for flocker-control.
+    """
+    return configure_firewalld(
+        ['--add-service', 'flocker-control'])
 
 
 def task_create_flocker_pool_file():
