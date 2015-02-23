@@ -727,7 +727,8 @@ class PACKAGE_NODE(PACKAGE):
 
 
 def omnibus_package_builder(
-        distribution, destination_path, package_uri, base_path, target_dir=None):
+        distribution, destination_path, package_uri,
+        package_files, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
     ``destination_path``, containing the package installed from ``package_uri``
@@ -750,6 +751,8 @@ def omnibus_package_builder(
         the resulting RPM file.
     :param Package package: A ``Package`` instance with a ``pip install``
         compatible package URI.
+    :param FilePath package_files: Directory containg system-level files
+        to be installed with packages.
     :param FilePath target_dir: An optional path in which to create the
         virtualenv from which the package will be generated. Default is a
         temporary directory created using ``mkdtemp``.
@@ -766,8 +769,6 @@ def omnibus_package_builder(
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt  # noqa
     virtualenv_dir = FilePath('/opt/flocker')
-
-    package_files = base_path.sibling('package-files')
 
     virtualenv = VirtualEnv(root=virtualenv_dir)
 
@@ -879,7 +880,8 @@ def omnibus_package_builder(
                     flocker_node_path: FilePath("/usr/sbin"),
                     # Fedora/CentOS firewall configuration
                     package_files.child('flocker-control.firewalld.xml'):
-                        FilePath("/usr/lib/firewalld/services/flocker-control.xml"),
+                        FilePath("/usr/lib/firewalld/services/")
+                        .child("flocker-control.xml"),
                     # Ubuntu firewall configuration
                     package_files.child('flocker-control.ufw'):
                         FilePath("/etc/ufw/applications.d/flocker-control"),
@@ -1048,7 +1050,7 @@ class DockerBuildScript(object):
         """
         Check command line arguments and run the build steps.
 
-        :param top_level: ignored.
+        :param FilePath top_level: The top-level of the flocker repository.
         :param base_path: ignored.
         """
         options = DockerBuildOptions()
@@ -1064,7 +1066,7 @@ class DockerBuildScript(object):
             distribution=CURRENT_DISTRIBUTION,
             destination_path=options['destination-path'],
             package_uri=options['package-uri'],
-            base_path=base_path,
+            package_files=base_path.descendants(['admin', 'package-files']),
         ).run()
 
 docker_main = DockerBuildScript().main

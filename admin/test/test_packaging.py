@@ -892,7 +892,7 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_vendor = PACKAGE.VENDOR.value
         expected_maintainer = PACKAGE.MAINTAINER.value
 
-        package_files = FilePath('/admin/package-files')
+        package_files = FilePath('/top-level/admin/package-files')
 
         expected = BuildSequence(
             steps=(
@@ -987,10 +987,12 @@ class OmnibusPackageBuilderTests(TestCase):
                     source_paths={
                         flocker_node_path: FilePath("/usr/sbin"),
                         package_files.child('flocker-control.firewalld.xml'):
-                            FilePath("/usr/lib/firewalld/services/flocker-control.xml"),
+                            FilePath("/usr/lib/firewalld/services/")
+                            .child("flocker-control.xml"),
                         # Ubuntu firewall configuration
                         package_files.child('flocker-control.ufw'):
-                            FilePath("/etc/ufw/applications.d/flocker-control"),
+                            FilePath("/etc/ufw/applications.d/")
+                            .child("flocker-control"),
 
                     },
                     name='clusterhq-flocker-node',
@@ -1024,7 +1026,7 @@ class OmnibusPackageBuilderTests(TestCase):
                                     destination_path=expected_destination_path,
                                     package_uri=expected_package_uri,
                                     target_dir=target_path,
-                                    base_path=FilePath('/admin/script'),
+                                    package_files=FilePath('/top-level'),
                                     ))
 
 
