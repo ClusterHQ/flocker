@@ -893,6 +893,8 @@ def omnibus_package_builder(
                         systemd_dir.child("flocker-control-api.socket"),
                     package_files.child('flocker-control-agent.socket'):
                         systemd_dir.child("flocker-control-agent.socket"),
+                    package_files.child('flocker-zfs-agent.service'):
+                        systemd_dir.child("flocker-zfs-agent.service"),
                 },
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),

@@ -893,6 +893,7 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_maintainer = PACKAGE.MAINTAINER.value
 
         package_files = FilePath('/package-files')
+        systemd_dir = FilePath('/usr/lib/systemd/sytem/')
 
         expected = BuildSequence(
             steps=(
@@ -993,7 +994,14 @@ class OmnibusPackageBuilderTests(TestCase):
                         package_files.child('flocker-control.ufw'):
                             FilePath("/etc/ufw/applications.d/")
                             .child("flocker-control"),
-
+                        package_files.child('flocker-control.service'):
+                            systemd_dir.child("flocker-control.service"),
+                        package_files.child('flocker-control-api.socket'):
+                            systemd_dir.child("flocker-control-api.socket"),
+                        package_files.child('flocker-control-agent.socket'):
+                            systemd_dir.child("flocker-control-agent.socket"),
+                        package_files.child('flocker-zfs-agent.service'):
+                            systemd_dir.child("flocker-zfs-agent.service"),
                     },
                     name='clusterhq-flocker-node',
                     prefix=expected_prefix,
