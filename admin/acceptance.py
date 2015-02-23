@@ -226,10 +226,7 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-PROVIDERS = {
-    'vagrant': VagrantRunner,
-}
-PROVIDERS.update(CLOUD_PROVIDERS)
+PROVIDERS = tuple(sorted(['vagrant'] + CLOUD_PROVIDERS.keys()))
 
 
 class RunOptions(Options):
@@ -241,7 +238,7 @@ class RunOptions(Options):
          'One of fedora-20.'],
         ['provider', None, 'vagrant',
          'The target provider to test against. '
-         'One of {}.'.format(', '.join(sorted(PROVIDERS.keys())))],
+         'One of {}.'.format(', '.join(PROVIDERS))],
         ['config-file', None, None,
          'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab RPMS from'],
@@ -280,24 +277,6 @@ class RunOptions(Options):
         else:
             self['config'] = {}
 
-        if self['provider'] not in PROVIDERS:
-            raise UsageError(
-                "Provider %r not supported. Available providers: %s"
-                % (self['provider'], ', '.join(PROVIDERS.keys())))
-
-        provider_name = self['provider']
-        if provider_name in CLOUD_PROVIDERS:
-            # A config file is required for cloud providers
-            try:
-                provider_config = self['config'][self['provider']]
-            except KeyError:
-                raise UsageError(
-                    "Configuration file must include a {!r} config stanza.".format(
-                        provider_name)
-                )
-        else:
-            provider_config = {}
-
         if self['flocker-version']:
             os_version = "%s-%s" % make_rpm_version(self['flocker-version'])
             if os_version.endswith('.dirty'):
@@ -311,13 +290,38 @@ class RunOptions(Options):
             branch=self['branch'],
             build_server=self['build-server'],
         )
-        self.runner = LibcloudRunner(
-            config=self['config'],
-            provisioner=PROVIDERS[self['provider']](**provider_config),
-            top_level=self.top_level,
-            distribution=self['distribution'],
-            package_source=package_source,
-        )
+
+        if self['provider'] not in PROVIDERS:
+            raise UsageError(
+                "Provider %r not supported. Available providers: %s"
+                % (self['provider'], ', '.join(PROVIDERS)))
+
+        if self['provider'] in CLOUD_PROVIDERS:
+            # Configuration must include credentials etc for cloud providers.
+            try:
+                provider_config = self['config'][self['provider']]
+            except KeyError:
+                raise UsageError(
+                    "Configuration file must include a "
+                    "{!r} config stanza.".format(self['provider'])
+                )
+
+            provisioner = CLOUD_PROVIDERS[self['provider']](**provider_config)
+
+            self.runner = LibcloudRunner(
+                config=self['config'],
+                top_level=self.top_level,
+                distribution=self['distribution'],
+                package_source=package_source,
+                provisioner=provisioner
+            )
+        else:
+            self.runner = VagrantRunner(
+                config=self['config'],
+                top_level=self.top_level,
+                distribution=self['distribution'],
+                package_source=package_source,
+            )
 
 
 def signal_handler(signal, frame):
