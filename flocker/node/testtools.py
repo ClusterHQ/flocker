@@ -30,6 +30,7 @@ def docker_accessible():
         if e.errno == errno.EACCES:
             return False
         if e.errno == errno.ENOENT:
+            # Docker is not installed
             return False
         raise
     else:
