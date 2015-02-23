@@ -16,6 +16,7 @@ control service, and sends inputs to the ConvergenceLoop state machine.
 from zope.interface import implementer
 
 from eliot import Logger, ActionType, Field
+from eliot.twisted import DeferredContext
 
 from characteristic import attributes
 
@@ -277,7 +278,7 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        d = self.deployer.discover_local_state()
+        d = DeferredContext(self.deployer.discover_local_state())
 
         def got_local_state(local_state):
             with LOG_SEND_TO_CONTROL_SERVICE(
@@ -294,6 +295,7 @@ class ConvergenceLoop(object):
         d.addCallback(got_local_state)
         d.addCallback(lambda _: self.fsm.receive(
             ConvergenceLoopInputs.ITERATION_DONE))
+        return d.result
         # This needs error handling:
         # https://clusterhq.atlassian.net/browse/FLOC-1357
 
