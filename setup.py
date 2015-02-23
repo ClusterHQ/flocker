@@ -76,8 +76,8 @@ dev_requirements = [
 ]
 
 # The test suite uses network namespaces
-# nomenclature cannot be installed on OS X
-if platform.system() != 'Darwin':
+# nomenclature can only be installed on Linux
+if platform.system() == 'Linux':
     dev_requirements.append("nomenclature >= 0.1.0")
 
 setup(
