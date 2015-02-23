@@ -7,7 +7,9 @@ Record types for representing deployment models.
 
 from characteristic import attributes, Attribute
 
-from pyrsistent import pmap, PRecord, field, PMap
+from pyrsistent import (
+    pmap, PRecord, field, PMap, PSet, pset, PVector, pvector, v,
+    )
 
 from zope.interface import Interface, implementer
 
@@ -173,6 +175,12 @@ class Manifestation(object):
 
     :ivar bool primary: If true, this is a primary, otherwise it is a replica.
     """
+    @property
+    def dataset_id(self):
+        """
+        :return unicode: The dataset ID of the dataset.
+        """
+        return self.dataset.dataset_id
 
 
 @attributes(["dataset_id",
@@ -225,19 +233,21 @@ class Node(PRecord):
     def __invariant__(self):
         manifestations = self.manifestations.values()
         for app in self.applications:
+            if not isinstance(app, Application):
+                return (False, '%r must be Appplication' % (app,))
             if app.volume is not None:
-                if app.volume.manifestation not in manifestations:
-                    return (False, '%r manifestation is not on node' % (app,))
+                 if app.volume.manifestation not in manifestations:
+                     return (False, '%r manifestation is not on node' % (app,))
+        for key, value in self.manifestations.items():
+            if key != value.dataset_id:
+                return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
-    hostname = field(type=unicode)
-    # XXX with invariant ensuring correct type
-    applications = field(type=frozenset)
-    # XXX with invariant ensuring keys are same as corresponding values'
-    # dataset_id attribute, and correct types, probably.
-    # XXX possible to make factory that accepts both mappings and sequences
-    # given that key is implicit in value? not sure if worth doing.
-    manifestations = field(type=PMap, factory=pmap)
+    hostname = field(type=unicode, mandatory=True)
+    applications = field(type=PSet, initial=pset(), factory=pset,
+                         mandatory=True)
+    manifestations = field(type=PMap, initial=pmap(), factory=pmap,
+                           mandatory=True)
 
 
 @attributes(["nodes"])
@@ -343,24 +353,30 @@ class DatasetChanges(object):
     """
 
 
-@attributes(["hostname", "running", "not_running",
-             Attribute("used_ports", default_value=frozenset()),
-             Attribute("other_manifestations", default_value=frozenset())])
-class NodeState(object):
+class NodeState(PRecord):
     """
     The current state of a node.
 
     :ivar unicode hostname: The hostname of the node.
-    :ivar running: A ``list`` of ``Application`` instances on this node
+    :ivar running: A ``PVector`` of ``Application`` instances on this node
         that are currently running or starting up.
-    :ivar not_running: A ``list`` of ``Application`` instances on this
+    :ivar not_running: A ``PVector`` of ``Application`` instances on this
         node that are currently shutting down or stopped.
-    :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
+    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
-    :ivar frozenset other_manifestations: ``Manifestation`` instances that
-        are present on the node but are not attached as volumes to any
-        applications.
+    :ivar PSet manifestations: All ``Manifestation`` instances that
+        are present on the node.
     """
+    hostname = field(type=unicode, mandatory=True)
+    used_ports = field(type=PSet, initial=pset(), factory=pset,
+                       mandatory=True)
+    running = field(type=PSet, initial=pset(), factory=pset,
+                    mandatory=True)
+    not_running = field(type=PSet, initial=pset(), factory=pset,
+                        mandatory=True)
+    manifestations = field(type=PSet, initial=pset(), factory=pset,
+                           mandatory=True)
+
     def to_node(self):
         """
         Convert into a ``Node`` instance.
@@ -368,5 +384,6 @@ class NodeState(object):
         :return Node: Equivalent ``Node`` object.
         """
         return Node(hostname=self.hostname,
-                    other_manifestations=self.other_manifestations,
-                    applications=frozenset(self.running + self.not_running))
+                    manifestations={m.dataset.dataset_id: m
+                                    for m in self.manifestations},
+                    applications=self.running | self.not_running)
