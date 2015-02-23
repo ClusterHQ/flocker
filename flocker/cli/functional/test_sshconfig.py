@@ -64,6 +64,11 @@ class ConfigureSSHTests(TestCase):
 
         exc = self.assertRaises(CalledProcessError,
                                 self.configure_ssh, b"127.0.0.1", port)
+        # There are different error messages on different platforms.
+        # On Linux the error may be:
+        # 'ssh: connect to host 127.0.0.1 port 34716: Connection refused\r\n'
+        # On OS X the error may be:
+        # 'ssh: connect to host 127.0.0.1 port 56711: Operation timed out\r\n'
         self.assertTrue(b"refused" in exc.output or "Operation timed out" in
                         exc.output)
 
