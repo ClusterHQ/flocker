@@ -118,7 +118,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             links=frozenset(),
             )
 
-        node = Node(hostname='node1.example.com',
+        node = Node(hostname=u'node1.example.com',
                     applications=frozenset([application]))
         options = self.options()
         deployment_config = {"nodes": {node.hostname: [application.name]},
