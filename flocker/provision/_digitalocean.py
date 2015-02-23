@@ -27,16 +27,28 @@ def retry_on_error(error_checkers, callable, *args, **kwargs):
     :param kwargs: Keyword arguments to supply when calling it.
     :return: The result of calling  ``callable``.
     """
+    start_time = time.time()
+    time_limit = 60
     while True:
         try:
             result = callable(*args, **kwargs)
         except Exception as e:
             for checker in error_checkers:
                 if checker(e):
-                    time.sleep(1)
+                    # Checker matched go to sleep or time out
                     break
             else:
+                # None of the error_checkers matched.
                 raise
+
+            if time.time() - start_time < time_limit:
+                time.sleep(1)
+            else:
+                raise Exception(
+                    'Timed out waiting for successful API call. '
+                    'Exception: {!r}, '
+                    'Time Limit: {!r}s '.format(e, time_limit)
+                )
         else:
             return result
 
