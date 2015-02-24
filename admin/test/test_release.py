@@ -661,3 +661,56 @@ class PublishDocsTests(TestCase):
             self.publish_docs,
             aws, '0.3.0-444-gf05215b', '0.3.0-444-gf05215b',
             environment=Environments.STAGING)
+
+    def test_updates_error_key_devel(self):
+        """
+        Calling :func:`publish_docs` for a development version updates the
+        website configuration `error_key` to point at
+        ``en/<doc_version>/error_pages/404.html``.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/devel/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {},
+                'clusterhq-dev-docs': {},
+            }
+        )
+        expected_version = '0.3.1dev5'
+        expected_error_key = 'en/{}/error_pages/404.html'.format(
+            expected_version)
+        self.publish_docs(aws, '0.3.0-444-gf01215b', expected_version,
+                          environment=Environments.STAGING)
+        self.assertEqual(
+            {'clusterhq-staging-docs': expected_error_key},
+            aws.error_key
+        )
+
+    def test_updates_error_key_stable(self):
+        """
+        Calling :func:`publish_docs` for a production version updates the
+        website configuration `error_key` to point at
+        ``en/<doc_version>/error_pages/404.html``.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-docs': {
+                    'en/devel/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-docs': {},
+                'clusterhq-dev-docs': {},
+            }
+        )
+        expected_version = '0.3.1dev5'
+        expected_error_key = 'en/{}/error_pages/404.html'.format(expected_version)
+        self.publish_docs(aws, '0.3.1dev5', expected_version,
+                          environment=Environments.PRODUCTION)
+        self.assertEqual(
+            {'clusterhq-docs': expected_error_key},
+            aws.error_key
+        )

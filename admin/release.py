@@ -22,6 +22,7 @@ from flocker.docs import get_doc_version, is_release, is_weekly_release
 from .aws import (
     boto_dispatcher,
     UpdateS3RoutingRule,
+    UpdateS3ErrorPage,
     ListS3Keys,
     DeleteS3Keys,
     CopyS3Keys,
@@ -182,6 +183,8 @@ def publish_docs(flocker_version, doc_version, environment):
     new_version_keys = yield Effect(
         ListS3Keys(bucket=configuration.dev_bucket,
                    prefix=dev_prefix))
+
+
     # Get the list of keys already existing for the given version.
     # This should only be non-empty for documentation releases.
     existing_version_keys = yield Effect(
@@ -201,6 +204,12 @@ def publish_docs(flocker_version, doc_version, environment):
         DeleteS3Keys(bucket=configuration.documentation_bucket,
                      prefix=version_prefix,
                      keys=existing_version_keys - new_version_keys))
+
+
+    # Update the key used for error pages
+    yield Effect(
+        UpdateS3ErrorPage(bucket=configuration.documentation_bucket,
+                          target_prefix=version_prefix))
 
     # Update the redirect for the stable URL (en/latest/ or en/devel/)
     # to point to the new version. Returns the old target.
