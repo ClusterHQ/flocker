@@ -1,5 +1,5 @@
-Flocker Next Release (2015-02-11)
-=================================
+Flocker 0.3.3dev7 (2015-02-24)
+==============================
 
 - New getting started guide. (FLOC-1261)
 - Updated to Twisted 15.0. (FLOC-1302)
