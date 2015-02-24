@@ -8,6 +8,8 @@ Advanced Documentation
    whatsnew
    usage
    configuration
+   architecture
+   api
    volume/index
    clustering
    routing/index

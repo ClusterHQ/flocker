@@ -14,7 +14,7 @@ SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-dev"
-  config.vm.box_version = "> 0.1.2.213"
+  config.vm.box_version = "> 0.3.2.1714"
 
   config.vm.provision :shell, :inline => $bootstrap, :privileged => true
 

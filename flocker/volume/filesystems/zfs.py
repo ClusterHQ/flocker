@@ -19,6 +19,7 @@ from zope.interface import implementer
 
 from eliot import Field, MessageType, Logger
 
+from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
@@ -26,9 +27,12 @@ from twisted.internet.defer import Deferred, succeed
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
 
+from .errors import MaximumSizeTooSmall
 from .interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists)
+
+from .._model import VolumeSize
 
 
 def random_name():
@@ -140,7 +144,7 @@ class Snapshot(object):
     """
     # TODO: The name should probably be a structured object of some sort,
     # not just a wrapper for bytes.
-    # https://github.com/ClusterHQ/flocker/issues/668
+    # https://clusterhq.atlassian.net/browse/FLOC-668
 
 
 def _latest_common_snapshot(some, others):
@@ -174,7 +178,8 @@ class Filesystem(object):
     filesystem.  This will likely grow into a more sophisticiated
     implementation over time.
     """
-    def __init__(self, pool, dataset, mountpoint=None, reactor=None):
+    def __init__(self, pool, dataset, mountpoint=None, size=None,
+                 reactor=None):
         """
         :param pool: The filesystem's pool name, e.g. ``b"hpool"``.
 
@@ -183,10 +188,13 @@ class Filesystem(object):
 
         :param twisted.python.filepath.FilePath mountpoint: Where the
             filesystem is mounted.
+
+        :param VolumeSize size: The capacity information for this filesystem.
         """
         self.pool = pool
         self.dataset = dataset
         self._mountpoint = mountpoint
+        self.size = size
         if reactor is None:
             from twisted.internet import reactor
         self._reactor = reactor
@@ -419,7 +427,7 @@ def volume_to_dataset(volume):
 
     :return: Dataset name as ``bytes``.
     """
-    return b"%s.%s" % (volume.uuid.encode("ascii"),
+    return b"%s.%s" % (volume.node_id.encode("ascii"),
                        volume.name.to_bytes())
 
 
@@ -465,7 +473,7 @@ class StoragePool(Service):
         # when Flocker is first installed, for example.  Then we could get rid
         # of these operations from this method (which eliminates the motivation
         # for StoragePool being an IService implementation).
-        # https://github.com/ClusterHQ/flocker/issues/635
+        # https://clusterhq.atlassian.net/browse/FLOC-635
 
         # Set the root dataset to be read only; IService.startService
         # doesn't support Deferred results, and in any case startup can be
@@ -480,14 +488,45 @@ class StoragePool(Service):
         _sync_command_error_squashed(
             [b"zfs", b"set", b"canmount=off", self._name], self.logger)
 
+    def _check_for_out_of_space(self, reason):
+        """
+        Translate a ZFS command failure into ``MaximumSizeTooSmall`` if that is
+        what the command failure represents.
+        """
+        # This can't actually check anything.
+        # https://clusterhq.atlassian.net/browse/FLOC-992
+        return Failure(MaximumSizeTooSmall())
+
     def create(self, volume):
         filesystem = self.get(volume)
         mount_path = filesystem.get_path().path
         properties = [b"-o", b"mountpoint=" + mount_path]
         if volume.locally_owned():
             properties.extend([b"-o", b"readonly=off"])
+        if volume.size.maximum_size is not None:
+            properties.extend([
+                b"-o", u"refquota={0}".format(
+                    volume.size.maximum_size).encode("ascii")
+            ])
         d = zfs_command(self._reactor,
                         [b"create"] + properties + [filesystem.name])
+        d.addErrback(self._check_for_out_of_space)
+        d.addCallback(lambda _: filesystem)
+        return d
+
+    def set_maximum_size(self, volume):
+        filesystem = self.get(volume)
+        properties = []
+        if volume.size.maximum_size is not None:
+            properties.extend([
+                u"refquota={0}".format(
+                    volume.size.maximum_size).encode("ascii")
+            ])
+        else:
+            properties.extend([u"refquota=none"])
+        d = zfs_command(self._reactor,
+                        [b"set"] + properties + [filesystem.name])
+        d.addErrback(self._check_for_out_of_space)
         d.addCallback(lambda _: filesystem)
         return d
 
@@ -543,7 +582,7 @@ class StoragePool(Service):
             if f.check(CommandFailed):
                 # This isn't the only reason the operation could fail. We
                 # should figure out why and report it appropriately.
-                # https://github.com/ClusterHQ/flocker/issues/199
+                # https://clusterhq.atlassian.net/browse/FLOC-199
                 raise FilesystemAlreadyExists()
             return f
         result.addErrback(creation_failed)
@@ -566,7 +605,8 @@ class StoragePool(Service):
     def get(self, volume):
         dataset = volume_to_dataset(volume)
         mount_path = self._mount_root.child(dataset)
-        return Filesystem(self._name, dataset, mount_path)
+        return Filesystem(
+            self._name, dataset, mount_path, volume.size)
 
     def enumerate(self):
         listing = _list_filesystems(self._reactor, self._name)
@@ -574,13 +614,25 @@ class StoragePool(Service):
         def listed(filesystems):
             result = set()
             for entry in filesystems:
-                dataset, mountpoint = entry
                 filesystem = Filesystem(
-                    self._name, dataset, FilePath(mountpoint))
+                    self._name, entry.dataset, FilePath(entry.mountpoint),
+                    VolumeSize(maximum_size=entry.refquota))
                 result.add(filesystem)
             return result
 
         return listing.addCallback(listed)
+
+
+@attributes(["dataset", "mountpoint", "refquota"], apply_immutable=True)
+class _DatasetInfo(object):
+    """
+    :ivar bytes dataset: The name of the ZFS dataset to which this information
+        relates.
+    :ivar bytes mountpoint: The value of the dataset's ``mountpoint`` property
+        (where it will be auto-mounted by ZFS).
+    :ivar int refquota: The value of the dataset's ``refquota`` property (the
+        maximum number of bytes the dataset is allowed to have a reference to).
+    """
 
 
 def _list_filesystems(reactor, pool):
@@ -592,20 +644,31 @@ def _list_filesystems(reactor, pool):
         of which are ``tuples`` containing the name and mountpoint of each
         filesystem.
     """
-    # ZFS list command with a depth of 1, so that only this dataset and its
-    # direct children are shown.
-    # No headers are printed.
-    # name and mountpoint are the properties displayed.
     listing = zfs_command(
         reactor,
-        [b"list", b"-d", b"1", b"-H", b"-o", b"name,mountpoint", pool])
+        [b"list",
+         # Descend the hierarchy to a depth of one (ie, list the direct
+         # children of the pool)
+         b"-d", b"1",
+         # Omit the output header
+         b"-H",
+         # Output exact, machine-parseable values (eg 65536 instead of 64K)
+         b"-p",
+         # Output each dataset's name, mountpoint and refquota
+         b"-o", b"name,mountpoint,refquota",
+         # Look at this pool
+         pool])
 
     def listed(output, pool):
         for line in output.splitlines():
-            name, mountpoint = line.split(b'\t')
+            name, mountpoint, refquota = line.split(b'\t')
             name = name[len(pool) + 1:]
             if name:
-                yield (name, mountpoint)
+                refquota = int(refquota.decode("ascii"))
+                if refquota == 0:
+                    refquota = None
+                yield _DatasetInfo(
+                    dataset=name, mountpoint=mountpoint, refquota=refquota)
 
     listing.addCallback(listed, pool)
     return listing

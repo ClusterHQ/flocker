@@ -51,6 +51,16 @@ class BuildOptions(usage.Options):
             self['path'] = self.top_level.descendant(['vagrant', self['box']])
 
 
+def vagrant_version(version):
+    """
+    Convert a python version to a version number acceptable to vagrant.
+    """
+    # Vagrant doesn't like -, + or _ in version numbers.
+    return (version.replace('-', '.')
+                   .replace('_', '.')
+                   .replace('+', '.'))
+
+
 def box_metadata(name, version, path):
     """
     Generate metadata for a vagrant box.
@@ -62,12 +72,7 @@ def box_metadata(name, version, path):
     :param bytes version: Version of vagrant box. Used to build filename.
     :param FilePath path: Directory containing ``Vagrantfile``.
     """
-    if version:
-        # Vagrant doesn't like - in version numbers.
-        # It also doesn't like _ but we don't generate that.
-        dotted_version = version.replace('-', '.')
-    else:
-        dotted_version = '0'
+    dotted_version = vagrant_version(version or '0')
 
     metadata = {
         "name": "clusterhq/%s" % (name,),
@@ -101,7 +106,7 @@ def build_box(path, name, version, branch, build_server):
     # a clean build.
     run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
-    # Update the base box to the latest version on vagrant cloud.
+    # Update the base box to the latest version on Atlas.
     run(['vagrant', 'box', 'update'], cwd=path.path)
 
     # Generate the enviroment variables used to pass options down to the

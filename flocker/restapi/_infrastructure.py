@@ -6,7 +6,7 @@ This module implements tools for exposing Python methods as API endpoints.
 from __future__ import absolute_import
 
 __all__ = [
-    "EndpointResponse", "structured", "userDocumentation",
+    "EndpointResponse", "structured", "user_documentation",
     ]
 
 from functools import wraps
@@ -40,8 +40,8 @@ class EndpointResponse(object):
         @param code: The HTTP response code to set in the response.
         @type code: L{int}
 
-        @param result: The (structured) value to put into the C{u"result"}
-            field of the response body.  This must be JSON encodeable.
+        @param result: The (structured) value to put into the response
+            body.  This must be JSON encodeable.
         """
         self.code = code
         self.result = result
@@ -69,11 +69,10 @@ def _logging(original):
         path = repr(request.path).decode("ascii")
         action = REQUEST(logger, request_path=path)
 
-        # Can't construct a good identifier without using private things.
-        # See https://github.com/ClusterHQ/eliot/issues/29
-        uuid = action._identification[u"task_uuid"]
-        level = action._identification[u"task_level"]
-        incidentIdentifier = uuid + u"," + level
+        # Generate a serialized action context that uniquely identifies
+        # position within the logs, though there won't actually be any log
+        # message with that particular task level:
+        incidentIdentifier = action.serialize_task_id()
 
         with action.context():
             d = DeferredContext(original(self, request, **routeArguments))
@@ -89,7 +88,7 @@ def _logging(original):
             request.setResponseCode(code)
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
-            return dumps({u"error": True, u"result": result})
+            return dumps(result)
         d.addErrback(failure)
         d.addActionFinish()
         return d.result
@@ -117,7 +116,7 @@ def _serialize(outputValidator):
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
             request.setResponseCode(code)
-            return dumps({u"error": False, u"result": result})
+            return dumps(result)
 
         def doit(self, request, **routeArguments):
             result = maybeDeferred(original, self, request, **routeArguments)
@@ -197,7 +196,7 @@ def structured(inputSchema, outputSchema, schema_store=None):
     return deco
 
 
-def userDocumentation(doc, examples=None):
+def user_documentation(doc, examples=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
 

@@ -1,6 +1,7 @@
 admin
 app
 apps
+backend
 behaviour
 Btrfs
 bugfix
@@ -11,6 +12,7 @@ cli
 CLI
 Copr
 dataset
+datasets
 Deis
 devel
 DigitalOcean
@@ -35,6 +37,7 @@ installable
 internet
 Kubernetes
 libswarm
+lifecycle
 Mesos
 metadata
 microservices
@@ -42,6 +45,7 @@ multi
 mv
 namespace
 NAT'd
+online
 pem
 petabyte
 petabytes
@@ -54,7 +58,9 @@ Redis
 snapshotting
 stateful
 sysadmin
+terabytes
 timestamp
+versioning
 virtualization
 VMware
 webhook
@@ -62,3 +68,4 @@ workflow
 yml
 yourlaptop
 ZFS
+Zulip

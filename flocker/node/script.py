@@ -9,27 +9,34 @@ tools.
 import sys
 
 from twisted.python.usage import Options, UsageError
-from twisted.internet.defer import Deferred, maybeDeferred
+
 
 from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
 
 from zope.interface import implementer
 
-from ._config import marshal_configuration
+from ..control._config import (
+    FlockerConfiguration, marshal_configuration,
+    )
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
+
 from ..volume.script import flocker_volume_options
 from ..common.script import (
-    flocker_standard_options, FlockerScriptRunner)
-from . import (ConfigurationError, model_from_configuration, Deployer,
-               FlockerConfiguration, current_from_configuration)
+    flocker_standard_options, FlockerScriptRunner, main_for_service)
+from ..control import (
+    ConfigurationError, current_from_configuration, model_from_configuration,
+)
+from . import P2PNodeDeployer, change_node_state
+from ._loop import AgentLoopService
+
 
 __all__ = [
     "flocker_changestate_main",
     "flocker_reportstate_main",
-    "flocker_serve_main",
+    "flocker_zfs_agent_main",
 ]
 
 
@@ -141,18 +148,17 @@ class ChangeStateScript(object):
         self._docker_client = docker_client
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._docker_client)
-        return deployer.change_node_state(
-            desired_state=options['deployment'],
-            current_cluster_state=options['current'],
-            hostname=options['hostname']
-        )
+        deployer = P2PNodeDeployer(
+            options['hostname'], volume_service, self._docker_client)
+        return change_node_state(deployer, options['deployment'],
+                                 options['current'])
 
 
 def flocker_changestate_main():
     return FlockerScriptRunner(
         script=VolumeScript(ChangeStateScript()),
-        options=ChangeStateOptions()
+        options=ChangeStateOptions(),
+        logging=False,
     ).main()
 
 
@@ -192,8 +198,13 @@ class ReportStateScript(object):
         self._network = network
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._docker_client, self._network)
-        d = deployer.discover_node_configuration()
+        # Discovery doesn't actually care about hostname, so don't bother
+        # figuring out correct one. Especially since this code is going
+        # away someday soon: https://clusterhq.atlassian.net/browse/FLOC-1353
+        deployer = P2PNodeDeployer(
+            u"localhost",
+            volume_service, self._docker_client, self._network)
+        d = deployer.discover_local_state()
         d.addCallback(marshal_configuration)
         d.addCallback(safe_dump)
         d.addCallback(self._stdout.write)
@@ -203,73 +214,56 @@ class ReportStateScript(object):
 def flocker_reportstate_main():
     return FlockerScriptRunner(
         script=VolumeScript(ReportStateScript()),
-        options=ReportStateOptions()
+        options=ReportStateOptions(),
+        logging=False,
     ).main()
-
-
-def _chain_stop_result(service, stop):
-    """
-    Stop a service and chain the resulting ``Deferred`` to another
-    ``Deferred``.
-
-    :param IService service: The service to stop.
-    :param Deferred stop: The ``Deferred`` which will be fired when the service
-        has stopped.
-    """
-    maybeDeferred(service.stopService).chainDeferred(stop)
-
-
-def _main_for_service(reactor, service):
-    """
-    Start a service and integrate its shutdown with reactor shutdown.
-
-    This is useful for hooking driving an ``IService`` provider with
-    ``twisted.internet.task.react``.  For example::
-
-        from twisted.internet.task import react
-        from yourapp import YourService
-        react(_main_for_service, [YourService()])
-
-    :param IReactorCore reactor: The reactor the run lifetime of which to tie
-        to the given service.  When the reactor is shutdown, the service will
-        be shutdown.
-
-    :param IService service: The service to tie to the run lifetime of the
-        given reactor.  It will be started immediately and made to stop when
-        the reactor stops.
-
-    :return: A ``Deferred`` which fires after the service has finished
-        stopping.
-    """
-    service.startService()
-    stop = Deferred()
-    reactor.addSystemEventTrigger(
-        "before", "shutdown", _chain_stop_result, service, stop)
-    return stop
 
 
 @flocker_standard_options
 @flocker_volume_options
-class ServeOptions(Options):
+class ZFSAgentOptions(Options):
     """
-    Command line options for ``flocker-serve`` cluster management process.
+    Command line options for ``flocker-zfs-agent`` cluster management process.
     """
-    # Maybe options for things like what port to listen on or perhaps where to
-    # find certificate material to use for TLS.
+    longdesc = """\
+    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
+    """
+
+    synopsis = (
+        "Usage: flocker-zfs-agent [OPTIONS] <local-hostname> "
+        "<control-service-hostname>")
+
+    optParameters = [
+        ["destination-port", "p", 4524,
+         "The port on the control service to connect to.", int],
+    ]
+
+    def parseArgs(self, hostname, host):
+        # Passing in the 'hostname' (really node identity) via command
+        # line is a hack.  See
+        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution.
+        self["hostname"] = unicode(hostname, "ascii")
+        self["destination-host"] = unicode(host, "ascii")
 
 
 @implementer(ICommandLineVolumeScript)
-class ServeScript(object):
+class ZFSAgentScript(object):
     """
     A command to start a long-running process to manage volumes on one node of
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        return _main_for_service(reactor, volume_service)
+        host = options["destination-host"]
+        port = options["destination-port"]
+        deployer = P2PNodeDeployer(options["hostname"], volume_service)
+        loop = AgentLoopService(reactor=reactor, deployer=deployer,
+                                host=host, port=port)
+        volume_service.setServiceParent(loop)
+        return main_for_service(reactor, loop)
 
 
-def flocker_serve_main():
+def flocker_zfs_agent_main():
     return FlockerScriptRunner(
-        script=VolumeScript(ServeScript()),
-        options=ServeOptions()
+        script=VolumeScript(ZFSAgentScript()),
+        options=ZFSAgentOptions()
     ).main()

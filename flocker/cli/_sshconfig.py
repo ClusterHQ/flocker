@@ -24,7 +24,7 @@ def ssh(argv):
     # We capture stderr so that if there is a failure we will raise
     # exception that includes both stdout and stderr. This can then be
     # shown to the user for diagnostic purposes.
-    # See https://github.com/clusterhq/flocker/issues/192 for potentially
+    # See https://clusterhq.atlassian.net/browse/FLOC-192 for potentially
     # better error handling.
     check_output([b"ssh"] + argv, stderr=STDOUT)
 
@@ -71,7 +71,7 @@ class OpenSSHConfiguration(object):
 
         if not local_private_path.exists():
             with open(devnull, "w") as discard:
-                # See https://github.com/clusterhq/flocker/issues/192
+                # See https://clusterhq.atlassian.net/browse/FLOC-192
                 check_call(
                     [b"ssh-keygen", b"-N", b"", b"-f",
                      local_private_path.path],
@@ -131,10 +131,15 @@ class OpenSSHConfiguration(object):
              # We're ok with unknown hosts; we'll be switching away from SSH by
              # the time Flocker is production-ready and security is a concern.
              b"-oStrictHostKeyChecking=no",
-             # On some Ubuntu versions (and perhaps elsewhere) not disabling
-             # this leads for mDNS lookups on every SSH, which can slow down
-             # connections very noticeably
-             b"-oGSSAPIAuthentication=no",
+             # Some systems (notably Ubuntu) enable GSSAPI authentication which
+             # involves a slow DNS operation before failing and moving on to a
+             # working mechanism.  The expectation is that key-based auth will
+             # be in use so just jump straight to that.  An alternate solution,
+             # explicitly disabling GSSAPI, has cross-version platform and
+             # cross-version difficulties (the options aren't always recognized
+             # and result in an immediate failure).  As mentioned above, we'll
+             # switch away from SSH soon.
+             b"-o", b"PreferredAuthentications=publickey",
              # The tests hang if ControlMaster is set, since OpenSSH won't
              # ever close the connection to the test server.
              b"-oControlMaster=no",

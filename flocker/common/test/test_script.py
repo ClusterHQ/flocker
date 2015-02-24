@@ -3,19 +3,26 @@
 """Tests for :module:`flocker.common.script`."""
 
 import sys
-from os import getpid
+
+from eliot.testing import validateLogging, assertHasMessage
 
 from twisted.internet import task
 from twisted.internet.defer import succeed
 from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.python.filepath import FilePath
-from twisted.python.log import msg
+from twisted.python.failure import Failure
+from twisted.python.log import LogPublisher
+from twisted.python import log as twisted_log
+from twisted.internet.defer import Deferred
+from twisted.application.service import Service
 
-from ..script import flocker_standard_options, FlockerScriptRunner
+from ..script import (
+    flocker_standard_options, FlockerScriptRunner, main_for_service,
+    EliotObserver, TWISTED_LOG_MESSAGE,
+    )
 from ...testtools import (
     help_problems, FakeSysModule, StandardOptionsTestsMixin,
-    skip_on_broken_permissions, attempt_effective_uid,
+    MemoryCoreReactor,
     )
 
 
@@ -127,127 +134,33 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
         runner = FlockerScriptRunner(script, options,
-                                     reactor=fakeReactor, sys_module=sys)
-
+                                     reactor=fakeReactor, sys_module=sys,
+                                     logging=False)
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(b"world", script.arguments.value)
 
-
-class LoggingScript(object):
-    """
-    Log a message.
-    """
-    def main(self, *args, **kwargs):
-        msg("it's alive")
-        return succeed(None)
-
-
-class FlockerScriptRunnerLoggingTests(SynchronousTestCase):
-    """
-    Tests for :py:class:`FlockerScriptRunner` logging."""
-
-    def test_adds_log_observer(self):
+    def test_disabled_logging(self):
         """
-        ``FlockerScriptRunner.main`` logs to the given directory using a
-        filename composed of process name and pid.
+        If ``logging`` is set to ``False``, ``FlockerScriptRunner.main``
+        does not log to ``sys.stdout``.
         """
-        options = usage.Options()
-        sys = FakeSysModule(argv=[b"/usr/bin/mythingie"])
-        logs = FilePath(self.mktemp())
-        from twisted.test.test_task import _FakeReactor
-        fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(LoggingScript(), options,
-                                     reactor=fakeReactor,
-                                     sys_module=sys)
-        runner.log_directory = logs
-        try:
-            runner.main()
-        except SystemExit:
-            pass
-        path = logs.child(b"mythingie-%d.log" % (getpid(),))
-        self.assertIn(b"it's alive", path.getContent())
-
-    def test_adds_log_observer_existing_directory(self):
-        """
-        ``FlockerScriptRunner.main`` logs to the given directory even if it
-        already exists.
-        """
-        options = usage.Options()
-        sys = FakeSysModule(argv=[b"/usr/bin/mythingie"])
-        logs = FilePath(self.mktemp())
-        logs.makedirs()
-        from twisted.test.test_task import _FakeReactor
-        fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(LoggingScript(), options,
-                                     reactor=fakeReactor,
-                                     sys_module=sys)
-        runner.log_directory = logs
-        try:
-            runner.main()
-        except SystemExit:
-            pass
-        path = logs.child(b"mythingie-%d.log" % (getpid(),))
-        self.assertIn(b"it's alive", path.getContent())
-
-    def test_logs_arguments(self):
-        """
-        ``FlockerScriptRunner.main`` logs ``self.sys_module.argv``.
-        """
-        options = usage.Options()
-        sys = FakeSysModule(argv=[b"mythingie", b"--version"])
-        logs = FilePath(self.mktemp())
-        from twisted.test.test_task import _FakeReactor
-        fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(LoggingScript(), options,
-                                     reactor=fakeReactor,
-                                     sys_module=sys)
-        runner.log_directory = logs
-        try:
-            runner.main()
-        except SystemExit:
-            pass
-        path = logs.child(b"mythingie-%d.log" % (getpid(),))
-        self.assertIn(b"--version", path.getContent())
-
-    def test_default_log_directory(self):
-        """
-        ``FlockerScriptRunner.main`` logs to ``/var/log/flocker/`` by default.
-        """
-        runner = FlockerScriptRunner(None, None)
-        self.assertEqual(runner.log_directory, FilePath(b"/var/log/flocker"))
-
-    @skip_on_broken_permissions
-    def test_no_logging_if_permission_denied(self):
-        """
-        If there is no permission to write to the given directory this does
-        not prevent the script from running.
-        """
-        options = usage.Options()
-        sys = FakeSysModule(argv=[b"mythingie"])
-        logs = FilePath(self.mktemp())
-        logs.makedirs()
-        logs.chmod(0)
-        self.addCleanup(logs.chmod, 0o777)
-
         class Script(object):
-            ran = False
-
-            def main(self, *args, **kwargs):
-                self.ran = True
+            def main(self, reactor, arguments):
+                twisted_log.msg(b"hello!")
                 return succeed(None)
 
         script = Script()
+        sys = FakeSysModule(argv=[])
+        # XXX: We shouldn't be using this private fake and Twisted probably
+        # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
+        # https://twistedmatrix.com/trac/ticket/7527
         from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(script, options, reactor=fakeReactor,
-                                     sys_module=sys)
-        runner.log_directory = logs
-        try:
-            with attempt_effective_uid('nobody', suppress_errors=True):
-                runner.main()
-        except SystemExit:
-            pass
-        self.assertTrue(script.ran)
+        runner = FlockerScriptRunner(script, usage.Options(),
+                                     reactor=fakeReactor, sys_module=sys,
+                                     logging=False)
+        self.assertRaises(SystemExit, runner.main)
+        self.assertEqual(sys.stdout.getvalue(), b"")
 
 
 @flocker_standard_options
@@ -262,3 +175,130 @@ class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
     Using a decorating an unmodified ``usage.Options`` subclass.
     """
     options = TestOptions
+
+
+class AsyncStopService(Service):
+    """
+    An ``IService`` implementation which can return an unfired ``Deferred``
+    from its ``stopService`` method.
+
+    :ivar Deferred stop_result: The object to return from ``stopService``.
+        ``AsyncStopService`` won't do anything more than return it.  If it is
+        ever going to fire, some external code is responsible for firing it.
+    """
+    def __init__(self, stop_result):
+        self.stop_result = stop_result
+
+    def stopService(self):
+        Service.stopService(self)
+        return self.stop_result
+
+
+class MainForServiceTests(SynchronousTestCase):
+    """
+    Tests for ``main_for_service``.
+    """
+    def setUp(self):
+        self.reactor = MemoryCoreReactor()
+        self.service = Service()
+
+    def _shutdown_reactor(self, reactor):
+        """
+        Simulate reactor shutdown.
+
+        :param IReactorCore reactor: The reactor to shut down.
+        """
+        reactor.fireSystemEvent("shutdown")
+
+    def test_starts_service(self):
+        """
+        ``main_for_service`` accepts an ``IService`` provider and starts it.
+        """
+        main_for_service(self.reactor, self.service)
+        self.assertTrue(
+            self.service.running, "The service should have been started.")
+
+    def test_returns_unfired_deferred(self):
+        """
+        ``main_for_service`` returns a ``Deferred`` which has not fired.
+        """
+        result = main_for_service(self.reactor, self.service)
+        self.assertNoResult(result)
+
+    def test_fire_on_stop(self):
+        """
+        The ``Deferred`` returned by ``main_for_service`` fires with ``None``
+        when the reactor is stopped.
+        """
+        result = main_for_service(self.reactor, self.service)
+        self._shutdown_reactor(self.reactor)
+        self.assertIs(None, self.successResultOf(result))
+
+    def test_stops_service(self):
+        """
+        When the reactor is stopped, ``main_for_service`` stops the service it
+        was called with.
+        """
+        main_for_service(self.reactor, self.service)
+        self._shutdown_reactor(self.reactor)
+        self.assertFalse(
+            self.service.running, "The service should have been stopped.")
+
+    def test_wait_for_service_stop(self):
+        """
+        The ``Deferred`` returned by ``main_for_service`` does not fire before
+        the ``Deferred`` returned by the service's ``stopService`` method
+        fires.
+        """
+        result = main_for_service(self.reactor, AsyncStopService(Deferred()))
+        self._shutdown_reactor(self.reactor)
+        self.assertNoResult(result)
+
+    def test_fire_after_service_stop(self):
+        """
+        The ``Deferred`` returned by ``main_for_service`` fires once the
+        ``Deferred`` returned by the service's ``stopService`` method fires.
+        """
+        async = Deferred()
+        result = main_for_service(self.reactor, AsyncStopService(async))
+        self._shutdown_reactor(self.reactor)
+        async.callback(None)
+        self.assertIs(None, self.successResultOf(result))
+
+
+class EliotObserverTests(SynchronousTestCase):
+    """
+    Tests for ``EliotObserver``.
+    """
+    @validateLogging(None)
+    def test_message(self, logger):
+        """
+        A message logged to the given ``LogPublisher`` is converted to an
+        Eliot log message.
+        """
+        publisher = LogPublisher()
+        observer = EliotObserver(publisher)
+        observer.logger = logger
+        publisher.addObserver(observer)
+        publisher.msg(b"Hello", b"world")
+        assertHasMessage(self, logger, TWISTED_LOG_MESSAGE,
+                         dict(error=False, message=u"Hello world"))
+
+    @validateLogging(None)
+    def test_error(self, logger):
+        """
+        An error logged to the given ``LogPublisher`` is converted to an Eliot
+        log message.
+        """
+        publisher = LogPublisher()
+        observer = EliotObserver(publisher)
+        observer.logger = logger
+        publisher.addObserver(observer)
+        # No public API for this unfortunately, so emulate error logging:
+        publisher.msg(failure=Failure(ZeroDivisionError("onoes")),
+                      why=b"A zero division ono",
+                      isError=True)
+        message = (u'A zero division ono\nTraceback (most recent call '
+                   u'last):\nFailure: exceptions.ZeroDivisionError: onoes\n')
+        assertHasMessage(self, logger, TWISTED_LOG_MESSAGE,
+                         dict(error=True, message=message))

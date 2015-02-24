@@ -4,72 +4,77 @@
 Tests for ``flocker.node._deploy``.
 """
 
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from zope.interface.verify import verifyObject
 from zope.interface import implementer
 
+from pyrsistent import pmap
+
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
-from .. import (
-    Deployer, Application, DockerImage, Deployment, Node, Port, Link,
+from .. import P2PNodeDeployer, change_node_state
+from ...control import (
+    Application, DockerImage, Deployment, Node, Port, Link,
     NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
-    CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
-    _link_environment, _to_volume_name)
-from .._model import AttachedVolume
+    CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
+    ResizeDataset, _link_environment, _to_volume_name, IDeployer)
+from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume, VolumeName
+from ...volume._model import VolumeSize
 from ...volume.testtools import create_volume_service
 from ...volume._ipc import RemoteVolumeManager, standard_node
 
 
-class DeployerAttributesTests(SynchronousTestCase):
+class P2PNodeDeployerAttributesTests(SynchronousTestCase):
     """
-    Tests for attributes and initialiser arguments of `Deployer`.
+    Tests for attributes and initialiser arguments of `P2PNodeDeployer`.
     """
     def test_docker_client_default(self):
         """
-        ``Deployer.docker_client`` is a ``DockerClient`` by default.
+        ``P2PNodeDeployer.docker_client`` is a ``DockerClient`` by default.
         """
         self.assertIsInstance(
-            Deployer(None).docker_client,
+            P2PNodeDeployer(u"example.com", None).docker_client,
             DockerClient
         )
 
     def test_docker_override(self):
         """
-        ``Deployer.docker_client`` can be overridden in the constructor.
+        ``P2PNodeDeployer.docker_client`` can be overridden in the constructor.
         """
         dummy_docker_client = object()
         self.assertIs(
             dummy_docker_client,
-            Deployer(create_volume_service(self),
-                     docker_client=dummy_docker_client).docker_client
+            P2PNodeDeployer(u'example.com', create_volume_service(self),
+                            docker_client=dummy_docker_client).docker_client
         )
 
     def test_network_default(self):
         """
-        ``Deployer._network`` is a ``HostNetwork`` by default.
+        ``P2PNodeDeployer._network`` is a ``HostNetwork`` by default.
         """
-        self.assertIsInstance(Deployer(None).network, HostNetwork)
+        self.assertIsInstance(P2PNodeDeployer(u'example.com', None).network,
+                              HostNetwork)
 
     def test_network_override(self):
         """
-        ``Deployer._network`` can be overridden in the constructor.
+        ``P2PNodeDeployer._network`` can be overridden in the constructor.
         """
         dummy_network = object()
         self.assertIs(
             dummy_network,
-            Deployer(create_volume_service(self),
-                     network=dummy_network).network
+            P2PNodeDeployer(u'example.com', create_volume_service(self),
+                            network=dummy_network).network
         )
 
 
@@ -122,15 +127,15 @@ StopApplicationIStageChangeTests = make_istatechange_tests(
 SetProxiesIStateChangeTests = make_istatechange_tests(
     SetProxies, dict(ports=[1]), dict(ports=[2]))
 WaitForVolumeIStateChangeTests = make_istatechange_tests(
-    WaitForVolume, dict(volume=1), dict(volume=2))
+    WaitForDataset, dict(dataset=1), dict(dataset=2))
 CreateVolumeIStateChangeTests = make_istatechange_tests(
-    CreateVolume, dict(volume=1), dict(volume=2))
+    CreateDataset, dict(dataset=1), dict(dataset=2))
 HandoffVolumeIStateChangeTests = make_istatechange_tests(
-    HandoffVolume, dict(volume=1, hostname=b"123"),
-    dict(volume=2, hostname=b"123"))
+    HandoffDataset, dict(dataset=1, hostname=b"123"),
+    dict(dataset=2, hostname=b"123"))
 PushVolumeIStateChangeTests = make_istatechange_tests(
-    PushVolume, dict(volume=1, hostname=b"123"),
-    dict(volume=2, hostname=b"123"))
+    PushDataset, dict(dataset=1, hostname=b"123"),
+    dict(dataset=2, hostname=b"123"))
 
 
 NOT_CALLED = object()
@@ -325,7 +330,8 @@ class StartApplicationTests(SynchronousTestCase):
         has been added and started.
         """
         fake_docker = FakeDockerClient()
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = P2PNodeDeployer(u'example.com', create_volume_service(self),
+                              docker_client=fake_docker)
         docker_image = DockerImage(repository=u'clusterhq/flocker',
                                    tag=u'release-14.0')
         ports = frozenset([Port(internal_port=80, external_port=8080)])
@@ -356,8 +362,8 @@ class StartApplicationTests(SynchronousTestCase):
         an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
-        api = Deployer(create_volume_service(self),
-                       docker_client=FakeDockerClient())
+        api = P2PNodeDeployer(u'example.com', create_volume_service(self),
+                              docker_client=FakeDockerClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -380,7 +386,7 @@ class StartApplicationTests(SynchronousTestCase):
         """
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = Deployer(volume_service, fake_docker)
+        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
 
         application_name = u'site-example.com'
         variables = frozenset({u'foo': u"bar", u"baz": u"qux"}.iteritems())
@@ -410,7 +416,7 @@ class StartApplicationTests(SynchronousTestCase):
         """
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = Deployer(volume_service, fake_docker)
+        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -436,7 +442,7 @@ class StartApplicationTests(SynchronousTestCase):
         """
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = Deployer(volume_service, fake_docker)
+        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -467,9 +473,10 @@ class StartApplicationTests(SynchronousTestCase):
         ``StartApplication.run()`` passes the appropriate volume arguments to
         ``DockerClient.add`` based on the application's volume.
         """
+        DATASET_ID = u'2141324'
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = Deployer(volume_service, fake_docker)
+        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
 
         mountpoint = FilePath(b"/mymount")
         application_name = u'site-example.com'
@@ -478,13 +485,16 @@ class StartApplicationTests(SynchronousTestCase):
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.3.5'),
             links=frozenset(),
-            volume=AttachedVolume(name=application_name,
-                                  mountpoint=mountpoint))
+            volume=AttachedVolume(
+                manifestation=Manifestation(
+                    dataset=Dataset(dataset_id=DATASET_ID),
+                    primary=True),
+                mountpoint=mountpoint))
 
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
         filesystem = volume_service.get(
-            _to_volume_name(application_name)).get_filesystem()
+            _to_volume_name(DATASET_ID)).get_filesystem()
 
         self.assertEqual(
             frozenset([DockerVolume(node_path=filesystem.get_path(),
@@ -500,7 +510,7 @@ class StartApplicationTests(SynchronousTestCase):
         EXPECTED_MEMORY_LIMIT = 100000000
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = Deployer(volume_service, fake_docker)
+        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -528,7 +538,7 @@ class StartApplicationTests(SynchronousTestCase):
         EXPECTED_CPU_SHARES = 512
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = Deployer(volume_service, fake_docker)
+        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -541,11 +551,37 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
+                         hostname=u"node1.example.com").run(deployer)
 
         self.assertEqual(
             EXPECTED_CPU_SHARES,
             fake_docker._units[application_name].cpu_shares
+        )
+
+    def test_restart_policy(self):
+        """
+        ``StartApplication.run()`` passes an ``Application``'s restart_policy
+        to ``DockerClient.add`` which is used when creating a Unit.
+        """
+        policy = object()
+        volume_service = create_volume_service(self)
+        fake_docker = FakeDockerClient()
+        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            restart_policy=policy,
+        )
+
+        StartApplication(application=application,
+                         hostname=u"node1.example.com").run(deployer)
+
+        self.assertIs(
+            policy,
+            fake_docker._units[application_name].restart_policy,
         )
 
 
@@ -589,7 +625,8 @@ class StopApplicationTests(SynchronousTestCase):
         has been removed.
         """
         fake_docker = FakeDockerClient()
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = P2PNodeDeployer(u'example.com', create_volume_service(self),
+                              docker_client=fake_docker)
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -615,8 +652,8 @@ class StopApplicationTests(SynchronousTestCase):
         ``StopApplication.run()`` does not errback if the application does
         not exist.
         """
-        api = Deployer(create_volume_service(self),
-                       docker_client=FakeDockerClient())
+        api = P2PNodeDeployer(u'example.com', create_volume_service(self),
+                              docker_client=FakeDockerClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -630,37 +667,51 @@ class StopApplicationTests(SynchronousTestCase):
 
 
 # This models an application that has a volume.
+
 APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
+# XXX For now we require volume names match application names,
+# see https://github.com/ClusterHQ/flocker/issues/49
+DATASET_ID = unicode(uuid4())
+DATASET = Dataset(dataset_id=DATASET_ID,
+                  metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
 APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
 APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
     image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
     volume=AttachedVolume(
-        # XXX For now we require volume names match application names,
-        # see https://github.com/ClusterHQ/flocker/issues/49
-        name=APPLICATION_WITH_VOLUME_NAME,
+        manifestation=Manifestation(dataset=DATASET, primary=True),
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    ),
+    links=frozenset(),
+)
+MANIFESTATION = APPLICATION_WITH_VOLUME.volume.manifestation
+
+DATASET_WITH_SIZE = Dataset(dataset_id=DATASET_ID,
+                            metadata=DATASET.metadata,
+                            maximum_size=1024 * 1024 * 100)
+
+APPLICATION_WITH_VOLUME_SIZE = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+    volume=AttachedVolume(
+        manifestation=Manifestation(dataset=DATASET_WITH_SIZE,
+                                    primary=True),
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     ),
     links=frozenset(),
 )
 
-DISCOVERED_APPLICATION_WITH_VOLUME = Application(
-    name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string(b"psql-clusterhq"),
-    volume=AttachedVolume(
-        # XXX For now we require volume names match application names,
-        # see https://github.com/ClusterHQ/flocker/issues/49
-        name=APPLICATION_WITH_VOLUME_NAME,
-        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    ),
-    links=frozenset(),
-)
+MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
+
+# Placeholder in case at some point discovered application is different
+# than requested application:
+DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.discover_node_configuration``.
+    Tests for ``P2PNodeDeployer.discover_local_state``.
     """
     def setUp(self):
         self.volume_service = create_volume_service(self)
@@ -668,23 +719,25 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
     def test_discover_none(self):
         """
-        ``Deployer.discover_node_configuration`` returns an empty
+        ``P2PNodeDeployer.discover_local_state`` returns an empty
         ``NodeState`` if there are no Docker containers on the host.
         """
         fake_docker = FakeDockerClient(units={})
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_node_configuration()
+        d = api.discover_local_state()
 
-        self.assertEqual(NodeState(running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   running=[], not_running=[]),
                          self.successResultOf(d))
 
     def test_discover_one(self):
         """
-        ``Deployer.discover_node_configuration`` returns ``NodeState`` with a
+        ``P2PNodeDeployer.discover_local_state`` returns ``NodeState`` with a
         a list of running ``Application``\ s; one for each active container.
         """
         expected_application_name = u'site-example.com'
@@ -697,19 +750,21 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             name=unit.name,
             image=DockerImage.from_string(unit.container_image)
         )
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_node_configuration()
+        d = api.discover_local_state()
 
-        self.assertEqual(NodeState(running=[application], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   running=[application], not_running=[]),
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
         """
-        ``Deployer.discover_node_configuration`` returns a ``NodeState`` with
+        ``P2PNodeDeployer.discover_local_state`` returns a ``NodeState`` with
         a running ``Application`` for every active container on the host.
         """
         unit1 = Unit(name=u'site-example.com',
@@ -729,12 +784,13 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 image=DockerImage.from_string(unit.container_image)
             ) for unit in units.values()
         ]
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_node_configuration()
+        d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
@@ -754,7 +810,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 ])
             )
         ]
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
@@ -763,7 +820,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             StartApplication(
                 hostname='node1.example.com', application=app
             ).run(api)
-        d = api.discover_node_configuration()
+        d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
@@ -791,12 +848,13 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 ])
             )
         ]
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_node_configuration()
+        d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
@@ -806,12 +864,21 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         Locally owned volumes are added to ``Application`` with same name as
         an ``AttachedVolume``.
         """
+        DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID))
+        ))
+        volume2 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
+        ))
+
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume1'),
+                             node_path=volume1.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
@@ -821,17 +888,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume2'),
+                             node_path=volume2.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
                      activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
-
-        self.successResultOf(self.volume_service.create(
-            _to_volume_name(u"site-example.com")))
-        self.successResultOf(self.volume_service.create(
-            _to_volume_name(u"site-example.net")))
 
         fake_docker = FakeDockerClient(units=units)
         applications = [
@@ -839,16 +901,102 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 name=unit.name,
                 image=DockerImage.from_string(unit.container_image),
                 volume=AttachedVolume(
-                    name=unit.name,
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=respective_id,
+                                        metadata=pmap({u"name": unit.name})),
+                        primary=True,
+                    ),
                     mountpoint=FilePath(b'/var/lib/data')
                     )
-            ) for unit in units.values()]
-        api = Deployer(
+            ) for (unit, respective_id) in [(unit1, DATASET_ID),
+                                            (unit2, DATASET_ID2)]]
+        api = P2PNodeDeployer(
+            u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_node_configuration()
+        d = api.discover_local_state()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
+
+    def test_discover_locally_owned_volume_with_size(self):
+        """
+        Locally owned volumes are added to ``Application`` with same name as
+        an ``AttachedVolume``, which contains a maximum_size corresponding to
+        the existing volume's maximum size.
+        """
+        DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(
+                _to_volume_name(DATASET_ID),
+                size=VolumeSize(maximum_size=1024 * 1024 * 100)
+            )
+        ))
+        volume2 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
+        ))
+
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=volume1.get_filesystem().get_path(),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=volume2.get_filesystem().get_path(),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_docker = FakeDockerClient(units=units)
+
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=DATASET_ID,
+                            metadata=pmap({"name": unit1.name}),
+                            maximum_size=1024 * 1024 * 100),
+                        primary=True,
+                    ),
+                    mountpoint=FilePath(b'/var/lib/data'),
+                    )
+            ),
+            Application(
+                name=unit2.name,
+                image=DockerImage.from_string(unit2.container_image),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=DATASET_ID2,
+                                        metadata=pmap({"name": unit2.name})),
+                        primary=True,
+                    ),
+                    mountpoint=FilePath(b'/var/lib/data'),
+                    )
+            )]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
@@ -856,7 +1004,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_remotely_owned_volumes_ignored(self):
         """
         Remotely owned volumes are not added to the discovered ``Application``
-        instances even if they have the same name.
+        instances.
         """
         unit = Unit(name=u'site-example.com',
                     container_name=u'site-example.com',
@@ -864,8 +1012,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                     activation_state=u'active')
         units = {unit.name: unit}
 
-        volume = Volume(uuid=unicode(uuid4()),
-                        name=_to_volume_name(u"site-example.com"),
+        volume = Volume(node_id=unicode(uuid4()),
+                        name=_to_volume_name(u"xxxx1234"),
                         service=self.volume_service)
         self.successResultOf(volume.service.pool.create(volume))
 
@@ -873,19 +1021,55 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         applications = [Application(name=unit.name,
                                     image=DockerImage.from_string(
                                         unit.container_image))]
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_node_configuration()
+        d = api.discover_local_state()
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
+
+    def test_ignore_unknown_volumes(self):
+        """
+        Docker volumes that cannot be matched to a dataset are ignored.
+        """
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    container_image=u"clusterhq/wordpress:latest",
+                    volumes=frozenset(
+                        [DockerVolume(
+                            node_path=FilePath(b"/some/random/path"),
+                            container_path=FilePath(b'/var/lib/data')
+                        )],
+                    ),
+                    activation_state=u'active')
+        units = {unit.name: unit}
+
+        fake_docker = FakeDockerClient(units=units)
+
+        applications = [
+            Application(
+                name=unit.name,
+                image=DockerImage.from_string(unit.container_image),
+            ),
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
     def test_not_running_units(self):
         """
         Units that are not active are considered to be not running by
-        ``discover_node_configuration()``.
+        ``discover_local_state()``.
         """
         unit1 = Unit(name=u'site-example3.net',
                      container_name=u'site-example3.net',
@@ -905,38 +1089,115 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                         )) for unit in units.values()
         ]
         applications.sort()
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_node_configuration()
+        d = api.discover_local_state()
         result = self.successResultOf(d)
         result.not_running.sort()
 
-        self.assertEqual(NodeState(running=[], not_running=applications),
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   running=[], not_running=applications),
                          result)
 
     def test_discover_used_ports(self):
         """
         Any ports in use, as reported by the deployer's ``INetwork`` provider,
         are reported in the ``used_ports`` attribute of the ``NodeState``
-        returned by ``discover_node_configuration``.
+        returned by ``discover_local_state``.
         """
         used_ports = frozenset([1, 3, 5, 1000])
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             create_volume_service(self),
             docker_client=FakeDockerClient(),
             network=make_memory_network(used_ports=used_ports)
         )
 
-        discovering = api.discover_node_configuration()
+        discovering = api.discover_local_state()
         state = self.successResultOf(discovering)
 
         self.assertEqual(
-            NodeState(running=[], not_running=[], used_ports=used_ports),
+            NodeState(hostname=u'example.com',
+                      running=[], not_running=[], used_ports=used_ports),
             state
         )
+
+    def test_discover_application_restart_policy(self):
+        """
+        An ``Application`` with the appropriate ``IRestartPolicy`` is
+        discovered from the corresponding restart policy of the ``Unit``.
+        """
+        policy = object()
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
+                     restart_policy=policy,
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                restart_policy=policy,
+            )
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
+
+    def test_discover_unattached_datasets(self):
+        """
+        Datasets that are not attached to any applications are added to
+        ``NodeState.other_manifestations``.
+        """
+        DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID))
+        ))
+        self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
+        ))
+
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=volume1.get_filesystem().get_path(),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertEqual(
+            frozenset([Manifestation(
+                dataset=Dataset(dataset_id=DATASET_ID2),
+                primary=True)]),
+            self.successResultOf(d).other_manifestations)
 
 
 # A deployment with no information:
@@ -945,35 +1206,40 @@ EMPTY = Deployment(nodes=frozenset())
 
 class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.calculate_necessary_state_changes``.
+    Tests for ``P2PNodeDeployer.calculate_necessary_state_changes``.
     """
     def test_no_state_changes(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` returns a ``Deferred``
-        which fires with a :class:`IStateChange` instance indicating that no
-        changes are necessary when there are no applications running or
-        desired, and no proxies exist or are desired.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``Deferred`` which fires with a :class:`IStateChange` instance
+        indicating that no changes are necessary when there are no
+        applications running or desired, and no proxies exist or are
+        desired.
         """
         fake_docker = FakeDockerClient(units={})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
         desired = Deployment(nodes=frozenset())
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
         expected = Sequentially(changes=[])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_proxy_needs_creating(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` returns a
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
         ``IStateChange``, specifically a ``SetProxies`` with a list of
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
         """
         fake_docker = FakeDockerClient(units={})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node2.example.com',
+                              create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
         expected_destination_port = 1001
         expected_destination_host = u'node1.example.com'
         port = Port(internal_port=3306,
@@ -993,36 +1259,37 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.calculate_necessary_state_changes(
-            desired_state=desired, current_cluster_state=EMPTY,
-            hostname=u'node2.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired, current_cluster_state=EMPTY)
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
         expected = Sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_proxy_empty(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` returns a
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
         ``SetProxies`` instance containing an empty `proxies`
         list if there are no remote applications that need proxies.
         """
         network = make_memory_network()
         network.create_proxy_to(ip=u'192.0.2.100', port=3306)
 
-        api = Deployer(create_volume_service(self),
-                       docker_client=FakeDockerClient(),
-                       network=network)
+        api = P2PNodeDeployer(u'node2.example.com',
+                              create_volume_service(self),
+                              docker_client=FakeDockerClient(),
+                              network=network)
         desired = Deployment(nodes=frozenset())
-        d = api.calculate_necessary_state_changes(
-            desired_state=desired, current_cluster_state=EMPTY,
-            hostname=u'node2.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired, current_cluster_state=EMPTY)
         expected = Sequentially(changes=[SetProxies(ports=frozenset())])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_application_needs_stopping(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that an
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that an
         application must be stopped when it is running but not desired.
         """
         unit = Unit(name=u'site-example.com',
@@ -1031,27 +1298,30 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                     activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
         desired = Deployment(nodes=frozenset())
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
         to_stop = StopApplication(application=Application(
             name=unit.name, image=DockerImage.from_string(
                 unit.container_image)))
         expected = Sequentially(changes=[InParallel(changes=[to_stop])])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_application_needs_starting(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that an
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that an
         application must be started when it is desired on the given node but
         not running.
         """
         fake_docker = FakeDockerClient(units={})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -1066,23 +1336,25 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
         expected = Sequentially(changes=[InParallel(
             changes=[StartApplication(application=application,
                                       hostname="node.example.com")])])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_only_this_node(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` does not specify that an
-        application must be started if the desired changes apply to a different
-        node.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` does not specify
+        that an application must be started if the desired changes apply
+        to a different node.
         """
         fake_docker = FakeDockerClient(units={})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -1097,17 +1369,18 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
         expected = Sequentially(changes=[])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_no_change_needed(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` does not specify that an
-        application must be started or stopped if the desired configuration
-        is the same as the current configuration.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` does not specify
+        that an application must be started or stopped if the desired
+        configuration is the same as the current configuration.
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name=u'mysql-hybridcluster',
@@ -1115,8 +1388,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                     activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
 
         application = Application(
             name=u'mysql-hybridcluster',
@@ -1133,17 +1407,18 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
         expected = Sequentially(changes=[])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_node_not_described(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that all
-        applications on a node must be stopped if the desired configuration
-        does not include that node.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        all applications on a node must be stopped if the desired
+        configuration does not include that node.
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name='mysql-hybridcluster',
@@ -1151,12 +1426,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                     activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
         desired = Deployment(nodes=frozenset())
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
         to_stop = StopApplication(
             application=Application(
                 name=unit.name,
@@ -1164,14 +1441,15 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             )
         )
         expected = Sequentially(changes=[InParallel(changes=[to_stop])])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_volume_created(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that a new
-        volume must be created if the desired configuration specifies that an
-        application which was previously running nowhere is going to be running
-        on *this* node and that application requires a volume.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        new volume must be created if the desired configuration specifies
+        that an application which was previously running nowhere is going
+        to be running on *this* node and that application requires a
+        volume.
         """
         hostname = u"node1.example.com"
 
@@ -1185,10 +1463,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=hostname, applications=frozenset()),
         }))
 
-        api = Deployer(
-            create_volume_service(self), docker_client=docker,
-            network=make_memory_network()
-        )
+        api = P2PNodeDeployer(hostname, create_volume_service(self),
+                              docker_client=docker,
+                              network=make_memory_network())
 
         node = Node(
             hostname=hostname,
@@ -1200,30 +1477,27 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # should get to with the changes calculated below.
         desired = Deployment(nodes=frozenset({node}))
 
-        calculating = api.calculate_necessary_state_changes(
-            desired_state=desired,
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
             current_cluster_state=current,
-            hostname=hostname,
         )
 
-        changes = self.successResultOf(calculating)
+        volume = APPLICATION_WITH_VOLUME.volume
 
-        volume = AttachedVolume(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT
-        )
         expected = Sequentially(changes=[
-            InParallel(changes=[CreateVolume(volume=volume)]),
+            InParallel(changes=[CreateDataset(dataset=volume.dataset)]),
             InParallel(changes=[StartApplication(
                 application=APPLICATION_WITH_VOLUME,
-                hostname="node1.example.com")])])
+                hostname=hostname)])])
         self.assertEqual(expected, changes)
 
     def test_volume_wait(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that the
-        volume for an application which was previously running on another node
-        must be waited for, in anticipation of that node handing it off to us.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        the volume for an application which was previously running on
+        another node must be waited for, in anticipation of that node
+        handing it off to us.
         """
         # The application is not running here - therefore there is no container
         # for it.
@@ -1242,7 +1516,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # application is running somewhere else.
         current = Deployment(nodes=frozenset([node, another_node]))
 
-        api = Deployer(
+        api = P2PNodeDeployer(
+            node.hostname,
             create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
@@ -1254,19 +1529,17 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                  applications=frozenset()),
         }))
 
-        calculating = api.calculate_necessary_state_changes(
-            desired_state=desired,
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
             current_cluster_state=current,
-            hostname=node.hostname,
         )
 
-        changes = self.successResultOf(calculating)
-        volume = AttachedVolume(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-        )
+        volume = APPLICATION_WITH_VOLUME.volume
+
         expected = Sequentially(changes=[
-            InParallel(changes=[WaitForVolume(volume=volume)]),
+            InParallel(changes=[WaitForDataset(dataset=volume.dataset)]),
+            InParallel(changes=[ResizeDataset(dataset=volume.dataset)]),
             InParallel(changes=[StartApplication(
                 application=APPLICATION_WITH_VOLUME,
                 hostname="node1.example.com")])])
@@ -1274,9 +1547,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_volume_handoff(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that the
-        volume for an application which was previously running on this node but
-        is now running on another node must be handed off.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        the volume for an application which was previously running on this
+        node but is now running on another node must be handed off.
         """
         # The application is running here.
         unit = Unit(
@@ -1300,8 +1573,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # application is running here.
         current = Deployment(nodes=frozenset([node, another_node]))
 
-        api = Deployer(
-            create_volume_service(self), docker_client=docker,
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
@@ -1312,38 +1590,40 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                  applications=frozenset({APPLICATION_WITH_VOLUME})),
         }))
 
-        calculating = api.calculate_necessary_state_changes(
-            desired_state=desired,
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
             current_cluster_state=current,
-            hostname=node.hostname,
         )
 
-        changes = self.successResultOf(calculating)
-
-        volume = AttachedVolume(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-        )
+        volume = APPLICATION_WITH_VOLUME.volume
 
         expected = Sequentially(changes=[
-            InParallel(changes=[PushVolume(
-                volume=volume, hostname=another_node.hostname)]),
+            InParallel(changes=[PushDataset(
+                dataset=volume.dataset, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME,
                                         image=DockerImage.from_string(
                                             unit.container_image
                                         )),)]),
-            InParallel(changes=[HandoffVolume(
-                volume=volume, hostname=another_node.hostname)]),
+            InParallel(changes=[HandoffDataset(
+                dataset=volume.dataset, hostname=another_node.hostname)]),
         ])
         self.assertEqual(expected, changes)
 
     def test_no_volume_changes(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies no work for
-        the volume if an application which was previously running on this
-        node continues to run on this node.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies no
+        work for the volume if an application which was previously running
+        on this node continues to run on this node.
         """
+        volume_service = create_volume_service(self)
+        node_path = self.successResultOf(volume_service.create(
+            volume_service.get(
+                _to_volume_name(DATASET.dataset_id))
+            )
+        ).get_filesystem().get_path()
+
         # The application is running here.
         unit = Unit(
             name=APPLICATION_WITH_VOLUME_NAME,
@@ -1351,7 +1631,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             container_image=APPLICATION_WITH_VOLUME_IMAGE,
             volumes=frozenset([DockerVolume(
                 container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                node_path=b'/tmp')]),
+                node_path=node_path)]),
             activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
@@ -1374,25 +1654,231 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current = Deployment(nodes=frozenset([current_node, another_node]))
         desired = Deployment(nodes=frozenset([desired_node, another_node]))
 
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            _to_volume_name(APPLICATION_WITH_VOLUME_NAME))
-        )
-
-        api = Deployer(
+        api = P2PNodeDeployer(
+            current_node.hostname,
             volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
-        calculating = api.calculate_necessary_state_changes(
-            desired_state=desired,
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
             current_cluster_state=current,
-            hostname=current_node.hostname,
         )
 
-        changes = self.successResultOf(calculating)
-
         expected = Sequentially(changes=[])
+        self.assertEqual(expected, changes)
+
+    def test_volume_resize(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        volume will be resized if an application which was previously
+        running on this node continues to run on this node but specifies a
+        dataset maximum_size that differs to the existing dataset
+        size. The Application will also be restarted.
+        """
+        volume_service = create_volume_service(self)
+        node_path = self.successResultOf(volume_service.create(
+            volume_service.get(
+                _to_volume_name(DATASET.dataset_id))
+            )
+        ).get_filesystem().get_path()
+
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            container_image=APPLICATION_WITH_VOLUME_IMAGE,
+            volumes=frozenset([DockerVolume(
+                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                node_path=node_path)]),
+            activation_state=u'active'
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+
+        current_node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+        desired_node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset([current_node, another_node]))
+        desired = Deployment(nodes=frozenset([desired_node, another_node]))
+
+        api = P2PNodeDeployer(
+            current_node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(
+                changes=[ResizeDataset(
+                    dataset=APPLICATION_WITH_VOLUME_SIZE.volume.dataset,
+                    )]
+            ),
+            InParallel(
+                changes=[Sequentially(
+                    changes=[
+                        StopApplication(application=APPLICATION_WITH_VOLUME),
+                        StartApplication(
+                            application=APPLICATION_WITH_VOLUME_SIZE,
+                            hostname=u'node1.example.com')
+                    ])]
+            )])
+        self.assertEqual(expected, changes)
+
+    def test_volume_resized_before_move(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        volume will be resized if an application which was previously
+        running on this node is to be relocated to a different node but
+        specifies a volume maximum_size that differs to the existing
+        volume size. The volume will be resized before moving.
+        """
+        volume_service = create_volume_service(self)
+        node_path = self.successResultOf(volume_service.create(
+            volume_service.get(
+                _to_volume_name(DATASET.dataset_id))
+            )
+        ).get_filesystem().get_path()
+
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            container_image=APPLICATION_WITH_VOLUME_IMAGE,
+            volumes=frozenset([DockerVolume(
+                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                node_path=node_path)]),
+            activation_state=u'active'
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+
+        current_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+                applications=frozenset({APPLICATION_WITH_VOLUME}),
+            ),
+            Node(
+                hostname=u"node2.example.com",
+                applications=frozenset(),
+            )
+        ]
+        desired_nodes = [
+            Node(
+                hostname=u"node2.example.com",
+                applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+            ),
+            Node(
+                hostname=u"node1.example.com",
+                applications=frozenset(),
+            )
+        ]
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset(current_nodes))
+        desired = Deployment(nodes=frozenset(desired_nodes))
+
+        api = P2PNodeDeployer(
+            u"node1.example.com",
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        volume = APPLICATION_WITH_VOLUME_SIZE.volume
+
+        # expected is: resize volume, push, stop application, handoff
+        expected = Sequentially(changes=[
+            InParallel(
+                changes=[ResizeDataset(dataset=volume.dataset)],
+            ),
+            InParallel(
+                changes=[PushDataset(
+                    dataset=volume.dataset,
+                    hostname=u'node2.example.com')]
+            ),
+            InParallel(
+                changes=[
+                    StopApplication(application=APPLICATION_WITH_VOLUME)
+                ]
+            ),
+            InParallel(
+                changes=[HandoffDataset(
+                    dataset=volume.dataset,
+                    hostname=u'node2.example.com')]
+            )])
+        self.assertEqual(expected, changes)
+
+    def test_volume_max_size_preserved_after_move(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        volume will be resized if an application which was previously
+        running on this node is to be relocated to a different node but
+        specifies a volume maximum_size that differs to the existing
+        volume size. The volume on the new target node will be resized
+        after it has been received.
+        """
+        docker = FakeDockerClient(units={})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE})),
+            Node(hostname=another_node.hostname,
+                 applications=frozenset()),
+        }))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        volume = APPLICATION_WITH_VOLUME_SIZE.volume
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[WaitForDataset(dataset=volume.dataset)]),
+            InParallel(changes=[ResizeDataset(dataset=volume.dataset)]),
+            InParallel(changes=[StartApplication(
+                application=APPLICATION_WITH_VOLUME_SIZE,
+                hostname="node1.example.com")])])
         self.assertEqual(expected, changes)
 
     def test_local_not_running_applications_restarted(self):
@@ -1406,8 +1892,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                     activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'n.example.com',
+                              create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -1420,16 +1908,17 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             )
         ])
         desired = Deployment(nodes=nodes)
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  current_cluster_state=EMPTY,
-                                                  hostname=u'n.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
 
         expected = Sequentially(changes=[InParallel(changes=[
             Sequentially(changes=[StopApplication(application=application),
                                   StartApplication(application=application,
                                                    hostname="n.example.com")]),
         ])])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_not_local_not_running_applications_stopped(self):
         """
@@ -1442,20 +1931,23 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                     activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self), docker_client=fake_docker,
+            network=make_memory_network())
 
         desired = Deployment(nodes=frozenset())
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
         to_stop = Application(
             name=unit.name,
             image=DockerImage.from_string(unit.container_image)
         )
         expected = Sequentially(changes=[InParallel(changes=[
             StopApplication(application=to_stop)])])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_handoff_precedes_wait(self):
         """
@@ -1470,28 +1962,26 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             container_image=APPLICATION_WITH_VOLUME_IMAGE,
         )
         docker = FakeDockerClient(units={unit.name: unit})
+        volume = APPLICATION_WITH_VOLUME.volume
+        volume2 = AttachedVolume(
+            manifestation=Manifestation(
+                dataset=Dataset(
+                    dataset_id=unicode(uuid4()),
+                    metadata=pmap({"name": "another"})),
+                primary=True),
+            mountpoint=FilePath(b"/blah"))
 
         another_application = Application(
             name=u"another",
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.1'),
-            volume=AttachedVolume(
-                # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
-                name=u"another",
-                mountpoint=FilePath(b"/blah"),
-            ),
+            volume=volume2,
             links=frozenset(),
         )
         discovered_another_application = Application(
             name=u"another",
             image=DockerImage.from_string(u'clusterhq/postgresql:9.1'),
-            volume=AttachedVolume(
-                # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
-                name=u"another",
-                mountpoint=FilePath(b"/blah"),
-            )
+            volume=volume2,
         )
 
         node = Node(
@@ -1508,8 +1998,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # at the other node.
         current = Deployment(nodes=frozenset([node, another_node]))
 
-        api = Deployer(
-            create_volume_service(self), docker_client=docker,
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
@@ -1521,32 +2016,23 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                  applications=frozenset({APPLICATION_WITH_VOLUME})),
         }))
 
-        calculating = api.calculate_necessary_state_changes(
-            desired_state=desired,
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
             current_cluster_state=current,
-            hostname=node.hostname,
         )
 
-        changes = self.successResultOf(calculating)
-
-        volume = AttachedVolume(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-        )
-        volume2 = AttachedVolume(
-            name=u"another",
-            mountpoint=FilePath(b"/blah"),
-        )
         expected = Sequentially(changes=[
-            InParallel(changes=[PushVolume(
-                volume=volume, hostname=another_node.hostname)]),
+            InParallel(changes=[PushDataset(
+                dataset=volume.dataset, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME,
                                         image=DockerImage.from_string(
                                             u'clusterhq/postgresql:9.1'),),)]),
-            InParallel(changes=[HandoffVolume(
-                volume=volume, hostname=another_node.hostname)]),
-            InParallel(changes=[WaitForVolume(volume=volume2)]),
+            InParallel(changes=[HandoffDataset(
+                dataset=volume.dataset, hostname=another_node.hostname)]),
+            InParallel(changes=[WaitForDataset(dataset=volume2.dataset)]),
+            InParallel(changes=[ResizeDataset(dataset=volume2.dataset)]),
             InParallel(changes=[
                 StartApplication(application=another_application,
                                  hostname="node1.example.com")]),
@@ -1567,7 +2053,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'node1.example.com',
             create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
@@ -1582,7 +2069,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             name=u'postgres-example',
             image=DockerImage.from_string(u'docker/postgres:latest'),
             volume=AttachedVolume(
-                name='postgres-example', mountpoint=b'/var/lib/data')
+                manifestation=Manifestation(
+                    dataset=Dataset(dataset_id=u"342342"),
+                    primary=True),
+                mountpoint=FilePath(b'/var/lib/data')),
         )
 
         node = Node(
@@ -1594,18 +2084,15 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset({new_postgres_app})),
         }))
-        d = api.calculate_necessary_state_changes(
-            desired_state=desired,
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
             current_cluster_state=EMPTY,
-            hostname=u'node1.example.com'
         )
 
         expected = Sequentially(changes=[
             InParallel(changes=[
-                CreateVolume(volume=AttachedVolume(
-                    name='postgres-example', mountpoint='/var/lib/data')
-                )]
-            ),
+                CreateDataset(dataset=new_postgres_app.volume.dataset)]),
             InParallel(changes=[
                 Sequentially(changes=[
                     StopApplication(application=new_postgres_app),
@@ -1614,7 +2101,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 ])
             ])
         ])
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_app_with_changed_image_restarted(self):
         """
@@ -1630,7 +2117,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'node1.example.com',
             create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
@@ -1656,10 +2144,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset({new_postgres_app})),
         }))
-        d = api.calculate_necessary_state_changes(
-            desired_state=desired,
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
             current_cluster_state=EMPTY,
-            hostname=u'node1.example.com'
         )
 
         expected = Sequentially(changes=[InParallel(changes=[
@@ -1670,7 +2158,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 ]),
         ])])
 
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_app_with_changed_ports_restarted(self):
         """
@@ -1691,7 +2179,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'node1.example.com',
             create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
@@ -1725,10 +2214,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset({new_postgres_app})),
         }))
-        d = api.calculate_necessary_state_changes(
-            desired_state=desired,
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
             current_cluster_state=EMPTY,
-            hostname=u'node1.example.com'
         )
 
         expected = Sequentially(changes=[InParallel(changes=[
@@ -1739,7 +2228,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 ]),
         ])])
 
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
 
     def test_app_with_changed_links_restarted(self):
         """
@@ -1750,7 +2239,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         docker = FakeDockerClient()
 
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'node1.example.com',
             create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
@@ -1792,10 +2282,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=u'node1.example.com',
                  applications=frozenset({new_wordpress_app, postgres_app})),
         }))
-        d = api.calculate_necessary_state_changes(
-            desired_state=desired,
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
             current_cluster_state=EMPTY,
-            hostname=u'node1.example.com'
         )
 
         expected = Sequentially(changes=[InParallel(changes=[
@@ -1806,7 +2296,495 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 ]),
         ])])
 
-        self.assertEqual(expected, self.successResultOf(d))
+        self.assertEqual(expected, result)
+
+    def test_dataset_id_populated(self):
+        """
+        If one of ``Dataset`` objects in the desired configuration is missing
+        its dataset ID, and a ``Dataset`` with matching name exists in
+        current configuration, the desired ``Dataset`` has its ID set to
+        the matching ID.
+
+        This is part of supporting configuration files that don't specify
+        dataset IDs.
+        """
+        volume_service = create_volume_service(self)
+        volume = volume_service.get(_to_volume_name(DATASET_ID),
+                                    size=VolumeSize(
+                                        maximum_size=1024 * 1024 * 100))
+        self.successResultOf(volume_service.create(volume))
+
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            activation_state=u'inactive',
+            container_image=APPLICATION_WITH_VOLUME_IMAGE,
+            volumes=frozenset([DockerVolume(
+                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                node_path=volume.get_filesystem().get_path())]),
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+
+        dataset = Dataset(
+            dataset_id=None,
+            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
+        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
+        desired_application = Application(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+            volume=AttachedVolume(
+                manifestation=Manifestation(dataset=dataset, primary=True),
+                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+            ),
+        )
+        desired = Deployment(nodes=frozenset([
+            Node(
+                hostname=u'node',
+                applications=frozenset([desired_application])
+            )
+        ]))
+        actual = Deployment(nodes=frozenset([
+            Node(
+                hostname=u'node',
+                applications=frozenset([APPLICATION_WITH_VOLUME_SIZE])
+            )
+        ]))
+
+        api = P2PNodeDeployer(u"node", volume_service,
+                              docker_client=docker,
+                              network=make_memory_network())
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()), desired, actual)
+
+        # Desired configuration mentions dataset by name, but not the ID. It
+        # indicates the dataset should not have a maximum size.
+        # The actual state knows that the specific dataset with that same name
+        # has a maximum size.
+        # If we get a resize that means the code figured out that the
+        # dataset only mentioned by name in desired config is the same as
+        # the one with a specific dataset ID in the actual cluster state.
+        self.assertEqual(result.changes[0].changes[0],
+                         ResizeDataset(
+                             dataset=APPLICATION_WITH_VOLUME.volume.dataset))
+
+    def test_dataset_id_generated(self):
+        """
+        If one of ``Dataset`` objects in the desired configuration is missing
+        its dataset ID, and no ``Dataset`` with matching name exists in
+        current configuration, a new dataset ID will be generated.
+
+        This is part of supporting configuration files that don't specify
+        dataset IDs.
+        """
+        dataset = Dataset(
+            dataset_id=None,
+            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
+        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
+        desired_application = Application(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+            volume=AttachedVolume(
+                manifestation=Manifestation(dataset=dataset, primary=True),
+                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+            ),
+        )
+        desired = Deployment(nodes=frozenset([
+            Node(
+                hostname=u'node',
+                applications=frozenset([desired_application])
+            )
+        ]))
+        actual = Deployment(nodes=frozenset())
+        api = P2PNodeDeployer(u"node", create_volume_service(self),
+                              docker_client=FakeDockerClient(),
+                              network=make_memory_network())
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()), desired, actual)
+
+        # CreateVolume:
+        dataset = result.changes[0].changes[0].dataset
+        # StartApplication:
+        dataset2 = result.changes[1].changes[0].application.volume.dataset
+        # New UUID was generated, but only once:
+        self.assertEqual(UUID(dataset.dataset_id), UUID(dataset2.dataset_id))
+
+
+class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
+        SynchronousTestCase):
+    """
+    Tests for ``P2PNodeDeployer.calculate_necessary_state_changes`` when only
+    datasets are involved which are not attached to applications.
+    """
+    def test_dataset_created(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        new dataset must be created if the desired configuration specifies
+        that a dataset that previously existed nowhere is going to be on
+        this node.
+        """
+        hostname = u"node1.example.com"
+
+        current = Deployment(nodes=frozenset({
+            Node(hostname=hostname),
+        }))
+
+        api = P2PNodeDeployer(
+            hostname,
+            create_volume_service(self),
+            docker_client=FakeDockerClient(units={}),
+            network=make_memory_network()
+        )
+
+        node = Node(
+            hostname=hostname,
+            other_manifestations=frozenset({MANIFESTATION}),
+        )
+        desired = Deployment(nodes=frozenset({node}))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[CreateDataset(
+                dataset=MANIFESTATION.dataset)])])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_wait(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        the dataset previously stored on another node must be waited for,
+        in anticipation of that node handing it off to us.
+        """
+        docker = FakeDockerClient(units={})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            other_manifestations=frozenset({MANIFESTATION}),
+        )
+
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 other_manifestations=frozenset({MANIFESTATION})),
+            Node(hostname=another_node.hostname),
+        }))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[
+                WaitForDataset(dataset=MANIFESTATION.dataset)]),
+            InParallel(changes=[
+                ResizeDataset(dataset=MANIFESTATION.dataset)])])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_handoff(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        the dataset which was previously hosted on this node but is now
+        supposed to be on another node must be handed off.
+        """
+        docker = FakeDockerClient(units={})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            other_manifestations=frozenset({MANIFESTATION}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+        )
+
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname),
+            Node(hostname=another_node.hostname,
+                 other_manifestations=frozenset({MANIFESTATION}))}))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        dataset = MANIFESTATION.dataset
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[PushDataset(
+                dataset=dataset, hostname=another_node.hostname)]),
+            InParallel(changes=[HandoffDataset(
+                dataset=dataset, hostname=another_node.hostname)]),
+        ])
+        self.assertEqual(expected, changes)
+
+    def test_no_dataset_changes(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies no
+        work for the dataset if it was and continues to be on the node.
+        """
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        docker = FakeDockerClient(units={})
+
+        current_node = Node(
+            hostname=u"node1.example.com",
+            other_manifestations=frozenset({MANIFESTATION}),
+        )
+        desired_node = current_node
+
+        current = Deployment(nodes=frozenset([current_node]))
+        desired = Deployment(nodes=frozenset([desired_node]))
+
+        api = P2PNodeDeployer(
+            current_node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_resize(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        dataset will be resized if a dataset which was previously hosted
+        on this node continues to be on this node but specifies a dataset
+        maximum_size that differs to the existing dataset size.
+        """
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        docker = FakeDockerClient(units={})
+
+        current_node = Node(
+            hostname=u"node1.example.com",
+            other_manifestations=frozenset([MANIFESTATION]),
+        )
+        desired_node = Node(
+            hostname=u"node1.example.com",
+            other_manifestations=frozenset([MANIFESTATION_WITH_SIZE]),
+        )
+
+        current = Deployment(nodes=frozenset([current_node]))
+        desired = Deployment(nodes=frozenset([desired_node]))
+
+        api = P2PNodeDeployer(
+            current_node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(
+                changes=[ResizeDataset(
+                    dataset=APPLICATION_WITH_VOLUME_SIZE.volume.dataset,
+                    )]
+            )
+        ])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_resized_before_move(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        dataset will be resized if it is to be relocated to a different
+        node but specifies a maximum_size that differs to the existing
+        size. The dataset will be resized before moving.
+        """
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        docker = FakeDockerClient(units={})
+
+        current_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+                other_manifestations=frozenset([MANIFESTATION]),
+            ),
+            Node(
+                hostname=u"node2.example.com",
+            )
+        ]
+        desired_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+            ),
+            Node(
+                hostname=u"node2.example.com",
+                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+            ),
+        ]
+
+        current = Deployment(nodes=frozenset(current_nodes))
+        desired = Deployment(nodes=frozenset(desired_nodes))
+
+        api = P2PNodeDeployer(
+            u"node1.example.com",
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        dataset = MANIFESTATION_WITH_SIZE.dataset
+
+        # expected is: resize, push, handoff
+        expected = Sequentially(changes=[
+            InParallel(
+                changes=[ResizeDataset(dataset=dataset)],
+            ),
+            InParallel(
+                changes=[PushDataset(
+                    dataset=dataset,
+                    hostname=u'node2.example.com')]
+            ),
+            InParallel(
+                changes=[HandoffDataset(
+                    dataset=dataset,
+                    hostname=u'node2.example.com')]
+            )])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_max_size_preserved_after_move(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        dataset will be resized if it is to be relocated to a different
+        node but specifies a maximum_size that differs to the existing
+        size. The dataset on the new target node will be resized after it
+        has been received.
+        """
+        volume_service = create_volume_service(self)
+        docker = FakeDockerClient(units={})
+
+        current_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+                other_manifestations=frozenset([MANIFESTATION]),
+            ),
+            Node(
+                hostname=u"node2.example.com",
+            )
+        ]
+
+        desired_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+            ),
+            Node(
+                hostname=u"node2.example.com",
+                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+            ),
+        ]
+
+        current = Deployment(nodes=frozenset(current_nodes))
+        desired = Deployment(nodes=frozenset(desired_nodes))
+
+        api = P2PNodeDeployer(
+            u"node2.example.com",
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        dataset = MANIFESTATION_WITH_SIZE.dataset
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[WaitForDataset(dataset=dataset)]),
+            InParallel(changes=[ResizeDataset(dataset=dataset)]),
+        ])
+        self.assertEqual(expected, changes)
+
+    def test_local_state_overrides_cluster_state(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` uses the given
+        local state to override cluster state, since the latter may be
+        stale.
+        """
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        docker = FakeDockerClient(units={})
+
+        current_node = Node(
+            hostname=u"node1.example.com",
+            other_manifestations=frozenset({MANIFESTATION}),
+        )
+        desired_node = current_node
+
+        desired = Deployment(nodes=frozenset([desired_node]))
+        # This is at odds with local state, which knows that the dataset
+        # does actually exist:
+        current = Deployment(nodes=frozenset())
+
+        api = P2PNodeDeployer(
+            current_node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        # If P2PNodeDeployer is buggy and not overriding cluster state
+        # with local state this would result in a dataset creation action:
+        expected = Sequentially(changes=[])
+        self.assertEqual(expected, changes)
 
 
 class SetProxiesTests(SynchronousTestCase):
@@ -1818,7 +2796,8 @@ class SetProxiesTests(SynchronousTestCase):
         Proxies which are required are added.
         """
         fake_network = make_memory_network()
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
@@ -1836,7 +2815,8 @@ class SetProxiesTests(SynchronousTestCase):
         """
         fake_network = make_memory_network()
         fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
@@ -1862,7 +2842,8 @@ class SetProxiesTests(SynchronousTestCase):
         required_proxy2 = fake_network.create_proxy_to(ip=u'192.0.2.101',
                                                        port=8080)
 
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
@@ -1883,7 +2864,8 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
         fake_network.delete_proxy = lambda proxy: 1/0
 
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
@@ -1903,7 +2885,8 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network = make_memory_network()
         fake_network.create_proxy_to = lambda ip, port: 1/0
 
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
@@ -1922,7 +2905,8 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network = make_memory_network()
         fake_network.create_proxy_to = lambda ip, port: 1/0
 
-        api = Deployer(
+        api = P2PNodeDeployer(
+            u'example.com',
             create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
@@ -1938,14 +2922,14 @@ class SetProxiesTests(SynchronousTestCase):
         self.assertEqual(3, len(failures))
 
 
-class DeployerChangeNodeStateTests(SynchronousTestCase):
+class ChangeNodeStateTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.change_node_state``.
+    Tests for ``change_node_state``.
 
     XXX: Some of these tests are exercising code which has now been
     refactored into ``IStateChange`` objects. As such they can be
     refactored to not be based on side-effects. See
-    https://github.com/ClusterHQ/flocker/issues/321
+    https://clusterhq.atlassian.net/browse/FLOC-321
     """
     def test_applications_stopped(self):
         """
@@ -1957,16 +2941,18 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
                     container_image=u'clusterhq/mysql:5.6.17',
                     activation_state=u'active')
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com',
+                              create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
         desired = Deployment(nodes=frozenset())
 
-        d = api.change_node_state(desired_state=desired,
-                                  current_cluster_state=EMPTY,
-                                  hostname=u'node.example.com')
-        d.addCallback(lambda _: api.discover_node_configuration())
+        d = change_node_state(api, desired_configuration=desired,
+                              current_cluster_state=EMPTY)
+        d.addCallback(lambda _: api.discover_local_state())
 
-        self.assertEqual(NodeState(running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'node.example.com',
+                                   running=[], not_running=[]),
                          self.successResultOf(d))
 
     def test_applications_started(self):
@@ -1974,8 +2960,10 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         Applications which are in the desired configuration are started.
         """
         fake_docker = FakeDockerClient(units={})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com',
+                              create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
         expected_application_name = u'mysql-hybridcluster'
         application = Application(
             name=expected_application_name,
@@ -1992,17 +2980,17 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.change_node_state(desired_state=desired,
-                                  current_cluster_state=EMPTY,
-                                  hostname=u'node.example.com')
-        d.addCallback(lambda _: api.discover_node_configuration())
+        d = change_node_state(api, desired_configuration=desired,
+                              current_cluster_state=EMPTY)
+        d.addCallback(lambda _: api.discover_local_state())
 
         expected_application = Application(name=expected_application_name,
                                            image=DockerImage(
                                                repository=u'clusterhq/flocker',
                                                tag=u'release-14.0'),)
         self.assertEqual(
-            NodeState(running=[expected_application], not_running=[]),
+            NodeState(hostname=u'node.example.com',
+                      running=[expected_application], not_running=[]),
             self.successResultOf(d))
 
     def test_result(self):
@@ -2011,14 +2999,14 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         ``run()`` on the result of ``calculate_necessary_state_changes``.
         """
         deferred = Deferred()
-        api = Deployer(create_volume_service(self),
-                       docker_client=FakeDockerClient(),
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com',
+                              create_volume_service(self),
+                              docker_client=FakeDockerClient(),
+                              network=make_memory_network())
         self.patch(api, "calculate_necessary_state_changes",
                    lambda *args, **kwargs: succeed(FakeChange(deferred)))
-        result = api.change_node_state(desired_state=EMPTY,
-                                       current_cluster_state=EMPTY,
-                                       hostname=u'node.example.com')
+        result = change_node_state(api, desired_configuration=EMPTY,
+                                   current_cluster_state=EMPTY)
         deferred.callback(123)
         self.assertEqual(self.successResultOf(result), 123)
 
@@ -2028,14 +3016,14 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         deployer.
         """
         change = FakeChange(succeed(None))
-        api = Deployer(create_volume_service(self),
-                       docker_client=FakeDockerClient(),
-                       network=make_memory_network())
+        api = P2PNodeDeployer(u'node.example.com',
+                              create_volume_service(self),
+                              docker_client=FakeDockerClient(),
+                              network=make_memory_network())
         self.patch(api, "calculate_necessary_state_changes",
                    lambda *args, **kwargs: succeed(change))
-        api.change_node_state(desired_state=EMPTY,
-                              current_cluster_state=EMPTY,
-                              hostname=u'node.example.com')
+        change_node_state(api, desired_configuration=EMPTY,
+                          current_cluster_state=EMPTY)
         self.assertIs(change.deployer, api)
 
     def test_arguments(self):
@@ -2043,20 +3031,24 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         The passed in arguments are passed on in turn to
         ``calculate_necessary_state_changes``.
         """
-        desired = object()
-        state = object()
-        host = object()
-        api = Deployer(create_volume_service(self),
-                       docker_client=FakeDockerClient(),
-                       network=make_memory_network())
+        desired = Deployment(nodes=frozenset())
+        state = Deployment(nodes=frozenset())
+        api = P2PNodeDeployer(u'node.example.com',
+                              create_volume_service(self),
+                              docker_client=FakeDockerClient(),
+                              network=make_memory_network())
+        local = object()
+        api.discover_local_state = lambda: succeed(local)
         arguments = []
 
-        def calculate(desired_state, current_cluster_state, hostname):
-            arguments.extend([desired_state, current_cluster_state, hostname])
+        def calculate(local_state, desired_configuration,
+                      current_cluster_state):
+            arguments.extend([local_state, desired_configuration,
+                              current_cluster_state])
             return succeed(FakeChange(succeed(None)))
         api.calculate_necessary_state_changes = calculate
-        api.change_node_state(desired, state, host)
-        self.assertEqual(arguments, [desired, state, host])
+        change_node_state(api, desired, state)
+        self.assertEqual(arguments, [local, desired, state])
 
 
 class CreateVolumeTests(SynchronousTestCase):
@@ -2068,31 +3060,101 @@ class CreateVolumeTests(SynchronousTestCase):
         ``CreateVolume.run()`` creates the named volume.
         """
         volume_service = create_volume_service(self)
-        deployer = Deployer(volume_service,
-                            docker_client=FakeDockerClient(),
-                            network=make_memory_network())
-        create = CreateVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")))
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+        volume = APPLICATION_WITH_VOLUME.volume
+        create = CreateDataset(dataset=volume.dataset)
         create.run(deployer)
         self.assertIn(
-            volume_service.get(_to_volume_name(u"myvol")),
+            volume_service.get(_to_volume_name(volume.dataset.dataset_id)),
             list(self.successResultOf(volume_service.enumerate())))
+
+    def test_creates_respecting_size(self):
+        """
+        ``CreateVolume.run()`` creates the named volume with a ``VolumeSize``
+        instance respecting the maximum_size passed in from the
+        ``AttachedVolume``.
+        """
+        EXPECTED_SIZE_BYTES = 1024 * 1024 * 100
+        EXPECTED_SIZE = VolumeSize(maximum_size=EXPECTED_SIZE_BYTES)
+
+        volume_service = create_volume_service(self)
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+        volume = APPLICATION_WITH_VOLUME_SIZE.volume
+        create = CreateDataset(dataset=volume.dataset)
+        create.run(deployer)
+        enumerated_volumes = list(
+            self.successResultOf(volume_service.enumerate())
+        )
+        expected_volume = volume_service.get(
+            _to_volume_name(volume.dataset.dataset_id), size=EXPECTED_SIZE
+        )
+        self.assertIn(expected_volume, enumerated_volumes)
+        self.assertEqual(expected_volume.size, EXPECTED_SIZE)
 
     def test_return(self):
         """
         ``CreateVolume.run()`` returns a ``Deferred`` that fires with the
         created volume.
         """
-        deployer = Deployer(create_volume_service(self),
-                            docker_client=FakeDockerClient(),
-                            network=make_memory_network())
-        create = CreateVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")))
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self),
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+        volume = APPLICATION_WITH_VOLUME.volume
+        create = CreateDataset(dataset=volume.dataset)
         result = self.successResultOf(create.run(deployer))
         self.assertEqual(result, deployer.volume_service.get(
-            _to_volume_name(u"myvol")))
+            _to_volume_name(volume.dataset.dataset_id)))
+
+
+class ResizeVolumeTests(TestCase):
+    """
+    Tests for ``ResizeVolume``.
+    """
+    def test_sets_size(self):
+        """
+        ``ResizeVolume.run`` changes the maximum size of the named volume.
+        """
+        size = VolumeSize(maximum_size=1234567890)
+        volume_service = create_volume_service(self)
+        volume_name = VolumeName(namespace=u"default", dataset_id=b"myvol")
+        volume = volume_service.get(volume_name)
+        d = volume_service.create(volume)
+
+        def created(ignored):
+            dataset = Dataset(
+                dataset_id=volume_name.dataset_id,
+                maximum_size=size.maximum_size,
+            )
+            change = ResizeDataset(dataset=dataset)
+            deployer = P2PNodeDeployer(
+                u'example.com',
+                volume_service, docker_client=FakeDockerClient(),
+                network=make_memory_network())
+            return change.run(deployer)
+        d.addCallback(created)
+
+        def resized(ignored):
+            # enumerate re-loads size data from the system
+            # get does not.
+            # so use enumerate.
+            return volume_service.pool.enumerate()
+        d.addCallback(resized)
+
+        def got_filesystems(filesystems):
+            (filesystem,) = filesystems
+            self.assertEqual(size, filesystem.size)
+        d.addCallback(resized)
+        return d
 
 
 class WaitForVolumeTests(SynchronousTestCase):
@@ -2109,15 +3171,17 @@ class WaitForVolumeTests(SynchronousTestCase):
         def wait(name):
             result.append(name)
         self.patch(volume_service, "wait_for_volume", wait)
-        deployer = Deployer(volume_service,
-                            docker_client=FakeDockerClient(),
-                            network=make_memory_network())
-        wait = WaitForVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")))
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+        wait = WaitForDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset)
         wait.run(deployer)
         self.assertEqual(result,
-                         [VolumeName(namespace=u"default", id=u"myvol")])
+                         [VolumeName(namespace=u"default",
+                                     dataset_id=DATASET.dataset_id)])
 
     def test_return(self):
         """
@@ -2127,12 +3191,12 @@ class WaitForVolumeTests(SynchronousTestCase):
         result = Deferred()
         volume_service = create_volume_service(self)
         self.patch(volume_service, "wait_for_volume", lambda name: result)
-        deployer = Deployer(volume_service,
-                            docker_client=FakeDockerClient(),
-                            network=make_memory_network())
-        wait = WaitForVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")))
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+        wait = WaitForDataset(dataset=APPLICATION_WITH_VOLUME.volume.dataset)
         wait_result = wait.run(deployer)
         self.assertIs(wait_result, result)
 
@@ -2154,17 +3218,18 @@ class HandoffVolumeTests(SynchronousTestCase):
         def _handoff(volume, destination):
             result.extend([volume, destination])
         self.patch(volume_service, "handoff", _handoff)
-        deployer = Deployer(volume_service,
-                            docker_client=FakeDockerClient(),
-                            network=make_memory_network())
-        handoff = HandoffVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var/blah")),
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+        handoff = HandoffDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=hostname)
         handoff.run(deployer)
         self.assertEqual(
             result,
-            [volume_service.get(_to_volume_name(u"myvol")),
+            [volume_service.get(_to_volume_name(DATASET.dataset_id)),
              RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
@@ -2176,12 +3241,13 @@ class HandoffVolumeTests(SynchronousTestCase):
         volume_service = create_volume_service(self)
         self.patch(volume_service, "handoff",
                    lambda volume, destination: result)
-        deployer = Deployer(volume_service,
-                            docker_client=FakeDockerClient(),
-                            network=make_memory_network())
-        handoff = HandoffVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")),
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+        handoff = HandoffDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=b"dest.example.com")
         handoff_result = handoff.run(deployer)
         self.assertIs(handoff_result, result)
@@ -2204,17 +3270,18 @@ class PushVolumeTests(SynchronousTestCase):
         def _push(volume, destination):
             result.extend([volume, destination])
         self.patch(volume_service, "push", _push)
-        deployer = Deployer(volume_service,
-                            docker_client=FakeDockerClient(),
-                            network=make_memory_network())
-        push = PushVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var/blah")),
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+        push = PushDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=hostname)
         push.run(deployer)
         self.assertEqual(
             result,
-            [volume_service.get(_to_volume_name(u"myvol")),
+            [volume_service.get(_to_volume_name(DATASET.dataset_id)),
              RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
@@ -2226,12 +3293,59 @@ class PushVolumeTests(SynchronousTestCase):
         volume_service = create_volume_service(self)
         self.patch(volume_service, "push",
                    lambda volume, destination: result)
-        deployer = Deployer(volume_service,
-                            docker_client=FakeDockerClient(),
-                            network=make_memory_network())
-        push = PushVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")),
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+        push = PushDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)
+
+
+def ideployer_tests_factory(fixture):
+    """
+    Create test case for IDeployer implementation.
+
+    :param fixture: Callable that takes ``TestCase`` instance and returns
+         a ``IDeployer`` provider.
+
+    :return: ``TestCase`` subclass that will test the given fixture.
+    """
+    class IDeployerTests(TestCase):
+        """
+        Tests for ``IDeployer``.
+        """
+        def test_interface(self):
+            """
+            The object claims to provide the interface.
+            """
+            self.assertTrue(verifyObject(IDeployer, fixture(self)))
+
+        def test_calculate_necessary_state_changes(self):
+            """
+            The object's ``calculate_necessary_state_changes`` method returns a
+            ``IStateChange`` provider.
+            """
+            deployer = fixture(self)
+            d = deployer.discover_local_state()
+            d.addCallback(
+                lambda local: deployer.calculate_necessary_state_changes(
+                    local, EMPTY, EMPTY))
+            d.addCallback(
+                lambda result: self.assertTrue(verifyObject(IStateChange,
+                                                            result)))
+            return d
+    return IDeployerTests
+
+
+class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
+        lambda test: P2PNodeDeployer(u"localhost",
+                                     create_volume_service(test),
+                                     FakeDockerClient(),
+                                     make_memory_network()))):
+    """
+    ``IDeployer`` tests for ``P2PNodeDeployer``.
+    """

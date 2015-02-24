@@ -65,9 +65,23 @@ class FlockerVersion(object):
     @property
     def release(self):
         """
-        The version string of the last full relase.
+        The version string of the last full marketing release.
         """
         return "%s.%s.%s" % (self.major, self.minor, self.micro)
+
+    @property
+    def installable_release(self):
+        """
+        The version string of the last release of Flocker which can be
+        installed (CLI or node package). These are updated for marketing
+        releases, pre-releases and weekly releases but not documentation
+        releases.
+        """
+        if self.weekly_release is not None:
+            return self.release + 'dev' + self.weekly_release
+        elif self.pre_release is not None:
+            return self.release + 'pre' + self.pre_release
+        return self.release
 
 
 def parse_version(version):
@@ -98,6 +112,15 @@ def get_doc_version(version):
         return version
 
 
+def get_installable_version(version):
+    """
+    Get the version string of the latest version of Flocker which can be
+    installed (CLI and node).
+    """
+    parsed_version = parse_version(version)
+    return parsed_version.installable_release
+
+
 def is_release(version):
     """
     Return whether the version corresponds to a marketing or documentation
@@ -107,4 +130,19 @@ def is_release(version):
     return (parsed_version.commit_count is None
             and parsed_version.pre_release is None
             and parsed_version.weekly_release is None
+            and parsed_version.dirty is None)
+
+
+def is_weekly_release(version):
+    """
+    Return whether the version corresponds to a weekly release.
+
+    :param bytes version: A version of flocker.
+
+    :return bool: Wether the version is a weekly release.
+    """
+    parsed_version = parse_version(version)
+    return (parsed_version.weekly_release is not None
+            and parsed_version.commit_count is None
+            and parsed_version.pre_release is None
             and parsed_version.dirty is None)
