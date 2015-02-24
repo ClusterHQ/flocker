@@ -212,8 +212,8 @@ class ControlAMPTests(SynchronousTestCase):
                 nodes=frozenset([
                     Node(hostname=u'node1.example.com',
                          applications=frozenset([APP1, APP2]),
-                         other_manifestations=frozenset(
-                             [MANIFESTATION]))])))
+                         manifestations={MANIFESTATION.dataset_id:
+                                         MANIFESTATION})])))
 
     def test_nodestate_notifies_all_connected(self):
         """
