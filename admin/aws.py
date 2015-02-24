@@ -73,7 +73,6 @@ def perform_update_s3_error_page(dispatcher, intent):
     """
     See :class:`UpdateS3ErrorPage`.
     """
-    import pdb; pdb.set_trace()
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
     config = bucket.get_website_configuration_obj()
