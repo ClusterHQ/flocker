@@ -7,7 +7,7 @@ Rackspace provisioner.
 from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import (
     provision, run,
-    task_disable_firewall, task_open_control_firewall
+    task_disable_firewall,
 )
 
 
@@ -21,7 +21,6 @@ def provision_rackspace(node, package_source, distribution):
             distribution=node.distribution,
         )
         + task_disable_firewall()
-        + task_open_control_firewall()
     )
     run(
         username='root',

@@ -163,14 +163,40 @@ def task_disable_firewall():
          'FORWARD', '0', '-j', 'ACCEPT'])
 
 
-def task_open_control_firewall():
+def task_enable_flocker_control():
     """
-    Open the firewall for flocker-control.
+    Eanble flocker-control, and open the firewall for it.
     """
     return reduce(list.__add__, [
         configure_firewalld(['--add-service', service])
         for service in ['flocker-control-api', 'flocker-control-agent']
-    ])
+    ]) + [
+        Run.from_args(['systemd', 'enable', 'flocker-control']),
+        Run.from_args(['systemd', 'start', 'flocker-control']),
+    ]
+
+
+ZFS_AGENT_CONFIG = """\
+FLOCKER_NODE_NAME = %(node_name)s
+FLOCKER_CONTROL_NODE = %(control_node)s
+"""
+
+
+def task_enable_flocker_zfs_agent(node_name, control_node):
+    """
+    Configure and eanble flocker-zfs-agent.
+    """
+    return [
+        Put(
+            path='/etc/sysconfig/flocker-zfs-agent',
+            content=ZFS_AGENT_CONFIG % {
+                'node_name': node_name,
+                'control_node': control_node
+            },
+        ),
+        Run.from_args(['systemd', 'enable', 'flocker-zfs-agent']),
+        Run.from_args(['systemd', 'start', 'flocker-zfs-agent']),
+    ]
 
 
 def task_create_flocker_pool_file():

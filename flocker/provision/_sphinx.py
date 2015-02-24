@@ -19,7 +19,7 @@ from docutils import nodes
 from docutils.statemachine import StringList
 
 from . import _tasks as tasks
-from ._install import Run, Sudo, Comment
+from ._install import Run, Sudo, Comment, Put
 
 
 def run(command):
@@ -34,10 +34,19 @@ def comment(command):
     return ["# %s" % (command.comment)]
 
 
+def put(command):
+    return [
+        "cat <<EOF > %s" % (command.path,),
+    ] + command.content.splitlines() + [
+        "EOF",
+    ]
+
+
 HANDLERS = {
     Run: run,
     Sudo: sudo,
     Comment: comment,
+    Put: put,
 }
 
 
@@ -46,6 +55,8 @@ class TaskDirective(Directive):
     Implementation of the C{task} directive.
     """
     required_arguments = 1
+    optional_arguments = 1
+    final_argument_whitespace = True
 
     option_spec = {
         'prompt': str
@@ -54,8 +65,12 @@ class TaskDirective(Directive):
     def run(self):
         task = getattr(tasks, 'task_%s' % (self.arguments[0],))
         prompt = self.options.get('prompt', '$')
+        if len(self.arguments) > 1:
+            task_arguments = self.arguments[1].split()
+        else:
+            task_arguments = []
 
-        commands = task()
+        commands = task(*task_arguments)
         lines = ['.. prompt:: bash %s' % (prompt,), '']
 
         for command in commands:
