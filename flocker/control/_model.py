@@ -13,6 +13,9 @@ from pyrsistent import (
 
 from zope.interface import Interface, implementer
 
+# Not necessary once pyrsistent 0.9 is out:
+PSet.__reduce__ = lambda self: (pset, (list(self),))
+
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
 class DockerImage(object):
