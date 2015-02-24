@@ -27,6 +27,7 @@ from .._docker import FakeDockerClient, Unit
 from ...control._model import (
     Application, Deployment, DockerImage, Node, AttachedVolume, Dataset,
     Manifestation)
+from ...control._config import dataset_id_from_name
 from .._loop import AgentLoopService
 from .._deploy import P2PNodeDeployer
 
@@ -184,7 +185,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                     volume=AttachedVolume(
                         manifestation=Manifestation(
                             dataset=Dataset(
-                                dataset_id=None,
+                                dataset_id=dataset_id_from_name(
+                                    "mysql-something"),
                                 metadata=pmap({'name': 'mysql-something'})),
                             primary=True),
                         mountpoint=FilePath(b'/var/lib/data'),
