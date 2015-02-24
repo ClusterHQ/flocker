@@ -14,7 +14,9 @@ from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 
 from eliot import Logger
-from eliot.testing import LoggedMessage, validateLogging, assertContainsFields
+from eliot.testing import (
+    LoggedMessage, validateLogging, assertHasMessage,
+    )
 
 from ...testtools import (
     FakeProcessReactor, assert_equal_comparison, assert_not_equal_comparison
@@ -167,30 +169,22 @@ def no_such_executable_logged(case, logger):
     """
     Validate the error logging behavior of ``_sync_command_error_squashed``.
     """
-    errors = LoggedMessage.ofType(logger.messages, ZFS_ERROR)
-    assertContainsFields(
-        case, errors[0].message,
-        {'status': 1,
-         'zfs_command': 'nonsense garbage made up no such command',
-         'output': '[Errno 2] No such file or directory',
-         u'message_type': 'filesystem:zfs:error',
-         u'task_level': u'/'})
-    case.assertEqual(1, len(errors))
+    assertHasMessage(case, logger, ZFS_ERROR, {
+        'status': 1,
+        'zfs_command': 'nonsense garbage made up no such command',
+        'output': '[Errno 2] No such file or directory'})
+    case.assertEqual(len(LoggedMessage.ofType(logger.messages, ZFS_ERROR)), 1)
 
 
 def error_status_logged(case, logger):
     """
     Validate the error logging behavior of ``_sync_command_error_squashed``.
     """
-    errors = LoggedMessage.ofType(logger.messages, ZFS_ERROR)
-    assertContainsFields(
-        case, errors[0].message,
-        {'status': 1,
-         'zfs_command': 'python -c raise SystemExit(1)',
-         'output': '',
-         u'message_type': 'filesystem:zfs:error',
-         u'task_level': u'/'})
-    case.assertEqual(1, len(errors))
+    assertHasMessage(case, logger, ZFS_ERROR, {
+        'status': 1,
+        'zfs_command': 'python -c raise SystemExit(1)',
+        'output': ''})
+    case.assertEqual(len(LoggedMessage.ofType(logger.messages, ZFS_ERROR)), 1)
 
 
 class SyncCommandTests(SynchronousTestCase):

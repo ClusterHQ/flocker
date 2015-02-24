@@ -10,6 +10,6 @@ RUN ["yum", "install", "--assumeyes", "@buildsys-build", "git", "ruby-devel", "p
 # See https://github.com/jordansissel/fpm/issues/611
 RUN ["gem", "install", "fpm"]
 
-RUN ["pip", "install", "twisted==14.0.2", "characteristic==14.1.0", "virtualenv==12.0.5"]
+RUN ["pip", "install", "twisted==15.0.0", "characteristic==14.1.0", "virtualenv==12.0.5", "effect==0.1a13" , "boto==2.30.0"]
 VOLUME /flocker
 ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]

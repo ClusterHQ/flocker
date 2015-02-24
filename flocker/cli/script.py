@@ -253,5 +253,6 @@ class DeployScript(object):
 def flocker_deploy_main():
     return FlockerScriptRunner(
         script=DeployScript(),
-        options=DeployOptions()
+        options=DeployOptions(),
+        logging=False,
     ).main()

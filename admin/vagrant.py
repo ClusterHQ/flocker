@@ -55,9 +55,10 @@ def vagrant_version(version):
     """
     Convert a python version to a version number acceptable to vagrant.
     """
-    # Vagrant doesn't like - in version numbers.
-    # It also doesn't like _ but we don't generate that.
-    return version.replace('-', '.')
+    # Vagrant doesn't like -, + or _ in version numbers.
+    return (version.replace('-', '.')
+                   .replace('_', '.')
+                   .replace('+', '.'))
 
 
 def box_metadata(name, version, path):
@@ -105,7 +106,7 @@ def build_box(path, name, version, branch, build_server):
     # a clean build.
     run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
-    # Update the base box to the latest version on vagrant cloud.
+    # Update the base box to the latest version on Atlas.
     run(['vagrant', 'box', 'update'], cwd=path.path)
 
     # Generate the enviroment variables used to pass options down to the

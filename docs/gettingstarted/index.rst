@@ -8,15 +8,16 @@ Getting started with Flocker
 
 .. intro-text::
 
-   Flocker lets you run microservices apps with database containers and move them around between servers. It comes in two pieces and you’ll need both.
+   Flocker lets you run microservices apps with database containers and move them around between servers.
+   It comes in two pieces and you'll need both.
 
 .. contents::
    :local:
 
 .. tutorial-step::
 
-   Step 1: Installing Flocker CLI & Node
-   =====================================
+   Step 1: Installing Flocker Client & Node
+   ========================================
 
    .. parallel::
 
@@ -26,10 +27,10 @@ Getting started with Flocker
 
       .. image:: images/macbook.png
          :class: center-block img-responsive
-         :alt: Flocker CLI diagram
+         :alt: Flocker Client diagram
 
-      Flocker CLI
-      -----------
+      Flocker Client
+      --------------
 
       +--------------------------------------------------------------------------+
       | Runs on your laptop                                                      |
@@ -78,39 +79,39 @@ Getting started with Flocker
          OS X
          ^^^^
 
-         Install the flocker-cli client on your Mac (requires Homebrew):
+         Install the Flocker client on your Mac (requires Homebrew):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ brew update && \
               brew tap clusterhq/flocker && \
-              brew install flocker-0.3.2
+              brew install flocker-|latest-installable|
 
       .. noscript-content::
 
          Ubuntu / Debian
          ^^^^^^^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the Flocker client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
          Fedora 20
          ^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the Flocker client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
 
       .. tabs::
@@ -118,37 +119,37 @@ Getting started with Flocker
          OS X
          ^^^^
 
-         Install the flocker-cli client on your Mac (requires Homebrew):
+         Install the Flocker client on your Mac (requires Homebrew):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ brew update && \
               brew tap clusterhq/flocker && \
-              brew install flocker-0.3.2
+              brew install flocker-|latest-installable|
 
          Ubuntu / Debian
          ^^^^^^^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the Flocker client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
          Fedora 20
          ^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the Flocker client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
       .. empty-div:: arrow-down center-block invisible
 
@@ -213,7 +214,7 @@ Getting started with Flocker
 
    .. tutorial-step-condensed::
 
-      You should have flocker-cli installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.
+      You should have the Flocker client installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.
       Now you can try our simple tutorial: a Python web application and a Redis server.
 
       .. code-block:: console
@@ -295,4 +296,3 @@ Getting started with Flocker
          :alt: Flocker migration diagram
 
       In just a few seconds, you'll see that the Redis container is migrated to the other host, network traffic is re-routed, and your application is still online on both IPs!
-

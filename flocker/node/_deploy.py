@@ -469,6 +469,7 @@ class P2PNodeDeployer(object):
                 for (dataset_id, maximum_size) in
                 available_manifestations.values()))
             return NodeState(
+                hostname=self.hostname,
                 running=running,
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
@@ -557,6 +558,11 @@ class P2PNodeDeployer(object):
 
         :return: A ``IStateChange`` provider.
         """
+        # Current cluster state is likely out of date as regards the
+        # local state, so update it accordingly:
+        current_cluster_state = current_cluster_state.update_node(
+            local_state.to_node())
+
         desired_configuration = self._add_dataset_ids(desired_configuration,
                                                       current_cluster_state)
         phases = []
