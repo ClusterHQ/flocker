@@ -879,12 +879,19 @@ def omnibus_package_builder(
                 source_paths={
                     flocker_node_path: FilePath("/usr/sbin"),
                     # Fedora/CentOS firewall configuration
-                    package_files.child('flocker-control.firewalld.xml'):
+                    package_files.child('flocker-control-api.firewalld.xml'):
                         FilePath("/usr/lib/firewalld/services/")
-                        .child("flocker-control.xml"),
+                        .child("flocker-control-api.xml"),
+                    package_files.child('flocker-control-agent.firewalld.xml'):
+                        FilePath("/usr/lib/firewalld/services/")
+                        .child("flocker-control-agent.xml"),
                     # Ubuntu firewall configuration
-                    package_files.child('flocker-control.ufw'):
-                        FilePath("/etc/ufw/applications.d/flocker-control"),
+                    package_files.child('flocker-control-api.ufw'):
+                        FilePath("/etc/ufw/applications.d/")
+                        .child("flocker-control-api"),
+                    package_files.child('flocker-control-agent.ufw'):
+                        FilePath("/etc/ufw/applications.d/")
+                        .child("flocker-control-agent"),
                 },
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),

@@ -1,4 +1,4 @@
 [Samba]
-title=Flocker Control Service
+title=Flocker Control Service REST API
 description=The Flocker control service manages the state of a flocker cluster.
-ports=4523/tcp,4524/tcp
+ports=4523/tcp

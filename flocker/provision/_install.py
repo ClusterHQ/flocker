@@ -167,8 +167,10 @@ def task_open_control_firewall():
     """
     Open the firewall for flocker-control.
     """
-    return configure_firewalld(
-        ['--add-service', 'flocker-control'])
+    return [
+        configure_firewalld(['--add-service', service])
+        for service in ['flocker-control-api', 'flocker-control-agent']
+    ]
 
 
 def task_create_flocker_pool_file():
