@@ -3354,7 +3354,8 @@ class DatasetIdFromNameTests(SynchronousTestCase):
     """
     def test_uuid(self):
         """
-        ``dataset_id_from_name`` returns a UUID.
+        ``dataset_id_from_name`` returns a unicode representation of a
+        UUID.
         """
         dataset_id = dataset_id_from_name(u"hello\1234")
         self.assertEqual(unicode(UUID(hex=dataset_id)), dataset_id)
