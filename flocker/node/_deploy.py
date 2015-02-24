@@ -396,6 +396,7 @@ class P2PNodeDeployer(object):
             units, available_manifestations = result
             running = []
             not_running = []
+            manifestations = []  # Manifestation objects we're constructing
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.volumes:
@@ -420,6 +421,7 @@ class P2PNodeDeployer(object):
                                     maximum_size=max_size),
                                 primary=True),
                             mountpoint=docker_volume.container_path)
+                        manifestations.append(volume.manifestation)
                 else:
                     volume = None
                 ports = []
@@ -458,12 +460,13 @@ class P2PNodeDeployer(object):
                 else:
                     not_running.append(application)
 
-            manifestations = frozenset((
+            manifestations += list(
                 Manifestation(dataset=Dataset(dataset_id=dataset_id,
                                               maximum_size=maximum_size),
                               primary=True)
                 for (dataset_id, maximum_size) in
-                available_manifestations.values()))
+                available_manifestations.values())
+                    
             return NodeState(
                 hostname=self.hostname,
                 running=running,

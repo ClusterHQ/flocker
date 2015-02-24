@@ -91,7 +91,7 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
 NODE_STATE = NodeState(hostname=u'node1.example.com',
                        running=[APP1], not_running=[APP2],
                        used_ports=[1, 2],
-                       other_manifestations=frozenset([MANIFESTATION]))
+                       manifestations=frozenset([MANIFESTATION]))
 
 
 class SerializationTests(SynchronousTestCase):

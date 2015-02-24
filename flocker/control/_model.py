@@ -387,6 +387,6 @@ class NodeState(PRecord):
         :return Node: Equivalent ``Node`` object.
         """
         return Node(hostname=self.hostname,
-                    manifestations={m.dataset.dataset_id: m
+                    manifestations={m.dataset_id: m
                                     for m in self.manifestations},
                     applications=self.running | self.not_running)

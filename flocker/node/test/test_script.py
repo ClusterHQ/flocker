@@ -175,24 +175,28 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             'version': 1
         }}
 
+        manifestation = Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id_from_name(
+                    "mysql-something"),
+                metadata=pmap({'name': 'mysql-something'})),
+            primary=True)
+        
         expected_current_config = Deployment(nodes=frozenset([
-            Node(hostname='node2.example.com', applications=frozenset([
+            Node(hostname=u'node2.example.com', applications=frozenset([
                 Application(
                     name='mysql-something',
                     image=DockerImage.from_string('unknown'),
                     ports=frozenset(),
                     links=frozenset(),
                     volume=AttachedVolume(
-                        manifestation=Manifestation(
-                            dataset=Dataset(
-                                dataset_id=dataset_id_from_name(
-                                    "mysql-something"),
-                                metadata=pmap({'name': 'mysql-something'})),
-                            primary=True),
+                        manifestation=manifestation,
                         mountpoint=FilePath(b'/var/lib/data'),
                     )
                 ),
-            ]))]))
+            ]),
+                 manifestations={manifestation.dataset_id: manifestation},
+             )]))
 
         options.parseOptions(
             [safe_dump(deployment_config),
@@ -215,7 +219,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                 repository=u'hybridlogic/mysql5.9', tag=u'latest'),
         )
 
-        node = Node(hostname='node1.example.com',
+        node = Node(hostname=u'node1.example.com',
                     applications=frozenset([application]))
         options = self.options()
         deployment_config = {"nodes": {node.hostname: [application.name]},
