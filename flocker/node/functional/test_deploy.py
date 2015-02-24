@@ -5,6 +5,7 @@ Functional tests for ``flocker.node._deploy``.
 """
 
 from subprocess import check_call
+from uuid import uuid4
 
 from pyrsistent import pmap
 
@@ -99,7 +100,7 @@ class DeployerTests(TestCase):
         }.items())
 
         dataset = Dataset(
-            dataset_id=None,
+            dataset_id=unicode(uuid4()),
             metadata=pmap({"name": application_name}))
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
@@ -173,7 +174,7 @@ class DeployerTests(TestCase):
                     remote_port=8080)
 
         dataset = Dataset(
-            dataset_id=None,
+            dataset_id=unicode(uuid4()),
             metadata=pmap({"name": application_name}))
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
