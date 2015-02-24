@@ -470,7 +470,6 @@ class BuildPackage(object):
             '--maintainer', self.maintainer,
             '--architecture', architecture,
             '--description', self.description,
-            # From `%firewalld_reload`
             '--category', self.category,
         ]
 
