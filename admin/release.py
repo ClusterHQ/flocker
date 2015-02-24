@@ -296,7 +296,7 @@ def publish_docs_main(args, base_path, top_level):
                 environment=options.environment,
                 ))
     except NotARelease:
-        sys.stderr.write("%s: Can't publish non-release."
+        sys.stderr.write("%s: Can't publish non-release.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
     except NotTagged:
