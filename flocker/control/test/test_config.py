@@ -2676,7 +2676,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                 metadata=pmap(
                     {"name": "mysql-hybridcluster"})),
             primary=True)
-        
+
         applications = {
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
