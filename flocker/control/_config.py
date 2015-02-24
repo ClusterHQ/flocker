@@ -11,6 +11,8 @@ import math
 import os
 import re
 import types
+from uuid import UUID
+from hashlib import md5
 
 from pyrsistent import pmap
 
@@ -295,7 +297,9 @@ class ApplicationMarshaller(object):
                 u'mountpoint': self._application.volume.mountpoint.path
             }
             dataset = self._application.volume.dataset
-            volume_dict[u'dataset_id'] = dataset.dataset_id
+            if dataset.dataset_id != dataset_id_from_name(
+                    self._application.name):
+                volume_dict[u'dataset_id'] = dataset.dataset_id
             if dataset.maximum_size is not None:
                 volume_dict[u'maximum_size'] = (
                     unicode(dataset.maximum_size)
@@ -332,7 +336,7 @@ def dataset_id_from_name(name):
     :return unicode: UUID for the dataset. This will always be the
         same given the same name.
     """
-    #return unicode(UUID(bytes=md5(name.encode("utf-8")).digest()))
+    return unicode(UUID(bytes=md5(name.encode("utf-8")).digest()))
 
 
 @implementer(IApplicationConfiguration)
@@ -567,7 +571,7 @@ class FigConfiguration(object):
             )
         volume = AttachedVolume(
             manifestation=Manifestation(
-                dataset=Dataset(dataset_id=None,# XXX dataset_id_from_name(application),
+                dataset=Dataset(dataset_id=dataset_id_from_name(application),
                                 metadata=pmap({"name": application})),
                 primary=True),
             mountpoint=FilePath(volumes[0])
@@ -1100,7 +1104,7 @@ class FlockerConfiguration(object):
         if 'dataset_id' in configured_volume:
             dataset_id = configured_volume.pop('dataset_id')
         else:
-            dataset_id = None # XXX dataset_id_from_name(application_name)
+            dataset_id = dataset_id_from_name(application_name)
 
         if configured_volume:
             raise ValueError(
