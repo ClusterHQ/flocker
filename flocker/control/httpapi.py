@@ -161,7 +161,7 @@ class DatasetAPIUserV1(object):
         # configuration.
         deployment = self.persistence_service.get()
         for node in deployment.nodes:
-            for manifestation in node.manifestations():
+            for manifestation in node.manifestations.values():
                 if manifestation.dataset.dataset_id == dataset_id:
                     raise DATASET_ID_COLLISION
 
@@ -188,13 +188,9 @@ class DatasetAPIUserV1(object):
             # One was found.  Add the manifestation to it.
             (primary_node,) = primary_nodes
 
-        new_node_config = Node(
-            hostname=primary_node.hostname,
-            applications=primary_node.applications,
-            other_manifestations=(
-                primary_node.other_manifestations | frozenset({manifestation})
-            )
-        )
+        new_node_config = primary_node.transform(
+            ("manifestations", manifestation.dataset_id), manifestation)
+
         other_nodes = frozenset(
             node for node in deployment.nodes if node is not primary_node
         )
