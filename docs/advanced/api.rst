@@ -15,7 +15,7 @@ To allow remote access to the control agent REST API, and for agent connections,
 
 .. task:: open_control_firewall
 
-For more details on configuring the firewall, see Fedora's `FirewallD documentation<https://fedoraproject.org/wiki/FirewallD>`_.
+For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
 
 API Details
 ===========
