@@ -622,6 +622,10 @@ IGNORED_WARNINGS = {
         # there's no bug to close.
         # https://lintian.debian.org/tags/new-package-should-close-itp-bug.html
         'new-package-should-close-itp-bug'
+
+        # We don't allow configuring ufw firewall applications.
+        ('file-in-etc-not-marked-as-conffile '
+         'etc/ufw/applications.d/flocker-control')
     ),
 }
 
