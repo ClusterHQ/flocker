@@ -347,6 +347,31 @@ class SetProxies(object):
         return gather_deferreds(results)
 
 
+@implementer(IStateChange)
+@attributes(["ports"])
+class OpenPorts(object):
+    """
+    Set the ports which will have the firewall opened.
+
+    :ivar ports: A collection of ``Port`` objects.
+    """
+    def run(self, deployer):
+        results = []
+        # XXX: The proxy manipulation operations are blocking. Convert to a
+        # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320
+        for port in deployer.network.enumerate_open_port():
+            try:
+                deployer.network.delete_open_port(port)
+            except:
+                results.append(fail())
+        for port in self.ports:
+            try:
+                deployer.network.open_port(port)
+            except:
+                results.append(fail())
+        return gather_deferreds(results)
+
+
 @implementer(IDeployer)
 class P2PNodeDeployer(object):
     """
@@ -568,10 +593,14 @@ class P2PNodeDeployer(object):
         phases = []
 
         desired_proxies = set()
+        desired_open_ports = set()
         desired_node_applications = []
         for node in desired_configuration.nodes:
             if node.hostname == self.hostname:
                 desired_node_applications = node.applications
+                for application in node.applications:
+                    for port in application.ports:
+                        desired_open_ports.add(port.external_port)
             else:
                 for application in node.applications:
                     for port in application.ports:
@@ -579,8 +608,12 @@ class P2PNodeDeployer(object):
                         # https://clusterhq.atlassian.net/browse/FLOC-322
                         desired_proxies.add(Proxy(ip=node.hostname,
                                                   port=port.external_port))
+
         if desired_proxies != set(self.network.enumerate_proxies()):
             phases.append(SetProxies(ports=desired_proxies))
+
+        if desired_open_ports != set(self.network.enumerate_open_ports()):
+            phases.append(OpenPorts(ports=desired_open_ports))
 
         # We are a node-specific IDeployer:
         current_node_state = local_state
