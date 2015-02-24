@@ -4,7 +4,7 @@
 Tests for ``flocker.node._deploy``.
 """
 
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 from zope.interface import implementer

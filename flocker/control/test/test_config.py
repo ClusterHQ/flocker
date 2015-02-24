@@ -3359,14 +3359,13 @@ class DatasetIdFromNameTests(SynchronousTestCase):
         dataset_id = dataset_id_from_name(u"hello\1234")
         self.assertEqual(unicode(UUID(hex=dataset_id)), dataset_id)
 
-
     def test_stable(self):
         """
         ``dataset_id_from_name`` returns the same UUID given the same name.
         """
         self.assertEqual(UUID(hex=dataset_id_from_name(u"hello\1234")),
                          UUID(hex=dataset_id_from_name(u"hello\1234")))
-                   
+
     def test_different(self):
         """
         ``dataset_id_from_name`` returns different UUIDs for different names.

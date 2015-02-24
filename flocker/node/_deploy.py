@@ -5,14 +5,11 @@
 Deploy applications on nodes.
 """
 
-from uuid import uuid4
-
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
 from pyrsistent import pmap
-from pickle import loads, dumps
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
