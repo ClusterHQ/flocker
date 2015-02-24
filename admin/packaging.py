@@ -572,8 +572,9 @@ IGNORED_WARNINGS = {
         'devel-file-in-non-devel-package',
         'unstripped-binary-or-object',
 
-        # FIXME
+        # Firewall and systemd configuration live in /usr/lib
         'only-non-binary-in-usr-lib',
+        # We don't allow configuring ufw firewall applications.
         'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
