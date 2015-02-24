@@ -470,7 +470,6 @@ class BuildPackage(object):
             '--maintainer', self.maintainer,
             '--architecture', architecture,
             '--description', self.description,
-            # From `%firewalld_reload`
             '--category', self.category,
         ]
 
@@ -573,8 +572,9 @@ IGNORED_WARNINGS = {
         'devel-file-in-non-devel-package',
         'unstripped-binary-or-object',
 
-        # FIXME
+        # Firewall and systemd configuration live in /usr/lib
         'only-non-binary-in-usr-lib',
+        # We don't allow configuring ufw firewall applications.
         'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
@@ -622,6 +622,10 @@ IGNORED_WARNINGS = {
         # there's no bug to close.
         # https://lintian.debian.org/tags/new-package-should-close-itp-bug.html
         'new-package-should-close-itp-bug'
+
+        # We don't allow configuring ufw firewall applications.
+        ('file-in-etc-not-marked-as-conffile '
+         'etc/ufw/applications.d/flocker-control')
     ),
 }
 
@@ -880,12 +884,19 @@ def omnibus_package_builder(
                 source_paths={
                     flocker_node_path: FilePath("/usr/sbin"),
                     # Fedora/CentOS firewall configuration
-                    package_files.child('flocker-control.firewalld.xml'):
+                    package_files.child('flocker-control-api.firewalld.xml'):
                         FilePath("/usr/lib/firewalld/services/")
-                        .child("flocker-control.xml"),
+                        .child("flocker-control-api.xml"),
+                    package_files.child('flocker-control-agent.firewalld.xml'):
+                        FilePath("/usr/lib/firewalld/services/")
+                        .child("flocker-control-agent.xml"),
                     # Ubuntu firewall configuration
-                    package_files.child('flocker-control.ufw'):
-                        FilePath("/etc/ufw/applications.d/flocker-control"),
+                    package_files.child('flocker-control-api.ufw'):
+                        FilePath("/etc/ufw/applications.d/")
+                        .child("flocker-control-api"),
+                    package_files.child('flocker-control-agent.ufw'):
+                        FilePath("/etc/ufw/applications.d/")
+                        .child("flocker-control-agent"),
                     # SystemD configuration
                     package_files.child('flocker-control.service'):
                         systemd_dir.child("flocker-control.service"),

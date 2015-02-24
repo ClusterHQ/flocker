@@ -987,13 +987,20 @@ class OmnibusPackageBuilderTests(TestCase):
                     destination_path=expected_destination_path,
                     source_paths={
                         flocker_node_path: FilePath("/usr/sbin"),
-                        package_files.child('flocker-control.firewalld.xml'):
+                        package_files.child('flocker-control-api.firewalld.xml'):  # noqa
                             FilePath("/usr/lib/firewalld/services/")
-                            .child("flocker-control.xml"),
+                            .child("flocker-control-api.xml"),
+                        package_files.child('flocker-control-agent.firewalld.xml'):  # noqa
+                            FilePath("/usr/lib/firewalld/services/")
+                            .child("flocker-control-agent.xml"),
                         # Ubuntu firewall configuration
-                        package_files.child('flocker-control.ufw'):
+                        package_files.child('flocker-control-api.ufw'):
                             FilePath("/etc/ufw/applications.d/")
-                            .child("flocker-control"),
+                            .child("flocker-control-api"),
+                        package_files.child('flocker-control-agent.ufw'):
+                            FilePath("/etc/ufw/applications.d/")
+                            .child("flocker-control-agent"),
+                        # Systemd configuration
                         package_files.child('flocker-control.service'):
                             systemd_dir.child("flocker-control.service"),
                         package_files.child('flocker-control-api.socket'):
