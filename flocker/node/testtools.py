@@ -12,7 +12,7 @@ from unittest import skipUnless
 from ._docker import BASE_DOCKER_API_URL
 from ..testtools import loop_until
 
-SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
+DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
 
 def docker_accessible():
@@ -25,7 +25,7 @@ def docker_accessible():
         ``False``.
     """
     try:
-        socket.socket(family=socket.AF_UNIX).connect(SOCKET_PATH)
+        socket.socket(family=socket.AF_UNIX).connect(DOCKER_SOCKET_PATH)
     except socket.error as e:
         if e.errno == errno.EACCES:
             return False
@@ -40,7 +40,7 @@ if_docker_configured = skipUnless(
     docker_accessible(),
     "User '{}' does not have permission "
     "to access the Docker server socket '{}'".format(os.getlogin(),
-                                                     SOCKET_PATH))
+                                                     DOCKER_SOCKET_PATH))
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
