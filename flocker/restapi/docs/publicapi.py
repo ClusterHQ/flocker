@@ -61,7 +61,11 @@ class Example(object):
         Create an L{Example} from a L{dict} with C{u"request"} and
         C{u"response"} keys and L{unicode} values.
         """
-        return cls(request=d[u"request"], response=d[u"response"])
+        return cls(
+            request=d[u"request"],
+            response=d[u"response"],
+            doc=d.get('doc', b''),
+        )
 
 
 def getRoutes(app):
