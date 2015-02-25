@@ -89,6 +89,7 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 
+
 def build_NODE_STATE():
     """
     This is only necessary in pyrsistent 0.8.0; in 0.9.0 it can be
@@ -113,7 +114,8 @@ class SerializationTests(SynchronousTestCase):
         argument = NodeStateArgument()
         as_bytes = argument.toString(build_NODE_STATE())
         deserialized = argument.fromString(as_bytes)
-        self.assertEqual([bytes, build_NODE_STATE()], [type(as_bytes), deserialized])
+        self.assertEqual([bytes, build_NODE_STATE()],
+                         [type(as_bytes), deserialized])
 
     def test_deployment(self):
         """
@@ -175,7 +177,8 @@ class ControlAMPTests(SynchronousTestCase):
                    lambda *args, **kwargs: sent.append((args, kwargs))
                    or succeed(None))
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
-        self.control_amp_service.cluster_state.update_node_state(build_NODE_STATE())
+        self.control_amp_service.cluster_state.update_node_state(
+            build_NODE_STATE())
 
         self.protocol.makeConnection(StringTransport())
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
