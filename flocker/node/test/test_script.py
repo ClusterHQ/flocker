@@ -181,22 +181,23 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                     "mysql-something"),
                 metadata=pmap({'name': 'mysql-something'})),
             primary=True)
-        
+
         expected_current_config = Deployment(nodes=frozenset([
-            Node(hostname=u'node2.example.com', applications=frozenset([
-                Application(
-                    name='mysql-something',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                    volume=AttachedVolume(
-                        manifestation=manifestation,
-                        mountpoint=FilePath(b'/var/lib/data'),
-                    )
-                ),
-            ]),
-                 manifestations={manifestation.dataset_id: manifestation},
-             )]))
+            Node(hostname=u'node2.example.com',
+                 applications=frozenset([
+                     Application(
+                         name='mysql-something',
+                         image=DockerImage.from_string('unknown'),
+                         ports=frozenset(),
+                         links=frozenset(),
+                         volume=AttachedVolume(
+                             manifestation=manifestation,
+                             mountpoint=FilePath(b'/var/lib/data'),
+                         )
+                     ),
+                 ]),
+                 manifestations={
+                     manifestation.dataset_id: manifestation})]))
 
         options.parseOptions(
             [safe_dump(deployment_config),

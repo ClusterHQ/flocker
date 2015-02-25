@@ -3213,16 +3213,17 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                 metadata=pmap({"name": "mysql-hybridcluster"})),
             primary=True)
         expected = Deployment(nodes=frozenset([
-            Node(hostname='example.com', applications=frozenset([
-                Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                    volume=AttachedVolume(
-                        manifestation=manifestation,
-                        mountpoint=FilePath(b"/xxx")),
-                )]),
+            Node(hostname='example.com',
+                 applications=frozenset([
+                     Application(
+                         name='mysql-hybridcluster',
+                         image=DockerImage.from_string('unknown'),
+                         ports=frozenset(),
+                         links=frozenset(),
+                         volume=AttachedVolume(
+                             manifestation=manifestation,
+                             mountpoint=FilePath(b"/xxx")),
+                     )]),
                  manifestations={manifestation.dataset_id:
                                  manifestation})]))
         self.assertEqual(expected,

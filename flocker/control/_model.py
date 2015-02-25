@@ -8,7 +8,7 @@ Record types for representing deployment models.
 from characteristic import attributes, Attribute
 
 from pyrsistent import (
-    pmap, PRecord, field, PMap, PSet, pset, PVector, pvector, v,
+    pmap, PRecord, field, PMap, PSet, pset,
     )
 
 from zope.interface import Interface, implementer
@@ -239,8 +239,8 @@ class Node(PRecord):
             if not isinstance(app, Application):
                 return (False, '%r must be Appplication' % (app,))
             if app.volume is not None:
-                 if app.volume.manifestation not in manifestations:
-                     return (False, '%r manifestation is not on node' % (app,))
+                if app.volume.manifestation not in manifestations:
+                    return (False, '%r manifestation is not on node' % (app,))
         for key, value in self.manifestations.items():
             if key != value.dataset_id:
                 return (False, '%r is not correct key for %r' % (key, value))

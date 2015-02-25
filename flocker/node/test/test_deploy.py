@@ -1192,10 +1192,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(
-            {Manifestation(dataset=Dataset(
-                dataset_id=DATASET_ID,
-                metadata=pmap({u"name": u"site-example.com"})),
-                           primary=True),
+            {Manifestation(
+                dataset=Dataset(
+                    dataset_id=DATASET_ID,
+                    metadata=pmap({u"name": u"site-example.com"})),
+                primary=True),
              Manifestation(dataset=Dataset(dataset_id=DATASET_ID2),
                            primary=True)},
             self.successResultOf(d).manifestations)
@@ -1883,8 +1884,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
                  manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
-                                 MANIFESTATION_WITH_SIZE},
-             ),
+                                 MANIFESTATION_WITH_SIZE}),
             Node(hostname=another_node.hostname,
                  applications=frozenset()),
         }))
@@ -2523,7 +2523,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
         desired_node = Node(
             hostname=u"node1.example.com",
-            manifestations={MANIFESTATION_WITH_SIZE.dataset_id: MANIFESTATION_WITH_SIZE},
+            manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                            MANIFESTATION_WITH_SIZE},
         )
 
         current = Deployment(nodes=frozenset([current_node]))
@@ -2578,7 +2579,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
             ),
             Node(
                 hostname=u"node2.example.com",
-                manifestations={MANIFESTATION_WITH_SIZE.dataset_id: MANIFESTATION_WITH_SIZE},
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
         ]
 

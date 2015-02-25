@@ -550,7 +550,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             hostname=self.NODE_A,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
-        expected_manifestation}
+                            expected_manifestation}
         )
         deployment = Deployment(nodes=frozenset([current_primary_node]))
 
@@ -574,7 +574,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             hostname=self.NODE_A,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
-        expected_manifestation}
+                            expected_manifestation}
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)
@@ -611,7 +611,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             hostname=self.NODE_A,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
-        expected_manifestation}
+                            expected_manifestation}
         )
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
@@ -656,7 +656,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             hostname=self.NODE_A,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
-        expected_manifestation}
+                            expected_manifestation}
         )
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
@@ -694,7 +694,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             hostname=self.NODE_A,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
-        expected_manifestation}
+                            expected_manifestation}
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)

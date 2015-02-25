@@ -466,7 +466,7 @@ class P2PNodeDeployer(object):
                               primary=True)
                 for (dataset_id, maximum_size) in
                 available_manifestations.values())
-                    
+
             return NodeState(
                 hostname=self.hostname,
                 running=running,
