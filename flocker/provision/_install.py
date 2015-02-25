@@ -11,7 +11,7 @@ from textwrap import dedent
 from urlparse import urljoin
 from characteristic import attributes
 
-from ._common import PackageSource
+from ._common import PackageSource, Variants
 
 ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
             "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
@@ -230,7 +230,30 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
     return [Run.from_args(['docker', 'pull', image]) for image in images]
 
 
-def provision(distribution, package_source):
+def task_enable_updates_testing(distribution):
+    if distribution == 'fedora-20':
+        return [
+            Run.from_args([
+                'yum-config-manager', '--enable', 'updates-testing'])
+        ]
+    else:
+        raise NotImplementedError
+
+
+def task_enable_docker_copr(distribution):
+    if distribution == 'fedora-20':
+        return [
+            Run.from_args([
+                'yum-config-manager',
+                '--add-repo',
+                'https://copr.fedoraproject.org/coprs/lsm5/docker-io/repo/fedora-20/lsm5-docker-io-fedora-20.repo',  # noqa
+            ])
+        ]
+    else:
+        raise NotImplementedError
+
+
+def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
 
@@ -238,8 +261,15 @@ def provision(distribution, package_source):
     :param bytes username: Username to connect as.
     :param bytes distribution: See func:`task_install`
     :param PackageSource package_source: See func:`task_install`
+    :param variants: TODO
     """
     commands = []
+    if variants:
+        commands += [Run.from_args(['yum', 'install', '-y', 'yum-utils'])]
+    if Variants.DISTRO_TESTING in variants:
+        commands += task_enable_updates_testing(distribution)
+    if Variants.DOCKER_HEAD in variants:
+        commands += task_enable_docker_copr(distribution)
     commands += task_install_kernel_devel()
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)

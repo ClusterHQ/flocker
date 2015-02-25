@@ -165,17 +165,19 @@ class LibcloudNode(object):
         self._node, self.addresses = (
             self._node.driver.wait_until_running([self._node])[0])
 
-    def provision(self, package_source):
+    def provision(self, package_source, variants=()):
         """
         Provision flocker on this node.
 
         :param PackageSource package_source: The source from which to install
             flocker.
+        :param iterable variants: TODO
         """
         self._provisioner.provision(
             node=self,
             package_source=package_source,
             distribution=self.distribution,
+            variants=variants,
         )
         return self.address
 

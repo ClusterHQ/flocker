@@ -8,7 +8,7 @@ from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import provision, run, task_disable_firewall
 
 
-def provision_rackspace(node, package_source, distribution):
+def provision_rackspace(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
     """
@@ -17,6 +17,7 @@ def provision_rackspace(node, package_source, distribution):
         + provision(
             package_source=package_source,
             distribution=node.distribution,
+            variants=variants,
         )
     )
     run(

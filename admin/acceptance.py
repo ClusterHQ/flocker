@@ -16,7 +16,7 @@ from twisted.python.filepath import FilePath
 
 from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
-from flocker.provision import PackageSource
+from flocker.provision import PackageSource, Variants
 import flocker
 from flocker.provision._install import (
     run as run_tasks_on_node,
@@ -103,7 +103,8 @@ class INodeRunner(Interface):
 
 
 RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'package_source']
+    'distribution', 'top_level', 'config', 'package_source', 'variants'
+]
 
 
 @implementer(INodeRunner)
@@ -127,6 +128,10 @@ class VagrantRunner(object):
         if not self.vagrant_path.exists():
             raise UsageError("Distribution not found: %s."
                              % (self.distribution,))
+
+        if self.variants:
+            raise UsageError("Unsupored varianta: %s."
+                             % (', '.join(self.variants),))
 
     def start_nodes(self):
         # Destroy the box to begin, so that we are guaranteed
@@ -203,7 +208,8 @@ class LibcloudRunner(object):
                 raise
 
             self.nodes.append(node)
-            node.provision(package_source=self.package_source)
+            node.provision(package_source=self.package_source,
+                           variants=self.variants)
             del node
 
         return [node.address for node in self.nodes]
@@ -290,6 +296,14 @@ class RunOptions(Options):
         Options.__init__(self)
         self.top_level = top_level
 
+    def opt_variant(self, arg):
+        """
+        Specify a variant of the provisioning to run.
+
+        Supported variants: distro-testing, docker-head.
+        """
+        self.setdefault('variants', []).append(Variants.lookupByValue(arg))
+
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
 
@@ -328,6 +342,7 @@ class RunOptions(Options):
             config=self['config'],
             distribution=self['distribution'],
             package_source=package_source,
+            variants=self['variants'],
         )
 
 

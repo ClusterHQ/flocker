@@ -13,7 +13,7 @@ from ._install import (
 )
 
 
-def provision_aws(node, package_source, distribution):
+def provision_aws(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
     """
@@ -42,6 +42,7 @@ def provision_aws(node, package_source, distribution):
         commands=provision(
             package_source=package_source,
             distribution=node.distribution,
+            variants=variants,
         )
     )
     return node.address
