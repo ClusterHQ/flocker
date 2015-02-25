@@ -527,9 +527,7 @@ class VariableInterpolationTests(SynchronousTestCase):
 
 class ExampleFromDictionaryTests(SynchronousTestCase):
     """
-    {'doc': 'Get a list of all datasets that have been configured for a\ndeployment.  These datasets may or may not actually exist on the\ncluster.\n', 'response': 'HTTP/1.0 200 OK\n\n[\n  {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}},\n  {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}\n]\n',
-
-    'request': 'GET /v1/configuration/datasets HTTP/1.1\n', 'requires': ['create dataset with dataset_id', 'create dataset with metadata'], 'id': 'get configured datasets'}
+    Tests for ``Example.fromDictionary``.
     """
     def test_required_arguments(self):
         """
