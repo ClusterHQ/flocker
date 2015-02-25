@@ -40,7 +40,7 @@ if_docker_configured = skipUnless(
     docker_accessible(),
     "User '{}' does not have permission "
     "to access the Docker server socket '{}'".format(os.getlogin(),
-    SOCKET_PATH))
+                                                     SOCKET_PATH))
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
