@@ -361,9 +361,9 @@ class NodeState(PRecord):
     The current state of a node.
 
     :ivar unicode hostname: The hostname of the node.
-    :ivar running: A ``PVector`` of ``Application`` instances on this node
+    :ivar running: A ``PSet`` of ``Application`` instances on this node
         that are currently running or starting up.
-    :ivar not_running: A ``PVector`` of ``Application`` instances on this
+    :ivar not_running: A ``PSet`` of ``Application`` instances on this
         node that are currently shutting down or stopped.
     :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
