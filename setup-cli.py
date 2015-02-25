@@ -66,9 +66,9 @@ setup(
         # These are the command-line programs we want setuptools to install.
         # Don't forget to modify the omnibus packaging tool
         # (admin/packaging.py) if you make changes here.
-        #'console_scripts': [
-        #    'flocker = flocker-cli.script:flocker_cli_main',
-        #],
+        'console_scripts': [
+            'flocker = flocker_cli.script:flocker_cli_main',
+        ],
     },
 
     install_requires=[
