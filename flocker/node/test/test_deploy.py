@@ -4,7 +4,7 @@
 Tests for ``flocker.node._deploy``.
 """
 
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 from zope.interface import implementer
@@ -2297,116 +2297,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])])
 
         self.assertEqual(expected, result)
-
-    def test_dataset_id_populated(self):
-        """
-        If one of ``Dataset`` objects in the desired configuration is missing
-        its dataset ID, and a ``Dataset`` with matching name exists in
-        current configuration, the desired ``Dataset`` has its ID set to
-        the matching ID.
-
-        This is part of supporting configuration files that don't specify
-        dataset IDs.
-        """
-        volume_service = create_volume_service(self)
-        volume = volume_service.get(_to_volume_name(DATASET_ID),
-                                    size=VolumeSize(
-                                        maximum_size=1024 * 1024 * 100))
-        self.successResultOf(volume_service.create(volume))
-
-        unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            container_name=APPLICATION_WITH_VOLUME_NAME,
-            activation_state=u'inactive',
-            container_image=APPLICATION_WITH_VOLUME_IMAGE,
-            volumes=frozenset([DockerVolume(
-                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                node_path=volume.get_filesystem().get_path())]),
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
-        desired_application = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                manifestation=Manifestation(dataset=dataset, primary=True),
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-            ),
-        )
-        desired = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([desired_application])
-            )
-        ]))
-        actual = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([APPLICATION_WITH_VOLUME_SIZE])
-            )
-        ]))
-
-        api = P2PNodeDeployer(u"node", volume_service,
-                              docker_client=docker,
-                              network=make_memory_network())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()), desired, actual)
-
-        # Desired configuration mentions dataset by name, but not the ID. It
-        # indicates the dataset should not have a maximum size.
-        # The actual state knows that the specific dataset with that same name
-        # has a maximum size.
-        # If we get a resize that means the code figured out that the
-        # dataset only mentioned by name in desired config is the same as
-        # the one with a specific dataset ID in the actual cluster state.
-        self.assertEqual(result.changes[0].changes[0],
-                         ResizeDataset(
-                             dataset=APPLICATION_WITH_VOLUME.volume.dataset))
-
-    def test_dataset_id_generated(self):
-        """
-        If one of ``Dataset`` objects in the desired configuration is missing
-        its dataset ID, and no ``Dataset`` with matching name exists in
-        current configuration, a new dataset ID will be generated.
-
-        This is part of supporting configuration files that don't specify
-        dataset IDs.
-        """
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
-        desired_application = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                manifestation=Manifestation(dataset=dataset, primary=True),
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-            ),
-        )
-        desired = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([desired_application])
-            )
-        ]))
-        actual = Deployment(nodes=frozenset())
-        api = P2PNodeDeployer(u"node", create_volume_service(self),
-                              docker_client=FakeDockerClient(),
-                              network=make_memory_network())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()), desired, actual)
-
-        # CreateVolume:
-        dataset = result.changes[0].changes[0].dataset
-        # StartApplication:
-        dataset2 = result.changes[1].changes[0].application.volume.dataset
-        # New UUID was generated, but only once:
-        self.assertEqual(UUID(dataset.dataset_id), UUID(dataset2.dataset_id))
 
 
 class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(

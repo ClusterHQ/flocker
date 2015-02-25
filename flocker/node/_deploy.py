@@ -5,14 +5,11 @@
 Deploy applications on nodes.
 """
 
-from uuid import uuid4
-
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
 from pyrsistent import pmap
-from pickle import loads, dumps
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
@@ -478,57 +475,6 @@ class P2PNodeDeployer(object):
         d.addCallback(applications_from_units)
         return d
 
-    def _add_dataset_ids(self, desired_configuration, current_cluster_state):
-        """
-        Add missing dataset IDs to the desired configuration.
-
-        If current cluster has dataset matched by name, we add that
-        dataset's ID. If no dataset can be matched to current cluster we
-        generate a new one.
-
-        This heuristic may not work once we support more than one volume
-        per container and therefore can't match by name:
-        https://clusterhq.atlassian.net/browse/FLOC-49
-
-        Should be done elsewhere:
-        https://clusterhq.atlassian.net/browse/FLOC-1199
-
-        :param Deployment desired_configuration: The intended
-            configuration of all nodes.
-        :param Deployment current_cluster_state: The current configuration
-            of all nodes.
-
-        :return Deployment: Desired configuration updated with dataset IDs.
-        """
-        # We don't want to mutate the desired configuration, so do a
-        # deepcopy (PMap doesn't support copy.deepcopy so we use pickle).
-        # This is, of course, utterly terrible. At some point we'll
-        # switching everything over to persistent data structures so we
-        # don't have to do this.
-        desired_configuration = loads(dumps(desired_configuration))
-
-        datasets_with_no_id = []
-        for application in desired_configuration.applications():
-            if application.volume:
-                dataset = application.volume.dataset
-                if dataset.dataset_id is None:
-                    datasets_with_no_id.append(dataset)
-
-        current_datasets_by_name = {}
-        for application in current_cluster_state.applications():
-            if application.volume:
-                dataset = application.volume.dataset
-                name = dataset.metadata[u"name"]
-                current_datasets_by_name[name] = dataset
-
-        for dataset in datasets_with_no_id:
-            matching = current_datasets_by_name.get(dataset.metadata[u"name"])
-            if matching:
-                dataset.dataset_id = matching.dataset_id
-            else:
-                dataset.dataset_id = unicode(uuid4())
-        return desired_configuration
-
     def calculate_necessary_state_changes(self, local_state,
                                           desired_configuration,
                                           current_cluster_state):
@@ -563,8 +509,6 @@ class P2PNodeDeployer(object):
         current_cluster_state = current_cluster_state.update_node(
             local_state.to_node())
 
-        desired_configuration = self._add_dataset_ids(desired_configuration,
-                                                      current_cluster_state)
         phases = []
 
         desired_proxies = set()

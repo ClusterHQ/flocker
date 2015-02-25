@@ -7,7 +7,7 @@ Tests for ``flocker.node._config``.
 from __future__ import unicode_literals, absolute_import
 
 import copy
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from pyrsistent import pmap
 
@@ -20,7 +20,7 @@ from .._config import (
     model_from_configuration, FigConfiguration,
     applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
     FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
-    _parse_restart_policy,
+    _parse_restart_policy, dataset_id_from_name
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -391,8 +391,9 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
                 ),
                 volume=AttachedVolume(
                     manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=None,
-                                        metadata=pmap({"name": "wordpress"})),
+                        dataset=Dataset(
+                            dataset_id=dataset_id_from_name("wordpress"),
+                            metadata=pmap({"name": "wordpress"})),
                         primary=True),
                     mountpoint=FilePath(b'/var/www/wordpress'))),
             'mysql': Application(
@@ -516,7 +517,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         parser = FigConfiguration(config)
         expected_result = AttachedVolume(
             manifestation=Manifestation(
-                dataset=Dataset(dataset_id=None,
+                dataset=Dataset(dataset_id=dataset_id_from_name("postgres"),
                                 metadata=pmap({"name": "postgres"})),
                 primary=True),
             mountpoint=FilePath(b'/var/db/data')
@@ -1555,7 +1556,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume=AttachedVolume(
                     manifestation=Manifestation(
                         dataset=Dataset(
-                            dataset_id=None,
+                            dataset_id=dataset_id_from_name(
+                                "mysql-hybridcluster"),
                             metadata=pmap({'name': 'mysql-hybridcluster'})),
                         primary=True),
                     mountpoint=FilePath(b'/var/mysql/data'))),
@@ -1610,9 +1612,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       external_port=3306)]),
                 links=frozenset(),
                 volume=AttachedVolume(manifestation=Manifestation(
-                    dataset=Dataset(dataset_id=None,
-                                    metadata=pmap(
-                                        {'name': 'mysql-hybridcluster'})),
+                    dataset=Dataset(
+                        dataset_id=dataset_id_from_name(
+                            "mysql-hybridcluster"),
+                        metadata=pmap(
+                            {'name': 'mysql-hybridcluster'})),
                     primary=True),
                     mountpoint=FilePath(b'/var/lib/mysql'))
             ),
@@ -1626,7 +1630,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume=AttachedVolume(
                     manifestation=Manifestation(
                         dataset=Dataset(
-                            dataset_id=None,
+                            dataset_id=dataset_id_from_name(
+                                "site-hybridcluster"),
                             metadata=pmap({'name': 'site-hybridcluster'})),
                         primary=True,
                     ),
@@ -2921,7 +2926,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 ports=frozenset(),
                 volume=AttachedVolume(manifestation=Manifestation(
                     dataset=Dataset(
-                        dataset_id=None,
+                        dataset_id=dataset_id_from_name(
+                            "mysql-hybridcluster"),
                         metadata=pmap({'name': 'mysql-hybridcluster'})),
                     primary=True),
                     mountpoint=FilePath(b'/var/mysql/data'))
@@ -2970,7 +2976,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 volume=AttachedVolume(
                     manifestation=Manifestation(
                         dataset=Dataset(
-                            dataset_id=None,
+                            dataset_id=dataset_id_from_name(
+                                "mysql-hybridcluster"),
                             metadata=pmap({'name': 'mysql-hybridcluster'}),
                             maximum_size=EXPECTED_MAX_SIZE),
                         primary=True),
@@ -3339,3 +3346,30 @@ class ApplicationConfigurationErrorTests(SynchronousTestCase):
             ),
             unicode(e)
         )
+
+
+class DatasetIdFromNameTests(SynchronousTestCase):
+    """
+    Tests for ``dataset_id_from_name``.
+    """
+    def test_uuid(self):
+        """
+        ``dataset_id_from_name`` returns a unicode representation of a
+        UUID.
+        """
+        dataset_id = dataset_id_from_name(u"hello\1234")
+        self.assertEqual(unicode(UUID(hex=dataset_id)), dataset_id)
+
+    def test_stable(self):
+        """
+        ``dataset_id_from_name`` returns the same UUID given the same name.
+        """
+        self.assertEqual(UUID(hex=dataset_id_from_name(u"hello\1234")),
+                         UUID(hex=dataset_id_from_name(u"hello\1234")))
+
+    def test_different(self):
+        """
+        ``dataset_id_from_name`` returns different UUIDs for different names.
+        """
+        self.assertNotEqual(UUID(hex=dataset_id_from_name(u"hello")),
+                            UUID(hex=dataset_id_from_name(u"world")))
