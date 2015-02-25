@@ -6,6 +6,7 @@ Testing utilities for ``flocker.node``.
 
 import errno
 import os
+import pwd
 import socket
 from unittest import skipUnless
 
@@ -39,8 +40,9 @@ def docker_accessible():
 if_docker_configured = skipUnless(
     docker_accessible(),
     "User '{}' does not have permission "
-    "to access the Docker server socket '{}'".format(os.getlogin(),
-                                                     DOCKER_SOCKET_PATH))
+    "to access the Docker server socket '{}'".format(
+        pwd.getpwuid(os.geteuid()).pw_name,
+        DOCKER_SOCKET_PATH))
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
