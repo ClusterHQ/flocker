@@ -88,10 +88,18 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
          applications=frozenset([APP1, APP2]))]))
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
-NODE_STATE = NodeState(hostname=u'node1.example.com',
-                       running=[APP1], not_running=[APP2],
-                       used_ports=[1, 2],
-                       manifestations=frozenset([MANIFESTATION]))
+
+def build_NODE_STATE():
+    """
+    This is only necessary in pyrsistent 0.8.0; in 0.9.0 it can be
+    module level attribute.
+
+    :return: A ``NodeState`` for tests.
+    """
+    return NodeState(hostname=u'node1.example.com',
+                     running=[APP1], not_running=[APP2],
+                     used_ports=[1, 2],
+                     manifestations=frozenset([MANIFESTATION]))
 
 
 class SerializationTests(SynchronousTestCase):
@@ -103,9 +111,9 @@ class SerializationTests(SynchronousTestCase):
         ``NodeStateArgument`` can round-trip a ``NodeState`` instance.
         """
         argument = NodeStateArgument()
-        as_bytes = argument.toString(NODE_STATE)
+        as_bytes = argument.toString(build_NODE_STATE())
         deserialized = argument.fromString(as_bytes)
-        self.assertEqual([bytes, NODE_STATE], [type(as_bytes), deserialized])
+        self.assertEqual([bytes, build_NODE_STATE()], [type(as_bytes), deserialized])
 
     def test_deployment(self):
         """
@@ -167,7 +175,7 @@ class ControlAMPTests(SynchronousTestCase):
                    lambda *args, **kwargs: sent.append((args, kwargs))
                    or succeed(None))
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
-        self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
+        self.control_amp_service.cluster_state.update_node_state(build_NODE_STATE())
 
         self.protocol.makeConnection(StringTransport())
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
@@ -205,7 +213,7 @@ class ControlAMPTests(SynchronousTestCase):
         """
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE))
+                                   node_state=build_NODE_STATE()))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
             Deployment(
@@ -236,7 +244,7 @@ class ControlAMPTests(SynchronousTestCase):
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE))
+                                   node_state=build_NODE_STATE()))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
             [sent1[-1], sent2[-1]],
