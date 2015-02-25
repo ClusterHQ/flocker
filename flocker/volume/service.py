@@ -144,6 +144,19 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
+    # XXX or maybe caller should just do that directly?
+    def destroy(self, volume):
+        """
+        Destroy an existing volume.
+
+        :param Volume volume: The ``Volume`` instance to delete from the
+            storage pool.
+
+        :return: A ``Deferred`` that fires when deletion is done.
+        """
+        #return self.pool.destroy(volume)
+        pass
+
     def set_maximum_size(self, volume):
         """
         Resize an existing volume.

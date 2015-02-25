@@ -514,6 +514,12 @@ class StoragePool(Service):
         d.addCallback(lambda _: filesystem)
         return d
 
+    def destroy(self, volume):
+        # zfs destroy all snapshots. Then, zfs destroy the dataset.  Since
+        # we're not using clone functionality skipping destruction of
+        # snapshots used by clones will be filed as followup issue.
+        pass
+
     def set_maximum_size(self, volume):
         filesystem = self.get(volume)
         properties = []
