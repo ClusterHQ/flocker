@@ -388,7 +388,7 @@ class FormatExampleTests(SynchronousTestCase):
         L{_formatExample} yields L{unicode} instances representing the lines of
         a reST document describing an example HTTP session.
         """
-        example = Example(b"GET FOO", b"200 OK")
+        example = Example(request=b"GET FOO", response=b"200 OK")
         lines = list(_formatExample(example, {u"DOMAIN": u"example.com"}))
         self.assertEqual(
             [u'**Example request**',
@@ -418,7 +418,7 @@ class FormatExampleTests(SynchronousTestCase):
             u"CODE": u"4242"}
         request = b"GET %(PATH)s HTTP/1.1"
         response = b"HTTP/1.1 %(CODE)s Ok"
-        example = Example(request, response)
+        example = Example(request=request, response=response)
         lines = list(_formatExample(example, substitutions))
         self.assertEqual(
             [u'**Example request**',

@@ -24,6 +24,8 @@ from docutils.parsers.rst import directives
 from twisted.python.reflect import namedAny
 from twisted.python.filepath import FilePath
 
+from characteristic import attributes, Attribute
+
 from .._schema import LocalRefResolver, resolveSchema
 
 # Disable "HTTP Routing Table" index:
@@ -42,7 +44,8 @@ class KleinRoute(namedtuple('KleinRoute', 'path methods endpoint attributes')):
     """
 
 
-class Example(namedtuple("Example", "request response")):
+@attributes(['request', 'response'])
+class Example(object):
     """
     An L{Example} instance represents a single HTTP session example.
 
@@ -58,7 +61,7 @@ class Example(namedtuple("Example", "request response")):
         Create an L{Example} from a L{dict} with C{u"request"} and
         C{u"response"} keys and L{unicode} values.
         """
-        return cls(d[u"request"], d[u"response"])
+        return cls(request=d[u"request"], response=d[u"response"])
 
 
 def getRoutes(app):
