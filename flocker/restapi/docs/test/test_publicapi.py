@@ -529,30 +529,48 @@ class ExampleFromDictionaryTests(SynchronousTestCase):
 
     'request': 'GET /v1/configuration/datasets HTTP/1.1\n', 'requires': ['create dataset with dataset_id', 'create dataset with metadata'], 'id': 'get configured datasets'}
     """
-    def test_expected_keys(self):
+    def test_required_arguments(self):
         """
-        ``Example.fromDictionary`` takes the request, response and doc keys
-        from the supplied dictionary and passes them to the Example
+        ``Example.fromDictionary`` requires request and response keys
+        in the supplied dictionary and passes them to the Example
         initialiser.
         """
         expected_request = 'GET /v1/some/example/request HTTP/1.1\n'
         expected_response = 'HTTP/1.0 200 OK\n\n'
 
         supplied_dictionary = {
-            'doc': 'Documentation for some example.',
             'request': expected_request,
             'response': expected_response,
-            'requires': [
-                'some requirement of this example',
-                'another requirement of this example',
-            ],
-            'id': 'some example label'
         }
 
         expected_example = Example(
             request=expected_request,
-            response=expected_response
+            response=expected_response,
         )
 
         self.assertEqual(
             expected_example, Example.fromDictionary(supplied_dictionary))
+
+    def test_doc_default(self):
+        """
+        ``Example.doc`` is `b''` by default.
+        """
+        self.assertEqual(
+            b'',
+            Example.fromDictionary(
+                dict(request=b'foo', response=b'bar')
+            ).doc
+        )
+
+    def test_doc_override(self):
+        """
+        ``Example.fromDictionary`` uses the supplied doc key, if present, and
+        passes it to the Example initialiser.
+        """
+        expected_doc = b'Documentation of some example.'
+        self.assertEqual(
+            expected_doc,
+            Example.fromDictionary(
+                dict(request=b'foo', response=b'bar', doc=expected_doc)
+            ).doc
+        )

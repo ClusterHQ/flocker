@@ -44,7 +44,7 @@ class KleinRoute(namedtuple('KleinRoute', 'path methods endpoint attributes')):
     """
 
 
-@attributes(['request', 'response'])
+@attributes(['request', 'response', Attribute('doc', default_value=b'')])
 class Example(object):
     """
     An L{Example} instance represents a single HTTP session example.
