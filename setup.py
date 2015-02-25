@@ -15,8 +15,6 @@ versioneer.versionfile_build = "flocker/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
 
-from distutils.core import Command
-
 cmdclass = {}
 
 # Let versioneer hook into the various distutils commands so it can rewrite
@@ -134,7 +132,7 @@ setup(
     install_requires=[
         "setuptools >= 1.4",
 
-        "eliot == 0.4.0",
+        "eliot == 0.6.0",
         "machinist == 0.2.0",
         "zope.interface >= 4.0.5",
         "pytz",
@@ -177,6 +175,8 @@ setup(
             "PyCrypto",
             "pyasn1",
             "tl.eggdeps",
+            "effect==0.1a13",
+            "boto==2.30.0",
             ],
         },
 

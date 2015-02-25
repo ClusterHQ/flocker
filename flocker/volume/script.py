@@ -248,5 +248,6 @@ class VolumeManagerScript(object):
 def flocker_volume_main():
     return FlockerScriptRunner(
         script=VolumeScript(VolumeManagerScript()),
-        options=VolumeOptions()
+        options=VolumeOptions(),
+        logging=False,
     ).main()

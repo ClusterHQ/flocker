@@ -32,38 +32,43 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- A :doc:`Flocker development machine <vagrant>`.
 - A web browser.
-- An up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_.
-- An up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_.
 - `gsutil Python package <https://pypi.python.org/pypi/gsutil>`_ on your workstation.
+- `Vagrant`_ (1.6.2 or newer)
+- `VirtualBox`_
+- `virtualenvwrapper`_
+
+.. _`Vagrant`: https://docs.vagrantup.com/
+.. _`VirtualBox`: https://www.virtualbox.org/
+.. _`virtualenvwrapper`: https://virtualenvwrapper.readthedocs.org/en/latest/
 
 Access
 ~~~~~~
 
-
-- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation and your :doc:`Flocker development machine <vagrant>`.
+- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation.
   Set up ``gsutil`` authentication by following the instructions from the following command:
 
   .. prompt:: bash $
 
       gsutil config
 
-- Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
+- Access to Amazon `S3`_ using `gsutil`_ on your workstation.
   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
 
-- A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
+- A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
+
 - An OS X (most recent release) system.
 
-.. note:: For a documentation release, access to Google Cloud Storage and Vagrant Cloud is not required.
+.. note:: For a documentation release, access to Google Cloud Storage and Atlas is not required.
 
+.. _preparing-for-a-release:
 
 Preparing For a Release
 -----------------------
 
 #. Confirm that the release and the proposed version number have been approved.
 
-   The release must have been approved.
+   The release must have been approved, unless it is a weekly development release.
    Refer to the ClusterHQ `Flocker Releases and Versioning <https://docs.google.com/a/clusterhq.com/document/d/1xYbcU6chShgQQtqjFPcU1rXzDbi6ZsIg1n0DZpw6FfQ>`_ policy document.
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
@@ -79,7 +84,18 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that a maintenance release is in progress.
+
+   ::
+
+      @engineering I am releasing from release/flocker-0.3.2. Please don't land anything on that branch until the release is complete.
+
 #. Create a clean, local Flocker release branch with no modifications:
+
+   .. note::
+
+      For a maintenance release, replace ``origin/master`` below with ``origin/flocker-${BASE_VERSION}``,
+      where ``${BASE_VERSION}`` is the release receiving the maintenance.
 
    .. prompt:: bash $
 
@@ -87,6 +103,13 @@ Preparing For a Release
       cd flocker-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
       git push --set-upstream origin release/flocker-${VERSION}
+
+#. Create and activate the Flocker release virtual environment:
+
+   .. prompt:: bash $
+
+      mkvirtualenv flocker-release-${VERSION}
+      pip install --editable .[release]
 
 #. Back port features from master (optional)
 
@@ -155,49 +178,9 @@ Preparing For a Release
 #. Update the staging documentation.
    (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
-   .. TODO: The following steps should be automated
+   .. prompt:: bash $
 
-   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-staging-docs``.
-
-      .. prompt:: bash $
-
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
-
-   #. Update redirects to point to new documentation.
-
-      .. warning:: Skip this step for weekly releases and pre-releases.
-
-      .. prompt:: bash $
-
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
-
-   #. Update the redirect rules in `S3`_ to point to the new release.
-
-      In the properties of the ``clusterhq-staging-docs`` bucket under static website hosting,
-      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
-      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
-
-      .. code-block:: xml
-
-         <RoutingRule>
-           <Condition>
-             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
-           </Condition>
-           <Redirect>
-             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
-             <HttpRedirectCode>302</HttpRedirectCode>
-           </Redirect>
-         </RoutingRule>
-
-   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.staging.clusterhq.com`` distribution::
-
-         /
-         /index.html
-         /en/
-         /en/index.html
-         /en/latest/*
-         /en/devel/*
+      admin/publish-docs --doc-version ${VERSION}
 
 #. Make a pull request on GitHub
 
@@ -215,73 +198,14 @@ Pre-tag Review Process
 
 A tag cannot be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
 So it is important to check that the code in the release branch is working before it is tagged.
-This review step is to ensure that all acceptance tests pass on the release branch before it is tagged.
 
 .. note::
 
    Make sure to follow the latest version of this documentation when reviewing a release.
 
-.. warning:: This process requires ``Vagrant`` and should be performed on your own workstation;
-            **not** on a :doc:`Flocker development machine <vagrant>`.
-
-#. Export the version number of the release being reviewed as an environment variable for later use:
-
-   .. prompt:: bash $
-
-      export VERSION=0.1.2
-
-#. Do the acceptance tests:
-
-   - Add the tutorial vagrant box that BuildBot has created from the release branch.
-
-     .. prompt:: bash $
-
-        vagrant box add http://build.clusterhq.com/results/vagrant/release/flocker-${VERSION}/flocker-tutorial.json
-
-     You should now see the ``flocker-tutorial`` box listed:
-
-     .. Use code-block instead of prompt, to allow emphasis of last line
-     
-     .. code-block:: console
-        :emphasize-lines: 4
-
-        $ vagrant box list
-        clusterhq/fedora20-updated (virtualbox, 2014.09.19)
-        clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-        clusterhq/flocker-tutorial (virtualbox, <RELEASE_BRANCH_VERSION>)
-
-   - Clone Flocker on your local workstation and install all ``dev`` requirements:
-
-     .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
-
-     .. prompt:: bash $
-
-        git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-        cd "flocker-${VERSION}"
-        git checkout "release/flocker-${VERSION}"
-        mkvirtualenv "flocker-release-${VERSION}"
-        pip install --editable .[dev]
-
-   - Install `PhantomJS`_:
-
-     On Linux you will need to ensure that that the ``phantomjs`` binary is on your ``PATH`` before running the acceptance tests below.
-
-   - Add the Vagrant key to your agent:
-
-     .. prompt:: bash $
-
-        ssh-add ~/.vagrant.d/insecure_private_key
-
-   - Run the automated acceptance tests.
-
-     They will start the appropriate VMs.
-     Ensure that they all pass, with no skips:
-
-     .. prompt:: bash $
-
-        admin/run-acceptance-tests --distribution fedora-20
-
 #. Check documentation.
+
+   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
    - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
 
@@ -299,37 +223,40 @@ This review step is to ensure that all acceptance tests pass on the release bran
    - For a development release, the following redirects should work.
 
      - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
-     - https://docs.staging.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
+     - https://docs.staging.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
 
-#. Accept or reject the release issue depending on whether everything has worked.
+#. Update GitHub:
 
-   - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
+   If there are no problems spotted, comment on the Pull Request that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
+   Otherwise, add comments to the Pull Request for any problems, and comment that they must be resolved before repeating this review process.
 
-   - If rejecting the issue, any problems must be resolved before repeating the review process.
+#.  Reject the JIRA issue.
 
-.. _PhantomJS: http://phantomjs.org/download.html
+    This is necessary because the release branch will need another review.
 
 .. _release:
 
 Release
 -------
 
-.. warning:: The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
-             Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+#. Create and log in to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
-             .. prompt:: bash $
+   From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
-                vagrant ssh -- -A
+   .. prompt:: bash $
+
+      vagrant up
+      vagrant ssh -- -A
 
 #. Export the version number of the release being completed as an environment variable for later use:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       export VERSION=0.1.2
 
 #. Create a clean, local copy of the Flocker and `homebrew-tap`_ release branches with no modifications:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
@@ -340,17 +267,18 @@ Release
       git checkout release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
+   
+   .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
 
-   .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
-
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
+      pip install setuptools==3.6
 
 #. Tag the version being released:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
@@ -364,32 +292,50 @@ Release
 
    Wait for the build to complete successfully.
 
+#. Set up Google Cloud Storage credentials on the Vagrant development machine:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      gsutil config
+
+   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
+
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
    .. note:: Skip this step for a documentation release.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       python setup.py sdist bdist_wheel
-      gsutil cp -a public-read \
-          "dist/Flocker-${VERSION}.tar.gz" \
-          "dist/Flocker-${VERSION}-py2-none-any.whl" \
-          gs://archive.clusterhq.com/downloads/flocker/
+      gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
    .. note:: Skip this step for a documentation release.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       admin/upload-rpms "${VERSION}"
 
-#. Build and upload the tutorial :ref:`Vagrant box <build-vagrant-box>`.
+#. Copy the tutorial box to the final location:
+   
+   .. note:: Skip this step for a documentation release.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+
+#. Add the tutorial box to Atlas:
 
    .. note:: Skip this step for a documentation release.
 
-   .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
-                **not** on a :doc:`Flocker development machine <vagrant>`.
+   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      echo http://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+
+   Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
 #. Create a version specific ``Homebrew`` recipe for this release:
 
@@ -399,7 +345,7 @@ Release
 
    - Create a recipe file and push it to the `homebrew-tap`_ repository:
 
-     .. prompt:: bash $
+     .. prompt:: bash [vagrant@localhost]$
 
         cd ../homebrew-tap-${VERSION}
         ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
@@ -414,7 +360,7 @@ Release
      .. prompt:: bash $
 
         brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
-        brew test flocker-${VERSION}.rb
+        brew test flocker-${VERSION}
 
    - Make a pull request:
 
@@ -426,65 +372,19 @@ Release
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
 #. Update the documentation.
-   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
-   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
+   .. prompt:: bash [vagrant@localhost]$
 
-      .. prompt:: bash $
-
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
-
-   #. Update redirects to point to new documentation.
-
-      .. warning:: Skip this step for weekly releases and pre-releases.
-
-         The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
-         We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
-
-      .. prompt:: bash $
-
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
-
-   #. Update the redirect rules in `S3`_ to point to the new release.
-
-      In the properties of the ``clusterhq-docs`` bucket under static website hosting,
-      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
-      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
-
-      .. code-block:: xml
-
-         <RoutingRule>
-           <Condition>
-             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
-           </Condition>
-           <Redirect>
-             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
-             <HttpRedirectCode>302</HttpRedirectCode>
-           </Redirect>
-         </RoutingRule>
-
-   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.clusterhq.com`` distribution::
-
-         /
-         /index.html
-         /en/
-         /en/index.html
-         /en/latest/*
-         /en/devel/*
+      admin/publish-docs --production
 
 #. Submit the release pull request for review again.
 
 Post-Release Review Process
 ---------------------------
 
-#. Remove the Vagrant box which was added as part of :ref:`pre-tag-review`:
-
-   .. prompt:: bash $
-
-      vagrant box remove clusterhq/flocker-tutorial
-
 #. Check that the documentation is set up correctly:
+
+   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
    - The documentation should be available at https://docs.clusterhq.com/en/${VERSION}/.
 
@@ -502,7 +402,7 @@ Post-Release Review Process
    - For a development release, the following redirects should work.
 
      - https://docs.clusterhq.com/en/devel/ should redirect to ``https://docs.clusterhq.com/en/${VERSION}/``
-     - https://docs.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
+     - https://docs.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Verify that the tutorial works on all supported platforms:
 
@@ -536,6 +436,12 @@ Post-Release Review Process
 
 #. Merge the release pull request.
 
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that the maintenance release is in complete.
+
+   ::
+
+      @engineering The release from release/flocker-0.3.2 is complete. Branches targeting it can now land.
+
 
 Improving the Release Process
 -----------------------------
@@ -560,7 +466,6 @@ XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
-.. _virtualenvwrapper: https://pypi.python.org/pypi/virtualenvwrapper
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home

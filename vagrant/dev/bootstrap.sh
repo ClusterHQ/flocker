@@ -16,7 +16,8 @@ yum install -y \
 	automake autoconf libtool \
 	rpm-devel rpmlint mock createrepo \
 	docker-io \
-	python-devel python-tox python-virtualenv python-pip \
+	python-devel python-tox \
+	python-virtualenv python-virtualenvwrapper python-pip \
 	python-cffi libffi-devel \
 	yum-utils \
 	pypy pypy-devel
