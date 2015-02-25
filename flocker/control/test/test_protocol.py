@@ -148,7 +148,7 @@ class ControlTestCase(SynchronousTestCase):
     discarding Eliot contexts whose context level may be unknown.
     """
 
-    def patch_call_remote(self, capture_list, protocol=None):
+    def patch_call_remote(self, capture_list, protocol):
         """
         Patch the callRemote method for this test case's protocol.
 
@@ -157,8 +157,6 @@ class ControlTestCase(SynchronousTestCase):
         :param protocol: Either `None` to default to self.protocol, or
             a ``ControlAMP`` instance.
         """
-        if protocol is None:
-            protocol = self.protocol
 
         def capture_call_remote(capture, *args, **kwargs):
             # Ditch the eliot context whose context level is difficult to
@@ -201,7 +199,7 @@ class ControlAMPTests(ControlTestCase):
         When a connection is made the cluster status is sent to the new client.
         """
         sent = []
-        self.patch_call_remote(sent)
+        self.patch_call_remote(sent, self.protocol)
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
 
@@ -265,7 +263,7 @@ class ControlAMPTests(ControlTestCase):
         sent1 = []
         sent2 = []
 
-        self.patch_call_remote(sent1)
+        self.patch_call_remote(sent1, self.protocol)
         self.patch_call_remote(sent2, protocol=another_protocol)
 
         self.successResultOf(
