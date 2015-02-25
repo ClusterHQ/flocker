@@ -521,3 +521,38 @@ class VariableInterpolationTests(SynchronousTestCase):
              u''],
             list(rst)
         )
+
+
+class ExampleFromDictionaryTests(SynchronousTestCase):
+    """
+    {'doc': 'Get a list of all datasets that have been configured for a\ndeployment.  These datasets may or may not actually exist on the\ncluster.\n', 'response': 'HTTP/1.0 200 OK\n\n[\n  {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}},\n  {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}\n]\n',
+
+    'request': 'GET /v1/configuration/datasets HTTP/1.1\n', 'requires': ['create dataset with dataset_id', 'create dataset with metadata'], 'id': 'get configured datasets'}
+    """
+    def test_expected_keys(self):
+        """
+        ``Example.fromDictionary`` takes the request, response and doc keys
+        from the supplied dictionary and passes them to the Example
+        initialiser.
+        """
+        expected_request = 'GET /v1/some/example/request HTTP/1.1\n'
+        expected_response = 'HTTP/1.0 200 OK\n\n'
+
+        supplied_dictionary = {
+            'doc': 'Documentation for some example.',
+            'request': expected_request,
+            'response': expected_response,
+            'requires': [
+                'some requirement of this example',
+                'another requirement of this example',
+            ],
+            'id': 'some example label'
+        }
+
+        expected_example = Example(
+            request=expected_request,
+            response=expected_response
+        )
+
+        self.assertEqual(
+            expected_example, Example.fromDictionary(supplied_dictionary))
