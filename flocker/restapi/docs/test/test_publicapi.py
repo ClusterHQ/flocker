@@ -136,8 +136,10 @@ class MakeRstTests(SynchronousTestCase):
              # Here is the prose documentation for the endpoint.
              '   Demonstrates examples.',
              '   ',
+             '   **Example:** This example demonstrates examples.',
+             '   ',
              # This is a header introducing the request portion of the session.
-             '   **Example request**',
+             '   Request',
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              '   .. sourcecode:: http',
@@ -150,7 +152,7 @@ class MakeRstTests(SynchronousTestCase):
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              # The same again but for the HTTP response.
-             '   **Example response**',
+             '   Response',
              '   ',
              '   .. sourcecode:: http',
              '   ',
@@ -391,7 +393,7 @@ class FormatExampleTests(SynchronousTestCase):
         example = Example(request=b"GET FOO", response=b"200 OK")
         lines = list(_formatExample(example, {u"DOMAIN": u"example.com"}))
         self.assertEqual(
-            [u'**Example request**',
+            [u'Request',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -399,7 +401,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**Example response**',
+             u'Response',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -421,7 +423,7 @@ class FormatExampleTests(SynchronousTestCase):
         example = Example(request=request, response=response)
         lines = list(_formatExample(example, substitutions))
         self.assertEqual(
-            [u'**Example request**',
+            [u'Request',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -429,7 +431,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**Example response**',
+             u'Response',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -499,7 +501,7 @@ class VariableInterpolationTests(SynchronousTestCase):
             [u'',
              u'.. http:get:: /prefix/',
              u'',
-             u'   **Example request**',
+             u'   Request',
              u'   ',
              u'   .. sourcecode:: http',
              u'   ',
@@ -510,7 +512,7 @@ class VariableInterpolationTests(SynchronousTestCase):
              # Here is the important line.
              u'      192.0.2.1',
              u'   ',
-             u'   **Example response**',
+             u'   Response',
              u'   ',
              u'   .. sourcecode:: http',
              u'   ',

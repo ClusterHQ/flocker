@@ -265,7 +265,10 @@ def _formatExample(example, substitutions):
     @return: A generator which yields L{unicode} strings each of which should
         be a line in the resulting rst document.
     """
-    yield u"**Example request**"
+    if example.doc:
+        yield u"**Example:** {}".format(example.doc)
+        yield u""
+    yield u"Request"
     yield u""
     yield u".. sourcecode:: http"
     yield u""
@@ -277,7 +280,7 @@ def _formatExample(example, substitutions):
         yield u"   " + line.rstrip()
     yield u""
 
-    yield u"**Example response**"
+    yield u"Response"
     yield u""
     yield u".. sourcecode:: http"
     yield u""
