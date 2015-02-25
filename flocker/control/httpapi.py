@@ -213,6 +213,38 @@ class DatasetAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
+    @app.route("/configuration/datasets/<dataset_id>", methods=['DELETE'])
+    @user_documentation(
+        """
+        Delete an existing dataset.
+        """,
+        examples=[
+            u"delete dataset",
+            u"delete dataset with unknown dataset id",
+        ]
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        schema_store=SCHEMAS
+    )
+    def delete_dataset(self, dataset_id):
+        """
+        Delete an existing dataset in the cluster configuration.
+
+       :param unicode dataset_id: The unique identifier of the dataset.  This
+            is a string giving a UUID (per RFC 4122).
+
+        :return: A ``dict`` describing the dataset which has been added to the
+            cluster configuration or giving error information if this is not
+            possible.
+        """
+        # pretty much like update_dataset, and probably sharing a bunch of
+        # code, except we set the "deleted" attribute to True. If it's
+        # already set to True that's fine, not an error (making this
+        # operation idempotent).
+        pass
+
     @app.route("/configuration/datasets/<dataset_id>", methods=['POST'])
     @user_documentation(
         """
@@ -396,6 +428,7 @@ def api_dataset_from_dataset_and_node(dataset, node_hostname):
     """
     result = dict(
         dataset_id=dataset.dataset_id,
+        # XXX deleted=dataset.deleted,
         primary=node_hostname,
         metadata=thaw(dataset.metadata)
     )

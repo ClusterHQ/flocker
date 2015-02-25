@@ -174,6 +174,7 @@ class Manifestation(object):
 
 
 @attributes(["dataset_id",
+             Attribute("deleted", default_value=False),
              Attribute("maximum_size", default_value=None),
              Attribute("metadata", default_value=pmap())])
 class Dataset(object):
@@ -182,14 +183,14 @@ class Dataset(object):
 
     At some point we'll want a way of reserving metadata for ourselves.
 
-    maximum_size really should be metadata:
-    https://clusterhq.atlassian.net/browse/FLOC-1215
-
     :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
         if this is coming out of human-supplied configuration, in which
         case it will need to be looked up from actual state for existing
         datasets, or a new one generated if a new dataset will need tbe
         created.
+
+    :ivar bool deleted: If ``True``, this dataset has been deleted and its
+        data is unavailable, or will soon become unavailable.
 
     :ivar PMap metadata: Mapping between ``unicode`` keys and
         corresponding values. Typically there will be a ``"name"`` key whose
