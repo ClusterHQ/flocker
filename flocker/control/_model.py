@@ -246,7 +246,7 @@ class Node(PRecord):
                 return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
-    hostname = field(type=unicode, mandatory=True)
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
     applications = field(type=PSet, initial=pset(), factory=pset,
                          mandatory=True)
     manifestations = field(type=PMap, initial=pmap(), factory=pmap,
@@ -370,7 +370,7 @@ class NodeState(PRecord):
     :ivar PSet manifestations: All ``Manifestation`` instances that
         are present on the node.
     """
-    hostname = field(type=unicode, mandatory=True)
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = field(type=PSet, initial=pset(), factory=pset,
                        mandatory=True)
     running = field(type=PSet, initial=pset(), factory=pset,
