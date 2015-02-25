@@ -24,7 +24,12 @@ YOSEMITE_VMX_PATH = "{HOME}/Desktop/Virtual Machines.localized/OS X 10.10.vmware
 VM_ADDRESS = "172.18.140.54"
 
 vmrun.start(YOSEMITE_VMX_PATH, gui=True)
+# from time import sleep
+# sleep(50)
+
 update = "brew update"
 install = "brew install https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-0.3.3dev6/flocker-0.3.3dev6.rb"
 test = "brew test flocker-0.3.3dev6"
-run(username="ClusterHQVM", address=VM_ADDRESS, commands=[Run.from_args([update, install, test])])
+
+for command in [update, install, test]:
+    run(username="ClusterHQVM", address=VM_ADDRESS, commands=[Run(command=command)])
