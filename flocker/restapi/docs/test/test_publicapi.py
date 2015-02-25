@@ -390,10 +390,16 @@ class FormatExampleTests(SynchronousTestCase):
         L{_formatExample} yields L{unicode} instances representing the lines of
         a reST document describing an example HTTP session.
         """
-        example = Example(request=b"GET FOO", response=b"200 OK")
+        example = Example(
+            request=b"GET FOO",
+            response=b"200 OK",
+            doc=u"Documentation of some example."
+        )
         lines = list(_formatExample(example, {u"DOMAIN": u"example.com"}))
         self.assertEqual(
-            [u'Request',
+            [u'**Example:** Documentation of some example.',
+             u'',
+             u'Request',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -420,10 +426,16 @@ class FormatExampleTests(SynchronousTestCase):
             u"CODE": u"4242"}
         request = b"GET %(PATH)s HTTP/1.1"
         response = b"HTTP/1.1 %(CODE)s Ok"
-        example = Example(request=request, response=response)
+        example = Example(
+            request=request,
+            response=response,
+            doc=u'Documentation of some example.'
+        )
         lines = list(_formatExample(example, substitutions))
         self.assertEqual(
-            [u'Request',
+            [u'**Example:** Documentation of some example.',
+             u'',
+             u'Request',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -485,7 +497,8 @@ class VariableInterpolationTests(SynchronousTestCase):
             response=(
                 "HTTP/1.1 200 OK\n"
                 "\n"
-            )
+            ),
+            doc=u"Documentation of some example."
         )
         app = Klein()
 
@@ -501,6 +514,8 @@ class VariableInterpolationTests(SynchronousTestCase):
             [u'',
              u'.. http:get:: /prefix/',
              u'',
+             u'   **Example:** Documentation of some example.',
+             u'   ',
              u'   Request',
              u'   ',
              u'   .. sourcecode:: http',
@@ -537,40 +552,19 @@ class ExampleFromDictionaryTests(SynchronousTestCase):
         """
         expected_request = 'GET /v1/some/example/request HTTP/1.1\n'
         expected_response = 'HTTP/1.0 200 OK\n\n'
+        expected_doc = u'Documentation for some example.'
 
         supplied_dictionary = {
             'request': expected_request,
             'response': expected_response,
+            'doc': expected_doc,
         }
 
         expected_example = Example(
             request=expected_request,
             response=expected_response,
+            doc=expected_doc,
         )
 
         self.assertEqual(
             expected_example, Example.fromDictionary(supplied_dictionary))
-
-    def test_doc_default(self):
-        """
-        ``Example.doc`` is `b''` by default.
-        """
-        self.assertEqual(
-            b'',
-            Example.fromDictionary(
-                dict(request=b'foo', response=b'bar')
-            ).doc
-        )
-
-    def test_doc_override(self):
-        """
-        ``Example.fromDictionary`` uses the supplied doc key, if present, and
-        passes it to the Example initialiser.
-        """
-        expected_doc = b'Documentation of some example.'
-        self.assertEqual(
-            expected_doc,
-            Example.fromDictionary(
-                dict(request=b'foo', response=b'bar', doc=expected_doc)
-            ).doc
-        )

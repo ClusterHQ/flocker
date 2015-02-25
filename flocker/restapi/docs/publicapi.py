@@ -24,7 +24,7 @@ from docutils.parsers.rst import directives
 from twisted.python.reflect import namedAny
 from twisted.python.filepath import FilePath
 
-from characteristic import attributes, Attribute
+from characteristic import attributes
 
 from .._schema import LocalRefResolver, resolveSchema
 
@@ -44,7 +44,7 @@ class KleinRoute(namedtuple('KleinRoute', 'path methods endpoint attributes')):
     """
 
 
-@attributes(['request', 'response', Attribute('doc', default_value=b'')])
+@attributes(['request', 'response', 'doc'])
 class Example(object):
     """
     An L{Example} instance represents a single HTTP session example.
@@ -64,7 +64,7 @@ class Example(object):
         return cls(
             request=d[u"request"],
             response=d[u"response"],
-            doc=d.get('doc', b''),
+            doc=d[u"doc"],
         )
 
 
@@ -265,9 +265,8 @@ def _formatExample(example, substitutions):
     @return: A generator which yields L{unicode} strings each of which should
         be a line in the resulting rst document.
     """
-    if example.doc:
-        yield u"**Example:** {}".format(example.doc)
-        yield u""
+    yield u"**Example:** {}".format(example.doc)
+    yield u""
     yield u"Request"
     yield u""
     yield u".. sourcecode:: http"
