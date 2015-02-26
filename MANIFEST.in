@@ -6,4 +6,4 @@ recursive-include admin *.py
 # These data files are used by the volumes API to define input and output
 # schemas.
 recursive-include flocker/control/schema *.yml
-include flocker-cli/_version.py
+include flocker_cli/_version.py
