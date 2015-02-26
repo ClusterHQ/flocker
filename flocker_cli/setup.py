@@ -9,8 +9,8 @@ from setuptools import setup, find_packages
 
 import versioneer
 versioneer.vcs = "git"
-versioneer.versionfile_source = "flocker_cli/_version.py"
-versioneer.versionfile_build = "flocker_cli/_version.py"
+versioneer.versionfile_source = "cli/_version.py"
+versioneer.versionfile_build = "cli/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
 
@@ -57,7 +57,7 @@ setup(
     # This setuptools helper will find everything that looks like a *Python*
     # package (in other words, things that can be imported) which are part of
     # the Flocker package.
-    packages=find_packages(exclude=('admin', 'admin.*')),
+    packages=['cli'],
 
     package_data={
     },
@@ -67,13 +67,12 @@ setup(
         # Don't forget to modify the omnibus packaging tool
         # (admin/packaging.py) if you make changes here.
         'console_scripts': [
-            'flocker = flocker_cli.script:flocker_cli_main',
+            'flocker = cli.script:flocker_cli_main',
         ],
     },
 
     install_requires=[
         "setuptools >= 1.4, < 8.0",  # < 8.0 to avoid PEP440 warnings
-        "six == 1.9.0",
         "eliot == 0.6.0",
         "zope.interface >= 4.0.5",
         "characteristic >= 14.1.0",
