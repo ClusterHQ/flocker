@@ -212,18 +212,13 @@ def verify_recipe(recipe, version):
     vmrun.revertToSnapshot(YOSEMITE_VMX_PATH, 'homebrew-clean')
     vmrun.start(YOSEMITE_VMX_PATH, gui=False)
 
-    recipe_file = "flocker-{version}.rb".format(version=version)
-
-    update = "brew update"
-    install = "brew install " + recipe_file
-    test = "brew test " + recipe_file
+    recipe_path = "flocker-{version}.rb".format(version=version)
 
     run(username="ClusterHQVM", address=VM_ADDRESS,
-        commands=[Put(content=recipe, path="~/" + recipe_file)])
-
-    for command in [update, install, test]:
-        run(username="ClusterHQVM", address=VM_ADDRESS,
-            commands=[Run(command=command)])
+        commands=[Put(content=recipe, path=recipe_path),
+                  Run(command="brew update"),
+                  Run(command="brew install " + recipe_path),
+                  Run(command="brew test " + recipe_path)])
 
     vmrun.stop(YOSEMITE_VMX_PATH, soft=False)
 
@@ -234,8 +229,11 @@ def main():
     """
     version = get_version()
     recipe = create_recipe(version)
-    verify_recipe(recipe=recipe, version=version)
-    print recipe
+    test = True
+    if test:
+        verify_recipe(recipe=recipe, version=version)
+    else:
+        print recipe
 
 if __name__ == "__main__":
     main()
