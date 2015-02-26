@@ -48,7 +48,7 @@ class Put(object):
     """
     Create a file with the given content on a remote host.
 
-    :param bytes content: The desired contests.
+    :param bytes content: The desired contents.
     :param bytes path: The remote path to create.
     """
 
