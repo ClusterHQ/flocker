@@ -10,7 +10,13 @@ from os import environ
 from json import load
 from urllib2 import HTTPError, urlopen
 from hashlib import sha1
+
 from tl.eggdeps.graph import Graph
+
+# TODO add vmfusion to setup.py and google doc in appropriate sections
+from vmfusion import vmrun
+
+from flocker.provision._install import run, Run, Put
 
 
 def get_dependency_graph(application):
@@ -130,19 +136,19 @@ def get_resource_stanzas(dependency_graph):
     return resources
 
 
-def main():
+def create_recipe(version):
     """
-    Print a Homebrew recipe for Flocker, using the VERSION environment
-    variable.
+    :param str version: The version of Flocker to create a Homebrew recipe for.
+
+    :returns: A Homebrew recipe for Flocker.
     """
-    version = get_version()
     url = (b"https://storage.googleapis.com/archive.clusterhq.com/"
            "downloads/flocker/Flocker-{version}.tar.gz").format(
                version=version)
 
     dependency_graph = get_dependency_graph(u"flocker")
 
-    print u"""require "formula"
+    return u"""require "formula"
 
 class {class_name} < Formula
   homepage "https://clusterhq.com"
@@ -173,6 +179,60 @@ end
            class_name=get_class_name(version),
            resources=get_resource_stanzas(dependency_graph),
            dependencies=get_formatted_dependency_list(dependency_graph))
+
+
+def verify_recipe(recipe, version):
+    """
+    Revert the Yosemite VM to a state where homebrew has just been
+    installed, start the machine and ssh into it. Then start a VM and test a
+    Homebrew script in that VM.
+
+    The machine must have:
+        * VMWare Fusion installed,
+        * A VMWare OS X VM available at a particular location
+
+    The VM must have:
+        * A snapshot with a particular name,
+        * Homebrew installed and available
+
+    :param str recipe: The contents of a Homebrew recipe to be installed.
+    :param str version: The version of Flocker which the Homebrew recipe will
+        install.
+    """
+    YOSEMITE_VMX_PATH = "{HOME}/Desktop/Virtual Machines.localized/OS X 10.10.vmwarevm/OS X 10.10.vmx".format(HOME=environ['HOME'])
+    # This can likely be found another way, but I got it from within the VM:
+    # System Preferences > Network
+    VM_ADDRESS = "172.18.140.54"
+
+    # XXX Requires https://github.com/msteinhoff/vmfusion-python/pull/4 to be
+    # merged
+    vmrun.revertToSnapshot(YOSEMITE_VMX_PATH, 'homebrew-clean')
+    vmrun.start(YOSEMITE_VMX_PATH, gui=False)
+
+    recipe_file = "flocker-{version}.rb".format(version=version)
+
+    update = "brew update"
+    install = "brew install " + recipe_file
+    test = "brew test " + recipe_file
+
+    run(username="ClusterHQVM", address=VM_ADDRESS,
+        commands=[Put(content=recipe, path="~/" + recipe_file)])
+
+    for command in [update, install, test]:
+        run(username="ClusterHQVM", address=VM_ADDRESS,
+            commands=[Run(command=command)])
+
+    vmrun.stop(YOSEMITE_VMX_PATH, soft=False)
+
+
+def main():
+    """
+    Prints a Homebrew recipe for Flocker.
+    """
+    version = get_version()
+    recipe = create_recipe(version)
+    verify_recipe(recipe=recipe, version=version)
+    print recipe
 
 if __name__ == "__main__":
     main()
