@@ -19,6 +19,7 @@ done
 
 
 ## Hacks to demonstrate other changes
+systemctl unmask firewalld
 systemctl enable firewalld
 systemctl start firewalld
 for PORT in 3306 9200 5000 80 5432 27018; do # List of ports used in acceptance tests
