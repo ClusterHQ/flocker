@@ -1,1 +1,2 @@
 flocker/_version.py export-subst
+flocker-cli/_version.py export-subst
