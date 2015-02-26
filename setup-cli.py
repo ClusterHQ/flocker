@@ -72,7 +72,9 @@ setup(
     },
 
     install_requires=[
-        "setuptools >= 1.4",
+        "setuptools >= 1.4, < 8.0",  # < 8.0 to avoid PEP440 warnings
+
+        "eliot",
         "zope.interface >= 4.0.5",
         "characteristic >= 14.1.0",
         "Twisted == 15.0.0",
