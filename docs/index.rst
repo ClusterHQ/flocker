@@ -2,7 +2,7 @@ Flocker Documentation
 =====================
 
 Flocker is a data volume manager and multi-host Docker cluster management tool.
-With it you can control your data using the same tools you use for your stateless applications by harnessing the power of ZFS on Linux.
+With it you can control your data using the same tools you use for your stateless applications.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
 
 With Flocker's command line tools and a simple configuration language, you can deploy your Docker-based applications onto one or more Linux hosts.
