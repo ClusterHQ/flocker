@@ -24,7 +24,7 @@ VM_ADDRESS = "172.18.140.54"
 # XXX Requires https://github.com/msteinhoff/vmfusion-python/pull/4 to be
 # merged
 vmrun.revertToSnapshot(YOSEMITE_VMX_PATH, 'homebrew-clean')
-vmrun.start(YOSEMITE_VMX_PATH, gui=True)
+vmrun.start(YOSEMITE_VMX_PATH, gui=False)
 
 version = "0.3.3dev6"
 url = "https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-{version}/flocker-{version}.rb".format(version=version)
