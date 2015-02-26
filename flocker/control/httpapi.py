@@ -322,6 +322,9 @@ class DatasetAPIUserV1(object):
         :return: A ``list`` containing all datasets in the cluster.
         """
         deployment = self.cluster_state_service.as_deployment()
+        # XXX for each dict, lookup path via the
+        # cluster_state_service.manifestation_path() function and add it
+        # to the dict:
         return list(datasets_from_deployment(deployment))
 
 

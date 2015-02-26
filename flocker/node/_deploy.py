@@ -397,6 +397,8 @@ class P2PNodeDeployer(object):
             running = []
             not_running = []
             manifestations = []  # Manifestation objects we're constructing
+            # XXX manifestation_paths = {dataset_id: path for (path, (dataset_id, _))
+            #                            in available_manifestations}
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.volumes:
@@ -473,6 +475,7 @@ class P2PNodeDeployer(object):
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
                 manifestations=manifestations,
+                # XXX paths=manifestation_paths,
             )
         d.addCallback(applications_from_units)
         return d

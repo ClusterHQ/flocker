@@ -7,8 +7,9 @@ Record types for representing deployment models.
 
 from characteristic import attributes, Attribute
 
+from twisted.python.filepath import FilePath
 from pyrsistent import (
-    pmap, PRecord, field, PMap, PSet, pset,
+    pmap, PRecord, field, PMap, PSet, pset, CheckedPMap
     )
 
 from zope.interface import Interface, implementer
@@ -366,6 +367,8 @@ class NodeState(PRecord):
         in use (by anything) on this node.
     :ivar PSet manifestations: All ``Manifestation`` instances that
         are present on the node.
+    :ivar PMap paths: The filesystem paths of the manifestations on this
+        node. Maps ``dataset_id`` to a ``FilePath``.
     """
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = field(type=PSet, initial=pset(), factory=pset,
@@ -376,6 +379,14 @@ class NodeState(PRecord):
                         mandatory=True)
     manifestations = field(type=PSet, initial=pset(), factory=pset,
                            mandatory=True)
+
+    # See https://github.com/tobgu/pyrsistent/issues/26 for my proposal
+    # for more succinct idiom:
+    class _PathMap(CheckedPMap):
+        __key_type__ = unicode
+        __value_type__ = FilePath
+    paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap,
+                  mandatory=True)
 
     def to_node(self):
         """
