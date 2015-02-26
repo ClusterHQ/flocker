@@ -9,8 +9,8 @@ from setuptools import setup, find_packages
 
 import versioneer
 versioneer.vcs = "git"
-versioneer.versionfile_source = "flocker_cli/_version.py"
-versioneer.versionfile_build = "flocker_cli/_version.py"
+versioneer.versionfile_source = "flocker/_version.py"
+versioneer.versionfile_build = "flocker/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
 
@@ -35,7 +35,7 @@ with open("README.rst") as readme:
 
 setup(
     # This is the human-targetted name of the software being packaged.
-    name="Flocker CLI",
+    name="Flocker",
     # This is a string giving the version of the software being packaged.  For
     # simplicity it should be something boring like X.Y.Z.
     version=versioneer.get_version(),
@@ -60,6 +60,14 @@ setup(
     packages=find_packages(exclude=('admin', 'admin.*')),
 
     package_data={
+        'flocker.node.functional': [
+            'sendbytes-docker/*',
+            'env-docker/*',
+            'retry-docker/*'
+        ],
+        # These data files are used by the volumes API to define input and
+        # output schemas.
+        'flocker.control': ['schema/*.yml'],
     },
 
     entry_points = {
@@ -67,18 +75,36 @@ setup(
         # Don't forget to modify the omnibus packaging tool
         # (admin/packaging.py) if you make changes here.
         'console_scripts': [
-            'flocker = flocker_cli.script:flocker_cli_main',
+            'flocker-volume = flocker.volume.script:flocker_volume_main',
+            'flocker-deploy = flocker.cli.script:flocker_deploy_main',
+            'flocker-changestate = flocker.node.script:flocker_changestate_main',
+            'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
+            'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
+            'flocker-control = flocker.control.script:flocker_control_main',
         ],
     },
 
     install_requires=[
-        "setuptools >= 1.4, < 8.0",  # < 8.0 to avoid PEP440 warnings
+        "setuptools >= 1.4",
 
         "eliot == 0.6.0",
+        "machinist == 0.2.0",
         "zope.interface >= 4.0.5",
+        "pytz",
         "characteristic >= 14.1.0",
         "Twisted == 15.0.0",
+
         "PyYAML == 3.10",
+
+        "treq == 0.2.1",
+
+        "psutil == 2.1.2",
+        "netifaces >= 0.8",
+        "ipaddr == 2.1.11",
+        "docker-py == 0.7.1",
+        "jsonschema == 2.4.0",
+        "klein == 0.2.3",
+        "pyrsistent == 0.7.0",
         ],
 
     extras_require={
@@ -107,6 +133,32 @@ setup(
             # versioneer is necessary in order to update (but *not* merely to
             # use) the automatic versioning tools.
             "versioneer==0.10",
+
+            # Some of the tests use Conch:
+            "PyCrypto==2.6.1",
+            "pyasn1==0.1.7",
+
+            # The test suite uses network namespaces
+            "nomenclature >= 0.1.0",
+
+            # The acceptance tests interact with MongoDB
+            "pymongo>=2.7.2",
+
+            # The acceptance tests interact with PostgreSQL
+            "pg8000==1.10.1",
+
+            # The acceptance tests interact with MySQL
+            "PyMySQL==0.6.2",
+
+            # The acceptance tests interact with elasticsearch
+            "elasticsearch==1.2.0",
+
+            # The acceptance tests interact with Kibana via WebKit
+            "selenium==2.44.0",
+
+            # The cloud acceptance test runner needs these
+            "fabric==1.10.0",
+            "apache-libcloud==0.16.0",
             ],
 
         # This extra is for Flocker release engineers to set up their release
