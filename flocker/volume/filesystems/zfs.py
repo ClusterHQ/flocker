@@ -23,7 +23,7 @@ from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
-from twisted.internet.defer import Deferred, succeed
+from twisted.internet.defer import Deferred, succeed, gatherResults
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
 
@@ -515,10 +515,20 @@ class StoragePool(Service):
         return d
 
     def destroy(self, volume):
-        # zfs destroy all snapshots. Then, zfs destroy the dataset.  Since
-        # we're not using clone functionality skipping destruction of
-        # snapshots used by clones will be filed as followup issue.
-        pass
+        filesystem = self.get(volume)
+        d = filesystem.snapshots()
+
+        # It would be better to have snapshot destruction logic as part of
+        # IFilesystemSnapshots, but that isn't really necessary yet.
+        def got_snapshots(snapshots):
+            return gatherResults(list(zfs_command(
+                self._reactor,
+                [b"destroy", b"%s@%s" % (filesystem.name, snapshot.name)])
+                for snapshot in snapshots))
+        d.addCallback(got_snapshots)
+        d.addCallback(lambda _: zfs_command(
+            self._reactor, [b"destroy", filesystem.name]))
+        return d
 
     def set_maximum_size(self, volume):
         filesystem = self.get(volume)

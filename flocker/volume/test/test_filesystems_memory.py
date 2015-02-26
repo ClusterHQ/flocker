@@ -51,8 +51,9 @@ class CannedFilesystemSnapshotsTests(SynchronousTestCase):
 
 
 class IStoragePoolTests(make_istoragepool_tests(
-    lambda test_case:
-        FilesystemStoragePool(FilePath(test_case.mktemp())))):
+        lambda test_case:
+        FilesystemStoragePool(FilePath(test_case.mktemp())),
+        lambda fs: CannedFilesystemSnapshots([succeed(None), succeed(None)]))):
     """``IStoragePoolTests`` for fake storage pool."""
 
 

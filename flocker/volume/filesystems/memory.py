@@ -169,8 +169,10 @@ class FilesystemStoragePool(Service):
         return succeed(filesystem)
 
     def destroy(self, volume):
-        # XXX just delete the filesystem.get_path() directory
-        pass
+        filesystem = self.get(volume)
+        root = filesystem.get_path()
+        root.remove()
+        return succeed(None)
 
     def set_maximum_size(self, volume):
         filesystem = self.get(volume)
