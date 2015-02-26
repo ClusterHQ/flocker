@@ -320,6 +320,35 @@ class PushDataset(object):
 
 
 @implementer(IStateChange)
+@attributes(["dataset"])
+class DeleteDataset(object):
+    """
+    Delete all local copies of the dataset.
+
+    A better action would be one that deletes a specific manifestation
+    ("volume" in flocker.volume legacy terminology). Unfortunately
+    currently "remotely owned volumes" (legacy terminology), aka
+    non-primary manifestations or replicas, are not exposed to the
+    deployer, so we have to enumerate them here.
+
+    :ivar Dataset: The dataset to delete.
+    """
+    def run(self, deployer):
+        # service = deployer.volume_service
+        # d = service.enumerate()
+
+        # def got_volumes(volumes):
+        #     deletions = []
+        #     for volume in volumes:
+        #         if volume.name.dataset_id == self.dataset.dataset_id:
+        #             deletions.append(service.pool.destroy(volume))
+        #     return gatherResults(deletions)
+        # d.addCallback(got_volumes)
+        # return d
+        pass
+
+
+@implementer(IStateChange)
 @attributes(["ports"])
 class SetProxies(object):
     """
@@ -627,6 +656,10 @@ class P2PNodeDeployer(object):
             phases.append(InParallel(changes=[
                 CreateDataset(dataset=dataset)
                 for dataset in dataset_changes.creating]))
+        # XXX if dataset_changes.deleting: add some InParallel
+        # DeleteDataset actions. They are done last, to ensure all
+        # dependencies have been cleaned up (e.g. applications that use
+        # them have been stopped).
         start_restart = start_containers + restart_containers
         if start_restart:
             phases.append(InParallel(changes=start_restart))
@@ -735,5 +768,8 @@ def find_dataset_changes(hostname, current_state, desired_state):
         local_current_dataset_ids | remote_current_dataset_ids)
     creating = set(dataset for dataset in local_desired_datasets
                    if dataset.dataset_id in creating_dataset_ids)
+
+    # XXX all datasets with deleted=True attribute should be added to deleted
+    # set on the DatasetChanges
     return DatasetChanges(going=going, coming=coming,
                           creating=creating, resizing=resizing)
