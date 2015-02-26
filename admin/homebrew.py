@@ -138,6 +138,9 @@ def get_resource_stanzas(dependency_graph):
 
 def create_recipe(version):
     """
+    This creates a recipe for a version of Flocker available on GCS which is
+    also installed in the current Python environment.
+
     :param str version: The version of Flocker to create a Homebrew recipe for.
 
     :returns: A Homebrew recipe for Flocker.
