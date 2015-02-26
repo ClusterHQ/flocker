@@ -12,7 +12,7 @@ The VM must have:
     * Homebrew installed and available
 """
 
-# TODO add vmfusion to setup.py and google doc
+# TODO add vmfusion to setup.py and google doc in appropriate sections
 from vmfusion import vmrun
 import os
 from flocker.provision._install import run, Run
