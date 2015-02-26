@@ -4,14 +4,45 @@
 Testing utilities for ``flocker.node``.
 """
 
-from unittest import skipIf
-from subprocess import Popen
+import errno
+import os
+import pwd
+import socket
+from unittest import skipUnless
 
+from ._docker import BASE_DOCKER_API_URL
 from ..testtools import loop_until
 
-# This is terible (https://clusterhq.atlassian.net/browse/FLOC-85):
-if_docker_configured = skipIf(Popen([b"docker", b"version"]).wait(),
-                              "Docker must be installed and running.")
+DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
+
+
+def docker_accessible():
+    """
+    Attempt to connect to the Docker control socket.
+
+    This may address https://clusterhq.atlassian.net/browse/FLOC-85.
+
+    :return: ``True`` if the current user has permission to connect, else
+        ``False``.
+    """
+    try:
+        socket.socket(family=socket.AF_UNIX).connect(DOCKER_SOCKET_PATH)
+    except socket.error as e:
+        if e.errno == errno.EACCES:
+            return False
+        if e.errno == errno.ENOENT:
+            # Docker is not installed
+            return False
+        raise
+    else:
+        return True
+
+if_docker_configured = skipUnless(
+    docker_accessible(),
+    "User '{}' does not have permission "
+    "to access the Docker server socket '{}'".format(
+        pwd.getpwuid(os.geteuid()).pw_name,
+        DOCKER_SOCKET_PATH))
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
