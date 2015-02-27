@@ -19,6 +19,22 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 # admin scripts. However, for the purpose of easy diff-ing for the review
 # it will be kept like this temporarily
 
+# TODO put in admin/release
+# put RPMs in the right place - we don't want to start uploading random commits as RPMs to the repository, only releases
+# not doc releases
+# have a weekly repository (folder in a bucket)
+# also one for marketing releases (folder in a bucket)
+# different bucket for testing
+# make fedora-packages
+# [clusterhq] and [clusterhq-testing] in clusterhq.repo
+# Rewrite with FakeAWS?
+# Find Itamar's issue for separating weekly releases with marketing releases
+# Centos vs Fedora in
+# Make it a verified fake?
+# baseurl=https://storage.googleapis.com/archive.clusterhq.com/fedora/$releasever/$basearch/
+
+# Replace /fedora/ with a variable from yum, see yum docs
+# what should happen if we add a version which already exists
 from __future__ import print_function
 
 import os
@@ -101,6 +117,7 @@ def update_centos_repo(rpm_directory, target_repo, source_repo, packages):
     # TODO update the chq release package which is a spec file in another repo
     # https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq-release.spec
     # https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq.repo
+    # put the old RPMs in there
     rpm_directory.createDirectory()
     # Download existing repository
     import boto
