@@ -1,11 +1,12 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-
 """
 Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
-import os
+import os, sys
 from setuptools import setup, find_packages
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import versioneer
 versioneer.vcs = "git"
