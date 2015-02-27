@@ -986,19 +986,11 @@ class OmnibusPackageBuilderTests(TestCase):
                     destination_path=expected_destination_path,
                     source_paths={
                         flocker_node_path: FilePath("/usr/sbin"),
-                        package_files.child('flocker-control-api.firewalld.xml'):  # noqa
-                            FilePath("/usr/lib/firewalld/services/")
-                            .child("flocker-control-api.xml"),
-                        package_files.child('flocker-control-agent.firewalld.xml'):  # noqa
-                            FilePath("/usr/lib/firewalld/services/")
-                            .child("flocker-control-agent.xml"),
+                        package_files.child('firewalld-services'):
+                            FilePath("/usr/lib/firewalld/services/"),
                         # Ubuntu firewall configuration
-                        package_files.child('flocker-control-api.ufw'):
-                            FilePath("/etc/ufw/applications.d/")
-                            .child("flocker-control-api"),
-                        package_files.child('flocker-control-agent.ufw'):
-                            FilePath("/etc/ufw/applications.d/")
-                            .child("flocker-control-agent"),
+                        package_files.child('ufw-applications.d'):
+                            FilePath("/etc/ufw/applications.d/"),
                     },
                     name='clusterhq-flocker-node',
                     prefix=expected_prefix,
