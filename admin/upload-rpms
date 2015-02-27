@@ -15,6 +15,10 @@ XXX This script is not automatically checked by buildbot. See
 https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
+# The plan for this is to have a separate shell and Python script, like other
+# admin scripts. However, for the purpose of easy diff-ing for the review
+# it will be kept like this temporarily
+
 from __future__ import print_function
 
 import os
@@ -48,6 +52,10 @@ FLOCKER_PACKAGES = [
 ]
 
 def update_repo(rpm_directory, target_repo, source_repo, packages):
+    # Take a param to say if this is a Fedora or CentOS source.
+    # Upload CentOS RPM to S3 / bintray / other.
+    # Ask marketing for their statistics requirements and look into the stats
+    # opportunities for each.
     """
     Update ``target_repo`` yum repository with ``packages`` from
     ``source_repo`` repository.
@@ -98,6 +106,7 @@ def upload_rpms(scratch_directory, version, target_server, build_server):
                 target_repo=os.path.join(target_base, b'x86_64'),
                 source_repo=source_repo,
                 packages=FLOCKER_PACKAGES)
+    # Also upload CentOS RPMs
 
 
 def main(options):
