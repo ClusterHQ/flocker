@@ -159,7 +159,7 @@ def versions_from_parentdir(parentdir_prefix, root, verbose=False):
 
 tag_prefix = ""
 parentdir_prefix = "flocker-"
-versionfile_source = "cli/_version.py"
+versionfile_source = "flocker_cli/cli/_version.py"
 
 def get_versions(default={"version": "unknown", "full": ""}, verbose=False):
     # I am in _version.py, which lives at ROOT/VERSIONFILE_SOURCE. If we have

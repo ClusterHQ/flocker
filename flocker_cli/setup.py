@@ -9,8 +9,8 @@ from setuptools import setup, find_packages
 
 import versioneer
 versioneer.vcs = "git"
-versioneer.versionfile_source = "cli/_version.py"
-versioneer.versionfile_build = "cli/_version.py"
+versioneer.versionfile_source = "flocker_cli/cli/_version.py"
+versioneer.versionfile_build = "flocker_cli/cli/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
 
