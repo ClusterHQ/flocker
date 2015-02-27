@@ -35,6 +35,7 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 
 # Replace /fedora/ with a variable from yum, see yum docs
 # what should happen if we add a version which already exists
+# no need to upload RPMs which were downloaded already
 from __future__ import print_function
 
 import os
