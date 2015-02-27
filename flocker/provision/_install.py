@@ -120,16 +120,7 @@ def task_upgrade_kernel():
 def task_upgrade_kernel_centos():
     return [
         Run.from_args([
-            "yum", "install", "-y",
-            "http://www.elrepo.org/elrepo-release-7.0-2.el7.elrepo.noarch.rpm"
-        ]),
-        Run.from_args(["yum-config-manager", "--disable", "elrepo"]),
-        Run.from_args(["yum-config-manager", "--enable", "elrepo-kernel"]),
-        Run.from_args([
-            "sed", "-i", "s/DEFAULTKERNEL=kernel/DEFAULTKERNEL=kernel-ml/",
-            "/etc/sysconfig/kernel"]),
-        Run.from_args([
-            "yum", "install", "-y", "kernel-ml-devel", "kernel-ml"]),
+            "yum", "install", "-y", "kernel-devel", "kernel"]),
         # For dkms and ... ?
         Run.from_args([
             "yum", "install", "-y", "epel-release"]),
