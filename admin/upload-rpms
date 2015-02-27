@@ -36,6 +36,8 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 # Replace /fedora/ with a variable from yum, see yum docs
 # what should happen if we add a version which already exists
 # no need to upload RPMs which were downloaded already
+# in theory X allows you to skip downloading all the packages
+# https://github.com/ClusterHQ/flocker/compare/89eb4f4f28c5%5E...d80ae60ccc07
 from __future__ import print_function
 
 import os
