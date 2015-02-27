@@ -36,7 +36,7 @@ with open("README.rst") as readme:
 
 setup(
     # This is the human-targetted name of the software being packaged.
-    name="Flocker CLI",
+    name="Flocker-CLI",
     # This is a string giving the version of the software being packaged.  For
     # simplicity it should be something boring like X.Y.Z.
     version=versioneer.get_version(),
