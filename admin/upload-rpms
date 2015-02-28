@@ -46,6 +46,8 @@ from subprocess import check_call
 from textwrap import dedent
 import tempfile
 
+import boto
+
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
@@ -123,8 +125,8 @@ def update_centos_repo(rpm_directory, target_repo, source_repo, packages):
     # put the old RPMs in there
     rpm_directory.createDirectory()
     # Download existing repository
-    import boto
     s3 = boto.connect_s3()
+    # TODO get bucket_name from target
     bucket_name = 'archive-test-adam-dangoor'
     # Does not work if there is a '.' in the name
     bucket = s3.get_bucket(bucket_name=bucket_name)
@@ -132,9 +134,6 @@ def update_centos_repo(rpm_directory, target_repo, source_repo, packages):
         new_item_path = os.path.join(rpm_directory.path, str(item.key))
         if not os.path.exists(new_item_path):
             item.get_contents_to_filename(new_item_path)
-
-    # check_call([
-#         b'gsutil', b'cp', b'-R', target_repo + b'/*', rpm_directory.path])
 
     # Download requested packages from source repository
     yum_repo_config = rpm_directory.child(b'build.repo')
@@ -156,16 +155,13 @@ def update_centos_repo(rpm_directory, target_repo, source_repo, packages):
     check_call([b'createrepo', b'--update', rpm_directory.path])
 
     # Upload updated repository
-    check_call(
-        [b'gsutil', b'cp', b'-R', b'-a', b'public-read',
-         rpm_directory.path + b'/*', target_repo])
-
     for root, dirs, files in os.walk(rpm_directory.path):
         for name in files:
             source_path = os.path.join(root, name)
             destination_path = os.path.relpath(source_path, rpm_directory.path)
             key = bucket.new_key(destination_path)
             key.set_contents_from_filename(source_path)
+            key.make_public()
 
 
 def upload_rpms(scratch_directory, version, target_server, build_server):
