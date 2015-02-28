@@ -112,6 +112,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
          name=flocker
          baseurl=%s
          """) % (source_repo,))
+    # TODO On CentOS 7 you can `import yum`
     check_call([
         b'yum',
         b'-c', yum_repo_config.path,
@@ -128,6 +129,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
     yum_repo_config.remove()
 
     # Update repository metatdata
+    # TODO `pip install pakrat` might be able to do this
     check_call([b'createrepo', b'--update', os.path.join(rpm_directory.path, target_key)])
 
     # Upload updated repository
