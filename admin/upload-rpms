@@ -150,8 +150,6 @@ def upload_rpms(scratch_directory, version, target_server, build_server):
 
     centos_source_repo = os.path.join(
         build_server, b'results/omnibus', version, 'centos-7')
-    centos_scratch = scratch_directory.child('fedora-20')
-    centos_scratch.createDirectory()
     update_repo(rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
                 target_bucket='archive-test-adam-dangoor',
                 target_key=os.path.join(b'centos', b'7', b'x86_64'),
