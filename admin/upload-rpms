@@ -110,6 +110,13 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
          baseurl=%s
          """) % (source_repo,))
     check_call([
+        b'yum',
+        b'-c', yum_repo_config.path,
+        b'--disablerepo=*',
+        b'--enablerepo=flocker',
+        b'clean',
+        b'metadata'])
+    check_call([
         b'yumdownloader',
         b'-c', yum_repo_config.path,
         b'--disablerepo=*',
