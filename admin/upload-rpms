@@ -38,6 +38,14 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 # no need to upload RPMs which were downloaded already
 # in theory X allows you to skip downloading all the packages
 # https://github.com/ClusterHQ/flocker/compare/89eb4f4f28c5%5E...d80ae60ccc07
+#
+# change install instructions to point to AWS
+#
+# update the chq release package which is a spec file in another repo
+# https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq-release.spec
+# https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq.repo
+# put the old RPMs in there
+
 from __future__ import print_function
 
 import os
@@ -72,67 +80,24 @@ FLOCKER_PACKAGES = [
     b'clusterhq-flocker-node'
 ]
 
-def update_repo(rpm_directory, target_repo, source_repo, packages):
-    # Take a param to say if this is a Fedora or CentOS source.
-    # Upload CentOS RPM to S3 / bintray / other.
-    # Ask marketing for their statistics requirements and look into the stats
-    # opportunities for each.
+def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages):
     """
     Update ``target_repo`` yum repository with ``packages`` from
     ``source_repo`` repository.
     """
     rpm_directory.createDirectory()
-    # Download existing repository
-    check_call([
-        b'gsutil', b'cp', b'-R', target_repo + b'/*', rpm_directory.path])
-
-    # Download requested packages from source repository
-    yum_repo_config = rpm_directory.child(b'build.repo')
-    yum_repo_config.setContent(dedent(b"""
-         [flocker]
-         name=flocker
-         baseurl=%s
-         """) % (source_repo,))
-    check_call([
-        b'yumdownloader',
-        b'-c', yum_repo_config.path,
-        b'--disablerepo=*',
-        b'--enablerepo=flocker',
-        b'--destdir', rpm_directory.path] + packages)
-    yum_repo_config.remove()
-
-    # Update repository metatdata
-    check_call([b'createrepo', b'--update', rpm_directory.path])
-
-    # Upload updated repository
-    check_call(
-        [b'gsutil', b'cp', b'-R', b'-a', b'public-read',
-         rpm_directory.path + b'/*', target_repo])
-
-def update_centos_repo(rpm_directory, target_bucket, target_key, source_repo, packages):
-    # Take a param to say if this is a Fedora or CentOS source.
-    # Upload CentOS RPM to S3 / bintray / other.
-    # Ask marketing for their statistics requirements and look into the stats
-    # opportunities for each.
-    """
-    Update ``target_repo`` yum repository with ``packages`` from
-    ``source_repo`` repository.
-    """
-    # TODO change install instructions to point to AWS
-    # TODO update the chq release package which is a spec file in another repo
-    # https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq-release.spec
-    # https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq.repo
-    # put the old RPMs in there
-    rpm_directory.createDirectory()
-    # Download existing repository
     s3 = boto.connect_s3()
-    # TODO get bucket_name from target
     # Does not work if there is a '.' in the name
     bucket = s3.get_bucket(bucket_name=target_bucket)
+    # TODO create bucket if it does not exist
 
+    # Download existing repository
     for item in bucket.list(prefix=target_key):
         new_item_path = os.path.join(rpm_directory.path, str(item.key))
         if not os.path.exists(new_item_path):
+            parent = FilePath(new_item_path).parent()
+            if not parent.exists():
+                parent.makedirs()
             item.get_contents_to_filename(new_item_path)
 
 
@@ -175,31 +140,32 @@ def upload_rpms(scratch_directory, version, target_server, build_server):
     :param bytes target_server: Server to upload RPMs to.
     :param bytes build_server: Server to download new RPMs from.
     """
-    # target_base = os.path.join(target_server, b'fedora/20/')
-    # source_repo = os.path.join(
-    #     build_server, b'results/omnibus', version, 'fedora-20')
-    # update_repo(rpm_directory=scratch_directory.child(b'x86_64'),
-    #             target_repo=os.path.join(target_base, b'x86_64'),
-    #             source_repo=source_repo,
-    #             packages=FLOCKER_PACKAGES)
+    fedora_source_repo = os.path.join(build_server, b'results/omnibus', version, 'fedora-20')
 
-    # Also upload CentOS RPMs
+    update_repo(rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
+                target_bucket='archive-test-adam-dangoor',
+                target_key=os.path.join(b'fedora', b'20', b'x86_64'),
+                source_repo=fedora_source_repo,
+                packages=FLOCKER_PACKAGES)
+
     centos_source_repo = os.path.join(
         build_server, b'results/omnibus', version, 'centos-7')
-    update_centos_repo(rpm_directory=scratch_directory.child(b'x86_64'),
-                       target_bucket='archive-test-adam-dangoor',
-                       target_key=os.path.join(b'centos', b'7', b'x86_64'),
-                       source_repo=centos_source_repo,
-                       packages=FLOCKER_PACKAGES)
+    centos_scratch = scratch_directory.child('fedora-20')
+    centos_scratch.createDirectory()
+    update_repo(rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
+                target_bucket='archive-test-adam-dangoor',
+                target_key=os.path.join(b'centos', b'7', b'x86_64'),
+                source_repo=centos_source_repo,
+                packages=FLOCKER_PACKAGES)
 
 
 def main(options):
     version = options['version']
-
     scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
 
     try:
-        upload_rpms(scratch_directory, version,
+        upload_rpms(scratch_directory=scratch_directory,
+                    version=version,
                     target_server=options['target'],
                     build_server=options['build-server'])
 
