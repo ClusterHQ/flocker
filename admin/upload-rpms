@@ -16,21 +16,26 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
 # TODO put in admin/release
+
 # put RPMs in the right place - we don't want to start uploading random commits as RPMs to the repository, only releases
 # not doc releases
 # have a weekly repository (folder in a bucket)
 # also one for marketing releases (folder in a bucket)
-# different bucket for testing
+# https://clusterhq.atlassian.net/browse/FLOC-506
+
 # make fedora-packages
 # [clusterhq] and [clusterhq-testing] in clusterhq.repo
+
 # Rewrite with FakeAWS?
-# Find Itamar's issue for separating weekly releases with marketing releases
-# Centos vs Fedora in
 # Make it a verified fake?
+
+# Centos vs Fedora in
 # baseurl=https://storage.googleapis.com/archive.clusterhq.com/fedora/$releasever/$basearch/
 
 # Replace /fedora/ with a variable from yum, see yum docs
-# what should happen if we add a version which already exists
+
+# # what should happen if we add a version which already exists?
+
 # no need to upload RPMs which were downloaded already
 # in theory X allows you to skip downloading all the packages
 # https://github.com/ClusterHQ/flocker/compare/89eb4f4f28c5%5E...d80ae60ccc07
@@ -145,20 +150,19 @@ def upload_rpms(scratch_directory, version, target_server, build_server):
     :param bytes target_server: Server to upload RPMs to.
     :param bytes build_server: Server to download new RPMs from.
     """
-    fedora_source_repo = os.path.join(build_server, b'results/omnibus', version, 'fedora-20')
-
+    # TODO replace target_server with target_bucket
     update_repo(rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
                 target_bucket='archive-test-adam-dangoor',
                 target_key=os.path.join(b'fedora', b'20', b'x86_64'),
-                source_repo=fedora_source_repo,
+                source_repo=os.path.join(build_server, b'results/omnibus',
+                                         version, 'fedora-20'),
                 packages=FLOCKER_PACKAGES)
 
-    centos_source_repo = os.path.join(
-        build_server, b'results/omnibus', version, 'centos-7')
     update_repo(rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
                 target_bucket='archive-test-adam-dangoor',
                 target_key=os.path.join(b'centos', b'7', b'x86_64'),
-                source_repo=centos_source_repo,
+                source_repo=os.path.join(build_server, b'results/omnibus',
+                                         version, 'centos-7'),
                 packages=FLOCKER_PACKAGES)
 
 
