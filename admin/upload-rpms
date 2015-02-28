@@ -109,7 +109,7 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
         [b'gsutil', b'cp', b'-R', b'-a', b'public-read',
          rpm_directory.path + b'/*', target_repo])
 
-def update_centos_repo(rpm_directory, target_repo, source_repo, packages):
+def update_centos_repo(rpm_directory, target_bucket, target_key, source_repo, packages):
     # Take a param to say if this is a Fedora or CentOS source.
     # Upload CentOS RPM to S3 / bintray / other.
     # Ask marketing for their statistics requirements and look into the stats
@@ -127,13 +127,14 @@ def update_centos_repo(rpm_directory, target_repo, source_repo, packages):
     # Download existing repository
     s3 = boto.connect_s3()
     # TODO get bucket_name from target
-    bucket_name = 'archive-test-adam-dangoor'
     # Does not work if there is a '.' in the name
-    bucket = s3.get_bucket(bucket_name=bucket_name)
-    for item in bucket.list():
+    bucket = s3.get_bucket(bucket_name=target_bucket)
+
+    for item in bucket.list(prefix=target_key):
         new_item_path = os.path.join(rpm_directory.path, str(item.key))
         if not os.path.exists(new_item_path):
             item.get_contents_to_filename(new_item_path)
+
 
     # Download requested packages from source repository
     yum_repo_config = rpm_directory.child(b'build.repo')
@@ -148,11 +149,11 @@ def update_centos_repo(rpm_directory, target_repo, source_repo, packages):
         b'-c', yum_repo_config.path,
         b'--disablerepo=*',
         b'--enablerepo=flocker',
-        b'--destdir', rpm_directory.path] + packages)
+        b'--destdir', os.path.join(rpm_directory.path, target_key)] + packages)
     yum_repo_config.remove()
 
     # Update repository metatdata
-    check_call([b'createrepo', b'--update', rpm_directory.path])
+    check_call([b'createrepo', b'--update', os.path.join(rpm_directory.path, target_key)])
 
     # Upload updated repository
     for root, dirs, files in os.walk(rpm_directory.path):
@@ -183,11 +184,11 @@ def upload_rpms(scratch_directory, version, target_server, build_server):
     #             packages=FLOCKER_PACKAGES)
 
     # Also upload CentOS RPMs
-    centos_target_base = os.path.join(target_server, b'centos/7/')
     centos_source_repo = os.path.join(
         build_server, b'results/omnibus', version, 'centos-7')
     update_centos_repo(rpm_directory=scratch_directory.child(b'x86_64'),
-                       target_repo=os.path.join(centos_target_base, b'x86_64'),
+                       target_bucket='archive-test-adam-dangoor',
+                       target_key=os.path.join(b'centos', b'7', b'x86_64'),
                        source_repo=centos_source_repo,
                        packages=FLOCKER_PACKAGES)
 
