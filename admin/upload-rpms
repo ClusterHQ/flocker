@@ -15,10 +15,6 @@ XXX This script is not automatically checked by buildbot. See
 https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
-# The plan for this is to have a separate shell and Python script, like other
-# admin scripts. However, for the purpose of easy diff-ing for the review
-# it will be kept like this temporarily
-
 # TODO put in admin/release
 # put RPMs in the right place - we don't want to start uploading random commits as RPMs to the repository, only releases
 # not doc releases
