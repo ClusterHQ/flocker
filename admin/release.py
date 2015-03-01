@@ -349,6 +349,8 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
     Update ``target_repo`` yum repository with ``packages`` from
     ``source_repo`` repository.
     """
+    from yum import YumBase
+
     rpm_directory.createDirectory()
     s3 = boto.connect_s3()
     try:
@@ -367,30 +369,21 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
             item.get_contents_to_filename(new_item_path)
 
     # Download requested packages from source repository
-    yum_repo_config = rpm_directory.child(b'build.repo')
+    base = YumBase()
+    base.setCacheDir()
 
-    yum_repo_config.setContent(dedent(b"""
-         [flocker]
-         name=flocker
-         baseurl=%s
-         """) % (source_repo,))
+    base.repos.disableRepo('*')
+    repo = base.add_enable_repo(repoid='flocker', baseurls=[source_repo])
 
-    # XXX This could be more efficient by only uploading the changed files
+    # TODO Run twice without this to see if it is stil necessary.
+    base.cleanMetadata()
+
+    # XXX This could be more efficient by only downloading the changed files
     # https://clusterhq.atlassian.net/browse/FLOC-1506
-    check_call([
-        b'yum',
-        b'-c', yum_repo_config.path,
-        b'--disablerepo=*',
-        b'--enablerepo=flocker',
-        b'clean',
-        b'metadata'])
-    check_call([
-        b'yumdownloader',
-        b'-c', yum_repo_config.path,
-        b'--disablerepo=*',
-        b'--enablerepo=flocker',
-        b'--destdir', os.path.join(rpm_directory.path, target_key)] + packages)
-    yum_repo_config.remove()
+    yum_packages = base.pkgSack.returnPackages(repoid=repo.name,
+                                               patterns=packages)
+    repo.pkgdir = os.path.join(rpm_directory.path, target_key)
+    base.downloadPkgs(yum_packages)
 
     # Update repository metadata
     check_call([b'createrepo', b'--update',
