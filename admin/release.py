@@ -344,10 +344,20 @@ FLOCKER_PACKAGES = [
 ]
 
 
-def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages):
+def update_repo(rpm_directory, target_bucket, target_key, source_repo,
+                packages):
     """
-    Update ``target_repo`` yum repository with ``packages`` from
+    Update ``target_bucket`` yum repository with ``packages`` from
     ``source_repo`` repository.
+
+    :param FilePath rpm_directory: Temporary directory to download
+        repository to.
+    :param bytes target_bucket: S3 bucket to upload repository to.
+    :param bytes target_key: Path within S3 bucket to upload repository to.
+    :param bytes source_repo: Repository on the build server to get packages
+        from.
+    :param list packages: List of bytes, each specifying the name of a package
+        to upload to the repository.
     """
     # Import this here so that this file can be imported when yum is not
     # available.
@@ -409,6 +419,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
 
     :param FilePath scratch_directory: Temporary directory to download
         repository to.
+    :param bytes target_bucket: S3 bucket to upload repository to.
     :param bytes version: Version to download RPMs for.
     :param bytes build_server: Server to download new RPMs from.
     """
@@ -485,8 +496,6 @@ TODOs
 This also covers:
 https://clusterhq.atlassian.net/browse/FLOC-506
 
-docstrings
-
 Test with FakeAWS?
 Make it a verified fake?
 
@@ -509,5 +518,5 @@ Change the package repository:
 
 Move 0.3.2 release to S3
 
-How does http://archive.clusterhq.com work?
+What is http://archive.clusterhq.com and does it concern this work?
 """
