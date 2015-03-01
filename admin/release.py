@@ -3,15 +3,26 @@
 
 """
 Helper utilities for the Flocker release process.
+
+XXX This script is not automatically checked by buildbot. See
+https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
 import sys
+import tempfile
+
+import os
+import boto
+from subprocess import check_call
+from textwrap import dedent
+
 from collections import namedtuple
 from effect import (
     Effect, sync_perform, ComposedDispatcher, base_dispatcher)
 from effect.do import do
 from characteristic import attributes
 
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
 
@@ -303,3 +314,195 @@ def publish_docs_main(args, base_path, top_level):
         sys.stderr.write("%s: Can't publish non-tagged version to production."
                          % (base_path.basename(),))
         raise SystemExit(1)
+
+
+class UploadOptions(Options):
+    """
+    Options for uploading packages.
+    """
+    optParameters = [
+        ["target", None, b'gs://archive.clusterhq.com/',
+         "The URL of the download server."],
+        ["build-server", None,
+         b'http://build.clusterhq.com',
+         "The URL of the build-server."],
+    ]
+
+    def parseArgs(self, version):
+        self['version'] = version
+
+
+FLOCKER_PACKAGES = [
+    b'clusterhq-python-flocker',
+    b'clusterhq-flocker-cli',
+    b'clusterhq-flocker-node',
+]
+
+
+def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages):
+    """
+    Update ``target_repo`` yum repository with ``packages`` from
+    ``source_repo`` repository.
+    """
+    rpm_directory.createDirectory()
+    s3 = boto.connect_s3()
+    try:
+        # Does not work if there is a '.' in the name
+        bucket = s3.get_bucket(bucket_name=target_bucket)
+    except boto.exception.S3ResponseError:
+        bucket = s3.create_bucket(bucket_name=target_bucket)
+
+    # Download existing repository
+    for item in bucket.list(prefix=target_key):
+        new_item_path = os.path.join(rpm_directory.path, str(item.key))
+        if not os.path.exists(new_item_path):
+            parent = FilePath(new_item_path).parent()
+            if not parent.exists():
+                parent.makedirs()
+            item.get_contents_to_filename(new_item_path)
+
+    # Download requested packages from source repository
+    yum_repo_config = rpm_directory.child(b'build.repo')
+
+    yum_repo_config.setContent(dedent(b"""
+         [flocker]
+         name=flocker
+         baseurl=%s
+         """) % (source_repo,))
+    # TODO Outside of the virtualenv you can import yum...
+    # change to `mkvirtualenv --system-site-packages flocker; pip install --ignore-installed
+    check_call([
+        b'yum',
+        b'-c', yum_repo_config.path,
+        b'--disablerepo=*',
+        b'--enablerepo=flocker',
+        b'clean',
+        b'metadata'])
+    check_call([
+        b'yumdownloader',
+        b'-c', yum_repo_config.path,
+        b'--disablerepo=*',
+        b'--enablerepo=flocker',
+        b'--destdir', os.path.join(rpm_directory.path, target_key)] + packages)
+    yum_repo_config.remove()
+
+    # Update repository metatdata
+    # TODO `pip install pakrat` might be able to do this
+    check_call([b'createrepo', b'--update',
+                os.path.join(rpm_directory.path, target_key)])
+
+    # Upload updated repository
+    for root, dirs, files in os.walk(rpm_directory.path):
+        for name in files:
+            source_path = os.path.join(root, name)
+            destination_path = os.path.relpath(source_path, rpm_directory.path)
+            key = bucket.new_key(destination_path)
+            key.set_contents_from_filename(source_path)
+            key.make_public()
+
+
+def upload_rpms(scratch_directory, version, target_server, build_server):
+    """
+    Upload RPMS from build server to yum repository.
+
+    :param FilePath scratch_directory: Temporary directory to download
+        repository to.
+    :param bytes version: Version to download RPMs for.
+    :param bytes target_server: Server to upload RPMs to.
+    :param bytes build_server: Server to download new RPMs from.
+    """
+    # TODO replace target_server with target_bucket
+    update_repo(rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
+                target_bucket='archive-test-adam-dangoor',
+                target_key=os.path.join(b'fedora', b'20', b'x86_64'),
+                source_repo=os.path.join(build_server, b'results/omnibus',
+                                         version, 'fedora-20'),
+                packages=FLOCKER_PACKAGES)
+
+    update_repo(rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
+                target_bucket='archive-test-adam-dangoor',
+                target_key=os.path.join(b'centos', b'7', b'x86_64'),
+                source_repo=os.path.join(build_server, b'results/omnibus',
+                                         version, 'centos-7'),
+                packages=FLOCKER_PACKAGES)
+
+
+def upload_rpms_main(args, base_path, top_level):
+    """
+    The ClusterHQ yum repository contains packages for Flocker, as well as the
+    dependencies which aren't available in Fedora 20 or CentOS 7. It is
+    currently hosted on Amazon S3. When doing a release, we want to add the
+    new Flocker packages, while preserving the existing packages in the
+    repository. To do this, we download the current repository, add the new
+    package, update the metadata, and then upload the repository.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    options = UploadOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    try:
+        version = options['version']
+        scratch_directory = FilePath(tempfile.mkdtemp(
+                prefix=b'flocker-upload-rpm-'))
+
+        upload_rpms(scratch_directory=scratch_directory,
+                    version=version,
+                    target_server=options['target'],
+                    build_server=options['build-server'])
+    except NotARelease:
+        sys.stderr.write("%s: Can't upload RPMs for a non-release."
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    except NotTagged:
+        sys.stderr.write("%s: Can't upload RPMs for a non-tagged version to production."
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    finally:
+        scratch_directory.remove()
+
+"""
+TODOs
+
+put RPMs in the right place - we don't want to start uploading random commits
+was RPMs to the repository, only releases not doc releases
+
+have a weekly repository (folder in a bucket)
+also one for marketing releases (folder in a bucket)
+https://clusterhq.atlassian.net/browse/FLOC-506
+
+make fedora-packages
+[clusterhq] and [clusterhq-testing] in clusterhq.repo
+
+Script takes target bucket not server
+
+Rewrite with FakeAWS?
+Make it a verified fake?
+
+Use yum python package
+
+Centos vs Fedora in
+baseurl=https://storage.googleapis.com/archive.clusterhq.com/fedora/$releasever/$basearch/
+
+Replace /fedora/ with a variable from yum, see yum docs
+
+# what should happen if we add a version which already exists?
+
+no need to upload RPMs which were downloaded already
+in theory X allows you to skip downloading all the packages
+https://github.com/ClusterHQ/flocker/compare/89eb4f4f28c5%5E...d80ae60ccc07
+
+change install instructions to point to AWS
+
+update the chq release package which is a spec file in another repo
+https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq-release.spec
+https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq.repo
+put the old RPMs in there
+"""
