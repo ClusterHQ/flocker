@@ -349,6 +349,8 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
     Update ``target_repo`` yum repository with ``packages`` from
     ``source_repo`` repository.
     """
+    # Import this here so that this file can be imported when yum is not
+    # available.
     from yum import YumBase
 
     rpm_directory.createDirectory()
@@ -370,6 +372,8 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
 
     # Download requested packages from source repository
     base = YumBase()
+    # This is necessary to avoid permission issues with the default,
+    # /var/cache/yum/x86_64/20
     base.setCacheDir()
 
     base.repos.disableRepo('*')
@@ -483,12 +487,11 @@ https://clusterhq.atlassian.net/browse/FLOC-506
 
 docstrings
 
-Rewrite with FakeAWS?
+Test with FakeAWS?
 Make it a verified fake?
 
-Use yum python package
 createrepo - `pip install pakrat` might be able to do this
-change to `mkvirtualenv --system-site-packages flocker; pip install --ignore-installed
+change to `mkvirtualenv --system-site-packages flocker; pip install --ignore-installed , for yum package
 
 change install instructions to point to AWS
 
