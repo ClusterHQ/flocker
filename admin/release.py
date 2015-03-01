@@ -475,8 +475,8 @@ def upload_rpms_main(args, base_path, top_level):
         sys.stderr.write("%s: Can't upload RPMs for a non-release."
                          % (base_path.basename(),))
         raise SystemExit(1)
-    except NotTagged:
-        sys.stderr.write("%s: Can't upload RPMs for a non-tagged version to production."
+    except DocumentationRelease:
+        sys.stderr.write("%s: Can't upload RPMs for a documentation release."
                          % (base_path.basename(),))
         raise SystemExit(1)
     finally:
