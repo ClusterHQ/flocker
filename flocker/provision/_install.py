@@ -11,13 +11,23 @@ from textwrap import dedent
 from urlparse import urljoin
 from characteristic import attributes
 
+from flocker import __version__ as flocker_version
+from flocker.docs import get_doc_version, is_release
 from ._common import PackageSource
 
 ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
             "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
+
+if is_release(get_doc_version(flocker_version)):
+    key = 'marketing'
+else:
+    key = 'development'
+
 CLUSTERHQ_REPO = ("https://s3.amazonaws.com/clusterhq-yum-repository/"
-                  "marketing/fedora/"
-                  "clusterhq-release$(rpm -E %dist).noarch.rpm")
+                  "{key}/fedora/"
+                  "clusterhq-release$(rpm -E %dist).noarch.rpm").format(
+                      key=key,
+                  )
 
 
 @attributes(["command"])
@@ -175,7 +185,7 @@ def task_install_flocker(package_source=PackageSource(),
     """
     commands = [
         Run(command="yum install -y " + ZFS_REPO),
-        Run(command="yum install -y " + CLUSTERHQ_REPO)
+        Run(command="yum install -y " + CLUSTERHQ_REPO),
     ]
 
     if package_source.branch:
