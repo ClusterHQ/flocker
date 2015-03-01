@@ -491,10 +491,7 @@ docstrings
 Test with FakeAWS?
 Make it a verified fake?
 
-createrepo - `pip install pakrat` might be able to do this
-change to `mkvirtualenv --system-site-packages flocker; pip install --ignore-installed , for yum package
-
-change install instructions to point to AWS
+Change install instructions to point to AWS
 
 Change the package repository:
     # https://github.com/ClusterHQ/fedora-packages/
