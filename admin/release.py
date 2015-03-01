@@ -321,7 +321,7 @@ class UploadOptions(Options):
     Options for uploading packages.
     """
     optParameters = [
-        ["target", None, b'archive-test-adam-dangoor',
+        ["target", None, b'clusterhq-yum-repository',
          "The bucket to upload packages to."],
         ["build-server", None,
          b'http://build.clusterhq.com',
@@ -511,4 +511,8 @@ https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq.repo
 put the old RPMs in there
 
 Move 0.3.2 release to S3
+
+In GCS there is a SRPMS/ directory and clusterhq-release.fc20.noarch.rpm file
+
+How does http://archive.clusterhq.com work?
 """
