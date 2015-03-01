@@ -488,9 +488,6 @@ TODOs
 This also covers:
 https://clusterhq.atlassian.net/browse/FLOC-506
 
-make fedora-packages
-[clusterhq] and [clusterhq-development] in clusterhq.repo
-
 docstrings
 
 Rewrite with FakeAWS?
@@ -500,23 +497,24 @@ Use yum python package
 createrepo - `pip install pakrat` might be able to do this
 change to `mkvirtualenv --system-site-packages flocker; pip install --ignore-installed
 
-Centos vs Fedora in
-baseurl=https://storage.googleapis.com/archive.clusterhq.com/fedora/$releasever/$basearch/
-
-Replace /fedora/ with a variable from yum, see yum docs
-Instructions should have something like # echo "Red Hat Enterprise Linux" > /etc/yum/vars/osname
-then can use $osname
-
 change install instructions to point to AWS
 
-update the chq release package which is a spec file in another repo
-https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq-release.spec
-https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq.repo
-put the old RPMs in there
+Change the package repository:
+    # https://github.com/ClusterHQ/fedora-packages/
+    - In GCS there is a SRPMS/ directory and clusterhq-release.fc20.noarch.rpm file.
+      It seems like this can be duplicated in S3 by changing (and following)
+      the instructions in the README
+    - https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq.repo
+      Should have a new section, [clusterhq-development], and should be changed
+      to reference the new locations.
+      Instead of hard coding /fedora/ use $osname which can be set as fedora
+      or centos by putting e.g. ``$ echo "fedora" > /etc/yum/vars/osname`` in
+      the install instructions.
+    - The name of this repository and e.g. the description in
+      https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq-release.spec
+      are out of date. This should probably be changed to be less platform-specific.
 
 Move 0.3.2 release to S3
-
-In GCS there is a SRPMS/ directory and clusterhq-release.fc20.noarch.rpm file
 
 How does http://archive.clusterhq.com work?
 """
