@@ -503,6 +503,7 @@ Change install instructions to point to AWS
 
 Change the package repository:
     # https://github.com/ClusterHQ/fedora-packages/
+    # https://github.com/ClusterHQ/fedora-packages/compare/centos-repo-FLOC-1066
     - In GCS there is a SRPMS/ directory and clusterhq-release.fc20.noarch.rpm file.
       It seems like this can be duplicated in S3 by changing (and following)
       the instructions in the README
@@ -515,6 +516,8 @@ Change the package repository:
     - The name of this repository and e.g. the description in
       https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq-release.spec
       are out of date. This should probably be changed to be less platform-specific.
+    - Or instead there could be two yum repositories, and two git repositories,
+      which each create their own rpm file.
 
 Move 0.3.2 release to S3
 
