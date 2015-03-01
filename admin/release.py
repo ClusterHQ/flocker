@@ -380,7 +380,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
     flocker_repo = base.add_enable_repo(repoid='flocker',
                                         baseurls=[source_repo])
 
-    # TODO Run twice without this to see if it is stil necessary.
     base.cleanMetadata()
 
     # XXX This could be more efficient by only downloading the changed files
