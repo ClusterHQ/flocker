@@ -321,8 +321,6 @@ class UploadOptions(Options):
     Options for uploading packages.
     """
     optParameters = [
-        ["target", None, b'gs://archive.clusterhq.com/',
-         "The URL of the download server."],
         ["build-server", None,
          b'http://build.clusterhq.com',
          "The URL of the build-server."],
@@ -401,17 +399,15 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
             key.make_public()
 
 
-def upload_rpms(scratch_directory, version, target_server, build_server):
+def upload_rpms(scratch_directory, version, build_server):
     """
     Upload RPMS from build server to yum repository.
 
     :param FilePath scratch_directory: Temporary directory to download
         repository to.
     :param bytes version: Version to download RPMs for.
-    :param bytes target_server: Server to upload RPMs to.
     :param bytes build_server: Server to download new RPMs from.
     """
-    # TODO replace target_server with target_bucket
     update_repo(rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
                 target_bucket='archive-test-adam-dangoor',
                 target_key=os.path.join(b'fedora', b'20', b'x86_64'),
@@ -455,7 +451,6 @@ def upload_rpms_main(args, base_path, top_level):
 
         upload_rpms(scratch_directory=scratch_directory,
                     version=version,
-                    target_server=options['target'],
                     build_server=options['build-server'])
     except NotARelease:
         sys.stderr.write("%s: Can't upload RPMs for a non-release."
@@ -481,7 +476,7 @@ https://clusterhq.atlassian.net/browse/FLOC-506
 make fedora-packages
 [clusterhq] and [clusterhq-testing] in clusterhq.repo
 
-Script takes target bucket not server
+docstrings
 
 Rewrite with FakeAWS?
 Make it a verified fake?
