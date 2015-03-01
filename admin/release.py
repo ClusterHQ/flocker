@@ -20,8 +20,6 @@ from effect import (
 from effect.do import do
 from characteristic import attributes
 
-from pakrat import repo
-
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
@@ -359,9 +357,10 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     :param list packages: List of bytes, each specifying the name of a package
         to upload to the repository.
     """
-    # Import this here so that this file can be imported when yum is not
+    # Import these here so that this file can be imported when yum is not
     # available.
     from yum import YumBase
+    from pakrat import repo
 
     rpm_directory.createDirectory()
     s3 = boto.connect_s3()
