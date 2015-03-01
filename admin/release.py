@@ -374,8 +374,9 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
          name=flocker
          baseurl=%s
          """) % (source_repo,))
-    # TODO Outside of the virtualenv you can import yum...
-    # change to `mkvirtualenv --system-site-packages flocker; pip install --ignore-installed
+
+    # XXX This could be more efficient by only uploading the changed files
+    # https://clusterhq.atlassian.net/browse/FLOC-1506
     check_call([
         b'yum',
         b'-c', yum_repo_config.path,
@@ -392,7 +393,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
     yum_repo_config.remove()
 
     # Update repository metatdata
-    # TODO `pip install pakrat` might be able to do this
     check_call([b'createrepo', b'--update',
                 os.path.join(rpm_directory.path, target_key)])
 
@@ -497,6 +497,8 @@ Rewrite with FakeAWS?
 Make it a verified fake?
 
 Use yum python package
+createrepo - `pip install pakrat` might be able to do this
+change to `mkvirtualenv --system-site-packages flocker; pip install --ignore-installed
 
 Centos vs Fedora in
 baseurl=https://storage.googleapis.com/archive.clusterhq.com/fedora/$releasever/$basearch/
@@ -504,12 +506,6 @@ baseurl=https://storage.googleapis.com/archive.clusterhq.com/fedora/$releasever/
 Replace /fedora/ with a variable from yum, see yum docs
 Instructions should have something like # echo "Red Hat Enterprise Linux" > /etc/yum/vars/osname
 then can use $osname
-
-Create issue:
-Only upload RPMs which are not already in repository
-- admin/upload-rpms downloads a yum repository, adds to it, uploads the whole repository.
-This would be more efficient if only the new / changed files were uploaded.
-See https://github.com/ClusterHQ/flocker/compare/89eb4f4f28c5%5E...d80ae60ccc07 for a start on this.
 
 change install instructions to point to AWS
 
