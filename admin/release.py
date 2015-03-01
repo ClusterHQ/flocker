@@ -392,7 +392,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
         b'--destdir', os.path.join(rpm_directory.path, target_key)] + packages)
     yum_repo_config.remove()
 
-    # Update repository metatdata
+    # Update repository metadata
     check_call([b'createrepo', b'--update',
                 os.path.join(rpm_directory.path, target_key)])
 
