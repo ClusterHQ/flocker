@@ -673,6 +673,7 @@ class UploadRPMsTests(TestCase):
     def setUp(self):
         self.scratch_directory = FilePath(tempfile.mkdtemp(
             prefix=b'test-scratch-directory-'))
+        self.addCleanup(self.scratch_directory.remove)
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.com'
 
