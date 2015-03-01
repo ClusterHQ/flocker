@@ -112,9 +112,14 @@ class NotTagged(Exception):
 
 class NotARelease(Exception):
     """
-    Raised if trying to publish to a version that isn't a release.
+    Raised if trying to publish to a version that isn't a release or upload
+    packages for a version that isn't a release.
     """
 
+class DocumentationRelease(Exception):
+    """
+    Raised if trying to upload packages for a documentation release.
+    """
 
 class Environments(Names):
     """
@@ -414,6 +419,9 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
             or is_weekly_release(version)):
         raise NotARelease
 
+    if get_doc_version(version) != version:
+        raise DocumentationRelease
+
     if is_release(version):
         release_type = "marketing"
     elif is_weekly_release(version):
@@ -483,7 +491,7 @@ https://clusterhq.atlassian.net/browse/FLOC-506
 make fedora-packages
 [clusterhq] and [clusterhq-development] in clusterhq.repo
 
-docstrings - change NotARelease?
+docstrings
 
 Rewrite with FakeAWS?
 Make it a verified fake?
