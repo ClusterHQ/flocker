@@ -309,7 +309,7 @@ Release
       python setup.py sdist bdist_wheel
       gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
 
-#. Build RPM packages and upload them to ``archive.clusterhq.com``
+#. Build RPM packages and upload them to Amazon S3:
 
    .. note:: Skip this step for a documentation release.
 
