@@ -522,4 +522,7 @@ Change the package repository:
 Move 0.3.2 release to S3
 
 What is http://archive.clusterhq.com and does it concern this work?
+
+CLUSTERHQ_REPO in flocker.provision._install. How will changing this interact with
+new directory structure (marketing vs development) and |latest-installable-package|.
 """
