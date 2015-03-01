@@ -436,21 +436,23 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     elif is_weekly_release(version):
         release_type = "development"
 
-    update_repo(rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
-                target_bucket=target_bucket,
-                target_key=os.path.join(release_type, b'fedora', b'20',
-                                        b'x86_64'),
-                source_repo=os.path.join(build_server, b'results/omnibus',
-                                         version, 'fedora-20'),
-                packages=FLOCKER_PACKAGES)
+    update_repo(
+        rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
+        target_bucket=target_bucket,
+        target_key=os.path.join(release_type, b'fedora', b'20', b'x86_64'),
+        source_repo=os.path.join(build_server, b'results/omnibus', version,
+                                 b'fedora-20'),
+        packages=FLOCKER_PACKAGES,
+    )
 
-    update_repo(rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
-                target_bucket=target_bucket,
-                target_key=os.path.join(release_type, b'centos', b'7',
-                                        b'x86_64'),
-                source_repo=os.path.join(build_server, b'results/omnibus',
-                                         version, 'centos-7'),
-                packages=FLOCKER_PACKAGES)
+    update_repo(
+        rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
+        target_bucket=target_bucket,
+        target_key=os.path.join(release_type, b'centos', b'7', b'x86_64'),
+        source_repo=os.path.join(build_server, b'results/omnibus', version,
+                                 b'centos-7'),
+        packages=FLOCKER_PACKAGES,
+    )
 
 
 def upload_rpms_main(args, base_path, top_level):

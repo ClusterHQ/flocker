@@ -5,12 +5,15 @@ Tests for ``admin.release``.
 """
 
 from unittest import TestCase
+import tempfile
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
+from twisted.python.filepath import FilePath
+
 from ..release import (
-    rpm_version, make_rpm_version,
+    rpm_version, make_rpm_version, upload_rpms,
     publish_docs, Environments,
-    NotTagged, NotARelease,
+    DocumentationRelease, NotTagged, NotARelease,
 )
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 
@@ -42,7 +45,7 @@ class MakeRpmVersionTests(TestCase):
                 unexpected_results.append((
                     supplied_version,
                     actual_rpm_version,
-                    expected_rpm_version
+                    expected_rpm_version,
                 ))
 
         if unexpected_results:
@@ -58,7 +61,7 @@ class MakeRpmVersionTests(TestCase):
 
         self.assertEqual(
             u'Non-integer value "X" for "pre". Supplied version 0.1.2preX',
-            unicode(exception.exception)
+            unicode(exception.exception),
         )
 
 
@@ -661,3 +664,34 @@ class PublishDocsTests(TestCase):
             self.publish_docs,
             aws, '0.3.0-444-gf05215b', '0.3.0-444-gf05215b',
             environment=Environments.STAGING)
+
+
+class UploadRPMsTests(TestCase):
+    """
+    Tests for :func:``upload_rpms``.
+    """
+    def setUp(self):
+        self.scratch_directory = FilePath(tempfile.mkdtemp(
+            prefix=b'test-scratch-directory-'))
+        self.target_bucket = 'test-target-bucket'
+        self.build_server = 'http://test-build-server.com'
+
+    def test_upload_non_release_fails(self):
+        """
+        Trying to upload RPMs for a version that isn't a release fails.
+        """
+        self.assertRaises(
+            NotARelease,
+            upload_rpms,
+            self.scratch_directory, self.target_bucket, '0.3.0-444-gf05215b',
+            self.build_server)
+
+    def test_upload_doc_release_fails(self):
+        """
+        Trying to upload RPMs for a documentation release fails.
+        """
+        self.assertRaises(
+            DocumentationRelease,
+            upload_rpms,
+            self.scratch_directory, self.target_bucket, '0.3.0+doc1',
+            self.build_server)
