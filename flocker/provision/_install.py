@@ -15,8 +15,9 @@ from ._common import PackageSource
 
 ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
             "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
-CLUSTERHQ_REPO = ("https://storage.googleapis.com/archive.clusterhq.com/"
-                  "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm")
+CLUSTERHQ_REPO = ("https://s3.amazonaws.com/clusterhq-yum-repository/"
+                  "marketing/fedora/"
+                  "clusterhq-release$(rpm -E %dist).noarch.rpm")
 
 
 @attributes(["command"])
