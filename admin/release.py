@@ -321,6 +321,8 @@ class UploadOptions(Options):
     Options for uploading packages.
     """
     optParameters = [
+        ["target", None, b'archive-test-adam-dangoor',
+         "The bucket to upload packages to."],
         ["build-server", None,
          b'http://build.clusterhq.com',
          "The URL of the build-server."],
@@ -399,7 +401,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
             key.make_public()
 
 
-def upload_rpms(scratch_directory, version, build_server):
+def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
     Upload RPMS from build server to yum repository.
 
@@ -408,16 +410,25 @@ def upload_rpms(scratch_directory, version, build_server):
     :param bytes version: Version to download RPMs for.
     :param bytes build_server: Server to download new RPMs from.
     """
+    if not (is_release(version)
+            or is_weekly_release(version)):
+        raise NotARelease
+
+    if is_release(version):
+        release_type = "marketing"
+    elif is_weekly_release(version):
+        release_type = "development"
+
     update_repo(rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
-                target_bucket='archive-test-adam-dangoor',
-                target_key=os.path.join(b'fedora', b'20', b'x86_64'),
+                target_bucket=target_bucket,
+                target_key=os.path.join(release_type, b'fedora', b'20', b'x86_64'),
                 source_repo=os.path.join(build_server, b'results/omnibus',
                                          version, 'fedora-20'),
                 packages=FLOCKER_PACKAGES)
 
     update_repo(rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
-                target_bucket='archive-test-adam-dangoor',
-                target_key=os.path.join(b'centos', b'7', b'x86_64'),
+                target_bucket=target_bucket,
+                target_key=os.path.join(release_type, b'centos', b'7', b'x86_64'),
                 source_repo=os.path.join(build_server, b'results/omnibus',
                                          version, 'centos-7'),
                 packages=FLOCKER_PACKAGES)
@@ -445,12 +456,12 @@ def upload_rpms_main(args, base_path, top_level):
         raise SystemExit(1)
 
     try:
-        version = options['version']
         scratch_directory = FilePath(tempfile.mkdtemp(
                 prefix=b'flocker-upload-rpm-'))
 
         upload_rpms(scratch_directory=scratch_directory,
-                    version=version,
+                    target_bucket=options['target'],
+                    version=options['version'],
                     build_server=options['build-server'])
     except NotARelease:
         sys.stderr.write("%s: Can't upload RPMs for a non-release."
@@ -466,17 +477,13 @@ def upload_rpms_main(args, base_path, top_level):
 """
 TODOs
 
-put RPMs in the right place - we don't want to start uploading random commits
-was RPMs to the repository, only releases not doc releases
-
-have a weekly repository (folder in a bucket)
-also one for marketing releases (folder in a bucket)
+This also covers:
 https://clusterhq.atlassian.net/browse/FLOC-506
 
 make fedora-packages
-[clusterhq] and [clusterhq-testing] in clusterhq.repo
+[clusterhq] and [clusterhq-development] in clusterhq.repo
 
-docstrings
+docstrings - change NotARelease?
 
 Rewrite with FakeAWS?
 Make it a verified fake?
@@ -487,12 +494,14 @@ Centos vs Fedora in
 baseurl=https://storage.googleapis.com/archive.clusterhq.com/fedora/$releasever/$basearch/
 
 Replace /fedora/ with a variable from yum, see yum docs
+Instructions should have something like # echo "Red Hat Enterprise Linux" > /etc/yum/vars/osname
+then can use $osname
 
-# what should happen if we add a version which already exists?
-
-no need to upload RPMs which were downloaded already
-in theory X allows you to skip downloading all the packages
-https://github.com/ClusterHQ/flocker/compare/89eb4f4f28c5%5E...d80ae60ccc07
+Create issue:
+Only upload RPMs which are not already in repository
+- admin/upload-rpms downloads a yum repository, adds to it, uploads the whole repository.
+This would be more efficient if only the new / changed files were uploaded.
+See https://github.com/ClusterHQ/flocker/compare/89eb4f4f28c5%5E...d80ae60ccc07 for a start on this.
 
 change install instructions to point to AWS
 
@@ -500,4 +509,6 @@ update the chq release package which is a spec file in another repo
 https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq-release.spec
 https://github.com/ClusterHQ/fedora-packages/blob/master/clusterhq.repo
 put the old RPMs in there
+
+Move 0.3.2 release to S3
 """
