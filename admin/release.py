@@ -8,19 +8,19 @@ XXX This script is not automatically checked by buildbot. See
 https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
+import os
 import sys
 import tempfile
 
-import os
 import boto
-from subprocess import check_call
-from textwrap import dedent
 
 from collections import namedtuple
 from effect import (
     Effect, sync_perform, ComposedDispatcher, base_dispatcher)
 from effect.do import do
 from characteristic import attributes
+
+from pakrat import repo
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -377,21 +377,22 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo, packages)
     base.setCacheDir()
 
     base.repos.disableRepo('*')
-    repo = base.add_enable_repo(repoid='flocker', baseurls=[source_repo])
+    flocker_repo = base.add_enable_repo(repoid='flocker',
+                                        baseurls=[source_repo])
 
     # TODO Run twice without this to see if it is stil necessary.
     base.cleanMetadata()
 
     # XXX This could be more efficient by only downloading the changed files
     # https://clusterhq.atlassian.net/browse/FLOC-1506
-    yum_packages = base.pkgSack.returnPackages(repoid=repo.name,
+    yum_packages = base.pkgSack.returnPackages(repoid=flocker_repo.name,
                                                patterns=packages)
-    repo.pkgdir = os.path.join(rpm_directory.path, target_key)
+    flocker_repo.pkgdir = os.path.join(rpm_directory.path, target_key)
     base.downloadPkgs(yum_packages)
 
     # Update repository metadata
-    check_call([b'createrepo', b'--update',
-                os.path.join(rpm_directory.path, target_key)])
+    flocker_repo.pkgdir = os.path.join(flocker_repo.pkgdir, 'repodata')
+    repo.create_metadata(repo=flocker_repo)
 
     # Upload updated repository
     for root, dirs, files in os.walk(rpm_directory.path):

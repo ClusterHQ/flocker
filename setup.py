@@ -177,6 +177,7 @@ setup(
             "tl.eggdeps",
             "effect==0.1a13",
             "boto==2.30.0",
+            "pakrat==0.3.2",
             ],
         },
 
