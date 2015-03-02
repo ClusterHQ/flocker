@@ -313,7 +313,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
         def got_result(result):
             dataset_id = result.pop(u"dataset_id")
             self.assertEqual(
-                {u"primary": self.NODE_A, u"metadata": {}}, result
+                {u"primary": self.NODE_A, u"metadata": {}, u"deleted": False},
+                result
             )
             deployment = self.persistence_service.get()
             self.assertEqual({dataset_id}, set(get_dataset_ids(deployment)))
@@ -389,8 +390,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
             u"dataset_id": dataset_id,
             u"metadata": metadata,
         }
+        expected = dataset.copy()
+        expected[u"deleted"] = False
         creating = self.assertResult(
-            b"POST", b"/configuration/datasets", dataset, CREATED, dataset
+            b"POST", b"/configuration/datasets", dataset, CREATED, expected
         )
 
         def created(ignored):
@@ -429,6 +432,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         }
         response = dataset.copy()
         response[u"metadata"] = {}
+        response[u"deleted"] = False
         creating = self.assertResult(
             b"POST", b"/configuration/datasets", dataset, CREATED, response
         )
@@ -506,7 +510,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         expected_dataset = {
             u"dataset_id": expected_dataset_id,
             u"primary": target,
-            u"metadata": {}
+            u"metadata": {},
+            u"deleted": False,
         }
 
         saving = self.persistence_service.save(deployment)
@@ -1005,7 +1010,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata={}
+            metadata={},
+            deleted=False,
         )
         response = [expected_dict]
         return self.assertResult(
@@ -1044,12 +1050,14 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
             primary=expected_hostname1,
-            metadata={}
+            metadata={},
+            deleted=False,
         )
         expected_dict2 = dict(
             dataset_id=expected_dataset2.dataset_id,
             primary=expected_hostname2,
-            metadata={}
+            metadata={},
+            deleted=False,
         )
         response = [expected_dict1, expected_dict2]
         return self.assertResultItems(
@@ -1100,7 +1108,8 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata=thaw(expected_dataset.metadata)
+            metadata=thaw(expected_dataset.metadata),
+            deleted=False,
         )
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
@@ -1125,7 +1134,8 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata=thaw(expected_dataset.metadata)
+            metadata=thaw(expected_dataset.metadata),
+            deleted=False,
         )
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
@@ -1167,7 +1177,8 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata=thaw(expected_dataset.metadata)
+            metadata=thaw(expected_dataset.metadata),
+            deleted=False,
         )
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
@@ -1254,6 +1265,7 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             dataset_id=dataset.dataset_id,
             primary=expected_hostname,
             metadata={},
+            deleted=False,
         )
         self.assertEqual(
             expected,
@@ -1276,6 +1288,24 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             primary=expected_hostname,
             maximum_size=expected_size,
             metadata={},
+            deleted=False,
+        )
+        self.assertEqual(
+            expected,
+            api_dataset_from_dataset_and_node(dataset, expected_hostname)
+        )
+
+    def test_deleted(self):
+        """
+        ``deleted`` key is set to True if the dataset is deleted.
+        """
+        dataset = Dataset(dataset_id=unicode(uuid4()), deleted=True)
+        expected_hostname = u'192.0.2.101'
+        expected = dict(
+            dataset_id=dataset.dataset_id,
+            primary=expected_hostname,
+            metadata={},
+            deleted=True,
         )
         self.assertEqual(
             expected,

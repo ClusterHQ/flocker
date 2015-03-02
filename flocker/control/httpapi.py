@@ -200,13 +200,7 @@ class DatasetAPIUserV1(object):
         saving = self.persistence_service.save(new_deployment)
 
         def saved(ignored):
-            result = {
-                u"dataset_id": dataset_id,
-                u"primary": primary,
-                u"metadata": metadata,
-            }
-            if maximum_size is not None:
-                result[u"maximum_size"] = maximum_size
+            result = api_dataset_from_dataset_and_node(dataset, primary)
             return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
@@ -413,7 +407,7 @@ def api_dataset_from_dataset_and_node(dataset, node_hostname):
     """
     result = dict(
         dataset_id=dataset.dataset_id,
-        # XXX deleted=dataset.deleted,
+        deleted=dataset.deleted,
         primary=node_hostname,
         metadata=thaw(dataset.metadata)
     )
