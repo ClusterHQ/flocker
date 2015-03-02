@@ -1283,7 +1283,11 @@ def deployment_from_configuration(deployment_configuration, all_applications):
                 )
             node_applications.append(application)
         node = Node(hostname=hostname,
-                    applications=frozenset(node_applications))
+                    applications=frozenset(node_applications),
+                    manifestations={app.volume.manifestation.dataset_id:
+                                    app.volume.manifestation
+                                    for app in node_applications
+                                    if app.volume is not None})
         nodes.append(node)
     return set(nodes)
 
@@ -1326,9 +1330,15 @@ def current_from_configuration(current_configuration):
     nodes = []
     for hostname, applications in current_configuration.items():
         configuration = FlockerConfiguration(applications)
-        node_applications = configuration.applications()
+        node_applications = configuration.applications().values()
+        manifestations = {
+            app.volume.manifestation.dataset_id: app.volume.manifestation
+            for app in node_applications
+            if app.volume is not None}
+
         nodes.append(Node(hostname=hostname,
-                          applications=frozenset(node_applications.values())))
+                          applications=node_applications,
+                          manifestations=manifestations))
     return Deployment(nodes=frozenset(nodes))
 
 
@@ -1345,7 +1355,7 @@ def marshal_configuration(state):
         ``int``, ``unicode``, etc.
     """
     result = {}
-    for application in state.running + state.not_running:
+    for application in state.running | state.not_running:
         converter = ApplicationMarshaller(application)
 
         result[application.name] = converter.convert()

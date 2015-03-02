@@ -6,7 +6,11 @@ Record types for representing deployment models.
 """
 
 from characteristic import attributes, Attribute
-from pyrsistent import pmap
+
+from pyrsistent import (
+    pmap, PRecord, field, PMap, PSet, pset,
+    )
+
 from zope.interface import Interface, implementer
 
 
@@ -171,6 +175,12 @@ class Manifestation(object):
 
     :ivar bool primary: If true, this is a primary, otherwise it is a replica.
     """
+    @property
+    def dataset_id(self):
+        """
+        :return unicode: The dataset ID of the dataset.
+        """
+        return self.dataset.dataset_id
 
 
 @attributes(["dataset_id",
@@ -201,13 +211,13 @@ class Dataset(object):
     """
 
 
-@attributes(["hostname",
-             Attribute("applications", default_value=frozenset()),
-             Attribute("other_manifestations", default_value=frozenset())])
-class Node(object):
+class Node(PRecord):
     """
     A single node on which applications will be managed (deployed,
     reconfigured, destroyed, etc).
+
+    Manifestations attached to applications must also be present in the
+    ``manifestations`` attribute.
 
     :ivar unicode hostname: The hostname of the node.  This must be a
         resolveable name so that Flocker can connect to the node.  This may be
@@ -216,20 +226,29 @@ class Node(object):
     :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
 
-    :ivar frozenset other_manifestations: ``Manifestation`` instances that
-        are present on the node but are not attached as volumes to any
-        applications.
+    :ivar PMap manifestations: Mapping between dataset IDs and
+        corresponding ``Manifestation`` instances that are present on the
+        node. Includes both those attached as volumes to any applications,
+        and those that are unattached.
     """
-    def manifestations(self):
-        """
-        All manifestations present on this node.
+    def __invariant__(self):
+        manifestations = self.manifestations.values()
+        for app in self.applications:
+            if not isinstance(app, Application):
+                return (False, '%r must be Appplication' % (app,))
+            if app.volume is not None:
+                if app.volume.manifestation not in manifestations:
+                    return (False, '%r manifestation is not on node' % (app,))
+        for key, value in self.manifestations.items():
+            if key != value.dataset_id:
+                return (False, '%r is not correct key for %r' % (key, value))
+        return (True, "")
 
-        :return frozenset: All ``Manifestation`` instances from this node.
-        """
-        return self.other_manifestations | frozenset(
-            [application.volume.manifestation
-             for application in self.applications
-             if application.volume is not None])
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    applications = field(type=PSet, initial=pset(), factory=pset,
+                         mandatory=True)
+    manifestations = field(type=PMap, initial=pmap(), factory=pmap,
+                           mandatory=True)
 
 
 @attributes(["nodes"])
@@ -335,24 +354,30 @@ class DatasetChanges(object):
     """
 
 
-@attributes(["hostname", "running", "not_running",
-             Attribute("used_ports", default_value=frozenset()),
-             Attribute("other_manifestations", default_value=frozenset())])
-class NodeState(object):
+class NodeState(PRecord):
     """
     The current state of a node.
 
     :ivar unicode hostname: The hostname of the node.
-    :ivar running: A ``list`` of ``Application`` instances on this node
+    :ivar running: A ``PSet`` of ``Application`` instances on this node
         that are currently running or starting up.
-    :ivar not_running: A ``list`` of ``Application`` instances on this
+    :ivar not_running: A ``PSet`` of ``Application`` instances on this
         node that are currently shutting down or stopped.
-    :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
+    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
-    :ivar frozenset other_manifestations: ``Manifestation`` instances that
-        are present on the node but are not attached as volumes to any
-        applications.
+    :ivar PSet manifestations: All ``Manifestation`` instances that
+        are present on the node.
     """
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    used_ports = field(type=PSet, initial=pset(), factory=pset,
+                       mandatory=True)
+    running = field(type=PSet, initial=pset(), factory=pset,
+                    mandatory=True)
+    not_running = field(type=PSet, initial=pset(), factory=pset,
+                        mandatory=True)
+    manifestations = field(type=PSet, initial=pset(), factory=pset,
+                           mandatory=True)
+
     def to_node(self):
         """
         Convert into a ``Node`` instance.
@@ -360,5 +385,6 @@ class NodeState(object):
         :return Node: Equivalent ``Node`` object.
         """
         return Node(hostname=self.hostname,
-                    other_manifestations=self.other_manifestations,
-                    applications=frozenset(self.running + self.not_running))
+                    manifestations={m.dataset_id: m
+                                    for m in self.manifestations},
+                    applications=self.running | self.not_running)
