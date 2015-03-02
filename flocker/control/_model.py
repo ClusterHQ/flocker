@@ -166,25 +166,6 @@ class Application(object):
     """
 
 
-class Manifestation(PRecord):
-    """
-    A dataset that is mounted on a node.
-
-    :ivar Dataset dataset: The dataset being mounted.
-
-    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
-    """
-    dataset = field(mandatory=True)
-    primary = field(mandatory=True)
-
-    @property
-    def dataset_id(self):
-        """
-        :return unicode: The dataset ID of the dataset.
-        """
-        return self.dataset.dataset_id
-
-
 class Dataset(PRecord):
     """
     The filesystem data for a particular application.
@@ -207,10 +188,29 @@ class Dataset(PRecord):
     :ivar int maximum_size: The maximum size in bytes of this dataset, or
         ``None`` if there is no specified limit.
     """
-    dataset_id = field(mandatory=True)
-    deleted = field(mandatory=True, initial=False)
+    dataset_id = field(mandatory=True, type=unicode)
+    deleted = field(mandatory=True, initial=False, type=bool)
     maximum_size = field(mandatory=True, initial=None)
     metadata = field(mandatory=True, type=PMap, factory=pmap, initial=pmap())
+
+
+class Manifestation(PRecord):
+    """
+    A dataset that is mounted on a node.
+
+    :ivar Dataset dataset: The dataset being mounted.
+
+    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
+    """
+    dataset = field(mandatory=True, type=Dataset)
+    primary = field(mandatory=True, type=bool)
+
+    @property
+    def dataset_id(self):
+        """
+        :return unicode: The dataset ID of the dataset.
+        """
+        return self.dataset.dataset_id
 
 
 class Node(PRecord):
