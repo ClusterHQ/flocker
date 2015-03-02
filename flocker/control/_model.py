@@ -8,7 +8,7 @@ Record types for representing deployment models.
 from characteristic import attributes, Attribute
 
 from pyrsistent import (
-    pmap, PRecord, field, PMap, PSet, pset,
+    pmap, PRecord, field, PMap, PSet, pset, CheckedPSet
     )
 
 from zope.interface import Interface, implementer
@@ -191,7 +191,8 @@ class Dataset(PRecord):
     dataset_id = field(mandatory=True, type=unicode)
     deleted = field(mandatory=True, initial=False, type=bool)
     maximum_size = field(mandatory=True, initial=None)
-    metadata = field(mandatory=True, type=PMap, factory=pmap, initial=pmap())
+    metadata = field(mandatory=True, type=PMap, factory=pmap, initial=pmap(),
+                     serializer=lambda f, d: dict(d))
 
 
 class Manifestation(PRecord):
@@ -356,6 +357,14 @@ class DatasetChanges(object):
     """
 
 
+def set_serializer(format, persistent_set):
+    """
+    Serializes a PSet.
+    """
+    from pyrsistent import thaw
+    return [thaw(i) for i in persistent_set]
+
+
 class NodeState(PRecord):
     """
     The current state of a node.
@@ -372,13 +381,17 @@ class NodeState(PRecord):
     """
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = field(type=PSet, initial=pset(), factory=pset,
-                       mandatory=True)
+                       mandatory=True, serializer=set_serializer)
     running = field(type=PSet, initial=pset(), factory=pset,
-                    mandatory=True)
+                    mandatory=True, serializer=set_serializer)
     not_running = field(type=PSet, initial=pset(), factory=pset,
-                        mandatory=True)
-    manifestations = field(type=PSet, initial=pset(), factory=pset,
-                           mandatory=True)
+                        mandatory=True, serializer=set_serializer)
+    # XXX repetition can be replaced with checkpmap factory:
+    class manifestation_set(CheckedPSet):
+        __type__ = Manifestation
+    manifestations = field(type=manifestation_set, initial=manifestation_set(),
+                           factory=manifestation_set.create,
+                           mandatory=True, serializer=lambda f, d: [i.serialize() for i in d])
 
     def to_node(self):
         """

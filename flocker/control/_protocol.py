@@ -24,7 +24,7 @@ Interactions:
   convergence agents.
 """
 
-from pickle import dumps, loads
+from json import dumps, loads
 
 from characteristic import with_cmp
 
@@ -38,6 +38,7 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 
 from ._persistence import serialize_deployment, deserialize_deployment
+from ._model import NodeState
 
 
 class NodeStateArgument(Argument):
@@ -45,10 +46,10 @@ class NodeStateArgument(Argument):
     AMP argument that takes a ``NodeState`` object.
     """
     def fromString(self, in_bytes):
-        return loads(in_bytes)
+        return NodeState.create(loads(in_bytes))
 
     def toString(self, node_state):
-        return dumps(node_state)
+        return dumps(node_state.serialize())
 
 
 class DeploymentArgument(Argument):
