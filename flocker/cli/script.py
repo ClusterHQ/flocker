@@ -6,7 +6,7 @@ The command-line ``flocker-deploy`` tool.
 
 from subprocess import CalledProcessError
 
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, succeed
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -250,9 +250,48 @@ class DeployScript(object):
         return DeferredList(results)
 
 
+@flocker_standard_options
+class CLIOptions(Options):
+    """
+    Command line options for ``flocker`` CLI.
+
+    """
+    longdesc = """flocker does nothing (yet).
+
+    """
+
+    synopsis = ("Usage: flocker [OPTIONS] "
+                "\n"
+                "If you have any issues or feedback, you can talk to us: "
+                "http://docs.clusterhq.com/en/latest/gettinginvolved/"
+                "contributing.html#talk-to-us")
+
+
+@implementer(ICommandLineScript)
+class CLIScript(object):
+    """
+    A command-line script to interact with a cluster via the API.
+    """
+    def main(self, reactor, options):
+        """
+        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+
+        :return: A ``Deferred`` which fires when the deployment is complete or
+                 has encountered an error.
+        """
+        return succeed(None)
+
+
 def flocker_deploy_main():
     return FlockerScriptRunner(
         script=DeployScript(),
         options=DeployOptions(),
+        logging=False,
+    ).main()
+
+def flocker_cli_main():
+    return FlockerScriptRunner(
+        script=CLIScript(),
+        options=CLIOptions(),
         logging=False,
     ).main()
