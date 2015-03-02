@@ -166,40 +166,20 @@ class Application(object):
     """
 
 
-@attributes(["dataset", "primary"])
-class Manifestation(object):
-    """
-    A dataset that is mounted on a node.
-
-    :ivar Dataset dataset: The dataset being mounted.
-
-    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
-    """
-    @property
-    def dataset_id(self):
-        """
-        :return unicode: The dataset ID of the dataset.
-        """
-        return self.dataset.dataset_id
-
-
-@attributes(["dataset_id",
-             Attribute("maximum_size", default_value=None),
-             Attribute("metadata", default_value=pmap())])
-class Dataset(object):
+class Dataset(PRecord):
     """
     The filesystem data for a particular application.
 
     At some point we'll want a way of reserving metadata for ourselves.
-
-    maximum_size really should be metadata:
-    https://clusterhq.atlassian.net/browse/FLOC-1215
 
     :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
         if this is coming out of human-supplied configuration, in which
         case it will need to be looked up from actual state for existing
         datasets, or a new one generated if a new dataset will need tbe
         created.
+
+    :ivar bool deleted: If ``True``, this dataset has been deleted and its
+        data is unavailable, or will soon become unavailable.
 
     :ivar PMap metadata: Mapping between ``unicode`` keys and
         corresponding values. Typically there will be a ``"name"`` key whose
@@ -208,6 +188,29 @@ class Dataset(object):
     :ivar int maximum_size: The maximum size in bytes of this dataset, or
         ``None`` if there is no specified limit.
     """
+    dataset_id = field(mandatory=True, type=unicode)
+    deleted = field(mandatory=True, initial=False, type=bool)
+    maximum_size = field(mandatory=True, initial=None)
+    metadata = field(mandatory=True, type=PMap, factory=pmap, initial=pmap())
+
+
+class Manifestation(PRecord):
+    """
+    A dataset that is mounted on a node.
+
+    :ivar Dataset dataset: The dataset being mounted.
+
+    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
+    """
+    dataset = field(mandatory=True, type=Dataset)
+    primary = field(mandatory=True, type=bool)
+
+    @property
+    def dataset_id(self):
+        """
+        :return unicode: The dataset ID of the dataset.
+        """
+        return self.dataset.dataset_id
 
 
 class Node(PRecord):
