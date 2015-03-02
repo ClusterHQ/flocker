@@ -241,10 +241,6 @@ _FIELD_CONNECTION = Field(
 
 LOG_SEND_TO_CONTROL_SERVICE = ActionType(
     u"flocker:agent:send_to_control_service",
-    # XXX fields would just be the address of the control service, we can
-    # rely on the higher-level logged action of the convergence loop to
-    # log the local state (in FLOC-1379).
-    # XXX what's the success field here?
     [_FIELD_CONNECTION], [],
     "Send the local state to the control service.")
 
@@ -264,8 +260,6 @@ class ConvergenceLoop(object):
 
     :ivar fsm: The finite state machine this is part of.
     """
-    logger = Logger()
-
     def __init__(self, deployer):
         """
         :param IDeployer deployer: Used to discover local state and calcualte
@@ -282,20 +276,18 @@ class ConvergenceLoop(object):
 
         def got_local_state(local_state):
             with LOG_SEND_TO_CONTROL_SERVICE(
-                    self.logger, connection=self.client) as action:
-                pass
-            self.client.callRemote(
-                NodeStateCommand,
-                node_state=local_state,
-                eliot_context=action,
-            )
+                    self.fsm.logger, connection=self.client) as context:
+                self.client.callRemote(
+                    NodeStateCommand,
+                    node_state=local_state,
+                    eliot_context=context,
+                )
             action = self.deployer.calculate_necessary_state_changes(
                 local_state, self.configuration, self.cluster_state)
             return action.run(self.deployer)
         d.addCallback(got_local_state)
         d.addCallback(lambda _: self.fsm.receive(
             ConvergenceLoopInputs.ITERATION_DONE))
-        return d.result
         # This needs error handling:
         # https://clusterhq.atlassian.net/browse/FLOC-1357
 
