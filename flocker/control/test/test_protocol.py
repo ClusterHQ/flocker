@@ -27,7 +27,7 @@ from twisted.application.internet import StreamServerEndpointService
 from .._protocol import (
     NodeStateArgument, DeploymentArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    AgentAMP, ControlAMPService, ControlAMP, with_eliot_context, _AgentLocator,
+    AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
 )
 from .._clusterstate import ClusterStateService
@@ -240,7 +240,7 @@ class ControlAMPTests(ControlTestCase):
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
                                    node_state=NODE_STATE,
-                                   eliot_context=TEST_ACTION_ID))
+                                   eliot_context=TEST_ACTION))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
             Deployment(
@@ -269,7 +269,7 @@ class ControlAMPTests(ControlTestCase):
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
                                    node_state=NODE_STATE,
-                                   eliot_context=TEST_ACTION_ID))
+                                   eliot_context=TEST_ACTION))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
             [sent1[-1], sent2[-1]],
@@ -392,7 +392,6 @@ class FakeAgent(object):
 
 
 TEST_ACTION = start_action(MemoryLogger(), 'test:action')
-TEST_ACTION_ID = TEST_ACTION.serialize_task_id()
 
 
 class AgentClientTests(SynchronousTestCase):
@@ -443,7 +442,7 @@ class AgentClientTests(SynchronousTestCase):
             ClusterStatusCommand,
             configuration=TEST_DEPLOYMENT,
             state=actual,
-            eliot_context=TEST_ACTION_ID
+            eliot_context=TEST_ACTION
         )
 
         self.successResultOf(d)
@@ -533,104 +532,6 @@ HANDLE_REQUEST = ActionType(
 )
 
 
-class ClientProcess(object):
-    logger = None
-
-    def send_request(self, server, **kwargs):
-        """
-        Send request.
-        """
-        with SEND_REQUEST(self.logger) as action:
-            task_id = action.serialize_task_id()
-        return server.handle_request(eliot_context=task_id, **kwargs)
-
-
-class ServerProcess(object):
-    logger = None
-
-    @with_eliot_context
-    def handle_request(self, arg1, arg2):
-        """
-        Handle request.
-        """
-        with HANDLE_REQUEST(self.logger):
-            return dict(arg1=arg1, arg2=arg2)
-
-
-class WithEliotContextTests(SynchronousTestCase):
-    """
-    Tests for ``with_eliot_context``.
-    """
-    def assert_child_action(self, logger):
-        """
-        The Client sets the logging context which means that Server Actions
-        appear as children of the Client Action.
-        """
-        # There should only be one...
-        (client_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
-        (server_action,) = LoggedAction.of_type(
-            logger.messages, HANDLE_REQUEST)
-        self.assertIn(server_action, client_action.descendants())
-
-    @validate_logging(assert_child_action)
-    def test_decorated_called(self, logger):
-        """
-        The decorator returned by ``with_eliot_context`` calls the decorated
-        function with the keyword arguments supplied to it and returns its
-        return value.
-        """
-        client = ClientProcess()
-        client.logger = logger
-
-        server = ServerProcess()
-        server.logger = logger
-
-        expected_results = dict(
-            arg1=object(),
-            arg2=object()
-        )
-        actual_result = client.send_request(server, **expected_results)
-
-        self.assertEqual(expected_results, actual_result)
-
-    def test_decorated_name(self):
-        """
-        ``with_eliot_context`` returns a decorator function with the same name
-        as the decorated function.
-        """
-        self.assertEqual(
-            'handle_request',
-            ServerProcess().handle_request.__name__
-        )
-
-    def test_decorated_docstring(self):
-        """
-        ``with_eliot_context`` returns a decorator function with the same
-        docstring as the decorated function.
-        """
-        self.assertEqual(
-            'Handle request.',
-            ServerProcess().handle_request.__doc__.strip()
-        )
-
-    def test_positional_arguments_error(self):
-        """
-        The decorator returned by ``with_eliot_context`` does not accept
-        positional arguments, regardless of whether the decorated function
-        accepts them.
-        """
-        server = ServerProcess()
-        dummy_eliot_context = object()
-        error = self.assertRaises(
-            TypeError,
-            server.handle_request, dummy_eliot_context, 'arg1', 'arg2'
-        )
-        self.assertEqual(
-            'responder() takes exactly 2 arguments (4 given)',
-            str(error)
-        )
-
-
 class ClusterStatusCommandTests(SynchronousTestCase):
     """
     Tests for ``ClusterStatusCommand``.
@@ -660,37 +561,6 @@ class AgentLocatorTests(SynchronousTestCase):
         self.assertIs(logger, locator.logger)
 
 
-class ClusterUpdatedTests(SynchronousTestCase):
-    """
-    Tests for the responder for ``ClusterStatusCommand``.
-    """
-    @validate_logging(None)
-    def test_responder_logging(self, logger):
-        """
-        ``cluster_updated`` is decorated using ``with_eliot_context`` and
-        therefore requires an eliot_context argument. The supplied
-        eliot_context is used as the context for messages logged in that
-        method.
-        """
-        fake_agent = FakeAgent()
-        self.patch(fake_agent, 'logger', logger)
-        locator = _AgentLocator(agent=fake_agent)
-        with SEND_REQUEST(logger) as action:
-            task_id = action.serialize_task_id()
-        locator.cluster_updated(
-            eliot_context=task_id,
-            configuration=object(),
-            state=object()
-        )
-        (test_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
-        (child_action,) = test_action.children
-
-        self.assertEqual(
-            u'eliot:remote_task',
-            child_action.start_message['action_type']
-        )
-
-
 class NodeStateCommandTests(SynchronousTestCase):
     """
     Tests for ``NodeStateCommand``.
@@ -702,39 +572,6 @@ class NodeStateCommandTests(SynchronousTestCase):
         self.assertEqual(
             sorted(['node_state', 'eliot_context']),
             sorted(v[0] for v in NodeStateCommand.arguments))
-
-
-class NodeChangedTests(SynchronousTestCase):
-    """
-    Tests for the responder for ``NodeStateCommand``.
-    """
-    @validate_logging(None)
-    def test_responder_logging(self, logger):
-        """
-        ``node_changed`` is decorated using ``with_eliot_context`` and
-        therefore requires an eliot_context argument. The supplied
-        eliot_context is used as the context for messages logged in that
-        method.
-        """
-        fake_control_amp_service = build_control_amp_service(self)
-        self.patch(fake_control_amp_service, 'logger', logger)
-        self.patch(
-            fake_control_amp_service, 'node_changed', lambda node_state: None)
-
-        locator = ControlServiceLocator(
-            control_amp_service=fake_control_amp_service
-        )
-
-        with SEND_REQUEST(logger) as action:
-            task_id = action.serialize_task_id()
-        locator.node_changed(eliot_context=task_id, node_state=object())
-        (test_action,) = LoggedAction.of_type(logger.messages, SEND_REQUEST)
-        (child_action,) = test_action.children
-
-        self.assertEqual(
-            u'eliot:remote_task',
-            child_action.start_message['action_type']
-        )
 
 
 class ControlServiceLocatorTests(SynchronousTestCase):
