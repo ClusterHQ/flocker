@@ -49,6 +49,8 @@ if branch:
 else:
     branch_opt = []
 
+# XXX Will this have to be changed to account for the separation of development
+# and marketing RPMs?
 # If a version is specifed, install that version.
 # Otherwise install whatever yum decides.
 if rpm_version:
