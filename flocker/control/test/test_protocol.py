@@ -611,7 +611,6 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         connection_protocol = ControlAMP(control_amp_service)
         connection_protocol.makeConnection(StringTransport())
 
-        # XXX Maybe supply multiple connections and check that each is logged?
         control_amp_service._send_state_to_connections(
             connections=[connection_protocol])
 
@@ -627,7 +626,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
                 "state": control_amp_service.cluster_state.as_deployment()
             }
         )
-        # XXX Check that there's an action for each connection.
+
         assertHasAction(
             self,
             logger,
