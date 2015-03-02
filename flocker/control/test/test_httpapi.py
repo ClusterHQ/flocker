@@ -29,7 +29,7 @@ from ...restapi.testtools import (
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume
+    Deployment, AttachedVolume, DockerImage
 )
 from ..httpapi import (
     DatasetAPIUserV1, create_api_service, datasets_from_deployment,
@@ -217,7 +217,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
             nodes={
                 Node(
                     hostname=self.NODE_A,
-                    other_manifestations=frozenset({existing_manifestation})
+                    manifestations={existing_manifestation.dataset_id:
+                                    existing_manifestation}
                 ),
                 Node(hostname=self.NODE_B),
             }
@@ -239,8 +240,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 # They came out of the set backwards.
                 node_a, node_b = node_b, node_a
             self.assertEqual(
-                (frozenset({existing_manifestation}), frozenset()),
-                (node_a.other_manifestations, node_b.other_manifestations)
+                ({existing_manifestation.dataset_id: existing_manifestation},
+                 {}),
+                (node_a.manifestations, node_b.manifestations)
             )
 
         posting.addCallback(failed)
@@ -397,15 +399,15 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 Deployment(nodes=frozenset({
                     Node(
                         hostname=self.NODE_A,
-                        other_manifestations=frozenset({
-                            Manifestation(
+                        manifestations={
+                            dataset_id: Manifestation(
                                 dataset=Dataset(
                                     dataset_id=dataset_id,
                                     metadata=pmap(metadata)
                                 ),
                                 primary=True
                             )
-                        })
+                        }
                     )
                 })),
                 deployment
@@ -437,15 +439,15 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 Deployment(nodes=frozenset({
                     Node(
                         hostname=self.NODE_A,
-                        other_manifestations=frozenset({
-                            Manifestation(
+                        manifestations={
+                            dataset_id: Manifestation(
                                 dataset=Dataset(
                                     dataset_id=dataset_id,
                                     maximum_size=maximum_size
                                 ),
                                 primary=True
                             )
-                        })
+                        }
                     )
                 })),
                 deployment
@@ -525,7 +527,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
                     if node.hostname == target:
                         dataset_ids = [
                             (m.primary, m.dataset.dataset_id)
-                            for m in node.manifestations()
+                            for m in node.manifestations.values()
                         ]
                         self.assertIn((True, expected_dataset_id), dataset_ids)
                         break
@@ -547,7 +549,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         current_primary_node = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         deployment = Deployment(nodes=frozenset([current_primary_node]))
 
@@ -570,7 +573,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)
@@ -606,7 +610,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
@@ -624,7 +629,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
@@ -649,7 +655,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
@@ -686,7 +693,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)
@@ -712,7 +720,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation},
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)
@@ -753,7 +762,7 @@ def get_dataset_ids(deployment):
         the datasets.
     """
     for node in deployment.nodes:
-        for manifestation in node.manifestations():
+        for manifestation in node.manifestations.values():
             yield manifestation.dataset.dataset_id
 
 
@@ -835,7 +844,8 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             nodes={
                 Node(
                     hostname=self.NODE_A,
-                    other_manifestations=frozenset({manifestation}),
+                    manifestations={manifestation.dataset_id:
+                                    manifestation},
                 ),
             },
         )
@@ -874,11 +884,13 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             nodes={
                 Node(
                     hostname=self.NODE_A,
-                    other_manifestations=frozenset({manifestation_a}),
+                    manifestations={manifestation_a.dataset_id:
+                                    manifestation_a},
                 ),
                 Node(
                     hostname=self.NODE_B,
-                    other_manifestations=frozenset({manifestation_b}),
+                    manifestations={manifestation_b.dataset_id:
+                                    manifestation_b},
                 ),
             },
         )
@@ -904,9 +916,10 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             nodes={
                 Node(
                     hostname=self.NODE_A,
-                    other_manifestations=frozenset({
-                        manifestation_a, manifestation_b
-                    }),
+                    manifestations={
+                        manifestation_a.dataset_id: manifestation_a,
+                        manifestation_b.dataset_id: manifestation_b,
+                    },
                 ),
             },
         )
@@ -986,7 +999,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 running=[],
                 not_running=[],
-                other_manifestations=frozenset([expected_manifestation])
+                manifestations={expected_manifestation}
             )
         )
         expected_dict = dict(
@@ -1017,7 +1030,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname1,
                 running=[],
                 not_running=[],
-                other_manifestations=frozenset([expected_manifestation1])
+                manifestations={expected_manifestation1}
             )
         )
         self.cluster_state_service.update_node_state(
@@ -1025,7 +1038,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname2,
                 running=[],
                 not_running=[],
-                other_manifestations=frozenset([expected_manifestation2])
+                manifestations={expected_manifestation2}
             )
         )
         expected_dict1 = dict(
@@ -1079,6 +1092,8 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
                                     Application(name=u'site-clusterhq.com',
                                                 image=object(),
                                                 volume=volume)}),
+            manifestations={expected_dataset.dataset_id:
+                            volume.manifestation},
         )
 
         deployment = Deployment(nodes=frozenset([node]))
@@ -1102,7 +1117,8 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         node = Node(
             hostname=expected_hostname,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation},
         )
 
         deployment = Deployment(nodes=frozenset([node]))
@@ -1129,18 +1145,22 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
 
         node1 = Node(
             hostname=expected_hostname,
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object(),
-                                                volume=volume)}),
+            applications=frozenset({
+                Application(
+                    name=u'mysql-clusterhq',
+                    image=DockerImage.from_string("mysql")),
+                Application(name=u'site-clusterhq.com',
+                            image=DockerImage.from_string("site"),
+                            volume=volume)}),
+            manifestations={expected_dataset.dataset_id: volume.manifestation},
         )
         expected_manifestation = Manifestation(dataset=expected_dataset,
                                                primary=False)
         node2 = Node(
             hostname=u"node2.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation},
         )
 
         deployment = Deployment(nodes=frozenset([node1, node2]))
@@ -1169,13 +1189,15 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         node1 = Node(
             hostname=u"node1.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation1])
+            manifestations={manifestation1.dataset_id:
+                            manifestation1},
         )
 
         node2 = Node(
             hostname=u"node2.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation2])
+            manifestations={manifestation2.dataset_id:
+                            manifestation2},
         )
 
         deployment = Deployment(nodes=frozenset([node1, node2]))
@@ -1198,13 +1220,15 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         node1 = Node(
             hostname=u"node1.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation1])
+            manifestations={manifestation1.dataset_id:
+                            manifestation1},
         )
 
         node2 = Node(
             hostname=u"node2.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation2])
+            manifestations={manifestation2.dataset_id:
+                            manifestation2},
         )
 
         deployment = Deployment(nodes=frozenset([node1, node2]))

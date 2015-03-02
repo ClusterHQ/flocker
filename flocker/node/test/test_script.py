@@ -27,6 +27,7 @@ from .._docker import FakeDockerClient, Unit
 from ...control._model import (
     Application, Deployment, DockerImage, Node, AttachedVolume, Dataset,
     Manifestation)
+from ...control._config import dataset_id_from_name
 from .._loop import AgentLoopService
 from .._deploy import P2PNodeDeployer
 
@@ -118,7 +119,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             links=frozenset(),
             )
 
-        node = Node(hostname='node1.example.com',
+        node = Node(hostname=u'node1.example.com',
                     applications=frozenset([application]))
         options = self.options()
         deployment_config = {"nodes": {node.hostname: [application.name]},
@@ -174,23 +175,29 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             'version': 1
         }}
 
+        manifestation = Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id_from_name(
+                    "mysql-something"),
+                metadata=pmap({'name': 'mysql-something'})),
+            primary=True)
+
         expected_current_config = Deployment(nodes=frozenset([
-            Node(hostname='node2.example.com', applications=frozenset([
-                Application(
-                    name='mysql-something',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                    volume=AttachedVolume(
-                        manifestation=Manifestation(
-                            dataset=Dataset(
-                                dataset_id=None,
-                                metadata=pmap({'name': 'mysql-something'})),
-                            primary=True),
-                        mountpoint=FilePath(b'/var/lib/data'),
-                    )
-                ),
-            ]))]))
+            Node(hostname=u'node2.example.com',
+                 applications=frozenset([
+                     Application(
+                         name='mysql-something',
+                         image=DockerImage.from_string('unknown'),
+                         ports=frozenset(),
+                         links=frozenset(),
+                         volume=AttachedVolume(
+                             manifestation=manifestation,
+                             mountpoint=FilePath(b'/var/lib/data'),
+                         )
+                     ),
+                 ]),
+                 manifestations={
+                     manifestation.dataset_id: manifestation})]))
 
         options.parseOptions(
             [safe_dump(deployment_config),
@@ -213,7 +220,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                 repository=u'hybridlogic/mysql5.9', tag=u'latest'),
         )
 
-        node = Node(hostname='node1.example.com',
+        node = Node(hostname=u'node1.example.com',
                     applications=frozenset([application]))
         options = self.options()
         deployment_config = {"nodes": {node.hostname: [application.name]},

@@ -111,6 +111,7 @@ def get_doc_version(version):
     else:
         return version
 
+
 def get_installable_version(version):
     """
     Get the version string of the latest version of Flocker which can be
@@ -118,6 +119,7 @@ def get_installable_version(version):
     """
     parsed_version = parse_version(version)
     return parsed_version.installable_release
+
 
 def is_release(version):
     """
@@ -128,4 +130,19 @@ def is_release(version):
     return (parsed_version.commit_count is None
             and parsed_version.pre_release is None
             and parsed_version.weekly_release is None
+            and parsed_version.dirty is None)
+
+
+def is_weekly_release(version):
+    """
+    Return whether the version corresponds to a weekly release.
+
+    :param bytes version: A version of flocker.
+
+    :return bool: Wether the version is a weekly release.
+    """
+    parsed_version = parse_version(version)
+    return (parsed_version.weekly_release is not None
+            and parsed_version.commit_count is None
+            and parsed_version.pre_release is None
             and parsed_version.dirty is None)

@@ -136,8 +136,10 @@ class MakeRstTests(SynchronousTestCase):
              # Here is the prose documentation for the endpoint.
              '   Demonstrates examples.',
              '   ',
+             '   **Example:** This example demonstrates examples.',
+             '   ',
              # This is a header introducing the request portion of the session.
-             '   **Example request**',
+             '   Request',
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              '   .. sourcecode:: http',
@@ -150,7 +152,7 @@ class MakeRstTests(SynchronousTestCase):
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              # The same again but for the HTTP response.
-             '   **Example response**',
+             '   Response',
              '   ',
              '   .. sourcecode:: http',
              '   ',
@@ -388,10 +390,16 @@ class FormatExampleTests(SynchronousTestCase):
         L{_formatExample} yields L{unicode} instances representing the lines of
         a reST document describing an example HTTP session.
         """
-        example = Example(b"GET FOO", b"200 OK")
+        example = Example(
+            request=b"GET FOO",
+            response=b"200 OK",
+            doc=u"Documentation of some example."
+        )
         lines = list(_formatExample(example, {u"DOMAIN": u"example.com"}))
         self.assertEqual(
-            [u'**Example request**',
+            [u'**Example:** Documentation of some example.',
+             u'',
+             u'Request',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -399,7 +407,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**Example response**',
+             u'Response',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -418,10 +426,16 @@ class FormatExampleTests(SynchronousTestCase):
             u"CODE": u"4242"}
         request = b"GET %(PATH)s HTTP/1.1"
         response = b"HTTP/1.1 %(CODE)s Ok"
-        example = Example(request, response)
+        example = Example(
+            request=request,
+            response=response,
+            doc=u'Documentation of some example.'
+        )
         lines = list(_formatExample(example, substitutions))
         self.assertEqual(
-            [u'**Example request**',
+            [u'**Example:** Documentation of some example.',
+             u'',
+             u'Request',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -429,7 +443,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**Example response**',
+             u'Response',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -483,7 +497,8 @@ class VariableInterpolationTests(SynchronousTestCase):
             response=(
                 "HTTP/1.1 200 OK\n"
                 "\n"
-            )
+            ),
+            doc=u"Documentation of some example."
         )
         app = Klein()
 
@@ -499,7 +514,9 @@ class VariableInterpolationTests(SynchronousTestCase):
             [u'',
              u'.. http:get:: /prefix/',
              u'',
-             u'   **Example request**',
+             u'   **Example:** Documentation of some example.',
+             u'   ',
+             u'   Request',
              u'   ',
              u'   .. sourcecode:: http',
              u'   ',
@@ -510,7 +527,7 @@ class VariableInterpolationTests(SynchronousTestCase):
              # Here is the important line.
              u'      192.0.2.1',
              u'   ',
-             u'   **Example response**',
+             u'   Response',
              u'   ',
              u'   .. sourcecode:: http',
              u'   ',
@@ -521,3 +538,33 @@ class VariableInterpolationTests(SynchronousTestCase):
              u''],
             list(rst)
         )
+
+
+class ExampleFromDictionaryTests(SynchronousTestCase):
+    """
+    Tests for ``Example.fromDictionary``.
+    """
+    def test_required_arguments(self):
+        """
+        ``Example.fromDictionary`` requires request and response keys
+        in the supplied dictionary and passes them to the Example
+        initialiser.
+        """
+        expected_request = 'GET /v1/some/example/request HTTP/1.1\n'
+        expected_response = 'HTTP/1.0 200 OK\n\n'
+        expected_doc = u'Documentation for some example.'
+
+        supplied_dictionary = {
+            'request': expected_request,
+            'response': expected_response,
+            'doc': expected_doc,
+        }
+
+        expected_example = Example(
+            request=expected_request,
+            response=expected_response,
+            doc=expected_doc,
+        )
+
+        self.assertEqual(
+            expected_example, Example.fromDictionary(supplied_dictionary))

@@ -36,13 +36,14 @@ Software
 - `gsutil Python package <https://pypi.python.org/pypi/gsutil>`_ on your workstation.
 - `Vagrant`_ (1.6.2 or newer)
 - `VirtualBox`_
+- `virtualenvwrapper`_
 
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
+.. _`virtualenvwrapper`: https://virtualenvwrapper.readthedocs.org/en/latest/
 
 Access
 ~~~~~~
-
 
 - Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation.
   Set up ``gsutil`` authentication by following the instructions from the following command:
@@ -55,6 +56,7 @@ Access
   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
 
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
+
 - An OS X (most recent release) system.
 
 .. note:: For a documentation release, access to Google Cloud Storage and Atlas is not required.
@@ -82,7 +84,18 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that a maintenance release is in progress.
+
+   ::
+
+      @engineering I am releasing from release/flocker-0.3.2. Please don't land anything on that branch until the release is complete.
+
 #. Create a clean, local Flocker release branch with no modifications:
+
+   .. note::
+
+      For a maintenance release, replace ``origin/master`` below with ``origin/flocker-${BASE_VERSION}``,
+      where ``${BASE_VERSION}`` is the release receiving the maintenance.
 
    .. prompt:: bash $
 
@@ -90,6 +103,13 @@ Preparing For a Release
       cd flocker-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
       git push --set-upstream origin release/flocker-${VERSION}
+
+#. Create and activate the Flocker release virtual environment:
+
+   .. prompt:: bash $
+
+      mkvirtualenv flocker-release-${VERSION}
+      pip install --editable .[release]
 
 #. Back port features from master (optional)
 
@@ -158,49 +178,9 @@ Preparing For a Release
 #. Update the staging documentation.
    (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
-   .. TODO: The following steps should be automated
+   .. prompt:: bash $
 
-   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-staging-docs``.
-
-      .. prompt:: bash $
-
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
-
-   #. Update redirects to point to new documentation.
-
-      .. warning:: Skip this step for weekly releases and pre-releases.
-
-      .. prompt:: bash $
-
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
-
-   #. Update the redirect rules in `S3`_ to point to the new release.
-
-      In the properties of the ``clusterhq-staging-docs`` bucket under static website hosting,
-      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
-      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
-
-      .. code-block:: xml
-
-         <RoutingRule>
-           <Condition>
-             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
-           </Condition>
-           <Redirect>
-             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
-             <HttpRedirectCode>302</HttpRedirectCode>
-           </Redirect>
-         </RoutingRule>
-
-   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.staging.clusterhq.com`` distribution::
-
-         /
-         /index.html
-         /en/
-         /en/index.html
-         /en/latest/*
-         /en/devel/*
+      admin/publish-docs --doc-version ${VERSION}
 
 #. Make a pull request on GitHub
 
@@ -243,7 +223,7 @@ So it is important to check that the code in the release branch is working befor
    - For a development release, the following redirects should work.
 
      - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
-     - https://docs.staging.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
+     - https://docs.staging.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Update GitHub:
 
@@ -314,7 +294,7 @@ Release
 
 #. Set up Google Cloud Storage credentials on the Vagrant development machine:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       gsutil config
 
@@ -327,10 +307,7 @@ Release
    .. prompt:: bash [vagrant@localhost]$
 
       python setup.py sdist bdist_wheel
-      gsutil cp -a public-read \
-          "dist/Flocker-${VERSION}.tar.gz" \
-          "dist/Flocker-${VERSION}-py2-none-any.whl" \
-          gs://archive.clusterhq.com/downloads/flocker/
+      gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
@@ -344,7 +321,7 @@ Release
    
    .. note:: Skip this step for a documentation release.
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
@@ -354,7 +331,7 @@ Release
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       echo http://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
@@ -380,10 +357,10 @@ Release
 
      Try installing the new recipe directly from a GitHub link
 
-     .. prompt:: bash [vagrant@localhost]$
+     .. prompt:: bash $
 
         brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
-        brew test flocker-${VERSION}.rb
+        brew test flocker-${VERSION}
 
    - Make a pull request:
 
@@ -395,52 +372,10 @@ Release
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
 #. Update the documentation.
-   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
-   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
+   .. prompt:: bash [vagrant@localhost]$
 
-      .. prompt:: bash [vagrant@localhost]$
-
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
-
-   #. Update redirects to point to new documentation.
-
-      .. warning:: Skip this step for weekly releases and pre-releases.
-
-         The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
-         We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
-
-      .. prompt:: bash [vagrant@localhost]$
-
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
-         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
-
-   #. Update the redirect rules in `S3`_ to point to the new release.
-
-      In the properties of the ``clusterhq-docs`` bucket under static website hosting,
-      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
-      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
-
-      .. code-block:: xml
-
-         <RoutingRule>
-           <Condition>
-             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
-           </Condition>
-           <Redirect>
-             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
-             <HttpRedirectCode>302</HttpRedirectCode>
-           </Redirect>
-         </RoutingRule>
-
-   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.clusterhq.com`` distribution::
-
-         /
-         /index.html
-         /en/
-         /en/index.html
-         /en/latest/*
-         /en/devel/*
+      admin/publish-docs --production
 
 #. Submit the release pull request for review again.
 
@@ -467,7 +402,7 @@ Post-Release Review Process
    - For a development release, the following redirects should work.
 
      - https://docs.clusterhq.com/en/devel/ should redirect to ``https://docs.clusterhq.com/en/${VERSION}/``
-     - https://docs.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
+     - https://docs.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Verify that the tutorial works on all supported platforms:
 
@@ -501,6 +436,12 @@ Post-Release Review Process
 
 #. Merge the release pull request.
 
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that the maintenance release is in complete.
+
+   ::
+
+      @engineering The release from release/flocker-0.3.2 is complete. Branches targeting it can now land.
+
 
 Improving the Release Process
 -----------------------------
@@ -525,7 +466,6 @@ XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
-.. _virtualenvwrapper: https://pypi.python.org/pypi/virtualenvwrapper
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home
