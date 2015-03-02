@@ -756,6 +756,123 @@ RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
 )
 
 
+class DeleteDatasetTestsMixin(APITestsMixin):
+    """
+    Tests for the dataset deletion endpoint at
+    ``/configuration/datasets/<dataset_id>``.
+    """
+    def test_unknown_dataset(self):
+        """
+        NOT_FOUND is returned if the requested dataset_id doesn't exist.
+        The error includes the requested dataset_id.
+        """
+        unknown_dataset_id = unicode(uuid4())
+        deleting = self.assertResponseCode(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (
+                unknown_dataset_id.encode('ascii'),),
+            None, NOT_FOUND)
+        deleting.addCallback(readBody)
+        deleting.addCallback(loads)
+
+        def got_result(result):
+            expected_description = u'Dataset not found.'
+            description = result.pop(u"description")
+            self.assertEqual(expected_description, description)
+        deleting.addCallback(got_result)
+
+        return deleting
+
+    def _test_delete(self, dataset, deployment):
+        """
+        Helper method which makes an API call to delete the supplied
+        ``dataset`` from ``origin`` and finally asserts that the API call
+        returned the expected result and that the persistence_service has
+        been updated.
+
+        :param Dataset dataset: The dataset which will be moved.
+        :param Deployment deployment: The deployment that contains the dataset.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
+        expected_dataset_id = dataset.dataset_id
+        origin = next(iter(deployment.nodes))
+
+        expected_dataset = {
+            u"dataset_id": expected_dataset_id,
+            u"primary": origin.hostname,
+            u"metadata": {},
+            u"deleted": True,
+        }
+
+        deleting = self.assertResult(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (
+                expected_dataset_id.encode('ascii'),),
+            None, OK, expected_dataset
+        )
+
+        def got_result(result):
+            deployment = self.persistence_service.get()
+            for node in deployment.nodes:
+                if node.hostname == origin.hostname:
+                    dataset_ids = [
+                        (m.dataset.deleted, m.dataset.dataset_id)
+                        for m in node.manifestations.values()
+                    ]
+                    self.assertIn((True, expected_dataset_id), dataset_ids)
+                    break
+            else:
+                self.fail('Node not found. {}'.format(node.hostname))
+
+        deleting.addCallback(got_result)
+        return deleting
+
+    def test_delete(self):
+        """
+        The ``DELETE`` action sets the ``deleted`` attribute to true on the
+        given dataset.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        d = self.persistence_service.save(deployment)
+        d.addCallback(lambda _: self._test_delete(
+            expected_manifestation.dataset, deployment))
+        return d
+
+    def test_delete_idempotent(self):
+        """
+        The ``DELETE`` action on an already ``deleted`` dataset has same
+        response as original deletion.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        d = self.persistence_service.save(deployment)
+        d.addCallback(lambda _: self._test_delete(
+            expected_manifestation.dataset, deployment))
+        d.addCallback(lambda _: self._test_delete(
+            expected_manifestation.dataset, deployment))
+        return d
+
+
+RealTestsDeleteDataset, MemoryTestsDeleteDataset = (
+    buildIntegrationTests(
+        DeleteDatasetTestsMixin, "DeleteDataset", _build_app)
+)
+
+
 def get_dataset_ids(deployment):
     """
     Get an iterator of all of the ``dataset_id`` values on all nodes in the
