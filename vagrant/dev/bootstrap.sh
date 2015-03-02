@@ -14,7 +14,7 @@ yum install -y \
 	zlib-devel libuuid-devel libselinux-devel \
 	automake autoconf libtool \
 	rpm-devel rpmlint mock createrepo \
-	docker-io \
+	docker \
 	python-devel python-tox \
 	python-virtualenv python-virtualenvwrapper python-pip \
 	python-cffi libffi-devel \
