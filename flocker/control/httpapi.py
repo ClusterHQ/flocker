@@ -246,6 +246,9 @@ class DatasetAPIUserV1(object):
     @user_documentation(
         """
         Delete an existing dataset.
+
+        Deletion is idempotent: deleting a dataset multiple times will
+        result in the same the response.
         """,
         examples=[
             u"delete dataset",
