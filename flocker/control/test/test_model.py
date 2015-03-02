@@ -6,7 +6,7 @@ Tests for ``flocker.node._model``.
 
 from uuid import uuid4
 
-from pyrsistent import InvariantException
+from pyrsistent import InvariantException, pset
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -125,7 +125,7 @@ class ApplicationTests(SynchronousTestCase):
 
 class NodeInitTests(make_with_init_tests(
         record_type=Node,
-        kwargs=dict(hostname=u'example.com', applications=frozenset([
+        kwargs=dict(hostname=u'example.com', applications=pset([
             Application(name=u'mysql-clusterhq', image=object()),
             Application(name=u'site-clusterhq.com', image=object()),
         ]))
