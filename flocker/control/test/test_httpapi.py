@@ -866,6 +866,14 @@ class DeleteDatasetTestsMixin(APITestsMixin):
             expected_manifestation.dataset, deployment))
         return d
 
+    def test_multiple_manifestations(self):
+        """
+        If there are multiple manifestations on multiple nodes the ``DELETE``
+        action will mark all of their datasets as deleted.
+        """
+        raise NotImplementedError()
+    test_multiple_manifestations.todo = "Implement in FLOC-1240"
+
 
 RealTestsDeleteDataset, MemoryTestsDeleteDataset = (
     buildIntegrationTests(
