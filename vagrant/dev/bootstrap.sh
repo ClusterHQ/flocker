@@ -25,24 +25,6 @@ yum install -y \
 yum-config-manager --enable zfs-testing
 yum install -y zfs
 
-# Flocker python dependencies
-yum install -y \
-	python-eliot \
-	python-zope-interface \
-	pytz \
-	python-characteristic \
-	python-twisted \
-	PyYAML \
-	python-treq \
-	python-netifaces \
-	python-ipaddr \
-	python-nomenclature
-# These are redundant with python-twisted
-yum install -y \
-	python-crypto \
-	python-pyasn1
-yum install -y python-flake8 python-coverage
-
 # Install for downloading wheelhouse
 yum install -y wget
 
