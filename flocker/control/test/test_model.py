@@ -6,6 +6,8 @@ Tests for ``flocker.node._model``.
 
 from uuid import uuid4
 
+from pyrsistent import InvariantException, pset
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
@@ -123,7 +125,7 @@ class ApplicationTests(SynchronousTestCase):
 
 class NodeInitTests(make_with_init_tests(
         record_type=Node,
-        kwargs=dict(hostname=u'example.com', applications=frozenset([
+        kwargs=dict(hostname=u'example.com', applications=pset([
             Application(name=u'mysql-clusterhq', image=object()),
             Application(name=u'site-clusterhq.com', image=object()),
         ]))
@@ -133,46 +135,78 @@ class NodeInitTests(make_with_init_tests(
     """
 
 
+class ManifestationTests(SynchronousTestCase):
+    """
+    Tests for ``Manifestation``.
+    """
+    def test_dataset_id(self):
+        """
+        ``Manifestation.dataset_id`` returns the ID of the dataset.
+        """
+        m1 = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
+                           primary=True)
+        self.assertEqual(m1.dataset_id, m1.dataset.dataset_id)
+
+
 class NodeTests(SynchronousTestCase):
     """
     Tests for ``Node``.
     """
     def test_manifestations_from_applications(self):
         """
-        ``Node.manifestations()`` includes all manifestations from
-        applications on the node.
+        One cannot construct a ``Node`` where there are manifestations on the
+        ``applications`` attribute that aren't also in the given
+        ``manifestations``.
         """
-        m1 = object()
-        m2 = object()
-        node = Node(hostname=u'node1.example.com',
-                    applications=frozenset([
-                        Application(name=u'a',
-                                    image=DockerImage.from_string(u'x'),
-                                    volume=AttachedVolume(
-                                        manifestation=m1, mountpoint=None)),
-                        Application(name=u'b',
-                                    image=DockerImage.from_string(u'x'),
-                                    volume=AttachedVolume(
-                                        manifestation=m2, mountpoint=None)),
-                    ]))
-        self.assertEqual(node.manifestations(), frozenset([m1, m2]))
+        m1 = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
+                           primary=True)
+        self.assertRaises(
+            InvariantException, Node,
+            hostname=u'node1.example.com',
+            applications=[
+                APP1,
+                Application(name=u'a',
+                            image=DockerImage.from_string(u'x'),
+                            volume=AttachedVolume(
+                                manifestation=m1, mountpoint=None)),
+            ])
 
     def test_manifestations_non_applications(self):
         """
-        ``Node.manifestations()`` includes all manifestations that
-        are on the node but not on applications.
+        ``Node.manifestations`` can include manifestations on the node
+        whether or not they are on application.
         """
-        m1 = object()
-        m2 = object()
+        m1 = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
+                           primary=True)
+        m2 = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
+                           primary=True)
         node = Node(hostname=u'node1.example.com',
                     applications=frozenset([
                         Application(name=u'a',
                                     image=DockerImage.from_string(u'x'),
                                     volume=AttachedVolume(
                                         manifestation=m1, mountpoint=None))]),
-                    other_manifestations=frozenset([m2]))
+                    manifestations={m1.dataset_id: m1,
+                                    m2.dataset_id: m2})
 
-        self.assertEqual(node.manifestations(), frozenset([m1, m2]))
+        self.assertEqual(node.manifestations, {m1.dataset_id: m1,
+                                               m2.dataset_id: m2})
+
+    def test_applications_contains_applications(self):
+        """
+        ``Node.applications`` must be ``Application`` instances.
+        """
+        self.assertRaises(InvariantException,
+                          Node, hostname=u"xxx", applications=[None])
+
+    def test_manifestations_keys_are_their_ids(self):
+        """
+        The keys of the ``manifestations`` attribute must match the
+        value's ``dataset_id`` attribute.
+        """
+        self.assertRaises(InvariantException,
+                          Node, hostname=u"xxx",
+                          manifestations={u"123": MANIFESTATION})
 
 
 class NodeStateTests(SynchronousTestCase):
@@ -198,12 +232,13 @@ class NodeStateTests(SynchronousTestCase):
         """
         node_state = NodeState(
             hostname=u"host2", running=[], not_running=[],
-            other_manifestations=frozenset([MANIFESTATION]))
+            manifestations=frozenset([MANIFESTATION]))
         self.assertEqual(node_state.to_node(),
                          Node(hostname=u"host2",
                               applications=frozenset(),
-                              other_manifestations=frozenset(
-                                  [MANIFESTATION])))
+                              manifestations={
+                                  MANIFESTATION.dataset.dataset_id:
+                                  MANIFESTATION}))
 
 
 class DeploymentInitTests(make_with_init_tests(

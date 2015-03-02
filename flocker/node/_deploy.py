@@ -396,6 +396,7 @@ class P2PNodeDeployer(object):
             units, available_manifestations = result
             running = []
             not_running = []
+            manifestations = []  # Manifestation objects we're constructing
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.volumes:
@@ -420,6 +421,7 @@ class P2PNodeDeployer(object):
                                     maximum_size=max_size),
                                 primary=True),
                             mountpoint=docker_volume.container_path)
+                        manifestations.append(volume.manifestation)
                 else:
                     volume = None
                 ports = []
@@ -458,19 +460,19 @@ class P2PNodeDeployer(object):
                 else:
                     not_running.append(application)
 
-            # Any manifestations left over are unattached to any application:
-            other_manifestations = frozenset((
+            manifestations += list(
                 Manifestation(dataset=Dataset(dataset_id=dataset_id,
                                               maximum_size=maximum_size),
                               primary=True)
                 for (dataset_id, maximum_size) in
-                available_manifestations.values()))
+                available_manifestations.values())
+
             return NodeState(
                 hostname=self.hostname,
                 running=running,
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
-                other_manifestations=other_manifestations,
+                manifestations=manifestations,
             )
         d.addCallback(applications_from_units)
         return d
@@ -529,7 +531,7 @@ class P2PNodeDeployer(object):
         # We are a node-specific IDeployer:
         current_node_state = local_state
         current_node_applications = current_node_state.running
-        all_applications = (current_node_state.running +
+        all_applications = (current_node_state.running |
                             current_node_state.not_running)
 
         # Compare the applications being changed by name only.  Other
@@ -681,11 +683,11 @@ def find_dataset_changes(hostname, current_state, desired_state):
     """
     desired_datasets = {node.hostname:
                         set(manifestation.dataset for manifestation
-                            in node.manifestations())
+                            in node.manifestations.values())
                         for node in desired_state.nodes}
     current_datasets = {node.hostname:
                         set(manifestation.dataset for manifestation
-                            in node.manifestations())
+                            in node.manifestations.values())
                         for node in current_state.nodes}
     local_desired_datasets = desired_datasets.get(hostname, set())
     local_desired_dataset_ids = set(dataset.dataset_id for dataset in

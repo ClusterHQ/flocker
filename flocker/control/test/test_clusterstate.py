@@ -54,13 +54,14 @@ class ClusterStateServiceTests(SynchronousTestCase):
         service = self.service()
         service.update_node_state(
             NodeState(hostname=u"host2", running=[], not_running=[],
-                      other_manifestations=frozenset([MANIFESTATION])))
+                      manifestations=frozenset([MANIFESTATION])))
         self.assertEqual(service.as_deployment(),
                          Deployment(nodes=frozenset([Node(
                              hostname=u"host2",
                              applications=frozenset(),
-                             other_manifestations=frozenset(
-                                 [MANIFESTATION]))])))
+                             manifestations={
+                                 MANIFESTATION.dataset_id: MANIFESTATION},
+                         )])))
 
     def test_update(self):
         """
