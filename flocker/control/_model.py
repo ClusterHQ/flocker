@@ -166,8 +166,7 @@ class Application(object):
     """
 
 
-@attributes(["dataset", "primary"])
-class Manifestation(object):
+class Manifestation(PRecord):
     """
     A dataset that is mounted on a node.
 
@@ -175,6 +174,9 @@ class Manifestation(object):
 
     :ivar bool primary: If true, this is a primary, otherwise it is a replica.
     """
+    dataset = field(mandatory=True)
+    primary = field(mandatory=True)
+
     @property
     def dataset_id(self):
         """
@@ -183,11 +185,7 @@ class Manifestation(object):
         return self.dataset.dataset_id
 
 
-@attributes(["dataset_id",
-             Attribute("deleted", default_value=False),
-             Attribute("maximum_size", default_value=None),
-             Attribute("metadata", default_value=pmap())])
-class Dataset(object):
+class Dataset(PRecord):
     """
     The filesystem data for a particular application.
 
@@ -209,6 +207,10 @@ class Dataset(object):
     :ivar int maximum_size: The maximum size in bytes of this dataset, or
         ``None`` if there is no specified limit.
     """
+    dataset_id = field(mandatory=True)
+    deleted = field(mandatory=True, initial=False)
+    maximum_size = field(mandatory=True, initial=None)
+    metadata = field(mandatory=True, type=PMap, factory=pmap, initial=pmap())
 
 
 class Node(PRecord):

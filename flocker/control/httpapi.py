@@ -274,24 +274,15 @@ class DatasetAPIUserV1(object):
         old_manifestation, origin_node = self._find_manifestation_and_node(
             dataset_id)
 
-        # XXX this would be much nicer with pyrsistent...
-        old_dataset = old_manifestation.dataset
-        new_dataset = Dataset(dataset_id=old_dataset.dataset_id,
-                              maximum_size=old_dataset.maximum_size,
-                              metadata=old_dataset.metadata,
-                              deleted=True)
-        new_manifestation = Manifestation(dataset=new_dataset,
-                                          primary=old_manifestation.primary)
-
         new_node = origin_node.transform(
-            ("manifestations", dataset_id), new_manifestation)
+            ("manifestations", dataset_id, "dataset", "deleted"), True)
         deployment = deployment.update_node(new_node)
 
         saving = self.persistence_service.save(deployment)
 
         def saved(ignored):
             result = api_dataset_from_dataset_and_node(
-                new_dataset, new_node.hostname,
+                new_node.manifestations[dataset_id].dataset, new_node.hostname,
             )
             return EndpointResponse(OK, result)
         saving.addCallback(saved)
