@@ -289,6 +289,7 @@ def flocker_deploy_main():
         logging=False,
     ).main()
 
+
 def flocker_cli_main():
     return FlockerScriptRunner(
         script=CLIScript(),
