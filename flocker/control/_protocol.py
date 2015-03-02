@@ -27,7 +27,6 @@ Eliot contexts are transferred along with AMP commands, allowing tracing
 of logged actions across processes (see
 http://eliot.readthedocs.org/en/0.6.0/threads.html).
 """
-import functools
 
 from pickle import dumps, loads
 

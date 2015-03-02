@@ -12,7 +12,7 @@ from zope.interface.verify import verifyObject
 from characteristic import attributes, Attribute
 
 from eliot import ActionType, start_action, MemoryLogger, Logger
-from eliot.testing import validate_logging, LoggedAction, assertHasAction
+from eliot.testing import validate_logging, assertHasAction
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
