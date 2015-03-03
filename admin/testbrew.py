@@ -20,7 +20,7 @@ import os
 import sys
 import urllib2
 
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError
 
 from flocker.common._ssh import run_with_fabric, Run
 
@@ -44,25 +44,30 @@ def main():
         if len(sys.argv) < 2:
             raise Exception("URL of homebrew recipe not specified")
         recipe_url = sys.argv[1]
-        # recipe_resource = urllib2.urlopen(recipe_url)
-        # recipe = recipe_resource.read()
+        # Open the recipe URL to validate and verify.
+        recipe_resource = urllib2.urlopen(recipe_url)
         revert_result = check_output([
             "vmrun", "revertToSnapshot", YOSEMITE_VMX_PATH, YOSEMITE_SNAPSHOT,
         ])
         start_result = check_output([
             "vmrun", "start", YOSEMITE_VMX_PATH, "nogui",
         ])
-        # In reality, here I will run brew update, brew install, brew test,
-        # referencing the retrieved recipe file, which in turn will download
-        # the sdist for whatever commit we're on from Buildbot.
         run_with_fabric(VM_USERNAME, VM_HOST, commands=[
-            Run(command="export GEBLER=\"Dave Gebler\"")
+            Run(command="brew update"),
+            Run(command="brew install {url}".format(url=recipe_url)),
+            Run(command="brew test {url}".format(url=recipe_url)),
         ])
-        #stop_result = check_output([
-        #    "vmrun", "stop", YOSEMITE_VMX_PATH, "hard",
-        #])
+        stop_result = check_output([
+            "vmrun", "stop", YOSEMITE_VMX_PATH, "hard",
+        ])
         print "Done."
         sys.exit(0)
+    except CalledProcessError as e:
+        print (
+            "Error: Command {cmd} terminated with exit status {code}.").format(
+            cmd=" ".join(e.cmd), code=e.returncode
+        )
+        sys.exit(1)
     except Exception as e:
         print "Error: {error}.".format(error=str(e))
         sys.exit(1)
