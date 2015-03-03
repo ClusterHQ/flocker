@@ -364,11 +364,9 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     """
     rpm_directory.createDirectory()
     s3 = boto.connect_s3()
-    try:
-        # Does not work if there is a '.' in the name
-        bucket = s3.get_bucket(bucket_name=target_bucket)
-    except boto.exception.S3ResponseError:
-        bucket = s3.create_bucket(bucket_name=target_bucket)
+
+    # Does not work if there is a '.' in the name
+    bucket = s3.get_bucket(bucket_name=target_bucket)
 
     # Download existing repository
     for item in bucket.list(prefix=target_key):
