@@ -188,7 +188,7 @@ class Dataset(PRecord):
     :ivar int maximum_size: The maximum size in bytes of this dataset, or
         ``None`` if there is no specified limit.
     """
-    dataset_id = field(mandatory=True, type=unicode)
+    dataset_id = field(mandatory=True, type=unicode, factory=unicode)
     deleted = field(mandatory=True, initial=False, type=bool)
     maximum_size = field(mandatory=True, initial=None)
     metadata = field(mandatory=True, type=PMap, factory=pmap, initial=pmap())
