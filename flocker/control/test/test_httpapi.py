@@ -772,7 +772,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         returned the expected result and that the persistence_service has
         been updated.
 
-        :param Dataset dataset: The dataset which will be moved.
+        :param Dataset dataset: The dataset which will be deleted.
         :param Deployment deployment: The deployment that contains the dataset.
         :returns: A ``Deferred`` which fires when all assertions have been
             executed.
