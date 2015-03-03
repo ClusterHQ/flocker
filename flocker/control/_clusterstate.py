@@ -39,10 +39,9 @@ class ClusterStateService(Service):
         :param unicode hostname: The name of the host.
         :param unicode dataset_id: The dataset identifier.
 
-        :raises KeyError: If information is unavailable.
         :return FilePath: The path where the manifestation exists.
         """
-        pass # XXX return self._nodes[hostname].paths[dataset_id]
+        return self._nodes[hostname].paths[dataset_id]
 
     def as_deployment(self):
         """

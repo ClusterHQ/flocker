@@ -354,6 +354,17 @@ class DatasetChanges(object):
     """
 
 
+class _PathMap(CheckedPMap):
+    """
+    A mapping between dataset IDs and the paths where they are mounted.
+
+    See https://github.com/tobgu/pyrsistent/issues/26 for more succinct
+    idiom combining this with ``field()``.
+    """
+    __key_type__ = unicode
+    __value_type__ = FilePath
+
+
 class NodeState(PRecord):
     """
     The current state of a node.
@@ -379,13 +390,7 @@ class NodeState(PRecord):
                         mandatory=True)
     manifestations = field(type=PSet, initial=pset(), factory=pset,
                            mandatory=True)
-
-    # See https://github.com/tobgu/pyrsistent/issues/26 for my proposal
-    # for more succinct idiom:
-    class _PathMap(CheckedPMap):
-        __key_type__ = unicode
-        __value_type__ = FilePath
-    paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap,
+    paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap.create,
                   mandatory=True)
 
     def to_node(self):
