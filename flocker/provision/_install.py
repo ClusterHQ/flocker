@@ -262,6 +262,17 @@ def task_enable_docker_head_repository(distribution):
                 'https://copr.fedoraproject.org/coprs/lsm5/docker-io/repo/fedora-20/lsm5-docker-io-fedora-20.repo',  # noqa
             ])
         ]
+    elif distribution == "centos-7":
+        return [
+            Put(content=dedent("""\
+                [virt7-testing]
+                name=virt7-testing
+                baseurl=http://cbs.centos.org/repos/virt7-testing/x86_64/os/
+                enabled=1
+                gpgcheck=0
+                """),
+                path="/etc/yum.repos.d/virt7-testing.repo")
+        ]
     else:
         raise NotImplementedError
 
