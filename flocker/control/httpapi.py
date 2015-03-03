@@ -215,6 +215,13 @@ class DatasetAPIUserV1(object):
     @user_documentation(
         """
         Update an existing dataset.
+
+        This can be used to:
+
+        * Move a dataset from one node to another by changing the
+          ``primary`` attribute.
+        * In the future, update metadata and maximum size.
+
         """,
         examples=[
             u"update dataset with primary",
