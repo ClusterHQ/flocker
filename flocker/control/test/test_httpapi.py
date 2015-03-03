@@ -999,12 +999,14 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 running=[],
                 not_running=[],
-                manifestations={expected_manifestation}
+                manifestations={expected_manifestation},
+                paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
             )
         )
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
+            path=u"/path/dataset",
             metadata={}
         )
         response = [expected_dict]
@@ -1030,7 +1032,9 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname1,
                 running=[],
                 not_running=[],
-                manifestations={expected_manifestation1}
+                manifestations={expected_manifestation1},
+                paths={expected_dataset1.dataset_id: FilePath(b"/aa"),
+                       expected_dataset2.dataset_id: FilePath(b"/bb")},
             )
         )
         self.cluster_state_service.update_node_state(
@@ -1044,11 +1048,13 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
             primary=expected_hostname1,
+            path=u"/aa",
             metadata={}
         )
         expected_dict2 = dict(
             dataset_id=expected_dataset2.dataset_id,
             primary=expected_hostname2,
+            path=u"/bb",
             metadata={}
         )
         response = [expected_dict1, expected_dict2]
