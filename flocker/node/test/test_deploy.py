@@ -22,7 +22,9 @@ from ...control import (
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name, IDeployer)
+    ResizeDataset, _link_environment, _to_volume_name, IDeployer,
+    DeleteDataset,
+)
 from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -136,6 +138,10 @@ HandoffVolumeIStateChangeTests = make_istatechange_tests(
 PushVolumeIStateChangeTests = make_istatechange_tests(
     PushDataset, dict(dataset=1, hostname=b"123"),
     dict(dataset=2, hostname=b"123"))
+DeleteDatasetTests = make_istatechange_tests(
+    DeleteDataset,
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))),
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))))
 
 
 NOT_CALLED = object()
@@ -2979,13 +2985,13 @@ class ChangeNodeStateTests(SynchronousTestCase):
         self.assertEqual(arguments, [local, desired, state])
 
 
-class CreateVolumeTests(SynchronousTestCase):
+class CreateDatasetTests(SynchronousTestCase):
     """
-    Tests for ``CreateVolume``.
+    Tests for ``CreateDataset``.
     """
     def test_creates(self):
         """
-        ``CreateVolume.run()`` creates the named volume.
+        ``CreateDataset.run()`` creates the named volume.
         """
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
@@ -3002,7 +3008,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_creates_respecting_size(self):
         """
-        ``CreateVolume.run()`` creates the named volume with a ``VolumeSize``
+        ``CreateDataset.run()`` creates the named volume with a ``VolumeSize``
         instance respecting the maximum_size passed in from the
         ``AttachedVolume``.
         """
@@ -3029,7 +3035,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_return(self):
         """
-        ``CreateVolume.run()`` returns a ``Deferred`` that fires with the
+        ``CreateDataset.run()`` returns a ``Deferred`` that fires with the
         created volume.
         """
         deployer = P2PNodeDeployer(
@@ -3042,6 +3048,37 @@ class CreateVolumeTests(SynchronousTestCase):
         result = self.successResultOf(create.run(deployer))
         self.assertEqual(result, deployer.volume_service.get(
             _to_volume_name(volume.dataset.dataset_id)))
+
+
+class DeleteDatasetTests(TestCase):
+    """
+    Tests for ``DeleteDataset``.
+    """
+    def test_creates(self):
+        """
+        ``CreateDataset.run()`` deletes volumes whose ``dataset_id`` matches
+        the one the instance was created with.
+        """
+        volume_service = create_volume_service(self)
+        deployer = P2PNodeDeployer(
+            u'example.com',
+            volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+
+        id1 = unicode(uuid4())
+        volume1 = volume_service.get(_to_volume_name(id1))
+        id2 = unicode(uuid4())
+        volume2 = volume_service.get(_to_volume_name(id2))
+        self.successResultOf(volume_service.create(volume1))
+        self.successResultOf(volume_service.create(volume2))
+
+        delete = DeleteDataset(dataset=Dataset(dataset_id=id2))
+        self.successResultOf(delete.run(deployer))
+
+        self.assertEqual(
+            list(self.successResultOf(volume_service.enumerate())),
+            [volume1])
 
 
 class ResizeVolumeTests(TestCase):

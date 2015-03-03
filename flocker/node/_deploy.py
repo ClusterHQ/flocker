@@ -9,7 +9,7 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
-from pyrsistent import pmap
+from pyrsistent import pmap, PRecord, field
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
@@ -320,8 +320,7 @@ class PushDataset(object):
 
 
 @implementer(IStateChange)
-@attributes(["dataset"])
-class DeleteDataset(object):
+class DeleteDataset(PRecord):
     """
     Delete all local copies of the dataset.
 
@@ -333,19 +332,20 @@ class DeleteDataset(object):
 
     :ivar Dataset: The dataset to delete.
     """
-    def run(self, deployer):
-        # service = deployer.volume_service
-        # d = service.enumerate()
+    dataset = field(mandatory=True, type=Dataset)
 
-        # def got_volumes(volumes):
-        #     deletions = []
-        #     for volume in volumes:
-        #         if volume.name.dataset_id == self.dataset.dataset_id:
-        #             deletions.append(service.pool.destroy(volume))
-        #     return gatherResults(deletions)
-        # d.addCallback(got_volumes)
-        # return d
-        pass
+    def run(self, deployer):
+        service = deployer.volume_service
+        d = service.enumerate()
+
+        def got_volumes(volumes):
+            deletions = []
+            for volume in volumes:
+                if volume.name.dataset_id == self.dataset.dataset_id:
+                    deletions.append(service.pool.destroy(volume))
+            return gatherResults(deletions)
+        d.addCallback(got_volumes)
+        return d
 
 
 @implementer(IStateChange)
