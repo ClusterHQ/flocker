@@ -2672,7 +2672,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         manifestation = Manifestation(
             dataset=Dataset(
                 dataset_id=dataset_id_from_name(
-                    "mysq-hybridcluster"),
+                    "mysql-hybridcluster"),
                 metadata=pmap(
                     {"name": "mysql-hybridcluster"})),
             primary=True)

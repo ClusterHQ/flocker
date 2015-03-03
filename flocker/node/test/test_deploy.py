@@ -9,7 +9,7 @@ from uuid import uuid4
 from zope.interface.verify import verifyObject
 from zope.interface import implementer
 
-from pyrsistent import pmap
+from pyrsistent import pmap, pset
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
@@ -1192,13 +1192,14 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(
-            {Manifestation(
-                dataset=Dataset(
-                    dataset_id=DATASET_ID,
-                    metadata=pmap({u"name": u"site-example.com"})),
-                primary=True),
-             Manifestation(dataset=Dataset(dataset_id=DATASET_ID2),
-                           primary=True)},
+            pset(
+                {Manifestation(
+                    dataset=Dataset(
+                        dataset_id=DATASET_ID,
+                        metadata=pmap({u"name": u"site-example.com"})),
+                    primary=True),
+                 Manifestation(dataset=Dataset(dataset_id=DATASET_ID2),
+                               primary=True)}),
             self.successResultOf(d).manifestations)
 
 
