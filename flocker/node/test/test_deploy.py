@@ -9,7 +9,7 @@ from uuid import uuid4
 from zope.interface.verify import verifyObject
 from zope.interface import implementer
 
-from pyrsistent import pmap
+from pyrsistent import pmap, pset
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
@@ -1097,7 +1097,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
         result = self.successResultOf(d)
-        result.not_running.sort()
 
         self.assertEqual(NodeState(hostname=u'example.com',
                                    running=[], not_running=applications),
@@ -1158,10 +1157,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
-    def test_discover_unattached_datasets(self):
+    def test_discover_datasets(self):
         """
-        Datasets that are not attached to any applications are added to
-        ``NodeState.other_manifestations``.
+        All datasets on the node are added to ``NodeState.manifestations``.
         """
         DATASET_ID = u"uuid123"
         DATASET_ID2 = u"uuid456"
@@ -1194,10 +1192,15 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(
-            frozenset([Manifestation(
-                dataset=Dataset(dataset_id=DATASET_ID2),
-                primary=True)]),
-            self.successResultOf(d).other_manifestations)
+            pset(
+                {Manifestation(
+                    dataset=Dataset(
+                        dataset_id=DATASET_ID,
+                        metadata=pmap({u"name": u"site-example.com"})),
+                    primary=True),
+                 Manifestation(dataset=Dataset(dataset_id=DATASET_ID2),
+                               primary=True)}),
+            self.successResultOf(d).manifestations)
 
 
 # A deployment with no information:
@@ -1470,6 +1473,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node = Node(
             hostname=hostname,
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
 
         # This completely expresses the configuration for a cluster of one node
@@ -1510,6 +1515,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         another_node = Node(
             hostname=u"node2.example.com",
             applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -1524,7 +1530,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
             Node(hostname=another_node.hostname,
                  applications=frozenset()),
         }))
@@ -1563,6 +1571,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1587,7 +1597,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset()),
             Node(hostname=another_node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
         }))
 
         changes = api.calculate_necessary_state_changes(
@@ -1639,10 +1651,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
         desired_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1698,10 +1714,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+            manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                            MANIFESTATION_WITH_SIZE},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1772,6 +1791,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(
                 hostname=u"node1.example.com",
                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
             Node(
                 hostname=u"node2.example.com",
@@ -1782,6 +1802,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(
                 hostname=u"node2.example.com",
                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
             Node(
                 hostname=u"node1.example.com",
@@ -1848,6 +1870,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         another_node = Node(
             hostname=u"node2.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
 
         current = Deployment(nodes=frozenset([node, another_node]))
@@ -1860,7 +1883,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+                 manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                 MANIFESTATION_WITH_SIZE}),
             Node(hostname=another_node.hostname,
                  applications=frozenset()),
         }))
@@ -1987,10 +2012,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
             applications=frozenset({discovered_another_application}),
+            manifestations={volume2.manifestation.dataset_id:
+                            volume2.manifestation},
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -2011,9 +2039,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # We're swapping the location of applications:
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({another_application})),
+                 applications=frozenset({another_application}),
+                 manifestations={volume2.manifestation.dataset_id:
+                                 volume2.manifestation}),
             Node(hostname=another_node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
         }))
 
         changes = api.calculate_necessary_state_changes(
@@ -2082,7 +2114,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({new_postgres_app})),
+                 applications=frozenset({new_postgres_app}),
+                 manifestations={
+                     new_postgres_app.volume.manifestation.dataset_id:
+                     new_postgres_app.volume.manifestation}),
         }))
         result = api.calculate_necessary_state_changes(
             self.successResultOf(api.discover_local_state()),
@@ -2327,7 +2362,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         node = Node(
             hostname=hostname,
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired = Deployment(nodes=frozenset({node}))
 
@@ -2356,7 +2391,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
 
         current = Deployment(nodes=frozenset([node, another_node]))
@@ -2369,7 +2404,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 other_manifestations=frozenset({MANIFESTATION})),
+                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION}),
             Node(hostname=another_node.hostname),
         }))
 
@@ -2396,7 +2431,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -2417,7 +2452,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname),
             Node(hostname=another_node.hostname,
-                 other_manifestations=frozenset({MANIFESTATION}))}))
+                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION})}))
 
         changes = api.calculate_necessary_state_changes(
             self.successResultOf(api.discover_local_state()),
@@ -2448,7 +2483,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         current_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = current_node
 
@@ -2485,11 +2520,12 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         current_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset([MANIFESTATION]),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset([MANIFESTATION_WITH_SIZE]),
+            manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                            MANIFESTATION_WITH_SIZE},
         )
 
         current = Deployment(nodes=frozenset([current_node]))
@@ -2532,7 +2568,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         current_nodes = [
             Node(
                 hostname=u"node1.example.com",
-                other_manifestations=frozenset([MANIFESTATION]),
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
             Node(
                 hostname=u"node2.example.com",
@@ -2544,7 +2580,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
             ),
             Node(
                 hostname=u"node2.example.com",
-                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
         ]
 
@@ -2596,7 +2633,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         current_nodes = [
             Node(
                 hostname=u"node1.example.com",
-                other_manifestations=frozenset([MANIFESTATION]),
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
             Node(
                 hostname=u"node2.example.com",
@@ -2609,7 +2646,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
             ),
             Node(
                 hostname=u"node2.example.com",
-                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
         ]
 
@@ -2650,7 +2688,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         current_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = current_node
 
@@ -3016,7 +3054,7 @@ class ResizeVolumeTests(TestCase):
         """
         size = VolumeSize(maximum_size=1234567890)
         volume_service = create_volume_service(self)
-        volume_name = VolumeName(namespace=u"default", dataset_id=b"myvol")
+        volume_name = VolumeName(namespace=u"default", dataset_id=u"myvol")
         volume = volume_service.get(volume_name)
         d = volume_service.create(volume)
 

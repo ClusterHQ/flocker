@@ -85,6 +85,10 @@ DatasetsSchemaTests = build_schema_test(
          u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
          u"dataset_id": u"x" * 36},
+
+        # wrong type for deleted
+        {u"primary": u"10.0.0.257",
+         u"deleted": u"hello"},
     ],
 
     passing_instances=[
@@ -102,12 +106,16 @@ DatasetsSchemaTests = build_schema_test(
         # dataset_id is a string of 36 characters
         {u"primary": u"10.0.0.1", u"dataset_id": u"x" * 36},
 
+        # deleted is a boolean
+        {u"primary": u"10.0.0.1", u"deleted": False},
+
         # All of them can be combined.
         {u"primary": u"10.0.0.1",
          u"metadata":
              dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
          u"maximum_size": 1024 * 1024 * 64,
-         u"dataset_id": u"x" * 36},
+         u"dataset_id": u"x" * 36,
+         u"deleted": True},
     ]
 )
 

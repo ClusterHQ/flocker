@@ -16,7 +16,8 @@ from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.http import (
-    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR
+    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
+    NOT_ALLOWED as METHOD_NOT_ALLOWED
 )
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
@@ -29,7 +30,7 @@ from ...restapi.testtools import (
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume
+    Deployment, AttachedVolume, DockerImage
 )
 from ..httpapi import (
     DatasetAPIUserV1, create_api_service, datasets_from_deployment,
@@ -217,7 +218,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
             nodes={
                 Node(
                     hostname=self.NODE_A,
-                    other_manifestations=frozenset({existing_manifestation})
+                    manifestations={existing_manifestation.dataset_id:
+                                    existing_manifestation}
                 ),
                 Node(hostname=self.NODE_B),
             }
@@ -239,8 +241,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 # They came out of the set backwards.
                 node_a, node_b = node_b, node_a
             self.assertEqual(
-                (frozenset({existing_manifestation}), frozenset()),
-                (node_a.other_manifestations, node_b.other_manifestations)
+                ({existing_manifestation.dataset_id: existing_manifestation},
+                 {}),
+                (node_a.manifestations, node_b.manifestations)
             )
 
         posting.addCallback(failed)
@@ -311,7 +314,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
         def got_result(result):
             dataset_id = result.pop(u"dataset_id")
             self.assertEqual(
-                {u"primary": self.NODE_A, u"metadata": {}}, result
+                {u"primary": self.NODE_A, u"metadata": {}, u"deleted": False},
+                result
             )
             deployment = self.persistence_service.get()
             self.assertEqual({dataset_id}, set(get_dataset_ids(deployment)))
@@ -387,8 +391,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
             u"dataset_id": dataset_id,
             u"metadata": metadata,
         }
+        expected = dataset.copy()
+        expected[u"deleted"] = False
         creating = self.assertResult(
-            b"POST", b"/configuration/datasets", dataset, CREATED, dataset
+            b"POST", b"/configuration/datasets", dataset, CREATED, expected
         )
 
         def created(ignored):
@@ -397,15 +403,15 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 Deployment(nodes=frozenset({
                     Node(
                         hostname=self.NODE_A,
-                        other_manifestations=frozenset({
-                            Manifestation(
+                        manifestations={
+                            dataset_id: Manifestation(
                                 dataset=Dataset(
                                     dataset_id=dataset_id,
                                     metadata=pmap(metadata)
                                 ),
                                 primary=True
                             )
-                        })
+                        }
                     )
                 })),
                 deployment
@@ -427,6 +433,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         }
         response = dataset.copy()
         response[u"metadata"] = {}
+        response[u"deleted"] = False
         creating = self.assertResult(
             b"POST", b"/configuration/datasets", dataset, CREATED, response
         )
@@ -437,15 +444,15 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 Deployment(nodes=frozenset({
                     Node(
                         hostname=self.NODE_A,
-                        other_manifestations=frozenset({
-                            Manifestation(
+                        manifestations={
+                            dataset_id: Manifestation(
                                 dataset=Dataset(
                                     dataset_id=dataset_id,
                                     maximum_size=maximum_size
                                 ),
                                 primary=True
                             )
-                        })
+                        }
                     )
                 })),
                 deployment
@@ -465,22 +472,13 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         The error includes the requested dataset_id.
         """
         unknown_dataset_id = unicode(uuid4())
-        updating = self.assertResponseCode(
+        return self.assertResult(
             b"POST",
             b"/configuration/datasets/%s" % (
                 unknown_dataset_id.encode('ascii'),),
             {u'primary': self.NODE_A},
-            NOT_FOUND)
-        updating.addCallback(readBody)
-        updating.addCallback(loads)
-
-        def got_result(result):
-            expected_description = u'Dataset not found.'
-            description = result.pop(u"description")
-            self.assertEqual(expected_description, description)
-        updating.addCallback(got_result)
-
-        return updating
+            NOT_FOUND,
+            {u"description": u'Dataset not found.'})
 
     def _test_change_primary(self, dataset, deployment, origin, target):
         """
@@ -504,7 +502,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         expected_dataset = {
             u"dataset_id": expected_dataset_id,
             u"primary": target,
-            u"metadata": {}
+            u"metadata": {},
+            u"deleted": False,
         }
 
         saving = self.persistence_service.save(deployment)
@@ -525,7 +524,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
                     if node.hostname == target:
                         dataset_ids = [
                             (m.primary, m.dataset.dataset_id)
-                            for m in node.manifestations()
+                            for m in node.manifestations.values()
                         ]
                         self.assertIn((True, expected_dataset_id), dataset_ids)
                         break
@@ -547,7 +546,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         current_primary_node = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         deployment = Deployment(nodes=frozenset([current_primary_node]))
 
@@ -570,7 +570,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)
@@ -606,7 +607,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
@@ -624,7 +626,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
@@ -649,7 +652,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         node_b = Node(hostname=self.NODE_B)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
@@ -686,7 +690,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)
@@ -712,7 +717,8 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         node_a = Node(
             hostname=self.NODE_A,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation},
         )
         deployment = Deployment(nodes=frozenset([node_a]))
         saving = self.persistence_service.save(deployment)
@@ -742,6 +748,153 @@ RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
 )
 
 
+class DeleteDatasetTestsMixin(APITestsMixin):
+    """
+    Tests for the dataset deletion endpoint at
+    ``/configuration/datasets/<dataset_id>``.
+    """
+    def test_unknown_dataset(self):
+        """
+        NOT_FOUND is returned if the requested dataset_id doesn't exist.
+        The error includes the requested dataset_id.
+        """
+        unknown_dataset_id = unicode(uuid4())
+        return self.assertResult(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (
+                unknown_dataset_id.encode('ascii'),),
+            None, NOT_FOUND,
+            {u"description": u'Dataset not found.'})
+
+    def _test_delete(self, dataset):
+        """
+        Helper method which makes an API call to delete the supplied
+        ``dataset`` from ``origin`` and finally asserts that the API call
+        returned the expected result and that the persistence_service has
+        been updated.
+
+        :param Dataset dataset: The dataset which will be deleted.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
+        deployment = self.persistence_service.get()
+        expected_dataset_id = dataset.dataset_id
+        # There's only one node:
+        origin = next(iter(deployment.nodes))
+
+        expected_dataset = {
+            u"dataset_id": expected_dataset_id,
+            u"primary": origin.hostname,
+            u"metadata": {},
+            u"deleted": True,
+        }
+
+        deleting = self.assertResult(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (
+                expected_dataset_id.encode('ascii'),),
+            None, OK, expected_dataset
+        )
+
+        def got_result(result):
+            deployment = self.persistence_service.get()
+            for node in deployment.nodes:
+                if node.hostname == origin.hostname:
+                    dataset_ids = [
+                        (m.dataset.deleted, m.dataset.dataset_id)
+                        for m in node.manifestations.values()
+                    ]
+                    self.assertIn((True, expected_dataset_id), dataset_ids)
+                    break
+            else:
+                self.fail('Node not found. {}'.format(node.hostname))
+
+        deleting.addCallback(got_result)
+        return deleting
+
+    def _setup_manifestation(self):
+        """
+        Create and save a configuration with a single node that has a
+        manifestation.
+
+        :return: ``Deferred`` firing with the newly created
+            ``Manifestation`` that ``_test_delete`` can delete.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        d = self.persistence_service.save(
+            Deployment(nodes=frozenset([node_a])))
+        d.addCallback(lambda _: expected_manifestation)
+        return d
+
+    def test_delete(self):
+        """
+        The ``DELETE`` action sets the ``deleted`` attribute to true on the
+        given dataset.
+        """
+        d = self._setup_manifestation()
+        d.addCallback(lambda manifestation: self._test_delete(
+            manifestation.dataset))
+        return d
+
+    def test_delete_idempotent(self):
+        """
+        The ``DELETE`` action on an already ``deleted`` dataset has same
+        response as original deletion.
+        """
+        created = self._setup_manifestation()
+
+        def got_manifestation(expected_manifestation):
+            d = self._test_delete(expected_manifestation.dataset)
+            d.addCallback(lambda _: self._test_delete(expected_manifestation))
+            return d
+        created.addCallback(got_manifestation)
+        return created
+
+    def test_update_deleted(self):
+        """
+        Attempting to update a deleted dataset results in a Method Not Allowed
+        error.
+        """
+        created = self._setup_manifestation()
+
+        def got_manifestation(expected_manifestation):
+            d = self._test_delete(expected_manifestation.dataset)
+            d.addCallback(lambda _: self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset_id.encode('ascii')
+                ),
+                {u"primary": u"192.168.1.1"},
+                METHOD_NOT_ALLOWED, {
+                    u"description":
+                    u"The dataset has been deleted."
+                }
+            ))
+            return d
+        created.addCallback(got_manifestation)
+        return created
+
+    def test_multiple_manifestations(self):
+        """
+        If there are multiple manifestations on multiple nodes the ``DELETE``
+        action will mark all of their datasets as deleted.
+        """
+        raise NotImplementedError()
+    test_multiple_manifestations.todo = "Implement in FLOC-1240"
+
+
+RealTestsDeleteDataset, MemoryTestsDeleteDataset = (
+    buildIntegrationTests(
+        DeleteDatasetTestsMixin, "DeleteDataset", _build_app)
+)
+
+
 def get_dataset_ids(deployment):
     """
     Get an iterator of all of the ``dataset_id`` values on all nodes in the
@@ -753,7 +906,7 @@ def get_dataset_ids(deployment):
         the datasets.
     """
     for node in deployment.nodes:
-        for manifestation in node.manifestations():
+        for manifestation in node.manifestations.values():
             yield manifestation.dataset.dataset_id
 
 
@@ -835,7 +988,8 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             nodes={
                 Node(
                     hostname=self.NODE_A,
-                    other_manifestations=frozenset({manifestation}),
+                    manifestations={manifestation.dataset_id:
+                                    manifestation},
                 ),
             },
         )
@@ -874,11 +1028,13 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             nodes={
                 Node(
                     hostname=self.NODE_A,
-                    other_manifestations=frozenset({manifestation_a}),
+                    manifestations={manifestation_a.dataset_id:
+                                    manifestation_a},
                 ),
                 Node(
                     hostname=self.NODE_B,
-                    other_manifestations=frozenset({manifestation_b}),
+                    manifestations={manifestation_b.dataset_id:
+                                    manifestation_b},
                 ),
             },
         )
@@ -904,9 +1060,10 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             nodes={
                 Node(
                     hostname=self.NODE_A,
-                    other_manifestations=frozenset({
-                        manifestation_a, manifestation_b
-                    }),
+                    manifestations={
+                        manifestation_a.dataset_id: manifestation_a,
+                        manifestation_b.dataset_id: manifestation_b,
+                    },
                 ),
             },
         )
@@ -986,13 +1143,14 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 running=[],
                 not_running=[],
-                other_manifestations=frozenset([expected_manifestation])
+                manifestations={expected_manifestation}
             )
         )
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata={}
+            metadata={},
+            deleted=False,
         )
         response = [expected_dict]
         return self.assertResult(
@@ -1017,7 +1175,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname1,
                 running=[],
                 not_running=[],
-                other_manifestations=frozenset([expected_manifestation1])
+                manifestations={expected_manifestation1}
             )
         )
         self.cluster_state_service.update_node_state(
@@ -1025,18 +1183,20 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname2,
                 running=[],
                 not_running=[],
-                other_manifestations=frozenset([expected_manifestation2])
+                manifestations={expected_manifestation2}
             )
         )
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
             primary=expected_hostname1,
-            metadata={}
+            metadata={},
+            deleted=False,
         )
         expected_dict2 = dict(
             dataset_id=expected_dataset2.dataset_id,
             primary=expected_hostname2,
-            metadata={}
+            metadata={},
+            deleted=False,
         )
         response = [expected_dict1, expected_dict2]
         return self.assertResultItems(
@@ -1079,13 +1239,16 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
                                     Application(name=u'site-clusterhq.com',
                                                 image=object(),
                                                 volume=volume)}),
+            manifestations={expected_dataset.dataset_id:
+                            volume.manifestation},
         )
 
         deployment = Deployment(nodes=frozenset([node]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata=thaw(expected_dataset.metadata)
+            metadata=thaw(expected_dataset.metadata),
+            deleted=False,
         )
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
@@ -1102,14 +1265,16 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         node = Node(
             hostname=expected_hostname,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation},
         )
 
         deployment = Deployment(nodes=frozenset([node]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata=thaw(expected_dataset.metadata)
+            metadata=thaw(expected_dataset.metadata),
+            deleted=False,
         )
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
@@ -1129,25 +1294,30 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
 
         node1 = Node(
             hostname=expected_hostname,
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object(),
-                                                volume=volume)}),
+            applications=frozenset({
+                Application(
+                    name=u'mysql-clusterhq',
+                    image=DockerImage.from_string("mysql")),
+                Application(name=u'site-clusterhq.com',
+                            image=DockerImage.from_string("site"),
+                            volume=volume)}),
+            manifestations={expected_dataset.dataset_id: volume.manifestation},
         )
         expected_manifestation = Manifestation(dataset=expected_dataset,
                                                primary=False)
         node2 = Node(
             hostname=u"node2.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation},
         )
 
         deployment = Deployment(nodes=frozenset([node1, node2]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata=thaw(expected_dataset.metadata)
+            metadata=thaw(expected_dataset.metadata),
+            deleted=False,
         )
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
@@ -1169,13 +1339,15 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         node1 = Node(
             hostname=u"node1.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation1])
+            manifestations={manifestation1.dataset_id:
+                            manifestation1},
         )
 
         node2 = Node(
             hostname=u"node2.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation2])
+            manifestations={manifestation2.dataset_id:
+                            manifestation2},
         )
 
         deployment = Deployment(nodes=frozenset([node1, node2]))
@@ -1198,13 +1370,15 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         node1 = Node(
             hostname=u"node1.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation1])
+            manifestations={manifestation1.dataset_id:
+                            manifestation1},
         )
 
         node2 = Node(
             hostname=u"node2.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation2])
+            manifestations={manifestation2.dataset_id:
+                            manifestation2},
         )
 
         deployment = Deployment(nodes=frozenset([node1, node2]))
@@ -1230,6 +1404,7 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             dataset_id=dataset.dataset_id,
             primary=expected_hostname,
             metadata={},
+            deleted=False,
         )
         self.assertEqual(
             expected,
@@ -1252,6 +1427,24 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             primary=expected_hostname,
             maximum_size=expected_size,
             metadata={},
+            deleted=False,
+        )
+        self.assertEqual(
+            expected,
+            api_dataset_from_dataset_and_node(dataset, expected_hostname)
+        )
+
+    def test_deleted(self):
+        """
+        ``deleted`` key is set to True if the dataset is deleted.
+        """
+        dataset = Dataset(dataset_id=unicode(uuid4()), deleted=True)
+        expected_hostname = u'192.0.2.101'
+        expected = dict(
+            dataset_id=dataset.dataset_id,
+            primary=expected_hostname,
+            metadata={},
+            deleted=True,
         )
         self.assertEqual(
             expected,

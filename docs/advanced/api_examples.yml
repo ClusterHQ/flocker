@@ -62,7 +62,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}}
+    {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}, "deleted": false}
 
 -
   id:
@@ -80,7 +80,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}}
+    {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}, "deleted": false}
 
 -
   id:
@@ -125,7 +125,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}}
+    {"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}, "deleted": false}
 
 -
   id:
@@ -142,7 +142,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}, "deleted": false}
 
 
 -
@@ -165,8 +165,8 @@
     HTTP/1.0 200 OK
 
     [
-      {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}},
-      {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
+      {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}, "deleted": false},
+      {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}, "deleted": false}
     ]
 
 -
@@ -174,7 +174,8 @@
     "update dataset with primary"
 
   doc: |
-    Update a dataset with a new primary address.
+    Update a dataset with a new primary address. This will effectively move
+    the dataset's contents, making them accessible on the new primary node.
 
   requires:
     - "create dataset with dataset_id"
@@ -187,7 +188,7 @@
   response: |
     HTTP/1.1 200 OK
 
-    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_1)s"}
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_1)s", "deleted": false}
 
 -
   id:
@@ -208,6 +209,39 @@
 
 -
   id:
+    "delete dataset"
+
+  doc: |
+    Delete a dataset.
+
+  requires:
+    - "create dataset with dataset_id"
+
+  request: |
+    DELETE /v1/configuration/datasets/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_1)s", "deleted": true}
+
+-
+  id:
+    "delete dataset with unknown dataset id"
+
+  doc: |
+    An attempt to delete an unknown dataset results in a 404 Not Found response.
+
+  request: |
+    DELETE /v1/configuration/datasets/<unknown_dataset_id> HTTP/1.1
+
+  response: |
+    HTTP/1.1 404 Not Found
+
+    {"description": "Dataset not found."}
+
+-
+  id:
     "get state datasets"
 
   doc: |
@@ -219,4 +253,4 @@
   response: |
     HTTP/1.1 200 OK
 
-    [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}}]
+    [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}, "deleted": false}]
