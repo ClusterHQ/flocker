@@ -219,7 +219,6 @@ class DatasetAPIUserV1(object):
         # Get the current configuration.
         deployment = self.persistence_service.get()
 
-        # Lookup the node that has a primary Manifestation (if any)
         manifestations_and_nodes = manifestations_from_deployment(
             deployment, dataset_id)
         index = 0
