@@ -413,16 +413,15 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
                 os.path.join(rpm_directory.path, target_key)])
 
     # Upload updated repository
-    # TODO use FilePath.walk instead of os.walk
     # TODO test this logic with effect
-    for root, dirs, files in os.walk(rpm_directory.path):
-        for name in files:
+    for f in rpm_directory.walk():
+        if f.isfile():
             # TODO
             # we only want to upload
             # 1. New RPMs.
             # 2. New yum metadata: repodata/repomod.xml and the files referenced there.
             # (It probably doesn't make sense to parse repomod.xml, just grab the new files in repodata.
-            source_path = os.path.join(root, name)
+            source_path = f.path
             destination_path = os.path.relpath(source_path, rpm_directory.path)
             key = bucket.new_key(destination_path)
             key.set_contents_from_filename(source_path)
