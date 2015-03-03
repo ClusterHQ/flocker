@@ -273,6 +273,8 @@ class DatasetAPIUserV1(object):
         # Get the current configuration.
         deployment = self.persistence_service.get()
 
+        # XXX this doesn't handle replicas
+        # https://clusterhq.atlassian.net/browse/FLOC-1240
         old_manifestation, origin_node = self._find_manifestation_and_node(
             dataset_id)
 
