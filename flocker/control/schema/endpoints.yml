@@ -34,6 +34,13 @@ definitions:
           guaranteed to exist.
         type: boolean
 
+      path:
+        title: "Mount path"
+        description: |
+          The filesystem path where the dataset is mounted on a node.
+          Can only be present in cluster state, not in configuration.
+        type: string
+
       metadata:
         title: "Data about a dataset"
         description: |

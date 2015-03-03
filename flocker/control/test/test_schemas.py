@@ -89,6 +89,10 @@ DatasetsSchemaTests = build_schema_test(
         # wrong type for deleted
         {u"primary": u"10.0.0.257",
          u"deleted": u"hello"},
+
+        # wrong type for path
+        {u"primary": u"10.0.0.257",
+         u"path": 123},
     ],
 
     passing_instances=[
@@ -109,13 +113,17 @@ DatasetsSchemaTests = build_schema_test(
         # deleted is a boolean
         {u"primary": u"10.0.0.1", u"deleted": False},
 
+        # path is a string
+        {u"primary": u"10.0.0.1", u"path": u"/xxx"},
+
         # All of them can be combined.
         {u"primary": u"10.0.0.1",
          u"metadata":
              dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
          u"maximum_size": 1024 * 1024 * 64,
          u"dataset_id": u"x" * 36,
-         u"deleted": True},
+         u"deleted": True,
+         u"path": "/yyy/aaa"},
     ]
 )
 
