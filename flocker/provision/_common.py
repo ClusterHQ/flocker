@@ -32,6 +32,8 @@ class Variants(Values):
     :ivar DISTRO_TESTING: Install packages from the distribution's
         proposed-updates repository.
     :ivar DOCKER_HEAD: Install docker from a repository tracking docker HEAD.
+    :ivar ZFS_TESTING: Install latest zfs build.
     """
     DISTRO_TESTING = ValueConstant("distro-testing")
     DOCKER_HEAD = ValueConstant("docker-head")
+    ZFS_TESTING = ValueConstant("zfs-testing")

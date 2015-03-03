@@ -266,6 +266,22 @@ def task_enable_docker_head_repository(distribution):
         raise NotImplementedError
 
 
+def task_enable_zfs_testing(distribution):
+    """
+    Enable the zfs-testing repository.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
+    if distribution == 'fedora-20':
+        return [
+            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
+            Run.from_args([
+                'yum-config-manager', '--enable', 'zfs-testing'])
+        ]
+    else:
+        raise NotImplementedError
+
+
 def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
@@ -282,6 +298,8 @@ def provision(distribution, package_source, variants):
         commands += task_enable_updates_testing(distribution)
     if Variants.DOCKER_HEAD in variants:
         commands += task_enable_docker_head_repository(distribution)
+    if Variants.ZFS_TESTING in variants:
+        commands += task_enable_zfs_testing(distribution)
     commands += task_install_kernel_devel()
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
