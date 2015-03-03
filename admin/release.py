@@ -362,6 +362,9 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     :param list packages: List of bytes, each specifying the name of a package
         to upload to the repository.
     """
+    # TODO move the spec and repo files from the fedora-packages repo.
+    # also, there need to be two repos created, and the docs need to be
+    # adapted / moved.
     rpm_directory.createDirectory()
     s3 = boto.connect_s3()
 
@@ -369,7 +372,9 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     bucket = s3.get_bucket(bucket_name=target_bucket)
 
     # Download existing repository
+    # TODO test this logic with effect
     for item in bucket.list(prefix=target_key):
+        # TODO continue if item.key does not end with '.rpm'
         new_item_path = os.path.join(rpm_directory.path, str(item.key))
         if not os.path.exists(new_item_path):
             parent = FilePath(new_item_path).parent()
@@ -408,8 +413,15 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
                 os.path.join(rpm_directory.path, target_key)])
 
     # Upload updated repository
+    # TODO use FilePath.walk instead of os.walk
+    # TODO test this logic with effect
     for root, dirs, files in os.walk(rpm_directory.path):
         for name in files:
+            # TODO
+            # we only want to upload
+            # 1. New RPMs.
+            # 2. New yum metadata: repodata/repomod.xml and the files referenced there.
+            # (It probably doesn't make sense to parse repomod.xml, just grab the new files in repodata.
             source_path = os.path.join(root, name)
             destination_path = os.path.relpath(source_path, rpm_directory.path)
             key = bucket.new_key(destination_path)
