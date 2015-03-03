@@ -5,7 +5,10 @@
 VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "clusterhq/fedora20-updated"
+  config.vm.box = "box-cutter/centos70"
+  # Update kernel
+  config.vm.provision :shell, :path => "yumupdate.sh", :privileged => true
+  config.vm.provision :reload
   # Configure base system
   config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
   # Prepare caches
@@ -15,5 +18,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
+  end
+
+  unless Vagrant.has_plugin?("vagrant-reload")
+    raise "vagrant-reload plugin is not installed"
+  end
+
+  unless Vagrant.has_plugin?("vagrant-vbguest")
+    # TODO can we do without this with the latest VirtualBox?
+    raise "vagrant-vbguest plugin is not installed"
   end
 end
