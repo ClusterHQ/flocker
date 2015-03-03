@@ -29,7 +29,7 @@ from twisted.python.constants import Names, NamedConstant
 import flocker
 
 from flocker.docs import get_doc_version, is_release, is_weekly_release
-from flocker.provision.install import ARCHIVE_BUCKET
+from flocker.provision._install import ARCHIVE_BUCKET
 
 from .aws import (
     boto_dispatcher,
