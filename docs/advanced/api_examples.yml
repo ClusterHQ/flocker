@@ -220,8 +220,6 @@
   request: |
     DELETE /v1/configuration/datasets/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
 
-    {"primary": "%(NODE_1)s"}
-
   response: |
     HTTP/1.1 200 OK
 
@@ -236,8 +234,6 @@
 
   request: |
     DELETE /v1/configuration/datasets/<unknown_dataset_id> HTTP/1.1
-
-    {"primary": "%(NODE_1)s"}
 
   response: |
     HTTP/1.1 404 Not Found
