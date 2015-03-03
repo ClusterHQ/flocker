@@ -6,7 +6,6 @@ set -e
 
 # Install useful yum repos
 yum install -y http://archive.zfsonlinux.org/epel/zfs-release$(rpm -E %dist).noarch.rpm
-# TODO can the below be yum install? HTTPS?
 yum install -y https://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
 
 # Install packages
@@ -22,8 +21,6 @@ yum install -y \
 	python-cffi libffi-devel \
 	yum-utils \
 	pypy pypy-devel
-
-# TODO look at above packages, which cannot be installed
 
 # Enable zfs-testing repo
 yum-config-manager --enable zfs-testing
