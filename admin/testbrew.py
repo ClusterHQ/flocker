@@ -52,6 +52,9 @@ def main():
         start_result = check_output([
             "vmrun", "start", YOSEMITE_VMX_PATH, "nogui",
         ])
+        # In reality, here I will run brew update, brew install, brew test,
+        # referencing the retrieved recipe file, which in turn will download
+        # the sdist for whatever commit we're on from Buildbot.
         run_with_fabric(VM_USERNAME, VM_HOST, commands=[
             Run(command="export GEBLER=\"Dave Gebler\"")
         ])
