@@ -23,10 +23,15 @@ if is_release(get_doc_version(flocker_version)):
 else:
     key = 'development'
 
+ARCHIVE_BUCKET = 'clusterhq-archive'
+
 CLUSTERHQ_REPO = (
-    "https://s3.amazonaws.com/clusterhq-yum-repository/"
+    "https://s3.amazonaws.com/{archive_bucket}/"
     "{key}/fedora/"
-    "clusterhq-release$(rpm -E %dist).noarch.rpm").format(key=key)
+    "clusterhq-release$(rpm -E %dist).noarch.rpm").format(
+        archive_bucket=ARCHIVE_BUCKET,
+        key=key,
+        )
 
 
 @attributes(["command"])

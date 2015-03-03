@@ -29,7 +29,7 @@ with open("/etc/yum/vars/osname", "w") as f:
 
 clusterhq_marketing_repo_url = (
     'https://s3.amazonaws.com/'
-    'clusterhq-yum-repository/'
+    'clusterhq-archive/'
     'marketing/'
     'fedora/clusterhq-release%s.noarch.rpm') % (rpm_dist,)
 check_call(['yum', 'install', '-y', clusterhq_marketing_repo_url])

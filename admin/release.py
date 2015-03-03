@@ -27,6 +27,7 @@ from twisted.python.constants import Names, NamedConstant
 import flocker
 
 from flocker.docs import get_doc_version, is_release, is_weekly_release
+from flocker.provision.install import ARCHIVE_BUCKET
 
 from .aws import (
     boto_dispatcher,
@@ -326,7 +327,7 @@ class UploadOptions(Options):
     Options for uploading packages.
     """
     optParameters = [
-        ["target", None, b'clusterhq-yum-repository',
+        ["target", None, ARCHIVE_BUCKET,
          "The bucket to upload packages to."],
         ["build-server", None,
          b'http://build.clusterhq.com',
