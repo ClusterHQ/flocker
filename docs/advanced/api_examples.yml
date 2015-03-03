@@ -174,7 +174,8 @@
     "update dataset with primary"
 
   doc: |
-    Update a dataset with a new primary address.
+    Update a dataset with a new primary address. This will effectively move
+    the dataset's contents, making them accessible on the new primary node.
 
   requires:
     - "create dataset with dataset_id"
