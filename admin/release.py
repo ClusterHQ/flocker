@@ -421,10 +421,9 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
             # 1. New RPMs.
             # 2. New yum metadata: repodata/repomod.xml and the files referenced there.
             # (It probably doesn't make sense to parse repomod.xml, just grab the new files in repodata.
-            source_path = f.path
-            destination_path = os.path.relpath(source_path, rpm_directory.path)
+            destination_path = os.path.relpath(f.path, rpm_directory.path)
             key = bucket.new_key(destination_path)
-            key.set_contents_from_filename(source_path)
+            key.set_contents_from_filename(f.path)
             key.make_public()
 
 
