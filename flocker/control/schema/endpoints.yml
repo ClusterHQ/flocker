@@ -27,6 +27,13 @@ definitions:
         minLength: 36
         maxLength: 36
 
+      deleted:
+        title: "Deleted"
+        description: |
+          If true, this dataset has been deleted and its data is no longer
+          guaranteed to exist.
+        type: boolean
+
       metadata:
         title: "Data about a dataset"
         description: |
