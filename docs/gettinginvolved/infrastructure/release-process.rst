@@ -273,10 +273,9 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      mkvirtualenv --system-site-packages flocker-release-${VERSION}
-      pip install --ignore-installed --editable .[release]
+      mkvirtualenv flocker-release-${VERSION}
+      pip install --editable .[release]
       pip install setuptools==3.6
-      pip install pakrat==0.3.2
 
 #. Tag the version being released:
 

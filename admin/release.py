@@ -10,6 +10,8 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 
 import os
 import sys
+from subprocess import check_call
+from textwrap import dedent
 import tempfile
 
 import boto
@@ -360,11 +362,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     :param list packages: List of bytes, each specifying the name of a package
         to upload to the repository.
     """
-    # Import these here so that this file can be imported when yum is not
-    # available.
-    from yum import YumBase
-    from pakrat import repo
-
     rpm_directory.createDirectory()
     s3 = boto.connect_s3()
     try:
@@ -383,29 +380,34 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
             item.get_contents_to_filename(new_item_path)
 
     # Download requested packages from source repository
-    base = YumBase()
-    # This is necessary to avoid permission issues with the default,
-    # /var/cache/yum/x86_64/20
-    base.setCacheDir()
-
-    base.repos.disableRepo('*')
-    flocker_repo = base.add_enable_repo(repoid='flocker',
-                                        baseurls=[source_repo])
-
-    base.cleanMetadata()
-
     # XXX This could be more efficient by only downloading and uploading
     # the changed files. See:
     # https://clusterhq.atlassian.net/browse/FLOC-1506
     # and comments on https://github.com/ClusterHQ/flocker/pull/1190
-    yum_packages = base.pkgSack.returnPackages(repoid=flocker_repo.name,
-                                               patterns=packages)
-    flocker_repo.pkgdir = os.path.join(rpm_directory.path, target_key)
-    base.downloadPkgs(yum_packages)
+    yum_repo_config = rpm_directory.child(b'build.repo')
+    yum_repo_config.setContent(dedent(b"""
+         [flocker]
+         name=flocker
+         baseurl=%s
+         """) % (source_repo,))
+
+    check_call([
+        b'yum',
+        b'-c', yum_repo_config.path,
+        b'--disablerepo=*',
+        b'--enablerepo=flocker',
+        b'clean',
+        b'metadata'])
+    check_call([
+        b'yumdownloader',
+        b'-c', yum_repo_config.path,
+        b'--disablerepo=*',
+        b'--enablerepo=flocker',
+        b'--destdir', os.path.join(rpm_directory.path, target_key)] + packages)
 
     # Update repository metadata
-    flocker_repo.pkgdir = os.path.join(flocker_repo.pkgdir, 'repodata')
-    repo.create_metadata(repo=flocker_repo)
+    check_call([b'createrepo', b'--update',
+                os.path.join(rpm_directory.path, target_key)])
 
     # Upload updated repository
     for root, dirs, files in os.walk(rpm_directory.path):
