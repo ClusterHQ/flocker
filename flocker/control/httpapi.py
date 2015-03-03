@@ -208,7 +208,7 @@ class DatasetAPIUserV1(object):
     def _find_manifestation_and_node(self, dataset_id):
         """
         Given the ID of a dataset, find its primary manifestation and the node
-        it's one.
+        it's on.
 
         :param unicode dataset_id: The unique identifier of the dataset.  This
             is a string giving a UUID (per RFC 4122).
@@ -248,7 +248,7 @@ class DatasetAPIUserV1(object):
         Delete an existing dataset.
 
         Deletion is idempotent: deleting a dataset multiple times will
-        result in the same the response.
+        result in the same response.
         """,
         examples=[
             u"delete dataset",
