@@ -5,11 +5,13 @@ AWS provisioner.
 """
 
 from ._libcloud import LibcloudProvisioner
+from ._common import Variants
 from ._install import (
     provision, run,
     task_install_ssh_key,
     task_upgrade_kernel,
     task_upgrade_selinux,
+    task_enable_updates_testing
 )
 
 
@@ -22,6 +24,15 @@ def provision_aws(node, package_source, distribution, variants):
         address=node.address,
         commands=task_install_ssh_key(),
     )
+
+    if Variants.DISTRO_TESTING in variants:
+        # FIXME: We shouldn't need to duplicate this here.
+        run(
+            username='root',
+            address=node.address,
+            commands=task_enable_updates_testing(distribution)
+        )
+
     run(
         username='root',
         address=node.address,
@@ -33,17 +44,11 @@ def provision_aws(node, package_source, distribution, variants):
     run(
         username='root',
         address=node.address,
-        commands=task_upgrade_selinux(),
-    )
-
-    run(
-        username='root',
-        address=node.address,
         commands=provision(
             package_source=package_source,
             distribution=node.distribution,
             variants=variants,
-        )
+        ) + task_upgrade_selinux(),
     )
     return node.address
 
