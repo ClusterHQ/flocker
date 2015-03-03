@@ -300,7 +300,7 @@ class RunOptions(Options):
         """
         Specify a variant of the provisioning to run.
 
-        Supported variants: distro-testing, docker-head.
+        Supported variants: distro-testing, docker-head, zfs-testing.
         """
         self.setdefault('variants', []).append(Variants.lookupByValue(arg))
 
