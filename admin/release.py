@@ -394,8 +394,10 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
 
     base.cleanMetadata()
 
-    # XXX This could be more efficient by only downloading the changed files
+    # XXX This could be more efficient by only downloading and uploading
+    # the changed files. See:
     # https://clusterhq.atlassian.net/browse/FLOC-1506
+    # and comments on https://github.com/ClusterHQ/flocker/pull/1190
     yum_packages = base.pkgSack.returnPackages(repoid=flocker_repo.name,
                                                patterns=packages)
     flocker_repo.pkgdir = os.path.join(rpm_directory.path, target_key)
