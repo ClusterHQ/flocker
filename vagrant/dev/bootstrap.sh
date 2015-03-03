@@ -29,9 +29,5 @@ yum install -y \
 yum-config-manager --enable zfs-testing
 yum install -y zfs
 
-# Install for downloading wheelhouse
-# TODO is this necessary now?
-yum install -y wget
-
 systemctl enable docker
 
