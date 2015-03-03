@@ -24,9 +24,6 @@ zfs_repo_url = (
     'fedora/zfs-release%s.noarch.rpm') % (rpm_dist,)
 check_call(['yum', 'install', '-y',  zfs_repo_url])
 
-with open("/etc/yum/vars/osname", "w") as f:
-    f.write("fedora")
-
 clusterhq_marketing_repo_url = (
     'https://s3.amazonaws.com/'
     'clusterhq-archive/'
