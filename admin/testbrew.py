@@ -58,6 +58,9 @@ def main():
         run_with_fabric(VM_USERNAME, VM_HOST, commands=[
             Run(command="export GEBLER=\"Dave Gebler\"")
         ])
+        #stop_result = check_output([
+        #    "vmrun", "stop", YOSEMITE_VMX_PATH, "hard",
+        #])
         print "Done."
         sys.exit(0)
     except Exception as e:
