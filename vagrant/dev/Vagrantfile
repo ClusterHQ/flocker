@@ -43,6 +43,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     # /sbin/mount.vboxsf: mounting failed with the error: No such device
 
   To avoid this potential issue, the vagrant-vbguest plugin is required.
+  If it remains, try updating VirtualBox.
 =end
   unless Vagrant.has_plugin?("vagrant-vbguest")
     raise "vagrant-vbguest plugin is not installed"
