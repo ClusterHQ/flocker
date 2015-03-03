@@ -4,31 +4,15 @@
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
-Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "box-cutter/centos70"
-  # Update kernel
-  config.vm.provision :shell, :path => "yumupdate.sh", :privileged => true
-  config.vm.provision :reload
-  # Configure base system
-  config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
-  # Prepare caches
-  config.vm.provision :shell, :path => "cache.sh", :privileged => true
-  # Cleanup
-  config.vm.provision :shell, :path => "../cleanup.sh", :privileged => true
-
-  if Vagrant.has_plugin?("vagrant-cachier")
-    config.cache.scope = :box
-  end
-
-  # This allows the VM to be restarted during provisioning, necessary after
-  # updating the kernel
-  unless Vagrant.has_plugin?("vagrant-reload")
-    raise "vagrant-reload plugin is not installed"
-  end
+# This allows the VM to be restarted during provisioning, necessary after
+# updating the kernel
+unless Vagrant.has_plugin?("vagrant-reload")
+  raise "vagrant-reload plugin is not installed"
+end
 
 =begin
-  With some versions of VirtualBox, the following error may occur when running
-  vagrant up.
+  The following error may occur when running `vagrant up`, potentially because
+  of a problem with some VirtualBox versions.
 
     # Failed to mount folders in Linux guest. This is usually because
     # the "vboxsf" file system is not available. Please verify that
@@ -45,7 +29,23 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   To avoid this potential issue, the vagrant-vbguest plugin is required.
   If it remains, try updating VirtualBox.
 =end
-  unless Vagrant.has_plugin?("vagrant-vbguest")
-    raise "vagrant-vbguest plugin is not installed"
+unless Vagrant.has_plugin?("vagrant-vbguest")
+  raise "vagrant-vbguest plugin is not installed"
+end
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "box-cutter/centos70"
+  # Update kernel and start to configure base system
+  config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
+  config.vm.provision :reload
+  # Finish configuring base system
+  config.vm.provision :shell, :path => "yumupdate.sh", :privileged => true
+  # Prepare caches
+  config.vm.provision :shell, :path => "cache.sh", :privileged => true
+  # Cleanup
+  config.vm.provision :shell, :path => "../cleanup.sh", :privileged => true
+
+  if Vagrant.has_plugin?("vagrant-cachier")
+    config.cache.scope = :box
   end
 end
