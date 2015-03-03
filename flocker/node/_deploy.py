@@ -5,6 +5,8 @@
 Deploy applications on nodes.
 """
 
+from itertools import chain
+
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
@@ -664,10 +666,10 @@ class P2PNodeDeployer(object):
             phases.append(InParallel(changes=[
                 CreateDataset(dataset=dataset)
                 for dataset in dataset_changes.creating]))
-        # XXX if dataset_changes.deleting: add some InParallel
-        # DeleteDataset actions. They are done last, to ensure all
-        # dependencies have been cleaned up (e.g. applications that use
-        # them have been stopped).
+        if dataset_changes.deleting:
+            phases.append(InParallel(changes=[
+                DeleteDataset(dataset=dataset)
+                for dataset in dataset_changes.deleting]))
         start_restart = start_containers + restart_containers
         if start_restart:
             phases.append(InParallel(changes=start_restart))
@@ -777,7 +779,7 @@ def find_dataset_changes(hostname, current_state, desired_state):
     creating = set(dataset for dataset in local_desired_datasets
                    if dataset.dataset_id in creating_dataset_ids)
 
-    # XXX all datasets with deleted=True attribute should be added to deleted
-    # set on the DatasetChanges
-    return DatasetChanges(going=going, coming=coming,
+    deleting = set(dataset for dataset in chain(*desired_datasets.values())
+                   if dataset.deleted)
+    return DatasetChanges(going=going, coming=coming, deleting=deleting,
                           creating=creating, resizing=resizing)

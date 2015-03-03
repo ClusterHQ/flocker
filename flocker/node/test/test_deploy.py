@@ -1506,6 +1506,48 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 hostname=hostname)])])
         self.assertEqual(expected, changes)
 
+    def test_dataset_deleted(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        dataset must be deleted if the desired configuration specifies
+        that the dataset has the ``deleted`` attribute set to True.
+
+        Note that for now this happens regardless of whether the node
+        actually has the dataset, since the deployer doesn't know about
+        replicas... see FLOC-1240.
+        """
+        docker = FakeDockerClient(units={})
+        node = Node(
+            hostname=u"node1.example.com",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
+        self.assertEqual(expected, changes)
+
     def test_volume_wait(self):
         """
         ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that

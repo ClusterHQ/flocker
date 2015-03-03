@@ -331,7 +331,7 @@ class DatasetHandoff(object):
     """
 
 
-@attributes(["going", "coming", "creating", "resizing"])
+@attributes(["going", "coming", "creating", "resizing", "deleting"])
 class DatasetChanges(object):
     """
     The dataset-related changes necessary to change the current state to
