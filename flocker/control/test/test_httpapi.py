@@ -471,22 +471,13 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         The error includes the requested dataset_id.
         """
         unknown_dataset_id = unicode(uuid4())
-        updating = self.assertResponseCode(
+        return self.assertResult(
             b"POST",
             b"/configuration/datasets/%s" % (
                 unknown_dataset_id.encode('ascii'),),
             {u'primary': self.NODE_A},
-            NOT_FOUND)
-        updating.addCallback(readBody)
-        updating.addCallback(loads)
-
-        def got_result(result):
-            expected_description = u'Dataset not found.'
-            description = result.pop(u"description")
-            self.assertEqual(expected_description, description)
-        updating.addCallback(got_result)
-
-        return updating
+            NOT_FOUND,
+            {u"description": u'Dataset not found.'})
 
     def _test_change_primary(self, dataset, deployment, origin, target):
         """
@@ -767,21 +758,12 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         The error includes the requested dataset_id.
         """
         unknown_dataset_id = unicode(uuid4())
-        deleting = self.assertResponseCode(
+        return self.assertResult(
             b"DELETE",
             b"/configuration/datasets/%s" % (
                 unknown_dataset_id.encode('ascii'),),
-            None, NOT_FOUND)
-        deleting.addCallback(readBody)
-        deleting.addCallback(loads)
-
-        def got_result(result):
-            expected_description = u'Dataset not found.'
-            description = result.pop(u"description")
-            self.assertEqual(expected_description, description)
-        deleting.addCallback(got_result)
-
-        return deleting
+            None, NOT_FOUND,
+            {u"description": u'Dataset not found.'})
 
     def _test_delete(self, dataset, deployment):
         """
