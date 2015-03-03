@@ -267,9 +267,9 @@ class DatasetAPIUserV1(object):
        :param unicode dataset_id: The unique identifier of the dataset.  This
             is a string giving a UUID (per RFC 4122).
 
-        :return: A ``dict`` describing the dataset which has been added to the
-            cluster configuration or giving error information if this is not
-            possible.
+        :return: A ``dict`` describing the dataset which has been marked
+            as deleted in the cluster configuration or giving error
+            information if this is not possible.
         """
         # Get the current configuration.
         deployment = self.persistence_service.get()
