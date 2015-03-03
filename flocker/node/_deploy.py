@@ -11,6 +11,8 @@ from characteristic import attributes
 
 from pyrsistent import pmap, PRecord, field
 
+from eliot import write_failure, Logger
+
 from twisted.internet.defer import gatherResults, fail, succeed
 
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
@@ -23,6 +25,9 @@ from ..volume._ipc import RemoteVolumeManager, standard_node
 from ..volume._model import VolumeSize
 from ..volume.service import VolumeName
 from ..common import gather_deferreds
+
+
+_logger = Logger()
 
 
 def _to_volume_name(dataset_id):
@@ -342,7 +347,8 @@ class DeleteDataset(PRecord):
             deletions = []
             for volume in volumes:
                 if volume.name.dataset_id == self.dataset.dataset_id:
-                    deletions.append(service.pool.destroy(volume))
+                    deletions.append(service.pool.destroy(volume).addErrback(
+                        write_failure, _logger, u"flocker:p2pdeployer:delete"))
             return gatherResults(deletions)
         d.addCallback(got_volumes)
         return d

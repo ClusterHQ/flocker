@@ -9,6 +9,8 @@ from uuid import uuid4
 from zope.interface.verify import verifyObject
 from zope.interface import implementer
 
+from eliot.testing import validate_logging
+
 from pyrsistent import pmap, pset
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
@@ -25,6 +27,7 @@ from .._deploy import (
     ResizeDataset, _link_environment, _to_volume_name, IDeployer,
     DeleteDataset,
 )
+from .. import _deploy
 from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -3054,31 +3057,46 @@ class DeleteDatasetTests(TestCase):
     """
     Tests for ``DeleteDataset``.
     """
+    def setUp(self):
+        self.volume_service = create_volume_service(self)
+        self.deployer = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+
+        id1 = unicode(uuid4())
+        self.volume1 = self.volume_service.get(_to_volume_name(id1))
+        id2 = unicode(uuid4())
+        self.volume2 = self.volume_service.get(_to_volume_name(id2))
+        self.successResultOf(self.volume_service.create(self.volume1))
+        self.successResultOf(self.volume_service.create(self.volume2))
+
     def test_creates(self):
         """
         ``CreateDataset.run()`` deletes volumes whose ``dataset_id`` matches
         the one the instance was created with.
         """
-        volume_service = create_volume_service(self)
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
-
-        id1 = unicode(uuid4())
-        volume1 = volume_service.get(_to_volume_name(id1))
-        id2 = unicode(uuid4())
-        volume2 = volume_service.get(_to_volume_name(id2))
-        self.successResultOf(volume_service.create(volume1))
-        self.successResultOf(volume_service.create(volume2))
-
-        delete = DeleteDataset(dataset=Dataset(dataset_id=id2))
-        self.successResultOf(delete.run(deployer))
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
 
         self.assertEqual(
-            list(self.successResultOf(volume_service.enumerate())),
-            [volume1])
+            list(self.successResultOf(self.volume_service.enumerate())),
+            [self.volume1])
+
+    @validate_logging(
+        lambda test, logger: logger.flush_tracebacks(RuntimeError))
+    def test_failed_create(self, logger):
+        """
+        Failed deletions of volumes are swallowed.
+        """
+        self.patch(self.volume_service.pool, "destroy",
+                   lambda fs: fail(RuntimeError()))
+        self.patch(_deploy, "_logger", logger)
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
 
 
 class ResizeVolumeTests(TestCase):
