@@ -16,7 +16,8 @@ from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.http import (
-    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR
+    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
+    NOT_ALLOWED as METHOD_NOT_ALLOWED
 )
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
@@ -765,7 +766,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
             None, NOT_FOUND,
             {u"description": u'Dataset not found.'})
 
-    def _test_delete(self, dataset, deployment):
+    def _test_delete(self, dataset):
         """
         Helper method which makes an API call to delete the supplied
         ``dataset`` from ``origin`` and finally asserts that the API call
@@ -773,11 +774,12 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         been updated.
 
         :param Dataset dataset: The dataset which will be deleted.
-        :param Deployment deployment: The deployment that contains the dataset.
         :returns: A ``Deferred`` which fires when all assertions have been
             executed.
         """
+        deployment = self.persistence_service.get()
         expected_dataset_id = dataset.dataset_id
+        # There's only one node:
         origin = next(iter(deployment.nodes))
 
         expected_dataset = {
@@ -810,10 +812,13 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         deleting.addCallback(got_result)
         return deleting
 
-    def test_delete(self):
+    def _setup_manifestation(self):
         """
-        The ``DELETE`` action sets the ``deleted`` attribute to true on the
-        given dataset.
+        Create and save a configuration with a single node that has a
+        manifestation.
+
+        :return: ``Deferred`` firing with the newly created
+            ``Manifestation`` that ``_test_delete`` can delete.
         """
         expected_manifestation = _manifestation()
         node_a = Node(
@@ -822,10 +827,19 @@ class DeleteDatasetTestsMixin(APITestsMixin):
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
         )
-        deployment = Deployment(nodes=frozenset([node_a]))
-        d = self.persistence_service.save(deployment)
-        d.addCallback(lambda _: self._test_delete(
-            expected_manifestation.dataset, deployment))
+        d = self.persistence_service.save(
+            Deployment(nodes=frozenset([node_a])))
+        d.addCallback(lambda _: expected_manifestation)
+        return d
+
+    def test_delete(self):
+        """
+        The ``DELETE`` action sets the ``deleted`` attribute to true on the
+        given dataset.
+        """
+        d = self._setup_manifestation()
+        d.addCallback(lambda manifestation: self._test_delete(
+            manifestation.dataset))
         return d
 
     def test_delete_idempotent(self):
@@ -833,20 +847,38 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         The ``DELETE`` action on an already ``deleted`` dataset has same
         response as original deletion.
         """
-        expected_manifestation = _manifestation()
-        node_a = Node(
-            hostname=self.NODE_A,
-            applications=frozenset(),
-            manifestations={expected_manifestation.dataset_id:
-                            expected_manifestation}
-        )
-        deployment = Deployment(nodes=frozenset([node_a]))
-        d = self.persistence_service.save(deployment)
-        d.addCallback(lambda _: self._test_delete(
-            expected_manifestation.dataset, deployment))
-        d.addCallback(lambda _: self._test_delete(
-            expected_manifestation.dataset, deployment))
-        return d
+        created = self._setup_manifestation()
+
+        def got_manifestation(expected_manifestation):
+            d = self._test_delete(expected_manifestation.dataset)
+            d.addCallback(lambda _: self._test_delete(expected_manifestation))
+            return d
+        created.addCallback(got_manifestation)
+        return created
+
+    def test_update_deleted(self):
+        """
+        Attempting to update a deleted dataset results in a Method Not Allowed
+        error.
+        """
+        created = self._setup_manifestation()
+
+        def got_manifestation(expected_manifestation):
+            d = self._test_delete(expected_manifestation.dataset)
+            d.addCallback(lambda _: self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset_id.encode('ascii')
+                ),
+                {u"primary": u"192.168.1.1"},
+                METHOD_NOT_ALLOWED, {
+                    u"description":
+                    u"The dataset has been deleted."
+                }
+            ))
+            return d
+        created.addCallback(got_manifestation)
+        return created
 
     def test_multiple_manifestations(self):
         """

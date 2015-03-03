@@ -9,7 +9,9 @@ from uuid import uuid4
 from pyrsistent import pmap, thaw
 
 from twisted.python.filepath import FilePath
-from twisted.web.http import CONFLICT, CREATED, NOT_FOUND, OK
+from twisted.web.http import (
+    CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
+)
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
@@ -43,6 +45,8 @@ PRIMARY_NODE_NOT_FOUND = make_bad_request(
     description=u"The provided primary node is not part of the cluster.")
 DATASET_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Dataset not found.")
+DATASET_DELETED = make_bad_request(
+    code=METHOD_NOT_ALLOWED, description=u"The dataset has been deleted.")
 
 
 class DatasetAPIUserV1(object):
@@ -333,6 +337,9 @@ class DatasetAPIUserV1(object):
 
         primary_manifestation, origin_node = self._find_manifestation_and_node(
             dataset_id)
+
+        if primary_manifestation.dataset.deleted:
+            raise DATASET_DELETED
 
         # Now construct a new_deployment where the primary manifestation of the
         # dataset is on the requested primary node.
