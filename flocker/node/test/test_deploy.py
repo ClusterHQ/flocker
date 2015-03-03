@@ -3054,7 +3054,7 @@ class ResizeVolumeTests(TestCase):
         """
         size = VolumeSize(maximum_size=1234567890)
         volume_service = create_volume_service(self)
-        volume_name = VolumeName(namespace=u"default", dataset_id=b"myvol")
+        volume_name = VolumeName(namespace=u"default", dataset_id=u"myvol")
         volume = volume_service.get(volume_name)
         d = volume_service.create(volume)
 
