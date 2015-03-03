@@ -171,7 +171,8 @@ class LibcloudNode(object):
 
         :param PackageSource package_source: The source from which to install
             flocker.
-        :param iterable variants: TODO
+        :param set variants: The set of variant configurations to use when
+            provisioning
         """
         self._provisioner.provision(
             node=self,

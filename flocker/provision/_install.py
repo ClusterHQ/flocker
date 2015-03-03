@@ -231,6 +231,11 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
 
 
 def task_enable_updates_testing(distribution):
+    """
+    Enable the distribution's proposed updates repository.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
     if distribution == 'fedora-20':
         return [
             Run.from_args([
@@ -240,7 +245,13 @@ def task_enable_updates_testing(distribution):
         raise NotImplementedError
 
 
-def task_enable_docker_copr(distribution):
+def task_enable_docker_head_repository(distribution):
+    """
+    Enable the distribution's repository containing in-development docker
+    builds.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
     if distribution == 'fedora-20':
         return [
             Run.from_args([
@@ -259,9 +270,10 @@ def provision(distribution, package_source, variants):
 
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.
-    :param bytes distribution: See func:`task_install`
-    :param PackageSource package_source: See func:`task_install`
-    :param variants: TODO
+    :param bytes distribution: See func:`task_install_flocker`
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
     """
     commands = []
     if variants:
@@ -269,7 +281,7 @@ def provision(distribution, package_source, variants):
     if Variants.DISTRO_TESTING in variants:
         commands += task_enable_updates_testing(distribution)
     if Variants.DOCKER_HEAD in variants:
-        commands += task_enable_docker_copr(distribution)
+        commands += task_enable_docker_head_repository(distribution)
     commands += task_install_kernel_devel()
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
