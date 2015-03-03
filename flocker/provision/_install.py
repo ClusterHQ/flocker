@@ -238,6 +238,7 @@ def task_enable_updates_testing(distribution):
     """
     if distribution == 'fedora-20':
         return [
+            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
             Run.from_args([
                 'yum-config-manager', '--enable', 'updates-testing'])
         ]
@@ -254,6 +255,7 @@ def task_enable_docker_head_repository(distribution):
     """
     if distribution == 'fedora-20':
         return [
+            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
             Run.from_args([
                 'yum-config-manager',
                 '--add-repo',
@@ -276,8 +278,6 @@ def provision(distribution, package_source, variants):
         provisioning
     """
     commands = []
-    if variants:
-        commands += [Run.from_args(['yum', 'install', '-y', 'yum-utils'])]
     if Variants.DISTRO_TESTING in variants:
         commands += task_enable_updates_testing(distribution)
     if Variants.DOCKER_HEAD in variants:
