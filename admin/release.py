@@ -374,13 +374,13 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     # Download existing repository
     # TODO test this logic with effect
     for item in bucket.list(prefix=target_key):
-        # TODO continue if item.key does not end with '.rpm'
-        new_item_path = os.path.join(rpm_directory.path, str(item.key))
-        if not os.path.exists(new_item_path):
-            parent = FilePath(new_item_path).parent()
-            if not parent.exists():
-                parent.makedirs()
-            item.get_contents_to_filename(new_item_path)
+        if item.key.endswith('.rpm'):
+            new_item_path = os.path.join(rpm_directory.path, str(item.key))
+            if not os.path.exists(new_item_path):
+                parent = FilePath(new_item_path).parent()
+                if not parent.exists():
+                    parent.makedirs()
+                item.get_contents_to_filename(new_item_path)
 
     # Download requested packages from source repository
     # XXX This could be more efficient by only downloading and uploading
