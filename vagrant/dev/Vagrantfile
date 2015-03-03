@@ -39,7 +39,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
   config.vm.provision :reload
   # Finish configuring base system
-  config.vm.provision :shell, :path => "yumupdate.sh", :privileged => true
+  config.vm.provision :shell, :path => "post-reboot-bootstrap.sh", :privileged => true
   # Prepare caches
   config.vm.provision :shell, :path => "cache.sh", :privileged => true
   # Cleanup
