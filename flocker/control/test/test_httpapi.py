@@ -1151,8 +1151,6 @@ class DatasetsStateTestsMixin(APITestsMixin):
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
             path=u"/path/dataset",
-            metadata={},
-            deleted=False,
         )
         response = [expected_dict]
         return self.assertResult(
@@ -1194,15 +1192,11 @@ class DatasetsStateTestsMixin(APITestsMixin):
             dataset_id=expected_dataset1.dataset_id,
             primary=expected_hostname1,
             path=u"/aa",
-            metadata={},
-            deleted=False,
         )
         expected_dict2 = dict(
             dataset_id=expected_dataset2.dataset_id,
             primary=expected_hostname2,
             path=u"/bb",
-            metadata={},
-            deleted=False,
         )
         response = [expected_dict1, expected_dict2]
         return self.assertResultItems(
