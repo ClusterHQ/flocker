@@ -53,6 +53,13 @@ CREATE_PROXY_TO = ActionType(
     U"Flocker is creating a new proxy.")
 
 
+OPEN_PORT = ActionType(
+    _system(u"open_port"),
+    [TARGET_PORT],
+    [],
+    U"Flocker is opening a firewall port.")
+
+
 DELETE_PROXY = ActionType(
     _system(u"delete_proxy"),
     [TARGET_IP, TARGET_PORT],
