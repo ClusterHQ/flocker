@@ -44,7 +44,8 @@ def main():
         if len(sys.argv) < 2:
             raise Exception("URL of homebrew recipe not specified")
         recipe_url = sys.argv[1]
-        # Open the recipe URL to validate and verify.
+        # Open the recipe URL just to validate and verify that it exists.
+        # We do not need to read its content.
         recipe_resource = urllib2.urlopen(recipe_url)
         revert_result = check_output([
             "vmrun", "revertToSnapshot", YOSEMITE_VMX_PATH, YOSEMITE_SNAPSHOT,
