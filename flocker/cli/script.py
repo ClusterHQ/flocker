@@ -28,6 +28,13 @@ from ..common import ProcessNode, gather_deferreds
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
 
 
+FEEDBACK_CLI_TEXT = (
+    "\n"
+    "If you have any issues or feedback, you can talk to us: "
+    "http://docs.clusterhq.com/en/latest/gettinginvolved/"
+    "contributing.html#talk-to-us")
+
+
 @attributes(['node', 'hostname'])
 class NodeTarget(object):
     """
@@ -48,10 +55,7 @@ class DeployOptions(Options):
 
     synopsis = ("Usage: flocker-deploy [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH"
-                "\n"
-                "If you have any issues or feedback, you can talk to us: "
-                "http://docs.clusterhq.com/en/latest/gettinginvolved/"
-                "contributing.html#talk-to-us")
+                "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
     def parseArgs(self, deployment_config, application_config):
         deployment_config = FilePath(deployment_config)
@@ -254,17 +258,11 @@ class DeployScript(object):
 class CLIOptions(Options):
     """
     Command line options for ``flocker`` CLI.
-
     """
-    longdesc = """flocker does nothing (yet).
+    longdesc = """flocker does nothing (yet)."""
 
-    """
-
-    synopsis = ("Usage: flocker [OPTIONS] "
-                "\n"
-                "If you have any issues or feedback, you can talk to us: "
-                "http://docs.clusterhq.com/en/latest/gettinginvolved/"
-                "contributing.html#talk-to-us")
+    synopsis = "Usage: flocker [OPTIONS] {feedback}".format(
+        feedback=FEEDBACK_CLI_TEXT)
 
 
 @implementer(ICommandLineScript)
@@ -291,6 +289,7 @@ def flocker_deploy_main():
 
 
 def flocker_cli_main():
+    # There is nothing to log at the moment, so logging is disabled.
     return FlockerScriptRunner(
         script=CLIScript(),
         options=CLIOptions(),
