@@ -198,7 +198,7 @@
     An attempt to update an unknown dataset results in a 404 Not Found response.
 
   request: |
-    POST /v1/configuration/datasets/<unknown_dataset_id> HTTP/1.1
+    POST /v1/configuration/datasets/31d50a07-f679-4f95-ae0d-56c93513fbc2 HTTP/1.1
 
     {"primary": "%(NODE_1)s"}
 
@@ -233,7 +233,7 @@
     An attempt to delete an unknown dataset results in a 404 Not Found response.
 
   request: |
-    DELETE /v1/configuration/datasets/<unknown_dataset_id> HTTP/1.1
+    DELETE /v1/configuration/datasets/31d50a07-f679-4f95-ae0d-56c93513fbc2 HTTP/1.1
 
   response: |
     HTTP/1.1 404 Not Found
