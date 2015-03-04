@@ -10,8 +10,8 @@ from .. import PackageSource
 from .._install import (
     task_install_flocker,
     ZFS_REPO, CLUSTERHQ_REPO,
+    Run, Put,
 )
-from ...common._ssh import Run, Put
 
 
 class FakeRunner(object):
