@@ -27,6 +27,7 @@ from .._deploy import (
     ResizeDataset, _link_environment, _to_volume_name, IDeployer,
     DeleteDataset,
 )
+from ...testtools import CustomException
 from .. import _deploy
 from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
@@ -3161,9 +3162,9 @@ class DeleteDatasetTests(TestCase):
         self.successResultOf(self.volume_service.create(self.volume1))
         self.successResultOf(self.volume_service.create(self.volume2))
 
-    def test_creates(self):
+    def test_deletes(self):
         """
-        ``CreateDataset.run()`` deletes volumes whose ``dataset_id`` matches
+        ``DeleteDataset.run()`` deletes volumes whose ``dataset_id`` matches
         the one the instance was created with.
         """
         delete = DeleteDataset(
@@ -3175,13 +3176,16 @@ class DeleteDatasetTests(TestCase):
             [self.volume1])
 
     @validate_logging(
-        lambda test, logger: logger.flush_tracebacks(RuntimeError))
+        lambda test, logger: logger.flush_tracebacks(CustomException))
     def test_failed_create(self, logger):
         """
-        Failed deletions of volumes are swallowed.
+        Failed deletions of volumes does not result in a failed result from
+        ``DeleteDataset.run()``.
+
+        The traceback is, however, logged.
         """
         self.patch(self.volume_service.pool, "destroy",
-                   lambda fs: fail(RuntimeError()))
+                   lambda fs: fail(CustomException()))
         self.patch(_deploy, "_logger", logger)
         delete = DeleteDataset(
             dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
