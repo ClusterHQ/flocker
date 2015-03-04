@@ -12,7 +12,7 @@ from uuid import uuid4
 from json import dumps, loads
 
 from twisted.trial.unittest import TestCase
-from treq import get, post, content, delete
+from treq import get, post, content, delete, json_content
 from characteristic import attributes
 
 from .testtools import get_nodes, run_SSH
@@ -128,8 +128,7 @@ class Cluster(object):
             the state of the cluster.
         """
         request = get(self.base_url + b"/state/datasets", persistent=False)
-        request.addCallback(content)
-        request.addCallback(loads)
+        request.addCallback(json_content)
         return request
 
     def wait_for_dataset(self, dataset_properties):
@@ -213,6 +212,8 @@ class Cluster(object):
         Delete a dataset.
 
         :param unicode dataset_id: The uuid of the dataset to be modified.
+
+        :returns: A 2-tuple of (cluster, api_response)
         """
         request = delete(
             self.base_url + b"/configuration/datasets/%s" % (
@@ -222,8 +223,7 @@ class Cluster(object):
             persistent=False
         )
 
-        request.addCallback(content)
-        request.addCallback(loads)
+        request.addCallback(json_content)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -313,7 +313,7 @@ class DatasetAPITests(TestCase):
     """
     Tests for the dataset API.
     """
-    def _test_create(self):
+    def _create_test(self):
         """
         Create a dataset on a single-node cluster.
 
@@ -351,7 +351,7 @@ class DatasetAPITests(TestCase):
         """
         A dataset can be created on a specific node.
         """
-        return self._test_create()
+        return self._create_test()
 
     def test_dataset_move(self):
         """
@@ -400,7 +400,7 @@ class DatasetAPITests(TestCase):
         """
         A dataset can be deleted, resulting in its removal from the node.
         """
-        created = self._test_create()
+        created = self._create_test()
 
         def delete_dataset(result):
             cluster, dataset = result
