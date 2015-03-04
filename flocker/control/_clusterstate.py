@@ -32,6 +32,17 @@ class ClusterStateService(Service):
         """
         self._nodes[node_state.hostname] = node_state
 
+    def manifestation_path(self, hostname, dataset_id):
+        """
+        Get the filesystem path of a manifestation on a particular node.
+
+        :param unicode hostname: The name of the host.
+        :param unicode dataset_id: The dataset identifier.
+
+        :return FilePath: The path where the manifestation exists.
+        """
+        return self._nodes[hostname].paths[dataset_id]
+
     def as_deployment(self):
         """
         Return cluster state as a Deployment object.

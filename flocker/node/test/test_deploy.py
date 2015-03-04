@@ -1167,17 +1167,20 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
-    def test_discover_datasets(self):
+    DATASET_ID = u"uuid123"
+    DATASET_ID2 = u"uuid456"
+
+    def _setup_datasets(self):
         """
-        All datasets on the node are added to ``NodeState.manifestations``.
+        Setup a ``P2PNodeDeployer`` that will discover two manifestations.
+
+        :return: Suitably configured ``P2PNodeDeployer``.
         """
-        DATASET_ID = u"uuid123"
-        DATASET_ID2 = u"uuid456"
         volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID))
         ))
         self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID2))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID2))
         ))
 
         unit1 = Unit(name=u'site-example.com',
@@ -1193,24 +1196,47 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1}
 
         fake_docker = FakeDockerClient(units=units)
-        api = P2PNodeDeployer(
+        return P2PNodeDeployer(
             u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
+
+    def test_discover_datasets(self):
+        """
+        All datasets on the node are added to ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
         d = api.discover_local_state()
 
         self.assertEqual(
             pset(
                 {Manifestation(
                     dataset=Dataset(
-                        dataset_id=DATASET_ID,
+                        dataset_id=self.DATASET_ID,
                         metadata=pmap({u"name": u"site-example.com"})),
                     primary=True),
-                 Manifestation(dataset=Dataset(dataset_id=DATASET_ID2),
+                 Manifestation(dataset=Dataset(dataset_id=self.DATASET_ID2),
                                primary=True)}),
             self.successResultOf(d).manifestations)
+
+    def test_discover_manifestation_paths(self):
+        """
+        All datasets on the node have their paths added to
+        ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
+        d = api.discover_local_state()
+
+        self.assertEqual(
+            {self.DATASET_ID:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID)).get_filesystem().get_path(),
+             self.DATASET_ID2:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID2)).get_filesystem().get_path()},
+            self.successResultOf(d).paths)
 
 
 # A deployment with no information:

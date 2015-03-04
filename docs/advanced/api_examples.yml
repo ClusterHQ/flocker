@@ -253,4 +253,7 @@
   response: |
     HTTP/1.1 200 OK
 
-    [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}, "deleted": false}]
+    [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
+      "primary": "%(NODE_0)s",
+      "maximum_size": 1073741824,
+      "path": "/flocker/somearbitrarypath"}]
