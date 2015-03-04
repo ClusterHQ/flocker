@@ -332,7 +332,7 @@ class DatasetHandoff(object):
     """
 
 
-@attributes(["going", "coming", "creating", "resizing"])
+@attributes(["going", "coming", "creating", "resizing", "deleting"])
 class DatasetChanges(object):
     """
     The dataset-related changes necessary to change the current state to
@@ -354,6 +354,8 @@ class DatasetChanges(object):
         node resize any existing datasets that are desired somewhere on
         the cluster and locally exist with a different maximum_size to the
         desired maximum_size. These must be resized.
+
+    :ivar frozenset deleting: The ``Dataset``\ s that should be deleted.
     """
 
 
