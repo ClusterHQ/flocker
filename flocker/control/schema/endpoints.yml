@@ -55,8 +55,8 @@ definitions:
           '$ref': 'types.json#/definitions/maximum_size'
         path:
           '$ref': 'types.json#/definitions/path'
-        required:
-          # Temporarily required until volume backends settle down and we know
-          # more about what it means to not have a primary manifestation.
-          - primary
-        additionalProperties: false
+      required:
+        - primary
+        - dataset_id
+        - path
+      additionalProperties: false
