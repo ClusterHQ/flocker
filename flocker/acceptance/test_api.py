@@ -404,13 +404,13 @@ class DatasetAPITests(TestCase):
 
         def delete_dataset(result):
             cluster, dataset = result
-            deleted = cluster.delete_dataset(dataset.dataset_id)
+            deleted = cluster.delete_dataset(dataset["dataset_id"])
 
             def not_exists():
                 request = cluster.datasets_state()
                 request.addCallback(
-                    lambda actual_datasets: dataset.dataset_id not in
-                    (d.dataset_id for d in actual_datasets))
+                    lambda actual_datasets: dataset["dataset_id"] not in
+                    (d["dataset_id"] for d in actual_datasets))
                 return request
             deleted.addCallback(lambda _: loop_until(not_exists))
             return deleted
