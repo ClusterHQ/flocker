@@ -129,6 +129,8 @@ def perform_copy_s3_keys(dispatcher, intent):
     source_bucket = s3.get_bucket(intent.source_bucket)
     for key in intent.keys:
         if '/_images/' in key and key.endswith('.svg'):
+            # s3cmd isn't great at choosing Content-Type. This fixes the one
+            # symptom of that we know of.
             destination_metadata = source_key.metadata
             destination_metadata['Content-Type'] = 'image/svg+xml'
         else:
