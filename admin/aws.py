@@ -126,11 +126,13 @@ def perform_copy_s3_keys(dispatcher, intent):
     """
     s3 = boto.connect_s3()
     destination_bucket = s3.get_bucket(intent.destination_bucket)
+    source_bucket = s3.get_bucket(intent.source_bucket)
     for key in intent.keys:
-        destination_bucket.copy_key(
-            new_key_name=intent.destination_prefix + key,
-            src_bucket_name=intent.source_bucket,
-            src_key_name=intent.source_prefix + key)
+        source_key = source_bucket.get_key(intent.source_prefix + key)
+        source_key.copy(
+            dst_bucket=destination_bucket,
+            dst_key=intent.destination_prefix + key,
+        )
 
 
 @attributes([
