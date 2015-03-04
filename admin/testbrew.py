@@ -87,16 +87,17 @@ def main():
         # We do not need to read its content.
         urllib2.urlopen(recipe_url)
         check_output([
-            "vmrun", "revertToSnapshot", YOSEMITE_VMX_PATH, YOSEMITE_SNAPSHOT,
+            "vmrun", "revertToSnapshot",
+            options['vmpath'], options['vmsnapshot'],
         ])
         check_output([
-            "vmrun", "start", YOSEMITE_VMX_PATH, "nogui",
+            "vmrun", "start", options['vmpath'], "nogui",
         ])
         commands = task_test_homebrew(recipe_url)
-        run_with_fabric(VM_USERNAME, VM_HOST,
+        run_with_fabric(options['vmuser'], options['vmhost'],
                         commands=commands)
         check_output([
-            "vmrun", "stop", YOSEMITE_VMX_PATH, "hard",
+            "vmrun", "stop", options['vmpath'], "hard",
         ])
         print "Done."
         sys.exit(0)
