@@ -8,7 +8,6 @@ via SSH the brew update, install and test commands to verify a successful
 installation of a homebrew recipe.
 
 The host machine must have:
-        * VMWare Fusion installed,
         * A VMWare OS X VM available at a particular location
 
 The guest virtual machine must have:
