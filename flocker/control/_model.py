@@ -3,6 +3,15 @@
 
 """
 Record types for representing deployment models.
+
+There are different categories of classes:
+
+1. Those that involve information that can be both in configuration and state.
+   This includes ``Deployment`` and all classes on it.
+   (Metadata should really be configuration only, but that hasn't been
+   fixed yet on the model level.)
+2. State-specific classes, currently ``NodeState``.
+3. Configuration-specific classes, none implemented yet.
 """
 
 from characteristic import attributes, Attribute
@@ -373,6 +382,10 @@ class _PathMap(CheckedPMap):
 class NodeState(PRecord):
     """
     The current state of a node.
+
+    This includes information that is state-specific and thus does not
+    belong in ``Node``, the latter being shared between both state and
+    configuration models.
 
     :ivar unicode hostname: The hostname of the node.
     :ivar running: A ``PSet`` of ``Application`` instances on this node
