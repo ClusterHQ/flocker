@@ -12,7 +12,7 @@ from uuid import uuid4
 from json import dumps, loads
 
 from twisted.trial.unittest import TestCase
-from treq import get, post, content
+from treq import get, post, content, delete, json_content
 from characteristic import attributes
 
 from .testtools import get_nodes, run_SSH
@@ -120,6 +120,17 @@ class Cluster(object):
             self.control_service.address, REST_API_PORT
         )
 
+    def datasets_state(self):
+        """
+        Return the actual dataset state of the cluster.
+
+        :return: ``Deferred`` firing with a list of dataset dictionaries,
+            the state of the cluster.
+        """
+        request = get(self.base_url + b"/state/datasets", persistent=False)
+        request.addCallback(json_content)
+        return request
+
     def wait_for_dataset(self, dataset_properties):
         """
         Poll the dataset state API until the supplied dataset exists.
@@ -134,11 +145,9 @@ class Cluster(object):
             """
             Check the dataset state list for the expected dataset.
             """
-            request = get(self.base_url + b"/state/datasets", persistent=False)
-            request.addCallback(content)
+            request = self.datasets_state()
 
             def got_body(body):
-                body = loads(body)
                 # Current state listing includes bogus metadata
                 # https://clusterhq.atlassian.net/browse/FLOC-1386
                 expected_dataset = dataset_properties.copy()
@@ -178,7 +187,7 @@ class Cluster(object):
         """
         Update a dataset with the supplied ``dataset_properties``.
 
-        :param bytes dataset_id: The uuid of the dataset to be modified.
+        :param unicode dataset_id: The uuid of the dataset to be modified.
         :param dict dataset_properties: The properties of the dataset to
             create.
         :returns: A 2-tuple of (cluster, api_response)
@@ -194,6 +203,27 @@ class Cluster(object):
 
         request.addCallback(content)
         request.addCallback(loads)
+        # Return cluster and API response
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    def delete_dataset(self, dataset_id):
+        """
+        Delete a dataset.
+
+        :param unicode dataset_id: The uuid of the dataset to be modified.
+
+        :returns: A 2-tuple of (cluster, api_response)
+        """
+        request = delete(
+            self.base_url + b"/configuration/datasets/%s" % (
+                dataset_id.encode('ascii'),
+            ),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        request.addCallback(json_content)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -283,9 +313,13 @@ class DatasetAPITests(TestCase):
     """
     Tests for the dataset API.
     """
-    def test_dataset_creation(self):
+    def _create_test(self):
         """
-        A dataset can be created on a specific node.
+        Create a dataset on a single-node cluster.
+
+        :return: ``Deferred`` firing with a tuple of (``Cluster``
+            instance, dataset dictionary) once the dataset is present in
+            actual cluster state.
         """
         # Create a 1 node cluster
         waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
@@ -312,6 +346,12 @@ class DatasetAPITests(TestCase):
         )
 
         return waiting_for_create
+
+    def test_dataset_creation(self):
+        """
+        A dataset can be created on a specific node.
+        """
+        return self._create_test()
 
     def test_dataset_move(self):
         """
@@ -355,3 +395,24 @@ class DatasetAPITests(TestCase):
         )
 
         return waiting_for_move
+
+    def test_dataset_deletion(self):
+        """
+        A dataset can be deleted, resulting in its removal from the node.
+        """
+        created = self._create_test()
+
+        def delete_dataset(result):
+            cluster, dataset = result
+            deleted = cluster.delete_dataset(dataset["dataset_id"])
+
+            def not_exists():
+                request = cluster.datasets_state()
+                request.addCallback(
+                    lambda actual_datasets: dataset["dataset_id"] not in
+                    (d["dataset_id"] for d in actual_datasets))
+                return request
+            deleted.addCallback(lambda _: loop_until(not_exists))
+            return deleted
+        created.addCallback(delete_dataset)
+        return created
