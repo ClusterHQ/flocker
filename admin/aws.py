@@ -128,11 +128,19 @@ def perform_copy_s3_keys(dispatcher, intent):
     destination_bucket = s3.get_bucket(intent.destination_bucket)
     source_bucket = s3.get_bucket(intent.source_bucket)
     for key in intent.keys:
-        source_key = source_bucket.get_key(intent.source_prefix + key)
+        if '/_images/' in key and key.endswith('.svg'):
+            destination_metadata = source_key.metadata
+            destination_metadata['Content-Type'] = 'image/svg+xml'
+        else:
+            # This means that the metadata will be copied from the old key
+            destination_metadata = None
+
         source_key.copy(
             dst_bucket=destination_bucket,
             dst_key=intent.destination_prefix + key,
+            metadata=destination_metadata,
         )
+
 
 
 @attributes([
