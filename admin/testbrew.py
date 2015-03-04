@@ -43,16 +43,17 @@ VM_HOST = "10.0.126.88"
 
 def main():
     try:
+        BASEPATH, TOPLEVEL
         if len(sys.argv) < 2:
             raise Exception("URL of homebrew recipe not specified")
         recipe_url = sys.argv[1]
         # Open the recipe URL just to validate and verify that it exists.
         # We do not need to read its content.
-        recipe_resource = urllib2.urlopen(recipe_url)
-        revert_result = check_output([
+        urllib2.urlopen(recipe_url)
+        check_output([
             "vmrun", "revertToSnapshot", YOSEMITE_VMX_PATH, YOSEMITE_SNAPSHOT,
         ])
-        start_result = check_output([
+        check_output([
             "vmrun", "start", YOSEMITE_VMX_PATH, "nogui",
         ])
         run_with_fabric(VM_USERNAME, VM_HOST, commands=[
@@ -60,7 +61,7 @@ def main():
             Run(command="brew install {url}".format(url=recipe_url)),
             Run(command="brew test {url}".format(url=recipe_url)),
         ])
-        stop_result = check_output([
+        check_output([
             "vmrun", "stop", YOSEMITE_VMX_PATH, "hard",
         ])
         print "Done."
@@ -77,4 +78,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
