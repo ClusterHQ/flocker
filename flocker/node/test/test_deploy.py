@@ -1548,6 +1548,53 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             ])
         self.assertEqual(expected, changes)
 
+    def test_deletion_after_application_stop(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` ensures dataset
+        deletion happens after application stop phase to make sure nothing
+        is using the deleted dataset.
+        """
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    container_image=u'flocker/wordpress:v1.0.0',
+                    activation_state=u'active')
+
+        docker = FakeDockerClient(units={unit.name: unit})
+        node = Node(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        to_stop = StopApplication(application=Application(
+            name=unit.name, image=DockerImage.from_string(
+                unit.container_image)))
+        expected = Sequentially(changes=[
+            InParallel(changes=[to_stop]),
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
+        self.assertEqual(expected, changes)
+
     def test_volume_wait(self):
         """
         ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
