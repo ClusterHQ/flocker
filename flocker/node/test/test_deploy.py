@@ -1518,7 +1518,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         docker = FakeDockerClient(units={})
         node = Node(
-            hostname=u"node1.example.com",
+            hostname=u"10.1.1.1",
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
         )
