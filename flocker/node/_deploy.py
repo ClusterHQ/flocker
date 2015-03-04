@@ -337,7 +337,7 @@ class DeleteDataset(PRecord):
     non-primary manifestations or replicas, are not exposed to the
     deployer, so we have to enumerate them here.
 
-    :ivar Dataset: The dataset to delete.
+    :ivar Dataset dataset: The dataset to delete.
     """
     dataset = field(mandatory=True, type=Dataset)
 
