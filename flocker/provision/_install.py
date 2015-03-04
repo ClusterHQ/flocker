@@ -96,6 +96,14 @@ def run_with_fabric(username, address, commands):
 run = run_with_fabric
 
 
+def task_test_homebrew(recipe_url='flocker'):
+    return [
+        Run(command="brew update"),
+        Run(command="brew install {url}".format(url=recipe_url)),
+        Run(command="brew test {url}".format(url=recipe_url)),
+    ]
+
+
 def task_install_ssh_key():
     return [
         Sudo.from_args(['cp', '.ssh/authorized_keys',

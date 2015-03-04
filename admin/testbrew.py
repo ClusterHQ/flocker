@@ -25,7 +25,7 @@ from twisted.python.usage import Options, UsageError
 
 from subprocess import check_output, CalledProcessError
 
-from flocker.provision._install import run_with_fabric, Run
+from flocker.provision._install import run_with_fabric, task_test_homebrew
 
 
 YOSEMITE_VMX_PATH = (
@@ -92,11 +92,9 @@ def main():
         check_output([
             "vmrun", "start", YOSEMITE_VMX_PATH, "nogui",
         ])
-        run_with_fabric(VM_USERNAME, VM_HOST, commands=[
-            Run(command="brew update"),
-            Run(command="brew install {url}".format(url=recipe_url)),
-            Run(command="brew test {url}".format(url=recipe_url)),
-        ])
+        commands = task_test_homebrew(recipe_url)
+        run_with_fabric(VM_USERNAME, VM_HOST,
+                        commands=commands)
         check_output([
             "vmrun", "stop", YOSEMITE_VMX_PATH, "hard",
         ])
