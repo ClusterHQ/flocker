@@ -197,13 +197,7 @@ class DatasetAPIUserV1(object):
 
         new_node_config = primary_node.transform(
             ("manifestations", manifestation.dataset_id), manifestation)
-
-        other_nodes = frozenset(
-            node for node in deployment.nodes if node is not primary_node
-        )
-        new_deployment = Deployment(
-            nodes=other_nodes | frozenset({new_node_config})
-        )
+        new_deployment = deployment.update_node(new_node_config)
         saving = self.persistence_service.save(new_deployment)
 
         def saved(ignored):
