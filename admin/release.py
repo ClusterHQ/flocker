@@ -476,7 +476,11 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     elif is_weekly_release(version):
         release_type = "development"
 
-    update_repo(
+    # TODO test these calls with a spy
+    # TODO replace references to RPMs with Packages
+    sync_perform(
+      dispatcher=ComposedDispatcher(boto_dispatcher, base_dispatcher),
+      effect=update_repo(
         rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
         target_bucket=target_bucket,
         target_key=os.path.join(release_type, b'fedora', b'20', b'x86_64'),
@@ -484,7 +488,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
                                  b'fedora-20'),
         packages=FLOCKER_PACKAGES,
         version=version,
-    )
+    ))
 
     update_repo(
         rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
