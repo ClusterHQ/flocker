@@ -22,11 +22,3 @@ done
 systemctl unmask firewalld
 systemctl enable firewalld
 systemctl start firewalld
-for PORT in 3306 9200 5000 80 5432 27018; do # List of ports used in acceptance tests
-    for DEST in 172.16.255.240 172.16.255.241; do # List of vagrant nodes
-        # Extra rules for proxies
-        firewall-cmd --permanent --add-rule ipv4 filter FORWARD 0 --destination $DEST --protocol tcp --desitnation-port $PORT -j ACCEPT
-    done
-    # New rule for open ports
-    firewall-cmd --permanent --add-rule ipv4 filter INPUT 0 --protocol tcp --desitnation-port $PORT -j ACCEPT
-done
