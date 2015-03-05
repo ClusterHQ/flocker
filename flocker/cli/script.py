@@ -29,9 +29,9 @@ from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
 
 
 FEEDBACK_CLI_TEXT = (
-    "\n"
+    "\n\n"
     "If you have any issues or feedback, you can talk to us: "
-    "http://docs.clusterhq.com/en/latest/gettinginvolved/"
+    "https://docs.clusterhq.com/en/latest/gettinginvolved/"
     "contributing.html#talk-to-us")
 
 
@@ -259,7 +259,8 @@ class CLIOptions(Options):
     """
     Command line options for ``flocker`` CLI.
     """
-    longdesc = """flocker does nothing (yet)."""
+    longdesc = ("flocker is under development, please see flocker-deploy "
+                "to configure existing nodes.")
 
     synopsis = "Usage: flocker [OPTIONS] {feedback}".format(
         feedback=FEEDBACK_CLI_TEXT)
