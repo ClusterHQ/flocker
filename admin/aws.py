@@ -159,11 +159,45 @@ def perform_list_s3_keys(dispatcher, intent):
             for key in bucket.list(intent.prefix)}
 
 
+@attributes([
+    "source_bucket",
+    "source_prefix",
+    "target_path",
+    "filter_extensions",
+])
+class DownloadS3KeyRecursively(object):
+    """
+    Download the S3 files from a key a bucket.
+
+    Note that this returns a list with the prefixes stripped.
+
+    :ivar bytes bucket: Name of bucket to list keys from.
+    :ivar bytes prefix: Prefix of keys to be listed.
+    # TODO document params and performer docstring - filter_extensions is a tuple
+    # TODO pyrsistent
+    """
+
+@sync_performer
+def perform_download_s3_key_recursively(dispatcher, intent):
+    """
+    see :class:`ListS3Keys`.
+    """
+    s3 = boto.connect_s3()
+    bucket = s3.get_bucket(intent.source_bucket)
+    for item in bucket.list(prefix=source_prefix):
+        if not item.key.endswith(filter_extensions):
+            continue
+        path = target_path.preauthChild(item.key.name[len(intent.source_prefix):])
+        if not path.parent().exists():
+            path.parent().makedirs()
+        item.get_contents_to_filename(path.path)
+
 boto_dispatcher = TypeDispatcher({
     UpdateS3RoutingRule: perform_update_s3_routing_rule,
     ListS3Keys: perform_list_s3_keys,
     DeleteS3Keys: perform_delete_s3_keys,
     CopyS3Keys: perform_copy_s3_keys,
+    DownloadS3KeyRecursively: perform_download_s3_key_recursively,
     CreateCloudFrontInvalidation: perform_create_cloudfront_invalidation,
 })
 
