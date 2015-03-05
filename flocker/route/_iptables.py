@@ -203,7 +203,8 @@ def open_port(logger, port):
             b"--protocol", b"tcp", b"--destination-port", encoded_port,
 
             # Tag it as a flocker-created rule so we can recognize it later.
-            b"--match", b"comment", b"--comment", FLOCKER_OPENPORT_COMMENT_MARKER,
+            b"--match", b"comment",
+            b"--comment", FLOCKER_OPENPORT_COMMENT_MARKER,
 
             b"--jump", b"ACCEPT",
         ])
@@ -251,6 +252,27 @@ def delete_proxy(logger, proxy):
             iptables(logger, argv)
 
 
+def delete_port(logger, port):
+    # FIXME
+    action = OPEN_PORT(
+        logger=logger, target_port=port)
+
+    with action:
+        encoded_port = unicode(port).encode("ascii")
+        iptables(logger, [
+            b"--table", b"filter",
+            b"--delete", b"INPUT",
+
+            b"--protocol", b"tcp", b"--destination-port", encoded_port,
+
+            # Tag it as a flocker-created rule so we can recognize it later.
+            b"--match", b"comment",
+            b"--comment", FLOCKER_OPENPORT_COMMENT_MARKER,
+
+            b"--jump", b"ACCEPT",
+        ])
+
+
 def enumerate_proxies():
     """
     Inspect the system's iptables configuration to determine what proxies
@@ -259,7 +281,7 @@ def enumerate_proxies():
     :see: :py:meth:`INetwork.enumerate_proxies` for parameter documentation.
     """
     proxies = []
-    for rule in get_flocker_rules():
+    for rule in get_flocker_rules(FLOCKER_PROXY_COMMENT_MARKER):
         proxies.append(
             Proxy(ip=rule.to_destination, port=rule.destination_port))
 
@@ -275,10 +297,14 @@ def enumerate_open_ports():
     """
     ports = []
     # TODO
+    for rule in get_flocker_rules(FLOCKER_OPENPORT_COMMENT_MARKER):
+        ports.append(
+            Port(port=rule.destination_port))
+
     return ports
 
 
-def get_flocker_rules():
+def get_flocker_rules(comment_marker):
     """
     Look up all of the iptables rules created/managed by flocker.
 
@@ -308,7 +334,7 @@ def get_flocker_rules():
 
         options = parse_iptables_options(shlex.split(line))
 
-        if options.comment == FLOCKER_PROXY_COMMENT_MARKER:
+        if options.comment == comment_marker:
             yield options
 
 
@@ -386,11 +412,10 @@ class HostNetwork(object):
         """
         Configure iptables to allow TCP traffic to the given port.
         """
-        pass
-        # return open_port(self.logger, port)
+        return open_port(self.logger, port)
 
     def delete_open_port(self, port):
-        pass
+        return delete_port(self.logger, port)
 
     enumerate_proxies = staticmethod(enumerate_proxies)
 
