@@ -11,7 +11,7 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
-from pyrsistent import pmap
+from pyrsistent import pmap, PRecord, field
 from pickle import loads, dumps
 
 from twisted.internet.defer import gatherResults, fail, succeed
@@ -348,13 +348,15 @@ class SetProxies(object):
 
 
 @implementer(IStateChange)
-@attributes(["ports"])
-class OpenPorts(object):
+class OpenPorts(PRecord):
     """
     Set the ports which will have the firewall opened.
 
     :ivar ports: A collection of ``Port`` objects.
     """
+
+    ports = field(type=Port)
+
     def run(self, deployer):
         results = []
         # XXX: The proxy manipulation operations are blocking. Convert to a
