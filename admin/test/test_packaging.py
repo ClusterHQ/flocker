@@ -936,6 +936,8 @@ class OmnibusPackageBuilderTests(TestCase):
                     links=[
                         (FilePath('/opt/flocker/bin/flocker-deploy'),
                          flocker_cli_path),
+                        (FilePath('/opt/flocker/bin/flocker'),
+                         flocker_cli_path),
                     ]
                 ),
                 BuildPackage(
