@@ -148,10 +148,13 @@ class Cluster(object):
             request = self.datasets_state()
 
             def got_body(body):
-                # Current state listing includes bogus metadata
-                # https://clusterhq.atlassian.net/browse/FLOC-1386
+                # State listing doesn't have metadata or deleted, but does
+                # have unpredictable path.
                 expected_dataset = dataset_properties.copy()
-                expected_dataset[u"metadata"].clear()
+                del expected_dataset[u"metadata"]
+                del expected_dataset[u"deleted"]
+                for dataset in body:
+                    dataset.pop("path")
                 return expected_dataset in body
             request.addCallback(got_body)
             return request

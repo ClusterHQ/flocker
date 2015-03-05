@@ -1143,14 +1143,14 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 running=[],
                 not_running=[],
-                manifestations={expected_manifestation}
+                manifestations={expected_manifestation},
+                paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
             )
         )
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata={},
-            deleted=False,
+            path=u"/path/dataset",
         )
         response = [expected_dict]
         return self.assertResult(
@@ -1175,7 +1175,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname1,
                 running=[],
                 not_running=[],
-                manifestations={expected_manifestation1}
+                manifestations={expected_manifestation1},
+                paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
             )
         )
         self.cluster_state_service.update_node_state(
@@ -1183,20 +1184,19 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname2,
                 running=[],
                 not_running=[],
-                manifestations={expected_manifestation2}
+                manifestations={expected_manifestation2},
+                paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
             )
         )
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
             primary=expected_hostname1,
-            metadata={},
-            deleted=False,
+            path=u"/aa",
         )
         expected_dict2 = dict(
             dataset_id=expected_dataset2.dataset_id,
             primary=expected_hostname2,
-            metadata={},
-            deleted=False,
+            path=u"/bb",
         )
         response = [expected_dict1, expected_dict2]
         return self.assertResultItems(

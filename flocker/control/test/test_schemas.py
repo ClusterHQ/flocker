@@ -28,9 +28,10 @@ VersionsTests = build_schema_test(
     ],
 )
 
-DatasetsSchemaTests = build_schema_test(
-    name="DatasetsSchemaTests",
-    schema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+ConfigurationDatasetsSchemaTests = build_schema_test(
+    name="ConfigurationDatasetsSchemaTests",
+    schema={'$ref':
+            '/v1/endpoints.json#/definitions/configuration_dataset'},
     schema_store=SCHEMAS,
     failing_instances=[
         # wrong type for dataset_id
@@ -87,7 +88,7 @@ DatasetsSchemaTests = build_schema_test(
          u"dataset_id": u"x" * 36},
 
         # wrong type for deleted
-        {u"primary": u"10.0.0.257",
+        {u"primary": u"10.0.0.1",
          u"deleted": u"hello"},
     ],
 
@@ -119,9 +120,60 @@ DatasetsSchemaTests = build_schema_test(
     ]
 )
 
-DatasetsArrayTests = build_schema_test(
-    name="DatasetsArrayTests",
-    schema={'$ref': '/v1/endpoints.json#/definitions/datasets_array'},
+StateDatasetsArraySchemaTests = build_schema_test(
+    name="StateDatasetsArraySchemaTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/state_datasets_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # not an array
+        {}, u"lalala", 123,
+
+        # missing primary
+        [{u"path": u"/123",
+          u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
+
+        # missing dataset_id
+        [{u"primary": u"10.0.0.1",
+          u"path": u"/123"}],
+
+        # wrong type for path
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36,
+          u"path": 123}],
+
+        # missing path
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36}],
+    ],
+
+    passing_instances=[
+        # only maximum_size is optional
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36,
+          u"path": u"/123"}],
+
+        # maximum_size is integer
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36,
+          u"path": u"/123",
+          u"maximum_size": 1024 * 1024 * 64}],
+
+        # multiple entries:
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36,
+          u"path": u"/123"},
+         {u"primary": u"10.0.0.1",
+          u"dataset_id": u"y" * 36,
+          u"path": u"/123",
+          u"maximum_size": 1024 * 1024 * 64}],
+    ]
+)
+
+ConfigurationDatasetsArrayTests = build_schema_test(
+    name="ConfigurationDatasetsArrayTests",
+    schema={'$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets_array'},
     schema_store=SCHEMAS,
     failing_instances=[
         # Incorrect type

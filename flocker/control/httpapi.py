@@ -95,7 +95,8 @@ class DatasetAPIUserV1(object):
     @structured(
         inputSchema={},
         outputSchema={
-            '$ref': '/v1/endpoints.json#/definitions/datasets_array',
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets_array',
         },
         schema_store=SCHEMAS,
     )
@@ -122,8 +123,10 @@ class DatasetAPIUserV1(object):
         ]
     )
     @structured(
-        inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
-        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        inputSchema={'$ref':
+                     '/v1/endpoints.json#/definitions/configuration_dataset'},
+        outputSchema={'$ref':
+                      '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
     )
     def create_dataset_configuration(self, primary, dataset_id=None,
@@ -260,7 +263,8 @@ class DatasetAPIUserV1(object):
     )
     @structured(
         inputSchema={},
-        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        outputSchema={'$ref':
+                      '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
     )
     def delete_dataset(self, dataset_id):
@@ -314,8 +318,10 @@ class DatasetAPIUserV1(object):
         ]
     )
     @structured(
-        inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
-        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        inputSchema={'$ref':
+                     '/v1/endpoints.json#/definitions/configuration_dataset'},
+        outputSchema={'$ref':
+                      '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
     )
     def update_dataset(self, dataset_id, primary=None):
@@ -388,7 +394,7 @@ class DatasetAPIUserV1(object):
     @structured(
         inputSchema={},
         outputSchema={
-            '$ref': '/v1/endpoints.json#/definitions/datasets_array'
+            '$ref': '/v1/endpoints.json#/definitions/state_datasets_array'
             },
         schema_store=SCHEMAS
     )
@@ -399,7 +405,14 @@ class DatasetAPIUserV1(object):
         :return: A ``list`` containing all datasets in the cluster.
         """
         deployment = self.cluster_state_service.as_deployment()
-        return list(datasets_from_deployment(deployment))
+        datasets = list(datasets_from_deployment(deployment))
+        for dataset in datasets:
+            dataset[u"path"] = self.cluster_state_service.manifestation_path(
+                dataset[u"primary"], dataset[u"dataset_id"]).path.decode(
+                    "utf-8")
+            del dataset[u"metadata"]
+            del dataset[u"deleted"]
+        return datasets
 
 
 def manifestations_from_deployment(deployment, dataset_id):
@@ -447,14 +460,14 @@ def datasets_from_deployment(deployment):
 def api_dataset_from_dataset_and_node(dataset, node_hostname):
     """
     Return a dataset dict which conforms to
-    ``/v1/endpoints.json#/definitions/datasets_array``
+    ``/v1/endpoints.json#/definitions/configuration_datasets_array``
 
     :param Dataset dataset: A dataset present in the cluster.
     :param unicode node_hostname: Hostname of the primary node for the
         `dataset`.
     :return: A ``dict`` containing the dataset information and the
         hostname of the primary node, conforming to
-        ``/v1/endpoints.json#/definitions/datasets_array``.
+        ``/v1/endpoints.json#/definitions/configuration_datasets_array``.
     """
     result = dict(
         dataset_id=dataset.dataset_id,
