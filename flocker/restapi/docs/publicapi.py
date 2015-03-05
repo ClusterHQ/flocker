@@ -124,18 +124,35 @@ def _parseSchema(schema, schema_store):
         attr['required'] = property in schema.get('required', [])
         attr['type'] = propSchema['type']
 
-    with resolver.resolving(schema[u'$ref']) as schema:
-        if schema[u'type'] != u'object':
-            raise Exception('Non-object top-level definitions not supported.')
-
+    def fill_in_result(object_schema):
         result['properties'] = {}
-        for property, propSchema in schema[u'properties'].iteritems():
+        for property, propSchema in object_schema[u'properties'].iteritems():
             attr = result['properties'][property] = {}
             if "$ref" in propSchema:
                 with resolver.resolving(propSchema['$ref']) as propSchema:
                     fill_in_attribute(attr, propSchema)
             else:
                 fill_in_attribute(attr, propSchema)
+
+    with resolver.resolving(schema[u'$ref']) as schema:
+        if schema[u"type"] == u"object":
+            result["type"] = "object"
+            fill_in_result(schema)
+        elif schema[u"type"] == u"array":
+            result["type"] = "array"
+            # Assume children of array are objects, and there's only one
+            # kind allowed.  Super fragile...
+            child_schema = schema[u"items"]
+            if child_schema.get("properties"):
+                fill_in_result(child_schema)
+            else:
+                with resolver.resolving(
+                        child_schema["oneOf"][0]["$ref"]) as child_schema:
+                    fill_in_result(child_schema)
+        else:
+            raise Exception(
+                'Non-object/array top-level definitions not supported.')
+
     return result
 
 
@@ -210,14 +227,20 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     return result
 
 
-def _formatSchema(data, param):
+def _formatSchema(data, incoming):
     """
     Generate the rst associated to a JSON schema.
 
-    @param data: See L{inspectRoute}.
-    @param param: rst entity to use for JSON properties.
-    @type param: L{str}
+    :param data: See L{inspectRoute}.
+    :param bool incoming: If True, this is request parameter, otherwise
+        this is response.
     """
+    if incoming:
+        param = "<json"
+    else:
+        param = ">json"
+    if data["type"] == "array":
+        param += "arr"
     for property, attr in sorted(data[u'properties'].iteritems()):
         if attr['required']:
             required = '*(required)* '
@@ -331,13 +354,13 @@ def _formatRouteBody(data, schema_store):
     if 'input' in data:
         # <json is what sphinxcontrib-httpdomain wants to call "json in a
         # request body"
-        for line in _formatSchema(data['input'], '<json'):
+        for line in _formatSchema(data['input'], True):
             yield line
 
     if 'output' in data:
         # >json is what sphinxcontrib-httpdomain wants to call "json in a
         # response body"
-        for line in _formatSchema(data['output'], '>json'):
+        for line in _formatSchema(data['output'], False):
             yield line
 
 
