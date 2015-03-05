@@ -5,6 +5,7 @@ Generate a Flocker package that can be deployed onto cluster nodes.
 """
 
 import os
+import platform
 from setuptools import setup, find_packages
 
 import versioneer
@@ -32,6 +33,50 @@ if os.path.abspath(__file__).split(os.path.sep)[1] == 'vagrant':
 
 with open("README.rst") as readme:
     description = readme.read()
+
+dev_requirements = [
+    # flake8 is pretty critical to have around to help point out
+    # obvious mistakes. It depends on PEP8, pyflakes and mccabe.
+    "pyflakes==0.8.1",
+    "pep8==1.5.7",
+    "mccabe==0.2.1",
+    "flake8==2.2.0",
+
+    # Run the test suite:
+    "tox==1.7.1",
+
+    # versioneer is necessary in order to update (but *not* merely to
+    # use) the automatic versioning tools.
+    "versioneer==0.10",
+
+    # Some of the tests use Conch:
+    "PyCrypto==2.6.1",
+    "pyasn1==0.1.7",
+
+    # The acceptance tests interact with MongoDB
+    "pymongo>=2.7.2",
+
+    # The acceptance tests interact with PostgreSQL
+    "pg8000==1.10.1",
+
+    # The acceptance tests interact with MySQL
+    "PyMySQL==0.6.2",
+
+    # The acceptance tests interact with elasticsearch
+    "elasticsearch==1.2.0",
+
+    # The acceptance tests interact with Kibana via WebKit
+    "selenium==2.44.0",
+
+    # The cloud acceptance test runner needs these
+    "fabric==1.10.0",
+    "apache-libcloud==0.16.0",
+]
+
+# The test suite uses network namespaces
+# nomenclature can only be installed on Linux
+if platform.system() == 'Linux':
+    dev_requirements.append("nomenclature >= 0.1.0")
 
 setup(
     # This is the human-targetted name of the software being packaged.
@@ -81,6 +126,7 @@ setup(
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
             'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
+            'flocker = flocker.cli.script:flocker_cli_main',
         ],
     },
 
@@ -104,7 +150,7 @@ setup(
         "docker-py == 0.7.1",
         "jsonschema == 2.4.0",
         "klein == 0.2.3",
-        "pyrsistent == 0.7.0",
+        "pyrsistent == 0.9.0",
         ],
 
     extras_require={
@@ -119,47 +165,7 @@ setup(
             "sphinxcontrib-httpdomain==1.3.0",
             ],
         # This extra is for developers who need to work on Flocker itself.
-        "dev": [
-            # flake8 is pretty critical to have around to help point out
-            # obvious mistakes. It depends on PEP8, pyflakes and mccabe.
-            "pyflakes==0.8.1",
-            "pep8==1.5.7",
-            "mccabe==0.2.1",
-            "flake8==2.2.0",
-
-            # Run the test suite:
-            "tox==1.7.1",
-
-            # versioneer is necessary in order to update (but *not* merely to
-            # use) the automatic versioning tools.
-            "versioneer==0.10",
-
-            # Some of the tests use Conch:
-            "PyCrypto==2.6.1",
-            "pyasn1==0.1.7",
-
-            # The test suite uses network namespaces
-            "nomenclature >= 0.1.0",
-
-            # The acceptance tests interact with MongoDB
-            "pymongo>=2.7.2",
-
-            # The acceptance tests interact with PostgreSQL
-            "pg8000==1.10.1",
-
-            # The acceptance tests interact with MySQL
-            "PyMySQL==0.6.2",
-
-            # The acceptance tests interact with elasticsearch
-            "elasticsearch==1.2.0",
-
-            # The acceptance tests interact with Kibana via WebKit
-            "selenium==2.44.0",
-
-            # The cloud acceptance test runner needs these
-            "fabric==1.10.0",
-            "apache-libcloud==0.16.0",
-            ],
+        "dev": dev_requirements,
 
         # This extra is for Flocker release engineers to set up their release
         # environment.

@@ -50,7 +50,8 @@ def build_pool(test_case):
                        FilePath(test_case.mktemp()))
 
 
-class IStoragePoolTests(make_istoragepool_tests(build_pool)):
+class IStoragePoolTests(make_istoragepool_tests(
+        build_pool, lambda fs: ZFSSnapshots(reactor, fs))):
     """
     ``IStoragePoolTests`` for ZFS storage pool.
     """

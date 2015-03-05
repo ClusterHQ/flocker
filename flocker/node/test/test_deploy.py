@@ -4,12 +4,14 @@
 Tests for ``flocker.node._deploy``.
 """
 
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 from zope.interface import implementer
 
-from pyrsistent import pmap
+from eliot.testing import validate_logging
+
+from pyrsistent import pmap, pset
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
@@ -22,7 +24,11 @@ from ...control import (
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name, IDeployer)
+    ResizeDataset, _link_environment, _to_volume_name, IDeployer,
+    DeleteDataset,
+)
+from ...testtools import CustomException
+from .. import _deploy
 from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -136,6 +142,10 @@ HandoffVolumeIStateChangeTests = make_istatechange_tests(
 PushVolumeIStateChangeTests = make_istatechange_tests(
     PushDataset, dict(dataset=1, hostname=b"123"),
     dict(dataset=2, hostname=b"123"))
+DeleteDatasetTests = make_istatechange_tests(
+    DeleteDataset,
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))),
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))))
 
 
 NOT_CALLED = object()
@@ -1097,7 +1107,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
         result = self.successResultOf(d)
-        result.not_running.sort()
 
         self.assertEqual(NodeState(hostname=u'example.com',
                                    running=[], not_running=applications),
@@ -1158,18 +1167,20 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
-    def test_discover_unattached_datasets(self):
+    DATASET_ID = u"uuid123"
+    DATASET_ID2 = u"uuid456"
+
+    def _setup_datasets(self):
         """
-        Datasets that are not attached to any applications are added to
-        ``NodeState.other_manifestations``.
+        Setup a ``P2PNodeDeployer`` that will discover two manifestations.
+
+        :return: Suitably configured ``P2PNodeDeployer``.
         """
-        DATASET_ID = u"uuid123"
-        DATASET_ID2 = u"uuid456"
         volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID))
         ))
         self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID2))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID2))
         ))
 
         unit1 = Unit(name=u'site-example.com',
@@ -1185,19 +1196,47 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1}
 
         fake_docker = FakeDockerClient(units=units)
-        api = P2PNodeDeployer(
+        return P2PNodeDeployer(
             u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
+
+    def test_discover_datasets(self):
+        """
+        All datasets on the node are added to ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
         d = api.discover_local_state()
 
         self.assertEqual(
-            frozenset([Manifestation(
-                dataset=Dataset(dataset_id=DATASET_ID2),
-                primary=True)]),
-            self.successResultOf(d).other_manifestations)
+            pset(
+                {Manifestation(
+                    dataset=Dataset(
+                        dataset_id=self.DATASET_ID,
+                        metadata=pmap({u"name": u"site-example.com"})),
+                    primary=True),
+                 Manifestation(dataset=Dataset(dataset_id=self.DATASET_ID2),
+                               primary=True)}),
+            self.successResultOf(d).manifestations)
+
+    def test_discover_manifestation_paths(self):
+        """
+        All datasets on the node have their paths added to
+        ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
+        d = api.discover_local_state()
+
+        self.assertEqual(
+            {self.DATASET_ID:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID)).get_filesystem().get_path(),
+             self.DATASET_ID2:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID2)).get_filesystem().get_path()},
+            self.successResultOf(d).paths)
 
 
 # A deployment with no information:
@@ -1470,6 +1509,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node = Node(
             hostname=hostname,
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
 
         # This completely expresses the configuration for a cluster of one node
@@ -1492,6 +1533,95 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 hostname=hostname)])])
         self.assertEqual(expected, changes)
 
+    def test_dataset_deleted(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        dataset must be deleted if the desired configuration specifies
+        that the dataset has the ``deleted`` attribute set to True.
+
+        Note that for now this happens regardless of whether the node
+        actually has the dataset, since the deployer doesn't know about
+        replicas... see FLOC-1240.
+        """
+        docker = FakeDockerClient(units={})
+        node = Node(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
+        self.assertEqual(expected, changes)
+
+    def test_deletion_after_application_stop(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` ensures dataset
+        deletion happens after application stop phase to make sure nothing
+        is using the deleted dataset.
+        """
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    container_image=u'flocker/wordpress:v1.0.0',
+                    activation_state=u'active')
+
+        docker = FakeDockerClient(units={unit.name: unit})
+        node = Node(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        to_stop = StopApplication(application=Application(
+            name=unit.name, image=DockerImage.from_string(
+                unit.container_image)))
+        expected = Sequentially(changes=[
+            InParallel(changes=[to_stop]),
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
+        self.assertEqual(expected, changes)
+
     def test_volume_wait(self):
         """
         ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
@@ -1510,6 +1640,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         another_node = Node(
             hostname=u"node2.example.com",
             applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -1524,7 +1655,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
             Node(hostname=another_node.hostname,
                  applications=frozenset()),
         }))
@@ -1563,6 +1696,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1587,7 +1722,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset()),
             Node(hostname=another_node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
         }))
 
         changes = api.calculate_necessary_state_changes(
@@ -1639,10 +1776,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
         desired_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1698,10 +1839,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+            manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                            MANIFESTATION_WITH_SIZE},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1772,6 +1916,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(
                 hostname=u"node1.example.com",
                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
             Node(
                 hostname=u"node2.example.com",
@@ -1782,6 +1927,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(
                 hostname=u"node2.example.com",
                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
             Node(
                 hostname=u"node1.example.com",
@@ -1848,6 +1995,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         another_node = Node(
             hostname=u"node2.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
 
         current = Deployment(nodes=frozenset([node, another_node]))
@@ -1860,7 +2008,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+                 manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                 MANIFESTATION_WITH_SIZE}),
             Node(hostname=another_node.hostname,
                  applications=frozenset()),
         }))
@@ -1987,10 +2137,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
             applications=frozenset({discovered_another_application}),
+            manifestations={volume2.manifestation.dataset_id:
+                            volume2.manifestation},
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -2011,9 +2164,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # We're swapping the location of applications:
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({another_application})),
+                 applications=frozenset({another_application}),
+                 manifestations={volume2.manifestation.dataset_id:
+                                 volume2.manifestation}),
             Node(hostname=another_node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
         }))
 
         changes = api.calculate_necessary_state_changes(
@@ -2082,7 +2239,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({new_postgres_app})),
+                 applications=frozenset({new_postgres_app}),
+                 manifestations={
+                     new_postgres_app.volume.manifestation.dataset_id:
+                     new_postgres_app.volume.manifestation}),
         }))
         result = api.calculate_necessary_state_changes(
             self.successResultOf(api.discover_local_state()),
@@ -2298,116 +2458,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         self.assertEqual(expected, result)
 
-    def test_dataset_id_populated(self):
-        """
-        If one of ``Dataset`` objects in the desired configuration is missing
-        its dataset ID, and a ``Dataset`` with matching name exists in
-        current configuration, the desired ``Dataset`` has its ID set to
-        the matching ID.
-
-        This is part of supporting configuration files that don't specify
-        dataset IDs.
-        """
-        volume_service = create_volume_service(self)
-        volume = volume_service.get(_to_volume_name(DATASET_ID),
-                                    size=VolumeSize(
-                                        maximum_size=1024 * 1024 * 100))
-        self.successResultOf(volume_service.create(volume))
-
-        unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            container_name=APPLICATION_WITH_VOLUME_NAME,
-            activation_state=u'inactive',
-            container_image=APPLICATION_WITH_VOLUME_IMAGE,
-            volumes=frozenset([DockerVolume(
-                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                node_path=volume.get_filesystem().get_path())]),
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
-        desired_application = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                manifestation=Manifestation(dataset=dataset, primary=True),
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-            ),
-        )
-        desired = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([desired_application])
-            )
-        ]))
-        actual = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([APPLICATION_WITH_VOLUME_SIZE])
-            )
-        ]))
-
-        api = P2PNodeDeployer(u"node", volume_service,
-                              docker_client=docker,
-                              network=make_memory_network())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()), desired, actual)
-
-        # Desired configuration mentions dataset by name, but not the ID. It
-        # indicates the dataset should not have a maximum size.
-        # The actual state knows that the specific dataset with that same name
-        # has a maximum size.
-        # If we get a resize that means the code figured out that the
-        # dataset only mentioned by name in desired config is the same as
-        # the one with a specific dataset ID in the actual cluster state.
-        self.assertEqual(result.changes[0].changes[0],
-                         ResizeDataset(
-                             dataset=APPLICATION_WITH_VOLUME.volume.dataset))
-
-    def test_dataset_id_generated(self):
-        """
-        If one of ``Dataset`` objects in the desired configuration is missing
-        its dataset ID, and no ``Dataset`` with matching name exists in
-        current configuration, a new dataset ID will be generated.
-
-        This is part of supporting configuration files that don't specify
-        dataset IDs.
-        """
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
-        desired_application = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                manifestation=Manifestation(dataset=dataset, primary=True),
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-            ),
-        )
-        desired = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([desired_application])
-            )
-        ]))
-        actual = Deployment(nodes=frozenset())
-        api = P2PNodeDeployer(u"node", create_volume_service(self),
-                              docker_client=FakeDockerClient(),
-                              network=make_memory_network())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()), desired, actual)
-
-        # CreateVolume:
-        dataset = result.changes[0].changes[0].dataset
-        # StartApplication:
-        dataset2 = result.changes[1].changes[0].application.volume.dataset
-        # New UUID was generated, but only once:
-        self.assertEqual(UUID(dataset.dataset_id), UUID(dataset2.dataset_id))
-
 
 class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         SynchronousTestCase):
@@ -2437,7 +2487,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         node = Node(
             hostname=hostname,
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired = Deployment(nodes=frozenset({node}))
 
@@ -2466,7 +2516,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
 
         current = Deployment(nodes=frozenset([node, another_node]))
@@ -2479,7 +2529,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 other_manifestations=frozenset({MANIFESTATION})),
+                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION}),
             Node(hostname=another_node.hostname),
         }))
 
@@ -2506,7 +2556,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -2527,7 +2577,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname),
             Node(hostname=another_node.hostname,
-                 other_manifestations=frozenset({MANIFESTATION}))}))
+                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION})}))
 
         changes = api.calculate_necessary_state_changes(
             self.successResultOf(api.discover_local_state()),
@@ -2558,7 +2608,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         current_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = current_node
 
@@ -2595,11 +2645,12 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         current_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset([MANIFESTATION]),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset([MANIFESTATION_WITH_SIZE]),
+            manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                            MANIFESTATION_WITH_SIZE},
         )
 
         current = Deployment(nodes=frozenset([current_node]))
@@ -2642,7 +2693,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         current_nodes = [
             Node(
                 hostname=u"node1.example.com",
-                other_manifestations=frozenset([MANIFESTATION]),
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
             Node(
                 hostname=u"node2.example.com",
@@ -2654,7 +2705,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
             ),
             Node(
                 hostname=u"node2.example.com",
-                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
         ]
 
@@ -2706,7 +2758,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         current_nodes = [
             Node(
                 hostname=u"node1.example.com",
-                other_manifestations=frozenset([MANIFESTATION]),
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
             Node(
                 hostname=u"node2.example.com",
@@ -2719,7 +2771,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
             ),
             Node(
                 hostname=u"node2.example.com",
-                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
         ]
 
@@ -2760,7 +2813,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         current_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = current_node
 
@@ -3051,13 +3104,13 @@ class ChangeNodeStateTests(SynchronousTestCase):
         self.assertEqual(arguments, [local, desired, state])
 
 
-class CreateVolumeTests(SynchronousTestCase):
+class CreateDatasetTests(SynchronousTestCase):
     """
-    Tests for ``CreateVolume``.
+    Tests for ``CreateDataset``.
     """
     def test_creates(self):
         """
-        ``CreateVolume.run()`` creates the named volume.
+        ``CreateDataset.run()`` creates the named volume.
         """
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
@@ -3074,7 +3127,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_creates_respecting_size(self):
         """
-        ``CreateVolume.run()`` creates the named volume with a ``VolumeSize``
+        ``CreateDataset.run()`` creates the named volume with a ``VolumeSize``
         instance respecting the maximum_size passed in from the
         ``AttachedVolume``.
         """
@@ -3101,7 +3154,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_return(self):
         """
-        ``CreateVolume.run()`` returns a ``Deferred`` that fires with the
+        ``CreateDataset.run()`` returns a ``Deferred`` that fires with the
         created volume.
         """
         deployer = P2PNodeDeployer(
@@ -3116,6 +3169,55 @@ class CreateVolumeTests(SynchronousTestCase):
             _to_volume_name(volume.dataset.dataset_id)))
 
 
+class DeleteDatasetTests(TestCase):
+    """
+    Tests for ``DeleteDataset``.
+    """
+    def setUp(self):
+        self.volume_service = create_volume_service(self)
+        self.deployer = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+
+        id1 = unicode(uuid4())
+        self.volume1 = self.volume_service.get(_to_volume_name(id1))
+        id2 = unicode(uuid4())
+        self.volume2 = self.volume_service.get(_to_volume_name(id2))
+        self.successResultOf(self.volume_service.create(self.volume1))
+        self.successResultOf(self.volume_service.create(self.volume2))
+
+    def test_deletes(self):
+        """
+        ``DeleteDataset.run()`` deletes volumes whose ``dataset_id`` matches
+        the one the instance was created with.
+        """
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
+
+        self.assertEqual(
+            list(self.successResultOf(self.volume_service.enumerate())),
+            [self.volume1])
+
+    @validate_logging(
+        lambda test, logger: logger.flush_tracebacks(CustomException))
+    def test_failed_create(self, logger):
+        """
+        Failed deletions of volumes does not result in a failed result from
+        ``DeleteDataset.run()``.
+
+        The traceback is, however, logged.
+        """
+        self.patch(self.volume_service.pool, "destroy",
+                   lambda fs: fail(CustomException()))
+        self.patch(_deploy, "_logger", logger)
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
+
+
 class ResizeVolumeTests(TestCase):
     """
     Tests for ``ResizeVolume``.
@@ -3126,7 +3228,7 @@ class ResizeVolumeTests(TestCase):
         """
         size = VolumeSize(maximum_size=1234567890)
         volume_service = create_volume_service(self)
-        volume_name = VolumeName(namespace=u"default", dataset_id=b"myvol")
+        volume_name = VolumeName(namespace=u"default", dataset_id=u"myvol")
         volume = volume_service.get(volume_name)
         d = volume_service.create(volume)
 

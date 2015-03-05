@@ -7,6 +7,7 @@ Tests for ``flocker.control._clusterstate``.
 from uuid import uuid4
 
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
 
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -54,13 +55,14 @@ class ClusterStateServiceTests(SynchronousTestCase):
         service = self.service()
         service.update_node_state(
             NodeState(hostname=u"host2", running=[], not_running=[],
-                      other_manifestations=frozenset([MANIFESTATION])))
+                      manifestations=frozenset([MANIFESTATION])))
         self.assertEqual(service.as_deployment(),
                          Deployment(nodes=frozenset([Node(
                              hostname=u"host2",
                              applications=frozenset(),
-                             other_manifestations=frozenset(
-                                 [MANIFESTATION]))])))
+                             manifestations={
+                                 MANIFESTATION.dataset_id: MANIFESTATION},
+                         )])))
 
     def test_update(self):
         """
@@ -96,3 +98,17 @@ class ClusterStateServiceTests(SynchronousTestCase):
                                  hostname=u"host2",
                                  applications=frozenset([APP2])),
                          ])))
+
+    def test_manifestation_path(self):
+        """
+        ``manifestation_path`` returns the path on the filesystem where the
+        given dataset exists.
+        """
+        service = self.service()
+        service.update_node_state(NodeState(hostname=u"host1",
+                                            manifestations=[MANIFESTATION],
+                                            paths={MANIFESTATION.dataset_id:
+                                                   FilePath(b"/xxx/yyy")}))
+        self.assertEqual(
+            service.manifestation_path(u"host1", MANIFESTATION.dataset_id),
+            FilePath(b"/xxx/yyy"))
