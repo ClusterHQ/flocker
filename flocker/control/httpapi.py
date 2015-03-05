@@ -408,6 +408,48 @@ class DatasetAPIUserV1(object):
             del dataset[u"deleted"]
         return datasets
 
+    @app.route("/configuration/containers", methods=['POST'])
+    @user_documentation(
+        """
+        Create and start a new container.
+        """,
+        examples=[
+            u"create container",
+            u"create container with duplicate name",
+        ]
+    )
+    @structured(
+        inputSchema={
+            '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
+        outputSchema={
+            '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
+        schema_store=SCHEMAS
+    )
+    def create_container_configuration(self, hostname, name, image):
+        """
+        Create a new dataset in the cluster configuration.
+
+        :param unicode hostname: The address of the node on which the container
+            will run.
+
+        :param unicode name: A unique identifier for the container.
+
+        :param unicode image: The name of the Docker image to use for the
+            container.
+
+        :return: A ``EndpointResponse`` describing the container which has
+            been added to the cluster configuration.
+        """
+        # Check if container by this name already exists, if it does
+        # return error.
+
+        # Find node by hostname, creating new one if it doesn't exist
+        # (code can be shared with create_container_configuration).
+
+        # Create Application object, add to Deployment, save.
+
+        # Return passed in dictionary with CREATED response code.
+
 
 def manifestations_from_deployment(deployment, dataset_id):
     """
