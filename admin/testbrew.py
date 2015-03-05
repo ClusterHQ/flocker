@@ -15,8 +15,6 @@ The guest virtual machine must have:
         * Homebrew installed and available
 """
 
-from _preamble import TOPLEVEL, BASEPATH
-
 import os
 import sys
 import urllib2
@@ -43,8 +41,8 @@ VM_HOST = "10.0.126.88"
 
 
 class TestBrewOptions(Options):
-    description = ("Start a OS X Virtual Machine and test a brew recipe "
-                   "installatiion.")
+    description = ("Start a VMWare OS X VM and test a brew recipe "
+                   "installation.")
 
     optParameters = [
         ['vmhost', 'h', VM_HOST,
@@ -57,7 +55,7 @@ class TestBrewOptions(Options):
          'Snapshot identifier for the Virtual Machine'],
     ]
 
-    synopsis = ('Usage: testbrew.py <recipe URL> [--vmhost <host>] '
+    synopsis = ('Usage: test-brew-recipe <recipe URL> [--vmhost <host>] '
                 '[--vmuser <username>] '
                 '[--vmpath <path>] '
                 '[--vmsnapshot <name>]')
@@ -72,13 +70,11 @@ class TestBrewOptions(Options):
             self['recipe_url'] = args[0]
 
 
-def main():
+def main(args):
     try:
-        # The following line is present just to prevent flake8 warnings.
-        BASEPATH, TOPLEVEL
         options = TestBrewOptions()
         try:
-            options.parseOptions()
+            options.parseOptions(args)
         except UsageError as e:
             sys.stderr.write("Error: {error}.\n".format(error=str(e)))
             sys.exit(1)
