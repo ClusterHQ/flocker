@@ -19,7 +19,7 @@ from twisted.python.filepath import FilePath
 
 from ._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES, OPEN_PORT
 from ._interfaces import INetwork
-from ._model import Proxy
+from ._model import Proxy, Port
 
 FLOCKER_PROXY_COMMENT_MARKER = b"flocker create_proxy_to"
 FLOCKER_OPENPORT_COMMENT_MARKER = b"flocker open_port"
@@ -164,9 +164,6 @@ def create_proxy_to(logger, ip, port):
             b"--destination", encoded_ip,
             b"--protocol", b"tcp", b"--destination-port", encoded_port,
 
-            # Tag it as a flocker-created rule so we can recognize it later.
-            b"--match", b"comment", b"--comment", FLOCKER_PROXY_COMMENT_MARKER,
-
             b"--jump", b"ACCEPT",
         ])
 
@@ -233,18 +230,11 @@ def delete_proxy(logger, proxy):
          b"--protocol", b"tcp", b"--destination-port", port,
          b"--match", b"addrtype", b"--dst-type", b"LOCAL",
          b"--jump", b"DNAT", b"--to-destination", ip],
-        [
-            b"--table", b"filter",
-            b"--delete", b"FORWARD",
-
-            b"--destination", ip,
-            b"--protocol", b"tcp", b"--destination-port", port,
-
-            # Tag it as a flocker-created rule so we can recognize it later.
-            b"--match", b"comment", b"--comment", FLOCKER_PROXY_COMMENT_MARKER,
-
-            b"--jump", b"ACCEPT",
-        ],
+        [b"--table", b"filter",
+         b"--delete", b"FORWARD",
+         b"--destination", ip,
+         b"--protocol", b"tcp", b"--destination-port", port,
+         b"--jump", b"ACCEPT"],
     ]
 
     with DELETE_PROXY(logger, target_ip=proxy.ip, target_port=proxy.port):
@@ -368,16 +358,20 @@ def parse_iptables_options(argv):
     try:
         destination_port_index = argv.index(b"--dport")
         destination_port = int(argv[destination_port_index + 1])
+    except (IndexError, ValueError):
+        destination_port = None
 
+    try:
         to_destination_index = argv.index(b"--to-destination")
         to_destination = IPAddress(argv[to_destination_index + 1])
+    except (IndexError, ValueError):
+        to_destination = None
 
-        # Find the comment last so that the other two attributes always have a
-        # value if the comment has a value.
+    try:
         comment_index = argv.index(b"--comment")
         comment = argv[comment_index + 1]
     except (IndexError, ValueError):
-        pass
+        comment = None
 
     return RuleOptions(
         comment=comment,
