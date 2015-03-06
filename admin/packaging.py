@@ -420,6 +420,7 @@ class GetPackageVersion(object):
     'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
     'architecture', 'description', 'dependencies', 'category',
     Attribute('directories', default_factory=list),
+    Attribute('after_install', default_value=None),
 ])
 class BuildPackage(object):
     """
@@ -452,23 +453,7 @@ class BuildPackage(object):
     def run(self):
         architecture = self.architecture
 
-        depends_arguments = []
-        for requirement in self.dependencies:
-            depends_arguments.extend(
-                ['--depends', requirement.format(self.package_type)])
-
-        for directory in self.directories:
-            depends_arguments.extend(
-                ['--directories', directory.path])
-
-        path_arguments = []
-        for source_path, package_path in self.source_paths.items():
-            # Think of /= as a separate operator. It causes fpm to copy the
-            # content of the directory rather than the directory its self.
-            path_arguments.append(
-                "%s/=%s" % (source_path.path, package_path.path))
-
-        run_command([
+        command = [
             'fpm',
             '--force',
             '-s', 'dir',
@@ -486,8 +471,27 @@ class BuildPackage(object):
             '--architecture', architecture,
             '--description', self.description,
             '--category', self.category,
-            ] + depends_arguments + path_arguments
-        )
+        ]
+
+        for requirement in self.dependencies:
+            command.extend(
+                ['--depends', requirement.format(self.package_type)])
+
+        for directory in self.directories:
+            command.extend(
+                ['--directories', directory.path])
+
+        if self.after_install is not None:
+            command.extend(
+                ['--after-install', self.after_install.path])
+
+        for source_path, package_path in self.source_paths.items():
+            # Think of /= as a separate operator. It causes fpm to copy the
+            # content of the directory rather than the directory its self.
+            command.append(
+                "%s/=%s" % (source_path.path, package_path.path))
+
+        run_command(command)
 
 
 @attributes(['package_version_step'])
@@ -567,6 +571,11 @@ IGNORED_WARNINGS = {
         'non-executable-script',
         'devel-file-in-non-devel-package',
         'unstripped-binary-or-object',
+
+        # Firewall and systemd configuration live in /usr/lib
+        'only-non-binary-in-usr-lib',
+        # We don't allow configuring ufw firewall applications.
+        'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
@@ -612,7 +621,11 @@ IGNORED_WARNINGS = {
         # Our omnibus packages are never going to be used by upstream so
         # there's no bug to close.
         # https://lintian.debian.org/tags/new-package-should-close-itp-bug.html
-        'new-package-should-close-itp-bug'
+        'new-package-should-close-itp-bug',
+
+        # We don't allow configuring ufw firewall applications.
+        ('file-in-etc-not-marked-as-conffile '
+         'etc/ufw/applications.d/flocker-control')
     ),
 }
 
@@ -718,7 +731,8 @@ class PACKAGE_NODE(PACKAGE):
 
 
 def omnibus_package_builder(
-        distribution, destination_path, package_uri, target_dir=None):
+        distribution, destination_path, package_uri,
+        package_files, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
     ``destination_path``, containing the package installed from ``package_uri``
@@ -741,6 +755,8 @@ def omnibus_package_builder(
         the resulting RPM file.
     :param Package package: A ``Package`` instance with a ``pip install``
         compatible package URI.
+    :param FilePath package_files: Directory containg system-level files
+        to be installed with packages.
     :param FilePath target_dir: An optional path in which to create the
         virtualenv from which the package will be generated. Default is a
         temporary directory created using ``mkdtemp``.
@@ -866,7 +882,15 @@ def omnibus_package_builder(
             BuildPackage(
                 package_type=distribution.package_type(),
                 destination_path=destination_path,
-                source_paths={flocker_node_path: FilePath("/usr/sbin")},
+                source_paths={
+                    flocker_node_path: FilePath("/usr/sbin"),
+                    # Fedora/CentOS firewall configuration
+                    package_files.child('firewalld-services'):
+                        FilePath("/usr/lib/firewalld/services/"),
+                    # Ubuntu firewall configuration
+                    package_files.child('ufw-applications.d'):
+                        FilePath("/etc/ufw/applications.d/"),
+                },
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
@@ -880,6 +904,7 @@ def omnibus_package_builder(
                 category=category,
                 dependencies=make_dependencies(
                     'node', rpm_version, distribution),
+                after_install=package_files.child('after-install.sh'),
             ),
             LintPackage(
                 package_type=distribution.package_type(),
@@ -1030,7 +1055,7 @@ class DockerBuildScript(object):
         """
         Check command line arguments and run the build steps.
 
-        :param top_level: ignored.
+        :param FilePath top_level: The top-level of the flocker repository.
         :param base_path: ignored.
         """
         options = DockerBuildOptions()
@@ -1046,6 +1071,7 @@ class DockerBuildScript(object):
             distribution=CURRENT_DISTRIBUTION,
             destination_path=options['destination-path'],
             package_uri=options['package-uri'],
+            package_files=top_level.descendant(['admin', 'package-files']),
         ).run()
 
 docker_main = DockerBuildScript().main
