@@ -17,8 +17,12 @@ def provision_aws(node, package_source, distribution):
     """
     Provision flocker on this node.
     """
+    username = {
+        'fedora-20': 'fedora',
+        'centos-7': 'centos',
+    }[distribution]
     run(
-        username='fedora',
+        username=username,
         address=node.address,
         commands=task_install_ssh_key(),
     )
