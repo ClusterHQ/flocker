@@ -18,7 +18,7 @@ from characteristic import attributes, Attribute
 
 from twisted.python.filepath import FilePath
 from pyrsistent import (
-    pmap, PRecord, field, PMap, PSet, pset, CheckedPSet, CheckedPMap
+    pmap, PRecord, field, PMap, PSet, pset, CheckedPSet, CheckedPMap, thaw
     )
 
 from zope.interface import Interface, implementer
@@ -369,14 +369,6 @@ class DatasetChanges(object):
     """
 
 
-def set_serializer(format, persistent_set):
-    """
-    Serializes a PSet.
-    """
-    from pyrsistent import thaw
-    return [thaw(i) for i in persistent_set]
-
-
 class _PathMap(CheckedPMap):
     """
     A mapping between dataset IDs and the paths where they are mounted.
@@ -386,6 +378,19 @@ class _PathMap(CheckedPMap):
     """
     __key_type__ = unicode
     __value_type__ = FilePath
+
+
+def pset_field(klass):
+    """
+    Create a ``field`` containing a ``CheckedPSet`` of the given type.
+    """
+    class TheSet(CheckedPSet):
+        __type__ = klass
+
+    def serializer(format, data):
+        return [thaw(o) for o in data]
+    return field(type=TheSet, initial=TheSet(), factory=TheSet.create,
+                 mandatory=True, serializer=serializer)
 
 
 class NodeState(PRecord):
@@ -409,20 +414,10 @@ class NodeState(PRecord):
         node. Maps ``dataset_id`` to a ``FilePath``.
     """
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    used_ports = field(type=PSet, initial=pset(), factory=pset,
-                       mandatory=True, serializer=set_serializer)
-    running = field(type=PSet, initial=pset(), factory=pset,
-                    mandatory=True, serializer=set_serializer)
-    not_running = field(type=PSet, initial=pset(), factory=pset,
-                        mandatory=True, serializer=set_serializer)
-
-    # XXX repetition can be removed via utility type factory:
-    class manifestation_set(CheckedPSet):
-        __type__ = Manifestation
-    manifestations = field(type=manifestation_set, initial=manifestation_set(),
-                           factory=manifestation_set.create,
-                           mandatory=True,
-                           serializer=lambda f, d: [i.serialize() for i in d])
+    used_ports = pset_field(int)
+    running = pset_field(Application)
+    not_running = pset_field(Application)
+    manifestations = pset_field(Manifestation)
     paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap.create,
                   mandatory=True)
 
