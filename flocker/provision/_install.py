@@ -294,3 +294,26 @@ def provision(distribution, package_source):
     commands += task_create_flocker_pool_file()
     commands += task_pull_docker_images()
     return commands
+
+
+def configure_cluster(control_node, agent_nodes):
+    """
+    Configure flocker-control and flocker-agent on a collection of nodes.
+
+    :param bytes control_node: The address of the control node.
+    :param list agent_nodes: List of addresses of agent nodes.
+    """
+    run(
+        username='root',
+        address=control_node,
+        commands=task_enable_flocker_control(),
+    )
+    for node in agent_nodes:
+        run(
+            username='root',
+            address=node,
+            commands=task_enable_flocker_agent(
+                node_name=node,
+                control_node=control_node,
+            ),
+        )
