@@ -8,7 +8,7 @@ set -e
 yum update -y
 # Install useful yum repos
 yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/epel/zfs-release$(rpm -E %dist).noarch.rpm
-yum install -y https://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+yum install -y epel-release
 
 # Install packages
 yum install -y \
