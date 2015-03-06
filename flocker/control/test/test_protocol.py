@@ -91,7 +91,7 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
 NODE_STATE = NodeState(hostname=u'node1.example.com',
                        running=[APP1], not_running=[APP2],
                        used_ports=[1, 2],
-                       other_manifestations=frozenset([MANIFESTATION]))
+                       manifestations=frozenset([MANIFESTATION]))
 
 
 class SerializationTests(SynchronousTestCase):
@@ -105,7 +105,8 @@ class SerializationTests(SynchronousTestCase):
         argument = NodeStateArgument()
         as_bytes = argument.toString(NODE_STATE)
         deserialized = argument.fromString(as_bytes)
-        self.assertEqual([bytes, NODE_STATE], [type(as_bytes), deserialized])
+        self.assertEqual([bytes, NODE_STATE],
+                         [type(as_bytes), deserialized])
 
     def test_deployment(self):
         """
@@ -212,8 +213,8 @@ class ControlAMPTests(SynchronousTestCase):
                 nodes=frozenset([
                     Node(hostname=u'node1.example.com',
                          applications=frozenset([APP1, APP2]),
-                         other_manifestations=frozenset(
-                             [MANIFESTATION]))])))
+                         manifestations={MANIFESTATION.dataset_id:
+                                         MANIFESTATION})])))
 
     def test_nodestate_notifies_all_connected(self):
         """

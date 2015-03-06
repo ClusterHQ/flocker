@@ -149,7 +149,8 @@ class ChangeStateScript(object):
 
     def main(self, reactor, options, volume_service):
         deployer = P2PNodeDeployer(
-            options['hostname'], volume_service, self._docker_client)
+            options['hostname'].decode("ascii"),
+            volume_service, self._docker_client)
         return change_node_state(deployer, options['deployment'],
                                  options['current'])
 
@@ -157,7 +158,8 @@ class ChangeStateScript(object):
 def flocker_changestate_main():
     return FlockerScriptRunner(
         script=VolumeScript(ChangeStateScript()),
-        options=ChangeStateOptions()
+        options=ChangeStateOptions(),
+        logging=False,
     ).main()
 
 
@@ -213,7 +215,8 @@ class ReportStateScript(object):
 def flocker_reportstate_main():
     return FlockerScriptRunner(
         script=VolumeScript(ReportStateScript()),
-        options=ReportStateOptions()
+        options=ReportStateOptions(),
+        logging=False,
     ).main()
 
 
@@ -253,7 +256,8 @@ class ZFSAgentScript(object):
     def main(self, reactor, options, volume_service):
         host = options["destination-host"]
         port = options["destination-port"]
-        deployer = P2PNodeDeployer(options["hostname"], volume_service)
+        deployer = P2PNodeDeployer(options["hostname"].decode("ascii"),
+                                   volume_service)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
         volume_service.setServiceParent(loop)

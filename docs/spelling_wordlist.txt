@@ -6,6 +6,7 @@ behaviour
 Btrfs
 bugfix
 Buildbot
+CentOS
 checksum
 chmod
 cli
@@ -68,3 +69,4 @@ workflow
 yml
 yourlaptop
 ZFS
+Zulip
