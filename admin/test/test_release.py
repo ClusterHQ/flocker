@@ -728,9 +728,17 @@ class UploadRPMsTests(TestCase):
                 },
             })
         scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
-        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-packages', target_key='fedora', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
+        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-packages', target_key='', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
+        self.assertEqual(
+            aws.s3_buckets['clusterhq-packages'], {
+                'index.html': '',
+                'en/index.html': '',
+                'en/latest/index.html': '',
+                'en/0.3.1/index.html': 'index-content',
+                'en/0.3.1/sub/index.html': 'sub-index-content',
+            })
 
-    def test_packages_updated(self):
+    def _pass_test_packages_updated(self):
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={

@@ -178,16 +178,25 @@ class DownloadS3KeyRecursively(object):
     # TODO pyrsistent
     """
 
+from effect.do import do
 @sync_performer
+@do
 def perform_download_s3_key_recursively(dispatcher, intent):
     """
     see :class:`ListS3Keys`.
     """
+    from boto.s3.key import Key
     keys = yield Effect(ListS3Keys(prefix=intent.source_prefix, bucket=intent.source_bucket))
     for key in keys:
-        if not key.name.endswith(intent.filter_extensions):
+
+        # TODO this means that there should be a fake of this performer, right?
+        if isinstance(key, Key):
+            key_name = key.name
+        else:
+            key_name = key
+        if not key_name.endswith(intent.filter_extensions):
             continue
-        path = intent.target_path.preauthChild(key.name[len(intent.source_prefix):])
+        path = intent.target_path.preauthChild(key_name[len(intent.source_prefix):])
 
         if not intent.target_path.parent().exists():
            path.target_parent().makedirs()
@@ -196,6 +205,7 @@ def perform_download_s3_key_recursively(dispatcher, intent):
 @attributes([
     "source_bucket",
     "source_key",
+    "target_path",
 ])
 class DownloadS3Key(object):
     """
@@ -217,13 +227,6 @@ def perform_download_s3_key(intent, dispatcher):
     key = bucket.get_key(intent.source_key)
     with intent.target_path.open('w') as target_file:
         key.get_contents_to_file(target_file)
-
-    # yield Effect(UploadToS3Recursively(
-    #     source_path=rpm_directory,
-    #     target_bucket=target_bucket,
-    #     target_key=target_key,
-    #     files=[downloaded_packages, repository_metadata]
-    #     ))
 
 @attributes([
     "source_path",
@@ -341,8 +344,8 @@ class FakeAWS(object):
         # TODO docstring
         see :class:`ListS3Keys`.
         """
-        bucket = self.s3_buckets[intent.bucket]
-        intent.target_path.setContents(bucket[intent.source_key])
+        bucket = self.s3_buckets[intent.source_bucket]
+        intent.target_path.setContent(bucket[intent.source_key])
 
     @sync_performer
     def _perform_upload_s3_key_recursively(self, dispatcher, intent):

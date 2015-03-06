@@ -383,7 +383,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         source_bucket=target_bucket,
         source_prefix=target_key,
         target_path=rpm_directory,
-        filter_extensions=['.rpm']))
+        filter_extensions=('.rpm',)))
 
     # for item in bucket.list(prefix=target_key):
     #     if item.key.endswith('.rpm'):
