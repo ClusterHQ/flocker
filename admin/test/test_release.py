@@ -727,8 +727,21 @@ class UploadRPMsTests(TestCase):
                     'index.rpm': 'hello',
                 },
             })
+        from subprocess import check_call
+        from textwrap import dedent
+        # TODO delete this as test cleanup
         scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
-        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-packages', target_key='', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
+
+        import os
+        version = '0.3.3dev7'
+        source_repo = os.path.join('http://build.clusterhq.com', b'results/omnibus', version, b'fedora-20')
+        source_repo = FilePath(tempfile.mkdtemp(prefix=b'flocker-source-repo-'))
+        FilePath(__file__).sibling('test-repo').copyTo(source_repo)
+
+        check_call([b'createrepo', source_repo.path])
+        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
+            target_bucket='clusterhq-packages', target_key='', source_repo='file://' + source_repo.path,
+            packages=['clusterhq-flocker-cli'], version=version)
         self.assertEqual(
             aws.s3_buckets['clusterhq-packages'], {
                 'index.html': '',

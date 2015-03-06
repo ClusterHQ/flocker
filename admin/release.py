@@ -40,6 +40,7 @@ from .aws import (
     DownloadS3KeyRecursively,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
+    DownloadPackagesFromRepository,
 )
 
 
@@ -399,12 +400,13 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     # the changed files. See:
     # https://clusterhq.atlassian.net/browse/FLOC-1506
     # and comments on https://github.com/ClusterHQ/flocker/pull/1190
-    # downloaded_packages = yield Effect(DownloadPackagesFromRepository(
-    #     source_repo=source_repo,
-    #     target_path=rpm_directory,
-    #     packages=packages,
-    #     version=version,
-    #     ))
+    # downloaded_packages =
+    yield Effect(DownloadPackagesFromRepository(
+        source_repo=source_repo,
+        target_path=rpm_directory,
+        packages=packages,
+        version=version,
+        ))
     # repository_metadata = yield Effect(CreateRepo(
     #     path=rpm_directory,
     #     ))

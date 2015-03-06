@@ -186,6 +186,7 @@ def perform_download_s3_key_recursively(dispatcher, intent):
     see :class:`ListS3Keys`.
     """
     from boto.s3.key import Key
+
     keys = yield Effect(ListS3Keys(prefix=intent.source_prefix, bucket=intent.source_bucket))
     for key in keys:
 
@@ -220,7 +221,7 @@ class DownloadS3Key(object):
     """
 
 @sync_performer
-def perform_download_s3_key(intent, dispatcher):
+def perform_download_s3_key(dispatcher, intent):
     s3 = boto.connect_s3()
 
     bucket = s3.get_bucket(intent.source_bucket)
@@ -247,7 +248,7 @@ class UploadToS3Recursively(object):
     """
 
 @sync_performer
-def perform_upload_s3_key_recursively(intent, dispatcher):
+def perform_upload_s3_key_recursively(dispatcher, intent):
     s3 = boto.connect_s3()
 
     bucket = s3.get_bucket(intent.source_bucket)
@@ -260,6 +261,66 @@ def perform_upload_s3_key_recursively(intent, dispatcher):
                 key.set_contents_from_file(source_file)
                 key.make_public()
 
+
+@attributes([
+    "source_repo",
+    "target_path",
+    "packages",
+    "version",
+])
+class DownloadPackagesFromRepository(object):
+    """
+    Download the S3 files from a key a bucket.
+
+    Note that this returns a list with the prefixes stripped.
+
+    :ivar bytes bucket: Name of bucket to list keys from.
+    :ivar bytes prefix: Prefix of keys to be listed.
+    # TODO document this and performer docstring
+    # TODO pyrsistent
+    # TODO this should not be in aws.py...have own dispatcher and ComposedDispatcher
+    """
+
+
+from subprocess import check_call
+from textwrap import dedent
+
+@sync_performer
+def perform_download_packages_from_repository(dispatcher, intent):
+    from admin.packaging import package_filename, PackageTypes
+
+    yum_repo_config = intent.target_path.child(b'build.repo')
+    yum_repo_config.setContent(dedent(b"""
+         [flocker]
+         name=flocker
+         baseurl=%s
+         """) % (intent.source_repo,))
+
+
+    check_call([
+        b'yum',
+        b'-c', yum_repo_config.path,
+        b'--disablerepo=*',
+        b'--enablerepo=flocker',
+        b'clean',
+        b'metadata'])
+
+    check_call([
+        b'yumdownloader',
+        b'-c', yum_repo_config.path,
+        b'--disablerepo=*',
+        b'--enablerepo=flocker',
+        b'--destdir', intent.target_path.path] + intent.packages)
+
+    # TODO you don't really need to pass version through here
+    # TODO This is RPM specific. Support other packages?
+    from admin.release import make_rpm_version
+    rpm_version = make_rpm_version(intent.version)
+    versioned_packages = [package_filename(package_type=PackageTypes.RPM, package=package,
+        architecture='all', rpm_version=rpm_version) for package in intent.packages]
+
+    return versioned_packages
+
 boto_dispatcher = TypeDispatcher({
     UpdateS3RoutingRule: perform_update_s3_routing_rule,
     ListS3Keys: perform_list_s3_keys,
@@ -269,6 +330,7 @@ boto_dispatcher = TypeDispatcher({
     DownloadS3Key: perform_download_s3_key,
     UploadToS3Recursively: perform_upload_s3_key_recursively,
     CreateCloudFrontInvalidation: perform_create_cloudfront_invalidation,
+    # DownloadPackagesFromRepository: perform_download_packages_from_repository,
 })
 
 
@@ -374,6 +436,7 @@ class FakeAWS(object):
             DownloadS3KeyRecursively: perform_download_s3_key_recursively,
             DownloadS3Key: self._perform_download_s3_key,
             UploadToS3Recursively: self._perform_upload_s3_key_recursively,
+            DownloadPackagesFromRepository: perform_download_packages_from_repository,
             CreateCloudFrontInvalidation:
                 self._perform_create_cloudfront_invalidation,
         })
