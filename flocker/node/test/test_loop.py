@@ -270,7 +270,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         A newly created FSM is stopped.
         """
-        loop = build_convergence_loop_fsm(Clock(), ControllableDeployer([], []))
+        loop = build_convergence_loop_fsm(
+            Clock(), ControllableDeployer([], [])
+        )
         self.assertEqual(loop.state, ConvergenceLoopStates.STOPPED)
 
     def test_new_status_update_starts_discovery(self):
