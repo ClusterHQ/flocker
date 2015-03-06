@@ -26,7 +26,7 @@ from twisted.python.filepath import FilePath
 
 from characteristic import attributes
 
-from .._schema import LocalRefResolver, resolveSchema
+from .._schema import resolveSchema
 
 # Disable "HTTP Routing Table" index:
 httpdomain.HTTPDomain.indices = []
