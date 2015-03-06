@@ -14,6 +14,7 @@ definitions:
     additionalProperties: false
 
   configuration_dataset:
+    description: "The configuration for a particular dataset."
     type: object
     properties:
       primary:
@@ -34,17 +35,15 @@ definitions:
 
   # A sequence of datasets
   configuration_datasets_array:
+    description: "An array of configuration datasets."
     type: array
-    items:
-      description: "An array of datasets"
-      type: object
-      oneOf:
-        - {"$ref": "#/definitions/configuration_dataset" }
+    items: {"$ref": "#/definitions/configuration_dataset" }
 
   state_datasets_array:
+    description: "An array of state datasets."
     type: array
     items:
-      description: "An array of datasets"
+      description: "The state of a particular dataset."
       type: object
       properties:
         primary:
