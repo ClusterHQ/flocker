@@ -348,7 +348,7 @@ class FakeAWS(object):
         # TODO docstring
         see :class:`ListS3Keys`.
         """
-        bucket = self.s3_buckets[intent.source_bucket]
+        bucket = self.s3_buckets[intent.target_bucket]
         for f in intent.source_path.walk():
             if os.path.basename(f.path) in intent.files:
                 with f.open() as source_file:

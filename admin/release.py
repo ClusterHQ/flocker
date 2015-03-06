@@ -37,6 +37,8 @@ from .aws import (
     ListS3Keys,
     DeleteS3Keys,
     CopyS3Keys,
+    DownloadS3KeyRecursively,
+    UploadToS3Recursively,
     CreateCloudFrontInvalidation,
 )
 
@@ -371,14 +373,14 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     s3 = boto.connect_s3()
 
     # Does not work if there is a '.' in the name
-    target_bucket = s3.get_bucket(bucket_name=target_bucket)
+    # target_bucket = s3.get_bucket(bucket_name=target_bucket)
 
     # Download existing repository
     # TODO test this logic with effect
 
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
-        source_key=target_key,
+        source_prefix=target_key,
         target_path=rpm_directory,
         filter_extensions=['.rpm']))
 
@@ -396,15 +398,15 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     # the changed files. See:
     # https://clusterhq.atlassian.net/browse/FLOC-1506
     # and comments on https://github.com/ClusterHQ/flocker/pull/1190
-    downloaded_packages = yield Effect(DownloadPackagesFromRepository(
-        source_repo=source_repo,
-        target_path=rpm_directory,
-        packages=packages,
-        version=version,
-        ))
-    repository_metadata = yield Effect(CreateRepo(
-        path=rpm_directory,
-        ))
+    # downloaded_packages = yield Effect(DownloadPackagesFromRepository(
+    #     source_repo=source_repo,
+    #     target_path=rpm_directory,
+    #     packages=packages,
+    #     version=version,
+    #     ))
+    # repository_metadata = yield Effect(CreateRepo(
+    #     path=rpm_directory,
+    #     ))
     # yum_repo_config = rpm_directory.child(b'build.repo')
     # yum_repo_config.setContent(dedent(b"""
     #      [flocker]
@@ -434,7 +436,8 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
 
     # Upload updated repository
     # TODO test this logic with effect
-
+    downloaded_packages = []
+    repository_metadata = []
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
         target_bucket=target_bucket,

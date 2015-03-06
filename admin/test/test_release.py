@@ -11,7 +11,7 @@ from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from twisted.python.filepath import FilePath
 
 from ..release import (
-    rpm_version, make_rpm_version, upload_rpms,
+    rpm_version, make_rpm_version, upload_rpms, update_repo,
     publish_docs, Environments,
     DocumentationRelease, NotTagged, NotARelease,
 )
@@ -670,6 +670,21 @@ class UploadRPMsTests(TestCase):
     """
     Tests for :func:``upload_rpms``.
     """
+    def update_repo(self, aws,
+                    rpm_directory, target_bucket, target_key, source_repo,
+                    packages, version):
+        """
+        Call :func:``publish_docs``, interacting with a fake AWS.
+
+        :param FakeAWS aws: Fake AWS to interact with.
+        :param flocker_version: See :py:func:`publish_docs`.
+        :param doc_version: See :py:func:`publish_docs`.
+        :param environment: See :py:func:`environment`.
+        """
+        sync_perform(
+            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
+            update_repo(rpm_directory, target_bucket, target_key, source_repo, packages, version))
+
     def setUp(self):
         self.scratch_directory = FilePath(tempfile.mkdtemp(
             prefix=b'test-scratch-directory-'))
@@ -696,3 +711,35 @@ class UploadRPMsTests(TestCase):
             upload_rpms,
             self.scratch_directory, self.target_bucket, '0.3.0+doc1',
             self.build_server)
+
+    def test_packages_uploaded(self):
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                'clusterhq-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/latest/index.html': '',
+                    'en/0.3.1/index.html': '',
+                    'en/0.3.1/sub/index.html': '',
+                },
+                'clusterhq-dev-docs': {},
+            })
+        scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
+        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-docs', target_key='fedora', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
+
+    def test_packages_updated(self):
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                'clusterhq-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/latest/index.html': '',
+                    'en/0.3.1/index.html': '',
+                    'en/0.3.1/sub/index.html': '',
+                },
+                'clusterhq-dev-docs': {},
+            })
+        scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
+        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-docs', target_key='fedora', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
