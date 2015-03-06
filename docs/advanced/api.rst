@@ -11,6 +11,9 @@ While this API is not yet directly accessible in a standard Flocker setup, the d
 Installation
 ============
 
+Fedora/CentOS
+-------------
+
 To allow remote access to the control agent REST API, and for agent connections,
 
 .. task:: open_control_firewall
