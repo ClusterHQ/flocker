@@ -4,6 +4,8 @@
 Tests for ``admin.release``.
 """
 
+from subprocess import check_call
+import os
 from unittest import TestCase
 import tempfile
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
@@ -712,58 +714,47 @@ class UploadRPMsTests(TestCase):
             self.scratch_directory, self.target_bucket, '0.3.0+doc1',
             self.build_server)
 
-    def test_packages_uploaded(self):
+    def test_repository_uploaded(self):
+        # TODO another version of this test with fake yum calls
+        bucket = 'clusterhq-packages'
         aws = FakeAWS(
             routing_rules={},
-            s3_buckets={
-                'clusterhq-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                    'en/0.3.1/index.html': '',
-                    'en/0.3.1/sub/index.html': '',
-                },
-                'clusterhq-packages': {
-                },
-            })
-        from subprocess import check_call
-        from textwrap import dedent
+            s3_buckets={bucket: {},},
+        )
+
         # TODO delete this as test cleanup
         scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
-
-        import os
+        rpm_directory = scratch_directory.child(b'distro-version-arch')
         version = '0.3.3dev7'
-        source_repo = os.path.join('http://build.clusterhq.com', b'results/omnibus', version, b'fedora-20')
-        source_repo = FilePath(tempfile.mkdtemp(prefix=b'flocker-source-repo-'))
-        FilePath(__file__).sibling('test-repo').copyTo(source_repo)
 
+        source_repo = FilePath(tempfile.mkdtemp(prefix=b'flocker-source-repo-'))
+        # TODO upload this directory to git
+        FilePath(__file__).sibling('test-repo').copyTo(source_repo)
+        # TODO Redirect output of this and other yum calls
         check_call([b'createrepo', source_repo.path])
-        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
-            target_bucket='clusterhq-packages', target_key='', source_repo='file://' + source_repo.path,
-            packages=['clusterhq-flocker-cli'], version=version)
-        import pdb; pdb.set_trace()
+
+        target_key = 'release_type/distro/version/arch'
+
+        packages = ['clusterhq-flocker-cli']
+        versioned_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
+
+        self.update_repo(
+            aws=aws,
+            rpm_directory=rpm_directory,
+            target_bucket=bucket,
+            target_key=target_key,
+            source_repo='file://' + source_repo.path,
+            packages=packages,
+            version=version,
+        )
+
         self.assertEqual(
             aws.s3_buckets['clusterhq-packages'], {
-                'index.html': '',
-                'en/index.html': '',
-                'en/latest/index.html': '',
-                'en/0.3.1/index.html': 'index-content',
-                'en/0.3.1/sub/index.html': 'sub-index-content',
+                # TODO - don't just upload the path, because that doesn't show anything if the is updated?
+                os.path.join(target_key, versioned_package):
+                    rpm_directory.child(versioned_package).path,
+                # TODO there will be a repository directory here when the createrepo command is run
             })
 
-    def _pass_test_packages_updated(self):
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                'clusterhq-docs': {
-                    'index.html': '',
-                    'en/index.html': '',
-                    'en/latest/index.html': '',
-                    'en/0.3.1/index.html': '',
-                    'en/0.3.1/sub/index.html': '',
-                },
-                # TODO fill this with an existing structure of files
-                'clusterhq-packages': {},
-            })
-        scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
-        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-packages', target_key='fedora', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
+    def test_packages_updated(self):
+        pass

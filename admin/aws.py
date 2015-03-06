@@ -249,7 +249,7 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
             with f.open() as source_file:
                 # TODO this has been messed around with. Confirm that
                 # everything goes to the right place
-                key = bucket.new_key(f.path[len(intent.source_path):])
+                key = bucket.new_key(intent.target_key + f.path[len(intent.source_path):])
                 key.set_contents_from_file(source_file)
                 key.make_public()
 
@@ -308,8 +308,13 @@ def perform_download_packages_from_repository(dispatcher, intent):
     # TODO This is RPM specific. Support other packages?
     from admin.release import make_rpm_version
     rpm_version = make_rpm_version(intent.version)
-    versioned_packages = [package_filename(package_type=PackageTypes.RPM, package=package,
-        architecture='all', rpm_version=rpm_version) for package in intent.packages]
+    versioned_packages = [
+        package_filename(package_type=PackageTypes.RPM,
+                         package=package,
+                         architecture='all',
+                         rpm_version=rpm_version)
+        for package in intent.packages
+    ]
 
     return versioned_packages
 
@@ -410,11 +415,7 @@ class FakeAWS(object):
         bucket = self.s3_buckets[intent.target_bucket]
         for f in intent.source_path.walk():
             if os.path.basename(f.path) in intent.files:
-                with f.open() as source_file:
-                    # TODO this has been messed around with. Confirm that
-                    # everything goes to the right place
-                    bucket[os.path.relpath(f.path, intent.source_path.path)] = source_file
-                    # bucket[f.path[len(intent.source_path.path):]] = source_file
+                bucket[intent.target_key + f.path[len(intent.source_path.path):]] = f.path
 
     def get_dispatcher(self):
         """
