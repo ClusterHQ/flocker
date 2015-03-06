@@ -370,13 +370,14 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     # also, there need to be two repos created, and the docs need to be
     # adapted / moved.
     rpm_directory.createDirectory()
-    s3 = boto.connect_s3()
+    # s3 = boto.connect_s3()
 
     # Does not work if there is a '.' in the name
     # target_bucket = s3.get_bucket(bucket_name=target_bucket)
 
     # Download existing repository
     # TODO test this logic with effect
+    # import pdb; pdb.set_trace()
 
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,

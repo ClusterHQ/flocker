@@ -209,6 +209,7 @@ class DownloadS3Key(object):
     # TODO pyrsistent
     """
 
+@sync_performer
 def perform_download_s3_key(intent, dispatcher):
     s3 = boto.connect_s3()
 
@@ -242,6 +243,7 @@ class UploadToS3Recursively(object):
     # TODO pyrsistent
     """
 
+@sync_performer
 def perform_upload_s3_key_recursively(intent, dispatcher):
     s3 = boto.connect_s3()
 

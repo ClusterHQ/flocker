@@ -723,10 +723,12 @@ class UploadRPMsTests(TestCase):
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
+                'clusterhq-packages': {
+                    'index.rpm': 'hello',
+                },
             })
         scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
-        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-docs', target_key='fedora', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
+        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-packages', target_key='fedora', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
 
     def test_packages_updated(self):
         aws = FakeAWS(
@@ -739,7 +741,8 @@ class UploadRPMsTests(TestCase):
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
                 },
-                'clusterhq-dev-docs': {},
+                # TODO fill this with an existing structure of files
+                'clusterhq-packages': {},
             })
         scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
-        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-docs', target_key='fedora', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
+        self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'), target_bucket='clusterhq-packages', target_key='fedora', source_repo='build.clusterhq.com', packages=['clusterhq-flocker'], version='0.3.3')
