@@ -295,6 +295,7 @@ class RunOptions(Options):
         """
         Options.__init__(self)
         self.top_level = top_level
+        self['variants'] = []
 
     def opt_variant(self, arg):
         """
@@ -302,7 +303,7 @@ class RunOptions(Options):
 
         Supported variants: distro-testing, docker-head, zfs-testing.
         """
-        self.setdefault('variants', []).append(Variants.lookupByValue(arg))
+        self['variants'].append(Variants.lookupByValue(arg))
 
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
