@@ -1,4 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.control.test.test_script -*-
 
 """
 Script for starting control service server.
@@ -25,7 +26,7 @@ class ControlOptions(Options):
     optParameters = [
         ["data-path", "d", FilePath(b"/var/lib/flocker"),
          "The directory where data will be persisted.", FilePath],
-        ["port", "p", 'tcp:' + REST_API_PORT,
+        ["port", "p", 'tcp:%d' % (REST_API_PORT,),
          "The external API port to listen on."],
         ["agent-port", "a", 'tcp:4524',
          "The port convergence agents will connect to."],
