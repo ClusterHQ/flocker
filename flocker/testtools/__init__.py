@@ -787,3 +787,10 @@ class FakeAMPClient(object):
         self.calls.append((command, kwargs))
         command.makeArguments(kwargs, AMP())
         return succeed(self._responses[self._makeKey(command, kwargs)])
+
+
+class CustomException(Exception):
+    """
+    An exception that will never be raised by real code, useful for
+    testing.
+    """

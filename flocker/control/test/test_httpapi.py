@@ -16,7 +16,8 @@ from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.http import (
-    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR
+    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
+    NOT_ALLOWED as METHOD_NOT_ALLOWED
 )
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
@@ -471,22 +472,13 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         The error includes the requested dataset_id.
         """
         unknown_dataset_id = unicode(uuid4())
-        updating = self.assertResponseCode(
+        return self.assertResult(
             b"POST",
             b"/configuration/datasets/%s" % (
                 unknown_dataset_id.encode('ascii'),),
             {u'primary': self.NODE_A},
-            NOT_FOUND)
-        updating.addCallback(readBody)
-        updating.addCallback(loads)
-
-        def got_result(result):
-            expected_description = u'Dataset not found.'
-            description = result.pop(u"description")
-            self.assertEqual(expected_description, description)
-        updating.addCallback(got_result)
-
-        return updating
+            NOT_FOUND,
+            {u"description": u'Dataset not found.'})
 
     def _test_change_primary(self, dataset, deployment, origin, target):
         """
@@ -767,35 +759,27 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         The error includes the requested dataset_id.
         """
         unknown_dataset_id = unicode(uuid4())
-        deleting = self.assertResponseCode(
+        return self.assertResult(
             b"DELETE",
             b"/configuration/datasets/%s" % (
                 unknown_dataset_id.encode('ascii'),),
-            None, NOT_FOUND)
-        deleting.addCallback(readBody)
-        deleting.addCallback(loads)
+            None, NOT_FOUND,
+            {u"description": u'Dataset not found.'})
 
-        def got_result(result):
-            expected_description = u'Dataset not found.'
-            description = result.pop(u"description")
-            self.assertEqual(expected_description, description)
-        deleting.addCallback(got_result)
-
-        return deleting
-
-    def _test_delete(self, dataset, deployment):
+    def _test_delete(self, dataset):
         """
         Helper method which makes an API call to delete the supplied
         ``dataset`` from ``origin`` and finally asserts that the API call
         returned the expected result and that the persistence_service has
         been updated.
 
-        :param Dataset dataset: The dataset which will be moved.
-        :param Deployment deployment: The deployment that contains the dataset.
+        :param Dataset dataset: The dataset which will be deleted.
         :returns: A ``Deferred`` which fires when all assertions have been
             executed.
         """
+        deployment = self.persistence_service.get()
         expected_dataset_id = dataset.dataset_id
+        # There's only one node:
         origin = next(iter(deployment.nodes))
 
         expected_dataset = {
@@ -828,10 +812,13 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         deleting.addCallback(got_result)
         return deleting
 
-    def test_delete(self):
+    def _setup_manifestation(self):
         """
-        The ``DELETE`` action sets the ``deleted`` attribute to true on the
-        given dataset.
+        Create and save a configuration with a single node that has a
+        manifestation.
+
+        :return: ``Deferred`` firing with the newly created
+            ``Manifestation`` that ``_test_delete`` can delete.
         """
         expected_manifestation = _manifestation()
         node_a = Node(
@@ -840,10 +827,19 @@ class DeleteDatasetTestsMixin(APITestsMixin):
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
         )
-        deployment = Deployment(nodes=frozenset([node_a]))
-        d = self.persistence_service.save(deployment)
-        d.addCallback(lambda _: self._test_delete(
-            expected_manifestation.dataset, deployment))
+        d = self.persistence_service.save(
+            Deployment(nodes=frozenset([node_a])))
+        d.addCallback(lambda _: expected_manifestation)
+        return d
+
+    def test_delete(self):
+        """
+        The ``DELETE`` action sets the ``deleted`` attribute to true on the
+        given dataset.
+        """
+        d = self._setup_manifestation()
+        d.addCallback(lambda manifestation: self._test_delete(
+            manifestation.dataset))
         return d
 
     def test_delete_idempotent(self):
@@ -851,20 +847,38 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         The ``DELETE`` action on an already ``deleted`` dataset has same
         response as original deletion.
         """
-        expected_manifestation = _manifestation()
-        node_a = Node(
-            hostname=self.NODE_A,
-            applications=frozenset(),
-            manifestations={expected_manifestation.dataset_id:
-                            expected_manifestation}
-        )
-        deployment = Deployment(nodes=frozenset([node_a]))
-        d = self.persistence_service.save(deployment)
-        d.addCallback(lambda _: self._test_delete(
-            expected_manifestation.dataset, deployment))
-        d.addCallback(lambda _: self._test_delete(
-            expected_manifestation.dataset, deployment))
-        return d
+        created = self._setup_manifestation()
+
+        def got_manifestation(expected_manifestation):
+            d = self._test_delete(expected_manifestation.dataset)
+            d.addCallback(lambda _: self._test_delete(expected_manifestation))
+            return d
+        created.addCallback(got_manifestation)
+        return created
+
+    def test_update_deleted(self):
+        """
+        Attempting to update a deleted dataset results in a Method Not Allowed
+        error.
+        """
+        created = self._setup_manifestation()
+
+        def got_manifestation(expected_manifestation):
+            d = self._test_delete(expected_manifestation.dataset)
+            d.addCallback(lambda _: self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset_id.encode('ascii')
+                ),
+                {u"primary": u"192.168.1.1"},
+                METHOD_NOT_ALLOWED, {
+                    u"description":
+                    u"The dataset has been deleted."
+                }
+            ))
+            return d
+        created.addCallback(got_manifestation)
+        return created
 
     def test_multiple_manifestations(self):
         """
@@ -1129,14 +1143,14 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 running=[],
                 not_running=[],
-                manifestations={expected_manifestation}
+                manifestations={expected_manifestation},
+                paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
             )
         )
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata={},
-            deleted=False,
+            path=u"/path/dataset",
         )
         response = [expected_dict]
         return self.assertResult(
@@ -1161,7 +1175,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname1,
                 running=[],
                 not_running=[],
-                manifestations={expected_manifestation1}
+                manifestations={expected_manifestation1},
+                paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
             )
         )
         self.cluster_state_service.update_node_state(
@@ -1169,20 +1184,19 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname2,
                 running=[],
                 not_running=[],
-                manifestations={expected_manifestation2}
+                manifestations={expected_manifestation2},
+                paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
             )
         )
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
             primary=expected_hostname1,
-            metadata={},
-            deleted=False,
+            path=u"/aa",
         )
         expected_dict2 = dict(
             dataset_id=expected_dataset2.dataset_id,
             primary=expected_hostname2,
-            metadata={},
-            deleted=False,
+            path=u"/bb",
         )
         response = [expected_dict1, expected_dict2]
         return self.assertResultItems(

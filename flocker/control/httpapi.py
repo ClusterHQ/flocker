@@ -9,7 +9,9 @@ from uuid import uuid4
 from pyrsistent import pmap, thaw
 
 from twisted.python.filepath import FilePath
-from twisted.web.http import CONFLICT, CREATED, NOT_FOUND, OK
+from twisted.web.http import (
+    CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
+)
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
@@ -43,6 +45,8 @@ PRIMARY_NODE_NOT_FOUND = make_bad_request(
     description=u"The provided primary node is not part of the cluster.")
 DATASET_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Dataset not found.")
+DATASET_DELETED = make_bad_request(
+    code=METHOD_NOT_ALLOWED, description=u"The dataset has been deleted.")
 
 
 class DatasetAPIUserV1(object):
@@ -91,7 +95,8 @@ class DatasetAPIUserV1(object):
     @structured(
         inputSchema={},
         outputSchema={
-            '$ref': '/v1/endpoints.json#/definitions/datasets_array',
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets_array',
         },
         schema_store=SCHEMAS,
     )
@@ -118,8 +123,10 @@ class DatasetAPIUserV1(object):
         ]
     )
     @structured(
-        inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
-        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        inputSchema={'$ref':
+                     '/v1/endpoints.json#/definitions/configuration_dataset'},
+        outputSchema={'$ref':
+                      '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
     )
     def create_dataset_configuration(self, primary, dataset_id=None,
@@ -208,7 +215,7 @@ class DatasetAPIUserV1(object):
     def _find_manifestation_and_node(self, dataset_id):
         """
         Given the ID of a dataset, find its primary manifestation and the node
-        it's one.
+        it's on.
 
         :param unicode dataset_id: The unique identifier of the dataset.  This
             is a string giving a UUID (per RFC 4122).
@@ -219,7 +226,6 @@ class DatasetAPIUserV1(object):
         # Get the current configuration.
         deployment = self.persistence_service.get()
 
-        # Lookup the node that has a primary Manifestation (if any)
         manifestations_and_nodes = manifestations_from_deployment(
             deployment, dataset_id)
         index = 0
@@ -248,7 +254,7 @@ class DatasetAPIUserV1(object):
         Delete an existing dataset.
 
         Deletion is idempotent: deleting a dataset multiple times will
-        result in the same the response.
+        result in the same response.
         """,
         examples=[
             u"delete dataset",
@@ -257,7 +263,8 @@ class DatasetAPIUserV1(object):
     )
     @structured(
         inputSchema={},
-        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        outputSchema={'$ref':
+                      '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
     )
     def delete_dataset(self, dataset_id):
@@ -267,13 +274,15 @@ class DatasetAPIUserV1(object):
        :param unicode dataset_id: The unique identifier of the dataset.  This
             is a string giving a UUID (per RFC 4122).
 
-        :return: A ``dict`` describing the dataset which has been added to the
-            cluster configuration or giving error information if this is not
-            possible.
+        :return: A ``dict`` describing the dataset which has been marked
+            as deleted in the cluster configuration or giving error
+            information if this is not possible.
         """
         # Get the current configuration.
         deployment = self.persistence_service.get()
 
+        # XXX this doesn't handle replicas
+        # https://clusterhq.atlassian.net/browse/FLOC-1240
         old_manifestation, origin_node = self._find_manifestation_and_node(
             dataset_id)
 
@@ -295,6 +304,13 @@ class DatasetAPIUserV1(object):
     @user_documentation(
         """
         Update an existing dataset.
+
+        This can be used to:
+
+        * Move a dataset from one node to another by changing the
+          ``primary`` attribute.
+        * In the future, update metadata and maximum size.
+
         """,
         examples=[
             u"update dataset with primary",
@@ -302,8 +318,10 @@ class DatasetAPIUserV1(object):
         ]
     )
     @structured(
-        inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
-        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        inputSchema={'$ref':
+                     '/v1/endpoints.json#/definitions/configuration_dataset'},
+        outputSchema={'$ref':
+                      '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
     )
     def update_dataset(self, dataset_id, primary=None):
@@ -325,6 +343,9 @@ class DatasetAPIUserV1(object):
 
         primary_manifestation, origin_node = self._find_manifestation_and_node(
             dataset_id)
+
+        if primary_manifestation.dataset.deleted:
+            raise DATASET_DELETED
 
         # Now construct a new_deployment where the primary manifestation of the
         # dataset is on the requested primary node.
@@ -373,7 +394,7 @@ class DatasetAPIUserV1(object):
     @structured(
         inputSchema={},
         outputSchema={
-            '$ref': '/v1/endpoints.json#/definitions/datasets_array'
+            '$ref': '/v1/endpoints.json#/definitions/state_datasets_array'
             },
         schema_store=SCHEMAS
     )
@@ -384,7 +405,14 @@ class DatasetAPIUserV1(object):
         :return: A ``list`` containing all datasets in the cluster.
         """
         deployment = self.cluster_state_service.as_deployment()
-        return list(datasets_from_deployment(deployment))
+        datasets = list(datasets_from_deployment(deployment))
+        for dataset in datasets:
+            dataset[u"path"] = self.cluster_state_service.manifestation_path(
+                dataset[u"primary"], dataset[u"dataset_id"]).path.decode(
+                    "utf-8")
+            del dataset[u"metadata"]
+            del dataset[u"deleted"]
+        return datasets
 
 
 def manifestations_from_deployment(deployment, dataset_id):
@@ -432,14 +460,14 @@ def datasets_from_deployment(deployment):
 def api_dataset_from_dataset_and_node(dataset, node_hostname):
     """
     Return a dataset dict which conforms to
-    ``/v1/endpoints.json#/definitions/datasets_array``
+    ``/v1/endpoints.json#/definitions/configuration_datasets_array``
 
     :param Dataset dataset: A dataset present in the cluster.
     :param unicode node_hostname: Hostname of the primary node for the
         `dataset`.
     :return: A ``dict`` containing the dataset information and the
         hostname of the primary node, conforming to
-        ``/v1/endpoints.json#/definitions/datasets_array``.
+        ``/v1/endpoints.json#/definitions/configuration_datasets_array``.
     """
     result = dict(
         dataset_id=dataset.dataset_id,

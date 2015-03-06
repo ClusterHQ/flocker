@@ -9,6 +9,8 @@ from uuid import uuid4
 from zope.interface.verify import verifyObject
 from zope.interface import implementer
 
+from eliot.testing import validate_logging
+
 from pyrsistent import pmap, pset
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
@@ -22,7 +24,11 @@ from ...control import (
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name, IDeployer)
+    ResizeDataset, _link_environment, _to_volume_name, IDeployer,
+    DeleteDataset,
+)
+from ...testtools import CustomException
+from .. import _deploy
 from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -136,6 +142,10 @@ HandoffVolumeIStateChangeTests = make_istatechange_tests(
 PushVolumeIStateChangeTests = make_istatechange_tests(
     PushDataset, dict(dataset=1, hostname=b"123"),
     dict(dataset=2, hostname=b"123"))
+DeleteDatasetTests = make_istatechange_tests(
+    DeleteDataset,
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))),
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))))
 
 
 NOT_CALLED = object()
@@ -1157,17 +1167,20 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
-    def test_discover_datasets(self):
+    DATASET_ID = u"uuid123"
+    DATASET_ID2 = u"uuid456"
+
+    def _setup_datasets(self):
         """
-        All datasets on the node are added to ``NodeState.manifestations``.
+        Setup a ``P2PNodeDeployer`` that will discover two manifestations.
+
+        :return: Suitably configured ``P2PNodeDeployer``.
         """
-        DATASET_ID = u"uuid123"
-        DATASET_ID2 = u"uuid456"
         volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID))
         ))
         self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID2))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID2))
         ))
 
         unit1 = Unit(name=u'site-example.com',
@@ -1183,24 +1196,47 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1}
 
         fake_docker = FakeDockerClient(units=units)
-        api = P2PNodeDeployer(
+        return P2PNodeDeployer(
             u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
+
+    def test_discover_datasets(self):
+        """
+        All datasets on the node are added to ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
         d = api.discover_local_state()
 
         self.assertEqual(
             pset(
                 {Manifestation(
                     dataset=Dataset(
-                        dataset_id=DATASET_ID,
+                        dataset_id=self.DATASET_ID,
                         metadata=pmap({u"name": u"site-example.com"})),
                     primary=True),
-                 Manifestation(dataset=Dataset(dataset_id=DATASET_ID2),
+                 Manifestation(dataset=Dataset(dataset_id=self.DATASET_ID2),
                                primary=True)}),
             self.successResultOf(d).manifestations)
+
+    def test_discover_manifestation_paths(self):
+        """
+        All datasets on the node have their paths added to
+        ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
+        d = api.discover_local_state()
+
+        self.assertEqual(
+            {self.DATASET_ID:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID)).get_filesystem().get_path(),
+             self.DATASET_ID2:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID2)).get_filesystem().get_path()},
+            self.successResultOf(d).paths)
 
 
 # A deployment with no information:
@@ -1495,6 +1531,95 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             InParallel(changes=[StartApplication(
                 application=APPLICATION_WITH_VOLUME,
                 hostname=hostname)])])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_deleted(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        dataset must be deleted if the desired configuration specifies
+        that the dataset has the ``deleted`` attribute set to True.
+
+        Note that for now this happens regardless of whether the node
+        actually has the dataset, since the deployer doesn't know about
+        replicas... see FLOC-1240.
+        """
+        docker = FakeDockerClient(units={})
+        node = Node(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
+        self.assertEqual(expected, changes)
+
+    def test_deletion_after_application_stop(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` ensures dataset
+        deletion happens after application stop phase to make sure nothing
+        is using the deleted dataset.
+        """
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    container_image=u'flocker/wordpress:v1.0.0',
+                    activation_state=u'active')
+
+        docker = FakeDockerClient(units={unit.name: unit})
+        node = Node(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        to_stop = StopApplication(application=Application(
+            name=unit.name, image=DockerImage.from_string(
+                unit.container_image)))
+        expected = Sequentially(changes=[
+            InParallel(changes=[to_stop]),
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
         self.assertEqual(expected, changes)
 
     def test_volume_wait(self):
@@ -2979,13 +3104,13 @@ class ChangeNodeStateTests(SynchronousTestCase):
         self.assertEqual(arguments, [local, desired, state])
 
 
-class CreateVolumeTests(SynchronousTestCase):
+class CreateDatasetTests(SynchronousTestCase):
     """
-    Tests for ``CreateVolume``.
+    Tests for ``CreateDataset``.
     """
     def test_creates(self):
         """
-        ``CreateVolume.run()`` creates the named volume.
+        ``CreateDataset.run()`` creates the named volume.
         """
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
@@ -3002,7 +3127,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_creates_respecting_size(self):
         """
-        ``CreateVolume.run()`` creates the named volume with a ``VolumeSize``
+        ``CreateDataset.run()`` creates the named volume with a ``VolumeSize``
         instance respecting the maximum_size passed in from the
         ``AttachedVolume``.
         """
@@ -3029,7 +3154,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_return(self):
         """
-        ``CreateVolume.run()`` returns a ``Deferred`` that fires with the
+        ``CreateDataset.run()`` returns a ``Deferred`` that fires with the
         created volume.
         """
         deployer = P2PNodeDeployer(
@@ -3042,6 +3167,55 @@ class CreateVolumeTests(SynchronousTestCase):
         result = self.successResultOf(create.run(deployer))
         self.assertEqual(result, deployer.volume_service.get(
             _to_volume_name(volume.dataset.dataset_id)))
+
+
+class DeleteDatasetTests(TestCase):
+    """
+    Tests for ``DeleteDataset``.
+    """
+    def setUp(self):
+        self.volume_service = create_volume_service(self)
+        self.deployer = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+
+        id1 = unicode(uuid4())
+        self.volume1 = self.volume_service.get(_to_volume_name(id1))
+        id2 = unicode(uuid4())
+        self.volume2 = self.volume_service.get(_to_volume_name(id2))
+        self.successResultOf(self.volume_service.create(self.volume1))
+        self.successResultOf(self.volume_service.create(self.volume2))
+
+    def test_deletes(self):
+        """
+        ``DeleteDataset.run()`` deletes volumes whose ``dataset_id`` matches
+        the one the instance was created with.
+        """
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
+
+        self.assertEqual(
+            list(self.successResultOf(self.volume_service.enumerate())),
+            [self.volume1])
+
+    @validate_logging(
+        lambda test, logger: logger.flush_tracebacks(CustomException))
+    def test_failed_create(self, logger):
+        """
+        Failed deletions of volumes does not result in a failed result from
+        ``DeleteDataset.run()``.
+
+        The traceback is, however, logged.
+        """
+        self.patch(self.volume_service.pool, "destroy",
+                   lambda fs: fail(CustomException()))
+        self.patch(_deploy, "_logger", logger)
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
 
 
 class ResizeVolumeTests(TestCase):

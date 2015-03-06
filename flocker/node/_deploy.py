@@ -5,11 +5,15 @@
 Deploy applications on nodes.
 """
 
+from itertools import chain
+
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
-from pyrsistent import pmap
+from pyrsistent import pmap, PRecord, field
+
+from eliot import write_failure, Logger
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
@@ -23,6 +27,9 @@ from ..volume._ipc import RemoteVolumeManager, standard_node
 from ..volume._model import VolumeSize
 from ..volume.service import VolumeName
 from ..common import gather_deferreds
+
+
+_logger = Logger()
 
 
 def _to_volume_name(dataset_id):
@@ -320,6 +327,36 @@ class PushDataset(object):
 
 
 @implementer(IStateChange)
+class DeleteDataset(PRecord):
+    """
+    Delete all local copies of the dataset.
+
+    A better action would be one that deletes a specific manifestation
+    ("volume" in flocker.volume legacy terminology). Unfortunately
+    currently "remotely owned volumes" (legacy terminology), aka
+    non-primary manifestations or replicas, are not exposed to the
+    deployer, so we have to enumerate them here.
+
+    :ivar Dataset dataset: The dataset to delete.
+    """
+    dataset = field(mandatory=True, type=Dataset)
+
+    def run(self, deployer):
+        service = deployer.volume_service
+        d = service.enumerate()
+
+        def got_volumes(volumes):
+            deletions = []
+            for volume in volumes:
+                if volume.name.dataset_id == self.dataset.dataset_id:
+                    deletions.append(service.pool.destroy(volume).addErrback(
+                        write_failure, _logger, u"flocker:p2pdeployer:delete"))
+            return gatherResults(deletions)
+        d.addCallback(got_volumes)
+        return d
+
+
+@implementer(IStateChange)
 @attributes(["ports"])
 class SetProxies(object):
     """
@@ -397,6 +434,8 @@ class P2PNodeDeployer(object):
             running = []
             not_running = []
             manifestations = []  # Manifestation objects we're constructing
+            manifestation_paths = {dataset_id: path for (path, (dataset_id, _))
+                                   in available_manifestations.items()}
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.volumes:
@@ -473,6 +512,7 @@ class P2PNodeDeployer(object):
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
                 manifestations=manifestations,
+                paths=manifestation_paths,
             )
         d.addCallback(applications_from_units)
         return d
@@ -629,6 +669,10 @@ class P2PNodeDeployer(object):
             phases.append(InParallel(changes=[
                 CreateDataset(dataset=dataset)
                 for dataset in dataset_changes.creating]))
+        if dataset_changes.deleting:
+            phases.append(InParallel(changes=[
+                DeleteDataset(dataset=dataset)
+                for dataset in dataset_changes.deleting]))
         start_restart = start_containers + restart_containers
         if start_restart:
             phases.append(InParallel(changes=start_restart))
@@ -737,5 +781,8 @@ def find_dataset_changes(hostname, current_state, desired_state):
         local_current_dataset_ids | remote_current_dataset_ids)
     creating = set(dataset for dataset in local_desired_datasets
                    if dataset.dataset_id in creating_dataset_ids)
-    return DatasetChanges(going=going, coming=coming,
+
+    deleting = set(dataset for dataset in chain(*desired_datasets.values())
+                   if dataset.deleted)
+    return DatasetChanges(going=going, coming=coming, deleting=deleting,
                           creating=creating, resizing=resizing)
