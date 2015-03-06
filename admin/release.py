@@ -375,7 +375,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
 
     # Download existing repository
     # TODO test this logic with effect
-    
+
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
         source_key=target_key,
@@ -412,7 +412,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     #      baseurl=%s
     #      """) % (source_repo,))
 
-    
+
     # check_call([
     #     b'yum',
     #     b'-c', yum_repo_config.path,
@@ -420,7 +420,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     #     b'--enablerepo=flocker',
     #     b'clean',
     #     b'metadata'])
-    
+
     # check_call([
     #     b'yumdownloader',
     #     b'-c', yum_repo_config.path,
@@ -490,7 +490,9 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         version=version,
     ))
 
-    update_repo(
+    sync_perform(
+      dispatcher=ComposedDispatcher(boto_dispatcher, base_dispatcher),
+      effect=update_repo(
         rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
         target_bucket=target_bucket,
         target_key=os.path.join(release_type, b'centos', b'7', b'x86_64'),
@@ -498,7 +500,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
                                  b'centos-7'),
         packages=FLOCKER_PACKAGES,
         version=version,
-    )
+    ))
 
 
 def upload_rpms_main(args, base_path, top_level):

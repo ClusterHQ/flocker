@@ -182,15 +182,16 @@ def perform_download_s3_key_recursively(dispatcher, intent):
     """
     see :class:`ListS3Keys`.
     """
-    for key in yield Effect(ListS3Keys(prefix=intent.source_prefix, bucket=intent.source_bucket):
+    keys = yield Effect(ListS3Keys(prefix=intent.source_prefix, bucket=intent.source_bucket))
+    for key in keys:
         if not item.key.endswith(filter_extensions):
             continue
         path = target_path.preauthChild(item.key.name[len(intent.source_prefix):])
 
         if not intent.target_path.parent().exists():
            path.target_parent().makedirs()
-        yield Effect(DownloadS3Key(source_bucket=intent.source_bucket, source_key=intent.source_prefix + key, target_path=path)
-        
+        yield Effect(DownloadS3Key(source_bucket=intent.source_bucket, source_key=intent.source_prefix + key, target_path=path))
+
 def perform_download_s3_key(intent, dispatcher):
     s3 = boto.connect_s3()
 
@@ -198,8 +199,8 @@ def perform_download_s3_key(intent, dispatcher):
     key = bucket.get_key(intent.source_key)
     with intent.target_path.open('w') as target_file:
         key.get_contents_to_file(target_file)
-    
-    
+
+
 
 boto_dispatcher = TypeDispatcher({
     UpdateS3RoutingRule: perform_update_s3_routing_rule,
