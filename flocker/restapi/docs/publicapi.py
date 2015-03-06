@@ -184,23 +184,11 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     inputSchema = route.attributes.get('inputSchema', None)
     outputSchema = route.attributes.get('outputSchema', None)
     if inputSchema:
-        # _parseSchema doesn't handle all JSON Schema yet
-        # Fail softly by simply not including the documentation
-        # for it.
-        # https://clusterhq.atlassian.net/browse/FLOC-1171
-        try:
-            result['input'] = _parseSchema(inputSchema, schema_store)
-        except:
-            pass
+        result['input'] = _parseSchema(inputSchema, schema_store)
         result["input_schema"] = inputSchema
 
     if outputSchema:
-        # See above
-        # https://clusterhq.atlassian.net/browse/FLOC-1171
-        try:
-            result['output'] = _parseSchema(outputSchema, schema_store)
-        except:
-            pass
+        result['output'] = _parseSchema(outputSchema, schema_store)
         result["output_schema"] = outputSchema
 
     examples = route.attributes.get("examples") or []
