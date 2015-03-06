@@ -244,6 +244,82 @@ class MakeRstTests(SynchronousTestCase):
             '',
             ])
 
+    INPUT_ARRAY_SCHEMAS = {
+        b'/v0/test.json': {
+            'endpoint': {
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {
+                        'param': {'$ref': 'test.json#/type'},
+                    },
+                    'required': ['param'],
+                }
+            },
+            'type': {
+                'title': 'TITLE',
+                'description': 'one\ntwo',
+                'type': 'string',
+            },
+        }}
+
+    def test_inputArraySchema(self):
+        """
+        The generated API documentation includes the input schema if it's an
+        array of objects.
+        """
+        app = Klein()
+
+        @app.route(b"/", methods=[b"GET"])
+        @structured(
+            inputSchema={'$ref': '/v0/test.json#/endpoint'},
+            outputSchema={},
+            schema_store=self.INPUT_ARRAY_SCHEMAS,
+        )
+        def f():
+            """
+            Developer docs,
+            """
+
+        rest = list(makeRst(b"/prefix", app, None, self.INPUT_ARRAY_SCHEMAS))
+
+        self.assertEqual(rest, [
+            '',
+            '.. http:get:: /prefix/',
+            '',
+            '   Undocumented.',
+            '   ',
+            '   .. hidden-code-block:: json',
+            '       :label: + Request JSON Schema',
+            '       :starthidden: True',
+            '   ',
+            '       {',
+            '           "$schema": "http://json-schema.org/draft-04/schema#",',
+            '           "items":',
+            '               "properties": {',
+            '                   "param": {',
+            '                       "description": "one\\ntwo",',
+            '                       "title": "TITLE",',
+            '                       "type": "string"',
+            '                   }',
+            '               },',
+            '               "required": [',
+            '                   "param"',
+            '               ],',
+            '               "type": "object"',
+            '           },',
+            '       "type": "array"',
+            '       }',
+            '   ',
+            # YAML is unorderd :(
+            '   :<jsonarr string param: *(required)* TITLE',
+            '   ',
+            '      one',
+            '      two',
+            '      ',
+            '',
+            ])
+
     OUTPUT_SCHEMAS = {
         b'/v0/test.json': {
             'endpoint': {
@@ -305,6 +381,81 @@ class MakeRstTests(SynchronousTestCase):
             '       }',
             '   ',
             '   :>json integer param: *(required)* TITLE',
+            '   ',
+            '      one',
+            '      two',
+            '      ',
+            '',
+            ])
+
+    OUTPUT_ARRAY_SCHEMAS = {
+        b'/v0/test.json': {
+            'endpoint': {
+                'type': 'array',
+                'items': {'$ref': '#/object'},
+            },
+            'object': {
+                'type': 'object',
+                'properties': {
+                    'param': {'$ref': '#/type'},
+                },
+                'required': ['param'],
+            },
+            'type': {
+                'title': 'TITLE',
+                'description': 'one\ntwo',
+                'type': 'integer',
+            },
+        }}
+
+    def test_ouputArraySchema(self):
+        """
+        The generated API documentation includes the output schema.
+        """
+        app = Klein()
+
+        @app.route(b"/", methods=[b"GET"])
+        @structured(
+            inputSchema={},
+            outputSchema={'$ref': '/v0/test.json#/endpoint'},
+            schema_store=self.OUTPUT_ARRAY_SCHEMAS,
+        )
+        def f():
+            """
+            Developer docs,
+            """
+
+        rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_SCHEMAS))
+
+        self.assertEqual(rest, [
+            '',
+            '.. http:get:: /prefix/',
+            '',
+            '   Undocumented.',
+            '   ',
+            '   .. hidden-code-block:: json',
+            '       :label: + Response JSON Schema',
+            '       :starthidden: True',
+            '   ',
+            '       {',
+            '           "$schema": "http://json-schema.org/draft-04/schema#",',
+            '           "items": {'
+            '               "properties": {',
+            '                   "param": {',
+            '                       "description": "one\\ntwo",',
+            '                       "title": "TITLE",',
+            '                       "type": "integer"',
+            '                   }',
+            '               },',
+            '               "required": [',
+            '                   "param"',
+            '               ],',
+            '               "type": "object",',
+            '           },',
+            '           "type": "array"',
+            '       }',
+            '   ',
+            '   :>jsonarr integer param: *(required)* TITLE',
             '   ',
             '      one',
             '      two',
