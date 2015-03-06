@@ -109,49 +109,33 @@ def _parseSchema(schema, schema_store):
         document the schema.
     """
     result = {}
-
-    resolver = LocalRefResolver(
-        base_uri=b'',
-        referrer=schema, store=schema_store)
-
-    if schema.get(u'$ref') is None:
-        raise Exception('Non-$ref top-level definitions not supported.')
-
-    def fill_in_attribute(attr, propSchema):
-        attr['title'] = propSchema['title']
-        attr['description'] = prepare_docstring(
-            propSchema['description'])
-        attr['required'] = property in schema.get('required', [])
-        attr['type'] = propSchema['type']
+    schema = resolveSchema(schema, schema_store)
 
     def fill_in_result(object_schema):
         result['properties'] = {}
         for property, propSchema in object_schema[u'properties'].iteritems():
             attr = result['properties'][property] = {}
-            if "$ref" in propSchema:
-                with resolver.resolving(propSchema['$ref']) as propSchema:
-                    fill_in_attribute(attr, propSchema)
-            else:
-                fill_in_attribute(attr, propSchema)
+            attr['title'] = propSchema['title']
+            attr['description'] = prepare_docstring(
+                propSchema['description'])
+            attr['required'] = property in object_schema.get("required", [])
+            attr['type'] = propSchema['type']
 
-    with resolver.resolving(schema[u'$ref']) as schema:
-        if schema[u"type"] == u"object":
-            result["type"] = "object"
-            fill_in_result(schema)
-        elif schema[u"type"] == u"array":
-            result["type"] = "array"
-            # Assume children of array are objects, and there's only one
-            # kind allowed.  Super fragile...
-            child_schema = schema[u"items"]
-            if child_schema.get("properties"):
-                fill_in_result(child_schema)
-            else:
-                with resolver.resolving(
-                        child_schema["oneOf"][0]["$ref"]) as child_schema:
-                    fill_in_result(child_schema)
+    if schema[u"type"] == u"object":
+        result["type"] = "object"
+        fill_in_result(schema)
+    elif schema[u"type"] == u"array":
+        result["type"] = "array"
+        # Assume children of array are objects, and there's only one
+        # kind allowed.
+        child_schema = schema[u"items"]
+        if child_schema.get("type") == "object":
+            fill_in_result(child_schema)
         else:
-            raise Exception(
-                'Non-object/array top-level definitions not supported.')
+            raise Exception("Only single object type allowed in an array.")
+    else:
+        raise Exception(
+            'Non-object/array top-level definitions not supported.')
 
     return result
 

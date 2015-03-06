@@ -283,7 +283,7 @@ class MakeRstTests(SynchronousTestCase):
 
         rest = list(makeRst(b"/prefix", app, None, self.INPUT_ARRAY_SCHEMAS))
 
-        self.assertEqual(rest, [
+        self.assertListEqual(rest, [
             '',
             '.. http:get:: /prefix/',
             '',
@@ -295,7 +295,7 @@ class MakeRstTests(SynchronousTestCase):
             '   ',
             '       {',
             '           "$schema": "http://json-schema.org/draft-04/schema#",',
-            '           "items":',
+            '           "items": {',
             '               "properties": {',
             '                   "param": {',
             '                       "description": "one\\ntwo",',
@@ -308,10 +308,9 @@ class MakeRstTests(SynchronousTestCase):
             '               ],',
             '               "type": "object"',
             '           },',
-            '       "type": "array"',
+            '           "type": "array"',
             '       }',
             '   ',
-            # YAML is unorderd :(
             '   :<jsonarr string param: *(required)* TITLE',
             '   ',
             '      one',
@@ -425,9 +424,9 @@ class MakeRstTests(SynchronousTestCase):
             Developer docs,
             """
 
-        rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_SCHEMAS))
+        rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_ARRAY_SCHEMAS))
 
-        self.assertEqual(rest, [
+        self.assertListEqual(rest, [
             '',
             '.. http:get:: /prefix/',
             '',
@@ -439,7 +438,7 @@ class MakeRstTests(SynchronousTestCase):
             '   ',
             '       {',
             '           "$schema": "http://json-schema.org/draft-04/schema#",',
-            '           "items": {'
+            '           "items": {',
             '               "properties": {',
             '                   "param": {',
             '                       "description": "one\\ntwo",',
@@ -450,7 +449,7 @@ class MakeRstTests(SynchronousTestCase):
             '               "required": [',
             '                   "param"',
             '               ],',
-            '               "type": "object",',
+            '               "type": "object"',
             '           },',
             '           "type": "array"',
             '       }',
