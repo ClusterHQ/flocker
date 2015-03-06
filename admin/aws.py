@@ -364,7 +364,7 @@ class FakeAWS(object):
     def get_dispatcher(self):
         """
         Get an :module:`effect` dispatcher for interacting with this
-        :class:`FaleAWS`.
+        :class:`FakeAWS`.
         """
         return TypeDispatcher({
             UpdateS3RoutingRule: self._perform_update_s3_routing_rule,
