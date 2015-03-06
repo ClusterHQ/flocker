@@ -371,14 +371,8 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     # also, there need to be two repos created, and the docs need to be
     # adapted / moved.
     rpm_directory.createDirectory()
-    # s3 = boto.connect_s3()
-
-    # Does not work if there is a '.' in the name
-    # target_bucket = s3.get_bucket(bucket_name=target_bucket)
 
     # Download existing repository
-    # TODO test this logic with effect
-    # import pdb; pdb.set_trace()
 
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
@@ -386,61 +380,18 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         target_path=rpm_directory,
         filter_extensions=('.rpm',)))
 
-    # for item in bucket.list(prefix=target_key):
-    #     if item.key.endswith('.rpm'):
-    #         new_item_path = os.path.join(rpm_directory.path, str(item.key))
-    #         if not os.path.exists(new_item_path):
-    #             parent = FilePath(new_item_path).parent()
-    #             if not parent.exists():
-    #                 parent.makedirs()
-    #             item.get_contents_to_filename(new_item_path)
-
-    # Download requested packages from source repository
-    # XXX This could be more efficient by only downloading and uploading
-    # the changed files. See:
-    # https://clusterhq.atlassian.net/browse/FLOC-1506
-    # and comments on https://github.com/ClusterHQ/flocker/pull/1190
-    #
-
     downloaded_packages = yield Effect(DownloadPackagesFromRepository(
         source_repo=source_repo,
         target_path=rpm_directory,
         packages=packages,
         version=version,
         ))
-    # repository_metadata = yield Effect(CreateRepo(
-    #     path=rpm_directory,
-    #     ))
-    # yum_repo_config = rpm_directory.child(b'build.repo')
-    # yum_repo_config.setContent(dedent(b"""
-    #      [flocker]
-    #      name=flocker
-    #      baseurl=%s
-    #      """) % (source_repo,))
-
-
-    # check_call([
-    #     b'yum',
-    #     b'-c', yum_repo_config.path,
-    #     b'--disablerepo=*',
-    #     b'--enablerepo=flocker',
-    #     b'clean',
-    #     b'metadata'])
-
-    # check_call([
-    #     b'yumdownloader',
-    #     b'-c', yum_repo_config.path,
-    #     b'--disablerepo=*',
-    #     b'--enablerepo=flocker',
-    #     b'--destdir', os.path.join(rpm_directory.path, target_key)] + packages)
 
     # Update repository metadata
     # check_call([b'createrepo', b'--update',
     #             os.path.join(rpm_directory.path, target_key)])
 
     # Upload updated repository
-    # TODO test this logic with effect
-    # downloaded_packages = []
     repository_metadata = []
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
@@ -448,17 +399,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         target_key=target_key,
         files=downloaded_packages + repository_metadata,
         ))
-    # for f in rpm_directory.walk():
-    #     if f.isfile():
-    #         # TODO
-    #         # we only want to upload
-    #         # 1. New RPMs.
-    #         # 2. New yum metadata: repodata/repomod.xml and the files referenced there.
-    #         # (It probably doesn't make sense to parse repomod.xml, just grab the new files in repodata.
-    #         destination_path = os.path.relpath(f.path, rpm_directory.path)
-    #         key = bucket.new_key(destination_path)
-    #         key.set_contents_from_filename(f.path)
-    #         key.make_public()
 
 
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
