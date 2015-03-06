@@ -17,7 +17,7 @@ class Proxy(PRecord):
 
     :ivar int port: The TCP port number on which this proxy operates.
     """
-    ip = field(type=IPv4Address)
+    ip = field()
     port = field(type=int)
 
 

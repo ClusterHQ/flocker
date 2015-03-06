@@ -389,7 +389,7 @@ class OpenPorts(PRecord):
     :ivar ports: A collection of ``Port`` objects.
     """
 
-    ports = field(type=Port)
+    ports = field()
 
     def run(self, deployer):
         results = []
