@@ -400,8 +400,8 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     # the changed files. See:
     # https://clusterhq.atlassian.net/browse/FLOC-1506
     # and comments on https://github.com/ClusterHQ/flocker/pull/1190
-    # downloaded_packages =
-    yield Effect(DownloadPackagesFromRepository(
+    #
+    downloaded_packages = yield Effect(DownloadPackagesFromRepository(
         source_repo=source_repo,
         target_path=rpm_directory,
         packages=packages,
@@ -439,13 +439,13 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
 
     # Upload updated repository
     # TODO test this logic with effect
-    downloaded_packages = []
+    # downloaded_packages = []
     repository_metadata = []
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
         target_bucket=target_bucket,
         target_key=target_key,
-        files=[downloaded_packages, repository_metadata]
+        files=downloaded_packages + repository_metadata,
         ))
     # for f in rpm_directory.walk():
     #     if f.isfile():

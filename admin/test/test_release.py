@@ -724,7 +724,6 @@ class UploadRPMsTests(TestCase):
                     'en/0.3.1/sub/index.html': '',
                 },
                 'clusterhq-packages': {
-                    'index.rpm': 'hello',
                 },
             })
         from subprocess import check_call
@@ -742,6 +741,7 @@ class UploadRPMsTests(TestCase):
         self.update_repo(aws=aws, rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
             target_bucket='clusterhq-packages', target_key='', source_repo='file://' + source_repo.path,
             packages=['clusterhq-flocker-cli'], version=version)
+        import pdb; pdb.set_trace()
         self.assertEqual(
             aws.s3_buckets['clusterhq-packages'], {
                 'index.html': '',

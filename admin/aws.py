@@ -185,19 +185,11 @@ def perform_download_s3_key_recursively(dispatcher, intent):
     """
     see :class:`ListS3Keys`.
     """
-    from boto.s3.key import Key
-
     keys = yield Effect(ListS3Keys(prefix=intent.source_prefix, bucket=intent.source_bucket))
     for key in keys:
-
-        # TODO this means that there should be a fake of this performer, right?
-        if isinstance(key, Key):
-            key_name = key.name
-        else:
-            key_name = key
-        if not key_name.endswith(intent.filter_extensions):
+        if not key.endswith(intent.filter_extensions):
             continue
-        path = intent.target_path.preauthChild(key_name[len(intent.source_prefix):])
+        path = intent.target_path.preauthChild(key[len(intent.source_prefix):])
 
         if not intent.target_path.parent().exists():
            path.target_parent().makedirs()
@@ -421,7 +413,8 @@ class FakeAWS(object):
                 with f.open() as source_file:
                     # TODO this has been messed around with. Confirm that
                     # everything goes to the right place
-                    bucket[f.path[len(intent.source_path):]] = source_file
+                    bucket[os.path.relpath(f.path, intent.source_path.path)] = source_file
+                    # bucket[f.path[len(intent.source_path.path):]] = source_file
 
     def get_dispatcher(self):
         """
