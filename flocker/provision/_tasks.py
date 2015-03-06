@@ -14,7 +14,7 @@ from ._install import (
     task_upgrade_kernel,
     task_upgrade_selinux,
     task_enable_flocker_control,
-    task_enable_flocker_zfs_agent,
+    task_enable_flocker_agent,
 )
 
 __all__ = [
@@ -27,5 +27,5 @@ __all__ = [
     'task_upgrade_kernel',
     'task_upgrade_selinux',
     'task_enable_flocker_control',
-    'task_enable_flocker_zfs_agent',
+    'task_enable_flocker_agent',
 ]

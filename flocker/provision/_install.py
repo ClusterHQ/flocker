@@ -176,26 +176,26 @@ def task_enable_flocker_control():
     ]
 
 
-ZFS_AGENT_CONFIG = """\
+AGENT_CONFIG = """\
 FLOCKER_NODE_NAME = %(node_name)s
 FLOCKER_CONTROL_NODE = %(control_node)s
 """
 
 
-def task_enable_flocker_zfs_agent(node_name, control_node):
+def task_enable_flocker_agent(node_name, control_node):
     """
-    Configure and eanble flocker-zfs-agent.
+    Configure and eanble flocker-agent.
     """
     return [
         Put(
-            path='/etc/sysconfig/flocker-zfs-agent',
-            content=ZFS_AGENT_CONFIG % {
+            path='/etc/sysconfig/flocker-agent',
+            content=AGENT_CONFIG % {
                 'node_name': node_name,
                 'control_node': control_node
             },
         ),
-        Run.from_args(['systemd', 'enable', 'flocker-zfs-agent']),
-        Run.from_args(['systemd', 'start', 'flocker-zfs-agent']),
+        Run.from_args(['systemd', 'enable', 'flocker-agent']),
+        Run.from_args(['systemd', 'start', 'flocker-agent']),
     ]
 
 
