@@ -6,6 +6,7 @@ Effectful interface to RPM tools.
 
 import os
 
+from twisted.python.filepath import FilePath
 from characteristic import attributes
 from effect import sync_performer, TypeDispatcher
 from subprocess import check_call
@@ -113,9 +114,6 @@ def _list_repository_metadata(repository_path):
         repository_path.child('repodata').walk()]
 
 
-# TODO use a fake source repository, download all files with names starting
-# with package names. Stop passing version. Share code to list files in
-# directory
 class FakeYum(object):
     """
     Enough of a fake implementation of yum utilities to test
@@ -126,30 +124,22 @@ class FakeYum(object):
         """
         See :class:`DownloadPackagesFromRepository`.
         """
-        from admin.release import make_rpm_version
-        from admin.packaging import package_filename, PackageTypes
-
-        rpm_version = make_rpm_version(intent.version)
-        # TODO account for all packages - this ignores the ones with different
-        # architectures
-        # This is the only reason to pass version through. Is it necessary?
-        versioned_packages = [
-            package_filename(package_type=PackageTypes.RPM,
-                             package=package,
-                             architecture='all',
-                             rpm_version=rpm_version)
-            for package in intent.packages]
-
-        for package in versioned_packages:
-            intent.target_path.child(package).setContent(package)
-
-        return versioned_packages
+        # TODO Use a parser for this...or use a dictionary source repo
+        source_repository_directory = FilePath(intent.source_repo[len('file://'):])
+        downloaded_packages = []
+        for path in source_repository_directory.walk():
+            filename = os.path.basename(path.path)
+            if path.isfile() and filename.startswith(tuple(intent.packages)):
+                intent.target_path.child(filename).touch()
+                downloaded_packages.append(filename)
+        return downloaded_packages
 
     @sync_performer
     def _perform_create_repository(self, dispatcher, intent):
         """
         See :class:`CreateRepo`.
         """
+        # TODO Only upload this and *new* files in repodata
         xml_file = intent.repository_path.child('repodata').child('repomd.xml')
         xml_file.parent().makedirs()
         xml_file.touch()

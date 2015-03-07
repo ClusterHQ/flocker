@@ -768,6 +768,9 @@ class UploadRPMsTests(TestCase):
         self.assertDictContainsSubset(
             expected_subset, aws.s3_buckets[self.target_bucket])
 
+    def test_real_yum_commands(self):
+        pass
+
     def test_repository_added_to(self):
         """
         If new packages are added to the repository, old packages remain and
