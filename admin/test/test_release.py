@@ -773,6 +773,7 @@ class UploadRPMsTests(TestCase):
         If new packages are added to the repository, old packages remain and
         repodata is modified.
         """
+        # TODO Fill in stub tests
 
     def test_packages_updated(self):
         """
