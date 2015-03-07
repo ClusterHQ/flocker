@@ -78,7 +78,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
 
 
 @attributes([
-    "path",
+    "repository_path",
 ])
 class CreateRepo(object):
     """
@@ -86,7 +86,8 @@ class CreateRepo(object):
 
     Note that this returns a list with the prefixes stripped.
 
-    :ivar FilePath path: Location of rpm files to create a repository from.
+    :ivar FilePath repository_path: Location of rpm files to create a
+        repository from.
     """
 
 
@@ -101,16 +102,26 @@ def perform_create_repository(dispatcher, intent):
         b'createrepo',
         b'--update',
         b'--quiet',
-        intent.path.path])
+        intent.repository_path.path])
+    return list_repository_metadata(repository_path=intent.repository_path)
 
-    # TODO separate this out
-    return [os.path.basename(path.path) for path in
-            intent.path.child('repodata').walk() if path.isfile()]
 
 yum_dispatcher = TypeDispatcher({
     DownloadPackagesFromRepository: perform_download_packages_from_repository,
     CreateRepo: perform_create_repository,
 })
+
+
+def list_repository_metadata(repository_path):
+    """
+    List the filenames of repository metadata.
+
+    :param FilePath repository_path: Location of repository to list repository
+         metadata from.
+    """
+    return [
+        os.path.basename(path.path) for path in
+        repository_path.child('repodata').walk()]
 
 
 class FakeYum(object):
@@ -147,12 +158,10 @@ class FakeYum(object):
         """
         See :class:`CreateRepo`.
         """
-        xml_file = intent.path.child('repodata').child('repomd.xml')
+        xml_file = intent.repository_path.child('repodata').child('repomd.xml')
         xml_file.parent().makedirs()
         xml_file.touch()
-
-        return [os.path.basename(path.path) for path in
-                intent.path.child('repodata').walk() if path.isfile()]
+        return list_repository_metadata(repository_path=intent.repository_path)
 
     def get_dispatcher(self):
         """
