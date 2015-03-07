@@ -4,6 +4,8 @@
 Effectful interface to RPM tools.
 """
 
+import os
+
 from characteristic import attributes
 from effect import sync_performer, TypeDispatcher
 from subprocess import check_call
@@ -91,9 +93,14 @@ def perform_create_repository(dispatcher, intent):
 
     :return: List of new and modified rpm metadata filenames.
     """
-    check_call([b'createrepo', b'--update', b'--quiet', intent.path.path])
-    # TODO return new repository files
-    return []
+    check_call([
+        b'createrepo',
+        b'--update',
+        b'--quiet',
+        intent.path.path])
+
+    return [os.path.basename(path.path) for path in intent.path.child('repodata').walk()
+            if path.isfile()]
 
 yum_dispatcher = TypeDispatcher({
     DownloadPackagesFromRepository: perform_download_packages_from_repository,

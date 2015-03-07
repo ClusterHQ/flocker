@@ -387,7 +387,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         path=rpm_directory,
         ))
 
-    repository_metadata = ['3f5df63765cc7e16f52cc641bc76caa6374e3a6772e0b676e3858ca2037b6b14-filelists.sqlite.bz2']
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
         target_bucket=target_bucket,
