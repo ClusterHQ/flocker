@@ -60,7 +60,8 @@ def perform_download_packages_from_repository(dispatcher, intent):
         b'--quiet',
         b'--destdir', intent.target_path.path] + intent.packages)
 
-    # TODO you don't really need to pass version through here
+    # TODO you don't really need to pass version through here, separate this
+    # out
     from admin.release import make_rpm_version
     from admin.packaging import package_filename, PackageTypes
 
@@ -140,10 +141,6 @@ class FakeYum(object):
             intent.target_path.child(package).setContent(package)
 
         return versioned_packages
-        # :ivar bytes source_repo: Location of repoisitory.
-        # :ivar FilePath target_path: Directory to download packages to.
-        # :ivar list packages: List of bytes, package names to download.
-        # :ivar bytes version: Version number of Flocker to download packages for.
 
     @sync_performer
     def _perform_create_repository(self, dispatcher, intent):
