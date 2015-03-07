@@ -5,6 +5,7 @@ Effectful interface to RPM tools.
 """
 
 import os
+from urlparse import urlparse
 
 from twisted.python.filepath import FilePath
 from characteristic import attributes
@@ -124,10 +125,10 @@ class FakeYum(object):
         """
         See :class:`DownloadPackagesFromRepository`.
         """
-        # TODO Use a parser for this...or use a dictionary source repo
-        source_repository_directory = FilePath(intent.source_repo[len('file://'):])
+        # TODO use a dictionary source repo
+        source_repo_directory = FilePath(urlparse(intent.source_repo).path)
         downloaded_packages = []
-        for path in source_repository_directory.walk():
+        for path in source_repo_directory.walk():
             filename = os.path.basename(path.path)
             if path.isfile() and filename.startswith(tuple(intent.packages)):
                 intent.target_path.child(filename).touch()
