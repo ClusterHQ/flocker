@@ -720,16 +720,13 @@ class UploadRPMsTests(TestCase):
     def test_repository_uploaded(self):
         # TODO another version of this test with fake yum calls
         # TODO Redirect output of yum calls
-        bucket = 'clusterhq-packages'
-        yum = FakeYum()
         aws = FakeAWS(
             routing_rules={},
-            s3_buckets={bucket: {}, },
+            s3_buckets={self.target_bucket: {}, },
         )
 
         # TODO delete this as test cleanup
-        scratch_directory = FilePath(tempfile.mkdtemp())
-        rpm_directory = scratch_directory.child(b'distro-version-arch')
+        rpm_directory = self.scratch_directory.child(b'distro-version-arch')
         source_repo = FilePath(tempfile.mkdtemp())
         FilePath(__file__).sibling('test-repo').copyTo(source_repo)
 
@@ -739,9 +736,9 @@ class UploadRPMsTests(TestCase):
 
         self.update_repo(
             aws=aws,
-            yum=yum,
+            yum=FakeYum(),
             rpm_directory=rpm_directory,
-            target_bucket=bucket,
+            target_bucket=self.target_bucket,
             target_key=target_key,
             source_repo='file://' + source_repo.path,
             packages=['clusterhq-flocker-cli'],
@@ -752,7 +749,7 @@ class UploadRPMsTests(TestCase):
         bz2 = '3f5df63765cc7e16f52cc641bc76caa6374e3a6772e0b676e3858ca2037b6b14-filelists.sqlite.bz2'
 
         self.assertEqual(
-            aws.s3_buckets['clusterhq-packages'], {
+            aws.s3_buckets[self.target_bucket], {
                 # TODO - don't just upload the path, because that doesn't show
                 # anything if the is updated?
                 os.path.join(target_key, versioned_package):
