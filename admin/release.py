@@ -417,35 +417,34 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     elif is_weekly_release(version):
         release_type = "development"
 
-    # TODO test these calls with a spy
-    sync_perform(
-      dispatcher=ComposedDispatcher(
+    dispatcher = ComposedDispatcher([
           boto_dispatcher,
           yum_dispatcher,
-          base_dispatcher),
+          base_dispatcher])
+
+    # TODO test these calls with a spy
+    sync_perform(
+        dispatcher=dispatcher,
         effect=update_repo(
-        rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
-        target_bucket=target_bucket,
-        target_key=os.path.join(release_type, b'fedora', b'20', b'x86_64'),
-        source_repo=os.path.join(build_server, b'results/omnibus', version,
-                                 b'fedora-20'),
-        packages=FLOCKER_PACKAGES,
-        version=version,
+            rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
+            target_bucket=target_bucket,
+            target_key=os.path.join(release_type, b'fedora', b'20', b'x86_64'),
+            source_repo=os.path.join(build_server, b'results/omnibus', version,
+                                     b'fedora-20'),
+            packages=FLOCKER_PACKAGES,
+            version=version,
     ))
 
     sync_perform(
-      dispatcher=ComposedDispatcher(
-          boto_dispatcher,
-          yum_dispatcher,
-          base_dispatcher),
+      dispatcher=dispatcher,
       effect=update_repo(
-        rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
-        target_bucket=target_bucket,
-        target_key=os.path.join(release_type, b'centos', b'7', b'x86_64'),
-        source_repo=os.path.join(build_server, b'results/omnibus', version,
-                                 b'centos-7'),
-        packages=FLOCKER_PACKAGES,
-        version=version,
+          rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
+          target_bucket=target_bucket,
+          target_key=os.path.join(release_type, b'centos', b'7', b'x86_64'),
+          source_repo=os.path.join(build_server, b'results/omnibus', version,
+                                   b'centos-7'),
+          packages=FLOCKER_PACKAGES,
+          version=version,
     ))
 
 

@@ -727,7 +727,6 @@ class UploadRPMsTests(TestCase):
         Uploading a repository to an empty bucket puts packages and repodata in
         place.
         """
-        # TODO another version of this test with fake yum calls
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
@@ -754,10 +753,6 @@ class UploadRPMsTests(TestCase):
         )
 
         repodata_files = [
-            # '261046e8f99911a4ad1055d01add9c2e5b6e7a703ccf14e6a9bbfb04f5da8923-other.xml.gz',
-            # 'e15a6332458bb9afc945b29b1600ff298304303ef5b5096b0994b1b996010e97-filelists.xml.gz',
-            # '3f5df63765cc7e16f52cc641bc76caa6374e3a6772e0b676e3858ca2037b6b14-filelists.sqlite.bz2',
-            # '1e06ac66a8e4d8d1811974d8c22f4f4361f6dd7a12b031c9da8c22066ade8d1a-other.sqlite.bz2',
             'repomd.xml',
         ]
 
