@@ -676,12 +676,17 @@ class UploadRPMsTests(TestCase):
                     rpm_directory, target_bucket, target_key, source_repo,
                     packages, version):
         """
-        Call :func:``publish_docs``, interacting with a fake AWS.
+        Call :func:``update_repo``, interacting with a fake AWS and yum
+        utilities.
 
         :param FakeAWS aws: Fake AWS to interact with.
-        :param flocker_version: See :py:func:`publish_docs`.
-        :param doc_version: See :py:func:`publish_docs`.
-        :param environment: See :py:func:`environment`.
+        :param FakeYum yum: Fake yum utilities to interact with.
+        :param rpm_directory: See :py:func:`update_repo`.
+        :param target_bucket: See :py:func:`update_repo`.
+        :param target_key: See :py:func:`update_repo`.
+        :param source_repo: See :py:func:`update_repo`.
+        :param packages: See :py:func:`update_repo`.
+        :param version: See :py:func:`update_repo`.
         """
         dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
                        base_dispatcher]
