@@ -60,24 +60,9 @@ def perform_download_packages_from_repository(dispatcher, intent):
         b'--quiet',
         b'--destdir', intent.target_path.path] + intent.packages)
 
-    # TODO you don't really need to pass version through here, separate this
-    # out
-    from admin.release import make_rpm_version
-    from admin.packaging import package_filename, PackageTypes
-
-    rpm_version = make_rpm_version(intent.version)
-    # TODO account for all packages - this ignores the ones with different
-    # architecture for example.
-    # Instead, get the packages which were actually downloaded.
-    versioned_packages = [
-        package_filename(package_type=PackageTypes.RPM,
-                         package=package,
-                         architecture='all',
-                         rpm_version=rpm_version)
-        for package in intent.packages]
-
     # TODO only return these if there have been changes
-    return versioned_packages
+    return [os.path.basename(path.path) for path in intent.target_path.walk()
+            if path.isfile()]
 
 
 @attributes([
@@ -141,6 +126,9 @@ class FakeYum(object):
         from admin.packaging import package_filename, PackageTypes
 
         rpm_version = make_rpm_version(intent.version)
+        # TODO account for all packages - this ignores the ones with different
+        # architectures
+        # This is the only reason to pass version through. Is it necessary?
         versioned_packages = [
             package_filename(package_type=PackageTypes.RPM,
                              package=package,
@@ -161,7 +149,8 @@ class FakeYum(object):
         xml_file = intent.repository_path.child('repodata').child('repomd.xml')
         xml_file.parent().makedirs()
         xml_file.touch()
-        return _list_repository_metadata(repository_path=intent.repository_path)
+        return _list_repository_metadata(
+            repository_path=intent.repository_path)
 
     def get_dispatcher(self):
         """

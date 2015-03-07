@@ -473,6 +473,7 @@ def upload_rpms_main(args, base_path, top_level):
         scratch_directory = FilePath(tempfile.mkdtemp(
             prefix=b'flocker-upload-rpm-'))
 
+        # TODO have a staging bucket with a --staging option
         upload_rpms(scratch_directory=scratch_directory,
                     target_bucket=options['target'],
                     version=options['version'],
