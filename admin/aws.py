@@ -178,7 +178,6 @@ class DownloadS3KeyRecursively(object):
     :ivar bytes prefix: Prefix of keys to be listed.
     # TODO document params and performer docstring -
     #   filter_extensions is a tuple
-    # TODO pyrsistent
     """
 
 
@@ -217,14 +216,15 @@ class DownloadS3Key(object):
 
     :ivar bytes bucket: Name of bucket to list keys from.
     :ivar bytes prefix: Prefix of keys to be listed.
-    # TODO document params and performer docstring -
-    #   filter_extensions is a tuple
-    # TODO pyrsistent
+    # TODO document params - filter_extensions is a tuple
     """
 
 
 @sync_performer
 def perform_download_s3_key(dispatcher, intent):
+    """
+    see :class:`DownloadS3Key`.
+    """
     s3 = boto.connect_s3()
 
     bucket = s3.get_bucket(intent.source_bucket)
@@ -247,14 +247,16 @@ class UploadToS3Recursively(object):
 
     :ivar bytes bucket: Name of bucket to list keys from.
     :ivar bytes prefix: Prefix of keys to be listed.
-    # TODO document this and performer docstring
-    # TODO pyrsistent
+    # TODO document this
     """
 
 
 @sync_performer
 @do
 def perform_upload_s3_key_recursively(dispatcher, intent):
+    """
+    see :class:`UploadToS3Recursively`.
+    """
     for path in intent.source_path.walk():
         if os.path.basename(path.path) in intent.files:
             yield Effect(
@@ -274,19 +276,20 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
 ])
 class UploadToS3(object):
     """
-    Download the S3 files from a key a bucket.
+    Upload a file to S3.
 
-    Note that this returns a list with the prefixes stripped.
-
-    :ivar bytes bucket: Name of bucket to list keys from.
-    :ivar bytes prefix: Prefix of keys to be listed.
-    # TODO document this and performer docstring
-    # TODO pyrsistent
+    :ivar FilePath source_path: Prefix of files to be uploaded.
+    :ivar bytes target_bucket: Name of bucket to upload file to.
+    :ivar bytes target_key: Name S3 key to upload file to.
+    :ivar FilePath file: Path to file to upload.
     """
 
 
 @sync_performer
 def perform_upload_s3_key(dispatcher, intent):
+    """
+    see :class:`UploadToS3`.
+    """
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.target_bucket)
     with intent.file.open() as source_file:
@@ -377,8 +380,7 @@ class FakeAWS(object):
     @sync_performer
     def _perform_download_s3_key(self, dispatcher, intent):
         """
-        # TODO docstring
-        see :class:`ListS3Keys`.
+        see :class:`DownloadS3Key`.
         """
         bucket = self.s3_buckets[intent.source_bucket]
         intent.target_path.setContent(bucket[intent.source_key])
@@ -386,8 +388,7 @@ class FakeAWS(object):
     @sync_performer
     def _perform_upload_s3_key(self, dispatcher, intent):
         """
-        # TODO docstring
-        see :class:`ListS3Keys`.
+        see :class:`UploadToS3`.
         """
         bucket = self.s3_buckets[intent.target_bucket]
         bucket[intent.target_key +
