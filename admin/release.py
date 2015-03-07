@@ -387,6 +387,8 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         repository_path=rpm_directory,
         ))
 
+    # TODO only upload new packages and metadata
+
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
         target_bucket=target_bucket,

@@ -139,7 +139,6 @@ class FakeYum(object):
         """
         See :class:`CreateRepo`.
         """
-        # TODO Only upload this and *new* files in repodata
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
         metadata_directory.child('repomd.xml').touch()
