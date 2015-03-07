@@ -387,8 +387,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         repository_path=rpm_directory,
         ))
 
-    import pdb; pdb.set_trace()
-
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
         target_bucket=target_bucket,
