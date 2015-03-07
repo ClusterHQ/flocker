@@ -103,7 +103,7 @@ def perform_create_repository(dispatcher, intent):
         b'--update',
         b'--quiet',
         intent.repository_path.path])
-    return list_repository_metadata(repository_path=intent.repository_path)
+    return _list_repository_metadata(repository_path=intent.repository_path)
 
 
 yum_dispatcher = TypeDispatcher({
@@ -112,7 +112,7 @@ yum_dispatcher = TypeDispatcher({
 })
 
 
-def list_repository_metadata(repository_path):
+def _list_repository_metadata(repository_path):
     """
     List the filenames of repository metadata.
 
@@ -158,7 +158,7 @@ class FakeYum(object):
         xml_file = intent.repository_path.child('repodata').child('repomd.xml')
         xml_file.parent().makedirs()
         xml_file.touch()
-        return list_repository_metadata(repository_path=intent.repository_path)
+        return _list_repository_metadata(repository_path=intent.repository_path)
 
     def get_dispatcher(self):
         """
