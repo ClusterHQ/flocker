@@ -718,10 +718,16 @@ class UploadRPMsTests(TestCase):
             self.build_server)
 
     def test_repository_uploaded(self):
+        """
+        Uploading a repository to an empty bucket puts packages and repodata in
+        place.
+        """
         # TODO another version of this test with fake yum calls
         aws = FakeAWS(
             routing_rules={},
-            s3_buckets={self.target_bucket: {}, },
+            s3_buckets={
+                self.target_bucket: {},
+            },
         )
 
         rpm_directory = self.scratch_directory.child(b'distro-version-arch')
@@ -729,7 +735,6 @@ class UploadRPMsTests(TestCase):
         FilePath(__file__).sibling('test-repo').copyTo(source_repo)
 
         target_key = 'test/target/key'
-
         versioned_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
 
         self.update_repo(
