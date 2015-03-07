@@ -316,7 +316,30 @@ def perform_download_packages_from_repository(dispatcher, intent):
         for package in intent.packages
     ]
 
+    # TODO only return these if there have been changes
     return versioned_packages
+
+@attributes([
+    "path",
+])
+class CreateRepo(object):
+    """
+    Download the S3 files from a key a bucket.
+
+    Note that this returns a list with the prefixes stripped.
+
+    :ivar bytes bucket: Name of bucket to list keys from.
+    :ivar bytes prefix: Prefix of keys to be listed.
+    # TODO document this and performer docstring
+    # TODO pyrsistent
+    # TODO this should not be in aws.py...have own dispatcher and ComposedDispatcher
+    """
+
+@sync_performer
+def perform_create_repository(dispatcher, intent):
+    check_call([b'createrepo', b'--update', intent.path.path])
+    # TODO return new repository files
+    return []
 
 boto_dispatcher = TypeDispatcher({
     UpdateS3RoutingRule: perform_update_s3_routing_rule,
@@ -431,6 +454,7 @@ class FakeAWS(object):
             DownloadS3Key: self._perform_download_s3_key,
             UploadToS3Recursively: self._perform_upload_s3_key_recursively,
             DownloadPackagesFromRepository: perform_download_packages_from_repository,
+            CreateRepo: perform_create_repository,
             CreateCloudFrontInvalidation:
                 self._perform_create_cloudfront_invalidation,
         })

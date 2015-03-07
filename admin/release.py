@@ -41,6 +41,7 @@ from .aws import (
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
     DownloadPackagesFromRepository,
+    CreateRepo,
 )
 
 
@@ -372,8 +373,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     # adapted / moved.
     rpm_directory.createDirectory()
 
-    # Download existing repository
-
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
         source_prefix=target_key,
@@ -387,12 +386,12 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         version=version,
         ))
 
-    # Update repository metadata
-    # check_call([b'createrepo', b'--update',
-    #             os.path.join(rpm_directory.path, target_key)])
+    repository_metadata = yield Effect(CreateRepo(
+        path=rpm_directory,
+        ))
 
     # Upload updated repository
-    repository_metadata = []
+    repository_metadata = ['3f5df63765cc7e16f52cc641bc76caa6374e3a6772e0b676e3858ca2037b6b14-filelists.sqlite.bz2']
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
         target_bucket=target_bucket,

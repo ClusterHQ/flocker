@@ -748,12 +748,17 @@ class UploadRPMsTests(TestCase):
             version=version,
         )
 
+        # self.maxDiff = None
+        # TODO this won't be the only bz2
+        bz2 = '3f5df63765cc7e16f52cc641bc76caa6374e3a6772e0b676e3858ca2037b6b14-filelists.sqlite.bz2'
+        import pdb; pdb.set_trace()
         self.assertEqual(
             aws.s3_buckets['clusterhq-packages'], {
                 # TODO - don't just upload the path, because that doesn't show anything if the is updated?
                 os.path.join(target_key, versioned_package):
                     rpm_directory.child(versioned_package).path,
-                # TODO there will be a repository directory here when the createrepo command is run
+                os.path.join(target_key, 'repodata', bz2):
+                    rpm_directory.child('repodata').child(bz2).path
             })
 
     def test_packages_updated(self):
