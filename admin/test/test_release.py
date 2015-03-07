@@ -773,5 +773,26 @@ class UploadRPMsTests(TestCase):
         self.assertDictContainsSubset(
             expected_subset, aws.s3_buckets[self.target_bucket])
 
+    def test_repository_added_to(self):
+        """
+        If new packages are added to the repository, old packages remain and
+        repodata is modified.
+        """
+
     def test_packages_updated(self):
-        pass
+        """
+        If a new version of a package which already exists in S3 is available,
+        the old package is replaced.
+        """
+
+    def test_development_repositories_created(self):
+        """
+        upload_rpms creates development repositories for CentOS 7 and Fedora 20
+        for a development release.
+        """
+
+    def test_marketing_repositories_created(self):
+        """
+        upload_rpms creates marketing repositories for CentOS 7 and Fedora 20
+        for a marketing release.
+        """
