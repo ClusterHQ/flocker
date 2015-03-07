@@ -253,19 +253,47 @@ class UploadToS3Recursively(object):
 
 
 @sync_performer
+@do
 def perform_upload_s3_key_recursively(dispatcher, intent):
-    s3 = boto.connect_s3()
+    for path in intent.source_path.walk():
+        if os.path.basename(path.path) in intent.files:
+            yield Effect(
+                UploadToS3(
+                    source_path=intent.source_path,
+                    target_bucket=intent.target_bucket,
+                    target_key=intent.target_key,
+                    file=path,
+                    ))
 
-    bucket = s3.get_bucket(intent.source_bucket)
-    for f in intent.source_path.walk():
-        if os.path.basename(f.path) in intent.files:
-            with f.open() as source_file:
-                # TODO this has been messed around with. Confirm that
-                # everything goes to the right place
-                key = bucket.new_key(intent.target_key +
-                                     f.path[len(intent.source_path):])
-                key.set_contents_from_file(source_file)
-                key.make_public()
+
+@attributes([
+    "source_path",
+    "target_bucket",
+    "target_key",
+    "file",
+])
+class UploadToS3(object):
+    """
+    Download the S3 files from a key a bucket.
+
+    Note that this returns a list with the prefixes stripped.
+
+    :ivar bytes bucket: Name of bucket to list keys from.
+    :ivar bytes prefix: Prefix of keys to be listed.
+    # TODO document this and performer docstring
+    # TODO pyrsistent
+    """
+
+
+@sync_performer
+def perform_upload_s3_key(dispatcher, intent):
+    s3 = boto.connect_s3()
+    bucket = s3.get_bucket(intent.target_bucket)
+    with intent.file.open() as source_file:
+        key = bucket.new_key(intent.target_key +
+                             intent.file.path[len(intent.source_path):])
+        key.set_contents_from_file(source_file)
+        key.make_public()
 
 boto_dispatcher = TypeDispatcher({
     UpdateS3RoutingRule: perform_update_s3_routing_rule,
@@ -275,6 +303,7 @@ boto_dispatcher = TypeDispatcher({
     DownloadS3KeyRecursively: perform_download_s3_key_recursively,
     DownloadS3Key: perform_download_s3_key,
     UploadToS3Recursively: perform_upload_s3_key_recursively,
+    UploadToS3: perform_upload_s3_key,
     CreateCloudFrontInvalidation: perform_create_cloudfront_invalidation,
 })
 
@@ -355,16 +384,14 @@ class FakeAWS(object):
         intent.target_path.setContent(bucket[intent.source_key])
 
     @sync_performer
-    def _perform_upload_s3_key_recursively(self, dispatcher, intent):
+    def _perform_upload_s3_key(self, dispatcher, intent):
         """
         # TODO docstring
         see :class:`ListS3Keys`.
         """
         bucket = self.s3_buckets[intent.target_bucket]
-        for f in intent.source_path.walk():
-            if os.path.basename(f.path) in intent.files:
-                bucket[intent.target_key +
-                       f.path[len(intent.source_path.path):]] = f.path
+        bucket[intent.target_key +
+            intent.file.path[len(intent.source_path.path):]] = intent.file.path
 
     def get_dispatcher(self):
         """
@@ -378,7 +405,8 @@ class FakeAWS(object):
             CopyS3Keys: self._perform_copy_s3_keys,
             DownloadS3KeyRecursively: perform_download_s3_key_recursively,
             DownloadS3Key: self._perform_download_s3_key,
-            UploadToS3Recursively: self._perform_upload_s3_key_recursively,
+            UploadToS3Recursively: perform_upload_s3_key_recursively,
+            UploadToS3: self._perform_upload_s3_key,
             CreateCloudFrontInvalidation:
                 self._perform_create_cloudfront_invalidation,
         })
