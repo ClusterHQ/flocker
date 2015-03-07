@@ -18,14 +18,14 @@ from textwrap import dedent
 ])
 class DownloadPackagesFromRepository(object):
     """
-    Download the S3 files from a key a bucket.
+    Download a given set of RPMs from a repository.
 
     Note that this returns a list with the prefixes stripped.
 
-    :ivar bytes bucket: Name of bucket to list keys from.
-    :ivar bytes prefix: Prefix of keys to be listed.
-    # TODO document this and performer docstring
-    # TODO pyrsistent
+    :ivar bytes source_repo: Location of repoisitory.
+    :ivar FilePath target_path: Directory to download packages to.
+    :ivar list packages: List of bytes, package names to download.
+    :ivar bytes version: Version number of Flocker to download packages for.
     """
 
 
@@ -40,21 +40,22 @@ def perform_download_packages_from_repository(dispatcher, intent):
 
     check_call([
         b'yum',
-        b'-c', yum_repo_config.path,
+        b'--config', yum_repo_config.path,
         b'--disablerepo=*',
         b'--enablerepo=flocker',
+        b'--quiet',
         b'clean',
         b'metadata'])
 
     check_call([
         b'yumdownloader',
-        b'-c', yum_repo_config.path,
+        b'--config', yum_repo_config.path,
         b'--disablerepo=*',
         b'--enablerepo=flocker',
+        b'--quiet',
         b'--destdir', intent.target_path.path] + intent.packages)
 
     # TODO you don't really need to pass version through here
-    # TODO This is RPM specific. Support other packages?
     from admin.release import make_rpm_version
     from admin.packaging import package_filename, PackageTypes
 
@@ -75,20 +76,22 @@ def perform_download_packages_from_repository(dispatcher, intent):
 ])
 class CreateRepo(object):
     """
-    Download the S3 files from a key a bucket.
+    Create repository metadata.
 
     Note that this returns a list with the prefixes stripped.
 
-    :ivar bytes bucket: Name of bucket to list keys from.
-    :ivar bytes prefix: Prefix of keys to be listed.
-    # TODO document this and performer docstring
-    # TODO pyrsistent
+    :ivar FilePath path: Location of rpm files to create a repository from.
     """
 
 
 @sync_performer
 def perform_create_repository(dispatcher, intent):
-    check_call([b'createrepo', b'--update', intent.path.path])
+    """
+    See :class:`CreateRepo`.
+
+    :return: List of new and modified rpm metadata filenames.
+    """
+    check_call([b'createrepo', b'--update', b'--quiet', intent.path.path])
     # TODO return new repository files
     return []
 
@@ -100,35 +103,13 @@ yum_dispatcher = TypeDispatcher({
 
 class FakeYum(object):
     """
-    # TODO Document
-
-    Enough of a fake implementation of AWS to test
-    :func:`admin.release.publish_docs`.
-
-    :ivar routing_rules: Dictionary of routing rules for S3 buckets. They are
-        represented as dictonaries mapping key prefixes to replacements. Other
-        types of rules and attributes are supported or represented.
-    :ivar s3_buckets: Dictionary of fake S3 buckets. Each bucket is represented
-        as a dictonary mapping keys to contents. Other attributes are ignored.
-    :ivar cloudfront_invalidations: List of
-        :class:`CreateCloudFrontInvalidation` that have been requested.
+    Enough of a fake implementation of yum utilities to test
+    :func:`admin.release.upload_rpms`.
     """
-    def __init__(self):
-        self.cloudfront_invalidations = []
-
-    @sync_performer
-    def _perform_update_s3_routing_rule(self, dispatcher, intent):
-        """
-        See :class:`UpdateS3RoutingRule`.
-        """
-        old_target = self.routing_rules[intent.bucket][intent.prefix]
-        self.routing_rules[intent.bucket][intent.prefix] = intent.target_prefix
-        return old_target
-
     def get_dispatcher(self):
         """
         Get an :module:`effect` dispatcher for interacting with this
-        :class:`FakeAWS`.
+        :class:`FakeYum`.
         """
         return TypeDispatcher({
             DownloadPackagesFromRepository:

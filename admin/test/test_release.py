@@ -719,7 +719,6 @@ class UploadRPMsTests(TestCase):
 
     def test_repository_uploaded(self):
         # TODO another version of this test with fake yum calls
-        # TODO Redirect output of yum calls
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={self.target_bucket: {}, },
