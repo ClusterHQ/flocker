@@ -66,6 +66,9 @@ def perform_download_packages_from_repository(dispatcher, intent):
     from admin.packaging import package_filename, PackageTypes
 
     rpm_version = make_rpm_version(intent.version)
+    # TODO account for all packages - this ignores the ones with different
+    # architecture for example.
+    # Instead, get the packages which were actually downloaded.
     versioned_packages = [
         package_filename(package_type=PackageTypes.RPM,
                          package=package,
