@@ -129,7 +129,6 @@ class FakeYum(object):
     Enough of a fake implementation of yum utilities to test
     :func:`admin.release.upload_rpms`.
     """
-    # TODO fill in these sync performers
     @sync_performer
     def _perform_download_packages_from_repository(self, dispatcher, intent):
         """
@@ -146,8 +145,6 @@ class FakeYum(object):
                              rpm_version=rpm_version)
             for package in intent.packages]
 
-        # TODO only return these if there have been changes
-        # TODO put files in target_path
         for package in versioned_packages:
             intent.target_path.child(package).setContent(package)
 
