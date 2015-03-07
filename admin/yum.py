@@ -113,6 +113,8 @@ class FakeYum(object):
     Enough of a fake implementation of yum utilities to test
     :func:`admin.release.upload_rpms`.
     """
+    # TODO fake sync performers
+
     def get_dispatcher(self):
         """
         Get an :module:`effect` dispatcher for interacting with this
