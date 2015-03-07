@@ -770,7 +770,6 @@ class UploadRPMsTests(TestCase):
             content = rpm_directory.child('repodata').child(repodata_file).path
             expected_subset[key] = content
 
-        import pdb; pdb.set_trace()
         self.assertDictContainsSubset(
             expected_subset, aws.s3_buckets[self.target_bucket])
 
