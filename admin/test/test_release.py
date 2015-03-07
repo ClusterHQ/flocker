@@ -741,6 +741,7 @@ class UploadRPMsTests(TestCase):
         target_key = 'test/target/key'
         versioned_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
 
+        # TODO use dictionary source repo with a function which touches files
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
