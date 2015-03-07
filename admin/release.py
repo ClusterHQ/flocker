@@ -10,11 +10,7 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 
 import os
 import sys
-from subprocess import check_call
-from textwrap import dedent
 import tempfile
-
-import boto
 
 from collections import namedtuple
 from effect import (
@@ -40,9 +36,10 @@ from .aws import (
     DownloadS3KeyRecursively,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
-    DownloadPackagesFromRepository,
-    CreateRepo,
+
 )
+
+from .yum import CreateRepo, DownloadPackagesFromRepository, yum_dispatcher
 
 
 __all__ = ['rpm_version', 'make_rpm_version']
@@ -425,8 +422,11 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     # TODO test these calls with a spy
     # TODO replace references to RPMs with Packages
     sync_perform(
-      dispatcher=ComposedDispatcher(boto_dispatcher, base_dispatcher),
-      effect=update_repo(
+      dispatcher=ComposedDispatcher(
+          boto_dispatcher,
+          yum_dispatcher,
+          base_dispatcher),
+        effect=update_repo(
         rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
         target_bucket=target_bucket,
         target_key=os.path.join(release_type, b'fedora', b'20', b'x86_64'),
@@ -437,7 +437,10 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     ))
 
     sync_perform(
-      dispatcher=ComposedDispatcher(boto_dispatcher, base_dispatcher),
+      dispatcher=ComposedDispatcher(
+          boto_dispatcher,
+          yum_dispatcher,
+          base_dispatcher),
       effect=update_repo(
         rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
         target_bucket=target_bucket,

@@ -18,6 +18,7 @@ from ..release import (
     DocumentationRelease, NotTagged, NotARelease,
 )
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
+from ..yum import FakeYum
 
 
 class MakeRpmVersionTests(TestCase):
@@ -672,7 +673,7 @@ class UploadRPMsTests(TestCase):
     """
     Tests for :func:``upload_rpms``.
     """
-    def update_repo(self, aws,
+    def update_repo(self, aws, yum,
                     rpm_directory, target_bucket, target_key, source_repo,
                     packages, version):
         """
@@ -683,9 +684,12 @@ class UploadRPMsTests(TestCase):
         :param doc_version: See :py:func:`publish_docs`.
         :param environment: See :py:func:`environment`.
         """
+        dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
+                       base_dispatcher]
         sync_perform(
-            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
-            update_repo(rpm_directory, target_bucket, target_key, source_repo, packages, version))
+            ComposedDispatcher(dispatchers),
+            update_repo(rpm_directory, target_bucket, target_key, source_repo,
+                        packages, version))
 
     def setUp(self):
         self.scratch_directory = FilePath(tempfile.mkdtemp(
@@ -717,17 +721,20 @@ class UploadRPMsTests(TestCase):
     def test_repository_uploaded(self):
         # TODO another version of this test with fake yum calls
         bucket = 'clusterhq-packages'
+        yum = FakeYum()
         aws = FakeAWS(
             routing_rules={},
-            s3_buckets={bucket: {},},
+            s3_buckets={bucket: {}, },
         )
 
         # TODO delete this as test cleanup
-        scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
+        scratch_directory = FilePath(tempfile.mkdtemp(
+            prefix=b'flocker-upload-rpm-'))
         rpm_directory = scratch_directory.child(b'distro-version-arch')
         version = '0.3.3dev7'
 
-        source_repo = FilePath(tempfile.mkdtemp(prefix=b'flocker-source-repo-'))
+        source_repo = FilePath(tempfile.mkdtemp(
+            prefix=b'flocker-source-repo-'))
         # TODO upload this directory to git
         FilePath(__file__).sibling('test-repo').copyTo(source_repo)
         # TODO Redirect output of this and other yum calls
@@ -740,6 +747,7 @@ class UploadRPMsTests(TestCase):
 
         self.update_repo(
             aws=aws,
+            yum=yum,
             rpm_directory=rpm_directory,
             target_bucket=bucket,
             target_key=target_key,
@@ -751,14 +759,15 @@ class UploadRPMsTests(TestCase):
         # self.maxDiff = None
         # TODO this won't be the only bz2
         bz2 = '3f5df63765cc7e16f52cc641bc76caa6374e3a6772e0b676e3858ca2037b6b14-filelists.sqlite.bz2'
-        import pdb; pdb.set_trace()
+
         self.assertEqual(
             aws.s3_buckets['clusterhq-packages'], {
-                # TODO - don't just upload the path, because that doesn't show anything if the is updated?
+                # TODO - don't just upload the path, because that doesn't show
+                # anything if the is updated?
                 os.path.join(target_key, versioned_package):
                     rpm_directory.child(versioned_package).path,
                 os.path.join(target_key, 'repodata', bz2):
-                    rpm_directory.child('repodata').child(bz2).path
+                    rpm_directory.child('repodata').child(bz2).path,
             })
 
     def test_packages_updated(self):
