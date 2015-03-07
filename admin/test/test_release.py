@@ -4,7 +4,6 @@
 Tests for ``admin.release``.
 """
 
-from subprocess import check_call
 import os
 from unittest import TestCase
 import tempfile
@@ -720,6 +719,7 @@ class UploadRPMsTests(TestCase):
 
     def test_repository_uploaded(self):
         # TODO another version of this test with fake yum calls
+        # TODO Redirect output of yum calls
         bucket = 'clusterhq-packages'
         yum = FakeYum()
         aws = FakeAWS(
@@ -728,21 +728,13 @@ class UploadRPMsTests(TestCase):
         )
 
         # TODO delete this as test cleanup
-        scratch_directory = FilePath(tempfile.mkdtemp(
-            prefix=b'flocker-upload-rpm-'))
+        scratch_directory = FilePath(tempfile.mkdtemp())
         rpm_directory = scratch_directory.child(b'distro-version-arch')
-        version = '0.3.3dev7'
-
-        source_repo = FilePath(tempfile.mkdtemp(
-            prefix=b'flocker-source-repo-'))
-        # TODO upload this directory to git
+        source_repo = FilePath(tempfile.mkdtemp())
         FilePath(__file__).sibling('test-repo').copyTo(source_repo)
-        # TODO Redirect output of this and other yum calls
-        check_call([b'createrepo', source_repo.path])
 
-        target_key = 'release_type/distro/version/arch'
+        target_key = 'test/target/key'
 
-        packages = ['clusterhq-flocker-cli']
         versioned_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
 
         self.update_repo(
@@ -752,11 +744,10 @@ class UploadRPMsTests(TestCase):
             target_bucket=bucket,
             target_key=target_key,
             source_repo='file://' + source_repo.path,
-            packages=packages,
-            version=version,
+            packages=['clusterhq-flocker-cli'],
+            version='0.3.3dev7',
         )
 
-        # self.maxDiff = None
         # TODO this won't be the only bz2
         bz2 = '3f5df63765cc7e16f52cc641bc76caa6374e3a6772e0b676e3858ca2037b6b14-filelists.sqlite.bz2'
 
