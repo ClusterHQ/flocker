@@ -171,8 +171,8 @@ def task_enable_flocker_control():
         configure_firewalld(['--add-service', service])
         for service in ['flocker-control-api', 'flocker-control-agent']
     ]) + [
-        Run.from_args(['systemd', 'enable', 'flocker-control']),
-        Run.from_args(['systemd', 'start', 'flocker-control']),
+        Run.from_args(['systemctl', 'enable', 'flocker-control']),
+        Run.from_args(['systemctl', 'start', 'flocker-control']),
     ]
 
 
@@ -194,8 +194,8 @@ def task_enable_flocker_agent(node_name, control_node):
                 'control_node': control_node
             },
         ),
-        Run.from_args(['systemd', 'enable', 'flocker-agent']),
-        Run.from_args(['systemd', 'start', 'flocker-agent']),
+        Run.from_args(['systemctl', 'enable', 'flocker-agent']),
+        Run.from_args(['systemctl', 'start', 'flocker-agent']),
     ]
 
 
