@@ -363,7 +363,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         from.
     :param list packages: List of bytes, each specifying the name of a package
         to upload to the repository.
-    # TODO document version
+    :param bytes version: The version of Flocker to get packages for.
     """
     # TODO move the spec and repo files from the fedora-packages repo.
     # also, there need to be two repos created, and the docs need to be
