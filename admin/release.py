@@ -418,7 +418,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         release_type = "development"
 
     # TODO test these calls with a spy
-    # TODO replace references to RPMs with Packages
     sync_perform(
       dispatcher=ComposedDispatcher(
           boto_dispatcher,
