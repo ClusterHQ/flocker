@@ -60,6 +60,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
         b'--quiet',
         b'--destdir', intent.target_path.path] + intent.packages)
 
+    # TODO delete yum_repo_config
     # TODO only return these if there have been changes
     return [os.path.basename(path.path) for path in intent.target_path.walk()
             if path.isfile()]
@@ -112,6 +113,9 @@ def _list_repository_metadata(repository_path):
         repository_path.child('repodata').walk()]
 
 
+# TODO use a fake source repository, download all files with names starting
+# with package names. Stop passing version. Share code to list files in
+# directory
 class FakeYum(object):
     """
     Enough of a fake implementation of yum utilities to test
