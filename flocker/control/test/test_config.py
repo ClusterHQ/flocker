@@ -7,7 +7,7 @@ Tests for ``flocker.node._config``.
 from __future__ import unicode_literals, absolute_import
 
 import copy
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from pyrsistent import pmap
 
@@ -20,7 +20,7 @@ from .._config import (
     model_from_configuration, FigConfiguration,
     applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
     FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
-    _parse_restart_policy,
+    _parse_restart_policy, dataset_id_from_name
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -391,8 +391,9 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
                 ),
                 volume=AttachedVolume(
                     manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=None,
-                                        metadata=pmap({"name": "wordpress"})),
+                        dataset=Dataset(
+                            dataset_id=dataset_id_from_name("wordpress"),
+                            metadata=pmap({"name": "wordpress"})),
                         primary=True),
                     mountpoint=FilePath(b'/var/www/wordpress'))),
             'mysql': Application(
@@ -516,7 +517,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         parser = FigConfiguration(config)
         expected_result = AttachedVolume(
             manifestation=Manifestation(
-                dataset=Dataset(dataset_id=None,
+                dataset=Dataset(dataset_id=dataset_id_from_name("postgres"),
                                 metadata=pmap({"name": "postgres"})),
                 primary=True),
             mountpoint=FilePath(b'/var/db/data')
@@ -1555,7 +1556,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume=AttachedVolume(
                     manifestation=Manifestation(
                         dataset=Dataset(
-                            dataset_id=None,
+                            dataset_id=dataset_id_from_name(
+                                "mysql-hybridcluster"),
                             metadata=pmap({'name': 'mysql-hybridcluster'})),
                         primary=True),
                     mountpoint=FilePath(b'/var/mysql/data'))),
@@ -1610,9 +1612,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       external_port=3306)]),
                 links=frozenset(),
                 volume=AttachedVolume(manifestation=Manifestation(
-                    dataset=Dataset(dataset_id=None,
-                                    metadata=pmap(
-                                        {'name': 'mysql-hybridcluster'})),
+                    dataset=Dataset(
+                        dataset_id=dataset_id_from_name(
+                            "mysql-hybridcluster"),
+                        metadata=pmap(
+                            {'name': 'mysql-hybridcluster'})),
                     primary=True),
                     mountpoint=FilePath(b'/var/lib/mysql'))
             ),
@@ -1626,7 +1630,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume=AttachedVolume(
                     manifestation=Manifestation(
                         dataset=Dataset(
-                            dataset_id=None,
+                            dataset_id=dataset_id_from_name(
+                                "site-hybridcluster"),
                             metadata=pmap({'name': 'site-hybridcluster'})),
                         primary=True,
                     ),
@@ -2566,7 +2571,7 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Configuration._deployment_from_configuration``.
+    Tests for ``deployment_from_configuration``.
     """
     def test_error_on_missing_nodes_key(self):
         """
@@ -2584,7 +2589,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_version_key(self):
         """
-        ``Configuration._deployment_from_config`` raises a
+        ``deployment_from_configuration`` raises a
         ``ConfigurationError`` if the deployment_configuration does not
         contain an ``u"version"`` key.
         """
@@ -2599,7 +2604,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_incorrect_version(self):
         """
-        ``Configuration._deployment_from_config`` raises a
+        ``deployment_from_configuration`` raises a
         ``ConfigurationError`` if the version specified is not 1.
         """
         config = dict(nodes={}, version=2)
@@ -2614,7 +2619,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_non_list_applications(self):
         """
-        ``_deployment_from_config`` raises a ``ValueError`` if the
+        ``deployment_from_configuration`` raises a ``ValueError`` if the
         deployment_configuration contains application values not in the form of
         a list.
         """
@@ -2633,7 +2638,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_unrecognized_application_name(self):
         """
-        ``_deployment_from_config`` raises a ``ValueError`` if the
+        ``deployment_from_configuration`` raises a ``ValueError`` if the
         deployment_configuration refers to a non-existent application.
         """
         applications = {
@@ -2661,17 +2666,24 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_set_on_success(self):
         """
-        ``_deployment_from_config`` returns a set of ``Node`` objects. One for
-        each key in the supplied nodes dictionary.
+        ``deployment_from_configuration`` returns a set of ``Node``
+        objects. One for each key in the supplied nodes dictionary.
         """
+        manifestation = Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id_from_name(
+                    "mysql-hybridcluster"),
+                metadata=pmap(
+                    {"name": "mysql-hybridcluster"})),
+            primary=True)
+
         applications = {
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
-                image=Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage(repository='flocker/mysql',
-                                      tag='v1.0.0'))
-            )
+                image=DockerImage.from_string('flocker/mysql'),
+                volume=AttachedVolume(
+                    manifestation=manifestation,
+                    mountpoint=FilePath(b'/var/lib/db')))
         }
         result = deployment_from_configuration(
             dict(
@@ -2683,7 +2695,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         expected = set([
             Node(
                 hostname='node1.example.com',
-                applications=frozenset(applications.values())
+                applications=frozenset(applications.values()),
+                manifestations={manifestation.dataset_id: manifestation},
             )
         ])
 
@@ -2921,7 +2934,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 ports=frozenset(),
                 volume=AttachedVolume(manifestation=Manifestation(
                     dataset=Dataset(
-                        dataset_id=None,
+                        dataset_id=dataset_id_from_name(
+                            "mysql-hybridcluster"),
                         metadata=pmap({'name': 'mysql-hybridcluster'})),
                     primary=True),
                     mountpoint=FilePath(b'/var/mysql/data'))
@@ -2970,7 +2984,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 volume=AttachedVolume(
                     manifestation=Manifestation(
                         dataset=Dataset(
-                            dataset_id=None,
+                            dataset_id=dataset_id_from_name(
+                                "mysql-hybridcluster"),
                             metadata=pmap({'name': 'mysql-hybridcluster'}),
                             maximum_size=EXPECTED_MAX_SIZE),
                         primary=True),
@@ -3178,6 +3193,42 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(expected,
                          current_from_configuration(config))
 
+    def test_volume(self):
+        """
+        ``current_from_configuration`` creates a ``Deployment`` object with
+        the appropriate volumes for each included node.
+        """
+        config = {'example.com': {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'unknown',
+                    'volume': {'mountpoint': '/xxx'},
+                }
+            },
+            'version': 1
+        }}
+        manifestation = Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id_from_name("mysql-hybridcluster"),
+                metadata=pmap({"name": "mysql-hybridcluster"})),
+            primary=True)
+        expected = Deployment(nodes=frozenset([
+            Node(hostname='example.com',
+                 applications=frozenset([
+                     Application(
+                         name='mysql-hybridcluster',
+                         image=DockerImage.from_string('unknown'),
+                         ports=frozenset(),
+                         links=frozenset(),
+                         volume=AttachedVolume(
+                             manifestation=manifestation,
+                             mountpoint=FilePath(b"/xxx")),
+                     )]),
+                 manifestations={manifestation.dataset_id:
+                                 manifestation})]))
+        self.assertEqual(expected,
+                         current_from_configuration(config))
+
     def test_multiple_hosts(self):
         """
         ``current_from_configuration`` can handle information from multiple
@@ -3339,3 +3390,30 @@ class ApplicationConfigurationErrorTests(SynchronousTestCase):
             ),
             unicode(e)
         )
+
+
+class DatasetIdFromNameTests(SynchronousTestCase):
+    """
+    Tests for ``dataset_id_from_name``.
+    """
+    def test_uuid(self):
+        """
+        ``dataset_id_from_name`` returns a unicode representation of a
+        UUID.
+        """
+        dataset_id = dataset_id_from_name(u"hello\1234")
+        self.assertEqual(unicode(UUID(hex=dataset_id)), dataset_id)
+
+    def test_stable(self):
+        """
+        ``dataset_id_from_name`` returns the same UUID given the same name.
+        """
+        self.assertEqual(UUID(hex=dataset_id_from_name(u"hello\1234")),
+                         UUID(hex=dataset_id_from_name(u"hello\1234")))
+
+    def test_different(self):
+        """
+        ``dataset_id_from_name`` returns different UUIDs for different names.
+        """
+        self.assertNotEqual(UUID(hex=dataset_id_from_name(u"hello")),
+                            UUID(hex=dataset_id_from_name(u"world")))
