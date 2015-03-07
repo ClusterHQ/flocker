@@ -724,7 +724,6 @@ class UploadRPMsTests(TestCase):
             s3_buckets={self.target_bucket: {}, },
         )
 
-        # TODO delete this as test cleanup
         rpm_directory = self.scratch_directory.child(b'distro-version-arch')
         source_repo = FilePath(tempfile.mkdtemp())
         FilePath(__file__).sibling('test-repo').copyTo(source_repo)
