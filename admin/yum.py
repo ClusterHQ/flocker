@@ -60,7 +60,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
         b'--quiet',
         b'--destdir', intent.target_path.path] + intent.packages)
 
-    # TODO delete yum_repo_config
+    yum_repo_config.remove()
     # TODO only return these if there have been changes
     return [os.path.basename(path.path) for path in intent.target_path.walk()
             if path.isfile()]
