@@ -416,7 +416,8 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         ))
 
 
-def upload_rpms(scratch_directory, target_bucket, version, build_server):
+def upload_rpms(scratch_directory, target_bucket, version, build_server, dispatcher):
+    # TODO document dispatcher
     """
     Upload RPMS from build server to yum repository.
 
@@ -437,11 +438,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         release_type = "marketing"
     elif is_weekly_release(version):
         release_type = "development"
-
-    dispatcher = ComposedDispatcher([
-          boto_dispatcher,
-          yum_dispatcher,
-          base_dispatcher])
 
     # TODO test these calls with a spy
     sync_perform(
@@ -488,6 +484,11 @@ def upload_rpms_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
+    dispatcher = ComposedDispatcher([
+          boto_dispatcher,
+          yum_dispatcher,
+          base_dispatcher])
+
     try:
         scratch_directory = FilePath(tempfile.mkdtemp(
             prefix=b'flocker-upload-rpm-'))
@@ -496,7 +497,9 @@ def upload_rpms_main(args, base_path, top_level):
         upload_rpms(scratch_directory=scratch_directory,
                     target_bucket=options['target'],
                     version=options['version'],
-                    build_server=options['build-server'])
+                    build_server=options['build-server'],
+                    dispatcher=dispatcher,
+        )
     except NotARelease:
         sys.stderr.write("%s: Can't upload RPMs for a non-release."
                          % (base_path.basename(),))

@@ -672,6 +672,30 @@ class UploadRPMsTests(TestCase):
     """
     Tests for :func:``upload_rpms``.
     """
+    def upload_rpms(self, aws, yum,
+                    scratch_directory, target_bucket, version, build_server):
+        """
+        Call :func:``update_repo``, interacting with a fake AWS and yum
+        utilities.
+
+        :param FakeAWS aws: Fake AWS to interact with.
+        :param FakeYum yum: Fake yum utilities to interact with.
+        :param rpm_directory: See :py:func:`update_repo`.
+        :param target_bucket: See :py:func:`update_repo`.
+        :param target_key: See :py:func:`update_repo`.
+        :param source_repo: See :py:func:`update_repo`.
+        :param packages: See :py:func:`update_repo`.
+        :param version: See :py:func:`update_repo`.
+        """
+        dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
+                       base_dispatcher]
+        upload_rpms(
+            scratch_directory=scratch_directory,
+            target_bucket=target_bucket,
+            version=version,
+            build_server=build_server,
+            dispatcher=ComposedDispatcher(dispatchers))
+
     def update_repo(self, aws, yum,
                     rpm_directory, target_bucket, target_key, source_repo,
                     packages):
@@ -696,9 +720,9 @@ class UploadRPMsTests(TestCase):
                         packages))
 
     def setUp(self):
-        scratch_directory = FilePath(tempfile.mkdtemp())
-        self.addCleanup(scratch_directory.remove)
-        self.rpm_directory = scratch_directory.child(
+        self.scratch_directory = FilePath(tempfile.mkdtemp())
+        self.addCleanup(self.scratch_directory.remove)
+        self.rpm_directory = self.scratch_directory.child(
             b'distro-version-arch')
         self.target_key = 'test/target/key'
         self.source_repo = FilePath(tempfile.mkdtemp())
@@ -716,21 +740,35 @@ class UploadRPMsTests(TestCase):
         """
         Calling :func:`upload_rpms` with a version that isn't a release fails.
         """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={},
+        )
+        yum = FakeYum()
+        dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
+                       base_dispatcher]
         self.assertRaises(
             NotARelease,
             upload_rpms,
             self.rpm_directory, self.target_bucket, '0.3.0-444-gf05215b',
-            self.build_server)
+            self.build_server, ComposedDispatcher(dispatchers))
 
     def test_upload_doc_release_fails(self):
         """
         Calling :func:`upload_rpms` with a documentation release version fails.
         """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={},
+        )
+        yum = FakeYum()
+        dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
+                       base_dispatcher]
         self.assertRaises(
             DocumentationRelease,
             upload_rpms,
             self.rpm_directory, self.target_bucket, '0.3.0+doc1',
-            self.build_server)
+            self.build_server, ComposedDispatcher(dispatchers))
 
     def test_packages_uploaded(self):
         """
@@ -1115,6 +1153,60 @@ class UploadRPMsTests(TestCase):
         Calling :func:`upload_rpms` creates development repositories for
         CentOS 7 and Fedora 20 for a development release.
         """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        repo_contents = {
+            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '', #noqa
+            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '', #noqa
+            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '', #noqa
+            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '', #noqa
+
+        }
+
+        for key in repo_contents:
+            new_file = self.source_repo.preauthChild(key)
+            if not new_file.parent().exists():
+                new_file.parent().makedirs()
+            new_file.setContent(repo_contents[key])
+
+        self.upload_rpms(
+            aws=aws,
+            yum=FakeYum(),
+            scratch_directory=self.scratch_directory,
+            target_bucket=self.target_bucket,
+            version='0.3.3dev7',
+            build_server=self.source_repo_uri,
+        )
+
+        operating_systems = [
+                {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
+                {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
+        ]
+
+        expected_files = set()
+        for operating_system in operating_systems:
+            for file in [
+                'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
+                'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
+                'repodata/repomd.xml',
+            ]:
+                path = os.path.join(
+                    'development',
+                    operating_system['distro'],
+                    operating_system['version'],
+                    operating_system['arch'],
+                    file,
+                )
+                expected_files.add(path)
+
+        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
+        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+
 
     def test_marketing_repositories_created(self):
         """
