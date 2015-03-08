@@ -1213,6 +1213,59 @@ class UploadRPMsTests(TestCase):
         Calling :func:`upload_rpms` creates marketing repositories for
         CentOS 7 and Fedora 20 for a marketing release.
         """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
 
-    # TODO Fill in stub tests
+        repo_contents = {
+            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-cli-0.3.3.noarch.rpm': '', #noqa
+            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-node-0.3.3.noarch.rpm': '', #noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3.noarch.rpm': '', #noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3.noarch.rpm': '', #noqa
+
+        }
+
+        for key in repo_contents:
+            new_file = self.source_repo.preauthChild(key)
+            if not new_file.parent().exists():
+                new_file.parent().makedirs()
+            new_file.setContent(repo_contents[key])
+
+        self.upload_rpms(
+            aws=aws,
+            yum=FakeYum(),
+            scratch_directory=self.scratch_directory,
+            target_bucket=self.target_bucket,
+            version='0.3.3',
+            build_server=self.source_repo_uri,
+        )
+
+        operating_systems = [
+                {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
+                {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
+        ]
+
+        expected_files = set()
+        for operating_system in operating_systems:
+            for file in [
+                'clusterhq-flocker-cli-0.3.3.noarch.rpm',
+                'clusterhq-flocker-node-0.3.3.noarch.rpm',
+                'repodata/repomd.xml',
+            ]:
+                path = os.path.join(
+                    'marketing',
+                    operating_system['distro'],
+                    operating_system['version'],
+                    operating_system['arch'],
+                    file,
+                )
+                expected_files.add(path)
+
+        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
+
+        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+
     # TODO test real yum commands?
