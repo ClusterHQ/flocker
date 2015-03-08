@@ -698,9 +698,13 @@ class UploadRPMsTests(TestCase):
     def setUp(self):
         self.scratch_directory = FilePath(tempfile.mkdtemp(
             prefix=b'test-scratch-directory-'))
+        self.rpm_directory = self.scratch_directory.child(b'distro-version-arch')
+        self.target_key = 'test/target/key'
+        self.source_repo = FilePath(tempfile.mkdtemp())
         self.addCleanup(self.scratch_directory.remove)
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.com'
+        self.version = '0.3.3dev7'
 
     def test_upload_non_release_fails(self):
         """
@@ -722,7 +726,7 @@ class UploadRPMsTests(TestCase):
             self.scratch_directory, self.target_bucket, '0.3.0+doc1',
             self.build_server)
 
-    def test_repository_uploaded(self):
+    def test_packages_uploaded(self):
         """
         Uploading a repository to an empty bucket puts packages in
         place.
@@ -735,47 +739,30 @@ class UploadRPMsTests(TestCase):
             },
         )
 
-        rpm_directory = self.scratch_directory.child(b'distro-version-arch')
-        source_repo = FilePath(tempfile.mkdtemp())
         repo_contents = {
             'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
         }
-        # TODO self.update_repo should take this as a dictionary and create
-        # a repo
-        for key in repo_contents:
-            source_repo.child(key).touch()
-            source_repo.child(key).setContent(repo_contents[key])
 
-        target_key = 'test/target/key'
+        for key in repo_contents:
+            self.source_repo.child(key).touch()
+            self.source_repo.child(key).setContent(repo_contents[key])
 
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=rpm_directory,
+            rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
-            target_key=target_key,
-            source_repo='file://' + source_repo.path,
+            target_key=self.target_key,
+            source_repo='file://' + self.source_repo.path,
             packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
-            version='0.3.3dev7',
+            version=self.version,
         )
 
-        # repodata_files = {
-        #     'repomd.xml': '3',
-        # }
-
-        expected_keys = {}
-
-        # for repodata_file in repodata_files:
-        #     key = os.path.join(target_key, 'repodata', repodata_file)
-        #     expected_keys[key] = repodata_files[repodata_file]
-
-        for package in repo_contents:
-            key = os.path.join(target_key, package)
-            expected_keys[key] = repo_contents[package]
-
         self.assertDictContainsSubset(
-            expected_keys, aws.s3_buckets[self.target_bucket])
+            {os.path.join(self.target_key, package): repo_contents[package]
+             for package in repo_contents},
+            aws.s3_buckets[self.target_bucket])
 
     def test_real_yum_commands(self):
         pass
