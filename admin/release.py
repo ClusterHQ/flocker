@@ -402,7 +402,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     new_metadata = yield Effect(ListMetadata(
         repository_path=rpm_directory,
     ))
-    # TODO handle (Delete?) keys which are not in the current configuration
+
     changed_metadata = new_metadata - old_metadata
 
     # Always update the index file.
@@ -492,7 +492,6 @@ def upload_rpms_main(args, base_path, top_level):
         scratch_directory = FilePath(tempfile.mkdtemp(
             prefix=b'flocker-upload-rpm-'))
 
-        # TODO have a staging bucket with a --staging option
         upload_rpms(scratch_directory=scratch_directory,
                     target_bucket=options['target'],
                     version=options['version'],
