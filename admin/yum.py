@@ -134,6 +134,8 @@ class FakeYum(object):
         """
         See :class:`DownloadPackagesFromRepository`.
         """
+        # Source repository must be a URI for repodownloader so tests use
+        # the file:// scheme.
         source_repo_directory = FilePath(urlparse(intent.source_repo).path)
         for path in source_repo_directory.walk():
             filename = os.path.basename(path.path)
