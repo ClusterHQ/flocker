@@ -675,7 +675,7 @@ class UploadRPMsTests(TestCase):
     def upload_rpms(self, aws, yum,
                     scratch_directory, target_bucket, version, build_server):
         """
-        Call :func:``update_repo``, interacting with a fake AWS and yum
+        Call :func:``upload_rpms``, interacting with a fake AWS and yum
         utilities.
 
         :param FakeAWS aws: Fake AWS to interact with.
@@ -689,12 +689,15 @@ class UploadRPMsTests(TestCase):
         """
         dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
                        base_dispatcher]
-        upload_rpms(
-            scratch_directory=scratch_directory,
-            target_bucket=target_bucket,
-            version=version,
-            build_server=build_server,
-            dispatcher=ComposedDispatcher(dispatchers))
+        sync_perform(
+            ComposedDispatcher(dispatchers),
+            upload_rpms(
+                scratch_directory=scratch_directory,
+                target_bucket=target_bucket,
+                version=version,
+                build_server=build_server,
+            ),
+        )
 
     def update_repo(self, aws, yum,
                     rpm_directory, target_bucket, target_key, source_repo,
@@ -763,13 +766,12 @@ class UploadRPMsTests(TestCase):
             s3_buckets={},
         )
         yum = FakeYum()
-        dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
-                       base_dispatcher]
+
         self.assertRaises(
             NotARelease,
-            upload_rpms,
+            self.upload_rpms, aws, yum,
             self.rpm_directory, self.target_bucket, '0.3.0-444-gf05215b',
-            self.build_server, ComposedDispatcher(dispatchers))
+            self.build_server)
 
     def test_upload_doc_release_fails(self):
         """
@@ -780,13 +782,12 @@ class UploadRPMsTests(TestCase):
             s3_buckets={},
         )
         yum = FakeYum()
-        dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
-                       base_dispatcher]
+
         self.assertRaises(
             DocumentationRelease,
-            upload_rpms,
+            self.upload_rpms, aws, yum,
             self.rpm_directory, self.target_bucket, '0.3.0+doc1',
-            self.build_server, ComposedDispatcher(dispatchers))
+            self.build_server)
 
     def test_packages_uploaded(self):
         """

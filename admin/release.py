@@ -413,8 +413,8 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         ))
 
 
-def upload_rpms(scratch_directory, target_bucket, version, build_server, dispatcher):
-    # TODO document dispatcher
+@do
+def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
     Upload RPMS from build server to yum repository.
 
@@ -436,27 +436,23 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server, dispatc
     elif is_weekly_release(version):
         release_type = "development"
 
-    sync_perform(
-        dispatcher=dispatcher,
-        effect=update_repo(
-            rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
-            target_bucket=target_bucket,
-            target_key=os.path.join(release_type, b'fedora', b'20', b'x86_64'),
-            source_repo=os.path.join(build_server, b'results/omnibus', version,
-                                     b'fedora-20'),
-            packages=FLOCKER_PACKAGES,
-    ))
+    yield update_repo(
+        rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
+        target_bucket=target_bucket,
+        target_key=os.path.join(release_type, b'fedora', b'20', b'x86_64'),
+        source_repo=os.path.join(build_server, b'results/omnibus', version,
+                                 b'fedora-20'),
+        packages=FLOCKER_PACKAGES,
+    )
 
-    sync_perform(
-      dispatcher=dispatcher,
-      effect=update_repo(
-          rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
-          target_bucket=target_bucket,
-          target_key=os.path.join(release_type, b'centos', b'7', b'x86_64'),
-          source_repo=os.path.join(build_server, b'results/omnibus', version,
-                                   b'centos-7'),
-          packages=FLOCKER_PACKAGES,
-    ))
+    yield update_repo(
+        rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
+        target_bucket=target_bucket,
+        target_key=os.path.join(release_type, b'centos', b'7', b'x86_64'),
+        source_repo=os.path.join(build_server, b'results/omnibus', version,
+                                 b'centos-7'),
+        packages=FLOCKER_PACKAGES,
+    )
 
 
 def upload_rpms_main(args, base_path, top_level):
@@ -489,12 +485,14 @@ def upload_rpms_main(args, base_path, top_level):
         scratch_directory = FilePath(tempfile.mkdtemp(
             prefix=b'flocker-upload-rpm-'))
 
-        upload_rpms(scratch_directory=scratch_directory,
-                    target_bucket=options['target'],
-                    version=options['version'],
-                    build_server=options['build-server'],
-                    dispatcher=dispatcher,
-        )
+        sync_perform(
+            dispatcher=dispatcher,
+            effect=upload_rpms(
+                target_bucket=options['target'],
+                version=options['version'],
+                build_server=options['build-server'],
+                ))
+
     except NotARelease:
         sys.stderr.write("%s: Can't upload RPMs for a non-release."
                          % (base_path.basename(),))
