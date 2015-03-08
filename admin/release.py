@@ -370,9 +370,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     :param list packages: List of bytes, each specifying the name of a package
         to upload to the repository.
     """
-    # TODO move the spec and repo files from the fedora-packages repo.
-    # also, there need to be two repos created, and the docs need to be
-    # adapted / moved.
     rpm_directory.createDirectory()
 
     yield Effect(DownloadS3KeyRecursively(
