@@ -63,7 +63,6 @@ def perform_download_packages_from_repository(dispatcher, intent):
         b'--destdir', intent.target_path.path] + intent.packages)
 
     yum_repo_config.remove()
-    # TODO only return these if there have been changes
     return [os.path.basename(path.path) for path in intent.target_path.walk()
             if path.isfile()]
 
@@ -132,7 +131,8 @@ class FakeYum(object):
             if path.isfile() and filename.startswith(tuple(intent.packages)):
                 intent.target_path.child(filename).touch()
                 with path.open() as source_file:
-                    intent.target_path.child(filename).setContent(source_file.read())
+                    intent.target_path.child(filename).setContent(
+                        source_file.read())
                 downloaded_packages.append(filename)
         return downloaded_packages
 
@@ -144,8 +144,9 @@ class FakeYum(object):
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
         metadata_directory.child('repomd.xml').touch()
-        # TODO this matches test contents...make it better
-        metadata_directory.child('repomd.xml').setContent('3')
+        # TODO Make it better (time?)
+        metadata_directory.child('repomd.xml').setContent('metadata_content')
+        # TODO it may be necessary to create other repo metadata files
         return _list_repository_metadata(
             repository_path=intent.repository_path)
 

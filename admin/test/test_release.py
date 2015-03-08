@@ -698,7 +698,8 @@ class UploadRPMsTests(TestCase):
     def setUp(self):
         self.scratch_directory = FilePath(tempfile.mkdtemp(
             prefix=b'test-scratch-directory-'))
-        self.rpm_directory = self.scratch_directory.child(b'distro-version-arch')
+        self.rpm_directory = self.scratch_directory.child(
+            b'distro-version-arch')
         self.target_key = 'test/target/key'
         self.source_repo = FilePath(tempfile.mkdtemp())
         self.addCleanup(self.scratch_directory.remove)
@@ -730,7 +731,6 @@ class UploadRPMsTests(TestCase):
         """
         Uploading a repository to an empty bucket puts packages in
         place.
-        # TODO test that repodata is put in place
         """
         aws = FakeAWS(
             routing_rules={},
@@ -836,13 +836,53 @@ class UploadRPMsTests(TestCase):
         self.assertDictContainsSubset(
             expected_keys,
             aws.s3_buckets[self.target_bucket])
-        # TODO Fill in stub tests
 
     def test_packages_updated(self):
         """
         If a new version of a package which already exists in S3 is available,
         the old package is replaced.
         """
+        existing_s3_keys = {
+            os.path.join(self.target_key,
+                'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'):
+                    'old-cli-package',
+        }
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: existing_s3_keys,
+            },
+        )
+
+        repo_contents = {
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
+        }
+
+        for key in repo_contents:
+            self.source_repo.child(key).touch()
+            self.source_repo.child(key).setContent(repo_contents[key])
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.rpm_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo='file://' + self.source_repo.path,
+            packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
+            version=self.version,
+        )
+
+        expected_keys = existing_s3_keys.copy()
+        expected_keys.update({
+            os.path.join(self.target_key, package): repo_contents[package]
+            for package in repo_contents})
+
+        self.assertDictContainsSubset(
+            expected_keys,
+            aws.s3_buckets[self.target_bucket])
 
     def test_development_repositories_created(self):
         """
@@ -855,3 +895,6 @@ class UploadRPMsTests(TestCase):
         upload_rpms creates marketing repositories for CentOS 7 and Fedora 20
         for a marketing release.
         """
+
+    # TODO tests for only the new metadata files being uploaded
+    # TODO Fill in stub tests
