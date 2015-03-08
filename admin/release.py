@@ -383,9 +383,12 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         version=version,
         ))
 
+    # Get repo metadata here
     repository_metadata = yield Effect(CreateRepo(
         repository_path=rpm_directory,
         ))
+    # Get repo metadata here.
+    # new_repository_metadata = repository_metadata - old_repository + repomd.xml if it doesn't exist
 
     # TODO only upload new packages and metadata
 
