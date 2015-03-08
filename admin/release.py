@@ -391,29 +391,28 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         repository_path=rpm_directory,
     ))
 
-    previous_repository_metadata = yield Effect(
+    old_metadata = yield Effect(
         ListS3Keys(bucket=target_bucket,
                    prefix=os.path.join(target_key, 'repodata/')))
-
-    # index file should always be updated
-    previous_repository_metadata.discard('repomd.xml')
 
     yield Effect(CreateRepo(
         repository_path=rpm_directory,
         ))
 
-    current_repository_metadata = yield Effect(ListMetadata(
+    new_metadata = yield Effect(ListMetadata(
         repository_path=rpm_directory,
     ))
     # TODO handle (Delete?) keys which are not in the current configuration
-    new_repository_metadata = (current_repository_metadata -
-                               previous_repository_metadata)
+    changed_metadata = new_metadata - old_metadata
+
+    # Always update the index file.
+    changed_metadata |= {'repomd.xml'}
 
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
         target_bucket=target_bucket,
         target_key=target_key,
-        files=downloaded_packages | new_repository_metadata,
+        files=downloaded_packages | changed_metadata,
         ))
 
 
