@@ -696,8 +696,7 @@ class UploadRPMsTests(TestCase):
                         packages))
 
     def setUp(self):
-        scratch_directory = FilePath(tempfile.mkdtemp(
-            prefix=b'test-scratch-directory-'))
+        scratch_directory = FilePath(tempfile.mkdtemp())
         self.addCleanup(scratch_directory.remove)
         self.rpm_directory = scratch_directory.child(
             b'distro-version-arch')
@@ -708,10 +707,9 @@ class UploadRPMsTests(TestCase):
         self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
         self.source_repo_uri = 'file://' + self.source_repo.path
         self.alternative_bucket = 'bucket-with-existing-package'
-        alternative_scratch_directory = FilePath(tempfile.mkdtemp(
-            prefix=b'alternative-scratch-directory-'))
-        self.addCleanup(alternative_scratch_directory.remove)
-        self.alternative_package_directory = alternative_scratch_directory.child(
+        alt_scratch_directory = FilePath(tempfile.mkdtemp())
+        self.addCleanup(alt_scratch_directory.remove)
+        self.alternative_package_directory = alt_scratch_directory.child(
             b'distro-version-arch')
 
     def test_upload_non_release_fails(self):
@@ -794,9 +792,6 @@ class UploadRPMsTests(TestCase):
             os.path.join(self.target_key, 'repodata', 'repomd.xml'),
             aws.s3_buckets[self.target_bucket])
 
-    def test_real_yum_commands(self):
-        pass
-
     def test_repository_added_to(self):
         """
         If new packages are added to the repository, old packages remain.
@@ -844,10 +839,9 @@ class UploadRPMsTests(TestCase):
         If a new version of a package which already exists in S3 is available,
         the old package is replaced.
         """
+        cli_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
         existing_s3_keys = {
-            os.path.join(self.target_key,
-                'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'):
-                    'old-cli-package',
+            os.path.join(self.target_key, cli_package): 'old-cli-package',
         }
 
         aws = FakeAWS(
@@ -858,7 +852,7 @@ class UploadRPMsTests(TestCase):
         )
 
         repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
+            cli_package: 'cli-package',
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
         }
 
@@ -888,9 +882,9 @@ class UploadRPMsTests(TestCase):
         """
         Repositoy metadata index is updated.
         """
-        repo_metadata_index = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_s3_keys = {
-            repo_metadata_index: 'old_metadata_index',
+            index_path: 'old_metadata_index',
         }
 
         aws = FakeAWS(
@@ -911,20 +905,20 @@ class UploadRPMsTests(TestCase):
         )
 
         self.assertNotEqual(
-            existing_s3_keys[repo_metadata_index],
-            aws.s3_buckets[self.target_bucket][repo_metadata_index])
-
+            existing_s3_keys[index_path],
+            aws.s3_buckets[self.target_bucket][index_path])
 
     def test_existing_metadata_files_not_uploaded(self):
         """
         Existing metadata files are not re-uploaded.
         """
-        repo_metadata_index = os.path.join(self.target_key, 'repodata', 'repomd.xml')
-        existing_metadata_file = os.path.join(self.target_key, 'repodata', 'filelists.xml.gz')
+        index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        existing_metadata_file = os.path.join(self.target_key, 'repodata',
+                                              'filelists.xml.gz')
 
         existing_s3_keys = {
-            repo_metadata_index: 'old_metadata_index',
-            existing_metadata_file: 'old_metadata_content'
+            index_path: 'old_metadata_index',
+            existing_metadata_file: 'old_metadata_content',
         }
 
         aws = FakeAWS(
@@ -952,9 +946,9 @@ class UploadRPMsTests(TestCase):
         """
         New metadata files are uploaded.
         """
-        repo_metadata_index = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_s3_keys = {
-            repo_metadata_index: 'old_metadata_index',
+            index_path: 'old_metadata_index',
         }
 
         aws = FakeAWS(
@@ -976,20 +970,17 @@ class UploadRPMsTests(TestCase):
 
         repodata_files = [
             key for key in aws.s3_buckets[self.target_bucket] if
-            key.startswith(os.path.join(self.target_key, 'repodata'))
-        ]
+            key.startswith(os.path.join(self.target_key, 'repodata'))]
 
         self.assertGreater(len(repodata_files), 1)
-
 
     def test_create_repository_accounts_for_existing_packages(self):
         """
         Creating repository metadata takes into account existing packages.
         """
+        cli_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
         existing_s3_keys = {
-            os.path.join(self.target_key,
-                'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'):
-                    'old-cli-package',
+            os.path.join(self.target_key, cli_package): 'old-cli-package',
         }
 
         aws = FakeAWS(
@@ -1072,8 +1063,43 @@ class UploadRPMsTests(TestCase):
 
     def test_unspecified_packages_in_repository_ignored(self):
         """
-        Packages which are not requested are not added to S3.
+        Packages in the source repository which are not specified in the
+        `packages` parameter to `update_repo` are not added to S3.
         """
+        existing_s3_keys = {
+            os.path.join(self.target_key, 'existing_package.rpm'): '',
+        }
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: existing_s3_keys,
+            },
+        )
+
+        unspecified_package = 'unspecified-package-0.3.3-0.dev.7.noarch.rpm'
+        repo_contents = {
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',
+            unspecified_package: '',
+        }
+
+        for key in repo_contents:
+            self.source_repo.child(key).setContent(repo_contents[key])
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.rpm_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
+        )
+
+        self.assertNotIn(
+            os.path.join(self.target_key, unspecified_package),
+            aws.s3_buckets[self.target_bucket])
 
     def test_development_repositories_created(self):
         """
@@ -1090,3 +1116,4 @@ class UploadRPMsTests(TestCase):
     # TODO Fill in stub tests
     # TODO standardise test docstrings
     # Upload new versions of packages, but not the same old packages
+    # TODO test real yum commands?
