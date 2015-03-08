@@ -696,17 +696,23 @@ class UploadRPMsTests(TestCase):
                         packages))
 
     def setUp(self):
-        self.scratch_directory = FilePath(tempfile.mkdtemp(
+        scratch_directory = FilePath(tempfile.mkdtemp(
             prefix=b'test-scratch-directory-'))
-        self.rpm_directory = self.scratch_directory.child(
+        self.addCleanup(scratch_directory.remove)
+        self.rpm_directory = scratch_directory.child(
             b'distro-version-arch')
         self.target_key = 'test/target/key'
         self.source_repo = FilePath(tempfile.mkdtemp())
-        self.addCleanup(self.scratch_directory.remove)
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.com'
         self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
         self.source_repo_uri = 'file://' + self.source_repo.path
+        self.alternative_bucket = 'bucket-with-existing-package'
+        alternative_scratch_directory = FilePath(tempfile.mkdtemp(
+            prefix=b'alternative-scratch-directory-'))
+        self.addCleanup(alternative_scratch_directory.remove)
+        self.alternative_package_directory = alternative_scratch_directory.child(
+            b'distro-version-arch')
 
     def test_upload_non_release_fails(self):
         """
@@ -715,7 +721,7 @@ class UploadRPMsTests(TestCase):
         self.assertRaises(
             NotARelease,
             upload_rpms,
-            self.scratch_directory, self.target_bucket, '0.3.0-444-gf05215b',
+            self.rpm_directory, self.target_bucket, '0.3.0-444-gf05215b',
             self.build_server)
 
     def test_upload_doc_release_fails(self):
@@ -725,7 +731,7 @@ class UploadRPMsTests(TestCase):
         self.assertRaises(
             DocumentationRelease,
             upload_rpms,
-            self.scratch_directory, self.target_bucket, '0.3.0+doc1',
+            self.rpm_directory, self.target_bucket, '0.3.0+doc1',
             self.build_server)
 
     def test_packages_uploaded(self):
@@ -980,9 +986,44 @@ class UploadRPMsTests(TestCase):
         """
         Creating repository metadata takes into account existing packages.
         """
-        # Compare results of createrepo with no packages, and createrepo with
-        # packages from S3.
-        pass
+        existing_s3_keys = {
+            os.path.join(self.target_key,
+                'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'):
+                    'old-cli-package',
+        }
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+                self.alternative_bucket: existing_s3_keys.copy(),
+            },
+        )
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.rpm_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
+        )
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.alternative_package_directory,
+            target_bucket=self.alternative_bucket,
+            target_key=self.target_key,
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
+        )
+
+        index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        self.assertNotEqual(
+            aws.s3_buckets[self.target_bucket][index_path],
+            aws.s3_buckets[self.alternative_bucket][index_path])
 
     def test_create_repository_accounts_for_new_packages(self):
         """
