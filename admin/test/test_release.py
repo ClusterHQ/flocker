@@ -898,3 +898,4 @@ class UploadRPMsTests(TestCase):
 
     # TODO tests for only the new metadata files being uploaded
     # TODO Fill in stub tests
+    # Upload new versions of packages, but not the same old packages
