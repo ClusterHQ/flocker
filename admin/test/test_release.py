@@ -706,6 +706,8 @@ class UploadRPMsTests(TestCase):
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.com'
         self.version = '0.3.3dev7'
+        self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
+        self.source_repo_uri = 'file://' + self.source_repo.path
 
     def test_upload_non_release_fails(self):
         """
@@ -753,8 +755,8 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo='file://' + self.source_repo.path,
-            packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
             version=self.version,
         )
 
@@ -780,8 +782,8 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo='file://' + self.source_repo.path,
-            packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
             version=self.version,
         )
 
@@ -821,8 +823,8 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo='file://' + self.source_repo.path,
-            packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
             version=self.version,
         )
 
@@ -867,8 +869,8 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo='file://' + self.source_repo.path,
-            packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
             version=self.version,
         )
 
@@ -887,7 +889,7 @@ class UploadRPMsTests(TestCase):
         """
         repo_metadata_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_s3_keys = {
-            repo_metadata_path: 'old_repo_metadata',
+            repo_metadata_path: 'old_metadata_index',
         }
 
         aws = FakeAWS(
@@ -903,8 +905,8 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo='file://' + self.source_repo.path,
-            packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
             version=self.version,
         )
 
@@ -917,12 +919,47 @@ class UploadRPMsTests(TestCase):
         """
         Existing metadata files are not re-uploaded.
         """
+        # use source repo with existing metadata files
 
     def test_new_metadata_files_uploaded(self):
         """
         New metadata files are uploaded.
         """
-        pass
+        repo_metadata_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        existing_s3_keys = {
+            repo_metadata_path: 'old_metadata_index',
+        }
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: existing_s3_keys.copy(),
+            },
+        )
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.rpm_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
+            version=self.version,
+        )
+
+        repodata_files = [
+            key for key in aws.s3_buckets[self.target_bucket] if
+            key.startswith(os.path.join(self.target_key, 'repodata'))
+        ]
+
+        self.assertGreater(len(repodata_files), 1)
+
+
+    def test_unspecified_packages_in_repository_ignored(self):
+        """
+        Packages which are not requested are not added to S3.
+        """
 
     def test_development_repositories_created(self):
         """
@@ -937,4 +974,5 @@ class UploadRPMsTests(TestCase):
         """
 
     # TODO Fill in stub tests
+    # TODO standardise test docstrings
     # Upload new versions of packages, but not the same old packages
