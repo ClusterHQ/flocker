@@ -61,9 +61,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
         b'--destdir', intent.target_path.path] + intent.packages)
 
     yum_repo_config.remove()
-    # TODO Share this with the fake
-    return set([os.path.basename(path.path) for path in intent.target_path.walk()
-            if path.isfile()])
+    return _list_downloaded_packages(repository_path=intent.target_path)
 
 
 @attributes([
@@ -114,6 +112,18 @@ def _list_repository_metadata(repository_path):
         repository_path.child('repodata').walk()])
 
 
+def _list_downloaded_packages(repository_path):
+    """
+    List the filenames of repository packages.
+
+    :param FilePath repository_path: Location of repository to list repository
+         packages from.
+    :return: Set of filenames of repository package files.
+    """
+    return set([os.path.basename(path.path) for path in
+                repository_path.walk() if path.isfile()])
+
+
 class FakeYum(object):
     """
     Enough of a fake implementation of yum utilities to test
@@ -125,15 +135,14 @@ class FakeYum(object):
         See :class:`DownloadPackagesFromRepository`.
         """
         source_repo_directory = FilePath(urlparse(intent.source_repo).path)
-        downloaded_packages = set()
         for path in source_repo_directory.walk():
             filename = os.path.basename(path.path)
             if path.isfile() and filename.startswith(tuple(intent.packages)):
                 with path.open() as source_file:
                     intent.target_path.child(filename).setContent(
                         source_file.read())
-                downloaded_packages.add(filename)
-        return downloaded_packages
+
+        return _list_downloaded_packages(repository_path=intent.target_path)
 
     @sync_performer
     def _perform_create_repository(self, dispatcher, intent):

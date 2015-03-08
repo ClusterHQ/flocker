@@ -190,7 +190,8 @@ def perform_download_s3_key_recursively(dispatcher, intent):
         ListS3Keys(prefix=intent.source_prefix,
                    bucket=intent.source_bucket))
     for key in keys:
-        if not key.endswith(intent.filter_extensions):
+        if not (key.endswith(intent.filter_extensions) and
+                key.startswith(intent.source_prefix)):
             continue
         path = intent.target_path.preauthChild(key[len(intent.source_prefix):])
 
