@@ -395,15 +395,13 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         ))
 
     # TODO handle (Delete?) keys which are not in the current configuration
-    new_repository_metadata = set(current_repository_metadata) - previous_repository_metadata
-
-    # TODO use sets instead of lists where possible
+    new_repository_metadata = current_repository_metadata - previous_repository_metadata
 
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
         target_bucket=target_bucket,
         target_key=target_key,
-        files=downloaded_packages + list(new_repository_metadata),
+        files=downloaded_packages | new_repository_metadata,
         ))
 
 

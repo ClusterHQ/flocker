@@ -63,8 +63,9 @@ def perform_download_packages_from_repository(dispatcher, intent):
         b'--destdir', intent.target_path.path] + intent.packages)
 
     yum_repo_config.remove()
-    return [os.path.basename(path.path) for path in intent.target_path.walk()
-            if path.isfile()]
+    # TODO Share this with the fake
+    return set([os.path.basename(path.path) for path in intent.target_path.walk()
+            if path.isfile()])
 
 
 @attributes([
@@ -108,10 +109,11 @@ def _list_repository_metadata(repository_path):
 
     :param FilePath repository_path: Location of repository to list repository
          metadata from.
+    :return: Set of filenames of repository metadata files.
     """
-    return [
+    return set([
         os.path.basename(path.path) for path in
-        repository_path.child('repodata').walk()]
+        repository_path.child('repodata').walk()])
 
 
 class FakeYum(object):
@@ -125,14 +127,14 @@ class FakeYum(object):
         See :class:`DownloadPackagesFromRepository`.
         """
         source_repo_directory = FilePath(urlparse(intent.source_repo).path)
-        downloaded_packages = []
+        downloaded_packages = set()
         for path in source_repo_directory.walk():
             filename = os.path.basename(path.path)
             if path.isfile() and filename.startswith(tuple(intent.packages)):
                 with path.open() as source_file:
                     intent.target_path.child(filename).setContent(
                         source_file.read())
-                downloaded_packages.append(filename)
+                downloaded_packages.add(filename)
         return downloaded_packages
 
     @sync_performer
@@ -143,8 +145,10 @@ class FakeYum(object):
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
         metadata_directory.child('repomd.xml').setContent('metadata_index')
-        metadata_directory.child('new-metadata-file.sqlite.bz2').setContent('metadata_content')
-        metadata_directory.child('existing-metadata-file.sqlite.bz2').setContent('metadata_content')
+        metadata_directory.child('new-metadata-file.sqlite.bz2').setContent(
+            'metadata_content')
+        metadata_directory.child(
+            'existing-metadata-file.sqlite.bz2').setContent('metadata_content')
         return _list_repository_metadata(
             repository_path=intent.repository_path)
 
