@@ -992,6 +992,15 @@ class UploadRPMsTests(TestCase):
         # packages from source repo.
         pass
 
+    def test_create_repository_uses_replacement_packages(self):
+        """
+        Creating repository metadata takes the package from the source
+        repository if a package of the same name is already available from S3.
+        """
+        # Compare results of createrepo with no packages, and createrepo with
+        # packages from source repo.
+        pass
+
     def test_unspecified_packages_in_repository_ignored(self):
         """
         Packages which are not requested are not added to S3.
