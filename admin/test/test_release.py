@@ -734,7 +734,7 @@ class UploadRPMsTests(TestCase):
 
     def test_packages_uploaded(self):
         """
-        Calling :func:`upload_rpms` uploads packages from a source repository
+        Calling :func:`update_repo` uploads packages from a source repository
         to S3.
         """
         aws = FakeAWS(
@@ -769,7 +769,7 @@ class UploadRPMsTests(TestCase):
 
     def test_metadata_uploaded(self):
         """
-        Calling :func:`upload_rpms` uploads metadata for a source repository to
+        Calling :func:`update_repo` uploads metadata for a source repository to
         S3.
         """
         aws = FakeAWS(
@@ -795,7 +795,7 @@ class UploadRPMsTests(TestCase):
 
     def test_repository_added_to(self):
         """
-        Calling :func:`upload_rpms` does not delete packages which already
+        Calling :func:`update_repo` does not delete packages which already
         exist in S3.
         """
         existing_s3_keys = {
@@ -838,7 +838,7 @@ class UploadRPMsTests(TestCase):
 
     def test_packages_updated(self):
         """
-        Calling :func:`upload_rpms` with a source repository containing a
+        Calling :func:`update_repo` with a source repository containing a
         package when a package already exists on S3 with the same name
         replaces the package on S3 with the one from the source repository.
         """
@@ -883,7 +883,7 @@ class UploadRPMsTests(TestCase):
 
     def test_repository_metadata_index_updated(self):
         """
-        Calling :func:`upload_rpms` updates the repository metadata index.
+        Calling :func:`update_repo` updates the repository metadata index.
         """
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_s3_keys = {
@@ -913,7 +913,7 @@ class UploadRPMsTests(TestCase):
 
     def test_existing_metadata_files_not_uploaded(self):
         """
-        Calling :func:`upload_rpms` does not update repository metadata files
+        Calling :func:`update_repo` does not update repository metadata files
         which are not the index.
         """
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
@@ -948,7 +948,7 @@ class UploadRPMsTests(TestCase):
 
     def test_new_metadata_files_uploaded(self):
         """
-        Calling :func:`upload_rpms` uploads new repository metadata files to
+        Calling :func:`update_repo` uploads new repository metadata files to
         S3.
         """
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
@@ -982,7 +982,8 @@ class UploadRPMsTests(TestCase):
 
     def test_create_repository_accounts_for_existing_packages(self):
         """
-        Creating repository metadata takes into account existing packages.
+        Calling :func:`update_repo` uploads new repository metadata files to
+        S3 which correspond to packages including those already on S3.
         """
         cli_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
         existing_s3_keys = {
@@ -1024,7 +1025,9 @@ class UploadRPMsTests(TestCase):
 
     def test_create_repository_accounts_for_new_packages(self):
         """
-        Creating repository metadata takes into account new packages.
+        Calling :func:`update_repo` uploads new repository metadata files to
+        S3 which correspond to packages including those in the source
+        repository but not already on S3.
         """
         aws = FakeAWS(
             routing_rules={},
@@ -1067,10 +1070,10 @@ class UploadRPMsTests(TestCase):
             aws.s3_buckets[self.target_bucket][index_path],
             aws.s3_buckets[self.alternative_bucket][index_path])
 
-    def test_unspecified_packages_in_repository_ignored(self):
+    def test_unspecified_packages_in_repository_not_uploaded(self):
         """
-        Packages in the source repository which are not specified in the
-        `packages` parameter to `update_repo` are not added to S3.
+        Calling :func:`update_repo` does not upload packages to S3 unless they
+        correspond to a package name given in the `packages` parameter.
         """
         existing_s3_keys = {
             os.path.join(self.target_key, 'existing_package.rpm'): '',
@@ -1109,17 +1112,16 @@ class UploadRPMsTests(TestCase):
 
     def test_development_repositories_created(self):
         """
-        upload_rpms creates development repositories for CentOS 7 and Fedora 20
-        for a development release.
+        Calling :func:`upload_rpms` creates development repositories for
+        CentOS 7 and Fedora 20 for a development release.
         """
 
     def test_marketing_repositories_created(self):
         """
-        upload_rpms creates marketing repositories for CentOS 7 and Fedora 20
-        for a marketing release.
+        Calling :func:`upload_rpms` creates marketing repositories for
+        CentOS 7 and Fedora 20 for a marketing release.
         """
 
     # TODO Fill in stub tests
-    # TODO standardise test docstrings
     # Upload new versions of packages, but not the same old packages
     # TODO test real yum commands?
