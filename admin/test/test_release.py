@@ -887,9 +887,9 @@ class UploadRPMsTests(TestCase):
         """
         Repositoy metadata index is updated.
         """
-        repo_metadata_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        repo_metadata_index = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_s3_keys = {
-            repo_metadata_path: 'old_metadata_index',
+            repo_metadata_index: 'old_metadata_index',
         }
 
         aws = FakeAWS(
@@ -911,23 +911,51 @@ class UploadRPMsTests(TestCase):
         )
 
         self.assertNotEqual(
-            existing_s3_keys[repo_metadata_path],
-            aws.s3_buckets[self.target_bucket][repo_metadata_path])
+            existing_s3_keys[repo_metadata_index],
+            aws.s3_buckets[self.target_bucket][repo_metadata_index])
 
 
     def test_existing_metadata_files_not_uploaded(self):
         """
         Existing metadata files are not re-uploaded.
         """
-        # use source repo with existing metadata files
+        repo_metadata_index = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        existing_metadata_file = os.path.join(self.target_key, 'repodata', 'existing-metadata-file.sqlite.bz2')
+
+        existing_s3_keys = {
+            repo_metadata_index: 'old_metadata_index',
+            existing_metadata_file: 'old_metadata_content'
+        }
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: existing_s3_keys.copy(),
+            },
+        )
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.rpm_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
+            version=self.version,
+        )
+
+        self.assertEqual(
+            aws.s3_buckets[self.target_bucket][existing_metadata_file],
+            existing_s3_keys[existing_metadata_file])
 
     def test_new_metadata_files_uploaded(self):
         """
         New metadata files are uploaded.
         """
-        repo_metadata_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        repo_metadata_index = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_s3_keys = {
-            repo_metadata_path: 'old_metadata_index',
+            repo_metadata_index: 'old_metadata_index',
         }
 
         aws = FakeAWS(

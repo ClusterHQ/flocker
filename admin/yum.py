@@ -142,9 +142,9 @@ class FakeYum(object):
         """
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
-        # TODO Make it better (time?)
-        metadata_directory.child('repomd.xml').setContent('metadata_content')
-        # TODO it may be necessary to create other repo metadata files
+        metadata_directory.child('repomd.xml').setContent('metadata_index')
+        metadata_directory.child('new-metadata-file.sqlite.bz2').setContent('metadata_content')
+        metadata_directory.child('existing-metadata-file.sqlite.bz2').setContent('metadata_content')
         return _list_repository_metadata(
             repository_path=intent.repository_path)
 
