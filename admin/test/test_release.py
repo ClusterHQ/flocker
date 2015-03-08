@@ -719,17 +719,31 @@ class UploadRPMsTests(TestCase):
             update_repo(rpm_directory, target_bucket, target_key, source_repo,
                         packages))
 
+    def create_fake_repository(self, files):
+        """
+        Create files in a directory to mimic a repository of packages.
+
+        :param dict source_repo: Dictionary mapping names of files to create to
+            contents.
+        :return: FilePath of directory containing fake package files.
+        """
+        source_repo = FilePath(tempfile.mkdtemp())
+        for key in files:
+            new_file = source_repo.preauthChild(key)
+            if not new_file.parent().exists():
+                new_file.parent().makedirs()
+            new_file.setContent(files[key])
+        return 'file://' + source_repo.path
+
     def setUp(self):
         self.scratch_directory = FilePath(tempfile.mkdtemp())
         self.addCleanup(self.scratch_directory.remove)
         self.rpm_directory = self.scratch_directory.child(
             b'distro-version-arch')
         self.target_key = 'test/target/key'
-        self.source_repo = FilePath(tempfile.mkdtemp())
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.com'
         self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
-        self.source_repo_uri = 'file://' + self.source_repo.path
         self.alternative_bucket = 'bucket-with-existing-package'
         alt_scratch_directory = FilePath(tempfile.mkdtemp())
         self.addCleanup(alt_scratch_directory.remove)
@@ -791,16 +805,13 @@ class UploadRPMsTests(TestCase):
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
         }
 
-        for key in repo_contents:
-            self.source_repo.child(key).setContent(repo_contents[key])
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
         )
 
@@ -827,7 +838,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
         )
 
@@ -856,16 +867,13 @@ class UploadRPMsTests(TestCase):
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
         }
 
-        for key in repo_contents:
-            self.source_repo.child(key).setContent(repo_contents[key])
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
         )
 
@@ -901,16 +909,13 @@ class UploadRPMsTests(TestCase):
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
         }
 
-        for key in repo_contents:
-            self.source_repo.child(key).setContent(repo_contents[key])
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
         )
 
@@ -945,7 +950,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
         )
 
@@ -980,7 +985,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
         )
 
@@ -1011,7 +1016,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
         )
 
@@ -1046,7 +1051,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
         )
 
@@ -1056,7 +1061,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.alternative_package_directory,
             target_bucket=self.alternative_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
         )
 
@@ -1084,16 +1089,13 @@ class UploadRPMsTests(TestCase):
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
         }
 
-        for key in repo_contents:
-            self.source_repo.child(key).setContent(repo_contents[key])
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files=repo_contents),
             packages=[],
         )
 
@@ -1103,7 +1105,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.alternative_package_directory,
             target_bucket=self.alternative_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
         )
 
@@ -1135,16 +1137,13 @@ class UploadRPMsTests(TestCase):
             unspecified_package: '',
         }
 
-        for key in repo_contents:
-            self.source_repo.child(key).setContent(repo_contents[key])
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.source_repo_uri,
+            source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
         )
 
@@ -1172,19 +1171,13 @@ class UploadRPMsTests(TestCase):
 
         }
 
-        for key in repo_contents:
-            new_file = self.source_repo.preauthChild(key)
-            if not new_file.parent().exists():
-                new_file.parent().makedirs()
-            new_file.setContent(repo_contents[key])
-
         self.upload_rpms(
             aws=aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
             version='0.3.3dev7',
-            build_server=self.source_repo_uri,
+            build_server=self.create_fake_repository(files=repo_contents),
         )
 
         expected_files = set()
@@ -1226,19 +1219,13 @@ class UploadRPMsTests(TestCase):
 
         }
 
-        for key in repo_contents:
-            new_file = self.source_repo.preauthChild(key)
-            if not new_file.parent().exists():
-                new_file.parent().makedirs()
-            new_file.setContent(repo_contents[key])
-
         self.upload_rpms(
             aws=aws,
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
             version='0.3.3',
-            build_server=self.source_repo_uri,
+            build_server=self.create_fake_repository(files=repo_contents),
         )
 
         expected_files = set()
