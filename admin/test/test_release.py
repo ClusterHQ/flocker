@@ -881,9 +881,9 @@ class UploadRPMsTests(TestCase):
             expected_keys,
             aws.s3_buckets[self.target_bucket])
 
-    def test_repository_metadata_updated(self):
+    def test_repository_metadata_index_updated(self):
         """
-        Repositoy metadata is updated.
+        Repositoy metadata index is updated.
         """
         repo_metadata_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_s3_keys = {
@@ -912,6 +912,18 @@ class UploadRPMsTests(TestCase):
             existing_s3_keys[repo_metadata_path],
             aws.s3_buckets[self.target_bucket][repo_metadata_path])
 
+
+    def test_existing_metadata_files_not_uploaded(self):
+        """
+        Existing metadata files are not re-uploaded.
+        """
+
+    def test_new_metadata_files_uploaded(self):
+        """
+        New metadata files are uploaded.
+        """
+        pass
+
     def test_development_repositories_created(self):
         """
         upload_rpms creates development repositories for CentOS 7 and Fedora 20
@@ -924,6 +936,5 @@ class UploadRPMsTests(TestCase):
         for a marketing release.
         """
 
-    # TODO tests for only the new metadata files being uploaded
     # TODO Fill in stub tests
     # Upload new versions of packages, but not the same old packages
