@@ -39,7 +39,13 @@ from .aws import (
 
 )
 
-from .yum import CreateRepo, DownloadPackagesFromRepository, yum_dispatcher
+from .yum import (
+    yum_dispatcher,
+    CreateRepo,
+    DownloadPackagesFromRepository,
+    ListMetadata,
+    ListPackages,
+)
 
 
 __all__ = ['rpm_version', 'make_rpm_version']
@@ -375,11 +381,15 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         target_path=rpm_directory,
         filter_extensions=('.rpm',)))
 
-    downloaded_packages = yield Effect(DownloadPackagesFromRepository(
+    yield Effect(DownloadPackagesFromRepository(
         source_repo=source_repo,
         target_path=rpm_directory,
         packages=packages,
         ))
+
+    downloaded_packages = yield Effect(ListPackages(
+        repository_path=rpm_directory,
+    ))
 
     previous_repository_metadata = yield Effect(
         ListS3Keys(bucket=target_bucket,
@@ -388,12 +398,16 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     # index file should always be updated
     previous_repository_metadata.discard('repomd.xml')
 
-    current_repository_metadata = yield Effect(CreateRepo(
+    yield Effect(CreateRepo(
         repository_path=rpm_directory,
         ))
 
+    current_repository_metadata = yield Effect(ListMetadata(
+        repository_path=rpm_directory,
+    ))
     # TODO handle (Delete?) keys which are not in the current configuration
-    new_repository_metadata = current_repository_metadata - previous_repository_metadata
+    new_repository_metadata = (current_repository_metadata -
+                               previous_repository_metadata)
 
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,

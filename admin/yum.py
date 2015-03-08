@@ -23,8 +23,6 @@ class DownloadPackagesFromRepository(object):
     """
     Download a given set of RPMs from a repository.
 
-    Note that this returns a list with the prefixes stripped.
-
     :ivar bytes source_repo: Location of repoisitory.
     :ivar FilePath target_path: Directory to download packages to.
     :ivar list packages: List of bytes, package names to download.
@@ -61,7 +59,6 @@ def perform_download_packages_from_repository(dispatcher, intent):
         b'--destdir', intent.target_path.path] + intent.packages)
 
     yum_repo_config.remove()
-    return _list_downloaded_packages(repository_path=intent.target_path)
 
 
 @attributes([
@@ -90,38 +87,59 @@ def perform_create_repository(dispatcher, intent):
         b'--update',
         b'--quiet',
         intent.repository_path.path])
-    return _list_repository_metadata(repository_path=intent.repository_path)
 
 
-yum_dispatcher = TypeDispatcher({
-    DownloadPackagesFromRepository: perform_download_packages_from_repository,
-    CreateRepo: perform_create_repository,
-})
-
-
-def _list_repository_metadata(repository_path):
-    """
-    List the filenames of repository metadata.
-
-    :param FilePath repository_path: Location of repository to list repository
-         metadata from.
-    :return: Set of filenames of repository metadata files.
-    """
-    return set([
-        os.path.basename(path.path) for path in
-        repository_path.child('repodata').walk()])
-
-
-def _list_downloaded_packages(repository_path):
+@attributes([
+    "repository_path",
+])
+class ListPackages(object):
     """
     List the filenames of repository packages.
 
-    :param FilePath repository_path: Location of repository to list repository
+    Note that this returns a set with the prefixes stripped.
+
+    :ivar FilePath repository_path: Location of repository to list repository
          packages from.
-    :return: Set of filenames of repository package files.
+    """
+
+
+@sync_performer
+def perform_list_downloaded_packages(dispatcher, intent):
+    """
+    See class:`ListPackages`.
     """
     return set([os.path.basename(path.path) for path in
-                repository_path.walk() if path.isfile()])
+                intent.repository_path.walk() if path.isfile()])
+
+
+@attributes([
+    "repository_path",
+])
+class ListMetadata(object):
+    """
+    List the filenames of repository metadata.
+
+    Note that this returns a set with the prefixes stripped.
+
+    :ivar FilePath repository_path: Location of repository to list repository
+         metadata from.
+    """
+
+
+@sync_performer
+def perform_list_metadata(dispatcher, intent):
+    """
+    See class:`ListMetadata`.
+    """
+    return set([os.path.basename(path.path) for path in
+                intent.repository_path.child('repodata').walk()])
+
+yum_dispatcher = TypeDispatcher({
+    DownloadPackagesFromRepository: perform_download_packages_from_repository,
+    ListPackages: perform_list_downloaded_packages,
+    ListMetadata: perform_list_metadata,
+    CreateRepo: perform_create_repository,
+})
 
 
 class FakeYum(object):
@@ -144,8 +162,6 @@ class FakeYum(object):
                     intent.target_path.child(filename).setContent(
                         source_file.read())
 
-        return _list_downloaded_packages(repository_path=intent.target_path)
-
     @sync_performer
     def _perform_create_repository(self, dispatcher, intent):
         """
@@ -158,8 +174,6 @@ class FakeYum(object):
             'metadata_content')
         metadata_directory.child(
             'existing-metadata-file.sqlite.bz2').setContent('metadata_content')
-        return _list_repository_metadata(
-            repository_path=intent.repository_path)
 
     def get_dispatcher(self):
         """
@@ -169,5 +183,7 @@ class FakeYum(object):
         return TypeDispatcher({
             DownloadPackagesFromRepository:
                 self._perform_download_packages_from_repository,
+            ListPackages: perform_list_downloaded_packages,
+            ListMetadata: perform_list_metadata,
             CreateRepo: self._perform_create_repository,
         })
