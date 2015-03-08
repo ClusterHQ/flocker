@@ -6,7 +6,7 @@ Effectful interface to boto.
 
 import os
 from characteristic import attributes, Attribute
-
+from twisted.python.filepath import FilePath
 from effect import Effect, sync_performer, TypeDispatcher
 from effect.do import do
 
@@ -184,22 +184,21 @@ class DownloadS3KeyRecursively(object):
 @do
 def perform_download_s3_key_recursively(dispatcher, intent):
     """
-    See :class:`ListS3Keys`.
+    See :class:`DownloadS3KeyRecursively`.
     """
     keys = yield Effect(
-        ListS3Keys(prefix=intent.source_prefix,
+        ListS3Keys(prefix=intent.source_prefix + '/',
                    bucket=intent.source_bucket))
     for key in keys:
-        if not (key.endswith(intent.filter_extensions) and
-                key.startswith(intent.source_prefix)):
+        if not key.endswith(intent.filter_extensions):
             continue
-        path = intent.target_path.preauthChild(key[len(intent.source_prefix):])
+        path = FilePath(os.path.join(intent.target_path.path, key))
 
-        if not intent.target_path.parent().exists():
-            path.target_parent().makedirs()
+        if not path.parent().exists():
+            path.parent().makedirs()
         yield Effect(
             DownloadS3Key(source_bucket=intent.source_bucket,
-                          source_key=intent.source_prefix + key,
+                          source_key=os.path.join(intent.source_prefix, key),
                           target_path=path))
 
 
