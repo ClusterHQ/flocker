@@ -714,7 +714,7 @@ class UploadRPMsTests(TestCase):
 
     def test_upload_non_release_fails(self):
         """
-        Trying to upload RPMs for a version that isn't a release fails.
+        Calling :func:`upload_rpms` with a version that isn't a release fails.
         """
         self.assertRaises(
             NotARelease,
@@ -724,7 +724,7 @@ class UploadRPMsTests(TestCase):
 
     def test_upload_doc_release_fails(self):
         """
-        Trying to upload RPMs for a documentation release fails.
+        Calling :func:`upload_rpms` with a documentation release version fails.
         """
         self.assertRaises(
             DocumentationRelease,
@@ -734,8 +734,8 @@ class UploadRPMsTests(TestCase):
 
     def test_packages_uploaded(self):
         """
-        Uploading a repository to an empty bucket puts packages in
-        place.
+        Calling :func:`upload_rpms` uploads packages from a source repository
+        to S3.
         """
         aws = FakeAWS(
             routing_rules={},
@@ -769,7 +769,8 @@ class UploadRPMsTests(TestCase):
 
     def test_metadata_uploaded(self):
         """
-        Uploading a repository to an empty bucket puts metadata in place.
+        Calling :func:`upload_rpms` uploads metadata for a source repository to
+        S3.
         """
         aws = FakeAWS(
             routing_rules={},
@@ -794,7 +795,8 @@ class UploadRPMsTests(TestCase):
 
     def test_repository_added_to(self):
         """
-        If new packages are added to the repository, old packages remain.
+        Calling :func:`upload_rpms` does not delete packages which already
+        exist in S3.
         """
         existing_s3_keys = {
             os.path.join(self.target_key, 'existing_package.rpm'): '',
@@ -836,8 +838,9 @@ class UploadRPMsTests(TestCase):
 
     def test_packages_updated(self):
         """
-        If a new version of a package which already exists in S3 is available,
-        the old package is replaced.
+        Calling :func:`upload_rpms` with a source repository containing a
+        package when a package already exists on S3 with the same name
+        replaces the package on S3 with the one from the source repository.
         """
         cli_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
         existing_s3_keys = {
@@ -880,7 +883,7 @@ class UploadRPMsTests(TestCase):
 
     def test_repository_metadata_index_updated(self):
         """
-        Repositoy metadata index is updated.
+        Calling :func:`upload_rpms` updates the repository metadata index.
         """
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_s3_keys = {
@@ -910,7 +913,8 @@ class UploadRPMsTests(TestCase):
 
     def test_existing_metadata_files_not_uploaded(self):
         """
-        Existing metadata files are not re-uploaded.
+        Calling :func:`upload_rpms` does not update repository metadata files
+        which are not the index.
         """
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_metadata_file = os.path.join(self.target_key, 'repodata',
@@ -944,7 +948,8 @@ class UploadRPMsTests(TestCase):
 
     def test_new_metadata_files_uploaded(self):
         """
-        New metadata files are uploaded.
+        Calling :func:`upload_rpms` uploads new repository metadata files to
+        S3.
         """
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
         existing_s3_keys = {
@@ -972,6 +977,7 @@ class UploadRPMsTests(TestCase):
             key for key in aws.s3_buckets[self.target_bucket] if
             key.startswith(os.path.join(self.target_key, 'repodata'))]
 
+        # What matters is that there is more than just the index.
         self.assertGreater(len(repodata_files), 1)
 
     def test_create_repository_accounts_for_existing_packages(self):
