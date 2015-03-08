@@ -735,6 +735,10 @@ class UploadRPMsTests(TestCase):
         self.addCleanup(alt_scratch_directory.remove)
         self.alternative_package_directory = alt_scratch_directory.child(
             b'distro-version-arch')
+        self.operating_systems = [
+            {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
+            {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
+        ]
 
     def test_upload_non_release_fails(self):
         """
@@ -1161,10 +1165,10 @@ class UploadRPMsTests(TestCase):
         )
 
         repo_contents = {
-            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '', #noqa
-            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '', #noqa
-            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '', #noqa
-            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '', #noqa
+            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
 
         }
 
@@ -1183,13 +1187,8 @@ class UploadRPMsTests(TestCase):
             build_server=self.source_repo_uri,
         )
 
-        operating_systems = [
-                {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
-                {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
-        ]
-
         expected_files = set()
-        for operating_system in operating_systems:
+        for operating_system in self.operating_systems:
             for file in [
                 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
                 'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
@@ -1207,7 +1206,6 @@ class UploadRPMsTests(TestCase):
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
         self.assertTrue(expected_files.issubset(set(files_on_s3)))
 
-
     def test_marketing_repositories_created(self):
         """
         Calling :func:`upload_rpms` creates marketing repositories for
@@ -1221,10 +1219,10 @@ class UploadRPMsTests(TestCase):
         )
 
         repo_contents = {
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-cli-0.3.3.noarch.rpm': '', #noqa
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-node-0.3.3.noarch.rpm': '', #noqa
-            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3.noarch.rpm': '', #noqa
-            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3.noarch.rpm': '', #noqa
+            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-cli-0.3.3.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-node-0.3.3.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3.noarch.rpm': '',  # noqa
 
         }
 
@@ -1243,13 +1241,8 @@ class UploadRPMsTests(TestCase):
             build_server=self.source_repo_uri,
         )
 
-        operating_systems = [
-                {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
-                {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
-        ]
-
         expected_files = set()
-        for operating_system in operating_systems:
+        for operating_system in self.operating_systems:
             for file in [
                 'clusterhq-flocker-cli-0.3.3.noarch.rpm',
                 'clusterhq-flocker-node-0.3.3.noarch.rpm',
@@ -1269,3 +1262,4 @@ class UploadRPMsTests(TestCase):
         self.assertTrue(expected_files.issubset(set(files_on_s3)))
 
     # TODO test real yum commands?
+    # TODO separate out creation of repository from dictionary

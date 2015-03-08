@@ -439,7 +439,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server, dispatc
     elif is_weekly_release(version):
         release_type = "development"
 
-    # TODO test these calls with a spy
     sync_perform(
         dispatcher=dispatcher,
         effect=update_repo(
