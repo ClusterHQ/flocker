@@ -1249,4 +1249,3 @@ class UploadRPMsTests(TestCase):
         self.assertTrue(expected_files.issubset(set(files_on_s3)))
 
     # TODO test real yum commands?
-    # TODO separate out creation of repository from dictionary
