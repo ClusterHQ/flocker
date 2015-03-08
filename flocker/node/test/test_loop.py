@@ -460,18 +460,28 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # Calculating actions happened, action is run, but waits for
         # Deferred to be fired... Meanwhile a stop input is received!
         loop.receive(ConvergenceLoopInputs.STOP)
-        # Action finally finishes, and nothing more happens; if another
-        # iteration did happen the loop would attempt discovery, which
-        # would make deployer.discover_local_state() to fail since it was
-        # only configured with one result.
+        # Action finally finishes:
         action.result.callback(None)
         reactor.advance(1.0)
 
-        self.assertEqual(
-            (deployer.calculate_inputs, client.calls, loop.state),
-            ([(local_state, configuration, state)],
-             [(NodeStateCommand, dict(node_state=local_state))],
-             ConvergenceLoopStates.STOPPED))
+        # work is scheduled:
+        expected = (
+            # The actions are calculated
+            [(local_state, configuration, state)],
+            # And the result is run
+            [(NodeStateCommand, dict(node_state=local_state))],
+            # The state machine gets to the desired state.
+            ConvergenceLoopStates.STOPPED,
+            # And no subsequent work is scheduled to be run.
+            [],
+        )
+        actual = (
+            deployer.calculate_inputs,
+            client.calls,
+            loop.state,
+            reactor.getDelayedCalls(),
+        )
+        self.assertEqual(expected, actual)
 
     def test_convergence_stop_then_status_update(self):
         """
