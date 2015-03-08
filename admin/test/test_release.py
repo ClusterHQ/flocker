@@ -1029,18 +1029,46 @@ class UploadRPMsTests(TestCase):
         """
         Creating repository metadata takes into account new packages.
         """
-        # Compare results of createrepo with no packages, and createrepo with
-        # packages from source repo.
-        pass
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+                self.alternative_bucket: {},
+            },
+        )
 
-    def test_create_repository_uses_replacement_packages(self):
-        """
-        Creating repository metadata takes the package from the source
-        repository if a package of the same name is already available from S3.
-        """
-        # Compare results of createrepo with no packages, and createrepo with
-        # packages from source repo.
-        pass
+        repo_contents = {
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
+        }
+
+        for key in repo_contents:
+            self.source_repo.child(key).setContent(repo_contents[key])
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.rpm_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=self.source_repo_uri,
+            packages=[],
+        )
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.alternative_package_directory,
+            target_bucket=self.alternative_bucket,
+            target_key=self.target_key,
+            source_repo=self.source_repo_uri,
+            packages=self.packages,
+        )
+
+        index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        self.assertNotEqual(
+            aws.s3_buckets[self.target_bucket][index_path],
+            aws.s3_buckets[self.alternative_bucket][index_path])
 
     def test_unspecified_packages_in_repository_ignored(self):
         """

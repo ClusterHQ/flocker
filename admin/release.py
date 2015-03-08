@@ -375,7 +375,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     # adapted / moved.
     rpm_directory.createDirectory()
 
-    # TODO... that this is done is not tested
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
         source_prefix=target_key,
