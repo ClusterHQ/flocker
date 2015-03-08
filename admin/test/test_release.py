@@ -764,6 +764,32 @@ class UploadRPMsTests(TestCase):
              for package in repo_contents},
             aws.s3_buckets[self.target_bucket])
 
+    def test_metadata_uploaded(self):
+        """
+        Uploading a repository to an empty bucket puts metadata in place.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.rpm_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo='file://' + self.source_repo.path,
+            packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
+            version=self.version,
+        )
+
+        self.assertIn(
+            os.path.join(self.target_key, 'repodata', 'repomd.xml'),
+            aws.s3_buckets[self.target_bucket])
+
     def test_real_yum_commands(self):
         pass
 
