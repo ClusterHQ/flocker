@@ -745,7 +745,6 @@ class UploadRPMsTests(TestCase):
         }
 
         for key in repo_contents:
-            self.source_repo.child(key).touch()
             self.source_repo.child(key).setContent(repo_contents[key])
 
         self.update_repo(
@@ -814,7 +813,6 @@ class UploadRPMsTests(TestCase):
         }
 
         for key in repo_contents:
-            self.source_repo.child(key).touch()
             self.source_repo.child(key).setContent(repo_contents[key])
 
         self.update_repo(
@@ -861,7 +859,6 @@ class UploadRPMsTests(TestCase):
         }
 
         for key in repo_contents:
-            self.source_repo.child(key).touch()
             self.source_repo.child(key).setContent(repo_contents[key])
 
         self.update_repo(

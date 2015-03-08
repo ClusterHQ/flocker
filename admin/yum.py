@@ -129,7 +129,6 @@ class FakeYum(object):
         for path in source_repo_directory.walk():
             filename = os.path.basename(path.path)
             if path.isfile() and filename.startswith(tuple(intent.packages)):
-                intent.target_path.child(filename).touch()
                 with path.open() as source_file:
                     intent.target_path.child(filename).setContent(
                         source_file.read())
@@ -143,7 +142,6 @@ class FakeYum(object):
         """
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
-        metadata_directory.child('repomd.xml').touch()
         # TODO Make it better (time?)
         metadata_directory.child('repomd.xml').setContent('metadata_content')
         # TODO it may be necessary to create other repo metadata files
