@@ -392,7 +392,7 @@ class FakeAWS(object):
         bucket = self.s3_buckets[intent.target_bucket]
         with intent.file.open() as source_file:
             bucket[intent.target_key + intent.file.path[
-                    len(intent.source_path.path):]] = source_file.read()
+                   len(intent.source_path.path):]] = source_file.read()
 
     def get_dispatcher(self):
         """

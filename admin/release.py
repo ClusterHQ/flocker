@@ -476,10 +476,8 @@ def upload_rpms_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    dispatcher = ComposedDispatcher([
-          boto_dispatcher,
-          yum_dispatcher,
-          base_dispatcher])
+    dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
+                                     base_dispatcher])
 
     try:
         scratch_directory = FilePath(tempfile.mkdtemp(
