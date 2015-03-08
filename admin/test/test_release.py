@@ -17,7 +17,7 @@ from ..release import (
     DocumentationRelease, NotTagged, NotARelease,
 )
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
-from ..yum import FakeYum
+from ..yum import FakeYum, yum_dispatcher
 
 
 class MakeRpmVersionTests(TestCase):
@@ -1249,4 +1249,46 @@ class UploadRPMsTests(TestCase):
 
         self.assertTrue(expected_files.issubset(set(files_on_s3)))
 
-    # TODO test real yum commands?
+    def test_real_yum_utils(self):
+        """
+        Calling :func:`update_repo` with real yum utilities creates a
+        repository in S3.
+        """
+        source_repo = FilePath(tempfile.mkdtemp())
+        FilePath(__file__).sibling('test-repo').copyTo(source_repo)
+        repo_uri = 'file://' + source_repo.path
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        class RealYum(object):
+            def get_dispatcher(self):
+                return yum_dispatcher
+
+        self.update_repo(
+            aws=aws,
+            yum=RealYum(),
+            rpm_directory=self.rpm_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=repo_uri,
+            packages=self.packages,
+        )
+
+        files = [
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
+            'repodata/1988e623dfb7204ec981d2a2ab1a38da6c0f742717d184088dd0a0f344f6e89c-filelists.sqlite.bz2',  # noqa
+            'repodata/2fb86263316de187636c8949988ab6fd72604329a7300ae490bc091d0d23e69c-other.sqlite.bz2',  # noqa
+            'repodata/9bd2f440089b24817e38898e81adba7739b1a904533528819574528698828750-filelists.xml.gz',  # noqa
+            'repodata/e8671396d8181102616d45d4916fe74fb886c6f9dfcb62df546e258e830cb11c-other.xml.gz',  # noqa
+            'repodata/repomd.xml'
+        ]
+        expected_files = set([os.path.join(self.target_key, file) for file in files])
+
+        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
+        self.assertTrue(expected_files.issubset(set(files_on_s3)))
