@@ -849,7 +849,7 @@ class UploadRPMsTests(TestCase):
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
-                self.target_bucket: existing_s3_keys,
+                self.target_bucket: existing_s3_keys.copy(),
             },
         )
 
@@ -880,6 +880,37 @@ class UploadRPMsTests(TestCase):
         self.assertDictContainsSubset(
             expected_keys,
             aws.s3_buckets[self.target_bucket])
+
+    def test_repository_metadata_updated(self):
+        """
+        Repositoy metadata is updated.
+        """
+        repo_metadata_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        existing_s3_keys = {
+            repo_metadata_path: 'old_repo_metadata',
+        }
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: existing_s3_keys.copy(),
+            },
+        )
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            rpm_directory=self.rpm_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo='file://' + self.source_repo.path,
+            packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
+            version=self.version,
+        )
+
+        self.assertNotEqual(
+            existing_s3_keys[repo_metadata_path],
+            aws.s3_buckets[self.target_bucket][repo_metadata_path])
 
     def test_development_repositories_created(self):
         """
