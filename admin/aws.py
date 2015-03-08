@@ -390,8 +390,8 @@ class FakeAWS(object):
         See :class:`UploadToS3`.
         """
         bucket = self.s3_buckets[intent.target_bucket]
-        bucket[intent.target_key +
-            intent.file.path[len(intent.source_path.path):]] = intent.file.path
+        with intent.file.open() as source_file:
+            bucket[intent.target_key + intent.file.path[len(intent.source_path.path):]] = source_file.read()
 
     def get_dispatcher(self):
         """

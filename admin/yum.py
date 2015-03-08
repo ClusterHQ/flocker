@@ -125,13 +125,14 @@ class FakeYum(object):
         """
         See :class:`DownloadPackagesFromRepository`.
         """
-        # TODO use a dictionary source repo
         source_repo_directory = FilePath(urlparse(intent.source_repo).path)
         downloaded_packages = []
         for path in source_repo_directory.walk():
             filename = os.path.basename(path.path)
             if path.isfile() and filename.startswith(tuple(intent.packages)):
                 intent.target_path.child(filename).touch()
+                with path.open() as source_file:
+                    intent.target_path.child(filename).setContent(source_file.read())
                 downloaded_packages.append(filename)
         return downloaded_packages
 
@@ -143,6 +144,8 @@ class FakeYum(object):
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
         metadata_directory.child('repomd.xml').touch()
+        # TODO this matches test contents...make it better
+        metadata_directory.child('repomd.xml').setContent('3')
         return _list_repository_metadata(
             repository_path=intent.repository_path)
 
