@@ -1288,7 +1288,8 @@ class UploadRPMsTests(TestCase):
             'repodata/e8671396d8181102616d45d4916fe74fb886c6f9dfcb62df546e258e830cb11c-other.xml.gz',  # noqa
             'repodata/repomd.xml'
         ]
-        expected_files = set([os.path.join(self.target_key, file) for file in files])
+        expected_files = set([os.path.join(self.target_key, file) for file in
+                              files])
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
         self.assertTrue(expected_files.issubset(set(files_on_s3)))
