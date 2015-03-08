@@ -9,7 +9,8 @@ from urlparse import urlparse
 
 from twisted.python.filepath import FilePath
 from characteristic import attributes
-from effect import sync_performer, TypeDispatcher
+from effect import Effect, sync_performer, TypeDispatcher
+from effect.do import do
 from subprocess import check_call
 from textwrap import dedent
 
@@ -163,17 +164,19 @@ class FakeYum(object):
                         source_file.read())
 
     @sync_performer
+    @do
     def _perform_create_repository(self, dispatcher, intent):
         """
         See :class:`CreateRepo`.
         """
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
-        metadata_directory.child('repomd.xml').setContent('metadata_index')
-        metadata_directory.child('new-metadata-file.sqlite.bz2').setContent(
-            'metadata_content')
-        metadata_directory.child(
-            'existing-metadata-file.sqlite.bz2').setContent('metadata_content')
+        packages = yield Effect(ListPackages(
+            repository_path=intent.repository_path))
+        for filename in ['repomd.xml', 'filelists.xml.gz', 'other.xml.gz',
+                         'primary.xml.gz']:
+            metadata_directory.child(filename).setContent(
+                'metadata content for: ' + ','.join(packages))
 
     def get_dispatcher(self):
         """

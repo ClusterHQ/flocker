@@ -914,7 +914,7 @@ class UploadRPMsTests(TestCase):
         Existing metadata files are not re-uploaded.
         """
         repo_metadata_index = os.path.join(self.target_key, 'repodata', 'repomd.xml')
-        existing_metadata_file = os.path.join(self.target_key, 'repodata', 'existing-metadata-file.sqlite.bz2')
+        existing_metadata_file = os.path.join(self.target_key, 'repodata', 'filelists.xml.gz')
 
         existing_s3_keys = {
             repo_metadata_index: 'old_metadata_index',
@@ -975,6 +975,22 @@ class UploadRPMsTests(TestCase):
 
         self.assertGreater(len(repodata_files), 1)
 
+
+    def test_create_repository_accounts_for_existing_packages(self):
+        """
+        Creating repository metadata takes into account existing packages.
+        """
+        # Compare results of createrepo with no packages, and createrepo with
+        # packages from S3.
+        pass
+
+    def test_create_repository_accounts_for_new_packages(self):
+        """
+        Creating repository metadata takes into account new packages.
+        """
+        # Compare results of createrepo with no packages, and createrepo with
+        # packages from source repo.
+        pass
 
     def test_unspecified_packages_in_repository_ignored(self):
         """
