@@ -18,7 +18,6 @@ from textwrap import dedent
     "source_repo",
     "target_path",
     "packages",
-    "version",
 ])
 class DownloadPackagesFromRepository(object):
     """
@@ -29,7 +28,6 @@ class DownloadPackagesFromRepository(object):
     :ivar bytes source_repo: Location of repoisitory.
     :ivar FilePath target_path: Directory to download packages to.
     :ivar list packages: List of bytes, package names to download.
-    :ivar bytes version: Version number of Flocker to download packages for.
     """
 
 

@@ -674,7 +674,7 @@ class UploadRPMsTests(TestCase):
     """
     def update_repo(self, aws, yum,
                     rpm_directory, target_bucket, target_key, source_repo,
-                    packages, version):
+                    packages):
         """
         Call :func:``update_repo``, interacting with a fake AWS and yum
         utilities.
@@ -693,7 +693,7 @@ class UploadRPMsTests(TestCase):
         sync_perform(
             ComposedDispatcher(dispatchers),
             update_repo(rpm_directory, target_bucket, target_key, source_repo,
-                        packages, version))
+                        packages))
 
     def setUp(self):
         self.scratch_directory = FilePath(tempfile.mkdtemp(
@@ -705,7 +705,6 @@ class UploadRPMsTests(TestCase):
         self.addCleanup(self.scratch_directory.remove)
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.com'
-        self.version = '0.3.3dev7'
         self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
         self.source_repo_uri = 'file://' + self.source_repo.path
 
@@ -757,7 +756,6 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.source_repo_uri,
             packages=self.packages,
-            version=self.version,
         )
 
         self.assertDictContainsSubset(
@@ -784,7 +782,6 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.source_repo_uri,
             packages=self.packages,
-            version=self.version,
         )
 
         self.assertIn(
@@ -825,7 +822,6 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.source_repo_uri,
             packages=self.packages,
-            version=self.version,
         )
 
         expected_keys = existing_s3_keys.copy()
@@ -871,7 +867,6 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.source_repo_uri,
             packages=self.packages,
-            version=self.version,
         )
 
         expected_keys = existing_s3_keys.copy()
@@ -907,7 +902,6 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.source_repo_uri,
             packages=self.packages,
-            version=self.version,
         )
 
         self.assertNotEqual(
@@ -942,7 +936,6 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.source_repo_uri,
             packages=self.packages,
-            version=self.version,
         )
 
         self.assertEqual(
@@ -973,7 +966,6 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.source_repo_uri,
             packages=self.packages,
-            version=self.version,
         )
 
         repodata_files = [

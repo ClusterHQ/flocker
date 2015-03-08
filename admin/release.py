@@ -350,7 +350,7 @@ FLOCKER_PACKAGES = [
 
 @do
 def update_repo(rpm_directory, target_bucket, target_key, source_repo,
-                packages, version):
+                packages):
     """
     Update ``target_bucket`` yum repository with ``packages`` from
     ``source_repo`` repository.
@@ -363,7 +363,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         from.
     :param list packages: List of bytes, each specifying the name of a package
         to upload to the repository.
-    :param bytes version: The version of Flocker to get packages for.
     """
     # TODO move the spec and repo files from the fedora-packages repo.
     # also, there need to be two repos created, and the docs need to be
@@ -380,7 +379,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         source_repo=source_repo,
         target_path=rpm_directory,
         packages=packages,
-        version=version,
         ))
 
     previous_repository_metadata = yield Effect(
@@ -442,7 +440,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
             source_repo=os.path.join(build_server, b'results/omnibus', version,
                                      b'fedora-20'),
             packages=FLOCKER_PACKAGES,
-            version=version,
     ))
 
     sync_perform(
@@ -454,7 +451,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
           source_repo=os.path.join(build_server, b'results/omnibus', version,
                                    b'centos-7'),
           packages=FLOCKER_PACKAGES,
-          version=version,
     ))
 
 
