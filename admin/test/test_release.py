@@ -1123,5 +1123,4 @@ class UploadRPMsTests(TestCase):
         """
 
     # TODO Fill in stub tests
-    # Upload new versions of packages, but not the same old packages
     # TODO test real yum commands?
