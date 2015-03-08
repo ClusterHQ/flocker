@@ -793,17 +793,12 @@ class UploadRPMsTests(TestCase):
     def test_real_yum_commands(self):
         pass
 
-    def _test_repository_added_to(self):
+    def test_repository_added_to(self):
         """
-        If new packages are added to the repository, old packages remain and
-        repodata is modified.
-        # TODO second part is not tested
+        If new packages are added to the repository, old packages remain.
         """
-        target_key = 'test/target/key'
-
         existing_s3_keys = {
-            os.path.join(target_key, 'existing_package.rpm'): '',
-            os.path.join(target_key, 'repodata', 'repomd.xml'): 'adam',
+            os.path.join(self.target_key, 'existing_package.rpm'): '',
         }
 
         aws = FakeAWS(
@@ -813,50 +808,34 @@ class UploadRPMsTests(TestCase):
             },
         )
 
-        rpm_directory = self.scratch_directory.child(b'distro-version-arch')
-        source_repo = FilePath(tempfile.mkdtemp())
         repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'adam',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'floop',
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
         }
-        # TODO self.update_repo should take this as a dictionary and create
-        # a repo
+
         for key in repo_contents:
-            source_repo.child(key).touch()
-            source_repo.child(key).setContent(repo_contents[key])
+            self.source_repo.child(key).touch()
+            self.source_repo.child(key).setContent(repo_contents[key])
 
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=rpm_directory,
+            rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
-            target_key=target_key,
-            source_repo='file://' + source_repo.path,
+            target_key=self.target_key,
+            source_repo='file://' + self.source_repo.path,
             packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
-            version='0.3.3dev7',
+            version=self.version,
         )
 
-        repodata_files = {
-            'repomd.xml': '',
-        }
+        expected_keys = existing_s3_keys.copy()
+        expected_keys.update({
+            os.path.join(self.target_key, package): repo_contents[package]
+            for package in repo_contents})
 
-        expected_keys = {}
-
-        for key in existing_s3_keys:
-            expected_keys[key] = existing_s3_keys[key]
-
-        for repodata_file in repodata_files:
-            key = os.path.join(target_key, 'repodata', repodata_file)
-            content = rpm_directory.child('repodata').child(repodata_file).path
-            expected_keys[key] = content
-
-        for package in repo_contents:
-            key = os.path.join(target_key, package)
-            content = rpm_directory.child(package).path
-            expected_keys[key] = content
-
-        self.assertEqual(
-            expected_keys, aws.s3_buckets[self.target_bucket])
+        self.assertDictContainsSubset(
+            expected_keys,
+            aws.s3_buckets[self.target_bucket])
         # TODO Fill in stub tests
 
     def test_packages_updated(self):
