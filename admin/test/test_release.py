@@ -736,12 +736,18 @@ class UploadRPMsTests(TestCase):
 
         rpm_directory = self.scratch_directory.child(b'distro-version-arch')
         source_repo = FilePath(tempfile.mkdtemp())
-        FilePath(__file__).sibling('test-repo').copyTo(source_repo)
+        repo_contents = {
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',
+        }
+        # TODO self.update_repo should take this as a dictionary and create
+        # a repo
+        for key in repo_contents:
+            source_repo.child(key).touch()
+            source_repo.child(key).setContent(repo_contents[key])
 
         target_key = 'test/target/key'
-        versioned_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
 
-        # TODO use dictionary source repo with a function which touches files
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
@@ -749,7 +755,7 @@ class UploadRPMsTests(TestCase):
             target_bucket=self.target_bucket,
             target_key=target_key,
             source_repo='file://' + source_repo.path,
-            packages=['clusterhq-flocker-cli'],
+            packages=['clusterhq-flocker-cli', 'clusterhq-flocker-node'],
             version='0.3.3dev7',
         )
 
@@ -757,16 +763,19 @@ class UploadRPMsTests(TestCase):
             'repomd.xml',
         ]
 
-        expected_subset = {
-            os.path.join(target_key, versioned_package):
-                rpm_directory.child(versioned_package).path,
-        }
+        expected_subset = {}
+
         for repodata_file in repodata_files:
             key = os.path.join(target_key, 'repodata', repodata_file)
             content = rpm_directory.child('repodata').child(repodata_file).path
             expected_subset[key] = content
 
-        self.assertDictContainsSubset(
+        for package in repo_contents:
+            key = os.path.join(target_key, package)
+            content = rpm_directory.child(package).path
+            expected_subset[key] = content
+
+        self.assertEqual(
             expected_subset, aws.s3_buckets[self.target_bucket])
 
     def test_real_yum_commands(self):
