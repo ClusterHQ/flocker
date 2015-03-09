@@ -11,7 +11,7 @@ Source0:        clusterhq.repo
 BuildArch:      noarch
 
 %description
-ClusterHQ repository for CentOS
+ClusterHQ development repository for CentOS
 
 %install
 cd %{_sourcedir}
@@ -23,6 +23,9 @@ install -m 644 clusterhq.repo $RPM_BUILD_ROOT/etc/yum.repos.d
 
 
 %changelog
+* Mon Mar 9 2015 Adam Dangoor <adam.dangoor@clusterhq.com> - 1-6
+- Use development repository location.
+
 * Sun Mar 8 2015 Adam Dangoor <adam.dangoor@clusterhq.com> - 1-5
 - Support CentOS 7.
 - New location for repository - Amazon S3.
