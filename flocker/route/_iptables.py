@@ -436,7 +436,7 @@ class HostNetwork(object):
         )
         open_ports = set(
             open_port.port
-            for open_port in self.enumerate_open_port()
+            for open_port in self.enumerate_open_ports()
         )
         # net_connections won't tell us about ports bound by sockets that
         # haven't entered the TCP state graph yet.

@@ -395,7 +395,7 @@ class OpenPorts(PRecord):
         results = []
         # XXX: The proxy manipulation operations are blocking. Convert to a
         # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320
-        for port in deployer.network.enumerate_open_port():
+        for port in deployer.network.enumerate_open_ports():
             try:
                 deployer.network.delete_open_port(port)
             except:
