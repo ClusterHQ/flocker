@@ -80,29 +80,23 @@ Within each of these are keys for each supported operating system.
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
-.. s3 credentials must be set up already with gsutil
+XXX This should be a Python script with tests which can be run on the :doc:`Flocker development machine <vagrant>` https://clusterhq.atlassian.net/browse/FLOC-1530
 
-To build and upload these packages, on the :doc:`Flocker development machine <vagrant>` go to the relevant directory in `flocker/admin/release-packaging` and run:
+To build and upload these packages, on a machine with the operating system which the package is for,
+set up `gsutil` with S3 credentials,
+go to the relevant directory in `flocker/admin/release-packaging` and run:
 
 .. code-block:: sh
 
    # Modify the below to reference the S3 key which should hold the package
    # using the release type and distro name.
-   export S3Key=marketing/centos
+   export S3KEY=marketing/centos
    rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
-   ./upload-meta-package
+   gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm s3://clusterhq-yum-repository/${S3KEY}/clusterhq-release.$(rpm -E %dist).noarch.rpm
 
-.. TODO make python, tested script to do this - probably best for now to have a shell script and use ./update::
-
-.. gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm gs://archive.clusterhq.com/fedora/clusterhq-release.fc20.noarch.rpm
-
-.. Script creation and uploading of meta-packages
-.. We have multiple TODO make this issue
 
 Legacy
 ------
 
 Old versions of Flocker for Fedora 20 (until 0.3.2) are hosted on Google Cloud Storage.
 The legacy ClusterHQ release package creation files and other packages which were formerly necessary are in https://github.com/ClusterHQ/fedora-packages.
-
-.. TODO https://github.com/ClusterHQ/fedora-packages. - change readme to say that this is legacy
