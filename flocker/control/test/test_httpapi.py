@@ -185,7 +185,12 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         return self.assertResult(
             b"POST", b"/configuration/containers",
-            {u"host": self.NODE_A, u"junk": u"garbage"},
+            {
+                u"host": self.NODE_A,
+                u"name": u'postgres',
+                u'image': u'postgres',
+                u"junk": u"garbage"
+            },
             BAD_REQUEST, {
                 u'description':
                     u"The provided JSON doesn't match the required schema.",
@@ -196,14 +201,96 @@ class CreateContainerTestsMixin(APITestsMixin):
             }
         )
 
+    def _container_name_collision_test(self, node1, node2):
+        """
+        Utility method to create two containers on the specified nodes.
+        """
+        # create a container
+        self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node1, u"name": u"postgres", u"image": u"postgres"
+            }, OK
+        )
+        # try to create another container with the same name
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node2,
+                u"name": u'postgres',
+                u'image': u'postgres',
+            },
+            CONFLICT, {
+                u'description':
+                    u"The container name specified already exists.",
+            }
+        )
+
     def test_container_name_collision_same_node(self):
-        pass
+        """
+        A container will not be created if a container with the same name
+        already exists on the node we are attempting to create on.
+        """
+        return self._container_name_collision_test(self.NODE_A, self.NODE_A)
 
     def test_container_name_collision_different_node(self):
-        pass
+        """
+        A container will not be created if a container with the same name
+        already exists on another node than the node we are attempting to
+        create on.
+        """
+        return self._container_name_collision_test(self.NODE_A, self.NODE_B)
 
     def test_configuration_updated_existing_node(self):
-        pass
+        """
+        A valid API request to create a container on an existing node results
+        in an updated configuration.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(name='postgres',
+                                    image=DockerImage.from_string('postgres'))
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"image": u"postgres"
+            }, OK
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                            Application(
+                                name='another_postgres',
+                                image=DockerImage.from_string('postgres')
+                            )
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
 
     def test_configuration_updated_new_node(self):
         pass
