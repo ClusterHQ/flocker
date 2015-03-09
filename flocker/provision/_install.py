@@ -163,17 +163,21 @@ def task_disable_firewall():
          'FORWARD', '0', '-j', 'ACCEPT'])
 
 
-def task_enable_flocker_control():
+def task_enable_flocker_control(should_disable_firewall):
     """
     Eanble flocker-control, and open the firewall for it.
     """
-    return reduce(list.__add__, [
-        configure_firewalld(['--add-service', service])
-        for service in ['flocker-control-api', 'flocker-control-agent']
-    ]) + [
+    commands = []
+    if should_disable_firewall:
+        commands += reduce(list.__add__, [
+            configure_firewalld(['--add-service', service])
+            for service in ['flocker-control-api', 'flocker-control-agent']
+        ])
+    commands += [
         Run.from_args(['systemctl', 'enable', 'flocker-control']),
         Run.from_args(['systemctl', 'start', 'flocker-control']),
     ]
+    return commands
 
 
 AGENT_CONFIG = """\
@@ -296,7 +300,7 @@ def provision(distribution, package_source):
     return commands
 
 
-def configure_cluster(control_node, agent_nodes):
+def configure_cluster(control_node, agent_nodes, should_disable_firewall=True):
     """
     Configure flocker-control and flocker-agent on a collection of nodes.
 
@@ -306,7 +310,8 @@ def configure_cluster(control_node, agent_nodes):
     run(
         username='root',
         address=control_node,
-        commands=task_enable_flocker_control(),
+        commands=task_enable_flocker_control(
+            should_disable_firewall=should_disable_firewall),
     )
     for node in agent_nodes:
         run(
