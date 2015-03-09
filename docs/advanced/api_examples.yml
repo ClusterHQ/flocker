@@ -268,14 +268,14 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"hostname": "%(NODE_0)s",
+    {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest"}
 
   response: |
     HTTP/1.1 201 Created
 
-    {"hostname": "%(NODE_0)s",
+    {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest"}
 
@@ -294,7 +294,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"hostname": "%(NODE_0)s",
+    {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest"}
 
