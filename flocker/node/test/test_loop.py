@@ -4,6 +4,7 @@
 Tests for ``flocker.node._loop``.
 """
 
+from uuid import uuid4
 from zope.interface import implementer
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -20,6 +21,7 @@ from .._loop import (
     ClusterStatus, ConvergenceLoop,
     )
 from .._deploy import IDeployer, IStateChange
+from ...control import NodeState, Deployment, Node, Manifestation, Dataset
 from ...control._protocol import NodeStateCommand, _AgentLocator, AgentAMP
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
 
@@ -318,6 +320,48 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                                          state=object()))
         self.assertEqual(client.calls, [(NodeStateCommand,
                                          dict(node_state=local_state))])
+
+    def test_convergence_done_update_local_state(self):
+        """
+        An FSM doing convergence that gets a discovery result updates the local
+        representation of the cluster state before calculating necessary state
+        changes.
+        """
+        local_node_hostname = u'192.0.2.123'
+        # Control service reports that this node has no manifestations.
+        received_node = Node(hostname=local_node_hostname)
+        received_cluster_state = Deployment(
+            nodes=frozenset([received_node])
+        )
+        discovered_manifestation = Manifestation(
+            dataset=Dataset(dataset_id=uuid4()),
+            primary=True
+        )
+        local_node_state = NodeState(
+            hostname=local_node_hostname,
+            manifestations=[discovered_manifestation]
+        )
+        client = self.successful_amp_client([local_node_state])
+        action = ControllableAction(Deferred())
+        deployer = ControllableDeployer([succeed(local_node_state)], [action])
+
+        loops = []
+        def spy_loop_factory(reactor, deployer):
+            loop = ConvergenceLoop(reactor, deployer)
+            loops.append(loop)
+            return loop
+
+        fsm = build_convergence_loop_fsm(Clock(), deployer, loop_factory=spy_loop_factory)
+        fsm.receive(_ClientStatusUpdate(client=client,
+                                        configuration=object(),
+                                        state=received_cluster_state))
+
+        [loop] = loops
+
+        expected_local_cluster_state = received_cluster_state.update_node(local_node_state.to_node())
+
+        self.assertEqual(expected_local_cluster_state, loop.cluster_state)
+
 
     def test_convergence_done_changes(self):
         """
