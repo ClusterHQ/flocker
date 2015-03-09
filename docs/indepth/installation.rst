@@ -350,7 +350,34 @@ Paste them into a root console on the target node:
 .. task:: install_flocker
    :prompt: [root@node]#
 
-Installing ``clusterhq-flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
+Installing on Centos 7
+----------------------
+
+Flocker requires the latest available kernel.
+
+.. task:: upggrade_kernel_centos
+
+Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
+Thus we need to reboot into the new kernel.
+
+.. prompt:: bash [root@node]#
+
+   shutdown -r now
+
+Now install the ``flocker-node`` package.
+To install ``flocker-node`` on Centos 7 you must install the RPM provided by the ClusterHQ repository.
+You must also install the ZFS package repository.
+The following commands will install the two repositories and the ``flocker-node`` package.
+Paste them into a root console on the target node:
+
+.. task:: install_flocker
+   :prompt: [root@node]#
+
+
+Post installation configuration for Fedora 20 and Centos 7
+----------------------------------------------------------
+
+Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker

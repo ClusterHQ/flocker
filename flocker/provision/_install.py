@@ -18,8 +18,11 @@ ZFS_REPO = {
                  "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
     'centos-7': "http://archive.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm"
 }
-CLUSTERHQ_REPO = ("https://storage.googleapis.com/archive.clusterhq.com/"
-                  "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm")
+CLUSTERHQ_REPO = {
+    'fedora-20': "https://storage.googleapis.com/archive.clusterhq.com/"
+                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm",
+    'centos-7': "does-not-exist",
+}
 
 
 @attributes(["command"])
@@ -218,7 +221,7 @@ def task_install_flocker(package_source=PackageSource(),
     commands = [
         Run(command="yum install -y " + ZFS_REPO[distribution]),
         # Not for centos yet
-        # Run(command="yum install -y " + CLUSTERHQ_REPO)
+        # Run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
     ]
 
     if package_source.branch:
@@ -244,7 +247,7 @@ def task_install_flocker(package_source=PackageSource(),
         package = 'clusterhq-flocker-node'
 
     commands.append(Run.from_args(
-        ["yum", "install", '--enablerepo=zfs-testing'] + branch_opt + ["-y", package]))
+        ["yum", "install"] + branch_opt + ["-y", package]))
 
     return commands
 
