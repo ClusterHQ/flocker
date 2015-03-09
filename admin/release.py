@@ -486,6 +486,7 @@ def upload_rpms_main(args, base_path, top_level):
         sync_perform(
             dispatcher=dispatcher,
             effect=upload_rpms(
+                scratch_directory=scratch_directory,
                 target_bucket=options['target'],
                 version=options['version'],
                 build_server=options['build-server'],
