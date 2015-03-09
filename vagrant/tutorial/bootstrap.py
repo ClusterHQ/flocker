@@ -67,6 +67,14 @@ check_call(['yum', 'install', '-y'] + branch_opt + [package])
 # the machine will be reset.
 check_call(['systemctl', 'enable', 'docker'])
 
+
+# Enable firewalld
+# We don't need to start it, since when the box is packaged,
+# the machine will be reset.  We *do* need to unmask it,
+# since the existing box won't allow it to be enabled.
+check_call(['systemctl', 'unmask', 'firewalld'])
+check_call(['systemctl', 'enable', 'firewalld'])
+
 # Make it easy to authenticate as root
 check_call(['mkdir', '-p', '/root/.ssh'])
 check_call(
