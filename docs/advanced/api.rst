@@ -23,7 +23,7 @@ For more details on configuring the firewall, see Fedora's `FirewallD documentat
 
 To start the ZFS agent on a node, (where ``${CONTROL_NODE}`` is the address of the control node, and ``${NODE_NAME}`` is the name of the node being configured.:
 
-.. task:: enable_flocker_zfs_agent ${NODE_NAME} ${CONTROL_NODE}
+.. task:: enable_flocker_agent ${NODE_NAME} ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
 API Details
