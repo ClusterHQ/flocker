@@ -82,9 +82,10 @@ There are meta-packages which contain the yum repository definitions for `archiv
 
 XXX This should be a Python script with tests which can be run on the :doc:`Flocker development machine <vagrant>` https://clusterhq.atlassian.net/browse/FLOC-1530
 
-To build and upload these packages, on a machine with the operating system which the package is for,
+To build and upload these packages, on a machine with the operating system which the package is for
+(an easy way to do this is to use the :doc:`Flocker development machine <vagrant>` and an old Fedora 20 version of it),
 set up `gsutil` with S3 credentials,
-go to the relevant directory in `flocker/admin/release-packaging` and run:
+go to the relevant directory in `admin/release-packaging` and run:
 
 .. code-block:: sh
 
@@ -92,7 +93,7 @@ go to the relevant directory in `flocker/admin/release-packaging` and run:
    # using the release type and distro name.
    export S3KEY=marketing/centos
    rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
-   gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm s3://clusterhq-yum-repository/${S3KEY}/clusterhq-release.$(rpm -E %dist).noarch.rpm
+   gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm s3://clusterhq-archive/${S3KEY}/clusterhq-release.$(rpm -E %dist).noarch.rpm
 
 
 Legacy
