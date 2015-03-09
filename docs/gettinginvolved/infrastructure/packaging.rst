@@ -80,17 +80,24 @@ Within each of these are keys for each supported operating system.
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
+.. s3 credentials must be set up already with gsutil
+
 To build and upload these packages, on the :doc:`Flocker development machine <vagrant>` go to the relevant directory in `flocker/admin/release-packaging` and run:
 
 .. code-block:: sh
 
-   ./build
+   # Modify the below to reference the S3 key which should hold the package
+   # using the release type and distro name.
+   export S3Key=marketing/centos
+   rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
+   ./upload-meta-package
 
 .. TODO make python, tested script to do this - probably best for now to have a shell script and use ./update::
 
-   rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
-   gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm gs://archive.clusterhq.com/fedora/clusterhq-release.fc20.noarch.rpm
+.. gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm gs://archive.clusterhq.com/fedora/clusterhq-release.fc20.noarch.rpm
 
+.. Script creation and uploading of meta-packages
+.. We have multiple TODO make this issue
 
 Legacy
 ------
