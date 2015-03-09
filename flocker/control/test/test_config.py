@@ -2571,7 +2571,7 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Configuration._deployment_from_configuration``.
+    Tests for ``deployment_from_configuration``.
     """
     def test_error_on_missing_nodes_key(self):
         """
@@ -2589,7 +2589,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_version_key(self):
         """
-        ``Configuration._deployment_from_config`` raises a
+        ``deployment_from_configuration`` raises a
         ``ConfigurationError`` if the deployment_configuration does not
         contain an ``u"version"`` key.
         """
@@ -2604,7 +2604,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_incorrect_version(self):
         """
-        ``Configuration._deployment_from_config`` raises a
+        ``deployment_from_configuration`` raises a
         ``ConfigurationError`` if the version specified is not 1.
         """
         config = dict(nodes={}, version=2)
@@ -2619,7 +2619,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_non_list_applications(self):
         """
-        ``_deployment_from_config`` raises a ``ValueError`` if the
+        ``deployment_from_configuration`` raises a ``ValueError`` if the
         deployment_configuration contains application values not in the form of
         a list.
         """
@@ -2638,7 +2638,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_unrecognized_application_name(self):
         """
-        ``_deployment_from_config`` raises a ``ValueError`` if the
+        ``deployment_from_configuration`` raises a ``ValueError`` if the
         deployment_configuration refers to a non-existent application.
         """
         applications = {
@@ -2666,17 +2666,24 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_set_on_success(self):
         """
-        ``_deployment_from_config`` returns a set of ``Node`` objects. One for
-        each key in the supplied nodes dictionary.
+        ``deployment_from_configuration`` returns a set of ``Node``
+        objects. One for each key in the supplied nodes dictionary.
         """
+        manifestation = Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id_from_name(
+                    "mysql-hybridcluster"),
+                metadata=pmap(
+                    {"name": "mysql-hybridcluster"})),
+            primary=True)
+
         applications = {
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
-                image=Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage(repository='flocker/mysql',
-                                      tag='v1.0.0'))
-            )
+                image=DockerImage.from_string('flocker/mysql'),
+                volume=AttachedVolume(
+                    manifestation=manifestation,
+                    mountpoint=FilePath(b'/var/lib/db')))
         }
         result = deployment_from_configuration(
             dict(
@@ -2688,7 +2695,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         expected = set([
             Node(
                 hostname='node1.example.com',
-                applications=frozenset(applications.values())
+                applications=frozenset(applications.values()),
+                manifestations={manifestation.dataset_id: manifestation},
             )
         ])
 
@@ -3182,6 +3190,42 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                     ports=frozenset(),
                     links=frozenset(),
                 )]))]))
+        self.assertEqual(expected,
+                         current_from_configuration(config))
+
+    def test_volume(self):
+        """
+        ``current_from_configuration`` creates a ``Deployment`` object with
+        the appropriate volumes for each included node.
+        """
+        config = {'example.com': {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'unknown',
+                    'volume': {'mountpoint': '/xxx'},
+                }
+            },
+            'version': 1
+        }}
+        manifestation = Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id_from_name("mysql-hybridcluster"),
+                metadata=pmap({"name": "mysql-hybridcluster"})),
+            primary=True)
+        expected = Deployment(nodes=frozenset([
+            Node(hostname='example.com',
+                 applications=frozenset([
+                     Application(
+                         name='mysql-hybridcluster',
+                         image=DockerImage.from_string('unknown'),
+                         ports=frozenset(),
+                         links=frozenset(),
+                         volume=AttachedVolume(
+                             manifestation=manifestation,
+                             mountpoint=FilePath(b"/xxx")),
+                     )]),
+                 manifestations={manifestation.dataset_id:
+                                 manifestation})]))
         self.assertEqual(expected,
                          current_from_configuration(config))
 

@@ -126,6 +126,7 @@ setup(
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
             'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
+            'flocker = flocker.cli.script:flocker_cli_main',
         ],
     },
 
@@ -149,7 +150,7 @@ setup(
         "docker-py == 0.7.1",
         "jsonschema == 2.4.0",
         "klein == 0.2.3",
-        "pyrsistent == 0.7.0",
+        "pyrsistent == 0.9.0",
         ],
 
     extras_require={
