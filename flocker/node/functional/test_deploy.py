@@ -5,6 +5,7 @@ Functional tests for ``flocker.node._deploy``.
 """
 
 from subprocess import check_call
+from uuid import uuid4
 
 from pyrsistent import pmap
 
@@ -99,8 +100,9 @@ class DeployerTests(TestCase):
         }.items())
 
         dataset = Dataset(
-            dataset_id=None,
+            dataset_id=unicode(uuid4()),
             metadata=pmap({"name": application_name}))
+        manifestation = Manifestation(dataset=dataset, primary=True)
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
@@ -109,13 +111,12 @@ class DeployerTests(TestCase):
                          image_name),
                      environment=expected_variables,
                      volume=AttachedVolume(
-                         manifestation=Manifestation(
-                             dataset=dataset,
-                             primary=True),
+                         manifestation=manifestation,
                          mountpoint=FilePath('/data'),
                          ),
                      links=frozenset(),
-                     )]))]))
+                     )]),
+                 manifestations={manifestation.dataset_id: manifestation})]))
 
         d = change_node_state(deployer, desired_state,
                               Deployment(nodes=frozenset()))
@@ -173,8 +174,9 @@ class DeployerTests(TestCase):
                     remote_port=8080)
 
         dataset = Dataset(
-            dataset_id=None,
+            dataset_id=unicode(uuid4()),
             metadata=pmap({"name": application_name}))
+        manifestation = Manifestation(dataset=dataset, primary=True)
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
@@ -183,12 +185,11 @@ class DeployerTests(TestCase):
                          image_name),
                      links=frozenset([link]),
                      volume=AttachedVolume(
-                         manifestation=Manifestation(
-                             dataset=dataset,
-                             primary=True),
+                         manifestation=manifestation,
                          mountpoint=FilePath('/data'),
                          ),
-                     )]))]))
+                     )]),
+                 manifestations={manifestation.dataset_id: manifestation})]))
 
         d = change_node_state(deployer, desired_state,
                               Deployment(nodes=frozenset()))

@@ -24,6 +24,8 @@ from docutils.parsers.rst import directives
 from twisted.python.reflect import namedAny
 from twisted.python.filepath import FilePath
 
+from characteristic import attributes
+
 from .._schema import LocalRefResolver, resolveSchema
 
 # Disable "HTTP Routing Table" index:
@@ -42,7 +44,8 @@ class KleinRoute(namedtuple('KleinRoute', 'path methods endpoint attributes')):
     """
 
 
-class Example(namedtuple("Example", "request response")):
+@attributes(['request', 'response', 'doc'])
+class Example(object):
     """
     An L{Example} instance represents a single HTTP session example.
 
@@ -58,7 +61,11 @@ class Example(namedtuple("Example", "request response")):
         Create an L{Example} from a L{dict} with C{u"request"} and
         C{u"response"} keys and L{unicode} values.
         """
-        return cls(d[u"request"], d[u"response"])
+        return cls(
+            request=d[u"request"],
+            response=d[u"response"],
+            doc=d[u"doc"],
+        )
 
 
 def getRoutes(app):
@@ -258,7 +265,9 @@ def _formatExample(example, substitutions):
     @return: A generator which yields L{unicode} strings each of which should
         be a line in the resulting rst document.
     """
-    yield u"**Example request**"
+    yield u"**Example:** {}".format(example.doc)
+    yield u""
+    yield u"Request"
     yield u""
     yield u".. sourcecode:: http"
     yield u""
@@ -270,7 +279,7 @@ def _formatExample(example, substitutions):
         yield u"   " + line.rstrip()
     yield u""
 
-    yield u"**Example response**"
+    yield u"Response"
     yield u""
     yield u".. sourcecode:: http"
     yield u""

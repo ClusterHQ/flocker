@@ -4,13 +4,42 @@
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
+# This allows the VM to be restarted during provisioning, necessary after
+# updating the kernel
+unless Vagrant.has_plugin?("vagrant-reload")
+  raise "vagrant-reload plugin is not installed"
+end
+
+=begin
+  The following error may occur when running `vagrant up`, potentially because
+  of a problem with some VirtualBox versions.
+
+    # Failed to mount folders in Linux guest. This is usually because
+    # the "vboxsf" file system is not available. Please verify that
+    # the guest additions are properly installed in the guest and
+    # can work properly. The command attempted was:
+    #
+    # mount -t vboxsf -o uid=`id -u vagrant`,gid=`getent group vagrant | cut -d: -f3` vagrant /vagrant
+    # mount -t vboxsf -o uid=`id -u vagrant`,gid=`id -g vagrant` vagrant /vagrant
+    #
+    # The error output from the last command was:
+    #
+    # /sbin/mount.vboxsf: mounting failed with the error: No such device
+
+  To avoid this potential issue, the vagrant-vbguest plugin is required.
+  If it remains, try updating VirtualBox.
+=end
+unless Vagrant.has_plugin?("vagrant-vbguest")
+  raise "vagrant-vbguest plugin is not installed"
+end
+
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "clusterhq/fedora20-updated"
-  # Configure base system
+  config.vm.box = "box-cutter/centos70"
+  # Update kernel and start to configure base system
   config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
-  # Configure pip (for root and vagrant)
-  config.vm.provision :shell, :path => "pip.sh", :privileged => true
-  config.vm.provision :shell, :path => "pip.sh", :privileged => false
+  config.vm.provision :reload
+  # Finish configuring base system
+  config.vm.provision :shell, :path => "post-reboot-bootstrap.sh", :privileged => true
   # Prepare caches
   config.vm.provision :shell, :path => "cache.sh", :privileged => true
   # Cleanup

@@ -1,3 +1,69 @@
 $schema: http://json-schema.org/draft-04/schema#
 id: http://api.clusterhq.com/v1/types.json
 definitions:
+  dataset_id:
+    title: "Unique identifier"
+    description: |
+      An opaque identifier, unique across the cluster, identifying a
+      particular dataset.  If not given, a new identifier will be generated
+      and returned.
+    type: string
+    # The length of a stringified uuid
+    minLength: 36
+    maxLength: 36
+
+  deleted:
+    title: "Deleted"
+    description: |
+      If true, this dataset has been deleted and its data is no longer
+      guaranteed to exist.
+    type: boolean
+
+  path:
+    title: "Mount path"
+    description: |
+      The filesystem path where the dataset is mounted on a node.
+      Can only be present in cluster state, not in configuration.
+    type: string
+
+  metadata:
+    title: "Data about a dataset"
+    description: |
+      Additional key/value data describing the dataset.  These items are
+      not interpreted by Flocker.  If not given, no metadata will be
+      associated with the new dataset.
+    type: object
+    # We limit the total number of properties and the lengths of the keys
+    # and values of those properties in order to put an upper bound on the
+    # total amount of metadata we're committing to accept and store.  The
+    # particular values in these limits are arbitrary and aren't as
+    # important as just having some "reasonably" small limits.
+    patternProperties:
+      "^.{1,256}$":
+        type: string
+        maxLength: 256
+    maxProperties: 16
+    additionalProperties: false
+
+  primary:
+    title: "Primary manifestation"
+    description: |
+      The address of the node which will be given the primary manifestation
+      of the newly created dataset.  This must be the address of a node
+      that has introduced itself to the cluster.
+    type: string
+    oneOf:
+      - format: ipv4
+
+  maximum_size:
+    title: "Maximum size"
+    description: |
+      The upper limit on how much data the dataset will be allowed to
+      store, as an integer number of bytes.
+    type: number
+    # 64 MiB.  Sort of an arbitrary limit but inspired by the lower bound
+    # on what this can be set to for the ZFS backend.  Could probably be
+    # considered more carefully.
+    minimum: 67108864
+    # This is how you require integers, of course.
+    divisibleBy: 1

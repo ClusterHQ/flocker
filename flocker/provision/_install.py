@@ -99,6 +99,14 @@ def run_with_fabric(username, address, commands):
 run = run_with_fabric
 
 
+def task_test_homebrew(recipe_url):
+    return [
+        Run(command="brew update"),
+        Run(command="brew install {url}".format(url=recipe_url)),
+        Run(command="brew test {url}".format(url=recipe_url)),
+    ]
+
+
 def task_install_ssh_key():
     return [
         Sudo.from_args(['cp', '.ssh/authorized_keys',
@@ -155,15 +163,36 @@ def task_enable_docker():
     ]
 
 
+def configure_firewalld(rule):
+    """
+    Configure firewalld with a given rule.
+
+    :param list rule: List of `firewall-cmd` arguments.
+    """
+    return [
+        Run.from_args(command + rule)
+        for command in [['firewall-cmd', '--permanent'],
+                        ['firewall-cmd']]
+    ]
+
+
 def task_disable_firewall():
     """
     Disable the firewall.
     """
-    rule = ['--add-rule', 'ipv4', 'filter', 'FORWARD', '0', '-j', 'ACCEPT']
-    return [
-        Run.from_args(['firewall-cmd', '--permanent', '--direct'] + rule),
-        Run.from_args(['firewall-cmd', '--direct'] + rule),
-    ]
+    return configure_firewalld(
+        ['--direct', '--add-rule', 'ipv4', 'filter',
+         'FORWARD', '0', '-j', 'ACCEPT'])
+
+
+def task_open_control_firewall():
+    """
+    Open the firewall for flocker-control.
+    """
+    return reduce(list.__add__, [
+        configure_firewalld(['--add-service', service])
+        for service in ['flocker-control-api', 'flocker-control-agent']
+    ])
 
 
 def task_create_flocker_pool_file():

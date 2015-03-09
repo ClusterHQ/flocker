@@ -5,14 +5,15 @@
 Deploy applications on nodes.
 """
 
-from uuid import uuid4
+from itertools import chain
 
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
-from pyrsistent import pmap
-from pickle import loads, dumps
+from pyrsistent import pmap, PRecord, field
+
+from eliot import write_failure, Logger
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
@@ -26,6 +27,9 @@ from ..volume._ipc import RemoteVolumeManager, standard_node
 from ..volume._model import VolumeSize
 from ..volume.service import VolumeName
 from ..common import gather_deferreds
+
+
+_logger = Logger()
 
 
 def _to_volume_name(dataset_id):
@@ -323,6 +327,36 @@ class PushDataset(object):
 
 
 @implementer(IStateChange)
+class DeleteDataset(PRecord):
+    """
+    Delete all local copies of the dataset.
+
+    A better action would be one that deletes a specific manifestation
+    ("volume" in flocker.volume legacy terminology). Unfortunately
+    currently "remotely owned volumes" (legacy terminology), aka
+    non-primary manifestations or replicas, are not exposed to the
+    deployer, so we have to enumerate them here.
+
+    :ivar Dataset dataset: The dataset to delete.
+    """
+    dataset = field(mandatory=True, type=Dataset)
+
+    def run(self, deployer):
+        service = deployer.volume_service
+        d = service.enumerate()
+
+        def got_volumes(volumes):
+            deletions = []
+            for volume in volumes:
+                if volume.name.dataset_id == self.dataset.dataset_id:
+                    deletions.append(service.pool.destroy(volume).addErrback(
+                        write_failure, _logger, u"flocker:p2pdeployer:delete"))
+            return gatherResults(deletions)
+        d.addCallback(got_volumes)
+        return d
+
+
+@implementer(IStateChange)
 @attributes(["ports"])
 class SetProxies(object):
     """
@@ -399,6 +433,9 @@ class P2PNodeDeployer(object):
             units, available_manifestations = result
             running = []
             not_running = []
+            manifestations = []  # Manifestation objects we're constructing
+            manifestation_paths = {dataset_id: path for (path, (dataset_id, _))
+                                   in available_manifestations.items()}
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.volumes:
@@ -423,6 +460,7 @@ class P2PNodeDeployer(object):
                                     maximum_size=max_size),
                                 primary=True),
                             mountpoint=docker_volume.container_path)
+                        manifestations.append(volume.manifestation)
                 else:
                     volume = None
                 ports = []
@@ -461,73 +499,23 @@ class P2PNodeDeployer(object):
                 else:
                     not_running.append(application)
 
-            # Any manifestations left over are unattached to any application:
-            other_manifestations = frozenset((
+            manifestations += list(
                 Manifestation(dataset=Dataset(dataset_id=dataset_id,
                                               maximum_size=maximum_size),
                               primary=True)
                 for (dataset_id, maximum_size) in
-                available_manifestations.values()))
+                available_manifestations.values())
+
             return NodeState(
                 hostname=self.hostname,
                 running=running,
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
-                other_manifestations=other_manifestations,
+                manifestations=manifestations,
+                paths=manifestation_paths,
             )
         d.addCallback(applications_from_units)
         return d
-
-    def _add_dataset_ids(self, desired_configuration, current_cluster_state):
-        """
-        Add missing dataset IDs to the desired configuration.
-
-        If current cluster has dataset matched by name, we add that
-        dataset's ID. If no dataset can be matched to current cluster we
-        generate a new one.
-
-        This heuristic may not work once we support more than one volume
-        per container and therefore can't match by name:
-        https://clusterhq.atlassian.net/browse/FLOC-49
-
-        Should be done elsewhere:
-        https://clusterhq.atlassian.net/browse/FLOC-1199
-
-        :param Deployment desired_configuration: The intended
-            configuration of all nodes.
-        :param Deployment current_cluster_state: The current configuration
-            of all nodes.
-
-        :return Deployment: Desired configuration updated with dataset IDs.
-        """
-        # We don't want to mutate the desired configuration, so do a
-        # deepcopy (PMap doesn't support copy.deepcopy so we use pickle).
-        # This is, of course, utterly terrible. At some point we'll
-        # switching everything over to persistent data structures so we
-        # don't have to do this.
-        desired_configuration = loads(dumps(desired_configuration))
-
-        datasets_with_no_id = []
-        for application in desired_configuration.applications():
-            if application.volume:
-                dataset = application.volume.dataset
-                if dataset.dataset_id is None:
-                    datasets_with_no_id.append(dataset)
-
-        current_datasets_by_name = {}
-        for application in current_cluster_state.applications():
-            if application.volume:
-                dataset = application.volume.dataset
-                name = dataset.metadata[u"name"]
-                current_datasets_by_name[name] = dataset
-
-        for dataset in datasets_with_no_id:
-            matching = current_datasets_by_name.get(dataset.metadata[u"name"])
-            if matching:
-                dataset.dataset_id = matching.dataset_id
-            else:
-                dataset.dataset_id = unicode(uuid4())
-        return desired_configuration
 
     def calculate_necessary_state_changes(self, local_state,
                                           desired_configuration,
@@ -563,8 +551,6 @@ class P2PNodeDeployer(object):
         current_cluster_state = current_cluster_state.update_node(
             local_state.to_node())
 
-        desired_configuration = self._add_dataset_ids(desired_configuration,
-                                                      current_cluster_state)
         phases = []
 
         desired_proxies = set()
@@ -585,7 +571,7 @@ class P2PNodeDeployer(object):
         # We are a node-specific IDeployer:
         current_node_state = local_state
         current_node_applications = current_node_state.running
-        all_applications = (current_node_state.running +
+        all_applications = (current_node_state.running |
                             current_node_state.not_running)
 
         # Compare the applications being changed by name only.  Other
@@ -683,6 +669,10 @@ class P2PNodeDeployer(object):
             phases.append(InParallel(changes=[
                 CreateDataset(dataset=dataset)
                 for dataset in dataset_changes.creating]))
+        if dataset_changes.deleting:
+            phases.append(InParallel(changes=[
+                DeleteDataset(dataset=dataset)
+                for dataset in dataset_changes.deleting]))
         start_restart = start_containers + restart_containers
         if start_restart:
             phases.append(InParallel(changes=start_restart))
@@ -737,11 +727,11 @@ def find_dataset_changes(hostname, current_state, desired_state):
     """
     desired_datasets = {node.hostname:
                         set(manifestation.dataset for manifestation
-                            in node.manifestations())
+                            in node.manifestations.values())
                         for node in desired_state.nodes}
     current_datasets = {node.hostname:
                         set(manifestation.dataset for manifestation
-                            in node.manifestations())
+                            in node.manifestations.values())
                         for node in current_state.nodes}
     local_desired_datasets = desired_datasets.get(hostname, set())
     local_desired_dataset_ids = set(dataset.dataset_id for dataset in
@@ -791,5 +781,8 @@ def find_dataset_changes(hostname, current_state, desired_state):
         local_current_dataset_ids | remote_current_dataset_ids)
     creating = set(dataset for dataset in local_desired_datasets
                    if dataset.dataset_id in creating_dataset_ids)
-    return DatasetChanges(going=going, coming=coming,
+
+    deleting = set(dataset for dataset in chain(*desired_datasets.values())
+                   if dataset.deleted)
+    return DatasetChanges(going=going, coming=coming, deleting=deleting,
                           creating=creating, resizing=resizing)
