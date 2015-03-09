@@ -25,7 +25,7 @@ Building
 
 To build one of the above boxes, install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory.
 
-To build the development box, install the necessary Vagrant plugins as follows:
+To build the development or tutorial box, install the necessary Vagrant plugins as follows:
 
 .. code-block:: sh
 
