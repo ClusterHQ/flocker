@@ -1,4 +1,4 @@
-# Build with `rpmbuild -D "_sourcedir $PWD" -ba clusterhq-release.spec`
+# See README for instructions on how to build.
 Name:           clusterhq-release
 Version:        1
 Release:        4%{?dist}
@@ -23,6 +23,9 @@ install -m 644 clusterhq.repo $RPM_BUILD_ROOT/etc/yum.repos.d
 
 
 %changelog
+* Sun Mar 8 2015 Adam Dangoor <adam.dangoor@clusterhq.com> - 1-5
+- New location for repository - Amazon S3.
+
 * Fri Sep 11 2014 Tom Prince <tom.prince@clusterhq.com> - 1-4.fc20
 - Fix source repository URL.
 - Use https URLs.
