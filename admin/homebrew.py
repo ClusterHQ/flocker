@@ -6,6 +6,7 @@ Create a Homebrew recipe for Flocker, using the VERSION environment variable.
 Inspired by https://github.com/tdsmith/labmisc/blob/master/mkpydeps.
 """
 
+import sys
 from os import environ
 from json import load
 from urllib2 import HTTPError, urlopen
@@ -132,13 +133,24 @@ def get_resource_stanzas(dependency_graph):
 
 def main():
     """
-    Print a Homebrew recipe for Flocker, using the VERSION environment
-    variable.
+    Print a Homebrew recipe for the Flocker distribution.
+
+    The version for the recipe must be provided in the environment
+    variable ``VERSION``.
+
+    If the command is called with a single argument, the argument
+    provides a URL to retrieve the initial source distribution archive.
+
+    If no command line argument is provided, use the standard release
+    location for the indicated version.
     """
     version = get_version()
-    url = (b"https://storage.googleapis.com/archive.clusterhq.com/"
-           "downloads/flocker/Flocker-{version}.tar.gz").format(
-               version=version)
+    if len(sys.argv) < 2:
+        url = (b"https://storage.googleapis.com/archive.clusterhq.com/"
+               "downloads/flocker/Flocker-{version}.tar.gz").format(
+                   version=version)
+    else:
+        url = sys.argv[1]
 
     dependency_graph = get_dependency_graph(u"flocker")
 
@@ -169,7 +181,7 @@ class {class_name} < Formula
     system "#{{bin}}/flocker-deploy", "--version"
   end
 end
-""".format(version=version, url=url, sha1=get_checksum(url),
+""".format(url=url, sha1=get_checksum(url),
            class_name=get_class_name(version),
            resources=get_resource_stanzas(dependency_graph),
            dependencies=get_formatted_dependency_list(dependency_graph))

@@ -5,7 +5,10 @@ Rackspace provisioner.
 """
 
 from ._libcloud import monkeypatch, LibcloudProvisioner
-from ._install import provision, run
+from ._install import (
+    provision, run,
+    task_open_control_firewall
+)
 
 
 def provision_rackspace(node, package_source, distribution):
@@ -17,6 +20,7 @@ def provision_rackspace(node, package_source, distribution):
             package_source=package_source,
             distribution=node.distribution,
         )
+        + task_open_control_firewall()
     )
     run(
         username='root',
@@ -63,7 +67,7 @@ def rackspace_provisioner(username, key, region, keyname):
             "ex_config_drive": "true",
         },
         provision=provision_rackspace,
-        default_size="performance1-2",
+        default_size="performance1-8",
     )
 
     return provisioner
