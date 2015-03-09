@@ -1,11 +1,5 @@
 [clusterhq]
-name=ClusterHQ for Fedora $releasever
-baseurl=https://storage.googleapis.com/archive.clusterhq.com/fedora/$releasever/$basearch/
+name=ClusterHQ development for Fedora $releasever
+baseurl=https://s3.amazonaws.com/clusterhq-archive/development/fedora/$releasever/$basearch/
 enabled=1
-gpgcheck=0
-
-[clusterhq-source]
-name=ZFS on Linux for Fedora $releasever - Source
-baseurl=https://storage.googleapis.com/archive.clusterhq.com/fedora/$releasever/SRPMS/
-enabled=0
 gpgcheck=0

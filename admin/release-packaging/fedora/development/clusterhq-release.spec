@@ -1,4 +1,4 @@
-# Build with `rpmbuild -D "_sourcedir $PWD" -ba clusterhq-release.spec`
+# See README for instructions on how to build.
 Name:           clusterhq-release
 Version:        1
 Release:        4%{?dist}
@@ -11,7 +11,7 @@ Source0:        clusterhq.repo
 BuildArch:      noarch
 
 %description
-ClusterHQ repository for fedora
+ClusterHQ development repository for fedora
 
 %install
 cd %{_sourcedir}
@@ -23,6 +23,12 @@ install -m 644 clusterhq.repo $RPM_BUILD_ROOT/etc/yum.repos.d
 
 
 %changelog
+* Mon Mar 9 2015 Adam Dangoor <adam.dangoor@clusterhq.com> - 1-6.fc20
+- Use development repository location.
+
+* Sun Mar 8 2015 Adam Dangoor <adam.dangoor@clusterhq.com> - 1-5.fc20
+- New location for repository - Amazon S3.
+
 * Fri Sep 11 2014 Tom Prince <tom.prince@clusterhq.com> - 1-4.fc20
 - Fix source repository URL.
 - Use https URLs.
