@@ -1261,6 +1261,8 @@ class UploadRPMsTests(TestCase):
         repository in S3.
         """
         source_repo = FilePath(tempfile.mkdtemp())
+        self.addCleanup(source_repo.remove)
+
         FilePath(__file__).sibling('test-repo').copyTo(source_repo)
         repo_uri = 'file://' + source_repo.path
 
