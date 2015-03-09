@@ -293,10 +293,43 @@ class CreateContainerTestsMixin(APITestsMixin):
         return saving
 
     def test_configuration_updated_new_node(self):
-        pass
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_B, u"name": u"postgres",
+                u"image": u"postgres"
+            }, CREATED
+        )
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_B,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                        ]
+                    ),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(created)
+        return d
 
     def test_response(self):
-        pass
+        container_json = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres"
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
 
 
 RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
