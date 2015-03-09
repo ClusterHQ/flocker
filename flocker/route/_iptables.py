@@ -19,7 +19,7 @@ from twisted.python.filepath import FilePath
 
 from ._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES, OPEN_PORT
 from ._interfaces import INetwork
-from ._model import Proxy, Port
+from ._model import Proxy, OpenPort
 
 FLOCKER_PROXY_COMMENT_MARKER = b"flocker create_proxy_to"
 FLOCKER_OPENPORT_COMMENT_MARKER = b"flocker open_port"
@@ -206,6 +206,8 @@ def open_port(logger, port):
             b"--jump", b"ACCEPT",
         ])
 
+    return OpenPort(port=port)
+
 
 def delete_proxy(logger, proxy):
     """
@@ -289,7 +291,7 @@ def enumerate_open_ports():
     # TODO
     for rule in get_flocker_rules(FLOCKER_OPENPORT_COMMENT_MARKER):
         ports.append(
-            Port(port=rule.destination_port))
+            OpenPort(port=rule.destination_port))
 
     return ports
 
@@ -432,9 +434,13 @@ class HostNetwork(object):
             proxy.port
             for proxy in self.enumerate_proxies()
         )
+        open_ports = set(
+            open_port.port
+            for open_port in self.enumerate_open_port()
+        )
         # net_connections won't tell us about ports bound by sockets that
         # haven't entered the TCP state graph yet.
-        return frozenset(listening | proxied)
+        return frozenset(listening | proxied | open_ports)
 
 
 def make_host_network():

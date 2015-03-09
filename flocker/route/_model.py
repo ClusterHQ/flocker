@@ -7,8 +7,6 @@ Objects related to the representation of Flocker-controlled network state.
 
 from pyrsistent import PRecord, field
 
-from ipaddr import IPv4Address
-
 
 class Proxy(PRecord):
     """
@@ -21,7 +19,7 @@ class Proxy(PRecord):
     port = field(type=int)
 
 
-class Port(PRecord):
+class OpenPort(PRecord):
     """
     :ivar int port: The TCP port which is opened.
     """

@@ -6,7 +6,7 @@ Tests for ``flocker.route._model``.
 
 from ipaddr import IPAddress
 
-from .._model import Proxy, Port
+from .._model import Proxy, OpenPort
 
 from ...testtools import make_with_init_tests
 
@@ -19,9 +19,9 @@ class ProxyInitTests(make_with_init_tests(
     """
 
 
-class PortInitTests(make_with_init_tests(
-        record_type=Port,
+class OpenPortInitTests(make_with_init_tests(
+        record_type=OpenPort,
         kwargs=dict(port=12345))):
     """
-    Tests for ``Port.__init__``.
+    Tests for ``OpenPort.__init__``.
     """
