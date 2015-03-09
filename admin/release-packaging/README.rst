@@ -10,7 +10,7 @@ Packages are hosted on Google Cloud Storage and Amazon S3
 
 OS X client packages are hosted on Google Cloud Storage. Where?
 
-Fedora and CentOS client and node packages are hosted on Amazon S3. where?
+Fedora 20 and CentOS client and node packages are hosted on Amazon S3. where?
 There are different keys holding dev / marketing.
 
 clusterhq-release package
@@ -22,3 +22,12 @@ To build and upload the package, go to the relevant OS / release type directory 
 
    rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
    gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm gs://archive.clusterhq.com/fedora/clusterhq-release.fc20.noarch.rpm
+
+Legacy
+~~~~~~
+
+Old versions of Flocker for Fedora 20 (until 0.3.2) are hosted on GCS.
+The legacy CHQ release package creation files and other packages which were formerly necessary are in https://github.com/ClusterHQ/fedora-packages.
+
+TODO:
+https://github.com/ClusterHQ/fedora-packages. - change readme to say that this is legacy
