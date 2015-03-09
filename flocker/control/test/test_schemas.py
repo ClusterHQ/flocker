@@ -28,6 +28,52 @@ VersionsTests = build_schema_test(
     ],
 )
 
+ConfigurationContainersSchemaTests = build_schema_test(
+    name="ConfigurationContainersSchemaTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/configuration_container'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Host wrong type
+        {'host': 1, 'image':'clusterhq/redis', 'name': 'my_container'},
+        # Host not a host
+        {
+            'host': 'idonotexist',
+            'image':'clusterhq/redis',
+            'name': 'my_container'
+        },
+        # Name wrong type
+        {'host': '192.168.0.3', 'image': 'clusterhq/redis', 'name': 1},
+        # Image wrong type
+        {'host': '192.168.0.3', 'image': 1, 'name': 'my_container'},
+        # Name missing
+        {'host': '192.168.0.3', 'image': 'clusterhq/redis'},
+        # Host missing
+        {'image': 'clusterhq/redis', 'name': 'my_container'},
+        # Image missing
+        {'host': '192.168.0.3', 'name': 'my_container'},
+        # Name not valid
+        {'host': '192.168.0.3', 'image': 'clusterhq/redis', 'name': '@*!'},
+    ],
+    passing_instances=[
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres',
+            'name': 'postgres'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres'
+        },
+    ],
+)
+
+
 ConfigurationDatasetsSchemaTests = build_schema_test(
     name="ConfigurationDatasetsSchemaTests",
     schema={'$ref':

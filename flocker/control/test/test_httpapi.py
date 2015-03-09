@@ -173,6 +173,49 @@ RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     VersionTestsMixin, "API", _build_app)
 
 
+class CreateContainerTestsMixin(APITestsMixin):
+    """
+    Tests for the container creation endpoint at ``/configuration/containers``.
+    """
+    def test_wrong_schema(self):
+        """
+        If a ``POST`` request made to the endpoint includes a body which
+        doesn't match the ``definitions/containers`` schema, the response is
+        an error indication a validation failure.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            {u"host": self.NODE_A, u"junk": u"garbage"},
+            BAD_REQUEST, {
+                u'description':
+                    u"The provided JSON doesn't match the required schema.",
+                u'errors': [
+                    u"Additional properties are not allowed "
+                    u"(u'junk' was unexpected)"
+                ]
+            }
+        )
+
+    def test_container_name_collision_same_node(self):
+        pass
+
+    def test_container_name_collision_different_node(self):
+        pass
+
+    def test_configuration_updated_existing_node(self):
+        pass
+
+    def test_configuration_updated_new_node(self):
+        pass
+
+    def test_response(self):
+        pass
+
+
+RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
+    CreateContainerTestsMixin, "CreateContainer", _build_app)
+
+
 class CreateDatasetTestsMixin(APITestsMixin):
     """
     Tests for the dataset creation endpoint at ``/configuration/datasets``.
