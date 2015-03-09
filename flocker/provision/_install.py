@@ -96,7 +96,7 @@ def run_with_fabric(username, address, commands):
 run = run_with_fabric
 
 
-def task_test_homebrew(recipe_url='flocker'):
+def task_test_homebrew(recipe_url):
     return [
         Run(command="brew update"),
         Run(command="brew install {url}".format(url=recipe_url)),
