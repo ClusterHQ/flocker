@@ -107,7 +107,7 @@
   response: |
     HTTP/1.1 409 Conflict
 
-    {"message": "Specified dataset_id already associated with a dataset."}
+    {"description": "Specified dataset_id already associated with a dataset."}
 
 -
   id:
@@ -301,4 +301,4 @@
   response: |
     HTTP/1.1 409 Conflict
 
-    {"message": "Specified name already associated with a container."}
+    {"description": "The container name specified already exists."}
