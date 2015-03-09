@@ -21,6 +21,6 @@ yum install -y \
 	python-devel python-tox \
 	python-virtualenv python-virtualenvwrapper python-pip \
   enchant \
-	libffi-devel \
+	libffi-devel openssl-devel \
 	yum-utils \
 	pypy pypy-devel
