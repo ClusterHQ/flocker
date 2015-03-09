@@ -458,6 +458,11 @@ class DatasetAPIUserV1(object):
         # Check if container by this name already exists, if it does
         # return error.
 
+        for node in deployment.nodes:
+            for application in node.applications:
+                if application.name == name:
+                    raise CONTAINER_NAME_COLLISION
+
         # Find the node.
         node = self._find_node_by_host(host, deployment)
 

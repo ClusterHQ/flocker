@@ -210,7 +210,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             b"POST", b"/configuration/containers",
             {
                 u"host": node1, u"name": u"postgres", u"image": u"postgres"
-            }, OK
+            }, CREATED
         )
         # try to create another container with the same name
         return self.assertResult(
@@ -264,7 +264,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             {
                 u"host": self.NODE_A, u"name": u"another_postgres",
                 u"image": u"postgres"
-            }, OK
+            }, CREATED
         ))
 
         def created(_):
