@@ -134,6 +134,15 @@ def get_resource_stanzas(dependency_graph):
 def main():
     """
     Print a Homebrew recipe for the Flocker distribution.
+
+    The version for the recipe must be provided in the environment
+    variable ``VERSION``.
+
+    If the command is called with a single argument, the argument
+    provides a URL to retrieve the initial source distribution archive.
+
+    If no command line argument is provided, use the standard release
+    location for the indicated version.
     """
     version = get_version()
     if len(sys.argv) < 2:
