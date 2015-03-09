@@ -12,11 +12,11 @@ Boxes
 There are several vagrant boxes.
 
 Development Box (:file:`vagrant/dev`)
-   The box is initialized with the yum repositories for ZFS and for dependencies not available in Fedora and installs all the dependencies.
+   The CentOS box is initialized with the yum repositories for ZFS.
    This is the box the :file:`Vagrantfile` in the root of the repository is based on.
 
 Tutorial Box (:file:`vagrant/tutorial`)
-   This box is initialized with the yum repositories for ZFS and Flocker, and has Flocker pre-installed.
+   This CentOS box is initialized with the yum repositories for ZFS and Flocker, and has Flocker pre-installed.
    This is the box the :ref:`tutorial <vagrant-setup>` is based on.
 
 
