@@ -9,6 +9,7 @@ from os import environ
 from uuid import uuid4
 from json import dumps, loads
 
+from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
 from unittest import SkipTest
 from treq import get, post, content, delete, json_content
@@ -162,15 +163,14 @@ class Cluster(PRecord):
         return request
 
 
-def wait_for_cluster(test_case, node_count):
+def get_test_cluster(test_case, node_count):
     """
-    Build a ``Cluster`` instance with ``node_count`` nodes.
+    Build a ``Cluster`` instance with at least ``node_count`` nodes.
 
     :param TestCase test_case: The test case instance on which to register
         cleanup operations.
-    :param list node_count: The number of nodes to create in the cluster.
-    :returns: A ``Deferred`` which fires with a ``Cluster`` instance when the
-        ``control_service`` is accepting API requests.
+    :param list node_count: The number of nodes to request in the cluster.
+    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
     """
     control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
 
@@ -194,10 +194,10 @@ def wait_for_cluster(test_case, node_count):
                        "{existing} node(s) are set.".format(
                            necessary=node_count, existing=len(agent_nodes)))
 
-    return Cluster(
+    return succeed(Cluster(
         control_node=control_node,
         agent_nodes=map(Node, agent_nodes),
-    )
+    ))
 
 
 class DatasetAPITests(TestCase):
@@ -213,7 +213,7 @@ class DatasetAPITests(TestCase):
             actual cluster state.
         """
         # Create a 1 node cluster
-        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
+        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
 
         # Configure a dataset on node1
         def configure_dataset(cluster):
@@ -249,7 +249,7 @@ class DatasetAPITests(TestCase):
         A dataset can be moved from one node to another.
         """
         # Create a 2 node cluster
-        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=2)
+        waiting_for_cluster = get_test_cluster(test_case=self, node_count=2)
 
         # Configure a dataset on node1
         def configure_dataset(cluster):
