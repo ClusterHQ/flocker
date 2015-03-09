@@ -149,7 +149,7 @@ def perform_copy_s3_keys(dispatcher, intent):
         # We are explicit about Content-Type here, since the upload tool
         # isn't smart enough to set the right Content-Type.
         destination_metadata = source_key.metadata
-        for extention, content_type in EXTENSION_MIME_TYPES:
+        for extention, content_type in EXTENSION_MIME_TYPES.items():
             if key.endswith(extention):
                 destination_metadata['Content-Type'] = content_type
                 break
