@@ -23,7 +23,9 @@ from pyrsistent import discard
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
-from . import Dataset, Manifestation, Node, Deployment
+from . import (
+    Dataset, Manifestation, Node, Application, DockerImage
+)
 from .. import __version__
 
 
@@ -39,6 +41,9 @@ SCHEMAS = {
         SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
 
+CONTAINER_NAME_COLLISION = make_bad_request(
+    code=CONFLICT, description=u"The container name already exists."
+)
 DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
 PRIMARY_NODE_NOT_FOUND = make_bad_request(
@@ -69,6 +74,23 @@ class DatasetAPIUserV1(object):
         """
         self.persistence_service = persistence_service
         self.cluster_state_service = cluster_state_service
+
+    def _find_node_by_host(self, host, deployment):
+        """
+        Find a Node matching the specified host, or create a new one if it does
+        not already exist.
+        :param node: A ``unicode`` representing a host / IP address.
+        :param deployment: A ``Deployment`` instance.
+        :return: A ``Node`` instance.
+        """
+        for node in deployment.nodes:
+            if host == node.hostname:
+                return node
+
+        # The node wasn't found in the configuration so create a new node.
+        # FLOC-1278 will make sure we're not creating nonsense
+        # configuration in this step.
+        return Node(hostname=host)
 
     @app.route("/version", methods=['GET'])
     @user_documentation("""
@@ -183,27 +205,11 @@ class DatasetAPIUserV1(object):
         )
         manifestation = Manifestation(dataset=dataset, primary=True)
 
-        primary_nodes = list(
-            node for node in deployment.nodes if primary == node.hostname
-        )
-        if len(primary_nodes) == 0:
-            # The node wasn't found in the configuration so create a new node
-            # to which a manifestation can be added.  FLOC-1278 will make sure
-            # we're not creating nonsense configuration in this step.
-            primary_node = Node(hostname=primary)
-        else:
-            # One was found.  Add the manifestation to it.
-            (primary_node,) = primary_nodes
+        primary_node = self._find_node_by_host(primary, deployment)
 
         new_node_config = primary_node.transform(
             ("manifestations", manifestation.dataset_id), manifestation)
-
-        other_nodes = frozenset(
-            node for node in deployment.nodes if node is not primary_node
-        )
-        new_deployment = Deployment(
-            nodes=other_nodes | frozenset({new_node_config})
-        )
+        new_deployment = deployment.update_node(new_node_config)
         saving = self.persistence_service.save(new_deployment)
 
         def saved(ignored):
@@ -413,6 +419,71 @@ class DatasetAPIUserV1(object):
             del dataset[u"metadata"]
             del dataset[u"deleted"]
         return datasets
+
+    @app.route("/configuration/containers", methods=['POST'])
+    @user_documentation(
+        """
+        Create and start a new container.
+        """,
+        examples=[
+            u"create container",
+            u"create container with duplicate name",
+        ]
+    )
+    @structured(
+        inputSchema={
+            '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
+        outputSchema={
+            '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
+        schema_store=SCHEMAS
+    )
+    def create_container_configuration(self, host, name, image):
+        """
+        Create a new dataset in the cluster configuration.
+
+        :param unicode host: The address of the node on which the container
+            will run.
+
+        :param unicode name: A unique identifier for the container within
+            the Flocker cluster.
+
+        :param unicode image: The name of the Docker image to use for the
+            container.
+
+        :return: An ``EndpointResponse`` describing the container which has
+            been added to the cluster configuration.
+        """
+        deployment = self.persistence_service.get()
+
+        # Check if container by this name already exists, if it does
+        # return error.
+
+        for node in deployment.nodes:
+            for application in node.applications:
+                if application.name == name:
+                    raise CONTAINER_NAME_COLLISION
+
+        # Find the node.
+        node = self._find_node_by_host(host, deployment)
+
+        # Create Application object, add to Deployment, save.
+        application = Application(name=name,
+                                  image=DockerImage.from_string(image))
+
+        new_node_config = node.transform(
+            ["applications"],
+            lambda s: s.add(application)
+        )
+
+        new_deployment = deployment.update_node(new_node_config)
+        saving = self.persistence_service.save(new_deployment)
+
+        # Return passed in dictionary with CREATED response code.
+        def saved(_):
+            result = {"host": host, "name": name, "image": image}
+            return EndpointResponse(CREATED, result)
+        saving.addCallback(saved)
+        return saving
 
 
 def manifestations_from_deployment(deployment, dataset_id):
