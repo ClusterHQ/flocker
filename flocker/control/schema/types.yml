@@ -45,6 +45,16 @@ definitions:
     maxProperties: 16
     additionalProperties: false
 
+  ports:
+    title: "Container ports"
+    description: "Mapping of internal to external ports."
+    type: array
+    items:
+      type: object
+      # probably more definition here
+    minItems: 1,
+    uniqueItems: true
+    
   container_name:
     title: "Container name"
     description: "The name of the container."

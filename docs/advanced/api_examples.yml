@@ -270,14 +270,16 @@
 
     {"host": "%(NODE_0)s",
      "name": "webserver",
-     "image": "nginx:latest"}
+     "image": "nginx:latest",
+     "ports": [{"internal": 80, "external": 8080}]}
 
   response: |
     HTTP/1.1 201 Created
 
     {"host": "%(NODE_0)s",
      "name": "webserver",
-     "image": "nginx:latest"}
+     "image": "nginx:latest",
+     "ports": [{"internal": 80, "external": 8080}]}     
 
 -
   id:

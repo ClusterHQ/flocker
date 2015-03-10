@@ -53,6 +53,27 @@ ConfigurationContainersSchemaTests = build_schema_test(
         {'host': '192.168.0.3', 'name': 'my_container'},
         # Name not valid
         {'host': '192.168.0.3', 'image': 'clusterhq/redis', 'name': '@*!'},
+        # Ports given but not a list of mappings
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': 'I am not a list of port maps'
+        },
+        # Ports given but internal is not valid
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 'xxx', 'external': 8080}]
+        },
+        # Ports given but external is not valid
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 80, 'external': '1'}]
+        },
     ],
     passing_instances=[
         {
@@ -69,6 +90,12 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'host': '192.168.0.3',
             'image': 'docker/postgres:latest',
             'name': 'postgres'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 80, 'external': 8080}]
         },
     ],
 )

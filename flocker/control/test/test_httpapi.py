@@ -241,6 +241,20 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         return self._container_name_collision_test(self.NODE_A, self.NODE_B)
 
+    def test_create_container_with_ports(self):
+        """
+        A valid API request to create a container including port mappings
+        results in an updated configuration.
+        """
+        self.fail("not implemented yet")
+
+    def test_create_container_with_ports_response(self):
+        """
+        A valid API request to create a container including port mappings
+        returns the port mapping supplied in the request in the response JSON.
+        """
+        self.fail("not implemented yet")
+
     def test_configuration_updated_existing_node(self):
         """
         A valid API request to create a container on an existing node results

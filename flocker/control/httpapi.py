@@ -437,7 +437,7 @@ class ConfigurationAPIUserV1(object):
             '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
         schema_store=SCHEMAS
     )
-    def create_container_configuration(self, host, name, image):
+    def create_container_configuration(self, host, name, image, ports=None):
         """
         Create a new dataset in the cluster configuration.
 
@@ -462,12 +462,20 @@ class ConfigurationAPIUserV1(object):
                 if application.name == name:
                     raise CONTAINER_NAME_COLLISION
 
+        # Check if we have any ports in the request. If we do, check existing
+        # external ports exposed to ensure there is no conflict. If there is a
+        # conflict, return an error.
+        # TODO
+
         # Find the node.
         node = self._find_node_by_host(host, deployment)
 
         # Create Application object, add to Deployment, save.
         application = Application(name=name,
                                   image=DockerImage.from_string(image))
+
+        # If we have ports specified, add these to the Application instance.
+        # TODO
 
         new_node_config = node.transform(
             ["applications"],
@@ -480,6 +488,8 @@ class ConfigurationAPIUserV1(object):
         # Return passed in dictionary with CREATED response code.
         def saved(_):
             result = {"host": host, "name": name, "image": image}
+            # add ports to result if ports were in the request
+            # TODO
             return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
