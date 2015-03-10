@@ -34,11 +34,11 @@ ConfigurationContainersSchemaTests = build_schema_test(
     schema_store=SCHEMAS,
     failing_instances=[
         # Host wrong type
-        {'host': 1, 'image':'clusterhq/redis', 'name': 'my_container'},
+        {'host': 1, 'image': 'clusterhq/redis', 'name': 'my_container'},
         # Host not a host
         {
             'host': 'idonotexist',
-            'image':'clusterhq/redis',
+            'image': 'clusterhq/redis',
             'name': 'my_container'
         },
         # Name wrong type
