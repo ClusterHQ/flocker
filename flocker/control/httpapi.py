@@ -42,7 +42,7 @@ SCHEMAS = {
     }
 
 CONTAINER_NAME_COLLISION = make_bad_request(
-    code=CONFLICT, description=u"The container name specified already exists."
+    code=CONFLICT, description=u"The container name already exists."
 )
 DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
@@ -444,12 +444,13 @@ class DatasetAPIUserV1(object):
         :param unicode host: The address of the node on which the container
             will run.
 
-        :param unicode name: A unique identifier for the container.
+        :param unicode name: A unique identifier for the container within
+            the Flocker cluster.
 
         :param unicode image: The name of the Docker image to use for the
             container.
 
-        :return: A ``EndpointResponse`` describing the container which has
+        :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
         """
         deployment = self.persistence_service.get()

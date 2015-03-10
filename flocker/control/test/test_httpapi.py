@@ -293,6 +293,10 @@ class CreateContainerTestsMixin(APITestsMixin):
         return saving
 
     def test_configuration_updated_new_node(self):
+        """
+        A valid API request to create a container on a new node results
+        in an updated configuration.
+        """
         d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
@@ -322,6 +326,10 @@ class CreateContainerTestsMixin(APITestsMixin):
         return d
 
     def test_response(self):
+        """
+        A minimally valid API request to create a container returns the
+        expected JSON response.
+        """
         container_json = {
             u"host": self.NODE_B, u"name": u"postgres",
             u"image": u"postgres"
