@@ -222,7 +222,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             },
             CONFLICT, {
                 u'description':
-                    u"The container name specified already exists.",
+                    u"The container name already exists.",
             }
         )
 
