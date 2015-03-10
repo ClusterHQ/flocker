@@ -369,9 +369,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         calculated changes using last received desired configuration and
         cluster state.
         """
-        local_state = object()
+        local_state = NodeState(hostname=b'192.0.2.123')
         configuration = object()
-        state = object()
+        received_state = Deployment(nodes=frozenset())
         # Since this Deferred is unfired we never proceed to next
         # iteration; if we did we'd get exception from discovery since we
         # only configured one discovery result.
@@ -380,10 +380,13 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(
             client=self.successful_amp_client([local_state]),
-            configuration=configuration, state=state))
+            configuration=configuration, state=received_state))
+
+        expected_local_state = received_state.update_node(local_state.to_node())
         # Calculating actions happened, and result was run:
-        self.assertEqual((deployer.calculate_inputs, action.called),
-                         ([(local_state, configuration, state)], True))
+        self.assertEqual(
+            (deployer.calculate_inputs, action.called),
+            ([(local_state, configuration, expected_local_state)], True))
 
     def test_convergence_done_delays_new_iteration(self):
         """
