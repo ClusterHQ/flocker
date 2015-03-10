@@ -892,6 +892,8 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_vendor = PACKAGE.VENDOR.value
         expected_maintainer = PACKAGE.MAINTAINER.value
 
+        package_files = FilePath('/package-files')
+
         expected = BuildSequence(
             steps=(
                 # clusterhq-python-flocker steps
@@ -984,7 +986,14 @@ class OmnibusPackageBuilderTests(TestCase):
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_paths={flocker_node_path: FilePath("/usr/sbin")},
+                    source_paths={
+                        flocker_node_path: FilePath("/usr/sbin"),
+                        package_files.child('firewalld-services'):
+                            FilePath("/usr/lib/firewalld/services/"),
+                        # Ubuntu firewall configuration
+                        package_files.child('ufw-applications.d'):
+                            FilePath("/etc/ufw/applications.d/"),
+                    },
                     name='clusterhq-flocker-node',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
@@ -997,6 +1006,7 @@ class OmnibusPackageBuilderTests(TestCase):
                     description=PACKAGE_NODE.DESCRIPTION.value,
                     category=expected_category,
                     dependencies=[Dependency(package='node-dep')],
+                    after_install=package_files.child('after-install.sh')
                 ),
                 LintPackage(
                     package_type=expected_package_type,
@@ -1014,7 +1024,9 @@ class OmnibusPackageBuilderTests(TestCase):
             omnibus_package_builder(distribution=distribution,
                                     destination_path=expected_destination_path,
                                     package_uri=expected_package_uri,
-                                    target_dir=target_path))
+                                    target_dir=target_path,
+                                    package_files=FilePath('/package-files'),
+                                    ))
 
 
 class DockerBuildOptionsTests(TestCase):
@@ -1123,12 +1135,13 @@ class DockerBuildScriptTests(TestCase):
             arguments.append((args, kwargs))
             return build_step
         script.build_command = record_arguments
-        script.main()
+        script.main(top_level=FilePath('/top-level'))
         expected_build_arguments = [(
             (),
             dict(destination_path=expected_destination_path,
                  package_uri=expected_package_uri,
-                 distribution=distribution)
+                 distribution=distribution,
+                 package_files=FilePath('/top-level/admin/package-files'))
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)
