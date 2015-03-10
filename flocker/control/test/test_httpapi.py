@@ -33,7 +33,7 @@ from .. import (
     Deployment, AttachedVolume, DockerImage
 )
 from ..httpapi import (
-    DatasetAPIUserV1, create_api_service, datasets_from_deployment,
+    ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
     api_dataset_from_dataset_and_node
 )
 from .._persistence import ConfigurationPersistenceService
@@ -51,7 +51,7 @@ class APITestsMixin(object):
 
     def initialize(self):
         """
-        Create initial objects for the ``DatasetAPIUserV1``.
+        Create initial objects for the ``ConfigurationAPIUserV1``.
         """
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
@@ -167,8 +167,8 @@ class VersionTestsMixin(APITestsMixin):
 
 def _build_app(test):
     test.initialize()
-    return DatasetAPIUserV1(test.persistence_service,
-                            test.cluster_state_service).app
+    return ConfigurationAPIUserV1(test.persistence_service,
+                                  test.cluster_state_service).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     VersionTestsMixin, "API", _build_app)
 

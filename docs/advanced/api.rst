@@ -17,7 +17,7 @@ When you use the API to change the configuration, e.g. creating a new dataset:
 
 For more information read the :ref:`cluster architecture<architecture>` documentation.
 
-.. autoklein:: flocker.control.httpapi.DatasetAPIUserV1
+.. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
     :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
     :prefix: /v1
     :examples_path: api_examples.yml

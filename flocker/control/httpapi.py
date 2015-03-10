@@ -54,7 +54,7 @@ DATASET_DELETED = make_bad_request(
     code=METHOD_NOT_ALLOWED, description=u"The dataset has been deleted.")
 
 
-class DatasetAPIUserV1(object):
+class ConfigurationAPIUserV1(object):
     """
     A user accessing the API.
 
@@ -565,7 +565,7 @@ def create_api_service(persistence_service, cluster_state_service, endpoint):
     :return: Service that will listen on the endpoint using HTTP API server.
     """
     api_root = Resource()
-    user = DatasetAPIUserV1(persistence_service, cluster_state_service)
+    user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
     api_root.putChild('v1', user.app.resource())
     api_root._v1_user = user  # For unit testing purposes, alas
     return StreamServerEndpointService(endpoint, Site(api_root))
