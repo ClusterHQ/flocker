@@ -393,20 +393,22 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         An FSM completing the changes from one convergence iteration doesn't
         instantly start another iteration.
         """
-        local_state = object()
+        local_state = NodeState(hostname=b'192.0.2.123')
         configuration = object()
-        state = object()
+        received_state = Deployment(nodes=frozenset())
         action = ControllableAction(succeed(None))
         deployer = ControllableDeployer([succeed(local_state)], [action])
         client = self.successful_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
-            client=client, configuration=configuration, state=state))
+            client=client, configuration=configuration, state=received_state))
+
+        expected_local_state = received_state.update_node(local_state.to_node())
         # Calculating actions happened and the result was run.
         self.assertEqual(
             (deployer.calculate_inputs, client.calls),
-            ([(local_state, configuration, state)],
+            ([(local_state, configuration, expected_local_state)],
              [(NodeStateCommand, dict(node_state=local_state))])
         )
 
