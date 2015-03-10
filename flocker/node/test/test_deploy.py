@@ -2799,46 +2799,6 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         ])
         self.assertEqual(expected, changes)
 
-    def test_local_state_overrides_cluster_state(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` uses the given
-        local state to override cluster state, since the latter may be
-        stale.
-        """
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        docker = FakeDockerClient(units={})
-
-        current_node = Node(
-            hostname=u"node1.example.com",
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-        desired_node = current_node
-
-        desired = Deployment(nodes=frozenset([desired_node]))
-        # This is at odds with local state, which knows that the dataset
-        # does actually exist:
-        current = Deployment(nodes=frozenset())
-
-        api = P2PNodeDeployer(
-            current_node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        # If P2PNodeDeployer is buggy and not overriding cluster state
-        # with local state this would result in a dataset creation action:
-        expected = Sequentially(changes=[])
-        self.assertEqual(expected, changes)
-
 
 class SetProxiesTests(SynchronousTestCase):
     """
