@@ -45,6 +45,29 @@ definitions:
     maxProperties: 16
     additionalProperties: false
 
+  container_name:
+    title: "Container name"
+    description: "The name of the container."
+    type: string
+    pattern: "[a-zA-Z0-9_-]+"
+    
+  container_image:
+    title: "Container image"
+    description: |
+      A standard Docker formatted string specifying the container image
+      and optional tag, e.g. "clusterhq/redis:latest".
+    type: string
+
+  host:
+    title: "Host"
+    description: |
+      The address of the node where the container will run.
+      This must be the address of a node that has introduced itself
+      to the cluster.
+    type: string
+    oneOf:
+      - format: ipv4
+
   primary:
     title: "Primary manifestation"
     description: |

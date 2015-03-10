@@ -107,7 +107,7 @@
   response: |
     HTTP/1.1 409 Conflict
 
-    {"message": "Specified dataset_id already associated with a dataset."}
+    {"description": "Specified dataset_id already associated with a dataset."}
 
 -
   id:
@@ -257,3 +257,48 @@
       "primary": "%(NODE_0)s",
       "maximum_size": 1073741824,
       "path": "/flocker/somearbitrarypath"}]
+
+-
+  id:
+    "create container"
+
+  doc: |
+    Create a new container.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest"}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest"}
+
+-
+  id:
+    "create container with duplicate name"
+
+  doc: |
+    Attempt to create a new container with a specified name that is already
+    assigned to an existing container. This results in a failure to create the
+    container and an error response.
+
+  requires:
+    - "create container"
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest"}
+
+  response: |
+    HTTP/1.1 409 Conflict
+
+    {"description": "The container name specified already exists."}
