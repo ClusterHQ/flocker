@@ -133,13 +133,17 @@ def main():
     """
     logging.basicConfig(level=logging.INFO)
 
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(
+        description='Create a Homebrew recipe from a source distribution.')
     parser.add_argument(
-        '--flocker-version', help='a version number for the Homebrew recipe')
+        '--flocker-version', help='version number for the Homebrew recipe'
+        ' (either this argument or the environment variable VERSION must be'
+        ' provided)')
     parser.add_argument(
-        '--sdist', help='source distribution')
+        '--sdist', help='URL of the source distribution')
     parser.add_argument(
-        '--output-file', help='output Homebrew recipe file (default: stdout)')
+        '--output-file',
+        help='filename for created Homebrew recipe (default: stdout)')
     args = parser.parse_args()
 
     # If version not supplied, for backwards-compatibility, get it from
@@ -148,9 +152,8 @@ def main():
     if version is None:
         version = environ.get('VERSION')
         if version is None:
-            raise Exception(
-                'Set the --flocker-version flag or VERSION environment '
-                'variable.')
+            parser.print_help()
+            sys.exit(1)
     logging.info('Creating Homebrew recipe for version {}'.format(version))
 
     # If url not supplied, for backwards-compatibility, use the Google
