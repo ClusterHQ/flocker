@@ -93,8 +93,8 @@ class DockerImageFromStringTests(SynchronousTestCase):
 class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
     kwargs=dict(
-        name=u'site-example.com', image=object(),
-        ports=None, volume=None, environment=None,
+        name=u'site-example.com', image=DockerImage.from_string(u"image"),
+        ports=(), volume=None, environment=None,
         links=frozenset(), restart_policy=RestartAlways(),
     ),
     expected_defaults={'links': frozenset(), 'restart_policy': RestartNever()},
@@ -112,8 +112,9 @@ class ApplicationTests(SynchronousTestCase):
         """
         ``Application.__repr__`` includes the name, image, ports, and links.
         """
-        application = Application(name=u'site-example.com', image=None,
-                                  ports=None, links=frozenset())
+        application = Application(name=u'site-example.com',
+                                  image=DockerImage.from_string(u"image"),
+                                  ports=(), links=frozenset())
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
             "volume=None, links=frozenset([]), environment=None, "
@@ -126,8 +127,10 @@ class ApplicationTests(SynchronousTestCase):
 class NodeInitTests(make_with_init_tests(
         record_type=Node,
         kwargs=dict(hostname=u'example.com', applications=pset([
-            Application(name=u'mysql-clusterhq', image=object()),
-            Application(name=u'site-clusterhq.com', image=object()),
+            Application(name=u'mysql-clusterhq', image=DockerImage.from_string(
+                u"image")),
+            Application(name=u'site-clusterhq.com',
+                        image=DockerImage.from_string(u"another")),
         ]))
 )):
     """
@@ -263,15 +266,17 @@ class DeploymentTests(SynchronousTestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object())}),
+            applications=frozenset({
+                Application(name=u'mysql-clusterhq',
+                            image=DockerImage.from_string(u"image")),
+                Application(name=u'site-clusterhq.com',
+                            image=DockerImage.from_string(u"image"))}),
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(name=u'site-clusterhq.com',
-                                                image=object())}),
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
         )
         deployment = Deployment(nodes=frozenset([node, another_node]))
         self.assertEqual(sorted(list(deployment.applications())),
@@ -286,12 +291,14 @@ class DeploymentTests(SynchronousTestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'postgresql-clusterhq',
-                                                image=object())}))
+            applications=frozenset({Application(
+                name=u'postgresql-clusterhq',
+                image=DockerImage.from_string(u"image"))}))
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(name=u'site-clusterhq.com',
-                                                image=object())}),
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
         )
         original = Deployment(nodes=frozenset([node]))
         updated = original.update_node(another_node)
@@ -307,12 +314,14 @@ class DeploymentTests(SynchronousTestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'postgresql-clusterhq',
-                                                image=object())}))
+            applications=frozenset({Application(
+                name=u'postgresql-clusterhq',
+                image=DockerImage.from_string(u"image"))}))
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(name=u'site-clusterhq.com',
-                                                image=object())}),
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
         )
         updated_node = Node(
             hostname=u"node1.example.com",
@@ -394,7 +403,8 @@ class PSetFieldTests(SynchronousTestCase):
     """
     Tests for ``pset_field``.
 
-    This will hopefully be contributed upstream to pyrsistent.
+    This will hopefully be contributed upstream to pyrsistent, thus the
+    slightly different testing style.
     """
     def test_initial_value(self):
         """
@@ -431,14 +441,30 @@ class PSetFieldTests(SynchronousTestCase):
         record = Record()
         self.assertRaises(TypeError, record.set, "value", None)
 
-    def test_serialize(self):
+    def test_serialize_simple_objects(self):
         """
-        ``pset_field`` serializes.
+        ``pset_field`` serializes simple objects.
         """
         class Record(PRecord):
             value = pset_field(int)
         record = Record(value=[1, 2])
         assert record.serialize() == {"value": [1, 2]}
+
+    def test_serialize_precord(self):
+        """
+        ``pset_field`` serializes ``PRecord`` instances.
+
+        This doesn't Just Work because putting dictionaries into sets is a
+        problem.
+        """
+        class Child(PRecord):
+            value = field()
+
+        class Parent(PRecord):
+            children = pset_field(Child)
+
+        parent = Parent(children=[Child(value=123)])
+        assert parent.serialize() == {"children": [{"value": 123}]}
 
     def test_serialize_roundtrip(self):
         """

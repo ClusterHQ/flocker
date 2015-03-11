@@ -4,7 +4,8 @@
 Persistence of cluster configuration.
 """
 
-from pickle import dumps, loads
+from pyrsistent import thaw
+from json import dumps, loads, JSONEncoder
 
 from twisted.application.service import Service
 from twisted.internet.defer import succeed
@@ -12,8 +13,16 @@ from twisted.internet.defer import succeed
 from ._model import Deployment
 
 
-# These should not use Pickle!@!
-# https://clusterhq.atlassian.net/browse/FLOC-1241
+class _SetEncoder(JSONEncoder):
+    """
+    JSON encoder that can encode sets.
+    """
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return JSONEncoder.default(self, obj)
+
+
 def serialize_deployment(deployment):
     """
     Convert a ``Deployment`` object to ``bytes``.
@@ -22,7 +31,7 @@ def serialize_deployment(deployment):
 
     :return bytes: Serialized object.
     """
-    return dumps(deployment)
+    return dumps(deployment.serialize(), cls=_SetEncoder)
 
 
 def deserialize_deployment(data):
@@ -34,7 +43,7 @@ def deserialize_deployment(data):
 
     :return Deployment: Deserialized object.
     """
-    return loads(data)
+    return Deployment.create(loads(data))
 
 
 class ConfigurationPersistenceService(Service):

@@ -716,8 +716,9 @@ class FigConfiguration(object):
                              remote_port=remote_port,
                              alias=link_definition['alias'])
                     )
-            self._applications[application_name].links = frozenset(
-                app_links)
+            application = self._applications[application_name]
+            self._applications[application_name] = application.set(
+                "links", app_links)
 
     def _parse(self):
         """

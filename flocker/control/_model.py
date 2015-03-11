@@ -14,18 +14,36 @@ There are different categories of classes:
 3. Configuration-specific classes, none implemented yet.
 """
 
-from characteristic import attributes, Attribute
+from characteristic import attributes
 
 from twisted.python.filepath import FilePath
 from pyrsistent import (
-    pmap, PRecord, field, PMap, PSet, pset, CheckedPSet, CheckedPMap, thaw
+    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, thaw,
+    CheckedType,
     )
 
 from zope.interface import Interface, implementer
 
 
-@attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
-class DockerImage(object):
+def pset_field(klass):
+    """
+    Create checked ``PSet`` field that can serialize recursively.
+
+    :return: A ``field`` containing a ``CheckedPSet`` of the given type.
+    """
+    class TheSet(CheckedPSet):
+        __type__ = klass
+
+    def serializer(format, data):
+        if issubclass(klass, CheckedType):
+            return [o.serialize() for o in data]
+        else:
+            return [thaw(o) for o in data]
+    return field(type=TheSet, factory=TheSet.create, serializer=serializer,
+                 mandatory=True, initial=TheSet())
+
+
+class DockerImage(PRecord):
     """
     An image that can be used to run an application using Docker.
 
@@ -34,6 +52,8 @@ class DockerImage(object):
     :ivar unicode full_name: A readonly property which combines the repository
         and tag in a format that can be passed to `docker run`.
     """
+    repository = field(mandatory=True)
+    tag = field(mandatory=True, initial=u"latest")
 
     @property
     def full_name(self):
@@ -83,6 +103,37 @@ class AttachedVolume(object):
         return self.manifestation.dataset
 
 
+class Port(PRecord):
+    """
+    A record representing the mapping between a port exposed internally by an
+    application and the corresponding port exposed to the outside world.
+
+    :ivar int internal_port: The port number exposed by the application.
+    :ivar int external_port: The port number exposed to the outside world.
+    """
+    internal_port = field(mandatory=True, type=int)
+    external_port = field(mandatory=True, type=int)
+
+
+class Link(PRecord):
+    """
+    A record representing the mapping between a port exposed internally to
+    an application, and the corresponding external port of a possibly remote
+    application.
+
+    :ivar int local_port: The port the local application expects to access.
+        This is used to determine the environment variables to populate in the
+        container.
+    :ivar int remote_port: The port exposed externally by the remote
+        application.
+    :ivar unicode alias: Environment variable prefix to use for exposing
+        connection information.
+    """
+    local_port = field(mandatory=True, type=int)
+    remote_port = field(mandatory=True, type=int)
+    alias = field(mandatory=True)
+
+
 class IRestartPolicy(Interface):
     """
     Restart policy for an application.
@@ -90,37 +141,31 @@ class IRestartPolicy(Interface):
 
 
 @implementer(IRestartPolicy)
-@attributes([], apply_immutable=True,
-            # https://github.com/hynek/characteristic/pull/22
-            apply_with_init=False)
-class RestartNever(object):
+class RestartNever(PRecord):
     """
     A restart policy that never restarts an application.
     """
 
 
 @implementer(IRestartPolicy)
-@attributes([], apply_immutable=True,
-            # https://github.com/hynek/characteristic/pull/22
-            apply_with_init=False)
-class RestartAlways(object):
+class RestartAlways(PRecord):
     """
     A restart policy that always restarts an application.
     """
 
 
 @implementer(IRestartPolicy)
-@attributes([Attribute("maximum_retry_count", default_value=None)],
-            apply_immutable=True)
-class RestartOnFailure(object):
+class RestartOnFailure(PRecord):
     """
     A restart policy that restarts an application when it fails.
 
-    :ivar int maximum_retry_count: The number of times the application is
-        allowed to fail, before the giving up.
+    :ivar maximum_retry_count: The number of times the application is
+        allowed to fail before giving up, or ``None`` if there is no
+        maximum.
     """
+    maximum_retry_count = field(mandatory=True, initial=None)
 
-    def __init__(self):
+    def __invariant__(self):
         """
         Check that ``maximum_retry_count`` is positive or None
 
@@ -128,24 +173,17 @@ class RestartOnFailure(object):
         """
         if self.maximum_retry_count is not None:
             if not isinstance(self.maximum_retry_count, int):
-                raise TypeError(
-                    "maximum_retry_count must be an integer or None, "
-                    "got %r" % (self.maximum_retry_count,))
+                return (False,
+                        "maximum_retry_count must be an integer or None, "
+                        "got %r" % (self.maximum_retry_count,))
             if self.maximum_retry_count < 1:
-                raise ValueError(
-                    "maximum_retry_count must be positive, "
-                    "got %r" % (self.maximum_retry_count,))
+                return (False,
+                        "maximum_retry_count must be positive, "
+                        "got %r" % (self.maximum_retry_count,))
+        return (True, "")
 
 
-@attributes(["name", "image",
-             Attribute("ports", default_value=frozenset()),
-             Attribute("volume", default_value=None),
-             Attribute("links", default_value=frozenset()),
-             Attribute("environment", default_value=None),
-             Attribute("memory_limit", default_value=None),
-             Attribute("cpu_shares", default_value=None),
-             Attribute("restart_policy", default_value=RestartNever())])
-class Application(object):
+class Application(PRecord):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
@@ -166,7 +204,7 @@ class Application(object):
         should be created between applications, or ``None`` if configuration
         information isn't available.
 
-    :ivar frozenset environment: A ``frozenset`` of environment variables
+    :ivar PSet environment: A ``frozenset`` of environment variables
         that should be exposed in the ``Application`` container, or ``None``
         if no environment variables are specified. A ``frozenset`` of
         variables contains a ``tuple`` series mapping (key, value).
@@ -174,6 +212,19 @@ class Application(object):
     :ivar IRestartPolicy restart_policy: The restart policy for this
         application.
     """
+    name = field(mandatory=True)
+    image = field(mandatory=True, type=DockerImage, factory=DockerImage.create)
+    ports = pset_field(Port)
+    volume = field(mandatory=True, initial=None)
+    links = pset_field(Link)
+    memory_limit = field(mandatory=True, initial=None)
+    cpu_shares = field(mandatory=True, initial=None)
+    restart_policy = field(mandatory=True, initial=RestartNever(),
+                           # XXX hardcoded RestartNever
+                           serializer=lambda f, d: None,
+                           factory=lambda _: RestartNever())
+    # XXX we can switch this to pmap now that we have immutable dicts:
+    environment = field(mandatory=True, initial=None)
 
 
 class Dataset(PRecord):
@@ -247,8 +298,6 @@ class Node(PRecord):
     def __invariant__(self):
         manifestations = self.manifestations.values()
         for app in self.applications:
-            if not isinstance(app, Application):
-                return (False, '%r must be Appplication' % (app,))
             if app.volume is not None:
                 if app.volume.manifestation not in manifestations:
                     return (False, '%r manifestation is not on node' % (app,))
@@ -258,22 +307,24 @@ class Node(PRecord):
         return (True, "")
 
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    applications = field(type=PSet, initial=pset(), factory=pset,
-                         mandatory=True)
+    applications = pset_field(Application)
     manifestations = field(type=PMap, initial=pmap(), factory=pmap,
-                           mandatory=True)
+                           mandatory=True,
+                           serializer=lambda f, d: {
+                               k: v.serialize() for k, v in d.items()})
 
 
-@attributes(["nodes"])
-class Deployment(object):
+class Deployment(PRecord):
     """
     A ``Deployment`` describes the configuration of a number of applications on
     a number of cooperating nodes.  This might describe the real state of an
     existing deployment or be used to represent a desired future state.
 
-    :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
+    :ivar PSet nodes: A set containing ``Node`` instances
         describing the configuration of each cooperating node.
     """
+    nodes = pset_field(Node)
+
     def applications(self):
         """
         Return all applications in all nodes.
@@ -298,34 +349,6 @@ class Deployment(object):
         return Deployment(nodes=frozenset(
             list(n for n in self.nodes if n.hostname != node.hostname) +
             [node]))
-
-
-@attributes(['internal_port', 'external_port'])
-class Port(object):
-    """
-    A record representing the mapping between a port exposed internally by an
-    application and the corresponding port exposed to the outside world.
-
-    :ivar int internal_port: The port number exposed by the application.
-    :ivar int external_port: The port number exposed to the outside world.
-    """
-
-
-@attributes(['local_port', 'remote_port', 'alias'])
-class Link(object):
-    """
-    A record representing the mapping between a port exposed internally to
-    an application, and the corresponding external port of a possibly remote
-    application.
-
-    :ivar int local_port: The port the local application expects to access.
-        This is used to determine the environment variables to populate in the
-        container.
-    :ivar int remote_port: The port exposed externally by the remote
-        application.
-    :ivar unicode alias: Environment variable prefix to use for exposing
-        connection information.
-    """
 
 
 @attributes(["dataset", "hostname"])
@@ -378,21 +401,6 @@ class _PathMap(CheckedPMap):
     """
     __key_type__ = unicode
     __value_type__ = FilePath
-
-
-def pset_field(klass):
-    """
-    Create checked ``PSet`` field that can serialize recursively.
-
-    :return: A ``field`` containing a ``CheckedPSet`` of the given type.
-    """
-    class TheSet(CheckedPSet):
-        __type__ = klass
-
-    def serializer(format, data):
-        return [thaw(o) for o in data]
-    return field(type=TheSet, factory=TheSet.create, serializer=serializer,
-                 mandatory=True, initial=TheSet())
 
 
 class NodeState(PRecord):
