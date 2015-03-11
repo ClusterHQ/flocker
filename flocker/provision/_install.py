@@ -16,7 +16,8 @@ from ._common import PackageSource
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                  "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
-    'centos-7': "http://archive.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm"
+    'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
+                "epel/zfs-release.el7.noarch.rpm",
 }
 CLUSTERHQ_REPO = {
     'fedora-20': "https://s3.amazonaws.com/clusterhq-archive/"
