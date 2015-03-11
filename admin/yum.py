@@ -40,38 +40,10 @@ def perform_download_packages_from_repository(dispatcher, intent):
     import urllib
     packages = ['clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
                 'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm']
+    # TODO use intent.packages, but get versioned files
     for package in packages:
-        package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
         url = intent.source_repo + '/' + package
-        urllib.urlretrieve(url, intent.target_path.child("clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm").path)
-
-    import pdb; pdb.set_trace()
-
-    # yum_repo_config = intent.target_path.child(b'build.repo')
-    # yum_repo_config.setContent(dedent(b"""
-    #      [flocker]
-    #      name=flocker
-    #      baseurl=%s
-    #      """) % (intent.source_repo,))
-    #
-    # check_call([
-    #     b'yum',
-    #     b'--config', yum_repo_config.path,
-    #     b'--disablerepo=*',
-    #     b'--enablerepo=flocker',
-    #     b'--quiet',
-    #     b'clean',
-    #     b'metadata'])
-    #
-    # check_call([
-    #     b'yumdownloader',
-    #     b'--config', yum_repo_config.path,
-    #     b'--disablerepo=*',
-    #     b'--enablerepo=flocker',
-    #     b'--quiet',
-    #     b'--destdir', intent.target_path.path] + intent.packages)
-    #
-    # yum_repo_config.remove()
+        urllib.urlretrieve(url, intent.target_path.child(package).path)
 
 
 @attributes([
