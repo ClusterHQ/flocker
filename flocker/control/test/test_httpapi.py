@@ -30,7 +30,7 @@ from ...restapi.testtools import (
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume, DockerImage
+    Deployment, AttachedVolume, DockerImage, Port
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -246,14 +246,75 @@ class CreateContainerTestsMixin(APITestsMixin):
         A valid API request to create a container including port mappings
         results in an updated configuration.
         """
-        self.fail("not implemented yet")
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(name='postgres',
+                                    image=DockerImage.from_string('postgres'))
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        ports = [
+            {'internal': 5432, 'external': 54320},
+        ]
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"image": u"postgres", u"ports": ports
+            }, CREATED
+        ))
+
+        def created(_):
+            application_ports = [Port(internal_port=5432, external_port=54320)]
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                            Application(
+                                name='another_postgres',
+                                image=DockerImage.from_string('postgres'),
+                                ports=frozenset(application_ports)
+                            )
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            import pdb;pdb.set_trace()
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
 
     def test_create_container_with_ports_response(self):
         """
         A valid API request to create a container including port mappings
         returns the port mapping supplied in the request in the response JSON.
         """
-        self.fail("not implemented yet")
+        ports = [
+            {'internal': 5432, 'external': 54320},
+        ]
+        container_json = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres", u"ports": ports
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
 
     def test_configuration_updated_existing_node(self):
         """

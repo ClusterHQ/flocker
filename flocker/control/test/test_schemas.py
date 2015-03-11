@@ -88,6 +88,16 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'name': 'postgres',
             'ports': [{'internal': 80, 'external': 22.5}]
         },
+        # Ports given but not unique
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [
+                {'internal': 80, 'external': 8080},
+                {'internal': 80, 'external': 8080},
+            ]
+        },
     ],
     passing_instances=[
         {
