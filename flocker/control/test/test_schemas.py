@@ -74,6 +74,20 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'name': 'postgres',
             'ports': [{'internal': 80, 'external': '1'}]
         },
+        # Ports given but invalid key present
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'container': 80, 'external': '1'}]
+        },
+        # Ports given but external is not valid intgeger
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 80, 'external': 22.5}]
+        },
     ],
     passing_instances=[
         {
@@ -96,6 +110,15 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'image': 'postgres',
             'name': 'postgres',
             'ports': [{'internal': 80, 'external': 8080}]
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [
+                {'internal': 80, 'external': 8080},
+                {'internal': 3306, 'external': 42000}
+            ]
         },
     ],
 )

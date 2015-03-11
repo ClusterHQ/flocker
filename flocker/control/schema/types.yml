@@ -53,9 +53,9 @@ definitions:
       type: object
       properties:
         internal:
-          type: number
+          type: integer
         external:
-          type: number
+          type: integer
     uniqueItems: true
     
   container_name:
