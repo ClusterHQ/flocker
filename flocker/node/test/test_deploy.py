@@ -7,7 +7,6 @@ Tests for ``flocker.node._deploy``.
 from uuid import uuid4
 
 from zope.interface.verify import verifyObject
-from zope.interface import implementer
 
 from eliot.testing import validate_logging
 
@@ -164,40 +163,6 @@ class ControllableActionIStateChangeTests(
 NOT_CALLED = object()
 
 
-@implementer(IStateChange)
-class FakeChange(object):
-    """
-    A change that returns the given result and records the deployer.
-
-    :ivar deployer: The deployer passed to ``run()``, or ``NOT_CALLED``
-        before that.
-    """
-    def __init__(self, result):
-        """
-        :param Deferred result: The result to return from ``run()``.
-        """
-        self.result = result
-        self.deployer = NOT_CALLED
-
-    def run(self, deployer):
-        self.deployer = deployer
-        return self.result
-
-    def was_run_called(self):
-        """
-        Return whether or not run() has been called yet.
-
-        :return: ``True`` if ``run()`` was called, otherwise ``False``.
-        """
-        return self.deployer != NOT_CALLED
-
-    def __eq__(self, other):
-        return False
-
-    def __ne__(self, other):
-        return True
-
-
 class SequentiallyTests(SynchronousTestCase):
     """
     Tests for ``Sequentially``.
@@ -206,7 +171,8 @@ class SequentiallyTests(SynchronousTestCase):
         """
         ``Sequentially.run`` runs sub-changes with the given deployer.
         """
-        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=succeed(None)),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
         change.run(deployer)
@@ -218,7 +184,8 @@ class SequentiallyTests(SynchronousTestCase):
         The result of ``Sequentially.run`` fires when all changes are done.
         """
         not_done1, not_done2 = Deferred(), Deferred()
-        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        subchanges = [ControllableAction(result=not_done1),
+                      ControllableAction(result=not_done2)]
         change = Sequentially(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
@@ -236,17 +203,18 @@ class SequentiallyTests(SynchronousTestCase):
         # not_done, the second one will finish as soon as its run() is
         # called.
         not_done = Deferred()
-        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=not_done),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
-        # Run the sequential change. We expect the first FakeChange's
+        # Run the sequential change. We expect the first ControllableAction's
         # run() to be called, but we expect second one *not* to be called
         # yet, since first one has finished.
         change.run(deployer)
-        called = [subchanges[0].was_run_called(),
-                  subchanges[1].was_run_called()]
+        called = [subchanges[0].called,
+                  subchanges[1].called]
         not_done.callback(None)
-        called.append(subchanges[1].was_run_called())
+        called.append(subchanges[1].called)
         self.assertEqual(called, [True, False, True])
 
     def test_failure_stops_later_change(self):
@@ -255,14 +223,15 @@ class SequentiallyTests(SynchronousTestCase):
         continuing to run later changes.
         """
         not_done = Deferred()
-        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=not_done),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
-        called = [subchanges[1].was_run_called()]
+        called = [subchanges[1].called]
         exception = RuntimeError()
         not_done.errback(exception)
-        called.extend([subchanges[1].was_run_called(),
+        called.extend([subchanges[1].called,
                        self.failureResultOf(result).value])
         self.assertEqual(called, [False, False, exception])
 
@@ -275,7 +244,8 @@ class InParallelTests(SynchronousTestCase):
         """
         ``InParallel.run`` runs sub-changes with the given deployer.
         """
-        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=succeed(None)),
+                      ControllableAction(result=succeed(None))]
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
@@ -287,7 +257,8 @@ class InParallelTests(SynchronousTestCase):
         The result of ``InParallel.run`` fires when all changes are done.
         """
         not_done1, not_done2 = Deferred(), Deferred()
-        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        subchanges = [ControllableAction(result=not_done1),
+                      ControllableAction(result=not_done2)]
         change = InParallel(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
@@ -303,19 +274,20 @@ class InParallelTests(SynchronousTestCase):
         """
         # The first change will not finish immediately when run(), but we
         # expect the second one to be run() nonetheless.
-        subchanges = [FakeChange(Deferred()), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=Deferred()),
+                      ControllableAction(result=succeed(None))]
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
-        called = [subchanges[0].was_run_called(),
-                  subchanges[1].was_run_called()]
+        called = [subchanges[0].called,
+                  subchanges[1].called]
         self.assertEqual(called, [True, True])
 
     def test_failure_result(self):
         """
         ``InParallel.run`` returns the first failure.
         """
-        subchanges = [FakeChange(fail(RuntimeError()))]
+        subchanges = [ControllableAction(result=fail(RuntimeError()))]
         change = InParallel(changes=subchanges)
         result = change.run(object())
         failure = self.failureResultOf(result, FirstError)
@@ -328,9 +300,9 @@ class InParallelTests(SynchronousTestCase):
         logged.
         """
         subchanges = [
-            FakeChange(fail(ZeroDivisionError('e1'))),
-            FakeChange(fail(ZeroDivisionError('e2'))),
-            FakeChange(fail(ZeroDivisionError('e3'))),
+            ControllableAction(result=fail(ZeroDivisionError('e1'))),
+            ControllableAction(result=fail(ZeroDivisionError('e2'))),
+            ControllableAction(result=fail(ZeroDivisionError('e3'))),
         ]
         change = InParallel(changes=subchanges)
         result = change.run(deployer=object())
@@ -3030,7 +3002,9 @@ class ChangeNodeStateTests(SynchronousTestCase):
                               docker_client=FakeDockerClient(),
                               network=make_memory_network())
         self.patch(api, "calculate_necessary_state_changes",
-                   lambda *args, **kwargs: succeed(FakeChange(deferred)))
+                   lambda *args, **kwargs: succeed(
+                       ControllableAction(result=deferred))
+        )
         result = change_node_state(api, desired_configuration=EMPTY,
                                    current_cluster_state=EMPTY)
         deferred.callback(123)
@@ -3041,7 +3015,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
         The result of ``calculate_necessary_state_changes`` is called with the
         deployer.
         """
-        change = FakeChange(succeed(None))
+        change = ControllableAction(result=succeed(None))
         api = P2PNodeDeployer(u'node.example.com',
                               create_volume_service(self),
                               docker_client=FakeDockerClient(),
@@ -3071,7 +3045,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
                       current_cluster_state):
             arguments.extend([local_state, desired_configuration,
                               current_cluster_state])
-            return succeed(FakeChange(succeed(None)))
+            return succeed(ControllableAction(result=succeed(None)))
         api.calculate_necessary_state_changes = calculate
         change_node_state(api, desired, state)
         self.assertEqual(arguments, [local, desired, state])
