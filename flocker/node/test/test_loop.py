@@ -522,10 +522,11 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         update continues on to to next convergence iteration (i.e. stop
         ends up being ignored).
         """
-        local_state = object()
-        local_state2 = object()
-        configuration = object()
-        state = object()
+        local_state = NodeState(hostname=b'192.0.2.123')
+        local_state2 = NodeState(hostname=b'192.0.2.123')
+        configuration = Deployment(nodes=frozenset([local_state.to_node()]))
+        state = Deployment(nodes=frozenset([local_state.to_node()]))
+
         # Until this Deferred fires the first iteration won't finish:
         action = ControllableAction(Deferred())
         # Until this Deferred fires the second iteration won't finish:
@@ -542,8 +543,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # Calculating actions happened, action is run, but waits for
         # Deferred to be fired... Meanwhile a new status update appears!
         client2 = self.successful_amp_client([local_state2])
-        configuration2 = object()
-        state2 = object()
+        configuration2 = Deployment(nodes=frozenset([local_state.to_node()]))
+        state2 = Deployment(nodes=frozenset([local_state.to_node()]))
         loop.receive(ConvergenceLoopInputs.STOP)
         # And then another status update!
         loop.receive(_ClientStatusUpdate(
