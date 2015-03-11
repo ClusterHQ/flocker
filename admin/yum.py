@@ -36,6 +36,17 @@ def perform_download_packages_from_repository(dispatcher, intent):
     See :class:`DownloadPackagesFromRepository`.
     """
     # TODO don't use yum tools. Just download files.
+    import urllib2
+    import urllib
+    packages = ['clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
+                'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm']
+    for package in packages:
+        package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
+        url = intent.source_repo + '/' + package
+        urllib.urlretrieve(url, intent.target_path.child("clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm").path)
+
+    import pdb; pdb.set_trace()
+
     # yum_repo_config = intent.target_path.child(b'build.repo')
     # yum_repo_config.setContent(dedent(b"""
     #      [flocker]
