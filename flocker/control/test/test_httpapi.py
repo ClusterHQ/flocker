@@ -241,6 +241,15 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         return self._container_name_collision_test(self.NODE_A, self.NODE_B)
 
+    def test_create_container_with_conflicting_ports(self):
+        """
+        A valid API request to create a container including port mappings
+        that conflict with the ports used by an application already running on
+        the same node return an error and therefoer do not create the
+        container.
+        """
+        self.fail("not implemented yet")
+
     def test_create_container_with_ports(self):
         """
         A valid API request to create a container including port mappings
@@ -293,7 +302,6 @@ class CreateContainerTestsMixin(APITestsMixin):
                     Node(hostname=self.NODE_B),
                 }
             )
-            import pdb;pdb.set_trace()
             self.assertEqual(deployment, expected)
 
         saving.addCallback(created)
