@@ -231,6 +231,27 @@ class Cluster(object):
         request.addCallback(lambda response: (self, response))
         return request
 
+    def create_container(self, properties):
+        """
+        Create a container with the specified properties.
+
+        :param dict properties: A ``dict`` mapping to the API request fields
+            to create a container.
+
+        :returns: A tuple of (cluster, api_response)
+        """
+        request = post(
+            self.base_url + b"/configuration/containers",
+            data=dumps(properties),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        request.addCallback(content)
+        request.addCallback(loads)
+        request.addCallback(lambda response: (self, response))
+        return request
+
 
 def cluster_for_test(test_case, node_addresses):
     """
@@ -310,6 +331,36 @@ def wait_for_cluster(test_case, node_count):
     )
 
     return getting_nodes
+
+
+class ContainerAPITests(TestCase):
+    """
+    Tests for the container API.
+    """
+    def test_create_container_with_ports(self):
+        """
+        Create a container including port mappings on a single-node cluster.
+        """
+        data = {
+            u"name": "my_container",
+            u"host": None,
+            u"image": "clusterhq/flask:latest",
+            u"ports": [{u"internal": 80, u"external": 8080}]
+        }
+        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
+
+        def create_container(cluster, data):
+            data[u"host"] = cluster.nodes[0].address
+            return cluster.create_container(data)
+
+        d = waiting_for_cluster.addCallback(create_container, data)
+
+        def check_result(result):
+            response = result[1]
+            self.assertEqual(response, data)
+
+        d.addCallback(check_result)
+        return d
 
 
 class DatasetAPITests(TestCase):
