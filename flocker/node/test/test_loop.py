@@ -293,9 +293,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
     def test_convergence_done_update_local_state(self):
         """
-        An FSM doing convergence that gets a discovery result updates the local
-        representation of the cluster state before calculating necessary state
-        changes.
+        An FSM doing convergence that gets a discovery result supplies an
+        updated ``cluster_state`` to ``calculate_necessary_state_changes``.
         """
         local_node_hostname = u'192.0.2.123'
         # Control service reports that this node has no manifestations.
