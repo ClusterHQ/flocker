@@ -206,14 +206,14 @@ class CreateContainerTestsMixin(APITestsMixin):
         Utility method to create two containers on the specified nodes.
         """
         # create a container
-        self.assertResponseCode(
+        d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
                 u"host": node1, u"name": u"postgres", u"image": u"postgres"
             }, CREATED
         )
         # try to create another container with the same name
-        return self.assertResult(
+        d.addCallback(lambda _: self.assertResult(
             b"POST", b"/configuration/containers",
             {
                 u"host": node2,
@@ -224,7 +224,8 @@ class CreateContainerTestsMixin(APITestsMixin):
                 u'description':
                     u"The container name already exists.",
             }
-        )
+        ))
+        return d
 
     def test_container_name_collision_same_node(self):
         """
