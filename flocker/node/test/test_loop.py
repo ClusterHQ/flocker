@@ -286,18 +286,22 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
     def test_convergence_done_notify(self):
         """
-        A FSM doing convergence that gets a discovery result send the
+        A FSM doing convergence that gets a discovery result, sends the
         discovered state to the control service using the last received
         client.
         """
-        local_state = object()
+        local_state = NodeState(hostname=b'192.0.2.123')
         client = self.successful_amp_client([local_state])
         action = ControllableAction(Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
         loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(client=client,
-                                         configuration=object(),
-                                         state=object()))
+                                         configuration=Deployment(
+                                             nodes=frozenset([local_state.to_node()])
+                                         ),
+                                         state=Deployment(
+                                             nodes=frozenset([local_state.to_node()])
+                                         )))
         self.assertEqual(client.calls, [(NodeStateCommand,
                                          dict(node_state=local_state))])
 
