@@ -20,7 +20,8 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     ClusterStatus, ConvergenceLoop,
     )
-from .._deploy import IDeployer, IStateChange
+from .._deploy import IStateChange
+from ..testtools import ControllableDeployer
 from ...control import NodeState, Deployment, Node, Manifestation, Dataset
 from ...control._protocol import NodeStateCommand, _AgentLocator, AgentAMP
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
@@ -241,27 +242,6 @@ class ControllableAction(object):
         self.called = True
         self.deployer = deployer
         return self.result
-
-
-@implementer(IDeployer)
-class ControllableDeployer(object):
-    """
-    ``IDeployer`` whose results can be controlled.
-    """
-    def __init__(self, local_states, calculated_actions):
-        self.local_states = local_states
-        self.calculated_actions = calculated_actions
-        self.calculate_inputs = []
-
-    def discover_local_state(self):
-        return self.local_states.pop(0)
-
-    def calculate_necessary_state_changes(self, local_state,
-                                          desired_configuration,
-                                          cluster_state):
-        self.calculate_inputs.append(
-            (local_state, desired_configuration, cluster_state))
-        return self.calculated_actions.pop(0)
 
 
 class ConvergenceLoopFSMTests(SynchronousTestCase):
