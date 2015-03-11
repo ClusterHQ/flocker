@@ -264,9 +264,8 @@ class ConvergenceLoop(object):
         d = self.deployer.discover_local_state()
 
         def got_local_state(local_state):
-            # Update cluster_state here and then no need to pass local state to calculate_necessary_state_changes.
-            # Avoids having to modify all IDeployers and needs only one test.
-            # Add unit test for ConvergenceLoop
+            # Current cluster state is likely out of date as regards the
+            # local state, so update it accordingly:
             self.cluster_state = self.cluster_state.update_node(local_state.to_node())
             self.client.callRemote(NodeStateCommand, node_state=local_state)
             action = self.deployer.calculate_necessary_state_changes(
