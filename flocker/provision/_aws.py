@@ -10,6 +10,7 @@ from ._install import (
     task_install_ssh_key,
     task_upgrade_kernel,
     task_upgrade_selinux,
+    task_upgrade_kernel_centos,
 )
 
 
@@ -26,11 +27,20 @@ def provision_aws(node, package_source, distribution):
         address=node.address,
         commands=task_install_ssh_key(),
     )
-    run(
-        username='root',
-        address=node.address,
-        commands=task_upgrade_kernel(),
-    )
+
+    if distribution in ('centos-7',):
+        run(
+            username='root',
+            address=node.address,
+            commands=task_upgrade_kernel_centos(),
+        )
+        node.reboot()
+    elif distribution in ('fedora-20',):
+        run(
+            username='root',
+            address=node.address,
+            commands=task_upgrade_kernel(),
+        )
 
     node.reboot()
 
