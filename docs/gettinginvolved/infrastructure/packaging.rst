@@ -91,7 +91,7 @@ go to the relevant directory in `admin/release-packaging` and run:
 
    # Modify the below to reference the S3 key which should hold the package
    # using the release type and distro name.
-   export S3KEY=marketing/centos
+   export S3KEY=centos
    rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
    gsutil cp -a public-read results/noarch/$(rpm --query --specfile clusterhq-release.spec --queryformat '%{name}-%{version}-%{release}').noarch.rpm s3://clusterhq-archive/${S3KEY}/clusterhq-release.$(rpm -E %dist).noarch.rpm
 

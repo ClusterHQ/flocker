@@ -1,5 +1,0 @@
-[clusterhq]
-name=ClusterHQ development for Fedora $releasever
-baseurl=https://s3.amazonaws.com/clusterhq-archive/development/fedora/$releasever/$basearch/
-enabled=1
-gpgcheck=0
