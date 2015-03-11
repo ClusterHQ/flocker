@@ -382,15 +382,17 @@ class _PathMap(CheckedPMap):
 
 def pset_field(klass):
     """
-    Create a ``field`` containing a ``CheckedPSet`` of the given type.
+    Create checked ``PSet`` field that can serialize recursively.
+
+    :return: A ``field`` containing a ``CheckedPSet`` of the given type.
     """
     class TheSet(CheckedPSet):
         __type__ = klass
 
     def serializer(format, data):
         return [thaw(o) for o in data]
-    return field(type=TheSet, initial=TheSet(), factory=TheSet.create,
-                 mandatory=True, serializer=serializer)
+    return field(type=TheSet, factory=TheSet.create, serializer=serializer,
+                 mandatory=True, initial=TheSet())
 
 
 class NodeState(PRecord):

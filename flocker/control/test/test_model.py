@@ -6,7 +6,7 @@ Tests for ``flocker.node._model``.
 
 from uuid import uuid4
 
-from pyrsistent import InvariantException, pset
+from pyrsistent import InvariantException, pset, PRecord, PSet, field
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -15,7 +15,7 @@ from ...testtools import make_with_init_tests
 from .._model import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
-    NodeState,
+    NodeState, pset_field,
 )
 
 
@@ -388,3 +388,76 @@ class AttachedVolumeTests(SynchronousTestCase):
                                         primary=True),
             mountpoint=FilePath(b"/blah"))
         self.assertIs(volume.dataset, volume.manifestation.dataset)
+
+
+class PSetFieldTests(SynchronousTestCase):
+    """
+    Tests for ``pset_field``.
+
+    This will hopefully be contributed upstream to pyrsistent.
+    """
+    def test_initial_value(self):
+        """
+        ``pset_field`` results in initial value that is empty.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        assert Record() == Record(value=[])
+
+    def test_factory(self):
+        """
+        ``pset_field`` has a factory that creates a ``PSet``.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        record = Record(value=[1, 2])
+        assert isinstance(record.value, PSet)
+
+    def test_checked_set(self):
+        """
+        ``pset_field`` results in a set that enforces its type.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        record = Record(value=[1, 2])
+        self.assertRaises(TypeError, record.value.add, "hello")
+
+    def test_type(self):
+        """
+        ``pset_field`` enforces its type.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        record = Record()
+        self.assertRaises(TypeError, record.set, "value", None)
+
+    def test_serialize(self):
+        """
+        ``pset_field`` serializes.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        record = Record(value=[1, 2])
+        assert record.serialize() == {"value": [1, 2]}
+
+    def test_serialize_roundtrip(self):
+        """
+        ``pset_field`` can de-serialize ``PRecord`` instances.
+        """
+        class Child(PRecord):
+            value = field()
+
+        class Parent(PRecord):
+            children = pset_field(Child)
+
+        parent = Parent(children=[Child(value=123)])
+        assert Parent.create(parent.serialize()) == parent
+
+    def test_mandatory(self):
+        """
+        ``pset_field`` is a mandatory field.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        record = Record(value=[1])
+        self.assertRaises(InvariantException, record.remove, "value")
