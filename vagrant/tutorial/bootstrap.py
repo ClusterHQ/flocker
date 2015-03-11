@@ -24,12 +24,11 @@ zfs_repo_url = (
     'fedora/zfs-release%s.noarch.rpm') % (rpm_dist,)
 check_call(['yum', 'install', '-y',  zfs_repo_url])
 
-clusterhq_marketing_repo_url = (
+clusterhq_repo_url = (
     'https://s3.amazonaws.com/'
     'clusterhq-archive/'
-    'marketing/'
     'fedora/clusterhq-release%s.noarch.rpm') % (rpm_dist,)
-check_call(['yum', 'install', '-y', clusterhq_marketing_repo_url])
+check_call(['yum', 'install', '-y', clusterhq_repo_url])
 
 if branch:
     # If a branch is specified, add a repo pointing at the
