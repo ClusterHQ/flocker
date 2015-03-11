@@ -248,7 +248,13 @@ class CreateContainerTestsMixin(APITestsMixin):
         the same node return an error and therefoer do not create the
         container.
         """
-        self.fail("not implemented yet")
+        self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node1, u"name": u"postgres", u"image": u"postgres",
+                u"ports": [{'internal': 5432,'external': 54320}]
+            }, CREATED
+        )
 
     def test_create_container_with_ports(self):
         """
@@ -417,9 +423,13 @@ class CreateContainerTestsMixin(APITestsMixin):
             u"host": self.NODE_B, u"name": u"postgres",
             u"image": u"postgres"
         }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres:latest"
+        }
         return self.assertResult(
             b"POST", b"/configuration/containers",
-            container_json, CREATED, container_json
+            container_json, CREATED, container_json_result
         )
 
 

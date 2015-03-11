@@ -44,6 +44,9 @@ SCHEMAS = {
 CONTAINER_NAME_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The container name already exists."
 )
+CONTAINER_PORT_COLLISION = make_bad_request(
+    code=CONFLICT, description=u"A specified external port is already in use."
+)
 DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
 PRIMARY_NODE_NOT_FOUND = make_bad_request(
@@ -463,13 +466,19 @@ class ConfigurationAPIUserV1(object):
                 if application.name == name:
                     raise CONTAINER_NAME_COLLISION
 
+        # Find the node.
+        node = self._find_node_by_host(host, deployment)
+
         # Check if we have any ports in the request. If we do, check existing
         # external ports exposed to ensure there is no conflict. If there is a
         # conflict, return an error.
-        # TODO
 
-        # Find the node.
-        node = self._find_node_by_host(host, deployment)
+        if ports:
+            for port in ports:
+                for application in node.applications:
+                    for application_port in application.ports:
+                        if application_port.external_port == port['external']:
+                            raise CONTAINER_PORT_COLLISION
 
         # Create Application object, add to Deployment, save.
         application = Application(name=name,
@@ -488,9 +497,7 @@ class ConfigurationAPIUserV1(object):
 
         # Return passed in dictionary with CREATED response code.
         def saved(_):
-            result = {"host": host, "name": name, "image": image}
-            # add ports to result if ports were in the request
-            # TODO
+            result = container_configuration_response(application, host)
             return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
@@ -536,6 +543,29 @@ def datasets_from_deployment(deployment):
                 yield api_dataset_from_dataset_and_node(
                     manifestation.dataset, node.hostname
                 )
+
+
+def container_configuration_response(application, node):
+    """
+    Return a container dict  which confirms to
+    ``/v1/endpoints.json#/definitions/configuration_container``
+
+    :param Application application: An ``Application`` instance.
+    :param unicode node: The host on which this application is running.
+    :return: A ``dict`` containing the container configuration.
+    """
+    image = u'{0}:{1}'.format(
+        application.image.repository, application.image.tag)
+    result = {
+        "host": node, "name": application.name, "image": image
+    }
+    if application.ports:
+        result['ports'] = []
+        for port in application.ports:
+            result['ports'].append(dict(
+                internal=port.internal_port, external=port.external_port
+            ))
+    return result
 
 
 def api_dataset_from_dataset_and_node(dataset, node_hostname):
