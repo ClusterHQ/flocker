@@ -242,17 +242,15 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         return self._container_name_collision_test(self.NODE_A, self.NODE_B)
 
-    def test_create_container_with_conflicting_ports(self):
+    def _test_conflicting_ports(self, node1, node2):
         """
-        A valid API request to create a container including port mappings
-        that conflict with the ports used by an application already running on
-        the same node return an error and therefoer do not create the
-        container.
+        Utility method to create two containers with the same ports on two
+        nodes.
         """
         d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"postgres",
+                u"host": node1, u"name": u"postgres",
                 u"image": u"postgres",
                 u"ports": [{u'internal': 5432, u'external': 54320}]
             }, CREATED
@@ -261,7 +259,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d.addCallback(lambda _: self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A,
+                u"host": node2,
                 u"name": u'another_postgres',
                 u'image': u'postgres',
                 u'ports': [{u'internal': 5432, u'external': 54320}]
@@ -272,6 +270,24 @@ class CreateContainerTestsMixin(APITestsMixin):
             }
         ))
         return d
+
+    def test_create_container_with_conflicting_ports_different_node(self):
+        """
+        A valid API request to create a container including port mappings
+        that conflict with the ports used by an application already running on
+        the same node return an error and therefoer do not create the
+        container.
+        """
+        return self._test_conflicting_ports(self.NODE_A, self.NODE_B)
+
+    def test_create_container_with_conflicting_ports(self):
+        """
+        A valid API request to create a container including port mappings
+        that conflict with the ports used by an application already running on
+        the same node return an error and therefoer do not create the
+        container.
+        """
+        return self._test_conflicting_ports(self.NODE_A, self.NODE_A)
 
     def test_create_container_with_ports(self):
         """

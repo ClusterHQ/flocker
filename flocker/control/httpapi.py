@@ -440,7 +440,7 @@ class ConfigurationAPIUserV1(object):
             '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
         schema_store=SCHEMAS
     )
-    def create_container_configuration(self, host, name, image, ports=None):
+    def create_container_configuration(self, host, name, image, ports=()):
         """
         Create a new dataset in the cluster configuration.
 
@@ -452,6 +452,9 @@ class ConfigurationAPIUserV1(object):
 
         :param unicode image: The name of the Docker image to use for the
             container.
+
+        :param list ports: A ``list`` of ``dict`` objects, mapping internal
+            to external ports for the container.
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -473,26 +476,27 @@ class ConfigurationAPIUserV1(object):
         # external ports exposed to ensure there is no conflict. If there is a
         # conflict, return an error.
 
-        if ports:
-            for port in ports:
-                for application in node.applications:
+        for port in ports:
+            for current_node in deployment.nodes:
+                for application in current_node.applications:
                     for application_port in application.ports:
                         if application_port.external_port == port['external']:
                             raise CONTAINER_PORT_COLLISION
 
-        # Create Application object, add to Deployment, save.
-        application = Application(name=name,
-                                  image=DockerImage.from_string(image))
-
         # If we have ports specified, add these to the Application instance.
-        if ports:
-            application_ports = []
-            for port in ports:
-                application_ports.append(Port(
-                    internal_port=port['internal'],
-                    external_port=port['external']
-                ))
-            application.ports = frozenset(application_ports)
+        application_ports = []
+        for port in ports:
+            application_ports.append(Port(
+                internal_port=port['internal'],
+                external_port=port['external']
+            ))
+
+        # Create Application object, add to Deployment, save.
+        application = Application(
+            name=name,
+            image=DockerImage.from_string(image),
+            ports=frozenset(application_ports)
+        )
 
         new_node_config = node.transform(
             ["applications"],
@@ -561,10 +565,9 @@ def container_configuration_response(application, node):
     :param unicode node: The host on which this application is running.
     :return: A ``dict`` containing the container configuration.
     """
-    image = u'{0}:{1}'.format(
-        application.image.repository, application.image.tag)
     result = {
-        "host": node, "name": application.name, "image": image
+        "host": node, "name": application.name,
+        "image": application.image.full_name
     }
     if application.ports:
         result['ports'] = []

@@ -49,8 +49,10 @@ definitions:
     title: "Container ports"
     description: "Mapping of internal to external ports."
     type: array
+    minItems: 1
     items:
       type: object
+      additionalProperties: false
       properties:
         internal:
           type: integer
