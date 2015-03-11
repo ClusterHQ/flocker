@@ -270,6 +270,27 @@
 
     {"host": "%(NODE_0)s",
      "name": "webserver",
+     "image": "nginx:latest"}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest"}  
+
+-
+  id:
+    "create container with ports"
+
+  doc: |
+    Create a new container with port mappings.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
      "image": "nginx:latest",
      "ports": [{"internal": 80, "external": 8080}]}
 

@@ -431,6 +431,7 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"create container",
             u"create container with duplicate name",
+            u"create container with ports"
         ]
     )
     @structured(
