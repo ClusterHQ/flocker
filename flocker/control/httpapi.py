@@ -500,6 +500,7 @@ class DatasetAPIUserV1(object):
         """,
         examples=[
             u"remove a container",
+            u"remove a container with unknown name",
         ]
     )
     @structured(
