@@ -18,6 +18,7 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import P2PNodeDeployer, change_node_state
+from ..testtools import ControllableDeployer
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState)
@@ -3408,6 +3409,19 @@ class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
                                      create_volume_service(test),
                                      FakeDockerClient(),
                                      make_memory_network()))):
+    """
+    ``IDeployer`` tests for ``P2PNodeDeployer``.
+    """
+
+
+class ControllableDeployerInterfaceTests(
+        ideployer_tests_factory(
+            lambda test: ControllableDeployer(
+                local_states=[],
+                calculated_actions=[],
+            )
+        )
+):
     """
     ``IDeployer`` tests for ``P2PNodeDeployer``.
     """

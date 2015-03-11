@@ -334,6 +334,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             local_node_state.to_node()
         )
         [calculate_necessary_state_changes_inputs] = deployer.calculate_inputs
+
         (actual_local_state,
          actual_desired_configuration,
          actual_cluster_state) = calculate_necessary_state_changes_inputs
