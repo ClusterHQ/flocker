@@ -249,13 +249,29 @@ class CreateContainerTestsMixin(APITestsMixin):
         the same node return an error and therefoer do not create the
         container.
         """
-        self.assertResponseCode(
+        d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": node1, u"name": u"postgres", u"image": u"postgres",
-                u"ports": [{'internal': 5432,'external': 54320}]
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"ports": [{u'internal': 5432, u'external': 54320}]
             }, CREATED
         )
+        # try to create another container with the same ports
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A,
+                u"name": u'another_postgres',
+                u'image': u'postgres',
+                u'ports': [{u'internal': 5432, u'external': 54320}]
+            },
+            CONFLICT, {
+                u'description':
+                    u"A specified external port is already in use.",
+            }
+        ))
+        return d
 
     def test_create_container_with_ports(self):
         """
@@ -326,9 +342,13 @@ class CreateContainerTestsMixin(APITestsMixin):
             u"host": self.NODE_B, u"name": u"postgres",
             u"image": u"postgres", u"ports": ports
         }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres:latest", u"ports": ports
+        }
         return self.assertResult(
             b"POST", b"/configuration/containers",
-            container_json, CREATED, container_json
+            container_json, CREATED, container_json_result
         )
 
     def test_configuration_updated_existing_node(self):

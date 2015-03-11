@@ -24,7 +24,7 @@ from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
 from . import (
-    Dataset, Manifestation, Node, Application, DockerImage
+    Dataset, Manifestation, Node, Application, DockerImage, Port
 )
 from .. import __version__
 
@@ -485,7 +485,14 @@ class ConfigurationAPIUserV1(object):
                                   image=DockerImage.from_string(image))
 
         # If we have ports specified, add these to the Application instance.
-        # TODO
+        if ports:
+            application_ports = []
+            for port in ports:
+                application_ports.append(Port(
+                    internal_port=port['internal'],
+                    external_port=port['external']
+                ))
+            application.ports = frozenset(application_ports)
 
         new_node_config = node.transform(
             ["applications"],
