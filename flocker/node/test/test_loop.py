@@ -5,7 +5,6 @@ Tests for ``flocker.node._loop``.
 """
 
 from uuid import uuid4
-from zope.interface import implementer
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
@@ -20,8 +19,7 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     ClusterStatus, ConvergenceLoop,
     )
-from .._deploy import IStateChange
-from ..testtools import ControllableDeployer
+from ..testtools import ControllableDeployer, ControllableAction
 from ...control import NodeState, Deployment, Node, Manifestation, Dataset
 from ...control._protocol import NodeStateCommand, _AgentLocator, AgentAMP
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
@@ -226,22 +224,6 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(_StatusUpdate(configuration=desired, state=state))
         # We never send anything to convergence loop FSM:
         self.assertConvergenceLoopInputted([])
-
-
-@implementer(IStateChange)
-class ControllableAction(object):
-    """
-    ``IStateChange`` whose results can be controlled.
-    """
-    def __init__(self, result):
-        self.result = result
-        self.called = False
-        self.deployer = None
-
-    def run(self, deployer):
-        self.called = True
-        self.deployer = deployer
-        return self.result
 
 
 class ConvergenceLoopFSMTests(SynchronousTestCase):

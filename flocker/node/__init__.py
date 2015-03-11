@@ -4,8 +4,10 @@
 Local node manager for Flocker.
 """
 
-from ._deploy import P2PNodeDeployer, change_node_state, IDeployer
+from ._deploy import (
+    P2PNodeDeployer, change_node_state, IDeployer, IStateChange
+)
 
 __all__ = [
-    'P2PNodeDeployer', 'change_node_state', 'IDeployer'
+    'P2PNodeDeployer', 'change_node_state', 'IDeployer', 'IStateChange'
 ]
