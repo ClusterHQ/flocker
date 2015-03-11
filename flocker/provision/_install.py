@@ -19,9 +19,10 @@ ZFS_REPO = {
     'centos-7': "http://archive.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm"
 }
 CLUSTERHQ_REPO = {
-    'fedora-20': "https://storage.googleapis.com/archive.clusterhq.com/"
+    'fedora-20': "https://s3.amazonaws.com/clusterhq-archive/"
                  "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm",
-    'centos-7': "does-not-exist",
+    'centos-7': "https://s3.amazonaws.com/clusterhq-archive/"
+                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm",
 }
 
 
