@@ -3417,11 +3417,11 @@ class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
 class ControllableDeployerInterfaceTests(
         ideployer_tests_factory(
             lambda test: ControllableDeployer(
-                local_states=[],
-                calculated_actions=[],
+                local_states=[succeed(NodeState(hostname=b'192.0.2.123'))],
+                calculated_actions=[InParallel(changes=[])],
             )
         )
 ):
     """
-    ``IDeployer`` tests for ``P2PNodeDeployer``.
+    ``IDeployer`` tests for ``ControllableDeployer``.
     """
