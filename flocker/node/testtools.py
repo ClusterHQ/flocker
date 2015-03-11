@@ -12,6 +12,8 @@ from unittest import skipUnless
 
 from zope.interface import implementer
 
+from characteristic import attributes
+
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
 from ..testtools import loop_until
@@ -73,14 +75,13 @@ def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
 
 
 @implementer(IStateChange)
+@attributes(['result'])
 class ControllableAction(object):
     """
     ``IStateChange`` whose results can be controlled.
     """
-    def __init__(self, result):
-        self.result = result
-        self.called = False
-        self.deployer = None
+    called = False
+    deployer = None
 
     def run(self, deployer):
         self.called = True

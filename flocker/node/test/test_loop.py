@@ -274,7 +274,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         local_state = NodeState(hostname=b'192.0.2.123')
         client = self.successful_amp_client([local_state])
-        action = ControllableAction(Deferred())
+        action = ControllableAction(result=Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
         loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(client=client,
@@ -308,7 +308,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             manifestations=[discovered_manifestation]
         )
         client = self.successful_amp_client([local_node_state])
-        action = ControllableAction(Deferred())
+        action = ControllableAction(result=Deferred())
         deployer = ControllableDeployer([succeed(local_node_state)], [action])
 
         fsm = build_convergence_loop_fsm(Clock(), deployer)
@@ -340,7 +340,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # Since this Deferred is unfired we never proceed to next
         # iteration; if we did we'd get exception from discovery since we
         # only configured one discovery result.
-        action = ControllableAction(Deferred())
+        action = ControllableAction(result=Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
         loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(
@@ -361,7 +361,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state = NodeState(hostname=b'192.0.2.123')
         configuration = object()
         received_state = Deployment(nodes=frozenset())
-        action = ControllableAction(succeed(None))
+        action = ControllableAction(result=succeed(None))
         deployer = ControllableDeployer([succeed(local_state)], [action])
         client = self.successful_amp_client([local_state])
         reactor = Clock()
@@ -386,11 +386,11 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state2 = NodeState(hostname=b'192.0.2.123')
         configuration = Deployment(nodes=frozenset([local_state.to_node()]))
         state = Deployment(nodes=frozenset([local_state.to_node()]))
-        action = ControllableAction(succeed(None))
+        action = ControllableAction(result=succeed(None))
         # Because the second action result is unfired Deferred, the second
         # iteration will never finish; applying its changes waits for this
         # Deferred to fire.
-        action2 = ControllableAction(Deferred())
+        action2 = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
@@ -419,9 +419,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         configuration = Deployment(nodes=frozenset([local_state.to_node()]))
         state = Deployment(nodes=frozenset([local_state.to_node()]))
         # Until this Deferred fires the first iteration won't finish:
-        action = ControllableAction(Deferred())
+        action = ControllableAction(result=Deferred())
         # Until this Deferred fires the second iteration won't finish:
-        action2 = ControllableAction(Deferred())
+        action2 = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
@@ -461,7 +461,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         state = Deployment(nodes=frozenset([local_state.to_node()]))
 
         # Until this Deferred fires the first iteration won't finish:
-        action = ControllableAction(Deferred())
+        action = ControllableAction(result=Deferred())
         # Only one discovery result is configured, so a second attempt at
         # discovery would fail:
         deployer = ControllableDeployer([succeed(local_state)],
@@ -510,9 +510,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         state = Deployment(nodes=frozenset([local_state.to_node()]))
 
         # Until this Deferred fires the first iteration won't finish:
-        action = ControllableAction(Deferred())
+        action = ControllableAction(result=Deferred())
         # Until this Deferred fires the second iteration won't finish:
-        action2 = ControllableAction(Deferred())
+        action2 = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
