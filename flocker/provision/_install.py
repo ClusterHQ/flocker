@@ -11,26 +11,18 @@ from textwrap import dedent
 from urlparse import urljoin
 from characteristic import attributes
 
-from flocker import __version__ as flocker_version
-from flocker.docs import get_doc_version, is_release
 from ._common import PackageSource
 
 ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
             "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
 
-if is_release(get_doc_version(flocker_version)):
-    key = 'marketing'
-else:
-    key = 'development'
-
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
 CLUSTERHQ_REPO = (
     "https://s3.amazonaws.com/{archive_bucket}/"
-    "{key}/fedora/"
+    "/centos/"
     "clusterhq-release$(rpm -E %dist).noarch.rpm").format(
         archive_bucket=ARCHIVE_BUCKET,
-        key=key,
         )
 
 
