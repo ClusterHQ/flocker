@@ -1,7 +1,7 @@
 # See README for instructions on how to build.
 Name:           clusterhq-release
 Version:        1
-Release:        4%{?dist}
+Release:        7%{?dist}
 Summary:        ClusterHQ Repository Configuration
 
 License:        ASL 2.0
@@ -23,6 +23,12 @@ install -m 644 clusterhq.repo $RPM_BUILD_ROOT/etc/yum.repos.d
 
 
 %changelog
+* Wed Mar 11 2015 Tom Prince <tom.prince@clusterhq.com> - 1-7
+- Combine marketing and development packages.
+
+* Mon Mar 9 2015 Adam Dangoor <adam.dangoor@clusterhq.com> - 1-6
+- Use development repository location.
+
 * Sun Mar 8 2015 Adam Dangoor <adam.dangoor@clusterhq.com> - 1-5
 - Support CentOS 7.
 - New location for repository - Amazon S3.
