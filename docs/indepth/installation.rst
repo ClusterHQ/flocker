@@ -126,9 +126,10 @@ It is also possible to deploy Flocker in the cloud, on a number of different pro
 - :ref:`Using DigitalOcean <digitalocean-install>`
 - :ref:`Using Rackspace <rackspace-install>`
 
-It is also possible to install Flocker on any Fedora 20 machine.
+It is also possible to install Flocker on any Fedora 20 or CentOS 7 machine.
 
 - :ref:`Installing on Fedora 20 <fedora-20-install>`
+- :ref:`Installing on CentOS 7 <centos-7-install>`
 
 
 .. _vagrant-install:
@@ -373,6 +374,8 @@ Paste them into a root console on the target node:
 .. task:: install_flocker centos-7
    :prompt: [root@node]#
 
+
+.. _centos-7-install:
 
 Post installation configuration for Fedora 20 and CentOS 7
 ----------------------------------------------------------
