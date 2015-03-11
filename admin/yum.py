@@ -35,31 +35,32 @@ def perform_download_packages_from_repository(dispatcher, intent):
     """
     See :class:`DownloadPackagesFromRepository`.
     """
-    yum_repo_config = intent.target_path.child(b'build.repo')
-    yum_repo_config.setContent(dedent(b"""
-         [flocker]
-         name=flocker
-         baseurl=%s
-         """) % (intent.source_repo,))
-
-    check_call([
-        b'yum',
-        b'--config', yum_repo_config.path,
-        b'--disablerepo=*',
-        b'--enablerepo=flocker',
-        b'--quiet',
-        b'clean',
-        b'metadata'])
-
-    check_call([
-        b'yumdownloader',
-        b'--config', yum_repo_config.path,
-        b'--disablerepo=*',
-        b'--enablerepo=flocker',
-        b'--quiet',
-        b'--destdir', intent.target_path.path] + intent.packages)
-
-    yum_repo_config.remove()
+    # TODO don't use yum tools. Just download files.
+    # yum_repo_config = intent.target_path.child(b'build.repo')
+    # yum_repo_config.setContent(dedent(b"""
+    #      [flocker]
+    #      name=flocker
+    #      baseurl=%s
+    #      """) % (intent.source_repo,))
+    #
+    # check_call([
+    #     b'yum',
+    #     b'--config', yum_repo_config.path,
+    #     b'--disablerepo=*',
+    #     b'--enablerepo=flocker',
+    #     b'--quiet',
+    #     b'clean',
+    #     b'metadata'])
+    #
+    # check_call([
+    #     b'yumdownloader',
+    #     b'--config', yum_repo_config.path,
+    #     b'--disablerepo=*',
+    #     b'--enablerepo=flocker',
+    #     b'--quiet',
+    #     b'--destdir', intent.target_path.path] + intent.packages)
+    #
+    # yum_repo_config.remove()
 
 
 @attributes([
