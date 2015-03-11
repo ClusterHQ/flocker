@@ -20,7 +20,7 @@ yum install -y \
 	docker \
 	python-devel python-tox \
 	python-virtualenv python-virtualenvwrapper python-pip \
-  enchant \
+	enchant \
 	libffi-devel openssl-devel \
 	yum-utils \
 	pypy pypy-devel
