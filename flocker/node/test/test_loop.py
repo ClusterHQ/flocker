@@ -474,9 +474,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         A FSM doing convergence that receives a stop input stops when the
         convergence iteration finishes.
         """
-        local_state = object()
-        configuration = object()
-        state = object()
+        local_state = NodeState(hostname=b'192.0.2.123')
+        configuration = Deployment(nodes=frozenset([local_state.to_node()]))
+        state = Deployment(nodes=frozenset([local_state.to_node()]))
+
         # Until this Deferred fires the first iteration won't finish:
         action = ControllableAction(Deferred())
         # Only one discovery result is configured, so a second attempt at
