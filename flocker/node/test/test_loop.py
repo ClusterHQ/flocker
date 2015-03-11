@@ -400,10 +400,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         After a short delay, an FSM completing the changes from one convergence
         iteration starts another iteration.
         """
-        local_state = object()
-        local_state2 = object()
-        configuration = object()
-        state = object()
+        local_state = NodeState(hostname=b'192.0.2.123')
+        local_state2 = NodeState(hostname=b'192.0.2.123')
+        configuration = Deployment(nodes=frozenset([local_state.to_node()]))
+        state = Deployment(nodes=frozenset([local_state.to_node()]))
         action = ControllableAction(succeed(None))
         # Because the second action result is unfired Deferred, the second
         # iteration will never finish; applying its changes waits for this
