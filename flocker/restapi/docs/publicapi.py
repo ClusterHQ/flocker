@@ -100,6 +100,10 @@ def _parseSchema(schema, schema_store):
     """
     Parse a JSON Schema and return some information to document it.
 
+    This supports only two kinds of schemas: objects, and arrays of a
+    single kind of object. If your schema is more complex you may need to
+    expand this code to address that.
+
     @param schema: L{dict} representing a JSON Schema.
 
     @param dict schema_store: A mapping between schema paths
@@ -126,8 +130,6 @@ def _parseSchema(schema, schema_store):
         fill_in_result(schema)
     elif schema[u"type"] == u"array":
         result["type"] = "array"
-        # Assume children of array are objects, and there's only one
-        # kind allowed.
         child_schema = schema[u"items"]
         if child_schema.get("type") == "object":
             fill_in_result(child_schema)
@@ -202,6 +204,8 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
 def _formatSchema(data, incoming):
     """
     Generate the rst associated to a JSON schema.
+
+    See sphinxcontrib-httpdomain documentation for details.
 
     :param data: See L{inspectRoute}.
     :param bool incoming: If True, this is request parameter, otherwise
@@ -324,14 +328,10 @@ def _formatRouteBody(data, schema_store):
             yield line
 
     if 'input' in data:
-        # <json is what sphinxcontrib-httpdomain wants to call "json in a
-        # request body"
         for line in _formatSchema(data['input'], True):
             yield line
 
     if 'output' in data:
-        # >json is what sphinxcontrib-httpdomain wants to call "json in a
-        # response body"
         for line in _formatSchema(data['output'], False):
             yield line
 

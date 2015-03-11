@@ -335,7 +335,7 @@ class MakeRstTests(SynchronousTestCase):
             },
         }}
 
-    def test_ouputSchema(self):
+    def test_outputSchema(self):
         """
         The generated API documentation includes the output schema.
         """
@@ -407,9 +407,10 @@ class MakeRstTests(SynchronousTestCase):
             },
         }}
 
-    def test_ouputArraySchema(self):
+    def test_outputArraySchema(self):
         """
-        The generated API documentation includes the output schema.
+        The generated API documentation includes the output schema in cases
+        where the output is an array.
         """
         app = Klein()
 
