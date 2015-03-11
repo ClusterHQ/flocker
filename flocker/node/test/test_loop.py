@@ -10,6 +10,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred
+from twisted.internet.task import Clock
 
 from ...testtools import FakeAMPClient
 from .._loop import (
@@ -269,7 +270,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         A newly created FSM is stopped.
         """
-        loop = build_convergence_loop_fsm(ControllableDeployer([], []))
+        loop = build_convergence_loop_fsm(
+            Clock(), ControllableDeployer([], [])
+        )
         self.assertEqual(loop.state, ConvergenceLoopStates.STOPPED)
 
     def test_new_status_update_starts_discovery(self):
@@ -277,7 +280,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         A stopped FSM that receives a status update starts discovery.
         """
         deployer = ControllableDeployer([Deferred()], [])
-        loop = build_convergence_loop_fsm(deployer)
+        loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(client=object(),
                                          configuration=object(),
                                          state=object()))
@@ -309,7 +312,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         client = self.successful_amp_client([local_state])
         action = ControllableAction(Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
-        loop = build_convergence_loop_fsm(deployer)
+        loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(client=client,
                                          configuration=object(),
                                          state=object()))
@@ -330,7 +333,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # only configured one discovery result.
         action = ControllableAction(Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
-        loop = build_convergence_loop_fsm(deployer)
+        loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(
             client=self.successful_amp_client([local_state]),
             configuration=configuration, state=state))
@@ -338,10 +341,32 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertEqual((deployer.calculate_inputs, action.called),
                          ([(local_state, configuration, state)], True))
 
+    def test_convergence_done_delays_new_iteration(self):
+        """
+        An FSM completing the changes from one convergence iteration doesn't
+        instantly start another iteration.
+        """
+        local_state = object()
+        configuration = object()
+        state = object()
+        action = ControllableAction(succeed(None))
+        deployer = ControllableDeployer([succeed(local_state)], [action])
+        client = self.successful_amp_client([local_state])
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+        # Calculating actions happened and the result was run.
+        self.assertEqual(
+            (deployer.calculate_inputs, client.calls),
+            ([(local_state, configuration, state)],
+             [(NodeStateCommand, dict(node_state=local_state))])
+        )
+
     def test_convergence_done_start_new_iteration(self):
         """
-        A FSM doing a convergence iteration does another iteration when
-        applying changes is done.
+        After a short delay, an FSM completing the changes from one convergence
+        iteration starts another iteration.
         """
         local_state = object()
         local_state2 = object()
@@ -356,9 +381,11 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
         client = self.successful_amp_client([local_state, local_state2])
-        loop = build_convergence_loop_fsm(deployer)
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
+        reactor.advance(1.0)
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
         self.assertEqual((deployer.calculate_inputs, client.calls),
@@ -385,7 +412,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
         client = self.successful_amp_client([local_state])
-        loop = build_convergence_loop_fsm(deployer)
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
 
@@ -400,6 +428,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # which happens with second set of client, desired configuration
         # and cluster state:
         action.result.callback(None)
+        reactor.advance(1.0)
+
         self.assertEqual(
             (deployer.calculate_inputs, client.calls, client2.calls),
             ([(local_state, configuration, state),
@@ -422,23 +452,36 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         deployer = ControllableDeployer([succeed(local_state)],
                                         [action])
         client = self.successful_amp_client([local_state])
-        loop = build_convergence_loop_fsm(deployer)
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
 
         # Calculating actions happened, action is run, but waits for
         # Deferred to be fired... Meanwhile a stop input is received!
         loop.receive(ConvergenceLoopInputs.STOP)
-        # Action finally finishes, and nothing more happens; if another
-        # iteration did happen the loop would attempt discovery, which
-        # would make deployer.discover_local_state() to fail since it was
-        # only configured with one result.
+        # Action finally finishes:
         action.result.callback(None)
-        self.assertEqual(
-            (deployer.calculate_inputs, client.calls, loop.state),
-            ([(local_state, configuration, state)],
-             [(NodeStateCommand, dict(node_state=local_state))],
-             ConvergenceLoopStates.STOPPED))
+        reactor.advance(1.0)
+
+        # work is scheduled:
+        expected = (
+            # The actions are calculated
+            [(local_state, configuration, state)],
+            # And the result is run
+            [(NodeStateCommand, dict(node_state=local_state))],
+            # The state machine gets to the desired state.
+            ConvergenceLoopStates.STOPPED,
+            # And no subsequent work is scheduled to be run.
+            [],
+        )
+        actual = (
+            deployer.calculate_inputs,
+            client.calls,
+            loop.state,
+            reactor.getDelayedCalls(),
+        )
+        self.assertEqual(expected, actual)
 
     def test_convergence_stop_then_status_update(self):
         """
@@ -458,7 +501,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
         client = self.successful_amp_client([local_state])
-        loop = build_convergence_loop_fsm(deployer)
+        reactor = Clock()
+        loop = build_convergence_loop_fsm(reactor, deployer)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=state))
 
@@ -475,6 +519,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # which happens with second set of client, desired configuration
         # and cluster state:
         action.result.callback(None)
+        reactor.advance(1.0)
         self.assertEqual(
             (deployer.calculate_inputs, client.calls, client2.calls),
             ([(local_state, configuration, state),
