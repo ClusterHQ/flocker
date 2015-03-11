@@ -147,11 +147,18 @@ DeleteDatasetTests = make_istatechange_tests(
     DeleteDataset,
     dict(dataset=Dataset(dataset_id=unicode(uuid4()))),
     dict(dataset=Dataset(dataset_id=unicode(uuid4()))))
-ControllableActionIStateChangeTests = make_istatechange_tests(
-    ControllableAction,
-    kwargs1=dict(result=1),
-    kwargs2=dict(result=2),
-)
+
+
+class ControllableActionIStateChangeTests(
+        make_istatechange_tests(
+            ControllableAction,
+            kwargs1=dict(result=1),
+            kwargs2=dict(result=2),
+        )
+):
+    """
+    Tests for ``ControllableAction``.
+    """
 
 
 NOT_CALLED = object()
