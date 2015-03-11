@@ -51,8 +51,11 @@ definitions:
     type: array
     items:
       type: object
-      # probably more definition here
-    minItems: 1,
+      properties:
+        internal:
+          type: number
+        external:
+          type: number
     uniqueItems: true
     
   container_name:
