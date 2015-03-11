@@ -160,9 +160,6 @@ class ControllableActionIStateChangeTests(
     """
 
 
-NOT_CALLED = object()
-
-
 class SequentiallyTests(SynchronousTestCase):
     """
     Tests for ``Sequentially``.
@@ -3001,9 +2998,12 @@ class ChangeNodeStateTests(SynchronousTestCase):
                               create_volume_service(self),
                               docker_client=FakeDockerClient(),
                               network=make_memory_network())
-        self.patch(api, "calculate_necessary_state_changes",
-                   lambda *args, **kwargs: succeed(
-                       ControllableAction(result=deferred))
+        self.patch(
+            api,
+            "calculate_necessary_state_changes",
+            lambda *args, **kwargs: succeed(
+                ControllableAction(result=deferred)
+            )
         )
         result = change_node_state(api, desired_configuration=EMPTY,
                                    current_cluster_state=EMPTY)
