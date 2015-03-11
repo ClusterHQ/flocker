@@ -18,11 +18,6 @@ build_server = sys.argv[3] or 'http://build.clusterhq.com/'
 
 # Make it possible to install flocker-node
 rpm_dist = check_output(['rpm', '-E', '%dist']).strip()
-# zfs_repo_url = (
-#     'https://s3.amazonaws.com/'
-#     'archive.zfsonlinux.org/'
-#     'fedora/zfs-release%s.noarch.rpm') % (rpm_dist,)
-# check_call(['yum', 'install', '-y',  zfs_repo_url])
 
 # This uses development repo, because the marketing one has not been set up yet
 # this should be changed before merging.
