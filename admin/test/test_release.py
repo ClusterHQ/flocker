@@ -1290,8 +1290,6 @@ class UploadRPMsTests(TestCase):
         files = [
             'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
-            'repodata/1988e623dfb7204ec981d2a2ab1a38da6c0f742717d184088dd0a0f344f6e89c-filelists.sqlite.bz2',  # noqa
-            'repodata/2fb86263316de187636c8949988ab6fd72604329a7300ae490bc091d0d23e69c-other.sqlite.bz2',  # noqa
             'repodata/9bd2f440089b24817e38898e81adba7739b1a904533528819574528698828750-filelists.xml.gz',  # noqa
             'repodata/e8671396d8181102616d45d4916fe74fb886c6f9dfcb62df546e258e830cb11c-other.xml.gz',  # noqa
             'repodata/repomd.xml'

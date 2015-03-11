@@ -192,13 +192,14 @@ def perform_download_s3_key_recursively(dispatcher, intent):
     for key in keys:
         if not key.endswith(intent.filter_extensions):
             continue
-        path = FilePath(os.path.join(intent.target_path.path, key))
+        path = intent.target_path.preauthChild(key)
 
         if not path.parent().exists():
             path.parent().makedirs()
+        source_key = os.path.join(intent.source_prefix, key)
         yield Effect(
             DownloadS3Key(source_bucket=intent.source_bucket,
-                          source_key=os.path.join(intent.source_prefix, key),
+                          source_key=source_key,
                           target_path=path))
 
 
@@ -256,7 +257,7 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
     See :class:`UploadToS3Recursively`.
     """
     for path in intent.source_path.walk():
-        if os.path.basename(path.path) in intent.files:
+        if path.basename() in intent.files:
             if path.isfile():
                 yield Effect(
                     UploadToS3(
@@ -399,6 +400,7 @@ class FakeAWS(object):
         Get an :module:`effect` dispatcher for interacting with this
         :class:`FakeAWS`.
         """
+        # TODO make it more explicit what is real and what is fake
         return TypeDispatcher({
             UpdateS3RoutingRule: self._perform_update_s3_routing_rule,
             ListS3Keys: self._perform_list_s3_keys,
