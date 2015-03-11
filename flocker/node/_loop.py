@@ -324,7 +324,7 @@ def build_convergence_loop_fsm(reactor, deployer):
     loop = ConvergenceLoop(reactor, deployer)
     fsm = constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
-        richInputs=[_ClientStatusUpdate], inputContext ={},
+        richInputs=[_ClientStatusUpdate], inputContext={},
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm

@@ -277,13 +277,17 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         action = ControllableAction(result=Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
         loop = build_convergence_loop_fsm(Clock(), deployer)
-        loop.receive(_ClientStatusUpdate(client=client,
-                                         configuration=Deployment(
-                                             nodes=frozenset([local_state.to_node()])
-                                         ),
-                                         state=Deployment(
-                                             nodes=frozenset([local_state.to_node()])
-                                         )))
+        loop.receive(
+            _ClientStatusUpdate(
+                client=client,
+                configuration=Deployment(
+                    nodes=frozenset([local_state.to_node()])
+                ),
+                state=Deployment(
+                    nodes=frozenset([local_state.to_node()])
+                )
+            )
+        )
         self.assertEqual(client.calls, [(NodeStateCommand,
                                          dict(node_state=local_state))])
 
@@ -327,7 +331,6 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
         self.assertEqual(expected_local_cluster_state, actual_cluster_state)
 
-
     def test_convergence_done_changes(self):
         """
         A FSM doing convergence that gets a discovery result starts applying
@@ -347,7 +350,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             client=self.successful_amp_client([local_state]),
             configuration=configuration, state=received_state))
 
-        expected_local_state = received_state.update_node(local_state.to_node())
+        expected_local_state = received_state.update_node(
+            local_state.to_node()
+        )
         # Calculating actions happened, and result was run:
         self.assertEqual(
             (deployer.calculate_inputs, action.called),
@@ -369,7 +374,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=received_state))
 
-        expected_local_state = received_state.update_node(local_state.to_node())
+        expected_local_state = received_state.update_node(
+            local_state.to_node()
+        )
         # Calculating actions happened and the result was run.
         self.assertEqual(
             (deployer.calculate_inputs, client.calls),
