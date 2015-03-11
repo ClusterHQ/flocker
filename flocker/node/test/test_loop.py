@@ -345,22 +345,20 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         action = ControllableAction(Deferred())
         deployer = ControllableDeployer([succeed(local_node_state)], [action])
 
-        loops = []
-        def spy_loop_factory(reactor, deployer):
-            loop = ConvergenceLoop(reactor, deployer)
-            loops.append(loop)
-            return loop
-
-        fsm = build_convergence_loop_fsm(Clock(), deployer, loop_factory=spy_loop_factory)
+        fsm = build_convergence_loop_fsm(Clock(), deployer)
         fsm.receive(_ClientStatusUpdate(client=client,
                                         configuration=object(),
                                         state=received_cluster_state))
 
-        [loop] = loops
+        expected_local_cluster_state = received_cluster_state.update_node(
+            local_node_state.to_node()
+        )
+        [calculate_necessary_state_changes_inputs] = deployer.calculate_inputs
+        (actual_local_state,
+         actual_desired_configuration,
+         actual_cluster_state) = calculate_necessary_state_changes_inputs
 
-        expected_local_cluster_state = received_cluster_state.update_node(local_node_state.to_node())
-
-        self.assertEqual(expected_local_cluster_state, loop.cluster_state)
+        self.assertEqual(expected_local_cluster_state, actual_cluster_state)
 
 
     def test_convergence_done_changes(self):

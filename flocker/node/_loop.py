@@ -266,7 +266,9 @@ class ConvergenceLoop(object):
         def got_local_state(local_state):
             # Current cluster state is likely out of date as regards the
             # local state, so update it accordingly:
-            self.cluster_state = self.cluster_state.update_node(local_state.to_node())
+            # self.cluster_state = self.cluster_state.update_node(
+            #     local_state.to_node()
+            # )
             self.client.callRemote(NodeStateCommand, node_state=local_state)
             action = self.deployer.calculate_necessary_state_changes(
                 local_state, self.configuration, self.cluster_state
@@ -291,7 +293,7 @@ class ConvergenceLoop(object):
         # https://clusterhq.atlassian.net/browse/FLOC-1357
 
 
-def build_convergence_loop_fsm(reactor, deployer, loop_factory=ConvergenceLoop):
+def build_convergence_loop_fsm(reactor, deployer):
     """
     Create a convergence loop FSM.
 
@@ -319,10 +321,10 @@ def build_convergence_loop_fsm(reactor, deployer, loop_factory=ConvergenceLoop):
             I.ITERATION_DONE: ([], S.STOPPED),
         })
 
-    loop = loop_factory(reactor, deployer)
+    loop = ConvergenceLoop(reactor, deployer)
     fsm = constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
-        richInputs=[_ClientStatusUpdate], inputContext={},
+        richInputs=[_ClientStatusUpdate], inputContext ={},
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm
