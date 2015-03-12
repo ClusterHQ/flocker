@@ -15,11 +15,10 @@ from twisted.trial.unittest import TestCase
 from treq import get, post, content, delete, json_content
 from characteristic import attributes
 
-from .testtools import get_nodes, run_SSH, get_node_state
+from .testtools import get_nodes, run_SSH
 from ..testtools import loop_until, random_name
 
 from ..control.httpapi import REST_API_PORT
-from ..control import Application, Port, DockerImage
 
 
 def wait_for_api(hostname):
@@ -357,10 +356,12 @@ class ContainerAPITests(TestCase):
 
         def check_result(result):
             response = result[1]
+
             def can_connect():
                 s = socket.socket()
                 conn = s.connect_ex((data[u"host"], 8080))
                 return False if conn else True
+
             dl = loop_until(can_connect)
             self.assertEqual(response, data)
             return dl
