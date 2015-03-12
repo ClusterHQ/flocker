@@ -41,7 +41,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
     """
     See :class:`DownloadPackagesFromRepository`.
     """
-    # TODO move make_rpm_version to somewhere shared
+    # TODO avoid circular imports when importing these somewhere else
     from release import make_rpm_version
     from admin.packaging import Distribution, package_filename
 
@@ -51,6 +51,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
         version=intent.distro_version,
     )
     package_type = distribution.package_type()
+    # TODO move somewhere shared and use it in packaging code
     package_to_architecture = {
         'clusterhq-flocker-cli': 'all',
         'clusterhq-flocker-node': 'all',
