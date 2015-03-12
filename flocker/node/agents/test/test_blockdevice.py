@@ -4,6 +4,7 @@
 Tests for ``flocker.node.agents.blockdevice``.
 """
 
+import os
 from uuid import uuid4
 
 from zope.interface.verify import verifyObject
@@ -15,7 +16,7 @@ from ..blockdevice import (
 )
 
 from twisted.python.filepath import FilePath
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 
 class IBlockDeviceAPITestsMixin(object):
@@ -212,7 +213,7 @@ class IBlockDeviceAPITestsMixin(object):
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
     """
-    :returns: A ``TestCase`` for with tests that will be performed on the
+    :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
@@ -227,6 +228,14 @@ def loopbackblockdeviceapi_for_test(test_case):
     :returns: A ``LoopbackBlockDeviceAPI`` with a temporary root directory
     created for the supplied ``test_case``.
     """
+    user_id = os.getuid()
+    if user_id != 0:
+        raise SkipTest(
+            "``LoopbackBlockDeviceAPI`` uses ``losetup``, "
+            "which requires root privileges. "
+            "Required UID: 0, Found UID: {!r}".format(user_id)
+        )
+
     root_path = test_case.mktemp()
     return LoopbackBlockDeviceAPI.from_path(root_path=root_path)
 
