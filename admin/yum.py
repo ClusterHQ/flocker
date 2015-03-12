@@ -42,6 +42,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
     # Tests use a local package repository
     s.mount('file://', FileAdapter())
     # TODO use intent.packages, but get versioned files
+    # TODO try to share some/all of this logic with the fake
     for package in packages:
         url = intent.source_repo + '/' + package
         local_path = intent.target_path.child(package).path
