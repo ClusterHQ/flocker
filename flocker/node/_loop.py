@@ -25,6 +25,7 @@ from machinist import (
 from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.protocol import ReconnectingClientFactory
+from twisted.python import log
 
 from ..control._protocol import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
@@ -277,12 +278,18 @@ class ConvergenceLoop(object):
         # Instead, we'll be more event driven.  So just going with the simple
         # solution and inserting a side-effect-y delay directly here.
 
-        d.addCallback(
-            lambda _:
-                self.reactor.callLater(
-                    1.0, self.fsm.receive, ConvergenceLoopInputs.ITERATION_DONE
-                )
-        )
+        def delay(result):
+            log.msg("Starting delay, with result", result)
+            d = self.reactor.callLater(
+                1.0, self.fsm.receive, ConvergenceLoopInputs.ITERATION_DONE
+            )
+            def p(ignored):
+                log.msg("Resuming after delay.")
+                return result
+            d.addCallback(p)
+            return d
+        d.addBoth(delay)
+        return d
         # This needs error handling:
         # https://clusterhq.atlassian.net/browse/FLOC-1357
 
