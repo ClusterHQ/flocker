@@ -242,6 +242,29 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         return self._container_name_collision_test(self.NODE_A, self.NODE_B)
 
+    def test_create_container_with_environment(self):
+        """
+        A valid API request to create a container including environment
+        variables results in an updated configuration.
+        """
+        self.fail("not implemented yet")
+
+    def test_create_container_with_invalid_environment(self):
+        """
+        An API request to create a container including environment variables
+        in the request body that are not ``unicode`` types results in an error
+        returned.
+        """
+        self.fail("not implemented yet")
+
+    def test_create_container_with_ports_response(self):
+        """
+        A valid API request to create a container including environment
+        variables returns the environment mapping supplied in the request in
+        the response JSON.
+        """
+        self.fail("not implemented yet")
+
     def _test_conflicting_ports(self, node1, node2):
         """
         Utility method to create two containers with the same ports on two
