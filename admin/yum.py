@@ -113,10 +113,11 @@ def perform_create_repository(dispatcher, intent):
 
 def _list_new_metadata(repository_path, existing_metadata):
     """
-    List the filenames of repository metadata.
+    List the filenames of new and changed repository metadata files.
 
     :param FilePath repository_path: Location of repository to list repository
         metadata from.
+    :param set existing_metadata: Filenames of existing metadata files.
     """
     all_metadata = set([os.path.basename(path.path) for path in
                         repository_path.child('repodata').walk()])
