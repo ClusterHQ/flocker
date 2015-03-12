@@ -20,6 +20,9 @@ from subprocess import check_call
     "source_repo",
     "target_path",
     "packages",
+    "flocker_version",
+    "distro_name",
+    "distro_version",
 ])
 class DownloadPackagesFromRepository(object):
     """
@@ -28,6 +31,8 @@ class DownloadPackagesFromRepository(object):
     :ivar bytes source_repo: Location of repoisitory.
     :ivar FilePath target_path: Directory to download packages to.
     :ivar list packages: List of bytes, package names to download.
+
+    # TODO document new params
     """
 
 
@@ -36,14 +41,15 @@ def perform_download_packages_from_repository(dispatcher, intent):
     """
     See :class:`DownloadPackagesFromRepository`.
     """
+    # TODO move make_rpm_version to somewhere shared
     from release import make_rpm_version
     from admin.packaging import Distribution, package_filename
 
-    #TODO pass this in
-    version = '0.3.3dev7'
-    rpm_version = make_rpm_version(version)
-    # TODO pass this info in
-    distribution = Distribution(name='centos', version=7)
+    rpm_version = make_rpm_version(intent.flocker_version)
+    distribution = Distribution(
+        name=intent.distro_name,
+        version=intent.distro_version,
+    )
     package_type = distribution.package_type()
     package_to_architecture = {
         'clusterhq-flocker-cli': 'all',

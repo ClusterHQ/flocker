@@ -382,6 +382,10 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         source_repo=source_repo,
         target_path=rpm_directory,
         packages=packages,
+        # TODO pass these through to here
+        flocker_version='0.3.3dev7',
+        distro_name='centos',
+        distro_version='7',
         ))
 
     downloaded_packages = yield Effect(ListPackages(
