@@ -369,7 +369,11 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         from.
     :param list packages: List of bytes, each specifying the name of a package
         to upload to the repository.
-    # TODO update docstring
+    :param bytes flocker_version: The version of flocker to upload packages
+        for.
+    :param distro_name: The name of the distribution to upload packages for.
+    :param distro_version: The distro_version of the distribution to upload
+        packages for.
     """
     rpm_directory.createDirectory()
 
