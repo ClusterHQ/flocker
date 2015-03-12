@@ -679,15 +679,10 @@ class UploadRPMsTests(TestCase):
         Call :func:``upload_rpms``, interacting with a fake AWS and yum
         utilities.
 
-        # TODO these are descriptions meant for update_repo
         :param FakeAWS aws: Fake AWS to interact with.
         :param FakeYum yum: Fake yum utilities to interact with.
-        :param rpm_directory: See :py:func:`update_repo`.
-        :param target_bucket: See :py:func:`update_repo`.
-        :param target_key: See :py:func:`update_repo`.
-        :param source_repo: See :py:func:`update_repo`.
-        :param packages: See :py:func:`update_repo`.
-        :param version: See :py:func:`update_repo`.
+
+        See :py:func:`upload_rpms` for other parameter documentation.
         """
         dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
                        base_dispatcher]
@@ -710,12 +705,8 @@ class UploadRPMsTests(TestCase):
 
         :param FakeAWS aws: Fake AWS to interact with.
         :param FakeYum yum: Fake yum utilities to interact with.
-        :param rpm_directory: See :py:func:`update_repo`.
-        :param target_bucket: See :py:func:`update_repo`.
-        :param target_key: See :py:func:`update_repo`.
-        :param source_repo: See :py:func:`update_repo`.
-        :param packages: See :py:func:`update_repo`.
-        :param flocker_version: See :py:func:`update_repo`.
+
+        See :py:func:`update_repo` for other parameter documentation.
         """
         dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
                        base_dispatcher]

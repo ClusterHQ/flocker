@@ -383,7 +383,6 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         source_repo=source_repo,
         target_path=rpm_directory,
         packages=packages,
-        # TODO pass these through to here
         flocker_version=flocker_version,
         distro_name=distro_name,
         distro_version=distro_version,
