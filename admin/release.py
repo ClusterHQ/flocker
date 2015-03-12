@@ -392,6 +392,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         distro_version=distro_version,
         ))
 
+    # TODO remove this and ListPackages and use a return set from Download
     downloaded_packages = yield Effect(ListPackages(
         repository_path=rpm_directory,
     ))
