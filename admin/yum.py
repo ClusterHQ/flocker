@@ -28,8 +28,11 @@ class DownloadPackagesFromRepository(object):
     :ivar bytes source_repo: Location of repository.
     :ivar FilePath target_path: Directory to download packages to.
     :ivar list packages: List of bytes, package names to download.
-
-    # TODO document new params
+    :param bytes flocker_version: The version of flocker to download packages
+        for.
+    :param distro_name: The name of the distribution to download packages for.
+    :param distro_version: The distro_version of the distribution to download
+        packages for.
     """
 
 
