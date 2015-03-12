@@ -316,7 +316,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      admin/upload-rpms "${VERSION}"
+      admin/publish-packages "${VERSION}"
 
 #. Copy the tutorial box to the final location:
    
