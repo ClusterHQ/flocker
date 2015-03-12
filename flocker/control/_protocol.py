@@ -37,7 +37,7 @@ from twisted.protocols.amp import (
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 
-from ._persistence import serialize_deployment, deserialize_deployment
+from ._persistence import wire_encode, wire_decode
 from ._model import NodeState
 
 
@@ -46,10 +46,10 @@ class NodeStateArgument(Argument):
     AMP argument that takes a ``NodeState`` object.
     """
     def fromString(self, in_bytes):
-        return NodeState.create(loads(in_bytes))
+        return wire_decode(in_bytes)
 
     def toString(self, node_state):
-        return dumps(node_state.serialize())
+        return wire_encode(node_state)
 
 
 class DeploymentArgument(Argument):
@@ -57,10 +57,10 @@ class DeploymentArgument(Argument):
     AMP argument that takes a ``Deployment`` object.
     """
     def fromString(self, in_bytes):
-        return deserialize_deployment(in_bytes)
+        return wire_decode(in_bytes)
 
     def toString(self, deployment):
-        return serialize_deployment(deployment)
+        return wire_encode(deployment)
 
 
 class VersionCommand(Command):

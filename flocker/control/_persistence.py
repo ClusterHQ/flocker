@@ -4,46 +4,62 @@
 Persistence of cluster configuration.
 """
 
-from pyrsistent import thaw
+from pyrsistent import thaw, PRecord, PVector, PMap, PSet
 from json import dumps, loads, JSONEncoder
+
 
 from twisted.application.service import Service
 from twisted.internet.defer import succeed
 
 from ._model import Deployment
+from . import _model
 
 
-class _SetEncoder(JSONEncoder):
+class _ConfigurationEncoder(JSONEncoder):
     """
-    JSON encoder that can encode sets.
+    JSON encoder that can encode the configuration model.
     """
     def default(self, obj):
-        if isinstance(obj, set):
+        if isinstance(obj, PRecord):
+            result = obj.serialize()
+            result[u"$__class__$"] = obj.__class__.__name__
+            return result
+        elif isinstance(obj, (PVector, PMap)):
+            return thaw(obj)
+        elif isinstance(obj, PSet):
+            return list(obj)
+        elif isinstance(obj, set):
             return list(obj)
         return JSONEncoder.default(self, obj)
 
 
-def serialize_deployment(deployment):
+def wire_encode(obj):
     """
-    Convert a ``Deployment`` object to ``bytes``.
+    Encode the given configuration object into bytes.
 
-    :param Deployment deployment: Object to serialize.
-
-    :return bytes: Serialized object.
+    :param obj: An object from the configuration model, e.g. ``Deployment``.
+    :return bytes: Encoded object.
     """
-    return dumps(deployment.serialize(), cls=_SetEncoder)
+    return dumps(obj, cls=_ConfigurationEncoder)
 
 
-def deserialize_deployment(data):
+def wire_decode(data):
     """
-    Create a ``Deployment`` object that was previously serialized to given
-    ``bytes``.
+    Decode the given configuration object from bytes.
 
-    :param bytes data: Output of ``serialize_deployment``.
-
-    :return Deployment: Deserialized object.
+    :param bytes data: Encoded object.
+    :param obj: An object from the configuration model, e.g. ``Deployment``.
     """
-    return Deployment.create(loads(data))
+    def decode_object(dictionary):
+        class_name = dictionary.get("$__class__$", None)
+        if class_name is not None:
+            dictionary = dictionary.copy()
+            dictionary.pop("$__class__$")
+            # XXX TEMPORARY HACK INSECURE XXX
+            return getattr(_model, class_name).create(dictionary)
+        else:
+            return dictionary
+    return loads(data, object_hook=decode_object)
 
 
 class ConfigurationPersistenceService(Service):
@@ -66,7 +82,7 @@ class ConfigurationPersistenceService(Service):
             self._path.makedirs()
         self._config_path = self._path.child(b"current_configuration.pickle")
         if self._config_path.exists():
-            self._deployment = deserialize_deployment(
+            self._deployment = wire_decode(
                 self._config_path.getContent())
         else:
             self._deployment = Deployment(nodes=frozenset())
@@ -85,7 +101,7 @@ class ConfigurationPersistenceService(Service):
         """
         Save and flush new deployment to disk synchronously.
         """
-        self._config_path.setContent(serialize_deployment(deployment))
+        self._config_path.setContent(wire_encode(deployment))
 
     def save(self, deployment):
         """

@@ -35,6 +35,7 @@ def pset_field(klass):
         __type__ = klass
 
     def serializer(format, data):
+        return list(data)
         if issubclass(klass, CheckedType):
             return [o.serialize() for o in data]
         else:
@@ -219,10 +220,10 @@ class Application(PRecord):
     links = pset_field(Link)
     memory_limit = field(mandatory=True, initial=None)
     cpu_shares = field(mandatory=True, initial=None)
-    restart_policy = field(mandatory=True, initial=RestartNever(),
+    restart_policy = field(mandatory=True, initial=RestartNever())
                            # XXX hardcoded RestartNever
-                           serializer=lambda f, d: None,
-                           factory=lambda _: RestartNever())
+                           #serializer=lambda f, d: None,
+                           #factory=lambda _: RestartNever())
     # XXX we can switch this to pmap now that we have immutable dicts:
     environment = field(mandatory=True, initial=None)
 
