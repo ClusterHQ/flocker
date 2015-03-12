@@ -127,6 +127,23 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual([expected_volume], self.api.list_volumes())
 
+    def test_list_attached_and_unattached(self):
+        """
+        ``list_volumes`` returns both attached and unattached
+        ``BlockDeviceVolume``s.
+        """
+        expected_host = b'192.0.2.123'
+        new_volume1 = self.api.create_volume(size=1000)
+        new_volume2 = self.api.create_volume(size=1000)
+        attached_volume = self.api.attach_volume(
+            blockdevice_id=new_volume2.blockdevice_id,
+            host=expected_host
+        )
+        self.assertEqual(
+            sorted([new_volume1, attached_volume]),
+            sorted(self.api.list_volumes())
+        )
+
     def test_multiple_volumes_attached_to_host(self):
         """
         ``attach_volume`` can attach multiple block devices to a single host.
