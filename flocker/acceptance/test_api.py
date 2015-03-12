@@ -369,6 +369,49 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
         return d
 
+    def test_create_container_with_environment(self):
+        """
+        Create a container including environment variables on a single-node
+        cluster.
+        """
+        data = {
+            u"name": "my_container",
+            u"host": None,
+            u"image": "clusterhq/flask:latest",
+            u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'}
+        }
+        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
+
+        def create_container(cluster, data):
+            data[u"host"] = cluster.nodes[0].address
+            return cluster.create_container(data)
+
+        d = waiting_for_cluster.addCallback(create_container, data)
+
+        def check_result(result):
+            response = result[1]
+
+            def can_connect():
+                remote_data = run_SSH(
+                    22, 'root', data[u"host"],
+                    [b"printenv"], None
+                )
+                env_vars = remote_data.split("\n")[:-1]
+                for var in env_vars:
+                    try:
+                        label, value = var.split("=")
+                        if [(label, value)] == data[u"environment"].items():
+                            return True
+                    except ValueError:
+                        continue
+                return False
+            dl = loop_until(can_connect)
+            self.assertEqual(response, data)
+            return dl
+
+        d.addCallback(check_result)
+        return d
+
 
 class DatasetAPITests(TestCase):
     """
