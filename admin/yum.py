@@ -43,7 +43,8 @@ def perform_download_packages_from_repository(dispatcher, intent):
     """
     # TODO avoid circular imports when importing these somewhere else
     from release import make_rpm_version
-    from admin.packaging import Distribution, package_filename
+    from admin.packaging import (ARCH_REQUIREMENT, Distribution,
+        package_filename)
 
     rpm_version = make_rpm_version(intent.flocker_version)
     distribution = Distribution(
@@ -51,12 +52,6 @@ def perform_download_packages_from_repository(dispatcher, intent):
         version=intent.distro_version,
     )
     package_type = distribution.package_type()
-    # TODO move somewhere shared and use it in packaging code
-    package_to_architecture = {
-        'clusterhq-flocker-cli': 'all',
-        'clusterhq-flocker-node': 'all',
-        'clusterhq-python-flocker': 'native',
-    }
     s = requests.Session()
     # Tests use a local package repository
     s.mount('file://', FileAdapter())
@@ -66,7 +61,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
         package_name = package_filename(
             package_type=package_type,
             package=package,
-            architecture=package_to_architecture[package],
+            architecture=ARCH_REQUIREMENT[package],
             rpm_version=rpm_version,
         )
         url = intent.source_repo + '/' + package_name
