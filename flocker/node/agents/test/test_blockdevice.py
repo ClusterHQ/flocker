@@ -257,9 +257,13 @@ def loopback_devices():
         files.
     """
     output = check_output(
-        ['losetup', '--list', '--output', 'name,back-file', '--noheadings']
+        ['losetup', '--list', '--output', 'name,back-file']
     )
-    for line in output.splitlines():
+    # Omit the heading line.
+    # losetup from util-linux 2.24.2 provides a --noheadings option, but it's
+    # not available on Centos7 or Ubuntu 14.04.
+    lines = output.splitlines()[1:]
+    for line in lines:
         device_file, backing_file = [
             FilePath(f) for f in line.split()[:2]
         ]

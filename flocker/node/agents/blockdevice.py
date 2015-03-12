@@ -123,11 +123,15 @@ def device_for_path(file_path):
     :returns: A ``FilePath`` to the loopback device if one is found, or
         ``None`` if no device exists.
     """
-    device_path = check_output(
-        ["losetup", "--noheadings", "--output", "name", "--associated",
+    # Omit the heading line.
+    # losetup from util-linux 2.24.2 provides a --noheadings option, but it's
+    # not available on Centos7 or Ubuntu 14.04.
+    device_paths = check_output(
+        ["losetup", "--output", "name", "--associated",
          file_path.path]
-    ).strip()
-    if device_path != b"":
+    ).splitlines()[1:]
+    if device_paths:
+        [device_path] = device_paths
         return FilePath(device_path.strip())
     return None
 
