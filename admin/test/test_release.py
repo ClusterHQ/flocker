@@ -747,7 +747,7 @@ class UploadRPMsTests(TestCase):
             b'distro-version-arch')
         self.target_key = 'test/target/key'
         self.target_bucket = 'test-target-bucket'
-        self.build_server = 'http://test-build-server.com'
+        self.build_server = 'http://test-build-server.example'
         self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
         self.alternative_bucket = 'bucket-with-existing-package'
         alt_scratch_directory = FilePath(tempfile.mkdtemp())
