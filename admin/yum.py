@@ -101,36 +101,21 @@ def perform_create_repository(dispatcher, intent):
         b'--update',
         b'--quiet',
         intent.repository_path.path])
-    # TODO share this logic via ListMetadata
-    return set([os.path.basename(path.path) for path in
-                intent.repository_path.child('repodata').walk()])
+    return _list_metadata(intent.repository_path)
 
 
-@attributes([
-    "repository_path",
-])
-class ListMetadata(object):
+def _list_metadata(repository_path):
     """
     List the filenames of repository metadata.
 
-    Note that this returns a set with the prefixes stripped.
-
-    :ivar FilePath repository_path: Location of repository to list repository
-         metadata from.
-    """
-
-
-@sync_performer
-def perform_list_metadata(dispatcher, intent):
-    """
-    See class:`ListMetadata`.
+    :param FilePath repository_path: Location of repository to list repository
+        metadata from.
     """
     return set([os.path.basename(path.path) for path in
-                intent.repository_path.child('repodata').walk()])
+                repository_path.child('repodata').walk()])
 
 yum_dispatcher = TypeDispatcher({
     DownloadPackagesFromRepository: perform_download_packages_from_repository,
-    ListMetadata: perform_list_metadata,
     CreateRepo: perform_create_repository,
 })
 
@@ -154,8 +139,7 @@ class FakeYum(object):
                          'primary.xml.gz']:
             metadata_directory.child(filename).setContent(
                 'metadata content for: ' + ','.join(packages))
-        return set([os.path.basename(path.path) for path in
-                    intent.repository_path.child('repodata').walk()])
+        return _list_metadata(intent.repository_path)
 
     def get_dispatcher(self):
         """
@@ -165,6 +149,5 @@ class FakeYum(object):
         return TypeDispatcher({
             DownloadPackagesFromRepository:
                 perform_download_packages_from_repository,
-            ListMetadata: perform_list_metadata,
             CreateRepo: self._perform_create_repository,
         })

@@ -43,7 +43,6 @@ from .yum import (
     yum_dispatcher,
     CreateRepo,
     DownloadPackagesFromRepository,
-    ListMetadata,
 )
 
 
