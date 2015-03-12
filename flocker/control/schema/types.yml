@@ -59,7 +59,17 @@ definitions:
         external:
           type: integer
     uniqueItems: true
-    
+
+  environment:
+    title: "Container environment variables"
+    description: "Mapping of label and value pairs for environment variables"
+    type: object
+    patternProperties:
+      "^.{1,256}$":
+        type: string
+        maxLength: 256
+    additionalProperties: false
+
   container_name:
     title: "Container name"
     description: "The name of the container."
