@@ -9,8 +9,7 @@ import os
 import requests
 from requests_file import FileAdapter
 from characteristic import attributes
-from effect import Effect, sync_performer, TypeDispatcher
-from effect.do import do
+from effect import sync_performer, TypeDispatcher
 from subprocess import check_call
 
 
@@ -77,15 +76,18 @@ def perform_download_packages_from_repository(dispatcher, intent):
 
 @attributes([
     "repository_path",
+    "existing_metadata",
 ])
 class CreateRepo(object):
     """
-    Create repository metadata.
+    Create repository metadata, and return filenames of new and changed
+    metadata files.
 
     Note that this returns a list with the prefixes stripped.
 
     :ivar FilePath repository_path: Location of rpm files to create a
         repository from.
+    :ivar set existing_metadata: Filenames of existing metadata files.
     """
 
 
@@ -101,18 +103,25 @@ def perform_create_repository(dispatcher, intent):
         b'--update',
         b'--quiet',
         intent.repository_path.path])
-    return _list_metadata(intent.repository_path)
+    return _list_new_metadata(
+        repository_path=intent.repository_path,
+        existing_metadata=intent.existing_metadata)
 
 
-def _list_metadata(repository_path):
+def _list_new_metadata(repository_path, existing_metadata):
     """
     List the filenames of repository metadata.
 
     :param FilePath repository_path: Location of repository to list repository
         metadata from.
     """
-    return set([os.path.basename(path.path) for path in
-                repository_path.child('repodata').walk()])
+    all_metadata = set([os.path.basename(path.path) for path in
+                        repository_path.child('repodata').walk()])
+    new_metadata = all_metadata - existing_metadata
+
+    # Always update the index file.
+    changed_metadata = new_metadata | {'repomd.xml'}
+    return changed_metadata
 
 yum_dispatcher = TypeDispatcher({
     DownloadPackagesFromRepository: perform_download_packages_from_repository,
@@ -139,7 +148,9 @@ class FakeYum(object):
                          'primary.xml.gz']:
             metadata_directory.child(filename).setContent(
                 'metadata content for: ' + ','.join(packages))
-        return _list_metadata(intent.repository_path)
+        return _list_new_metadata(
+                repository_path=intent.repository_path,
+                existing_metadata=intent.existing_metadata)
 
     def get_dispatcher(self):
         """

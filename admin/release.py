@@ -390,22 +390,14 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         distro_version=distro_version,
         ))
 
-    old_metadata = yield Effect(
+    existing_metadata = yield Effect(
         ListS3Keys(bucket=target_bucket,
                    prefix=os.path.join(target_key, 'repodata/')))
 
-    new_metadata = yield Effect(CreateRepo(
+    changed_metadata = yield Effect(CreateRepo(
         repository_path=rpm_directory,
+        existing_metadata=existing_metadata,
         ))
-
-    # new_metadata = yield Effect(ListMetadata(
-    #     repository_path=rpm_directory,
-    # ))
-
-    changed_metadata = new_metadata - old_metadata
-
-    # Always update the index file.
-    changed_metadata |= {'repomd.xml'}
 
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
