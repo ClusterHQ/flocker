@@ -53,6 +53,51 @@ ConfigurationContainersSchemaTests = build_schema_test(
         {'host': '192.168.0.3', 'name': 'my_container'},
         # Name not valid
         {'host': '192.168.0.3', 'image': 'clusterhq/redis', 'name': '@*!'},
+        # Ports given but not a list of mappings
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': 'I am not a list of port maps'
+        },
+        # Ports given but internal is not valid
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 'xxx', 'external': 8080}]
+        },
+        # Ports given but external is not valid
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 80, 'external': '1'}]
+        },
+        # Ports given but invalid key present
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'container': 80, 'external': '1'}]
+        },
+        # Ports given but external is not valid integer
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 80, 'external': 22.5}]
+        },
+        # Ports given but not unique
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [
+                {'internal': 80, 'external': 8080},
+                {'internal': 80, 'external': 8080},
+            ]
+        },
     ],
     passing_instances=[
         {
@@ -69,6 +114,21 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'host': '192.168.0.3',
             'image': 'docker/postgres:latest',
             'name': 'postgres'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 80, 'external': 8080}]
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [
+                {'internal': 80, 'external': 8080},
+                {'internal': 3306, 'external': 42000}
+            ]
         },
     ],
 )
