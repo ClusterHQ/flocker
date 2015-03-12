@@ -64,12 +64,13 @@ class DockerImageTests(SynchronousTestCase):
         """
         ``DockerImage.__repr__`` includes the repository and tag.
         """
-        image = DockerImage(repository=u'clusterhq/flocker',
-                            tag=u'release-14.0')
+        image = repr(DockerImage(repository=u'clusterhq/flocker',
+                                 tag=u'release-14.0'))
         self.assertEqual(
-            "<DockerImage(repository=u'clusterhq/flocker', "
-            "tag=u'release-14.0')>",
-            repr(image)
+            [image.startswith("DockerImage"),
+             "clusterhq/flocker" in image,
+             "release-14.0" in image],
+            [True, True, True],
         )
 
 
@@ -199,7 +200,7 @@ class NodeTests(SynchronousTestCase):
         """
         ``Node.applications`` must be ``Application`` instances.
         """
-        self.assertRaises(InvariantException,
+        self.assertRaises(TypeError,
                           Node, hostname=u"xxx", applications=[None])
 
     def test_manifestations_keys_are_their_ids(self):
@@ -346,7 +347,7 @@ class RestartOnFailureTests(SynchronousTestCase):
         maximum retry count is 0.
         """
         self.assertRaises(
-            ValueError,
+            InvariantException,
             RestartOnFailure, maximum_retry_count=0)
 
     def test_maximum_retry_count_not_negative(self):
@@ -355,7 +356,7 @@ class RestartOnFailureTests(SynchronousTestCase):
         maximum retry count is negative.
         """
         self.assertRaises(
-            ValueError,
+            InvariantException,
             RestartOnFailure, maximum_retry_count=-1)
 
     def test_maximum_retry_count_postive(self):
@@ -378,7 +379,7 @@ class RestartOnFailureTests(SynchronousTestCase):
         ``maximum_retry_count`` is not an ``int``
         """
         self.assertRaises(
-            TypeError,
+            InvariantException,
             RestartOnFailure, maximum_retry_count='foo'
         )
 

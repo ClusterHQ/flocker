@@ -14,7 +14,7 @@ import types
 from uuid import UUID
 from hashlib import md5
 
-from pyrsistent import pmap
+from pyrsistent import pmap, InvariantException
 
 from twisted.python.filepath import FilePath
 
@@ -829,7 +829,7 @@ def _parse_restart_policy(application_name, config):
 
     try:
         policy = policy_factory(**config)
-    except TypeError:
+    except (InvariantException, AttributeError):
         raise ApplicationConfigurationError(
             application_name,
             "Invalid 'restart_policy' arguments for {}. "
