@@ -3,10 +3,24 @@
 
 """
 Record types for representing deployment models.
+
+There are different categories of classes:
+
+1. Those that involve information that can be both in configuration and state.
+   This includes ``Deployment`` and all classes on it.
+   (Metadata should really be configuration only, but that hasn't been
+   fixed yet on the model level.)
+2. State-specific classes, currently ``NodeState``.
+3. Configuration-specific classes, none implemented yet.
 """
 
 from characteristic import attributes, Attribute
-from pyrsistent import pmap
+
+from twisted.python.filepath import FilePath
+from pyrsistent import (
+    pmap, PRecord, field, PMap, PSet, pset, CheckedPMap
+    )
+
 from zope.interface import Interface, implementer
 
 
@@ -162,34 +176,20 @@ class Application(object):
     """
 
 
-@attributes(["dataset", "primary"])
-class Manifestation(object):
-    """
-    A dataset that is mounted on a node.
-
-    :ivar Dataset dataset: The dataset being mounted.
-
-    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
-    """
-
-
-@attributes(["dataset_id",
-             Attribute("maximum_size", default_value=None),
-             Attribute("metadata", default_value=pmap())])
-class Dataset(object):
+class Dataset(PRecord):
     """
     The filesystem data for a particular application.
 
     At some point we'll want a way of reserving metadata for ourselves.
-
-    maximum_size really should be metadata:
-    https://clusterhq.atlassian.net/browse/FLOC-1215
 
     :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
         if this is coming out of human-supplied configuration, in which
         case it will need to be looked up from actual state for existing
         datasets, or a new one generated if a new dataset will need tbe
         created.
+
+    :ivar bool deleted: If ``True``, this dataset has been deleted and its
+        data is unavailable, or will soon become unavailable.
 
     :ivar PMap metadata: Mapping between ``unicode`` keys and
         corresponding values. Typically there will be a ``"name"`` key whose
@@ -198,15 +198,38 @@ class Dataset(object):
     :ivar int maximum_size: The maximum size in bytes of this dataset, or
         ``None`` if there is no specified limit.
     """
+    dataset_id = field(mandatory=True, type=unicode, factory=unicode)
+    deleted = field(mandatory=True, initial=False, type=bool)
+    maximum_size = field(mandatory=True, initial=None)
+    metadata = field(mandatory=True, type=PMap, factory=pmap, initial=pmap())
 
 
-@attributes(["hostname",
-             Attribute("applications", default_value=frozenset()),
-             Attribute("other_manifestations", default_value=frozenset())])
-class Node(object):
+class Manifestation(PRecord):
+    """
+    A dataset that is mounted on a node.
+
+    :ivar Dataset dataset: The dataset being mounted.
+
+    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
+    """
+    dataset = field(mandatory=True, type=Dataset)
+    primary = field(mandatory=True, type=bool)
+
+    @property
+    def dataset_id(self):
+        """
+        :return unicode: The dataset ID of the dataset.
+        """
+        return self.dataset.dataset_id
+
+
+class Node(PRecord):
     """
     A single node on which applications will be managed (deployed,
     reconfigured, destroyed, etc).
+
+    Manifestations attached to applications must also be present in the
+    ``manifestations`` attribute.
 
     :ivar unicode hostname: The hostname of the node.  This must be a
         resolveable name so that Flocker can connect to the node.  This may be
@@ -215,20 +238,29 @@ class Node(object):
     :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
 
-    :ivar frozenset other_manifestations: ``Manifestation`` instances that
-        are present on the node but are not attached as volumes to any
-        applications.
+    :ivar PMap manifestations: Mapping between dataset IDs and
+        corresponding ``Manifestation`` instances that are present on the
+        node. Includes both those attached as volumes to any applications,
+        and those that are unattached.
     """
-    def manifestations(self):
-        """
-        All manifestations present on this node.
+    def __invariant__(self):
+        manifestations = self.manifestations.values()
+        for app in self.applications:
+            if not isinstance(app, Application):
+                return (False, '%r must be Appplication' % (app,))
+            if app.volume is not None:
+                if app.volume.manifestation not in manifestations:
+                    return (False, '%r manifestation is not on node' % (app,))
+        for key, value in self.manifestations.items():
+            if key != value.dataset_id:
+                return (False, '%r is not correct key for %r' % (key, value))
+        return (True, "")
 
-        :return frozenset: All ``Manifestation`` instances from this node.
-        """
-        return self.other_manifestations | frozenset(
-            [application.volume.manifestation
-             for application in self.applications
-             if application.volume is not None])
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    applications = field(type=PSet, initial=pset(), factory=pset,
+                         mandatory=True)
+    manifestations = field(type=PMap, initial=pmap(), factory=pmap,
+                           mandatory=True)
 
 
 @attributes(["nodes"])
@@ -309,7 +341,7 @@ class DatasetHandoff(object):
     """
 
 
-@attributes(["going", "coming", "creating", "resizing"])
+@attributes(["going", "coming", "creating", "resizing", "deleting"])
 class DatasetChanges(object):
     """
     The dataset-related changes necessary to change the current state to
@@ -331,27 +363,54 @@ class DatasetChanges(object):
         node resize any existing datasets that are desired somewhere on
         the cluster and locally exist with a different maximum_size to the
         desired maximum_size. These must be resized.
+
+    :ivar frozenset deleting: The ``Dataset``\ s that should be deleted.
     """
 
 
-@attributes(["hostname", "running", "not_running",
-             Attribute("used_ports", default_value=frozenset()),
-             Attribute("other_manifestations", default_value=frozenset())])
-class NodeState(object):
+class _PathMap(CheckedPMap):
+    """
+    A mapping between dataset IDs and the paths where they are mounted.
+
+    See https://github.com/tobgu/pyrsistent/issues/26 for more succinct
+    idiom combining this with ``field()``.
+    """
+    __key_type__ = unicode
+    __value_type__ = FilePath
+
+
+class NodeState(PRecord):
     """
     The current state of a node.
 
+    This includes information that is state-specific and thus does not
+    belong in ``Node``, the latter being shared between both state and
+    configuration models.
+
     :ivar unicode hostname: The hostname of the node.
-    :ivar running: A ``list`` of ``Application`` instances on this node
+    :ivar running: A ``PSet`` of ``Application`` instances on this node
         that are currently running or starting up.
-    :ivar not_running: A ``list`` of ``Application`` instances on this
+    :ivar not_running: A ``PSet`` of ``Application`` instances on this
         node that are currently shutting down or stopped.
-    :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
+    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
-    :ivar frozenset other_manifestations: ``Manifestation`` instances that
-        are present on the node but are not attached as volumes to any
-        applications.
+    :ivar PSet manifestations: All ``Manifestation`` instances that
+        are present on the node.
+    :ivar PMap paths: The filesystem paths of the manifestations on this
+        node. Maps ``dataset_id`` to a ``FilePath``.
     """
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    used_ports = field(type=PSet, initial=pset(), factory=pset,
+                       mandatory=True)
+    running = field(type=PSet, initial=pset(), factory=pset,
+                    mandatory=True)
+    not_running = field(type=PSet, initial=pset(), factory=pset,
+                        mandatory=True)
+    manifestations = field(type=PSet, initial=pset(), factory=pset,
+                           mandatory=True)
+    paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap.create,
+                  mandatory=True)
+
     def to_node(self):
         """
         Convert into a ``Node`` instance.
@@ -359,5 +418,6 @@ class NodeState(object):
         :return Node: Equivalent ``Node`` object.
         """
         return Node(hostname=self.hostname,
-                    other_manifestations=self.other_manifestations,
-                    applications=frozenset(self.running + self.not_running))
+                    manifestations={m.dataset_id: m
+                                    for m in self.manifestations},
+                    applications=self.running | self.not_running)

@@ -24,7 +24,9 @@ from docutils.parsers.rst import directives
 from twisted.python.reflect import namedAny
 from twisted.python.filepath import FilePath
 
-from .._schema import LocalRefResolver, resolveSchema
+from characteristic import attributes
+
+from .._schema import resolveSchema
 
 # Disable "HTTP Routing Table" index:
 httpdomain.HTTPDomain.indices = []
@@ -42,7 +44,8 @@ class KleinRoute(namedtuple('KleinRoute', 'path methods endpoint attributes')):
     """
 
 
-class Example(namedtuple("Example", "request response")):
+@attributes(['request', 'response', 'doc'])
+class Example(object):
     """
     An L{Example} instance represents a single HTTP session example.
 
@@ -58,7 +61,11 @@ class Example(namedtuple("Example", "request response")):
         Create an L{Example} from a L{dict} with C{u"request"} and
         C{u"response"} keys and L{unicode} values.
         """
-        return cls(d[u"request"], d[u"response"])
+        return cls(
+            request=d[u"request"],
+            response=d[u"response"],
+            doc=d[u"doc"],
+        )
 
 
 def getRoutes(app):
@@ -93,6 +100,10 @@ def _parseSchema(schema, schema_store):
     """
     Parse a JSON Schema and return some information to document it.
 
+    This supports only two kinds of schemas: objects, and arrays of a
+    single kind of object. If your schema is more complex you may need to
+    expand this code to address that.
+
     @param schema: L{dict} representing a JSON Schema.
 
     @param dict schema_store: A mapping between schema paths
@@ -102,33 +113,32 @@ def _parseSchema(schema, schema_store):
         document the schema.
     """
     result = {}
+    schema = resolveSchema(schema, schema_store)
 
-    resolver = LocalRefResolver(
-        base_uri=b'',
-        referrer=schema, store=schema_store)
-
-    if schema.get(u'$ref') is None:
-        raise Exception('Non-$ref top-level definitions not supported.')
-
-    def fill_in_attribute(attr, propSchema):
-        attr['title'] = propSchema['title']
-        attr['description'] = prepare_docstring(
-            propSchema['description'])
-        attr['required'] = property in schema.get('required', [])
-        attr['type'] = propSchema['type']
-
-    with resolver.resolving(schema[u'$ref']) as schema:
-        if schema[u'type'] != u'object':
-            raise Exception('Non-object top-level definitions not supported.')
-
+    def fill_in_result(object_schema):
         result['properties'] = {}
-        for property, propSchema in schema[u'properties'].iteritems():
+        for property, propSchema in object_schema[u'properties'].iteritems():
             attr = result['properties'][property] = {}
-            if "$ref" in propSchema:
-                with resolver.resolving(propSchema['$ref']) as propSchema:
-                    fill_in_attribute(attr, propSchema)
-            else:
-                fill_in_attribute(attr, propSchema)
+            attr['title'] = propSchema['title']
+            attr['description'] = prepare_docstring(
+                propSchema['description'])
+            attr['required'] = property in object_schema.get("required", [])
+            attr['type'] = propSchema['type']
+
+    if schema[u"type"] == u"object":
+        result["type"] = "object"
+        fill_in_result(schema)
+    elif schema[u"type"] == u"array":
+        result["type"] = "array"
+        child_schema = schema[u"items"]
+        if child_schema.get("type") == "object":
+            fill_in_result(child_schema)
+        else:
+            raise Exception("Only single object type allowed in an array.")
+    else:
+        raise Exception(
+            'Non-object/array top-level definitions not supported.')
+
     return result
 
 
@@ -176,23 +186,11 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     inputSchema = route.attributes.get('inputSchema', None)
     outputSchema = route.attributes.get('outputSchema', None)
     if inputSchema:
-        # _parseSchema doesn't handle all JSON Schema yet
-        # Fail softly by simply not including the documentation
-        # for it.
-        # https://clusterhq.atlassian.net/browse/FLOC-1171
-        try:
-            result['input'] = _parseSchema(inputSchema, schema_store)
-        except:
-            pass
+        result['input'] = _parseSchema(inputSchema, schema_store)
         result["input_schema"] = inputSchema
 
     if outputSchema:
-        # See above
-        # https://clusterhq.atlassian.net/browse/FLOC-1171
-        try:
-            result['output'] = _parseSchema(outputSchema, schema_store)
-        except:
-            pass
+        result['output'] = _parseSchema(outputSchema, schema_store)
         result["output_schema"] = outputSchema
 
     examples = route.attributes.get("examples") or []
@@ -203,14 +201,22 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     return result
 
 
-def _formatSchema(data, param):
+def _formatSchema(data, incoming):
     """
     Generate the rst associated to a JSON schema.
 
-    @param data: See L{inspectRoute}.
-    @param param: rst entity to use for JSON properties.
-    @type param: L{str}
+    See sphinxcontrib-httpdomain documentation for details.
+
+    :param data: See L{inspectRoute}.
+    :param bool incoming: If True, this is request parameter, otherwise
+        this is response.
     """
+    if incoming:
+        param = "<json"
+    else:
+        param = ">json"
+    if data["type"] == "array":
+        param += "arr"
     for property, attr in sorted(data[u'properties'].iteritems()):
         if attr['required']:
             required = '*(required)* '
@@ -258,7 +264,9 @@ def _formatExample(example, substitutions):
     @return: A generator which yields L{unicode} strings each of which should
         be a line in the resulting rst document.
     """
-    yield u"**Example request**"
+    yield u"**Example:** {}".format(example.doc)
+    yield u""
+    yield u"Request"
     yield u""
     yield u".. sourcecode:: http"
     yield u""
@@ -270,7 +278,7 @@ def _formatExample(example, substitutions):
         yield u"   " + line.rstrip()
     yield u""
 
-    yield u"**Example response**"
+    yield u"Response"
     yield u""
     yield u".. sourcecode:: http"
     yield u""
@@ -320,15 +328,11 @@ def _formatRouteBody(data, schema_store):
             yield line
 
     if 'input' in data:
-        # <json is what sphinxcontrib-httpdomain wants to call "json in a
-        # request body"
-        for line in _formatSchema(data['input'], '<json'):
+        for line in _formatSchema(data['input'], True):
             yield line
 
     if 'output' in data:
-        # >json is what sphinxcontrib-httpdomain wants to call "json in a
-        # response body"
-        for line in _formatSchema(data['output'], '>json'):
+        for line in _formatSchema(data['output'], False):
             yield line
 
 

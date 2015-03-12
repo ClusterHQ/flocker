@@ -158,18 +158,46 @@ class CopyS3Keys(object):
     """
 
 
+EXTENSION_MIME_TYPES = {
+    '.eot': 'application/vnd.ms-fontobject',
+    '.gif': 'image/gif',
+    '.html': 'text/html',
+    '.jpg': 'image/jpeg',
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.png': 'image/png',
+    '.sh': 'text/plain',
+    '.svg': 'image/svg+xml',
+    '.ttf': 'application/x-font-ttf',
+    '.txt': 'text/plain',
+    '.woff': 'application/font-woff',
+    '.yml': 'text/plain',
+}
+
+
 @sync_performer
 def perform_copy_s3_keys(dispatcher, intent):
     """
     See :class:`CopyS3Keys`.
     """
     s3 = boto.connect_s3()
-    destination_bucket = s3.get_bucket(intent.destination_bucket)
+    source_bucket = s3.get_bucket(intent.source_bucket)
     for key in intent.keys:
-        destination_bucket.copy_key(
-            new_key_name=intent.destination_prefix + key,
-            src_bucket_name=intent.source_bucket,
-            src_key_name=intent.source_prefix + key)
+        source_key = source_bucket.get_key(intent.source_prefix + key)
+
+        # We are explicit about Content-Type here, since the upload tool
+        # isn't smart enough to set the right Content-Type.
+        destination_metadata = source_key.metadata
+        for extention, content_type in EXTENSION_MIME_TYPES.items():
+            if key.endswith(extention):
+                destination_metadata['Content-Type'] = content_type
+                break
+
+        source_key.copy(
+            dst_bucket=intent.destination_bucket,
+            dst_key=intent.destination_prefix + key,
+            metadata=destination_metadata,
+        )
 
 
 @attributes([
