@@ -390,6 +390,7 @@ class ContainerAPITests(TestCase):
 
         def check_result(result):
             response = result[1]
+
             def can_connect():
                 try:
                     remote_data = run_SSH(
