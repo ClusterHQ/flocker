@@ -248,8 +248,7 @@ class Cluster(object):
             persistent=False
         )
 
-        request.addCallback(content)
-        request.addCallback(loads)
+        request.addCallback(json_content)
         request.addCallback(lambda response: (self, response))
         return request
 
@@ -358,15 +357,13 @@ class ContainerAPITests(TestCase):
 
         def check_result(result):
             response = result[1]
-            expected_application = Application(
-                name=data[u"name"],
-                image=DockerImage.from_string(data[u"image"]),
-                ports=frozenset([Port(internal_port=80, external_port=8080)])
-            )
-            node_state = get_node_state(response[u"host"])
-            self.assertIn(data[u"name"], node_state)
-            self.assertEqual(node_state[data[u"name"]], expected_application)
+            def can_connect():
+                s = socket.socket()
+                conn = s.connect_ex((data[u"host"], 8080))
+                return False if conn else True
+            dl = loop_until(can_connect)
             self.assertEqual(response, data)
+            return dl
 
         d.addCallback(check_result)
         return d

@@ -81,7 +81,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'name': 'postgres',
             'ports': [{'container': 80, 'external': '1'}]
         },
-        # Ports given but external is not valid intgeger
+        # Ports given but external is not valid integer
         {
             'host': '192.168.0.3',
             'image': 'postgres',
