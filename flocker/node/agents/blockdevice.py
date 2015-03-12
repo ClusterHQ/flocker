@@ -89,14 +89,12 @@ class IBlockDeviceAPI(Interface):
 
     def get_device_path(blockdevice_id):
         """
-        Calculate the path at which ``blockdevice_id`` will be mounted on the
+        Calculate the path at which ``blockdevice_id`` will be exposed on the
         host when attached.
 
         :param unicode blockdevice_id: The unique identifier for the block
             device.
-        :returns: A ``BlockDeviceVolume`` with a ``host`` attribute set to
-            ``host``.
-
+        :returns: A ``FilePath`` for the device.
         """
 
 
@@ -180,6 +178,11 @@ class LoopbackBlockDeviceAPI(object):
             pass
 
     def get_device_path(self, blockdevice_id):
+        """
+        For this loopback implementation, we create a new loop device if one
+        does not already exist or return the loop device that is already
+        associated with the block device backing file.
+        """
         volume = self._get(blockdevice_id)
 
         if volume.host is not None:
