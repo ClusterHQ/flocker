@@ -118,8 +118,8 @@ class NotTagged(Exception):
 
 class NotARelease(Exception):
     """
-    Raised if trying to publish to a version that isn't a release or upload
-    packages for a version that isn't a release.
+    Raised if trying to publish documentation to, or packages for a version
+    that isn't a release.
     """
 
 
