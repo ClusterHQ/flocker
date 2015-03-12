@@ -49,14 +49,14 @@ class INetwork(Interface):
             useful as an argument to :py:meth:`delete_open_port`.
         """
 
-    def delete_open(proxy):
+    def delete_open_port(port):
         """
         Delete an existing firewall opening previously created using
         :py:meth:`open_port`.
 
-        :param proxy: The object returned by :py:meth:`open_port` or one
+        :param port: The object returned by :py:meth:`open_port` or one
             of the elements of the sequence returned by
-            :py:meth:`enumerate_open_port`.
+            :py:meth:`enumerate_open_ports`.
         """
 
     def enumerate_proxies():
