@@ -8,10 +8,10 @@ from zope.interface.verify import verifyObject
 from ipaddr import IPAddress
 from twisted.trial.unittest import SynchronousTestCase
 
-from .. import INetwork
+from .. import INetwork, OpenPort
 
 
-def make_proxying_tests(make_network):
+def make_network_tests(make_network):
     """
     Define the tests common to all ``INetwork`` implementations.
 
@@ -21,7 +21,7 @@ def make_proxying_tests(make_network):
     :return: A ``TestCase`` subclass which defines a number of
         ``INetwork``-related tests.
     """
-    class ProxyingTests(SynchronousTestCase):
+    class NetworkTests(SynchronousTestCase):
         """
         Tests for the self-consistency of the behavior of an ``INetwork``
         implementation.
@@ -45,7 +45,7 @@ def make_proxying_tests(make_network):
             proxy = self.network.create_proxy_to(server_ip, port)
             self.assertEqual((proxy.ip, proxy.port), (server_ip, port))
 
-        def test_empty(self):
+        def test_empty_proxies(self):
             """
             The :py:meth:`INetwork.enumerate_proxies` implementation returns an
             empty :py:class:`list` when no proxies have been created.
@@ -108,4 +108,76 @@ def make_proxying_tests(make_network):
                 IPAddress("10.0.0.3"), port_number)
             self.assertIn(port_number, self.network.enumerate_used_ports())
 
-    return ProxyingTests
+        def test_port_object(self):
+            """
+            The :py:meth:`INetwork.open_port` implementation returns an
+            object with attributes describing the created proxy.
+            """
+            port = 54321
+            open_port = self.network.open_port(port)
+            self.assertEqual(open_port, OpenPort(port=port))
+
+        def test_empty_open_ports(self):
+            """
+            The :py:meth:`INetwork.enumerate_open_ports` implementation returns
+            an empty :py:class:`list` when no ports have been opened.
+            """
+            self.assertEqual([], self.network.enumerate_open_ports())
+
+        def test_an_open_port(self):
+            """
+            After :py:meth:`INetwork.open_port` is used to open a
+            port, :py:meth:`INetwork.enumerate_open_ports` returns a
+            :py:class:`list` including an object describing that open port.
+            """
+            port = 4567
+            open_port = self.network.open_port(port)
+            self.assertEqual([open_port], self.network.enumerate_open_ports())
+
+        def test_some_open_ports(self):
+            """
+            After :py:meth:`INetwork.route.open_port` is used to create
+            several open ports, :py:meth:`INetwork.enumerate_open_port` returns
+            a :py:class:`list` including an object for each of those open
+            ports.
+            """
+            port = 4567
+            open_port_one = self.network.open_port(port)
+            open_port_two = self.network.open_port(port + 1)
+
+            self.assertEqual(
+                sorted([open_port_one, open_port_two]),
+                sorted(self.network.enumerate_open_ports()))
+
+        def test_deleted_open_ports_not_enumerated(self):
+            """
+            Once an open port has been deleted,
+            :py:meth:`INetwork.enumerate_open_ports` does not include an
+            element in the sequence it returns corresponding to it.
+            """
+            open_port = self.network.open_port(4321)
+            self.network.delete_open_port(open_port)
+            self.assertEqual([], self.network.enumerate_open_ports())
+
+        def test_only_specified_open_port_deleted(self):
+            open_port_one = self.network.open_port(1)
+            open_port_two = self.network.open_port(2)
+            self.network.delete_open_port(open_port_one)
+            self.assertEqual(
+                [open_port_two],
+                self.network.enumerate_open_ports())
+
+        def test_open_ports_used(self):
+            """
+            The port numbers opened are marked as used in the
+            return value of :py:meth:`INetwork.enumerate_used_ports`.
+            """
+            # Some random, not-very-likely-to-be-bound port number.  It's not a
+            # disaster if this does accidentally collide with a port in use on
+            # the host when the test suite runs but the test only demonstrates
+            # what it's meant to demonstrate when it doesn't collide.
+            port_number = 18173
+            self.network.open_port(port_number)
+            self.assertIn(port_number, self.network.enumerate_used_ports())
+
+    return NetworkTests

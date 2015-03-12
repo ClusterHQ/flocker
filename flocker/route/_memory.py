@@ -40,7 +40,7 @@ class MemoryNetwork(object):
         return open_port
 
     def delete_open_port(self, open_port):
-        self._open_port.remove(open_port)
+        self._open_ports.remove(open_port)
 
     def enumerate_proxies(self):
         return list(self._proxies)

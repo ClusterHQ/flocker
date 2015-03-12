@@ -244,13 +244,13 @@ def delete_proxy(logger, proxy):
             iptables(logger, argv)
 
 
-def delete_port(logger, port):
+def delete_open_port(logger, port):
     # FIXME
     action = OPEN_PORT(
         logger=logger, target_port=port)
 
     with action:
-        encoded_port = unicode(port).encode("ascii")
+        encoded_port = unicode(port.port).encode("ascii")
         iptables(logger, [
             b"--table", b"filter",
             b"--delete", b"INPUT",
@@ -273,7 +273,9 @@ def enumerate_proxies():
     :see: :py:meth:`INetwork.enumerate_proxies` for parameter documentation.
     """
     proxies = []
-    for rule in get_flocker_rules(FLOCKER_PROXY_COMMENT_MARKER):
+    for rule in get_flocker_rules(
+            comment_marker=FLOCKER_PROXY_COMMENT_MARKER,
+            table=b'nat'):
         proxies.append(
             Proxy(ip=rule.to_destination, port=rule.destination_port))
 
@@ -288,15 +290,16 @@ def enumerate_open_ports():
     :see: :py:meth:`INetwork.enumerate_proxies` for parameter documentation.
     """
     ports = []
-    # TODO
-    for rule in get_flocker_rules(FLOCKER_OPENPORT_COMMENT_MARKER):
+    for rule in get_flocker_rules(
+            comment_marker=FLOCKER_OPENPORT_COMMENT_MARKER,
+            table=b'filter'):
         ports.append(
             OpenPort(port=rule.destination_port))
 
     return ports
 
 
-def get_flocker_rules(comment_marker):
+def get_flocker_rules(comment_marker, table):
     """
     Look up all of the iptables rules created/managed by flocker.
 
@@ -306,10 +309,10 @@ def get_flocker_rules(comment_marker):
     # Life is horrible.
     # https://stackoverflow.com/questions/109553/how-can-i-programmatically-manage-iptables-rules-on-the-fly
     # At least we know all the rules we need to inspect are in the NAT table.
-    output = check_output([b"iptables-save", b"--table", b"nat"])
+    output = check_output([b"iptables-save"])
 
     # Find the beginning of the NAT table
-    header = b"*nat\n"
+    header = b"*%s\n" % (table,)
     begin = output.find(header) + len(header)
 
     # Find the end of the NAT table
@@ -411,7 +414,7 @@ class HostNetwork(object):
         return open_port(self.logger, port)
 
     def delete_open_port(self, port):
-        return delete_port(self.logger, port)
+        return delete_open_port(self.logger, port)
 
     enumerate_proxies = staticmethod(enumerate_proxies)
 
