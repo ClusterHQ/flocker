@@ -1288,12 +1288,8 @@ class UploadRPMsTests(TestCase):
 
         self.assertTrue(expected_files.issubset(set(files_on_s3)))
 
-    # TODO you'll only need createrepo
-    @skipUnless(which('yum'), "Tests require the ``yum`` command.")
     @skipUnless(which('createrepo'),
         "Tests require the ``createrepo`` command.")
-    @skipUnless(which('yumdownloader'),
-        "Tests require the ``yumdownloader`` command.")
     def test_real_yum_utils(self):
         """
         Calling :func:`update_repo` with real yum utilities creates a
