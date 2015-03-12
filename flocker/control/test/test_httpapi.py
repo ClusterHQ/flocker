@@ -249,7 +249,14 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         self.fail("not implemented yet")
 
-    def test_create_container_with_invalid_environment(self):
+    def test_create_container_with_invalid_environment_type(self):
+        """
+        An API request to create a container including an environment key in
+        the request data that is not a dictionary results in an error returned.
+        """
+        self.fail("not implemented yet")
+
+    def test_create_container_with_invalid_environment_values(self):
         """
         An API request to create a container including environment variables
         in the request body that are not ``unicode`` types results in an error
