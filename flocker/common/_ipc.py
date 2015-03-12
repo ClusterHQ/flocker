@@ -122,7 +122,16 @@ class ProcessNode(object):
             # and result in an immediate failure).  As mentioned above, we'll
             # switch away from SSH soon.
             b"-o", b"PreferredAuthentications=publickey",
-            b"-p", b"%d" % (port,), host), quote=quote)
+            b"-p", b"%d" % (port,), host,
+            # Run the remote command inside a container on the remote host.
+            "docker", "run", "-ti", "--privileged",
+            "lmarsden/flocker-zfs-agent",
+            "-v", "/etc/flocker:/etc/flocker",
+            "-v", "/var/run/docker.real.sock:/var/run/docker.sock",
+            "-v", "/dev/zfs:/dev/zfs",
+            "-v", "/flocker:/flocker",
+            "-v", "/root/.ssh:/root/.ssh",
+            ), quote=quote)
 
 
 @implementer(INode)
