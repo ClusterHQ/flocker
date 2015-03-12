@@ -6,6 +6,7 @@ Tests for ``flocker.node.agents.blockdevice``.
 
 import os
 from uuid import uuid4
+from operator import attrgetter
 
 from zope.interface.verify import verifyObject
 
@@ -17,6 +18,15 @@ from ..blockdevice import (
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
+
+
+def sorted_by_blockdevice_id(blockdevices):
+    """
+    :param list blockdevices: The ``BlockDeviceVolume`` instances to sort.
+    :returns: A ``list`` of ``BlockDeviceVolume``s sorted by their
+        ``blockdevice_id``.
+    """
+    return sorted(blockdevices, key=attrgetter('blockdevice_id'))
 
 
 class IBlockDeviceAPITestsMixin(object):
@@ -140,8 +150,8 @@ class IBlockDeviceAPITestsMixin(object):
             host=expected_host
         )
         self.assertEqual(
-            sorted([new_volume1, attached_volume]),
-            sorted(self.api.list_volumes())
+            sorted_by_blockdevice_id([new_volume1, attached_volume]),
+            sorted_by_blockdevice_id(self.api.list_volumes())
         )
 
     def test_multiple_volumes_attached_to_host(self):
@@ -159,8 +169,8 @@ class IBlockDeviceAPITestsMixin(object):
         )
 
         self.assertEqual(
-            sorted([attached_volume1, attached_volume2]),
-            sorted(self.api.list_volumes())
+            sorted_by_blockdevice_id([attached_volume1, attached_volume2]),
+            sorted_by_blockdevice_id(self.api.list_volumes())
         )
 
     # def test_get_attached_volume_device(self):
