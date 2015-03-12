@@ -7,12 +7,13 @@ Effectful interface to RPM tools.
 import os
 from urlparse import urlparse
 
+import requests
+from requests_file import FileAdapter
 from twisted.python.filepath import FilePath
 from characteristic import attributes
 from effect import Effect, sync_performer, TypeDispatcher
 from effect.do import do
 from subprocess import check_call
-from textwrap import dedent
 
 
 @attributes([
@@ -35,15 +36,17 @@ def perform_download_packages_from_repository(dispatcher, intent):
     """
     See :class:`DownloadPackagesFromRepository`.
     """
-    # TODO don't use yum tools. Just download files.
-    import urllib2
-    import urllib
     packages = ['clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
                 'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm']
+    s = requests.Session()
+    # Tests use a local package repository
+    s.mount('file://', FileAdapter())
     # TODO use intent.packages, but get versioned files
     for package in packages:
         url = intent.source_repo + '/' + package
-        urllib.urlretrieve(url, intent.target_path.child(package).path)
+        local_path = intent.target_path.child(package).path
+        with open(local_path, "wb") as local_file:
+            local_file.write(s.get(url).content)
 
 
 @attributes([
