@@ -226,7 +226,7 @@ def make_iblockdeviceapi_tests(blockdevice_api_factory):
 def loopbackblockdeviceapi_for_test(test_case):
     """
     :returns: A ``LoopbackBlockDeviceAPI`` with a temporary root directory
-    created for the supplied ``test_case``.
+        created for the supplied ``test_case``.
     """
     user_id = os.getuid()
     if user_id != 0:
