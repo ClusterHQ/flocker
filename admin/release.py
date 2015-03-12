@@ -430,6 +430,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     elif is_weekly_release(version):
         release_type = "development"
 
+    # TODO this does not match up with the new .repo files
     yield update_repo(
         rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
         target_bucket=target_bucket,

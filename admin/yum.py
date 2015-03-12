@@ -25,7 +25,7 @@ class DownloadPackagesFromRepository(object):
     """
     Download a given set of RPMs from a repository.
 
-    :ivar bytes source_repo: Location of repoisitory.
+    :ivar bytes source_repo: Location of repository.
     :ivar FilePath target_path: Directory to download packages to.
     :ivar list packages: List of bytes, package names to download.
 
