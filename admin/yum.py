@@ -36,16 +36,33 @@ def perform_download_packages_from_repository(dispatcher, intent):
     """
     See :class:`DownloadPackagesFromRepository`.
     """
-    packages = ['clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
-                'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm']
+    from release import make_rpm_version
+    from admin.packaging import Distribution, package_filename
+
+    #TODO pass this in
+    version = '0.3.3dev7'
+    rpm_version = make_rpm_version(version)
+    # TODO pass this info in
+    distribution = Distribution(name='centos', version=7)
+    package_type = distribution.package_type()
+    package_to_architecture = {
+        'clusterhq-flocker-cli': 'all',
+        'clusterhq-flocker-node': 'all',
+        'clusterhq-python-flocker': 'native',
+    }
     s = requests.Session()
     # Tests use a local package repository
     s.mount('file://', FileAdapter())
-    # TODO use intent.packages, but get versioned files
-    # TODO try to share some/all of this logic with the fake
-    for package in packages:
-        url = intent.source_repo + '/' + package
-        local_path = intent.target_path.child(package).path
+
+    for package in intent.packages:
+        package_name = package_filename(
+            package_type=package_type,
+            package=package,
+            architecture=package_to_architecture[package],
+            rpm_version=rpm_version,
+        )
+        url = intent.source_repo + '/' + package_name
+        local_path = intent.target_path.child(package_name).path
         with open(local_path, "wb") as local_file:
             local_file.write(s.get(url).content)
 

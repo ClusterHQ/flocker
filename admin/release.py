@@ -50,7 +50,7 @@ from .yum import (
 
 __all__ = ['rpm_version', 'make_rpm_version']
 
-# Use characteristic instead.
+# Use characteristic or pyrsistent instead.
 # https://clusterhq.atlassian.net/browse/FLOC-1223
 rpm_version = namedtuple('rpm_version', 'version release')
 
