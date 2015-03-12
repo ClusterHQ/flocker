@@ -375,12 +375,50 @@ class ContainerAPITests(TestCase):
         cluster.
         """
         data = {
-            u"name": "my_container",
+            u"name": "my_env_container",
             u"host": None,
-            u"image": "clusterhq/flask:latest",
+            u"image": "busybox:latest",
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'}
         }
-        self.fail("not implemented yet")
+        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
+
+        def create_container(cluster, data):
+            data[u"host"] = cluster.nodes[0].address
+            return cluster.create_container(data)
+
+        d = waiting_for_cluster.addCallback(create_container, data)
+
+        def check_result(result):
+            response = result[1]
+            def can_connect():
+                try:
+                    remote_data = run_SSH(
+                        22, 'root', data[u"host"],
+                        [
+                            b"docker",
+                            b"inspect",
+                            b"flocker--{0}".format(data[u"name"])
+                        ], None
+                    )
+                except Exception:
+                    return False
+                container_data = loads(remote_data)
+                env_data = container_data[0]['Config']['Env']
+                for var in env_data:
+                    try:
+                        label, value = var.split("=")
+                        if [(label, value)] == data[u"environment"].items():
+                            return True
+                    except ValueError:
+                        continue
+                return False
+            dl = loop_until(can_connect)
+            self.assertEqual(response, data)
+            return dl
+
+        d.addCallback(check_result)
+        return d
+
 
 class DatasetAPITests(TestCase):
     """
