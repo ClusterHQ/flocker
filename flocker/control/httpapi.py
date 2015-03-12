@@ -504,8 +504,7 @@ class DatasetAPIUserV1(object):
         ]
     )
     @structured(
-        inputSchema={
-            '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
+        inputSchema={},
         outputSchema={},
         schema_store=SCHEMAS
     )
