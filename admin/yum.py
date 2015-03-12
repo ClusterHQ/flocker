@@ -158,7 +158,10 @@ class FakeYum(object):
         :class:`FakeYum`.
         """
         return TypeDispatcher({
+            # Share implementation with real implementation
             DownloadPackagesFromRepository:
                 perform_download_packages_from_repository,
+
+            # Fake implementation
             CreateRepo: self._perform_create_repository,
         })

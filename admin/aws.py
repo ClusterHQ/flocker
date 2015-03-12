@@ -402,13 +402,16 @@ class FakeAWS(object):
         """
         # TODO make it more explicit what is real and what is fake
         return TypeDispatcher({
+            # Share implementation with real implementation
+            DownloadS3KeyRecursively: perform_download_s3_key_recursively,
+            UploadToS3Recursively: perform_upload_s3_key_recursively,
+
+            # Fake implementation
             UpdateS3RoutingRule: self._perform_update_s3_routing_rule,
             ListS3Keys: self._perform_list_s3_keys,
             DeleteS3Keys: self._perform_delete_s3_keys,
             CopyS3Keys: self._perform_copy_s3_keys,
-            DownloadS3KeyRecursively: perform_download_s3_key_recursively,
             DownloadS3Key: self._perform_download_s3_key,
-            UploadToS3Recursively: perform_upload_s3_key_recursively,
             UploadToS3: self._perform_upload_s3_key,
             CreateCloudFrontInvalidation:
                 self._perform_create_cloudfront_invalidation,
