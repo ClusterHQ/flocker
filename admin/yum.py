@@ -66,8 +66,11 @@ def perform_download_packages_from_repository(dispatcher, intent):
         )
         url = intent.source_repo + '/' + package_name
         local_path = intent.target_path.child(package_name).path
+        download = s.get(url)
+        download.raise_for_status()
+        content = download.content
         with open(local_path, "wb") as local_file:
-            local_file.write(s.get(url).content)
+            local_file.write(content)
         downloaded_packages.add(package_name)
 
     return downloaded_packages

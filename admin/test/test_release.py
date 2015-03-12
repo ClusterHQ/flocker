@@ -9,6 +9,8 @@ from unittest import skipUnless, TestCase
 import tempfile
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
+from requests.exceptions import HTTPError
+
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
@@ -759,6 +761,10 @@ class UploadRPMsTests(TestCase):
             {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
         ]
         self.dev_version = '0.3.3dev7'
+        self.repo_contents = {
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
+        }
 
     def test_upload_non_release_fails(self):
         """
@@ -804,18 +810,13 @@ class UploadRPMsTests(TestCase):
             },
         )
 
-        repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
-        }
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=repo_contents),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -823,8 +824,9 @@ class UploadRPMsTests(TestCase):
         )
 
         self.assertDictContainsSubset(
-            {os.path.join(self.target_key, package): repo_contents[package]
-             for package in repo_contents},
+            {os.path.join(self.target_key, package):
+                self.repo_contents[package]
+             for package in self.repo_contents},
             aws.s3_buckets[self.target_bucket])
 
     def test_metadata_uploaded(self):
@@ -845,7 +847,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files={}),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -872,18 +874,13 @@ class UploadRPMsTests(TestCase):
             },
         )
 
-        repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
-        }
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=repo_contents),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -892,8 +889,8 @@ class UploadRPMsTests(TestCase):
 
         expected_keys = existing_s3_keys.copy()
         expected_keys.update({
-            os.path.join(self.target_key, package): repo_contents[package]
-            for package in repo_contents})
+            os.path.join(self.target_key, package): self.repo_contents[package]
+            for package in self.repo_contents})
 
         self.assertDictContainsSubset(
             expected_keys,
@@ -905,6 +902,7 @@ class UploadRPMsTests(TestCase):
         package when a package already exists on S3 with the same name
         replaces the package on S3 with the one from the source repository.
         """
+        # TODO get this from self.repo_contents
         cli_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
         existing_s3_keys = {
             os.path.join(self.target_key, cli_package): 'old-cli-package',
@@ -966,7 +964,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files={}),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1004,7 +1002,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files={}),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1032,13 +1030,18 @@ class UploadRPMsTests(TestCase):
             },
         )
 
+        repo_contents = {
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',
+        }
+
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files={}),
+            source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1076,7 +1079,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files={}),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=[],
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1191,6 +1194,46 @@ class UploadRPMsTests(TestCase):
             os.path.join(self.target_key, unspecified_package),
             aws.s3_buckets[self.target_bucket])
 
+    def test_package_not_available_exception(self):
+        """
+        If a requested package is not available in the repository, a 404 error
+        is raised.
+        """
+        existing_s3_keys = {
+            os.path.join(self.target_key, 'existing_package.rpm'): '',
+        }
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: existing_s3_keys,
+            },
+        )
+
+        repo_contents = {
+            # clusterhq-flocker-node is not available
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',
+        }
+
+        with self.assertRaises(HTTPError) as exception:
+            self.update_repo(
+                aws=aws,
+                yum=FakeYum(),
+                rpm_directory=self.rpm_directory,
+                target_bucket=self.target_bucket,
+                target_key=self.target_key,
+                source_repo=self.create_fake_repository(files=repo_contents),
+                packages=self.packages,
+                flocker_version=self.dev_version,
+                distro_name=self.operating_systems[0]['distro'],
+                distro_version=self.operating_systems[0]['version'],
+            )
+
+        self.assertEqual(
+            u'404 Client Error: None',
+            unicode(exception.exception),
+        )
+
     def test_development_repositories_created(self):
         """
         Calling :func:`upload_rpms` creates development repositories for
@@ -1206,9 +1249,10 @@ class UploadRPMsTests(TestCase):
         repo_contents = {
             'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3dev7/fedora-20/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3dev7/fedora-20/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm': '',  # noqa
             'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
-
+            'results/omnibus/0.3.3dev7/centos-7/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm': '',  # noqa
         }
 
         self.upload_rpms(
@@ -1252,11 +1296,12 @@ class UploadRPMsTests(TestCase):
         )
 
         repo_contents = {
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-cli-0.3.3.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-node-0.3.3.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3.noarch.rpm': '',  # noqa
-            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3.noarch.rpm': '',  # noqa
-
+            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/fedora-20/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/fedora-20/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.3/centos-7/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
         }
 
         self.upload_rpms(
