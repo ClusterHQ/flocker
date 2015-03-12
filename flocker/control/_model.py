@@ -379,6 +379,19 @@ class _PathMap(CheckedPMap):
     __value_type__ = FilePath
 
 
+class INodeStateUpdate(Interface):
+    """
+    New information that can be applied to a ``Node``.
+    """
+    def update_node(node):
+        """
+        Update the node with newly discoverd information about its state.
+
+        :param Node node: The current known node state.
+        :return Node: Updated node.
+        """
+
+
 class NodeState(PRecord):
     """
     The current state of a node.

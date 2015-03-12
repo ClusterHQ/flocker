@@ -84,11 +84,9 @@ class IDeployer(Interface):
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.
 
-        :return: A ``Deferred`` which fires with an object describing
-             local state. This object will be passed to the control
-             service (see ``flocker.control._protocol``) and may also be
-             passed to this object's
-             ``calculate_necessary_state_changes()`` method.
+        :return: A ``Deferred`` which fires with a ``INodeStateUpdate``
+             provider. This object will be passed to the control service
+             (see ``flocker.control._protocol``).
         """
 
     def calculate_necessary_state_changes(local_state,
