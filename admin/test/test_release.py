@@ -703,7 +703,7 @@ class UploadRPMsTests(TestCase):
 
     def update_repo(self, aws, yum,
                     rpm_directory, target_bucket, target_key, source_repo,
-                    packages, flocker_version):
+                    packages, flocker_version, distro_name):
         """
         Call :func:``update_repo``, interacting with a fake AWS and yum
         utilities.
@@ -721,8 +721,16 @@ class UploadRPMsTests(TestCase):
                        base_dispatcher]
         sync_perform(
             ComposedDispatcher(dispatchers),
-            update_repo(rpm_directory, target_bucket, target_key, source_repo,
-                        packages, flocker_version))
+            update_repo(
+                rpm_directory=rpm_directory,
+                target_bucket=target_bucket,
+                target_key=target_key,
+                source_repo=source_repo,
+                packages=packages,
+                flocker_version=flocker_version,
+                distro_name=distro_name,
+            )
+        )
 
     def create_fake_repository(self, files):
         """
@@ -818,6 +826,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         self.assertDictContainsSubset(
@@ -846,6 +855,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         self.assertIn(
@@ -882,6 +892,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         expected_keys = existing_s3_keys.copy()
@@ -925,6 +936,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         expected_keys = existing_s3_keys.copy()
@@ -961,6 +973,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         self.assertNotEqual(
@@ -997,6 +1010,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         self.assertEqual(
@@ -1029,6 +1043,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         repodata_files = [
@@ -1065,6 +1080,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         self.update_repo(
@@ -1076,6 +1092,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
@@ -1111,6 +1128,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=[],
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         self.update_repo(
@@ -1122,6 +1140,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
@@ -1161,6 +1180,7 @@ class UploadRPMsTests(TestCase):
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         self.assertNotIn(
@@ -1264,6 +1284,7 @@ class UploadRPMsTests(TestCase):
 
         self.assertTrue(expected_files.issubset(set(files_on_s3)))
 
+    # TODO you'll only need createrepo
     @skipUnless(which('yum'), "Tests require the ``yum`` command.")
     @skipUnless(which('createrepo'),
         "Tests require the ``createrepo`` command.")
@@ -1300,6 +1321,7 @@ class UploadRPMsTests(TestCase):
             source_repo=repo_uri,
             packages=self.packages,
             flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
         )
 
         files = [
