@@ -679,6 +679,7 @@ class UploadRPMsTests(TestCase):
         Call :func:``upload_rpms``, interacting with a fake AWS and yum
         utilities.
 
+        # TODO these are descriptions meant for update_repo
         :param FakeAWS aws: Fake AWS to interact with.
         :param FakeYum yum: Fake yum utilities to interact with.
         :param rpm_directory: See :py:func:`update_repo`.
@@ -702,7 +703,7 @@ class UploadRPMsTests(TestCase):
 
     def update_repo(self, aws, yum,
                     rpm_directory, target_bucket, target_key, source_repo,
-                    packages):
+                    packages, flocker_version):
         """
         Call :func:``update_repo``, interacting with a fake AWS and yum
         utilities.
@@ -714,14 +715,14 @@ class UploadRPMsTests(TestCase):
         :param target_key: See :py:func:`update_repo`.
         :param source_repo: See :py:func:`update_repo`.
         :param packages: See :py:func:`update_repo`.
-        :param version: See :py:func:`update_repo`.
+        :param flocker_version: See :py:func:`update_repo`.
         """
         dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
                        base_dispatcher]
         sync_perform(
             ComposedDispatcher(dispatchers),
             update_repo(rpm_directory, target_bucket, target_key, source_repo,
-                        packages))
+                        packages, flocker_version))
 
     def create_fake_repository(self, files):
         """
@@ -757,6 +758,7 @@ class UploadRPMsTests(TestCase):
             {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
             {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
         ]
+        self.dev_version = '0.3.3dev7'
 
     def test_upload_non_release_fails(self):
         """
@@ -815,6 +817,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         self.assertDictContainsSubset(
@@ -842,6 +845,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         self.assertIn(
@@ -877,6 +881,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         expected_keys = existing_s3_keys.copy()
@@ -919,6 +924,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         expected_keys = existing_s3_keys.copy()
@@ -954,6 +960,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         self.assertNotEqual(
@@ -989,6 +996,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         self.assertEqual(
@@ -1020,6 +1028,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         repodata_files = [
@@ -1055,6 +1064,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         self.update_repo(
@@ -1065,6 +1075,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files={}),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
@@ -1099,6 +1110,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=[],
+            flocker_version=self.dev_version,
         )
 
         self.update_repo(
@@ -1109,6 +1121,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
@@ -1147,6 +1160,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files=repo_contents),
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         self.assertNotIn(
@@ -1285,6 +1299,7 @@ class UploadRPMsTests(TestCase):
             target_key=self.target_key,
             source_repo=repo_uri,
             packages=self.packages,
+            flocker_version=self.dev_version,
         )
 
         files = [

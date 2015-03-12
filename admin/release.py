@@ -356,7 +356,7 @@ FLOCKER_PACKAGES = [
 
 @do
 def update_repo(rpm_directory, target_bucket, target_key, source_repo,
-                packages):
+                packages, flocker_version):
     """
     Update ``target_bucket`` yum repository with ``packages`` from
     ``source_repo`` repository.
@@ -369,6 +369,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         from.
     :param list packages: List of bytes, each specifying the name of a package
         to upload to the repository.
+    # TODO update docstring
     """
     rpm_directory.createDirectory()
 
@@ -383,7 +384,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         target_path=rpm_directory,
         packages=packages,
         # TODO pass these through to here
-        flocker_version='0.3.3dev7',
+        flocker_version=flocker_version,
         distro_name='centos',
         distro_version='7',
         ))
@@ -447,6 +448,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         source_repo=os.path.join(build_server, b'results/omnibus', version,
                                  b'fedora-20'),
         packages=FLOCKER_PACKAGES,
+        flocker_version=version,
     )
 
     yield update_repo(
@@ -456,6 +458,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         source_repo=os.path.join(build_server, b'results/omnibus', version,
                                  b'centos-7'),
         packages=FLOCKER_PACKAGES,
+        flocker_version=version,
     )
 
 
