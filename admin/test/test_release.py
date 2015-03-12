@@ -703,7 +703,7 @@ class UploadRPMsTests(TestCase):
 
     def update_repo(self, aws, yum,
                     rpm_directory, target_bucket, target_key, source_repo,
-                    packages, flocker_version, distro_name):
+                    packages, flocker_version, distro_name, distro_version):
         """
         Call :func:``update_repo``, interacting with a fake AWS and yum
         utilities.
@@ -729,6 +729,7 @@ class UploadRPMsTests(TestCase):
                 packages=packages,
                 flocker_version=flocker_version,
                 distro_name=distro_name,
+                distro_version=distro_version,
             )
         )
 
@@ -827,6 +828,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         self.assertDictContainsSubset(
@@ -856,6 +858,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         self.assertIn(
@@ -893,6 +896,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         expected_keys = existing_s3_keys.copy()
@@ -937,6 +941,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         expected_keys = existing_s3_keys.copy()
@@ -974,6 +979,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         self.assertNotEqual(
@@ -1011,6 +1017,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         self.assertEqual(
@@ -1044,6 +1051,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         repodata_files = [
@@ -1081,6 +1089,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         self.update_repo(
@@ -1093,6 +1102,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
@@ -1129,6 +1139,7 @@ class UploadRPMsTests(TestCase):
             packages=[],
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         self.update_repo(
@@ -1141,6 +1152,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
@@ -1181,6 +1193,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         self.assertNotIn(
@@ -1322,6 +1335,7 @@ class UploadRPMsTests(TestCase):
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
         )
 
         files = [

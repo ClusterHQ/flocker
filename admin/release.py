@@ -356,7 +356,7 @@ FLOCKER_PACKAGES = [
 
 @do
 def update_repo(rpm_directory, target_bucket, target_key, source_repo,
-                packages, flocker_version, distro_name):
+                packages, flocker_version, distro_name, distro_version):
     """
     Update ``target_bucket`` yum repository with ``packages`` from
     ``source_repo`` repository.
@@ -386,7 +386,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         # TODO pass these through to here
         flocker_version=flocker_version,
         distro_name=distro_name,
-        distro_version='7',
+        distro_version=distro_version,
         ))
 
     downloaded_packages = yield Effect(ListPackages(
@@ -450,6 +450,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         packages=FLOCKER_PACKAGES,
         flocker_version=version,
         distro_name='fedora',
+        distro_version='20',
     )
 
     yield update_repo(
@@ -461,6 +462,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         packages=FLOCKER_PACKAGES,
         flocker_version=version,
         distro_name='centos',
+        distro_version='7',
     )
 
 
