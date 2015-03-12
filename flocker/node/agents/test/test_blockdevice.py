@@ -142,8 +142,8 @@ class IBlockDeviceAPITestsMixin(object):
         )
 
         self.assertEqual(
-            [attached_volume1, attached_volume2],
-            self.api.list_volumes()
+            sorted([attached_volume1, attached_volume2]),
+            sorted(self.api.list_volumes())
         )
 
     # def test_get_attached_volume_device(self):
