@@ -44,7 +44,6 @@ from .yum import (
     CreateRepo,
     DownloadPackagesFromRepository,
     ListMetadata,
-    ListPackages,
 )
 
 
@@ -383,7 +382,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         target_path=rpm_directory,
         filter_extensions=('.rpm',)))
 
-    yield Effect(DownloadPackagesFromRepository(
+    downloaded_packages = yield Effect(DownloadPackagesFromRepository(
         source_repo=source_repo,
         target_path=rpm_directory,
         packages=packages,
@@ -392,22 +391,17 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         distro_version=distro_version,
         ))
 
-    # TODO remove this and ListPackages and use a return set from Download
-    downloaded_packages = yield Effect(ListPackages(
-        repository_path=rpm_directory,
-    ))
-
     old_metadata = yield Effect(
         ListS3Keys(bucket=target_bucket,
                    prefix=os.path.join(target_key, 'repodata/')))
 
-    yield Effect(CreateRepo(
+    new_metadata = yield Effect(CreateRepo(
         repository_path=rpm_directory,
         ))
 
-    new_metadata = yield Effect(ListMetadata(
-        repository_path=rpm_directory,
-    ))
+    # new_metadata = yield Effect(ListMetadata(
+    #     repository_path=rpm_directory,
+    # ))
 
     changed_metadata = new_metadata - old_metadata
 

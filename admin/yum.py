@@ -5,11 +5,9 @@ Effectful interface to RPM tools.
 """
 
 import os
-from urlparse import urlparse
 
 import requests
 from requests_file import FileAdapter
-from twisted.python.filepath import FilePath
 from characteristic import attributes
 from effect import Effect, sync_performer, TypeDispatcher
 from effect.do import do
@@ -60,6 +58,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
     # Tests use a local package repository
     s.mount('file://', FileAdapter())
 
+    downloaded_packages = set()
     for package in intent.packages:
         package_name = package_filename(
             package_type=package_type,
@@ -71,6 +70,9 @@ def perform_download_packages_from_repository(dispatcher, intent):
         local_path = intent.target_path.child(package_name).path
         with open(local_path, "wb") as local_file:
             local_file.write(s.get(url).content)
+        downloaded_packages.add(package_name)
+
+    return downloaded_packages
 
 
 @attributes([
@@ -99,29 +101,9 @@ def perform_create_repository(dispatcher, intent):
         b'--update',
         b'--quiet',
         intent.repository_path.path])
-
-
-@attributes([
-    "repository_path",
-])
-class ListPackages(object):
-    """
-    List the filenames of repository packages.
-
-    Note that this returns a set with the prefixes stripped.
-
-    :ivar FilePath repository_path: Location of repository to list repository
-         packages from.
-    """
-
-
-@sync_performer
-def perform_list_downloaded_packages(dispatcher, intent):
-    """
-    See class:`ListPackages`.
-    """
+    # TODO share this logic via ListMetadata
     return set([os.path.basename(path.path) for path in
-                intent.repository_path.walk() if path.isfile()])
+                intent.repository_path.child('repodata').walk()])
 
 
 @attributes([
@@ -148,7 +130,6 @@ def perform_list_metadata(dispatcher, intent):
 
 yum_dispatcher = TypeDispatcher({
     DownloadPackagesFromRepository: perform_download_packages_from_repository,
-    ListPackages: perform_list_downloaded_packages,
     ListMetadata: perform_list_metadata,
     CreateRepo: perform_create_repository,
 })
@@ -160,34 +141,21 @@ class FakeYum(object):
     :func:`admin.release.upload_rpms`.
     """
     @sync_performer
-    def _perform_download_packages_from_repository(self, dispatcher, intent):
-        """
-        See :class:`DownloadPackagesFromRepository`.
-        """
-        # Source repository must be a URI for repodownloader so tests use
-        # the file:// scheme.
-        source_repo_directory = FilePath(urlparse(intent.source_repo).path)
-        for path in source_repo_directory.walk():
-            filename = os.path.basename(path.path)
-            if path.isfile() and filename.startswith(tuple(intent.packages)):
-                with path.open() as source_file:
-                    intent.target_path.child(filename).setContent(
-                        source_file.read())
-
-    @sync_performer
-    @do
     def _perform_create_repository(self, dispatcher, intent):
         """
         See :class:`CreateRepo`.
         """
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
-        packages = yield Effect(ListPackages(
-            repository_path=intent.repository_path))
+        packages = set([
+            os.path.basename(path.path) for path in
+            intent.repository_path.walk() if path.isfile()])
         for filename in ['repomd.xml', 'filelists.xml.gz', 'other.xml.gz',
                          'primary.xml.gz']:
             metadata_directory.child(filename).setContent(
                 'metadata content for: ' + ','.join(packages))
+        return set([os.path.basename(path.path) for path in
+                    intent.repository_path.child('repodata').walk()])
 
     def get_dispatcher(self):
         """
@@ -196,8 +164,7 @@ class FakeYum(object):
         """
         return TypeDispatcher({
             DownloadPackagesFromRepository:
-                self._perform_download_packages_from_repository,
-            ListPackages: perform_list_downloaded_packages,
+                perform_download_packages_from_repository,
             ListMetadata: perform_list_metadata,
             CreateRepo: self._perform_create_repository,
         })

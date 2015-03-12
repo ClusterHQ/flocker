@@ -1077,7 +1077,7 @@ class UploadRPMsTests(TestCase):
             target_bucket=self.target_bucket,
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files={}),
-            packages=self.packages,
+            packages=[],
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
             distro_version=self.operating_systems[0]['version'],
@@ -1090,7 +1090,7 @@ class UploadRPMsTests(TestCase):
             target_bucket=self.alternative_bucket,
             target_key=self.target_key,
             source_repo=self.create_fake_repository(files={}),
-            packages=self.packages,
+            packages=[],
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
             distro_version=self.operating_systems[0]['version'],
@@ -1271,8 +1271,8 @@ class UploadRPMsTests(TestCase):
         expected_files = set()
         for operating_system in self.operating_systems:
             for file in [
-                'clusterhq-flocker-cli-0.3.3.noarch.rpm',
-                'clusterhq-flocker-node-0.3.3.noarch.rpm',
+                'clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
+                'clusterhq-flocker-node-0.3.3-1.noarch.rpm',
                 'repodata/repomd.xml',
             ]:
                 path = os.path.join(
@@ -1285,7 +1285,6 @@ class UploadRPMsTests(TestCase):
                 expected_files.add(path)
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-
         self.assertTrue(expected_files.issubset(set(files_on_s3)))
 
     @skipUnless(which('createrepo'),
