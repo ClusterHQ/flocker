@@ -7,6 +7,7 @@ Tests for ``flocker.node.agents.blockdevice``.
 import os
 from uuid import uuid4
 from operator import attrgetter
+from subprocess import check_output
 
 from zope.interface.verify import verifyObject
 
@@ -250,6 +251,45 @@ def make_iblockdeviceapi_tests(blockdevice_api_factory):
     return Tests
 
 
+def loopback_devices():
+    """
+    :returns: A ``list`` of ``FilePath``s for all loopback device backing
+        files.
+    """
+    output = check_output(
+        ['losetup', '--list', '--output', 'name,back-file', '--noheadings']
+    )
+    for line in output.splitlines():
+        device_file, backing_file = [
+            FilePath(f) for f in line.split()[:2]
+        ]
+        yield device_file, backing_file
+
+
+def losetup_detach(device_file):
+    """
+    Detach the supplied loopback ``device_file``.
+    """
+    check_output(['losetup', '--detach', device_file.path])
+
+
+def losetup_detach_all(root_path):
+    """
+    Detach all loop devices associated with files contained in ``root_path``.
+
+    :param FilePath root_path: A directory in which to search for loop device
+        backing files.
+    :param list backing_files: A ``list`` of all loopback backing files.
+    """
+    for device_file, backing_file in loopback_devices():
+        try:
+            backing_file.segmentsFrom(root_path)
+        except ValueError:
+            pass
+        else:
+            losetup_detach(device_file)
+
+
 def loopbackblockdeviceapi_for_test(test_case):
     """
     :returns: A ``LoopbackBlockDeviceAPI`` with a temporary root directory
@@ -264,6 +304,7 @@ def loopbackblockdeviceapi_for_test(test_case):
         )
 
     root_path = test_case.mktemp()
+    test_case.addCleanup(losetup_detach_all, FilePath(root_path))
     return LoopbackBlockDeviceAPI.from_path(root_path=root_path)
 
 
