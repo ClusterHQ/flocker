@@ -242,6 +242,79 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         return self._container_name_collision_test(self.NODE_A, self.NODE_B)
 
+    def test_create_container_with_environment(self):
+        """
+        A valid API request to create a container including environment
+        variables results in an updated configuration.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        environment = {
+            u'USER': u'webserver',
+            u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
+        }
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"nginx",
+                u"image": u"nginx", u"environment": environment
+            }, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='nginx',
+                                image=DockerImage.from_string('nginx'),
+                                environment=frozenset(environment.items())
+                            ),
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_create_container_with_environment_response(self):
+        """
+        A valid API request to create a container including environment
+        variables returns the environment mapping supplied in the request in
+        the response JSON.
+        """
+        environment = {
+            u'USER': u'webserver',
+            u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
+        }
+        container_json = {
+            u"host": self.NODE_B, u"name": u"nginx",
+            u"image": u"nginx", u"environment": environment
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"nginx",
+            u"image": u"nginx:latest", u"environment": environment
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
     def _test_conflicting_ports(self, node1, node2):
         """
         Utility method to create two containers with the same ports on two

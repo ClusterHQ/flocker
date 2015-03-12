@@ -98,6 +98,23 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 {'internal': 80, 'external': 8080},
             ]
         },
+        # Environment given but not a dict
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'environment': 'x=y'
+        },
+        # Environment given but at least one entry is not a string
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'environment': {
+                'POSTGRES_USER': 'admin',
+                'POSTGRES_VERSION': 9.4
+            }
+        },
     ],
     passing_instances=[
         {
@@ -129,6 +146,15 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 {'internal': 80, 'external': 8080},
                 {'internal': 3306, 'external': 42000}
             ]
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'environment': {
+                'POSTGRES_USER': 'admin',
+                'POSTGRES_VERSION': '9.4'
+            }
         },
     ],
 )
