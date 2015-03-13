@@ -51,6 +51,12 @@ definitions:
     type: string
     enum: ["never", "always", "on-failure"]
 
+  maximum_retry_count:
+    title: "Maximum attempts to restart a failed container"
+    description: "If a restart policy of on-failure is given, this is an optional integer value specifying the maximum restart attempts."
+    type: integer
+    minimum: 1
+
   ports:
     title: "Container ports"
     description: "Mapping of internal to external ports."
