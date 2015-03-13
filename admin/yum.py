@@ -100,6 +100,9 @@ def perform_create_repository(dispatcher, intent):
 
     :return: List of new and modified rpm metadata filenames.
     """
+    # The update option means that this is faster when there is existing
+    # metadata but has output starting "Could not find valid repo at:" when
+    # there is not existing valid metadata.
     check_call([
         b'createrepo',
         b'--update',

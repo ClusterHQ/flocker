@@ -1370,14 +1370,19 @@ class UploadRPMsTests(TestCase):
         )
 
         files = [
+            'repodata/e8671396d8181102616d45d4916fe74fb886c6f9dfcb62df546e258e830cb11c-other.xml.gz', # noqa
             'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
+            'repodata/repomd.xml',
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
             'repodata/9bd2f440089b24817e38898e81adba7739b1a904533528819574528698828750-filelists.xml.gz',  # noqa
-            'repodata/e8671396d8181102616d45d4916fe74fb886c6f9dfcb62df546e258e830cb11c-other.xml.gz',  # noqa
-            'repodata/repomd.xml'
+            'repodata/9bfa6161e98d5b438cf360853cc0366e4909909b4e7897ced63443611befbbe5-filelists.sqlite.bz2',  # noqa
+            'repodata/f497f27e365c8be8f3ca0689b15030a5f5be94ec61caad1f55b7bd1cc8707355-other.sqlite.bz2'  # noqa
         ]
         expected_files = set([os.path.join(self.target_key, file) for file in
                               files])
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
+        # The original source repository contains no metadata.
+        # This tests that CreateRepo creates the expected metadata files from
+        # given RPMs, not that any metadata files are copied.
         self.assertTrue(expected_files.issubset(set(files_on_s3)))
