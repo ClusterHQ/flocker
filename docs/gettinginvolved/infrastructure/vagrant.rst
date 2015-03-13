@@ -12,7 +12,7 @@ Boxes
 There are several vagrant boxes.
 
 Development Box (:file:`vagrant/dev`)
-   The CentOS box is initialized with the yum repositories for ZFS.
+   This CentOS box is initialized with the yum repositories for ZFS.
    This is the box the :file:`Vagrantfile` in the root of the repository is based on.
 
 Tutorial Box (:file:`vagrant/tutorial`)
