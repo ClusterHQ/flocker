@@ -421,7 +421,7 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
         d.addCallback(lambda _: loop_until(inspect_container))
         d.addCallback(lambda env:
-            verify_environment(env, data[u"environment"]))
+                      verify_environment(env, data[u"environment"]))
         return d
 
 
