@@ -1246,7 +1246,7 @@ class UploadRPMsTests(TestCase):
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
-            version='0.3.3dev7',
+            version=self.dev_version,
             build_server=self.create_fake_repository(files=repo_contents),
         )
 
@@ -1258,8 +1258,7 @@ class UploadRPMsTests(TestCase):
                 'repodata/repomd.xml',
             ]:
                 path = os.path.join(
-                    'development',
-                    operating_system['distro'],
+                    operating_system['distro'] + '-testing',
                     operating_system['version'],
                     operating_system['arch'],
                     file,
@@ -1307,7 +1306,6 @@ class UploadRPMsTests(TestCase):
                 'repodata/repomd.xml',
             ]:
                 path = os.path.join(
-                    'marketing',
                     operating_system['distro'],
                     operating_system['version'],
                     operating_system['arch'],
