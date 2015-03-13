@@ -1051,6 +1051,9 @@ class UploadRPMsTests(TestCase):
             key.startswith(os.path.join(self.target_key, 'repodata'))]
 
         # What matters is that there is more than just the index.
+        # Other tests cover the creation and modification of particular
+        # metadata filenames, but these change because of `createrepo` options
+        # such as whether to use hashes in filenames or not.
         self.assertGreater(len(repodata_files), 1)
 
     def test_create_repository_accounts_for_existing_packages(self):
