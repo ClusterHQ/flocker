@@ -478,15 +478,20 @@ class StoragePool(Service):
         # Set the root dataset to be read only; IService.startService
         # doesn't support Deferred results, and in any case startup can be
         # synchronous with no ill effects.
-        _sync_command_error_squashed(
-            [b"zfs", b"set", b"readonly=on", self._name], self.logger)
+
+        # XXX For some reason these two commands have ill effects in
+        # containerized mode. Need to find out why.
+
+        #_sync_command_error_squashed(
+        #    [b"zfs", b"set", b"readonly=on", self._name], self.logger)
 
         # If the root dataset is read-only then it's not possible to create
         # mountpoints in it for its child datasets.  Avoid mounting it to avoid
         # this problem.  This should be fine since we don't ever intend to put
         # any actual data into the root dataset.
-        _sync_command_error_squashed(
-            [b"zfs", b"set", b"canmount=off", self._name], self.logger)
+
+        #_sync_command_error_squashed(
+        #    [b"zfs", b"set", b"canmount=off", self._name], self.logger)
 
     def _check_for_out_of_space(self, reason):
         """
@@ -574,7 +579,12 @@ class StoragePool(Service):
             # Use os.rmdir instead of FilePath.remove since we don't want
             # recursive behavior. If the directory is non-empty, something
             # went wrong (or there is a race) and we don't want to lose data.
-            os.rmdir(old_filesystem.get_path().path)
+
+            # XXX Hmm, mounts which are children of a bind-mount don't appear
+            # inside a container. So we can't do this cleanup. Let's hope we
+            # didn't need it.
+            #os.rmdir(old_filesystem.get_path().path)
+            pass
         d.addCallback(remounted)
         d.addCallback(lambda _: new_filesystem)
         return d
