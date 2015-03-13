@@ -77,9 +77,9 @@ definitions:
     description: "Mapping of label and value pairs for environment variables"
     type: object
     patternProperties:
-      "^.{1,256}$":
+      "^.{1,4096}$":
         type: string
-        maxLength: 256
+        maxLength: 4096
     additionalProperties: false
 
   container_name:
