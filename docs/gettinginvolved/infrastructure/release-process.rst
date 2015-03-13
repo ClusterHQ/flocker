@@ -316,7 +316,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      admin/publish-packages "${VERSION}"
+      admin/publish-packages
 
 #. Copy the tutorial box to the final location:
    
