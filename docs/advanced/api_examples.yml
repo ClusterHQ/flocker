@@ -284,7 +284,7 @@
     "create container with environment"
 
   doc: |
-    Create a new container.
+    Create a new container with environment variables.
 
   request: |
     POST /v1/configuration/containers HTTP/1.1
