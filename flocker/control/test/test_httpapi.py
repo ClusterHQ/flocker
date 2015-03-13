@@ -319,10 +319,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         saving = self.persistence_service.save(Deployment(
             nodes={
-                Node(
-                    hostname=self.NODE_A,
-                    applications=[]
-                ),
+                Node(hostname=self.NODE_A),
                 Node(hostname=self.NODE_B),
             }
         ))
@@ -356,7 +353,6 @@ class CreateContainerTestsMixin(APITestsMixin):
 
         saving.addCallback(created)
         return saving
-
 
     def test_create_container_with_restart_policy_response(self):
         """
