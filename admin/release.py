@@ -455,6 +455,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     )
 
 
+# TODO change this method name
 def upload_rpms_main(args, base_path, top_level):
     """
     The ClusterHQ yum repository contains packages for Flocker, as well as the
