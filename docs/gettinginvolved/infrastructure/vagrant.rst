@@ -23,14 +23,13 @@ Tutorial Box (:file:`vagrant/tutorial`)
 Building
 ^^^^^^^^
 
-To build one of the above boxes, install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory.
-
-To build the development or tutorial box, install the necessary Vagrant plugins as follows:
+To build one of the above boxes, install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory:
 
 .. code-block:: sh
 
    vagrant plugin install vagrant-reload
    vagrant plugin install vagrant-vbguest
+   ./build
 
 This will generate a :file:`flocker-<box>-<version>.box` file.
 
