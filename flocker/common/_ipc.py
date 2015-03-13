@@ -126,12 +126,12 @@ class ProcessNode(object):
             b"-p", b"%d" % (port,), host,
             # Run the remote command inside a container on the remote host.
             "docker", "run", "--privileged",
-            "lmarsden/flocker-zfs-agent",
             "-v", "/etc/flocker:/etc/flocker",
             "-v", "/var/run/docker.real.sock:/var/run/docker.sock",
             "-v", "/dev/zfs:/dev/zfs",
             "-v", "/flocker:/flocker",
             "-v", "/root/.ssh:/root/.ssh",
+            "lmarsden/flocker-zfs-agent",
             ), quote=quote)
 
 
