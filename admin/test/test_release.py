@@ -750,6 +750,8 @@ class UploadRPMsTests(TestCase):
         self.target_key = 'test/target/key'
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.example'
+        # clusterhq-python-flocker is not here because for the tests which use
+        # real RPMs, it would be bad to have to have that large package.
         self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
         self.alternative_bucket = 'bucket-with-existing-package'
         alt_scratch_directory = FilePath(tempfile.mkdtemp())
