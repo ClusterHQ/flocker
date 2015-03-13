@@ -281,6 +281,29 @@
 
 -
   id:
+    "create container with restart policy"
+
+  doc: |
+    Create a new container with a restart policy.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": "on-failure"
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": "on-failure"
+
+-
+  id:
     "create container with environment"
 
   doc: |
