@@ -334,15 +334,14 @@ class UploadOptions(Options):
     Options for uploading packages.
     """
     optParameters = [
+        ["flocker-version", None, flocker.__version__,
+         "The version of Flocker to upload packages for."],
         ["target", None, ARCHIVE_BUCKET,
          "The bucket to upload packages to."],
         ["build-server", None,
          b'http://build.clusterhq.com',
          "The URL of the build-server."],
     ]
-
-    def parseArgs(self, version):
-        self['version'] = version
 
 
 FLOCKER_PACKAGES = [
@@ -489,7 +488,7 @@ def upload_rpms_main(args, base_path, top_level):
             effect=upload_rpms(
                 scratch_directory=scratch_directory,
                 target_bucket=options['target'],
-                version=options['version'],
+                version=options['flocker-version'],
                 build_server=options['build-server'],
                 ))
 

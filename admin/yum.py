@@ -42,6 +42,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
     See :class:`DownloadPackagesFromRepository`.
     """
     # TODO avoid circular imports when importing these somewhere else
+    # TODO explain how to set up the bucket permissions
     from release import make_rpm_version
     from admin.packaging import (ARCH_REQUIREMENT, Distribution,
         package_filename)
