@@ -115,22 +115,22 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'POSTGRES_VERSION': 9.4
             }
         },
-        # Environment given but a key is too long (>256 characters)
+        # Environment given but a key is too long (>4096 characters)
         {
             'host': '192.168.0.3',
             'image': 'postgres',
             'name': 'postgres',
             'environment': {
-                'MY_'+('X'*254): 'somevalue',
+                'MY_'+('X'*4094): 'somevalue',
             }
         },
-        # Environment given but a value is too long (>256 characters)
+        # Environment given but a value is too long (>4096 characters)
         {
             'host': '192.168.0.3',
             'image': 'postgres',
             'name': 'postgres',
             'environment': {
-                'MY_ENV_KEY': 'X'*257,
+                'MY_ENV_KEY': 'X'*4097,
             }
         },
     ],
