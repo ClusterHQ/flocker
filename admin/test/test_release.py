@@ -1025,18 +1025,13 @@ class UploadRPMsTests(TestCase):
             },
         )
 
-        repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',
-        }
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=repo_contents),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1113,18 +1108,13 @@ class UploadRPMsTests(TestCase):
             },
         )
 
-        repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
-        }
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=repo_contents),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=[],
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1137,7 +1127,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.alternative_package_directory,
             target_bucket=self.alternative_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=repo_contents),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1166,11 +1156,7 @@ class UploadRPMsTests(TestCase):
         )
 
         unspecified_package = 'unspecified-package-0.3.3-0.dev.7.noarch.rpm'
-        repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',
-            unspecified_package: '',
-        }
+        self.repo_contents[unspecified_package] = 'unspecified-package-content'
 
         self.update_repo(
             aws=aws,
@@ -1178,7 +1164,7 @@ class UploadRPMsTests(TestCase):
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=repo_contents),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1194,21 +1180,15 @@ class UploadRPMsTests(TestCase):
         If a requested package is not available in the repository, a 404 error
         is raised.
         """
-        existing_s3_keys = {
-            os.path.join(self.target_key, 'existing_package.rpm'): '',
-        }
-
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
-                self.target_bucket: existing_s3_keys,
+                self.target_bucket: {},
             },
         )
 
-        repo_contents = {
-            # clusterhq-flocker-node is not available
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',
-        }
+        # The repo contents will be missing one item from self.packages
+        self.repo_contents.pop(self.repo_contents.keys()[0])
 
         with self.assertRaises(HTTPError) as exception:
             self.update_repo(
@@ -1217,7 +1197,8 @@ class UploadRPMsTests(TestCase):
                 rpm_directory=self.rpm_directory,
                 target_bucket=self.target_bucket,
                 target_key=self.target_key,
-                source_repo=self.create_fake_repository(files=repo_contents),
+                source_repo=self.create_fake_repository(
+                    files=self.repo_contents),
                 packages=self.packages,
                 flocker_version=self.dev_version,
                 distro_name=self.operating_systems[0]['distro'],
