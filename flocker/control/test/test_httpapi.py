@@ -344,7 +344,9 @@ class CreateContainerTestsMixin(APITestsMixin):
                             Application(
                                 name='webserver',
                                 image=DockerImage.from_string('nginx'),
-                                restart_policy=RestartOnFailure()
+                                restart_policy=RestartOnFailure(
+                                    maximum_retry_count=5
+                                )
                             ),
                         ]
                     ),
