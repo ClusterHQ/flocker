@@ -30,7 +30,7 @@ from ...restapi.testtools import (
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume, DockerImage, Port
+    Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -315,13 +315,66 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json_result
         )
 
-    def create_container_with_restart_policy(self):
+    def test_create_container_with_restart_policy(self):
         """
+        A valid API request to create a container including a restart policy
+        results in an updated configuration.
         """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
 
-    def create_container_with_restart_policy_response(self):
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"nginx",
+                u"image": u"nginx", u"restart_policy": u"never"
+            }, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='nginx',
+                                image=DockerImage.from_string('nginx'),
+                                restart_policy=RestartOnFailure()
+                            ),
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+
+    def test_create_container_with_restart_policy_response(self):
         """
+        A valid API request to create a container including restart policy
+        returns the restart policy supplied in the request in the response
+        JSON.
         """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"nginx",
+            u"image": u"nginx:latest", u"restart_policy": u"never"
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
 
     def _test_conflicting_ports(self, node1, node2):
         """
