@@ -14,7 +14,7 @@ from zope.interface.verify import verifyObject
 from ..blockdevice import (
     LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume
+    UnattachedVolume, losetup_list_parse, losetup_list
 )
 
 from twisted.python.filepath import FilePath
@@ -251,25 +251,6 @@ def make_iblockdeviceapi_tests(blockdevice_api_factory):
     return Tests
 
 
-def loopback_devices():
-    """
-    :returns: A ``list`` of ``FilePath``s for all loopback device backing
-        files.
-    """
-    output = check_output(
-        ['losetup', '--list', '--output', 'name,back-file']
-    )
-    # Omit the heading line.
-    # losetup from util-linux 2.24.2 provides a --noheadings option, but it's
-    # not available on Centos7 or Ubuntu 14.04.
-    lines = output.splitlines()[1:]
-    for line in lines:
-        device_file, backing_file = [
-            FilePath(f) for f in line.split()[:2]
-        ]
-        yield device_file, backing_file
-
-
 def losetup_detach(device_file):
     """
     Detach the supplied loopback ``device_file``.
@@ -285,7 +266,7 @@ def losetup_detach_all(root_path):
         backing files.
     :param list backing_files: A ``list`` of all loopback backing files.
     """
-    for device_file, backing_file in loopback_devices():
+    for device_file, backing_file in losetup_list():
         try:
             backing_file.segmentsFrom(root_path)
         except ValueError:
@@ -416,3 +397,70 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         )
 
         self.assertEqual([blockdevice_volume], api.list_volumes())
+
+
+class LosetupListTests(SynchronousTestCase):
+    """
+    Tests for ``losetup_list_parse``.
+    """
+    def test_parse_empty(self):
+        """
+        An empty list is returned if there are no devices listed.
+        """
+        self.assertEqual([], losetup_list_parse('\n'))
+
+    def test_parse_one_line(self):
+        """
+        A pair of FilePaths are returned for device_file and backing_file.
+        """
+        input_text = '\n'.join([
+            '/dev/loop0: []: (/tmp/rjw)',
+            ''
+        ])
+        self.assertEqual(
+            [(FilePath('/dev/loop0'), FilePath('/tmp/rjw'))],
+            losetup_list_parse(input_text)
+        )
+
+    def test_parse_multiple_lines(self):
+        """
+        A pair of FilePaths is returned for every loopback device on the
+        system.
+        """
+        input_text = '\n'.join([
+            '/dev/loop0: []: (/tmp/rjw)',
+            '/dev/loop1: []: (/usr/share/virtualbox/VBoxGuestAdditions.iso)',
+            ''
+        ])
+        self.assertEqual(
+            [(FilePath('/dev/loop0'), FilePath('/tmp/rjw')),
+             (FilePath('/dev/loop1'),
+              FilePath('/usr/share/virtualbox/VBoxGuestAdditions.iso'),)
+         ],
+            losetup_list_parse(input_text)
+        )
+
+    def test_remove_deleted_suffix(self):
+        """
+        Devices marked as ``(deleted)`` are listed.
+        """
+        input_text = '\n'.join([
+            '/dev/loop0: []: (/tmp/rjw (deleted))',
+            ''
+        ])
+        self.assertEqual(
+            [(FilePath('/dev/loop0'), FilePath('/tmp/rjw'))],
+            losetup_list_parse(input_text)
+        )
+
+    def test_remove_inode(self):
+        """
+        Devices listed with their inode number (when run as root) are listed.
+        """
+        input_text = ''.join([
+            '/dev/loop0: [0038]:723801 (/tmp/rjw)',
+        ])
+        self.assertEqual(
+            [(FilePath('/dev/loop0'), FilePath('/tmp/rjw'))],
+            losetup_list_parse(input_text)
+        )

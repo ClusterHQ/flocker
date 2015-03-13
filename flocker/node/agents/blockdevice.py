@@ -114,23 +114,70 @@ class BlockDeviceVolume(PRecord):
     host = field(type=(bytes, type(None)), initial=None)
 
 
-def device_for_path(file_path):
+def losetup_list_parse(output):
     """
-    :param FilePath file_path: A path which may be associated with a loopback
-        device.
+    Parse the output of ``losetup --all`` which varies depending on the
+    privileges of the user.
+
+    :param unicode output: The output of ``losetup --all``.
+    :returns: A ``list`` of
+        2-tuple(FilePath(device_file), FilePath(backing_file))
+    """
+    devices = []
+    for line in output.splitlines():
+        parts = line.split(':', 2)
+        if len(parts) != 3:
+            continue
+        device_file, attributes, backing_file = parts
+        device_file = FilePath(device_file.strip())
+
+        # Trim everything from the first left bracket, skipping over the
+        # possible inode number which appears only when run as root.
+        left_bracket_offset = backing_file.find('(')
+        backing_file = backing_file[left_bracket_offset+1:]
+
+        # Trim everything from the right most right bracket
+        right_bracket_offset = backing_file.rfind(')')
+        backing_file = backing_file[:right_bracket_offset]
+
+        # Trim a possible embedded deleted flag
+        expected_suffix_list = ['(deleted)']
+        for suffix in expected_suffix_list:
+            offset = backing_file.rfind(suffix)
+            if offset > -1:
+                backing_file = backing_file[:offset]
+
+        # Remove the space that may have been between the path and the deleted
+        # flag.
+        backing_file = backing_file.rstrip()
+        backing_file = FilePath(backing_file)
+        devices.append((device_file, backing_file))
+    return devices
+
+
+def losetup_list():
+    """
+    List all the loopback devices on the system.
+
+    :returns: A ``list`` of
+        2-tuple(FilePath(device_file), FilePath(backing_file))
+    """
+    output = check_output(
+        ["losetup", "--all"]
+    ).decode('utf8')
+    return losetup_list_parse(output)
+
+
+def device_for_path(expected_backing_file):
+    """
+    :param FilePath backing_file: A path which may be associated with a
+        loopback device.
     :returns: A ``FilePath`` to the loopback device if one is found, or
         ``None`` if no device exists.
     """
-    # Omit the heading line.
-    # losetup from util-linux 2.24.2 provides a --noheadings option, but it's
-    # not available on Centos7 or Ubuntu 14.04.
-    device_paths = check_output(
-        ["losetup", "--output", "name", "--associated",
-         file_path.path]
-    ).splitlines()[1:]
-    if device_paths:
-        [device_path] = device_paths
-        return FilePath(device_path.strip())
+    for device_file, backing_file in losetup_list():
+        if expected_backing_file == backing_file:
+            return device_file
     return None
 
 
