@@ -1144,14 +1144,10 @@ class UploadRPMsTests(TestCase):
         Calling :func:`update_repo` does not upload packages to S3 unless they
         correspond to a package name given in the `packages` parameter.
         """
-        existing_s3_keys = {
-            os.path.join(self.target_key, 'existing_package.rpm'): '',
-        }
-
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
-                self.target_bucket: existing_s3_keys,
+                self.target_bucket: {},
             },
         )
 
