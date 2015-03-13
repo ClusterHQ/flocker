@@ -603,10 +603,10 @@ def container_configuration_response(application, node):
         "restart_policy": restart_policy
     }
     if (restart_policy == u"on-failure"
-        and application.restart_policy.maximum_retry_count is not None):
-            result['maximum_retry_count'] = (
-                application.restart_policy.maximum_retry_count
-            )
+            and application.restart_policy.maximum_retry_count is not None):
+        result['maximum_retry_count'] = (
+            application.restart_policy.maximum_retry_count
+        )
     if application.ports:
         result['ports'] = []
         for port in application.ports:
