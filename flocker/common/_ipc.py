@@ -124,7 +124,7 @@ class ProcessNode(object):
             b"-o", b"PreferredAuthentications=publickey",
             b"-p", b"%d" % (port,), host,
             # Run the remote command inside a container on the remote host.
-            "docker", "run", "--privileged",
+            "docker", "run", "-i", "--privileged",
             "-v", "/etc/flocker:/etc/flocker",
             "-v", "/var/run/docker.real.sock:/var/run/docker.sock",
             "-v", "/dev/zfs:/dev/zfs",
