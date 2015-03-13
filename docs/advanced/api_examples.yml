@@ -294,8 +294,8 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "restart_policy": "on-failure"
-     "maximum_retry_count": 5
+     "restart_policy": "on-failure",
+     "maximum_retry_count": 5}
 
   response: |
     HTTP/1.1 201 Created
@@ -303,8 +303,8 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "restart_policy": "on-failure"
-     "maximum_retry_count": 5
+     "restart_policy": "on-failure",
+     "maximum_retry_count": 5}
 
 -
   id:
