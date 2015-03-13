@@ -446,7 +446,7 @@ class ConfigurationAPIUserV1(object):
     )
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
-        restart_policy=None, maximum_retry_count=None
+        restart_policy=u"never", maximum_retry_count=None
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -513,12 +513,11 @@ class ConfigurationAPIUserV1(object):
             environment = frozenset(environment.items())
 
         application_restart_policies = {
-            None: RestartNever()
-            u"never": RestartNever()
+            u"never": RestartNever(),
             u"on-failure": RestartOnFailure(
                 maximum_retry_count=maximum_retry_count
-            )
-            u"always": RestartAlways()
+            ),
+            u"always": RestartAlways(),
         }
 
         # Create Application object, add to Deployment, save.
@@ -597,10 +596,17 @@ def container_configuration_response(application, node):
     :param unicode node: The host on which this application is running.
     :return: A ``dict`` containing the container configuration.
     """
+    restart_policy = application.restart_policy.to_string()
     result = {
         "host": node, "name": application.name,
         "image": application.image.full_name,
+        "restart_policy": restart_policy
     }
+    if (restart_policy == u"on-failure"
+        and application.restart_policy.maximum_retry_count is not None):
+            result['maximum_retry_count'] = (
+                application.restart_policy.maximum_retry_count
+            )
     if application.ports:
         result['ports'] = []
         for port in application.ports:

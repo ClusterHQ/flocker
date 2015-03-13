@@ -87,6 +87,14 @@ class IRestartPolicy(Interface):
     """
     Restart policy for an application.
     """
+    def to_string():
+        """
+        Return a string representation of the policy. This corresponds to
+        the configuration and API specifications used to create an Application
+        with a given restart policy.
+
+        :return: A ``unicode`` representation of this policy's name.
+        """
 
 
 @implementer(IRestartPolicy)
@@ -98,6 +106,9 @@ class RestartNever(object):
     A restart policy that never restarts an application.
     """
 
+    def to_string(self):
+        return u"never"
+
 
 @implementer(IRestartPolicy)
 @attributes([], apply_immutable=True,
@@ -107,6 +118,9 @@ class RestartAlways(object):
     """
     A restart policy that always restarts an application.
     """
+
+    def to_string(self):
+        return u"always"
 
 
 @implementer(IRestartPolicy)
@@ -135,6 +149,9 @@ class RestartOnFailure(object):
                 raise ValueError(
                     "maximum_retry_count must be positive, "
                     "got %r" % (self.maximum_retry_count,))
+
+    def to_string(self):
+        return u"on-failure"
 
 
 @attributes(["name", "image",

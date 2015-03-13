@@ -305,7 +305,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         }
         container_json_result = {
             u"host": self.NODE_B, u"name": u"webserver",
-            u"image": u"nginx:latest", u"environment": environment
+            u"image": u"nginx:latest", u"environment": environment,
+            u"restart_policy": u"never"
         }
         return self.assertResult(
             b"POST", b"/configuration/containers",
@@ -488,7 +489,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         }
         container_json_result = {
             u"host": self.NODE_B, u"name": u"postgres",
-            u"image": u"postgres:latest", u"ports": ports
+            u"image": u"postgres:latest", u"ports": ports,
+            u"restart_policy": u"never"
         }
         return self.assertResult(
             b"POST", b"/configuration/containers",
@@ -590,7 +592,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         }
         container_json_result = {
             u"host": self.NODE_B, u"name": u"postgres",
-            u"image": u"postgres:latest"
+            u"image": u"postgres:latest",
+            u"restart_policy": u"never"
         }
         return self.assertResult(
             b"POST", b"/configuration/containers",

@@ -287,6 +287,7 @@
     Create a new container with a restart policy.
     The value of restart_policy must be one of "never", "on-failure" or "always".
     If the value given is "on-failure", you may also optionally provide a "maximum_retry_count" value.
+    If a restart policy is not specified, the container will be created with a restart policy of "never".
 
   request: |
     POST /v1/configuration/containers HTTP/1.1
