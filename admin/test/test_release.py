@@ -902,10 +902,10 @@ class UploadRPMsTests(TestCase):
         package when a package already exists on S3 with the same name
         replaces the package on S3 with the one from the source repository.
         """
-        # TODO get this from self.repo_contents
-        cli_package = 'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'
+        existing_package_name = self.repo_contents.keys()[0]
         existing_s3_keys = {
-            os.path.join(self.target_key, cli_package): 'old-cli-package',
+            os.path.join(self.target_key, existing_package_name):
+                'existing-content-to-be-replaced',
         }
 
         aws = FakeAWS(
@@ -915,18 +915,13 @@ class UploadRPMsTests(TestCase):
             },
         )
 
-        repo_contents = {
-            cli_package: 'cli-package',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
-        }
-
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
             rpm_directory=self.rpm_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=repo_contents),
+            source_repo=self.create_fake_repository(files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -935,8 +930,8 @@ class UploadRPMsTests(TestCase):
 
         expected_keys = existing_s3_keys.copy()
         expected_keys.update({
-            os.path.join(self.target_key, package): repo_contents[package]
-            for package in repo_contents})
+            os.path.join(self.target_key, package): self.repo_contents[package]
+            for package in self.repo_contents})
 
         self.assertDictContainsSubset(
             expected_keys,
