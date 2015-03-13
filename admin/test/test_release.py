@@ -1141,6 +1141,9 @@ class UploadRPMsTests(TestCase):
         )
 
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        # The index contains details about the new packages in the repository
+        # which has those new packages. The other repository has no packages
+        # and so the index is different.
         self.assertNotEqual(
             aws.s3_buckets[self.target_bucket][index_path],
             aws.s3_buckets[self.alternative_bucket][index_path])
