@@ -24,7 +24,7 @@ rpm_dist = check_output(['rpm', '-E', '%dist']).strip()
 clusterhq_repo_url = (
     'https://s3.amazonaws.com/'
     'clusterhq-archive/'
-    'development/centos/'
+    'centos/'
     'clusterhq-release%s.noarch.rpm') % (rpm_dist,)
 check_call(['yum', 'install', '-y', clusterhq_repo_url])
 
