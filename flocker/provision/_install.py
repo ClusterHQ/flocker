@@ -13,17 +13,25 @@ from characteristic import attributes
 
 from ._common import PackageSource
 
-ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
-            "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
+ZFS_REPO = {
+    'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
+                 "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
+    'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
+                "epel/zfs-release.el7.noarch.rpm",
+}
 
 ARCHIVE_BUCKET = 'clusterhq-archive'
 
-CLUSTERHQ_REPO = (
-    "https://s3.amazonaws.com/{archive_bucket}/"
-    "/centos/"
-    "clusterhq-release$(rpm -E %dist).noarch.rpm").format(
-        archive_bucket=ARCHIVE_BUCKET,
-        )
+CLUSTERHQ_REPO = {
+    'fedora-20': "https://s3.amazonaws.com/{archive_bucket}/"
+                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                     archive_bucket=ARCHIVE_BUCKET,
+                 ),
+    'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
+                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                    archive_bucket=ARCHIVE_BUCKET,
+                ),
+}
 
 
 @attributes(["command"])
@@ -129,6 +137,17 @@ def task_upgrade_kernel():
     ]
 
 
+def task_upgrade_kernel_centos():
+    return [
+        Run.from_args([
+            "yum", "install", "-y", "kernel-devel", "kernel"]),
+        # For dkms and ... ?
+        Run.from_args([
+            "yum", "install", "-y", "epel-release"]),
+        Run.from_args(['sync']),
+    ]
+
+
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
@@ -165,8 +184,7 @@ def configure_firewalld(rule):
     return [
         Run.from_args(command + rule)
         for command in [['firewall-cmd', '--permanent'],
-                        ['firewall-cmd']]
-    ]
+                        ['firewall-cmd']]]
 
 
 def task_disable_firewall():
@@ -199,8 +217,9 @@ def task_create_flocker_pool_file():
     ]
 
 
-def task_install_flocker(package_source=PackageSource(),
-                         distribution=None):
+def task_install_flocker(
+        distribution=None,
+        package_source=PackageSource()):
     """
     Install flocker.
 
@@ -209,8 +228,8 @@ def task_install_flocker(package_source=PackageSource(),
         package.
     """
     commands = [
-        Run(command="yum install -y " + ZFS_REPO),
-        Run(command="yum install -y " + CLUSTERHQ_REPO),
+        Run(command="yum install -y " + ZFS_REPO[distribution]),
+        Run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
     ]
 
     if package_source.branch:
@@ -276,7 +295,8 @@ def provision(distribution, package_source):
     :param PackageSource package_source: See func:`task_install`
     """
     commands = []
-    commands += task_install_kernel_devel()
+    if distribution in ('fedora-20',):
+        commands += task_install_kernel_devel()
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
     commands += task_enable_docker()
