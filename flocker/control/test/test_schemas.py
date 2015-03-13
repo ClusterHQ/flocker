@@ -115,6 +115,20 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'POSTGRES_VERSION': 9.4
             }
         },
+        # Restart policy given but not a string
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': 1
+        },
+        # Restart policy string given but not an allowed value
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': 'no restart'
+        },
     ],
     passing_instances=[
         {
@@ -155,6 +169,24 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'POSTGRES_USER': 'admin',
                 'POSTGRES_VERSION': '9.4'
             }
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'restart_policy': 'never'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'restart_policy': 'always'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'restart_policy': 'on-failure'
         },
     ],
 )
