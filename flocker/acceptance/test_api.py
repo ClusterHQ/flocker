@@ -388,36 +388,40 @@ class ContainerAPITests(TestCase):
 
         d = waiting_for_cluster.addCallback(create_container, data)
 
-        def check_result(result):
-            response = result[1]
-
-            def can_connect():
-                try:
-                    remote_data = run_SSH(
-                        22, 'root', data[u"host"],
-                        [
-                            b"docker",
-                            b"inspect",
-                            b"flocker--{0}".format(data[u"name"])
-                        ], None
-                    )
-                except Exception:
-                    return False
-                container_data = loads(remote_data)
-                env_data = container_data[0]['Config']['Env']
-                for var in env_data:
-                    try:
-                        label, value = var.split("=")
-                        if [(label, value)] == data[u"environment"].items():
-                            return True
-                    except ValueError:
-                        continue
-                return False
-            dl = loop_until(can_connect)
+        def check_result((cluster, response)):
             self.assertEqual(response, data)
-            return dl
+
+        def inspect_container():
+            try:
+                remote_data = run_SSH(
+                    22, 'root', data[u"host"],
+                    [
+                        b"docker",
+                        b"inspect",
+                        b"flocker--{0}".format(data[u"name"])
+                    ], None
+                )
+            except Exception:
+                return False
+            container_data = loads(remote_data)
+            env_data = container_data[0]['Config']['Env']
+            result = dict()
+            for var in env_data:
+                try:
+                    label, value = var.split("=")
+                except ValueError:
+                    continue
+                result[label] = value
+            return result
+
+        def verify_environment(actual, expected):
+            for key, value in expected.iteritems():
+                self.assertEqual(actual[key], value)
 
         d.addCallback(check_result)
+        d.addCallback(lambda _: loop_until(inspect_container))
+        d.addCallback(lambda env:
+            verify_environment(env, data[u"environment"]))
         return d
 
 

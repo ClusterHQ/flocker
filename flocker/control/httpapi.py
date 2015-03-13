@@ -460,7 +460,7 @@ class ConfigurationAPIUserV1(object):
             to external ports for the container.
 
         :param dict environment: A ``dict`` of key/value pairs to be supplied
-            to the container as environment variables. Values must be
+            to the container as environment variables. Keys and values must be
             ``unicode``.
 
         :return: An ``EndpointResponse`` describing the container which has

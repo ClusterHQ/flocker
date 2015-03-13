@@ -249,10 +249,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         saving = self.persistence_service.save(Deployment(
             nodes={
-                Node(
-                    hostname=self.NODE_A,
-                    applications=[]
-                ),
+                Node(hostname=self.NODE_A),
                 Node(hostname=self.NODE_B),
             }
         ))
@@ -265,7 +262,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         saving.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"nginx",
+                u"host": self.NODE_A, u"name": u"webserver",
                 u"image": u"nginx", u"environment": environment
             }, CREATED
         ))
@@ -278,7 +275,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                         hostname=self.NODE_A,
                         applications=[
                             Application(
-                                name='nginx',
+                                name='webserver',
                                 image=DockerImage.from_string('nginx'),
                                 environment=frozenset(environment.items())
                             ),
@@ -303,11 +300,11 @@ class CreateContainerTestsMixin(APITestsMixin):
             u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
         }
         container_json = {
-            u"host": self.NODE_B, u"name": u"nginx",
+            u"host": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx", u"environment": environment
         }
         container_json_result = {
-            u"host": self.NODE_B, u"name": u"nginx",
+            u"host": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"environment": environment
         }
         return self.assertResult(
