@@ -285,6 +285,8 @@
 
   doc: |
     Create a new container with a restart policy.
+    The value of restart_policy must be one of "never", "on-failure" or "always".
+    If the value given is "on-failure", you may also optionally provide a "maximum_retry_count" value.
 
   request: |
     POST /v1/configuration/containers HTTP/1.1
@@ -293,6 +295,7 @@
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": "on-failure"
+     "maximum_retry_count": 5
 
   response: |
     HTTP/1.1 201 Created
@@ -301,6 +304,7 @@
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": "on-failure"
+     "maximum_retry_count": 5
 
 -
   id:
