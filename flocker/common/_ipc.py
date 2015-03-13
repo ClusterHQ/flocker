@@ -14,6 +14,7 @@ from zope.interface import Interface, implementer
 
 from characteristic import with_cmp, with_repr
 
+from twisted.python import log
 
 class INode(Interface):
     """
@@ -81,9 +82,9 @@ class ProcessNode(object):
 
     def get_output(self, remote_command):
         try:
-            return check_output(
-                self.initial_command_arguments +
-                tuple(map(self._quote, remote_command)))
+            cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
+            log.msg("running cmd: %s" % (" ".join(cmd),))
+            return check_output(cmd)
         except CalledProcessError as e:
             # We should really capture this and stderr better:
             # https://clusterhq.atlassian.net/browse/FLOC-155
