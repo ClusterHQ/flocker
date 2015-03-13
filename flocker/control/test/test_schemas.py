@@ -147,6 +147,22 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'name': 'postgres',
             'restart_policy': 'no restart'
         },
+        # Restart policy is on-failure but max retry count is negative
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': 'on-failure',
+            'maximum_retry_count': -1
+        },
+        # Restart policy is on-failure but max retry count is NaN
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': 'on-failure',
+            'maximum_retry_count': '15'
+        },
     ],
     passing_instances=[
         {
@@ -205,6 +221,13 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'image': 'docker/postgres:latest',
             'name': 'postgres',
             'restart_policy': 'on-failure'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'restart_policy': 'on-failure',
+            'maximum_retry_count': 5
         },
     ],
 )
