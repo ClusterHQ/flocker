@@ -889,6 +889,8 @@ class UploadRPMsTests(TestCase):
             distro_version=self.operating_systems[0]['version'],
         )
 
+        # The expected packages are the new packages plus the package which
+        # already existed in S3.
         expected_keys = existing_s3_keys.copy()
         expected_keys.update({
             os.path.join(self.target_key, package): self.repo_contents[package]
