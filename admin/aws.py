@@ -6,7 +6,6 @@ Effectful interface to boto.
 
 import os
 from characteristic import attributes, Attribute
-from twisted.python.filepath import FilePath
 from effect import Effect, sync_performer, TypeDispatcher
 from effect.do import do
 
@@ -400,7 +399,6 @@ class FakeAWS(object):
         Get an :module:`effect` dispatcher for interacting with this
         :class:`FakeAWS`.
         """
-        # TODO make it more explicit what is real and what is fake
         return TypeDispatcher({
             # Share implementation with real implementation
             DownloadS3KeyRecursively: perform_download_s3_key_recursively,
