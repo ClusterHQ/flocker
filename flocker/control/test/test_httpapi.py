@@ -327,8 +327,9 @@ class CreateContainerTestsMixin(APITestsMixin):
         saving.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"nginx",
-                u"image": u"nginx", u"restart_policy": u"never"
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx", u"restart_policy": u"on-failure",
+                u"maximum_retry_count": 5
             }, CREATED
         ))
 
@@ -340,7 +341,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                         hostname=self.NODE_A,
                         applications=[
                             Application(
-                                name='nginx',
+                                name='webserver',
                                 image=DockerImage.from_string('nginx'),
                                 restart_policy=RestartOnFailure()
                             ),
@@ -361,7 +362,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         JSON.
         """
         container_json = {
-            u"host": self.NODE_B, u"name": u"nginx",
+            u"host": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"restart_policy": u"never"
         }
         return self.assertResult(

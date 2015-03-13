@@ -24,7 +24,8 @@ from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
 from . import (
-    Dataset, Manifestation, Node, Application, DockerImage, Port
+    Dataset, Manifestation, Node, Application, DockerImage, Port,
+    RestartOnFailure, RestartNever, RestartAlways
 )
 from .. import __version__
 
@@ -444,7 +445,8 @@ class ConfigurationAPIUserV1(object):
         schema_store=SCHEMAS
     )
     def create_container_configuration(
-        self, host, name, image, ports=(), environment=None
+        self, host, name, image, ports=(), environment=None,
+        restart_policy=None, maximum_retry_count=None
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -464,6 +466,13 @@ class ConfigurationAPIUserV1(object):
         :param dict environment: A ``dict`` of key/value pairs to be supplied
             to the container as environment variables. Keys and values must be
             ``unicode``.
+
+        :param unicode restart_policy: A restart policy for the container, one
+            of "always", "never" or "on-failure"
+
+        :param int maximum_retry_count: If the restart policy is "on-failure",
+            this optional positive integer represents the maximum number of
+            attempts to restart a failed container.
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -503,12 +512,22 @@ class ConfigurationAPIUserV1(object):
         if environment:
             environment = frozenset(environment.items())
 
+        application_restart_policies = {
+            None: RestartNever()
+            u"never": RestartNever()
+            u"on-failure": RestartOnFailure(
+                maximum_retry_count=maximum_retry_count
+            )
+            u"always": RestartAlways()
+        }
+
         # Create Application object, add to Deployment, save.
         application = Application(
             name=name,
             image=DockerImage.from_string(image),
             ports=frozenset(application_ports),
-            environment=environment
+            environment=environment,
+            restart_policy=application_restart_policies[restart_policy]
         )
 
         new_node_config = node.transform(
