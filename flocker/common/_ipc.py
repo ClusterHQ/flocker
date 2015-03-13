@@ -66,10 +66,9 @@ class ProcessNode(object):
 
     @contextmanager
     def run(self, remote_command):
-        process = Popen(
-            self.initial_command_arguments +
-            tuple(map(self._quote, remote_command)),
-            stdin=PIPE)
+        cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
+        log.msg("run cmd: %s" % (" ".join(cmd),))
+        process = Popen(cmd, stdin=PIPE)
         try:
             yield process.stdin
         finally:
@@ -83,7 +82,7 @@ class ProcessNode(object):
     def get_output(self, remote_command):
         try:
             cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
-            log.msg("running cmd: %s" % (" ".join(cmd),))
+            log.msg("get_output cmd: %s" % (" ".join(cmd),))
             return check_output(cmd)
         except CalledProcessError as e:
             # We should really capture this and stderr better:
