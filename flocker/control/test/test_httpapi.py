@@ -358,6 +358,22 @@ class CreateContainerTestsMixin(APITestsMixin):
         saving.addCallback(created)
         return saving
 
+    def test_create_container_with_restart_policy_onfailure_response(self):
+        """
+        A valid API request to create a container including restart policy
+        returns the restart policy supplied in the request in the response
+        JSON, including the max retry count for an on-failure policy.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"restart_policy": u"on-failure",
+            u"maximum_retry_count": 10
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
     def test_create_container_with_restart_policy_response(self):
         """
         A valid API request to create a container including restart policy
