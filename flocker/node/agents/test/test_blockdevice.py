@@ -435,8 +435,7 @@ class LosetupListTests(SynchronousTestCase):
         self.assertEqual(
             [(FilePath('/dev/loop0'), FilePath('/tmp/rjw')),
              (FilePath('/dev/loop1'),
-              FilePath('/usr/share/virtualbox/VBoxGuestAdditions.iso'),)
-         ],
+              FilePath('/usr/share/virtualbox/VBoxGuestAdditions.iso'))],
             losetup_list_parse(input_text)
         )
 
