@@ -1004,6 +1004,10 @@ class UploadRPMsTests(TestCase):
             distro_version=self.operating_systems[0]['version'],
         )
 
+        # This tests that filelists.xml.gz, a metadata file which is not the
+        # index, still has the content 'old_metadata_content', even though
+        # CreateRepo changes this content. This shows that this file which
+        # already existed on S3 is not re-uploaded.
         self.assertEqual(
             aws.s3_buckets[self.target_bucket][existing_metadata_file],
             existing_s3_keys[existing_metadata_file])
