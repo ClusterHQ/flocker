@@ -315,6 +315,14 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json_result
         )
 
+    def create_container_with_restart_policy(self):
+        """
+        """
+
+    def create_container_with_restart_policy_response(self):
+        """
+        """
+
     def _test_conflicting_ports(self, node1, node2):
         """
         Utility method to create two containers with the same ports on two
