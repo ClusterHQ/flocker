@@ -4,7 +4,8 @@
 Inter-process communication for flocker.
 """
 
-from subprocess import Popen, PIPE, check_output, CalledProcessError
+from StringIO import StringIO
+from subprocess import Popen, PIPE, check_output, CalledProcessError, STDOUT
 from contextlib import contextmanager
 from io import BytesIO
 from threading import current_thread
@@ -68,7 +69,8 @@ class ProcessNode(object):
     def run(self, remote_command):
         cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
         log.msg("run cmd: %s" % (" ".join(cmd),))
-        process = Popen(cmd, stdin=PIPE)
+        out = StringIO(); err = StringIO()
+        process = Popen(cmd, stdin=PIPE, stdout=out, stderr=err)
         try:
             yield process.stdin
         finally:
@@ -77,17 +79,19 @@ class ProcessNode(object):
             if exit_code:
                 # We should really capture this and stderr better:
                 # https://clusterhq.atlassian.net/browse/FLOC-155
-                raise IOError("Bad exit", remote_command, exit_code)
+                out.seek(0, 0); err.seek(0, 0)
+                raise IOError("Bad exit in run", remote_command, exit_code,
+                        "stdout:\n%s\n\nstderr:%s" % (out.read(), err.read()))
 
     def get_output(self, remote_command):
         try:
             cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
             log.msg("get_output cmd: %s" % (" ".join(cmd),))
-            return check_output(cmd)
+            return check_output(cmd, stderr=STDOUT)
         except CalledProcessError as e:
             # We should really capture this and stderr better:
             # https://clusterhq.atlassian.net/browse/FLOC-155
-            raise IOError("Bad exit", remote_command, e.returncode, e.output)
+            raise IOError("Bad exit in get_output", remote_command, e.returncode, e.output)
 
     @classmethod
     def using_ssh(cls, host, port, username, private_key):
