@@ -69,19 +69,17 @@ class ProcessNode(object):
     def run(self, remote_command):
         cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
         log.msg("run cmd: %s" % (" ".join(cmd),))
-        out = StringIO(); err = StringIO()
-        process = Popen(cmd, stdin=PIPE, stdout=out, stderr=err)
+        process = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
         try:
             yield process.stdin
         finally:
-            process.stdin.close()
-            exit_code = process.wait()
+            out, err = process.communicate()
+            exit_code = process.returncode
             if exit_code:
                 # We should really capture this and stderr better:
                 # https://clusterhq.atlassian.net/browse/FLOC-155
-                out.seek(0, 0); err.seek(0, 0)
                 raise IOError("Bad exit in run", remote_command, exit_code,
-                        "stdout:\n%s\n\nstderr:%s" % (out.read(), err.read()))
+                        "stdout:\n%s\n\nstderr:%s" % (out, err))
 
     def get_output(self, remote_command):
         try:
