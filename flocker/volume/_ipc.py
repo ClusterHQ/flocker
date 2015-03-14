@@ -29,7 +29,7 @@ from .filesystems.zfs import Snapshot
 # across nodes.
 # XXX duplicate of same information in flocker.cli:
 # https://clusterhq.atlassian.net/browse/FLOC-390
-SSH_PRIVATE_KEY_PATH = FilePath(b"/etc/flocker/id_rsa_flocker")
+SSH_PRIVATE_KEY_PATH = FilePath(b"/root/.ssh/id_rsa")
 
 
 def standard_node(hostname):
