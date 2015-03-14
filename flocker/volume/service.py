@@ -190,7 +190,7 @@ class VolumeService(Service):
         # XXX we shouldn't be importing private attrs like this
         from .filesystems.zfs import JAILBREAK_PREFIX, _sync_command_error_squashed
         _sync_command_error_squashed(JAILBREAK_PREFIX +
-            [b"chmod", b"777", filesystem.get_path()], StoragePool.logger)
+            [b"chmod", b"777", filesystem.get_path().path], StoragePool.logger)
 
     def get(self, name, **kwargs):
         """

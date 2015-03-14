@@ -605,12 +605,8 @@ class StoragePool(Service):
             # Use os.rmdir instead of FilePath.remove since we don't want
             # recursive behavior. If the directory is non-empty, something
             # went wrong (or there is a race) and we don't want to lose data.
-
-            # XXX Hmm, mounts which are children of a bind-mount don't appear
-            # inside a container. So we can't do this cleanup. Let's hope we
-            # didn't need it.
-            #os.rmdir(old_filesystem.get_path().path)
-            pass
+            _sync_command_error_squashed(JAILBREAK_PREFIX +
+                [b"rm", old_filesystem.get_path().path], StoragePool.logger)
         d.addCallback(remounted)
         d.addCallback(lambda _: new_filesystem)
         return d
