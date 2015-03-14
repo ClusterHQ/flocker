@@ -9,7 +9,6 @@ from __future__ import absolute_import
 
 import sys
 import json
-import stat
 from uuid import UUID, uuid4
 
 from zope.interface import Interface, implementer
@@ -188,9 +187,10 @@ class VolumeService(Service):
 
         :param filesystem: A ``IFilesystem`` provider.
         """
-        filesystem.get_path().chmod(
-            # 0o777 the long way:
-            stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+        # XXX we shouldn't be importing private attrs like this
+        from .filesystems.zfs import JAILBREAK_PREFIX, _sync_command_error_squashed
+        _sync_command_error_squashed(JAILBREAK_PREFIX +
+            [b"chmod", b"777", filesystem.get_path()], StoragePool.logger)
 
     def get(self, name, **kwargs):
         """
