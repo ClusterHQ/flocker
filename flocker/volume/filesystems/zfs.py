@@ -40,7 +40,6 @@ my_ip = open("/etc/flocker/my_address").read()
 JAILBREAK_PREFIX = [
     b"ssh",
     b"-q",  # suppress warnings
-    b"-i", b"/root/.ssh/id_rsa",
     b"-l", b"root",
     # We're ok with unknown hosts; we'll be switching away from
     # SSH by the time Flocker is production-ready and security is
