@@ -85,17 +85,21 @@ class _AccumulatingProtocol(Protocol):
     def __init__(self):
         self._result = Deferred()
         self._data = b""
+        self._err = b""
 
     def dataReceived(self, data):
         self._data += data
 
+    def errReceived(self, err):
+        self._err += err
+
     def connectionLost(self, reason):
         if reason.check(ConnectionDone):
             self._result.callback(self._data)
-        elif reason.check(ProcessTerminated) and reason.value.exitCode == 1:
-            self._result.errback(CommandFailed())
         elif reason.check(ProcessTerminated) and reason.value.exitCode == 2:
-            self._result.errback(BadArguments())
+            self._result.errback(BadArguments(self._data, self._err))
+        elif reason.check(ProcessTerminated):
+            self._result.errback(CommandFailed(self._data, self._err))
         else:
             self._result.errback(reason)
         del self._result
@@ -118,6 +122,10 @@ def zfs_command(reactor, arguments):
                                os.environ)
     d = connectProtocol(endpoint, _AccumulatingProtocol())
     d.addCallback(lambda protocol: protocol._result)
+    def logAndPassthru(reason):
+        print "got error from running %s: %s" % (arguments, reason)
+        return reason
+    d.addErrback(logAndPassthru)
     return d
 
 
