@@ -35,6 +35,33 @@ from .interfaces import (
 from .._model import VolumeSize
 
 
+my_ip = open("/etc/flocker/my_address").read()
+
+JAILBREAK_PREFIX = [
+    b"ssh",
+    b"-q",  # suppress warnings
+    b"-i", b"/root/.ssh/id_rsa",
+    b"-l", b"root",
+    # We're ok with unknown hosts; we'll be switching away from
+    # SSH by the time Flocker is production-ready and security is
+    # a concern.
+    b"-o", b"StrictHostKeyChecking=no",
+    # The tests hang if ControlMaster is set, since OpenSSH won't
+    # ever close the connection to the test server.
+    b"-o", b"ControlMaster=no",
+    # Some systems (notably Ubuntu) enable GSSAPI authentication which
+    # involves a slow DNS operation before failing and moving on to a
+    # working mechanism.  The expectation is that key-based auth will
+    # be in use so just jump straight to that.  An alternate solution,
+    # explicitly disabling GSSAPI, has cross-version platform and
+    # cross-version difficulties (the options aren't always recognized
+    # and result in an immediate failure).  As mentioned above, we'll
+    # switch away from SSH soon.
+    b"-o", b"PreferredAuthentications=publickey",
+    b"-p", b"%d" % (22,), my_ip,
+]
+
+
 def random_name():
     """Return a random pool name.
 
@@ -88,7 +115,7 @@ def zfs_command(reactor, arguments):
         exit code 0), or errbacking with :class:`CommandFailed` or
         :class:`BadArguments` depending on the exit code (1 or 2).
     """
-    endpoint = ProcessEndpoint(reactor, b"zfs", [b"zfs"] + arguments,
+    endpoint = ProcessEndpoint(reactor, b"ssh", JAILBREAK_PREFIX + [b"zfs"] + arguments,
                                os.environ)
     d = connectProtocol(endpoint, _AccumulatingProtocol())
     d.addCallback(lambda protocol: protocol._result)
@@ -207,7 +234,7 @@ class Filesystem(object):
             otherwise.
         """
         try:
-            check_output([b"zfs", b"list", self.name], stderr=STDOUT)
+            check_output(JAILBREAK_PREFIX + [b"zfs", b"list", self.name], stderr=STDOUT)
         except CalledProcessError:
             return False
         return True
@@ -249,14 +276,14 @@ class Filesystem(object):
         # I'm just using UUIDs, and hopefully requirements will become
         # clearer as we iterate.
         snapshot = b"%s@%s" % (self.name, uuid4())
-        check_call([b"zfs", b"snapshot", snapshot])
+        check_call(JAILBREAK_PREFIX + [b"zfs", b"snapshot", snapshot])
 
         # Determine whether there is a shared snapshot which can be used as the
         # basis for an incremental send.
         local_snapshots = list(
             Snapshot(name=name) for name in
             _parse_snapshots(
-                check_output([b"zfs"] + _list_snapshots_command(self)),
+                check_output(JAILBREAK_PREFIX + [b"zfs"] + _list_snapshots_command(self)),
                 self
             ))
 
@@ -276,7 +303,7 @@ class Filesystem(object):
                 snapshot,
             ]
 
-        process = Popen([b"zfs", b"send"] + identifier, stdout=PIPE)
+        process = Popen(JAILBREAK_PREFIX + [b"zfs", b"send"] + identifier, stdout=PIPE)
         try:
             yield process.stdout
         finally:
@@ -308,11 +335,11 @@ class Filesystem(object):
             # it in order to receive the stream.  To do that you have to
             # force.
             #
-            cmd = [b"zfs", b"receive", b"-F", self.name]
+            cmd = JAILBREAK_PREFIX + [b"zfs", b"receive", b"-F", self.name]
         else:
             # If the filesystem doesn't already exist then this is a complete
             # data stream.
-            cmd = [b"zfs", b"receive", self.name]
+            cmd = JAILBREAK_PREFIX + [b"zfs", b"receive", self.name]
         process = Popen(cmd, stdin=PIPE)
         succeeded = False
         try:
@@ -321,7 +348,7 @@ class Filesystem(object):
             process.stdin.close()
             succeeded = not process.wait()
         if succeeded:
-            check_call([b"zfs", b"set",
+            check_call(JAILBREAK_PREFIX + [b"zfs", b"set",
                         b"mountpoint=" + self._mountpoint.path,
                         self.name])
 
@@ -482,16 +509,16 @@ class StoragePool(Service):
         # XXX For some reason these two commands have ill effects in
         # containerized mode. Need to find out why.
 
-        #_sync_command_error_squashed(
-        #    [b"zfs", b"set", b"readonly=on", self._name], self.logger)
+        _sync_command_error_squashed(
+            JAILBREAK_PREFIX + [b"zfs", b"set", b"readonly=on", self._name], self.logger)
 
         # If the root dataset is read-only then it's not possible to create
         # mountpoints in it for its child datasets.  Avoid mounting it to avoid
         # this problem.  This should be fine since we don't ever intend to put
         # any actual data into the root dataset.
 
-        #_sync_command_error_squashed(
-        #    [b"zfs", b"set", b"canmount=off", self._name], self.logger)
+        _sync_command_error_squashed(
+            JAILBREAK_PREFIX + [b"zfs", b"set", b"canmount=off", self._name], self.logger)
 
     def _check_for_out_of_space(self, reason):
         """
