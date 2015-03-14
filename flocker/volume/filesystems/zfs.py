@@ -99,7 +99,7 @@ class _AccumulatingProtocol(Protocol):
         elif reason.check(ProcessTerminated) and reason.value.exitCode == 2:
             self._result.errback(BadArguments(self._data, self._err))
         elif reason.check(ProcessTerminated):
-            self._result.errback(CommandFailed(self._data, self._err))
+            self._result.errback(CommandFailed(self._data, self._err, reason.value.exitCode))
         else:
             self._result.errback(reason)
         del self._result
@@ -118,12 +118,12 @@ def zfs_command(reactor, arguments):
         exit code 0), or errbacking with :class:`CommandFailed` or
         :class:`BadArguments` depending on the exit code (1 or 2).
     """
-    endpoint = ProcessEndpoint(reactor, b"ssh", JAILBREAK_PREFIX + [b"zfs"] + arguments,
-                               os.environ)
+    cmd = JAILBREAK_PREFIX + [b"zfs"] + arguments
+    endpoint = ProcessEndpoint(reactor, cmd[0], cmd, os.environ)
     d = connectProtocol(endpoint, _AccumulatingProtocol())
     d.addCallback(lambda protocol: protocol._result)
     def logAndPassthru(reason):
-        print "got error from running %s: %s" % (arguments, reason)
+        print "got error from running %s: %s" % (" ".join(cmd), reason)
         return reason
     d.addErrback(logAndPassthru)
     return d
