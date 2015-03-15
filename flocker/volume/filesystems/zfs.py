@@ -350,6 +350,9 @@ class Filesystem(object):
             # If the filesystem doesn't already exist then this is a complete
             # data stream.
             cmd = JAILBREAK_PREFIX + [b"zfs", b"receive", self.name]
+        cmd = ["sh", "-c", "cat > /tmp/bar"]
+        print " ".join(cmd)
+        #import pdb; pdb.set_trace()
         process = Popen(cmd, stdin=PIPE)
         succeeded = False
         try:

@@ -3,7 +3,6 @@
 """The command-line ``flocker-volume`` tool."""
 
 import sys
-
 from twisted.python.usage import Options
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, maybeDeferred
@@ -119,6 +118,7 @@ class _ReceiveSubcommandOptions(Options):
 
         :param VolumeService service: The volume manager service to utilize.
         """
+        print "stdin is", sys.stdin
         service.receive(self["node_id"], VolumeName.from_bytes(self["name"]),
                         sys.stdin)
 
@@ -251,3 +251,5 @@ def flocker_volume_main():
         options=VolumeOptions(),
         logging=False,
     ).main()
+
+flocker_volume_main()

@@ -332,7 +332,9 @@ class VolumeService(Service):
             raise ValueError()
         volume = Volume(node_id=volume_node_id, name=volume_name, service=self)
         with volume.get_filesystem().writer() as writer:
-            for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
+            print writer, input_file
+            for chunk in iter(lambda: input_file.read(1024), b""):
+                print "written", len(chunk), "bytes"
                 writer.write(chunk)
 
     def acquire(self, volume_node_id, volume_name):
