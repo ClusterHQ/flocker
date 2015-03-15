@@ -350,6 +350,7 @@ class Filesystem(object):
             # If the filesystem doesn't already exist then this is a complete
             # data stream.
             cmd = JAILBREAK_PREFIX + [b"zfs", b"receive", self.name]
+        log.msg("running zfs receive cmd: " + " ".join(cmd))
         process = Popen(cmd, stdin=PIPE)
         succeeded = False
         try:

@@ -129,11 +129,11 @@ class RemoteVolumeManager(object):
         ])
 
     def receive(self, volume):
-        return self._destination.run([b"flocker-volume",
-                                      b"--config", self._config_path.path,
+        return self._destination.run([b"zfs",
                                       b"receive",
-                                      volume.node_id.encode(b"ascii"),
-                                      volume.name.to_bytes()])
+                                      b"-F",
+                                      volume.node_id.encode(b"ascii") + "." + volume.name.to_bytes()],
+                                      outside_container=True)
 
     def acquire(self, volume):
         return self._destination.get_output(
