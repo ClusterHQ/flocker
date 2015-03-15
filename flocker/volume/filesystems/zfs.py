@@ -24,7 +24,7 @@ from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred, succeed, gatherResults
-from twisted.internet.error import ProcessDone, ProcessTerminated
+from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
 
 from .errors import MaximumSizeTooSmall
@@ -93,8 +93,8 @@ class _AccumulatingProtocol(Protocol):
     def errReceived(self, err):
         self._err += err
 
-    def processEnded(self, reason):
-        if reason.check(ProcessDone):
+    def connectionLost(self, reason):
+        if reason.check(ConnectionDone):
             self._result.callback(self._data)
         elif reason.check(ProcessTerminated) and reason.value.exitCode == 2:
             self._result.errback(BadArguments(self._data, self._err))
