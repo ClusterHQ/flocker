@@ -68,6 +68,8 @@ class ProcessNode(object):
     @contextmanager
     def run(self, remote_command):
         cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
+        # Allow docker -i command from run... it does need stdin.
+        cmd = filter(lambda i: i != "[[-i]]", cmd)
         log.msg("run cmd: %s" % (" ".join(cmd),))
         process = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
         try:
@@ -84,6 +86,9 @@ class ProcessNode(object):
     def get_output(self, remote_command):
         try:
             cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
+            # Strip out docker -i command from get_output... it doesn't need
+            # stdin (and leaving it in seems to cause problems).
+            cmd = map(lambda i: "-i" if i == "[[-i]]" else i, cmd)
             log.msg("get_output cmd: %s" % (" ".join(cmd),))
             return check_output(cmd, stderr=STDOUT)
         except CalledProcessError as e:
@@ -127,7 +132,7 @@ class ProcessNode(object):
             b"-p", b"%d" % (port,), host,
             # Run the remote command inside a container on the remote host.
             "DOCKER_HOST=unix:///var/run/docker.real.sock",
-            "docker", "run", "-i", "--privileged",
+            "docker", "run", "[[-i]]", "--privileged",
             "-v", "/etc/flocker:/etc/flocker",
             "-v", "/var/run/docker.real.sock:/var/run/docker.sock",
             "-v", "/root/.ssh:/root/.ssh",
