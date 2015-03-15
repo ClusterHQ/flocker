@@ -66,7 +66,7 @@ class ProcessNode(object):
 
     @contextmanager
     def run(self, remote_command, outside_container=False):
-        cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
+        cmd = self.initial_command_arguments
         # Allow docker -i command from run... it does need stdin.
         cmd = map(lambda i: "-i" if i == "[[-i]]" else i, cmd)
 
@@ -79,6 +79,8 @@ class ProcessNode(object):
                 else:
                     new_cmd.append(c)
             cmd = new_cmd
+
+        cmd += tuple(map(self._quote, remote_command))
 
         log.msg("run cmd: %s" % (" ".join(cmd),))
         process = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
