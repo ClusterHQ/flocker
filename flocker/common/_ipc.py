@@ -69,7 +69,7 @@ class ProcessNode(object):
     def run(self, remote_command):
         cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
         # Allow docker -i command from run... it does need stdin.
-        cmd = filter(lambda i: i != "[[-i]]", cmd)
+        cmd = map(lambda i: "-i" if i == "[[-i]]" else i, cmd)
         log.msg("run cmd: %s" % (" ".join(cmd),))
         process = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
         try:
@@ -88,7 +88,7 @@ class ProcessNode(object):
             cmd = self.initial_command_arguments + tuple(map(self._quote, remote_command))
             # Strip out docker -i command from get_output... it doesn't need
             # stdin (and leaving it in seems to cause problems).
-            cmd = map(lambda i: "-i" if i == "[[-i]]" else i, cmd)
+            cmd = filter(lambda i: i != "[[-i]]", cmd)
             log.msg("get_output cmd: %s" % (" ".join(cmd),))
             return check_output(cmd, stderr=STDOUT)
         except CalledProcessError as e:
