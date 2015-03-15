@@ -4,7 +4,6 @@
 Inter-process communication for flocker.
 """
 
-from StringIO import StringIO
 from subprocess import Popen, PIPE, check_output, CalledProcessError, STDOUT
 from contextlib import contextmanager
 from io import BytesIO

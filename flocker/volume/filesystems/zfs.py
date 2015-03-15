@@ -26,6 +26,7 @@ from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred, succeed, gatherResults
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
+from twisted.python import log
 
 from .errors import MaximumSizeTooSmall
 from .interfaces import (
@@ -310,7 +311,9 @@ class Filesystem(object):
                 snapshot,
             ]
 
-        process = Popen(JAILBREAK_PREFIX + [b"zfs", b"send"] + identifier, stdout=PIPE)
+        cmd = JAILBREAK_PREFIX + [b"zfs", b"send"] + identifier
+        log.msg("running zfs send cmd: " + " ".join(cmd))
+        process = Popen(cmd, stdout=PIPE)
         try:
             yield process.stdout
         finally:
