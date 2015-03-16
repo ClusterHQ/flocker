@@ -82,6 +82,7 @@ class IBlockDeviceAPI(Interface):
 
         :param unicode blockdevice_id: The unique identifier for the block
             device being attached.
+        :param bytes host: The IP address of a host to attach the volume to.
         :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
             exist.
         :raises AlreadyAttachedVolume: If the supplied ``blockdevice_id`` is
