@@ -384,7 +384,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         container_json = {
             u"host": self.NODE_B, u"name": u"webserver",
-            u"image": u"nginx:latest", u"restart_policy": u"never"
+            u"image": u"nginx:latest", u"restart_policy": {u"name": u"never"}
         }
         return self.assertResult(
             b"POST", b"/configuration/containers",
