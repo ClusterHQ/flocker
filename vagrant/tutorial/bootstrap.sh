@@ -12,5 +12,4 @@ yum install -y kernel-devel kernel dkms gcc
 yum install -y epel-release
 
 # Rebuild VirtualBox Additions
-# TODO check if this is necessary in the dev box
 /etc/init.d/vboxadd setup
