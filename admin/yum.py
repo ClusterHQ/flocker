@@ -41,9 +41,8 @@ def perform_download_packages_from_repository(dispatcher, intent):
     """
     See :class:`DownloadPackagesFromRepository`.
     """
-    # TODO avoid circular imports when importing these somewhere else
-    # Reviewer - before I do, this might be easier if the logic to get
-    # file names were in release.py, is that more sensible?
+    # XXX Avoid circular imports when importing these somewhere at the top of
+    # the file. See https://clusterhq.atlassian.net/browse/FLOC-1223.
     from release import make_rpm_version
     from admin.packaging import (ARCH_REQUIREMENT, Distribution,
         package_filename)
