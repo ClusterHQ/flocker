@@ -4,6 +4,7 @@
 Functional tests for the ``flocker-deploy`` command line tool.
 """
 from subprocess import check_output, CalledProcessError
+import time
 from unittest import skipUnless
 
 from twisted.python.procutils import which
@@ -158,11 +159,17 @@ class FlockerDeployConfigureSSHTests(TestCase):
             ZeroDivisionError("error2"),
             ZeroDivisionError("error3"),
         ]
+        # SSH configuration is performed in parallel threads so the order of
+        # logged errors depends on the thread scheduling. Introduce some
+        # delays, so that we can see this clearly
+        expected_delays = [0.2, 0.1, 0]
 
-        error_iterator = (e for e in expected_errors)
+        error_iterator = iter(zip(expected_delays, expected_errors))
 
         def fail(host, port):
-            raise error_iterator.next()
+            delay, error = error_iterator.next()
+            time.sleep(delay)
+            raise error
 
         self.config.configure_ssh = fail
 
