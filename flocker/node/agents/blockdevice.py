@@ -100,11 +100,15 @@ class IBlockDeviceAPI(Interface):
 
     def get_device_path(blockdevice_id):
         """
-        Calculate the path at which ``blockdevice_id`` will be exposed on the
-        host when attached.
+        Return the path of the device through which ``blockdevice_id`` is
+        exposed on the host when attached.
 
         :param unicode blockdevice_id: The unique identifier for the block
             device.
+        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+            exist.
+        :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
+            not attached to a host.
         :returns: A ``FilePath`` for the device.
         """
 
