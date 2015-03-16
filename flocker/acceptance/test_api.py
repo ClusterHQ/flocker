@@ -200,7 +200,7 @@ def get_test_cluster(test_case, node_count):
             "Set acceptance testing control node IP address using the " +
             "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
 
-    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_AGENT_NODEs')
+    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_AGENT_NODES')
 
     if agent_nodes_env_var is None:
         raise SkipTest(
