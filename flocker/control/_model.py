@@ -80,24 +80,6 @@ class DockerImage(PRecord):
         return cls(**kwargs)
 
 
-@attributes(["manifestation", "mountpoint"])
-class AttachedVolume(object):
-    """
-    A volume attached to an application to be deployed.
-
-    :ivar Manifestation manifestation: The ``Manifestation`` that is being
-        attached as a volume. For now this is always from a ``Dataset``
-        with the same as the name of the application it is attached to
-        https://clusterhq.atlassian.net/browse/FLOC-49).
-
-    :ivar FilePath mountpoint: The path within the container where this
-        volume should be mounted.
-    """
-    @property
-    def dataset(self):
-        return self.manifestation.dataset
-
-
 class Port(PRecord):
     """
     A record representing the mapping between a port exposed internally by an
@@ -267,6 +249,26 @@ class Manifestation(PRecord):
         return self.dataset.dataset_id
 
 
+class AttachedVolume(PRecord):
+    """
+    A volume attached to an application to be deployed.
+
+    :ivar Manifestation manifestation: The ``Manifestation`` that is being
+        attached as a volume. For now this is always from a ``Dataset``
+        with the same as the name of the application it is attached to
+        https://clusterhq.atlassian.net/browse/FLOC-49).
+
+    :ivar FilePath mountpoint: The path within the container where this
+        volume should be mounted.
+    """
+    manifestation = field(mandatory=True, type=Manifestation)
+    mountpoint = field(mandatory=True, type=FilePath)
+
+    @property
+    def dataset(self):
+        return self.manifestation.dataset
+
+
 class Node(PRecord):
     """
     A single node on which applications will be managed (deployed,
@@ -301,9 +303,7 @@ class Node(PRecord):
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     applications = pset_field(Application)
     manifestations = field(type=PMap, initial=pmap(), factory=pmap,
-                           mandatory=True,
-                           serializer=lambda f, d: {
-                               k: v.serialize() for k, v in d.items()})
+                           mandatory=True)
 
 
 class Deployment(PRecord):

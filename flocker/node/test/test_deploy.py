@@ -666,7 +666,7 @@ APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
 DATASET_ID = unicode(uuid4())
 DATASET = Dataset(dataset_id=DATASET_ID,
                   metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
+APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
 APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,

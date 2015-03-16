@@ -6,7 +6,7 @@ Tests for ``flocker.node._model``.
 
 from uuid import uuid4
 
-from pyrsistent import InvariantException, pset, PRecord, PSet, field, pmap
+from pyrsistent import InvariantException, pset, PRecord, PSet, pmap
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -152,7 +152,8 @@ class NodeTests(SynchronousTestCase):
                 Application(name=u'a',
                             image=DockerImage.from_string(u'x'),
                             volume=AttachedVolume(
-                                manifestation=m1, mountpoint=None)),
+                                manifestation=m1,
+                                mountpoint=FilePath(b"/xxx"))),
             ])
 
     def test_manifestations_non_applications(self):
@@ -169,7 +170,8 @@ class NodeTests(SynchronousTestCase):
                         Application(name=u'a',
                                     image=DockerImage.from_string(u'x'),
                                     volume=AttachedVolume(
-                                        manifestation=m1, mountpoint=None))]),
+                                        manifestation=m1,
+                                        mountpoint=FilePath(b"/xxx")))]),
                     manifestations={m1.dataset_id: m1,
                                     m2.dataset_id: m2})
 

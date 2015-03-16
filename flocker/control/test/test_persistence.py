@@ -4,21 +4,31 @@
 Tests for ``flocker.control._persistence``.
 """
 
+from uuid import uuid4
 from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from .._persistence import ConfigurationPersistenceService
-from .._model import Deployment, Application, DockerImage, Node
+from .._model import (
+    Deployment, Application, DockerImage, Node, Dataset, Manifestation,
+    AttachedVolume)
 
 
-TEST_DEPLOYMENT = Deployment(nodes=frozenset([
-    Node(hostname=u'node1.example.com',
-         applications=frozenset([
-             Application(
-                 name=u'myapp',
-                 image=DockerImage.from_string(u'postgresql'))]))
-]))
+DATASET = Dataset(dataset_id=unicode(uuid4()),
+                  metadata={u"name": u"myapp"})
+MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
+TEST_DEPLOYMENT = Deployment(
+    nodes=[Node(hostname=u'node1.example.com',
+                applications=[
+                    Application(
+                        name=u'myapp',
+                        image=DockerImage.from_string(u'postgresql:7.6'),
+                        volume=AttachedVolume(
+                            manifestation=MANIFESTATION,
+                            mountpoint=FilePath(b"/xxx/yyy"))
+                    )],
+                manifestations={DATASET.dataset_id: MANIFESTATION})])
 
 
 class ConfigurationPersistenceServiceTests(TestCase):

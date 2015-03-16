@@ -4,10 +4,10 @@
 Persistence of cluster configuration.
 """
 
-from pyrsistent import thaw, PRecord, PVector, PMap, PSet
+from pyrsistent import PRecord, PVector, PMap, PSet
 from json import dumps, loads, JSONEncoder
 
-
+from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.defer import succeed
 
@@ -24,12 +24,13 @@ class _ConfigurationEncoder(JSONEncoder):
             result = dict(obj)
             result[u"$__class__$"] = obj.__class__.__name__
             return result
-        elif isinstance(obj, (PVector, PMap)):
-            return thaw(obj)
-        elif isinstance(obj, PSet):
+        elif isinstance(obj, PMap):
+            return dict(obj)
+        elif isinstance(obj, (PSet, PVector, set)):
             return list(obj)
-        elif isinstance(obj, set):
-            return list(obj)
+        elif isinstance(obj, FilePath):
+            return {u"$__class__$": u"FilePath",
+                    u"path": obj.path.decode("utf-8")}
         return JSONEncoder.default(self, obj)
 
 
@@ -52,7 +53,9 @@ def wire_decode(data):
     """
     def decode_object(dictionary):
         class_name = dictionary.get("$__class__$", None)
-        if class_name is not None:
+        if class_name == u"FilePath":
+            return FilePath(dictionary.get(u"path").encode("utf-8"))
+        elif class_name is not None:
             dictionary = dictionary.copy()
             dictionary.pop("$__class__$")
             # XXX TEMPORARY HACK INSECURE XXX
