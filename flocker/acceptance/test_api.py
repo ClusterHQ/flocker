@@ -12,7 +12,6 @@ from uuid import uuid4
 from json import dumps, loads
 
 from twisted.trial.unittest import TestCase
-from twisted.internet.error import ConnectionRefusedError
 from treq import get, post, content, delete, json_content
 from characteristic import attributes
 
@@ -412,8 +411,9 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
         d.addCallback(lambda _: inspect_container(data[u"host"], 8080))
         req = d.addCallback(lambda _: query_environment(data[u"host"], 8080))
-        req.addCallback(lambda response:
-            self.assertDictContainsSubset(data[u"environment"], response)
+        req.addCallback(
+            lambda response:
+                self.assertDictContainsSubset(data[u"environment"], response)
         )
         return req
 
