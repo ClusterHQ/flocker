@@ -13,10 +13,18 @@ from characteristic import attributes
 
 from ._common import PackageSource, Variants
 
-ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
-            "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
-CLUSTERHQ_REPO = ("https://storage.googleapis.com/archive.clusterhq.com/"
-                  "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm")
+ZFS_REPO = {
+    'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
+                 "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
+    'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
+                "epel/zfs-release.el7.noarch.rpm",
+}
+CLUSTERHQ_REPO = {
+    'fedora-20': "https://s3.amazonaws.com/clusterhq-archive/"
+                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm",
+    'centos-7': "https://s3.amazonaws.com/clusterhq-archive/"
+                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm",
+}
 
 
 @attributes(["command"])
@@ -96,6 +104,14 @@ def run_with_fabric(username, address, commands):
 run = run_with_fabric
 
 
+def task_test_homebrew(recipe_url):
+    return [
+        Run(command="brew update"),
+        Run(command="brew install {url}".format(url=recipe_url)),
+        Run(command="brew test {url}".format(url=recipe_url)),
+    ]
+
+
 def task_install_ssh_key():
     return [
         Sudo.from_args(['cp', '.ssh/authorized_keys',
@@ -111,6 +127,17 @@ def task_upgrade_kernel():
         Run.from_args(['yum', 'upgrade', '-y', 'kernel']),
         Comment(comment="# The upgrade doesn't make the new kernel default."),
         Run.from_args(['grubby', '--set-default-index', '0']),
+    ]
+
+
+def task_upgrade_kernel_centos():
+    return [
+        Run.from_args([
+            "yum", "install", "-y", "kernel-devel", "kernel"]),
+        # For dkms and ... ?
+        Run.from_args([
+            "yum", "install", "-y", "epel-release"]),
+        Run.from_args(['sync'])
     ]
 
 
@@ -141,15 +168,36 @@ def task_enable_docker():
     ]
 
 
+def configure_firewalld(rule):
+    """
+    Configure firewalld with a given rule.
+
+    :param list rule: List of `firewall-cmd` arguments.
+    """
+    return [
+        Run.from_args(command + rule)
+        for command in [['firewall-cmd', '--permanent'],
+                        ['firewall-cmd']]
+    ]
+
+
 def task_disable_firewall():
     """
     Disable the firewall.
     """
-    rule = ['--add-rule', 'ipv4', 'filter', 'FORWARD', '0', '-j', 'ACCEPT']
-    return [
-        Run.from_args(['firewall-cmd', '--permanent', '--direct'] + rule),
-        Run.from_args(['firewall-cmd', '--direct'] + rule),
-    ]
+    return configure_firewalld(
+        ['--direct', '--add-rule', 'ipv4', 'filter',
+         'FORWARD', '0', '-j', 'ACCEPT'])
+
+
+def task_open_control_firewall():
+    """
+    Open the firewall for flocker-control.
+    """
+    return reduce(list.__add__, [
+        configure_firewalld(['--add-service', service])
+        for service in ['flocker-control-api', 'flocker-control-agent']
+    ])
 
 
 def task_create_flocker_pool_file():
@@ -163,8 +211,9 @@ def task_create_flocker_pool_file():
     ]
 
 
-def task_install_flocker(package_source=PackageSource(),
-                         distribution=None):
+def task_install_flocker(
+        distribution=None,
+        package_source=PackageSource()):
     """
     Install flocker.
 
@@ -173,8 +222,8 @@ def task_install_flocker(package_source=PackageSource(),
         package.
     """
     commands = [
-        Run(command="yum install -y " + ZFS_REPO),
-        Run(command="yum install -y " + CLUSTERHQ_REPO)
+        Run(command="yum install -y " + ZFS_REPO[distribution]),
+        Run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
     ]
 
     if package_source.branch:
@@ -305,13 +354,17 @@ def provision(distribution, package_source, variants):
         provisioning
     """
     commands = []
+
     if Variants.DISTRO_TESTING in variants:
         commands += task_enable_updates_testing(distribution)
     if Variants.DOCKER_HEAD in variants:
         commands += task_enable_docker_head_repository(distribution)
     if Variants.ZFS_TESTING in variants:
         commands += task_enable_zfs_testing(distribution)
-    commands += task_install_kernel_devel()
+
+    if distribution in ('fedora-20',):
+        commands += task_install_kernel_devel()
+
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
     commands += task_enable_docker()

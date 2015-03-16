@@ -149,7 +149,8 @@ class ChangeStateScript(object):
 
     def main(self, reactor, options, volume_service):
         deployer = P2PNodeDeployer(
-            options['hostname'], volume_service, self._docker_client)
+            options['hostname'].decode("ascii"),
+            volume_service, self._docker_client)
         return change_node_state(deployer, options['deployment'],
                                  options['current'])
 
@@ -255,7 +256,8 @@ class ZFSAgentScript(object):
     def main(self, reactor, options, volume_service):
         host = options["destination-host"]
         port = options["destination-port"]
-        deployer = P2PNodeDeployer(options["hostname"], volume_service)
+        deployer = P2PNodeDeployer(options["hostname"].decode("ascii"),
+                                   volume_service)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
         volume_service.setServiceParent(loop)

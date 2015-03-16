@@ -135,6 +135,17 @@ class IStoragePool(Interface):
             problems.
         """
 
+    def destroy(volume):
+        """
+        Destroy the filesystem for the given volume.
+
+        :param volume: The volume whose filesystem should be deleted.
+        :type volume: :class:`flocker.volume.service.Volume`
+
+        :return: Deferred that fires on filesystem deletion, or errbacks
+            if deletion failed.
+        """
+
     def set_maximum_size(volume):
         """
         Set the maximum size of a filesystem for the given volume.

@@ -169,9 +169,6 @@ class LibcloudRunner(object):
     Run the tests against rackspace nodes.
     """
     def __init__(self):
-        if self.distribution != 'fedora-20':
-            raise ValueError("Distribution not supported: %r."
-                             % (self.distribution,))
         self.nodes = []
 
         self.metadata = self.config.get('metadata', {})

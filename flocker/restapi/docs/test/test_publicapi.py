@@ -136,8 +136,10 @@ class MakeRstTests(SynchronousTestCase):
              # Here is the prose documentation for the endpoint.
              '   Demonstrates examples.',
              '   ',
+             '   **Example:** This example demonstrates examples.',
+             '   ',
              # This is a header introducing the request portion of the session.
-             '   **Example request**',
+             '   Request',
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              '   .. sourcecode:: http',
@@ -150,7 +152,7 @@ class MakeRstTests(SynchronousTestCase):
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              # The same again but for the HTTP response.
-             '   **Example response**',
+             '   Response',
              '   ',
              '   .. sourcecode:: http',
              '   ',
@@ -242,6 +244,81 @@ class MakeRstTests(SynchronousTestCase):
             '',
             ])
 
+    INPUT_ARRAY_SCHEMAS = {
+        b'/v0/test.json': {
+            'endpoint': {
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {
+                        'param': {'$ref': 'test.json#/type'},
+                    },
+                    'required': ['param'],
+                }
+            },
+            'type': {
+                'title': 'TITLE',
+                'description': 'one\ntwo',
+                'type': 'string',
+            },
+        }}
+
+    def test_inputArraySchema(self):
+        """
+        The generated API documentation includes the input schema if it's an
+        array of objects.
+        """
+        app = Klein()
+
+        @app.route(b"/", methods=[b"GET"])
+        @structured(
+            inputSchema={'$ref': '/v0/test.json#/endpoint'},
+            outputSchema={},
+            schema_store=self.INPUT_ARRAY_SCHEMAS,
+        )
+        def f():
+            """
+            Developer docs,
+            """
+
+        rest = list(makeRst(b"/prefix", app, None, self.INPUT_ARRAY_SCHEMAS))
+
+        self.assertListEqual(rest, [
+            '',
+            '.. http:get:: /prefix/',
+            '',
+            '   Undocumented.',
+            '   ',
+            '   .. hidden-code-block:: json',
+            '       :label: + Request JSON Schema',
+            '       :starthidden: True',
+            '   ',
+            '       {',
+            '           "$schema": "http://json-schema.org/draft-04/schema#",',
+            '           "items": {',
+            '               "properties": {',
+            '                   "param": {',
+            '                       "description": "one\\ntwo",',
+            '                       "title": "TITLE",',
+            '                       "type": "string"',
+            '                   }',
+            '               },',
+            '               "required": [',
+            '                   "param"',
+            '               ],',
+            '               "type": "object"',
+            '           },',
+            '           "type": "array"',
+            '       }',
+            '   ',
+            '   :<jsonarr string param: *(required)* TITLE',
+            '   ',
+            '      one',
+            '      two',
+            '      ',
+            '',
+            ])
+
     OUTPUT_SCHEMAS = {
         b'/v0/test.json': {
             'endpoint': {
@@ -258,7 +335,7 @@ class MakeRstTests(SynchronousTestCase):
             },
         }}
 
-    def test_ouputSchema(self):
+    def test_outputSchema(self):
         """
         The generated API documentation includes the output schema.
         """
@@ -303,6 +380,82 @@ class MakeRstTests(SynchronousTestCase):
             '       }',
             '   ',
             '   :>json integer param: *(required)* TITLE',
+            '   ',
+            '      one',
+            '      two',
+            '      ',
+            '',
+            ])
+
+    OUTPUT_ARRAY_SCHEMAS = {
+        b'/v0/test.json': {
+            'endpoint': {
+                'type': 'array',
+                'items': {'$ref': '#/object'},
+            },
+            'object': {
+                'type': 'object',
+                'properties': {
+                    'param': {'$ref': '#/type'},
+                },
+                'required': ['param'],
+            },
+            'type': {
+                'title': 'TITLE',
+                'description': 'one\ntwo',
+                'type': 'integer',
+            },
+        }}
+
+    def test_outputArraySchema(self):
+        """
+        The generated API documentation includes the output schema in cases
+        where the output is an array.
+        """
+        app = Klein()
+
+        @app.route(b"/", methods=[b"GET"])
+        @structured(
+            inputSchema={},
+            outputSchema={'$ref': '/v0/test.json#/endpoint'},
+            schema_store=self.OUTPUT_ARRAY_SCHEMAS,
+        )
+        def f():
+            """
+            Developer docs,
+            """
+
+        rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_ARRAY_SCHEMAS))
+
+        self.assertListEqual(rest, [
+            '',
+            '.. http:get:: /prefix/',
+            '',
+            '   Undocumented.',
+            '   ',
+            '   .. hidden-code-block:: json',
+            '       :label: + Response JSON Schema',
+            '       :starthidden: True',
+            '   ',
+            '       {',
+            '           "$schema": "http://json-schema.org/draft-04/schema#",',
+            '           "items": {',
+            '               "properties": {',
+            '                   "param": {',
+            '                       "description": "one\\ntwo",',
+            '                       "title": "TITLE",',
+            '                       "type": "integer"',
+            '                   }',
+            '               },',
+            '               "required": [',
+            '                   "param"',
+            '               ],',
+            '               "type": "object"',
+            '           },',
+            '           "type": "array"',
+            '       }',
+            '   ',
+            '   :>jsonarr integer param: *(required)* TITLE',
             '   ',
             '      one',
             '      two',
@@ -388,10 +541,16 @@ class FormatExampleTests(SynchronousTestCase):
         L{_formatExample} yields L{unicode} instances representing the lines of
         a reST document describing an example HTTP session.
         """
-        example = Example(b"GET FOO", b"200 OK")
+        example = Example(
+            request=b"GET FOO",
+            response=b"200 OK",
+            doc=u"Documentation of some example."
+        )
         lines = list(_formatExample(example, {u"DOMAIN": u"example.com"}))
         self.assertEqual(
-            [u'**Example request**',
+            [u'**Example:** Documentation of some example.',
+             u'',
+             u'Request',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -399,7 +558,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**Example response**',
+             u'Response',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -418,10 +577,16 @@ class FormatExampleTests(SynchronousTestCase):
             u"CODE": u"4242"}
         request = b"GET %(PATH)s HTTP/1.1"
         response = b"HTTP/1.1 %(CODE)s Ok"
-        example = Example(request, response)
+        example = Example(
+            request=request,
+            response=response,
+            doc=u'Documentation of some example.'
+        )
         lines = list(_formatExample(example, substitutions))
         self.assertEqual(
-            [u'**Example request**',
+            [u'**Example:** Documentation of some example.',
+             u'',
+             u'Request',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -429,7 +594,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**Example response**',
+             u'Response',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -483,7 +648,8 @@ class VariableInterpolationTests(SynchronousTestCase):
             response=(
                 "HTTP/1.1 200 OK\n"
                 "\n"
-            )
+            ),
+            doc=u"Documentation of some example."
         )
         app = Klein()
 
@@ -499,7 +665,9 @@ class VariableInterpolationTests(SynchronousTestCase):
             [u'',
              u'.. http:get:: /prefix/',
              u'',
-             u'   **Example request**',
+             u'   **Example:** Documentation of some example.',
+             u'   ',
+             u'   Request',
              u'   ',
              u'   .. sourcecode:: http',
              u'   ',
@@ -510,7 +678,7 @@ class VariableInterpolationTests(SynchronousTestCase):
              # Here is the important line.
              u'      192.0.2.1',
              u'   ',
-             u'   **Example response**',
+             u'   Response',
              u'   ',
              u'   .. sourcecode:: http',
              u'   ',
@@ -521,3 +689,33 @@ class VariableInterpolationTests(SynchronousTestCase):
              u''],
             list(rst)
         )
+
+
+class ExampleFromDictionaryTests(SynchronousTestCase):
+    """
+    Tests for ``Example.fromDictionary``.
+    """
+    def test_required_arguments(self):
+        """
+        ``Example.fromDictionary`` requires request and response keys
+        in the supplied dictionary and passes them to the Example
+        initialiser.
+        """
+        expected_request = 'GET /v1/some/example/request HTTP/1.1\n'
+        expected_response = 'HTTP/1.0 200 OK\n\n'
+        expected_doc = u'Documentation for some example.'
+
+        supplied_dictionary = {
+            'request': expected_request,
+            'response': expected_response,
+            'doc': expected_doc,
+        }
+
+        expected_example = Example(
+            request=expected_request,
+            response=expected_response,
+            doc=expected_doc,
+        )
+
+        self.assertEqual(
+            expected_example, Example.fromDictionary(supplied_dictionary))

@@ -160,12 +160,14 @@ def assertVolumesEqual(test, first, second):
     test.assertEqual(get_contents(first), get_contents(second))
 
 
-def make_istoragepool_tests(fixture):
+def make_istoragepool_tests(fixture, snapshot_factory):
     """Create a TestCase for IStoragePool.
 
     :param fixture: A fixture that returns a :class:`IStoragePool`
         provider, and which is assumed to clean up after itself when the
         test is over.
+    :param snapshot_factory: A callable that takes a :class:`IFilesystem`
+        and returns a corresponding :class:`IFilesystemSnapshots`
     """
     class IStoragePoolTests(TestCase):
         """Tests for a :class:`IStoragePool` implementation and its
@@ -970,5 +972,35 @@ def make_istoragepool_tests(fixture):
             d.addCallback(created_filesystems)
 
             return self.assertFailure(d, FilesystemAlreadyExists)
+
+        def test_destroy(self):
+            """
+            A filesystem destroyed by ``IStoragePool.destroy`` doesn't show up
+            in ``IStoragePool.enumerate``.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+            d = pool.create(volume)
+            d.addCallback(lambda _: pool.destroy(volume))
+            d.addCallback(lambda _: pool.enumerate())
+            d.addCallback(lambda result: self.assertEqual(list(result), []))
+            return d
+
+        def test_destroy_after_snapshot(self):
+            """
+            A filesystem with snapshots that is destroyed by
+            ``IStoragePool.destroy`` doesn't show up in
+            ``IStoragePool.enumerate``.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+            d = pool.create(volume)
+            d.addCallback(lambda fs: snapshot_factory(fs).create(b"cheese"))
+            d.addCallback(lambda _: pool.destroy(volume))
+            d.addCallback(lambda _: pool.enumerate())
+            d.addCallback(lambda result: self.assertEqual(list(result), []))
+            return d
 
     return IStoragePoolTests
