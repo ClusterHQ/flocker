@@ -14,7 +14,7 @@ from zope.interface.verify import verifyObject
 from ..blockdevice import (
     LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    losetup_list_parse, losetup_list, UnattachedVolume
+    _losetup_list_parse, _losetup_list, UnattachedVolume
 )
 
 from twisted.python.filepath import FilePath
@@ -260,7 +260,7 @@ def losetup_detach_all(root_path):
         backing files.
     :param list backing_files: A ``list`` of all loopback backing files.
     """
-    for device_file, backing_file in losetup_list():
+    for device_file, backing_file in _losetup_list():
         try:
             backing_file.segmentsFrom(root_path)
         except ValueError:
@@ -395,13 +395,13 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
 
 class LosetupListTests(SynchronousTestCase):
     """
-    Tests for ``losetup_list_parse``.
+    Tests for ``_losetup_list_parse``.
     """
     def test_parse_empty(self):
         """
         An empty list is returned if there are no devices listed.
         """
-        self.assertEqual([], losetup_list_parse('\n'))
+        self.assertEqual([], _losetup_list_parse('\n'))
 
     def test_parse_one_line(self):
         """
@@ -413,7 +413,7 @@ class LosetupListTests(SynchronousTestCase):
         ])
         self.assertEqual(
             [(FilePath('/dev/loop0'), FilePath('/tmp/rjw'))],
-            losetup_list_parse(input_text)
+            _losetup_list_parse(input_text)
         )
 
     def test_parse_multiple_lines(self):
@@ -430,7 +430,7 @@ class LosetupListTests(SynchronousTestCase):
             [(FilePath('/dev/loop0'), FilePath('/tmp/rjw')),
              (FilePath('/dev/loop1'),
               FilePath('/usr/share/virtualbox/VBoxGuestAdditions.iso'))],
-            losetup_list_parse(input_text)
+            _losetup_list_parse(input_text)
         )
 
     def test_remove_deleted_suffix(self):
@@ -443,7 +443,7 @@ class LosetupListTests(SynchronousTestCase):
         ])
         self.assertEqual(
             [(FilePath('/dev/loop0'), FilePath('/tmp/rjw'))],
-            losetup_list_parse(input_text)
+            _losetup_list_parse(input_text)
         )
 
     def test_remove_inode(self):
@@ -455,5 +455,5 @@ class LosetupListTests(SynchronousTestCase):
         ])
         self.assertEqual(
             [(FilePath('/dev/loop0'), FilePath('/tmp/rjw'))],
-            losetup_list_parse(input_text)
+            _losetup_list_parse(input_text)
         )

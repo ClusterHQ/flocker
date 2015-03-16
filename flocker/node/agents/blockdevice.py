@@ -127,7 +127,7 @@ class BlockDeviceVolume(PRecord):
     host = field(type=(bytes, type(None)), initial=None)
 
 
-def losetup_list_parse(output):
+def _losetup_list_parse(output):
     """
     Parse the output of ``losetup --all`` which varies depending on the
     privileges of the user.
@@ -168,7 +168,7 @@ def losetup_list_parse(output):
     return devices
 
 
-def losetup_list():
+def _losetup_list():
     """
     List all the loopback devices on the system.
 
@@ -178,17 +178,17 @@ def losetup_list():
     output = check_output(
         ["losetup", "--all"]
     ).decode('utf8')
-    return losetup_list_parse(output)
+    return _losetup_list_parse(output)
 
 
-def device_for_path(expected_backing_file):
+def _device_for_path(expected_backing_file):
     """
     :param FilePath backing_file: A path which may be associated with a
         loopback device.
     :returns: A ``FilePath`` to the loopback device if one is found, or
         ``None`` if no device exists.
     """
-    for device_file, backing_file in losetup_list():
+    for device_file, backing_file in _losetup_list():
         if expected_backing_file == backing_file:
             return device_file
     return None
@@ -320,4 +320,4 @@ class LoopbackBlockDeviceAPI(object):
             [volume.host, volume.blockdevice_id]
         )
         # May be None if the file hasn't been used for a loop device.
-        return device_for_path(volume_path)
+        return _device_for_path(volume_path)
