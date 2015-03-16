@@ -6,7 +6,6 @@ Tests for ``flocker.node.agents.blockdevice``.
 
 import os
 from uuid import uuid4
-from operator import attrgetter
 from subprocess import check_output
 
 from zope.interface.verify import verifyObject
