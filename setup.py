@@ -182,6 +182,9 @@ setup(
             "tl.eggdeps",
             "effect==0.1a13",
             "boto==2.30.0",
+            # Packages are downloaded from Buildbot
+            "requests==2.5.3",
+            "requests-file==1.0",
             ],
         },
 
