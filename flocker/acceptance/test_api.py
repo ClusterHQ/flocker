@@ -227,7 +227,7 @@ def get_test_cluster(test_case, node_count):
 
     return succeed(Cluster(
         control_node=control_node,
-        agent_nodes=map(Node, agent_nodes),
+        agent_nodes=map(lambda address: Node(address=address), agent_nodes),
     ))
 
 
