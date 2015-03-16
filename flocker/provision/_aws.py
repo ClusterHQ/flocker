@@ -68,6 +68,8 @@ def provision_aws(node, package_source, distribution, variants):
 
 IMAGE_NAMES = {
     'fedora-20': 'Fedora-x86_64-20-20140407-sda',
+    'centos-7': 'CentOS 7 x86_64 (2014_09_29) EBS HVM'
+                '-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d2a117ba.2',
 }
 
 
