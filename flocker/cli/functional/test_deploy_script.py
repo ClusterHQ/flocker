@@ -190,9 +190,12 @@ class FlockerDeployConfigureSSHTests(TestCase):
 
         def check_logs(ignored_first_error):
             failures = self.flushLoggedErrors(ZeroDivisionError)
+            # SSH configuration is performed in parallel threads so the order
+            # of logged errors depends on the thread scheduling. Sort the
+            # results before comparing.
             self.assertEqual(
-                expected_errors,
-                [f.value for f in failures]
+                sorted(expected_errors),
+                sorted(f.value for f in failures)
             )
 
         result.addErrback(check_logs)
