@@ -362,7 +362,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             size=expected_size,
         )
         (api
-         .root_path.child('unattached')
+         ._root_path.child('unattached')
          .child(blockdevice_volume.blockdevice_id)
          .setContent(b'x' * expected_size))
         self.assertEqual([blockdevice_volume], api.list_volumes())
@@ -378,7 +378,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
 
         blockdevice_id = unicode(uuid4())
 
-        host_dir = api.root_path.child('attached').child(expected_host)
+        host_dir = api._root_path.child('attached').child(expected_host)
         host_dir.makedirs()
         (host_dir
          .child(blockdevice_id)

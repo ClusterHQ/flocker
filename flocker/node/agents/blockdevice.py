@@ -12,7 +12,6 @@ from subprocess import check_output
 
 from zope.interface import implementer, Interface
 
-from characteristic import attributes
 from pyrsistent import PRecord, field
 
 from twisted.python.filepath import FilePath
@@ -195,7 +194,6 @@ def _device_for_path(expected_backing_file):
 
 
 @implementer(IBlockDeviceAPI)
-@attributes(['root_path'])
 class LoopbackBlockDeviceAPI(object):
     """
     A simulated ``IBlockDeviceAPI`` which creates loopback devices backed by
@@ -203,6 +201,13 @@ class LoopbackBlockDeviceAPI(object):
     """
     _attached_directory_name = 'attached'
     _unattached_directory_name = 'unattached'
+
+    def __init__(self, root_path):
+        """
+        :param FilePath root_path: The path beneath which all loopback backing
+            files and their organising directories will be created.
+        """
+        self._root_path = root_path
 
     @classmethod
     def from_path(cls, root_path):
@@ -221,7 +226,7 @@ class LoopbackBlockDeviceAPI(object):
         Create the root and sub-directories in which loopback files will be
         created.
         """
-        self._unattached_directory = self.root_path.child(
+        self._unattached_directory = self._root_path.child(
             self._unattached_directory_name)
 
         try:
@@ -229,7 +234,7 @@ class LoopbackBlockDeviceAPI(object):
         except OSError:
             pass
 
-        self._attached_directory = self.root_path.child(
+        self._attached_directory = self._root_path.child(
             self._attached_directory_name)
 
         try:
@@ -291,14 +296,14 @@ class LoopbackBlockDeviceAPI(object):
         documentation.
         """
         volumes = []
-        for child in self.root_path.child('unattached').children():
+        for child in self._root_path.child('unattached').children():
             volume = BlockDeviceVolume(
                 blockdevice_id=child.basename().decode('ascii'),
                 size=child.getsize(),
             )
             volumes.append(volume)
 
-        for host_directory in self.root_path.child('attached').children():
+        for host_directory in self._root_path.child('attached').children():
             host_name = host_directory.basename().encode('ascii')
             for child in host_directory.children():
 
