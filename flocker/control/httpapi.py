@@ -432,7 +432,7 @@ class ConfigurationAPIUserV1(object):
             u"create container",
             u"create container with duplicate name",
             u"create container with ports",
-            u"create container with environment"
+            u"create container with environment",
         ]
     )
     @structured(
@@ -499,7 +499,7 @@ class ConfigurationAPIUserV1(object):
                 external_port=port['external']
             ))
 
-        if environment:
+        if environment is not None:
             environment = frozenset(environment.items())
 
         # Create Application object, add to Deployment, save.

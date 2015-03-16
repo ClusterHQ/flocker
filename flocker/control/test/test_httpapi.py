@@ -244,8 +244,8 @@ class CreateContainerTestsMixin(APITestsMixin):
 
     def test_create_container_with_environment(self):
         """
-        A valid API request to create a container including environment
-        variables results in an updated configuration.
+        An API request to create a container including environment
+        variables results in the existing configuration being updated.
         """
         saving = self.persistence_service.save(Deployment(
             nodes={
@@ -255,7 +255,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         ))
 
         environment = {
-            u'USER': u'webserver',
+            u'SITES_ENABLED_PATH': u'/etc/nginx/sites-enabled',
             u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
         }
 
@@ -291,12 +291,12 @@ class CreateContainerTestsMixin(APITestsMixin):
 
     def test_create_container_with_environment_response(self):
         """
-        A valid API request to create a container including environment
+        An API request to create a container including environment
         variables returns the environment mapping supplied in the request in
         the response JSON.
         """
         environment = {
-            u'USER': u'webserver',
+            u'SITES_ENABLED_PATH': u'/etc/nginx/sites-enabled',
             u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
         }
         container_json = {
