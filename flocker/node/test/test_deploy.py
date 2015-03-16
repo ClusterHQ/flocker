@@ -388,7 +388,7 @@ class StartApplicationTests(SynchronousTestCase):
                               tag=u'9.3.5'),
             environment=variables.copy(),
             links=frozenset(),
-            ports=None
+            ports=(),
         )
 
         StartApplication(application=application,
@@ -910,8 +910,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_locally_owned_volume_with_size(self):
         """
