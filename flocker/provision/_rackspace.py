@@ -8,6 +8,7 @@ from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import (
     provision, run,
     task_disable_firewall,
+    task_expose_flocker_control,
 )
 
 
@@ -21,6 +22,8 @@ def provision_rackspace(node, package_source, distribution):
             distribution=node.distribution,
         )
         + task_disable_firewall()
+        # This should be part of ._install.configure_cluster
+        + task_expose_flocker_control()
     )
     run(
         username='root',

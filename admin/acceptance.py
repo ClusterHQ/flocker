@@ -375,10 +375,7 @@ def main(args, base_path, top_level):
 
     try:
         nodes = runner.start_nodes()
-        configure_cluster(
-            control_node=nodes[0], agent_nodes=nodes,
-            should_disable_firewall=options['provider'] not in ('rackspace', 'digitialocean'),
-            )
+        configure_cluster(control_node=nodes[0], agent_nodes=nodes)
         result = run_tests(
             nodes=nodes,
             control_node=nodes[0], agent_nodes=nodes,

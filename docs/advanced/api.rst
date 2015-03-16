@@ -14,11 +14,17 @@ Installation
 Fedora/CentOS
 -------------
 
-To enable flocker control, and allow remote access to the control agent REST API, and for agent connections,
+To enable Flocker control service.
 
 .. task:: enable_flocker_control
    :prompt: [root@control-node]#
 
+The control service needs to accessible remotely.
+To configure FirewallD to allow access to the control service REST API, and for agent connections,
+
+.. task:: expose_flocker_control
+
+(On AWS, an external firewall is used instead, which will need to be configured similarily).
 For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
 
 To start the ZFS agent on a node, (where ``${CONTROL_NODE}`` is the address of the control node, and ``${NODE_NAME}`` is the name of the node being configured.:
