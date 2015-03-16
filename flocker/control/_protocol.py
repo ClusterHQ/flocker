@@ -24,8 +24,6 @@ Interactions:
   convergence agents.
 """
 
-from json import dumps, loads
-
 from characteristic import with_cmp
 
 from zope.interface import Interface
@@ -38,7 +36,6 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 
 from ._persistence import wire_encode, wire_decode
-from ._model import NodeState
 
 
 class NodeStateArgument(Argument):

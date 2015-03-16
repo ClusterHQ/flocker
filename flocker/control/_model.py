@@ -221,9 +221,6 @@ class Application(PRecord):
     memory_limit = field(mandatory=True, initial=None)
     cpu_shares = field(mandatory=True, initial=None)
     restart_policy = field(mandatory=True, initial=RestartNever())
-                           # XXX hardcoded RestartNever
-                           #serializer=lambda f, d: None,
-                           #factory=lambda _: RestartNever())
     environment = field(mandatory=True, initial=pmap(), factory=pmap,
                         type=PMap)
 
