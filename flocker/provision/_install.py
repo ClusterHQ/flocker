@@ -332,7 +332,7 @@ def task_enable_zfs_testing(distribution):
 
     :param bytes distribution: See func:`task_install_flocker`
     """
-    if distribution == 'fedora-20':
+    if distribution in ('fedora-20', 'centos-7'):
         return [
             Run.from_args(['yum', 'install', '-y', 'yum-utils']),
             Run.from_args([
