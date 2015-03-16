@@ -617,8 +617,10 @@ class StoragePool(Service):
             # Use os.rmdir instead of FilePath.remove since we don't want
             # recursive behavior. If the directory is non-empty, something
             # went wrong (or there is a race) and we don't want to lose data.
+            # XXX Actually, use rmdir binary so that we can escape the
+            # container we're in.
             _sync_command_error_squashed(JAILBREAK_PREFIX +
-                [b"rm", old_filesystem.get_path().path], StoragePool.logger)
+                [b"rmdir", old_filesystem.get_path().path], StoragePool.logger)
         d.addCallback(remounted)
         d.addCallback(lambda _: new_filesystem)
         return d
