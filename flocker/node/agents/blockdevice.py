@@ -57,6 +57,7 @@ class UnattachedVolume(VolumeException):
 # TODO: Introduce a non-blocking version of this interface and an automatic
 # thread-based wrapper for adapting this to the other.  Use that interface
 # anywhere being non-blocking is important (which is probably lots of places).
+# See https://clusterhq.atlassian.net/browse/FLOC-1549
 class IBlockDeviceAPI(Interface):
     """
     Common operations provided by all block device backends.
