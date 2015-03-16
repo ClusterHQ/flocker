@@ -12,6 +12,7 @@ from uuid import uuid4
 from json import dumps, loads
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.error import ConnectionRefusedError
 from treq import get, post, content, delete, json_content
 from characteristic import attributes
 
@@ -377,7 +378,8 @@ class ContainerAPITests(TestCase):
         data = {
             u"name": "my_env_container",
             u"host": None,
-            u"image": "busybox:latest",
+            u"image": "clusterhq/flaskenv:latest",
+            u"ports": [{u"internal": 80, u"external": 8080}],
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'}
         }
         waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
@@ -391,38 +393,29 @@ class ContainerAPITests(TestCase):
         def check_result((cluster, response)):
             self.assertEqual(response, data)
 
-        def inspect_container():
-            try:
-                remote_data = run_SSH(
-                    22, 'root', data[u"host"],
-                    [
-                        b"docker",
-                        b"inspect",
-                        b"flocker--{0}".format(data[u"name"])
-                    ], None
-                )
-            except Exception:
-                return False
-            container_data = loads(remote_data)
-            env_data = container_data[0]['Config']['Env']
-            result = dict()
-            for var in env_data:
-                try:
-                    label, value = var.split("=")
-                except ValueError:
-                    continue
-                result[label] = value
-            return result
+        def inspect_container(host, port):
+            def can_connect():
+                s = socket.socket()
+                conn = s.connect_ex((host, port))
+                return False if conn else True
 
-        def verify_environment(actual, expected):
-            for key, value in expected.iteritems():
-                self.assertEqual(actual[key], value)
+            dl = loop_until(can_connect)
+            return dl
+
+        def query_environment(host, port):
+            req = get(
+                "http://{host}:{port}".format(host=host, port=port),
+                persistent=False
+            ).addCallback(json_content)
+            return req
 
         d.addCallback(check_result)
-        d.addCallback(lambda _: loop_until(inspect_container))
-        d.addCallback(lambda env:
-                      verify_environment(env, data[u"environment"]))
-        return d
+        d.addCallback(lambda _: inspect_container(data[u"host"], 8080))
+        req = d.addCallback(lambda _: query_environment(data[u"host"], 8080))
+        req.addCallback(lambda response:
+            self.assertDictContainsSubset(data[u"environment"], response)
+        )
+        return req
 
 
 class DatasetAPITests(TestCase):

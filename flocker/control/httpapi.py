@@ -587,7 +587,7 @@ def container_configuration_response(application, node):
             result['ports'].append(dict(
                 internal=port.internal_port, external=port.external_port
             ))
-    if application.environment:
+    if application.environment is not None:
         result['environment'] = dict(application.environment)
     return result
 
