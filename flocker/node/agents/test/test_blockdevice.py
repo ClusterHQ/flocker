@@ -14,7 +14,7 @@ from zope.interface.verify import verifyObject
 from ..blockdevice import (
     LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    losetup_list_parse, losetup_list
+    losetup_list_parse, losetup_list, UnattachedVolume
 )
 
 from twisted.python.filepath import FilePath
@@ -174,11 +174,63 @@ class IBlockDeviceAPITestsMixin(object):
             sorted_by_blockdevice_id(self.api.list_volumes())
         )
 
-    # def test_get_attached_volume_device(self):
-    #     1/0
+    def test_get_device_path_unknown_volume(self):
+        """
+        ``get_device_path`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` has not been created.
+        """
+        unknown_blockdevice_id = unicode(uuid4())
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.get_device_path,
+            unknown_blockdevice_id
+        )
+        self.assertEqual(unknown_blockdevice_id, exception.blockdevice_id)
 
-    # def test_get_unattached_volume_device(self):
-    #     1/0
+    def test_get_device_path_unattached_volume(self):
+        """
+        ``get_device_path`` raises ``UnattachedVolume`` if the supplied
+        ``blockdevice_id`` corresponds to an unattached volume.
+        """
+        new_volume = self.api.create_volume(size=1000)
+        exception = self.assertRaises(
+            UnattachedVolume,
+            self.api.get_device_path,
+            new_volume.blockdevice_id
+        )
+        self.assertEqual(new_volume.blockdevice_id, exception.blockdevice_id)
+
+    def test_get_device_path_device(self):
+        """
+        ``get_device_path`` returns a ``FilePath`` to the device representing
+        the attached volume.
+        """
+        new_volume = self.api.create_volume(size=1024 * 50)
+        attached_volume = self.api.attach_volume(
+            new_volume.blockdevice_id,
+            b'192.0.2.123'
+        )
+        device_path = self.api.get_device_path(attached_volume.blockdevice_id)
+        self.assertTrue(
+            device_path.isBlockDevice(),
+            u"Not a block device. Path: {!r}".format(device_path)
+        )
+
+    def test_get_device_path_device_exists(self):
+        """
+        ``get_device_path`` returns the same ``FilePath`` for the volume device
+        when called multiple times.
+        """
+        new_volume = self.api.create_volume(size=1024 * 50)
+        attached_volume = self.api.attach_volume(
+            new_volume.blockdevice_id,
+            b'192.0.2.123'
+        )
+
+        device_path1 = self.api.get_device_path(attached_volume.blockdevice_id)
+        device_path2 = self.api.get_device_path(attached_volume.blockdevice_id)
+
+        self.assertEqual(device_path1, device_path2)
 
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):

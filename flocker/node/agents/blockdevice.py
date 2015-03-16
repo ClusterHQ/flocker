@@ -47,6 +47,13 @@ class AlreadyAttachedVolume(VolumeException):
     """
 
 
+class UnattachedVolume(VolumeException):
+    """
+    An attempt was made to operate on an unattached volume but the operation
+    requires the volume to be attached.
+    """
+
+
 class IBlockDeviceAPI(Interface):
     """
     Common operations provided by all block device backends.
@@ -78,6 +85,16 @@ class IBlockDeviceAPI(Interface):
         List all the block devices available via the back end API.
 
         :returns: A ``list`` of ``BlockDeviceVolume``s.
+        """
+
+    def get_device_path(blockdevice_id):
+        """
+        Calculate the path at which ``blockdevice_id`` will be exposed on the
+        host when attached.
+
+        :param unicode blockdevice_id: The unique identifier for the block
+            device.
+        :returns: A ``FilePath`` for the device.
         """
 
 
