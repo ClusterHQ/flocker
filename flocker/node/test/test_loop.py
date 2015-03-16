@@ -313,9 +313,17 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         deployer = ControllableDeployer([succeed(local_node_state)], [action])
 
         fsm = build_convergence_loop_fsm(Clock(), deployer)
-        fsm.receive(_ClientStatusUpdate(client=client,
-                                        configuration=object(),
-                                        state=received_cluster_state))
+        fsm.receive(
+            _ClientStatusUpdate(
+                client=client,
+                # Configuration is unimportant here, but we are recreating a
+                # situation where the local state now matches the desired
+                # configuration but the control service is not yet aware that
+                # convergence has been reached.
+                configuration=Deployment(nodes=[local_node_state.to_node()]),
+                state=received_cluster_state
+            )
+        )
 
         expected_local_cluster_state = received_cluster_state.update_node(
             local_node_state.to_node()
