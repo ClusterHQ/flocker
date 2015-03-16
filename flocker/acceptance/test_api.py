@@ -5,6 +5,7 @@ Tests for the control service REST API.
 """
 
 from os import environ
+import socket
 
 from uuid import uuid4
 from json import dumps, loads
@@ -234,7 +235,7 @@ class ContainerAPITests(TestCase):
             u"image": "clusterhq/flask:latest",
             u"ports": [{u"internal": 80, u"external": 8080}]
         }
-        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
+        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
 
         def create_container(cluster, data):
             data[u"host"] = cluster.nodes[0].address
