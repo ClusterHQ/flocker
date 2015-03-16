@@ -183,11 +183,11 @@ def publish_docs(flocker_version, doc_version, environment):
     """
     if not (is_release(doc_version)
             or is_weekly_release(doc_version)):
-        raise NotARelease
+        raise NotARelease()
 
     if environment == Environments.PRODUCTION:
         if get_doc_version(flocker_version) != doc_version:
-            raise NotTagged
+            raise NotTagged()
     configuration = DOCUMENTATION_CONFIGURATIONS[environment]
 
     dev_prefix = '%s/' % (flocker_version,)
@@ -419,10 +419,10 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
     if not (is_release(version)
             or is_weekly_release(version)):
-        raise NotARelease
+        raise NotARelease()
 
     if get_doc_version(version) != version:
-        raise DocumentationRelease
+        raise DocumentationRelease()
 
     if is_release(version):
         target_distro_suffix = ""
