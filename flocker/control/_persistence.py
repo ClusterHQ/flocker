@@ -11,8 +11,7 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.defer import succeed
 
-from ._model import Deployment
-from . import _model
+from ._model import SERIALIZABLE_CLASSES, Deployment
 
 
 class _ConfigurationEncoder(JSONEncoder):
@@ -51,15 +50,16 @@ def wire_decode(data):
     :param bytes data: Encoded object.
     :param obj: An object from the configuration model, e.g. ``Deployment``.
     """
+    classes = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
+
     def decode_object(dictionary):
         class_name = dictionary.get("$__class__$", None)
         if class_name == u"FilePath":
             return FilePath(dictionary.get(u"path").encode("utf-8"))
-        elif class_name is not None:
+        elif class_name in classes:
             dictionary = dictionary.copy()
             dictionary.pop("$__class__$")
-            # XXX TEMPORARY HACK INSECURE XXX
-            return getattr(_model, class_name).create(dictionary)
+            return classes[class_name].create(dictionary)
         else:
             return dictionary
     return loads(data, object_hook=decode_object)

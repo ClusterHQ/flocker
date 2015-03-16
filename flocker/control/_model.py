@@ -433,3 +433,11 @@ class NodeState(PRecord):
                     manifestations={m.dataset_id: m
                                     for m in self.manifestations},
                     applications=self.running | self.not_running)
+
+
+# Classes that can be serialized to disk or sent over the network:
+SERIALIZABLE_CLASSES = [
+    Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
+    RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
+    NodeState,
+]
