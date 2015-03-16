@@ -44,6 +44,8 @@ SCHEMAS = {
 CONTAINER_NAME_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The container name already exists."
 )
+CONTAINER_NOT_FOUND = make_bad_request(
+    code=NOT_FOUND, description=u"Container not found.")
 CONTAINER_PORT_COLLISION = make_bad_request(
     code=CONFLICT, description=u"A specified external port is already in use."
 )
@@ -426,7 +428,10 @@ class ConfigurationAPIUserV1(object):
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
         """
-        Create and start a new container.
+        Add a new container to the configuration.
+
+        The container will be automatically started once it is created on
+        the cluster.
         """,
         examples=[
             u"create container",
@@ -513,6 +518,48 @@ class ConfigurationAPIUserV1(object):
             return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
+
+    @app.route("/configuration/containers/<name>", methods=['DELETE'])
+    @user_documentation(
+        """
+        Remove a container from the configuration.
+
+        This will lead to the container being stopped and not being
+        restarted again.
+        """,
+        examples=[
+            u"remove a container",
+            u"remove a container with unknown name",
+        ]
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={},
+        schema_store=SCHEMAS
+    )
+    def delete_container_configuration(self, name):
+        """
+        Remove a container from the cluster configuration.
+
+        :param unicode name: A unique identifier for the container within
+            the Flocker cluster.
+
+        :return: An ``EndpointResponse``.
+        """
+        deployment = self.persistence_service.get()
+
+        for node in deployment.nodes:
+            for application in node.applications:
+                if application.name == name:
+                    updated_node = node.transform(
+                        ["applications"], lambda s: s.remove(application))
+                    d = self.persistence_service.save(
+                        deployment.update_node(updated_node))
+                    d.addCallback(lambda _: None)
+                    return d
+
+        # Didn't find the application:
+        raise CONTAINER_NOT_FOUND
 
 
 def manifestations_from_deployment(deployment, dataset_id):
