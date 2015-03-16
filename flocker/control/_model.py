@@ -18,8 +18,7 @@ from characteristic import attributes
 
 from twisted.python.filepath import FilePath
 from pyrsistent import (
-    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, thaw,
-    CheckedType,
+    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap,
     )
 
 from zope.interface import Interface, implementer
@@ -33,13 +32,13 @@ def pset_field(klass):
     """
     class TheSet(CheckedPSet):
         __type__ = klass
+    TheSet.__name__ = klass.__name__ + "PSet"
 
     def serializer(format, data):
+        # Default is to return set()... which requires that contained
+        # instances be hashable, which doesn't work for e.g. dicts
+        # resulting from serializing a PRecord.
         return list(data)
-        if issubclass(klass, CheckedType):
-            return [o.serialize() for o in data]
-        else:
-            return [thaw(o) for o in data]
     return field(type=TheSet, factory=TheSet.create, serializer=serializer,
                  mandatory=True, initial=TheSet())
 
@@ -214,7 +213,7 @@ class Application(PRecord):
         application.
     """
     name = field(mandatory=True)
-    image = field(mandatory=True, type=DockerImage, factory=DockerImage.create)
+    image = field(mandatory=True, type=DockerImage)
     ports = pset_field(Port)
     volume = field(mandatory=True, initial=None)
     links = pset_field(Link)
