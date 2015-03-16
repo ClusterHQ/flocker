@@ -494,7 +494,7 @@ class DeleteContainerTestsMixin(APITestsMixin):
     def _delete_test(self, name):
         """
         Create and then delete a container, ensuring the expected response
-        from deletion.
+        code of OK from deletion.
 
         :param Application application: The container which will be deleted.
         :returns: A ``Deferred`` which fires when all assertions have been
@@ -509,14 +509,14 @@ class DeleteContainerTestsMixin(APITestsMixin):
         )
         d.addCallback(lambda _: self.assertResult(
             b"DELETE",
-            b"/configuration/containers/{}".format(name.encode("ascii")), None,
+            u"/configuration/containers/{}".format(name).encode("ascii"), None,
             OK, None,
         ))
         return d
 
     def test_delete(self):
         """
-        The ``DELETE`` action removes the given container from the
+        The ``DELETE`` method removes the given container from the
         configuration.
         """
         d = self._delete_test(u"mycontainer")
@@ -530,7 +530,7 @@ class DeleteContainerTestsMixin(APITestsMixin):
 
     def test_delete_leaves_others(self):
         """
-        The ``DELETE`` action does not remove unrelated containers.
+        The ``DELETE`` method does not remove unrelated containers.
         """
         d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
