@@ -71,7 +71,7 @@ def extend_environ(**kwargs):
 
 def run_tests(nodes, control_node, agent_nodes, trial_args):
     """
-    Run the acceptances tests.
+    Run the acceptance tests.
 
     :param list nodes: The list of nodes to run the acceptance tests against.
     :param bytes control_node: The address of the control node to run API
