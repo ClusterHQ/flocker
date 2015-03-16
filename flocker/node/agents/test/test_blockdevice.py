@@ -350,6 +350,27 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         unattached_directory.makedirs()
         self.assertDirectoryStructure(directory)
 
+    def test_create_sparse(self):
+        """
+        ``create_volume`` creates sparse files.
+        """
+        api = loopbackblockdeviceapi_for_test(test_case=self)
+        # 1GB
+        apparent_size = 1024 * 1000 * 1000 * 1000
+        volume = api.create_volume(apparent_size)
+        backing_file = api._root_path.descendant(
+            ['unattached', volume.blockdevice_id]
+        )
+        # Get actual number of 512 byte blocks used by the file.
+        # See http://stackoverflow.com/a/3212102
+        actual_size = os.stat(backing_file.path).st_blocks * 512
+        reported_size = backing_file.getsize()
+
+        self.assertEqual(
+            (0, apparent_size),
+            (actual_size, reported_size)
+        )
+
     def test_list_unattached_volumes(self):
         """
         ``list_volumes`` returns a ``BlockVolume`` for each unattached volume

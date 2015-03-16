@@ -244,7 +244,8 @@ class LoopbackBlockDeviceAPI(object):
 
     def create_volume(self, size):
         """
-        Create a file of some size and put it in the ``unattached`` directory.
+        Create a "sparse" file of some size and put it in the ``unattached``
+        directory.
 
         See ``IBlockDeviceAPI.create_volume`` for parameter and return type
         documentation.
@@ -253,9 +254,10 @@ class LoopbackBlockDeviceAPI(object):
             blockdevice_id=unicode(uuid4()),
             size=size,
         )
-        self._unattached_directory.child(
+        with self._unattached_directory.child(
             volume.blockdevice_id.encode('ascii')
-        ).setContent(b'\0' * volume.size)
+        ).open('wb') as f:
+            f.truncate(size)
         return volume
 
     def _get(self, blockdevice_id):
