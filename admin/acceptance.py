@@ -208,6 +208,8 @@ class LibcloudRunner(object):
                 raise
 
             self.nodes.append(node)
+
+            check_safe_call(['ssh-keygen', '-R', node.address])
             node.provision(
                 package_source=self.package_source)
             del node
