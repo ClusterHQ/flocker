@@ -209,6 +209,9 @@ class LibcloudRunner(object):
 
             self.nodes.append(node)
 
+            # From ssh-keygen(1):
+            # -R hostname
+            # Removes all keys belonging to hostname from a known_hosts file.
             check_safe_call(['ssh-keygen', '-R', node.address])
             node.provision(
                 package_source=self.package_source)

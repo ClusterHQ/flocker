@@ -79,8 +79,8 @@ class TaskDirective(Directive):
             except KeyError:
                 raise self.error("task: %s not supported"
                                  % (type(command).__name__,))
-            # handler can return either a string or a list.  If it is a string,
-            # treat the elements after the first as continuation lines.
+            # handler can return either a string or a list.  If it returns a
+            # list, treat the elements after the first as continuation lines.
             command_line = handler(command)
             if isinstance(command_line, list):
                 lines.append('   %s %s' % (prompt, command_line[0],))

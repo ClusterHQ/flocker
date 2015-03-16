@@ -14,7 +14,7 @@ from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
 from unittest import SkipTest
 from treq import get, post, content, delete, json_content
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, field, CheckedPVector
 
 from ..testtools import loop_until
 
@@ -30,6 +30,16 @@ class Node(PRecord):
     address = field(type=bytes)
 
 
+class _NodeList(CheckedPVector):
+    """
+    A list of nodes.
+
+    See https://github.com/tobgu/pyrsistent/issues/26 for more succinct
+    idiom combining this with ``field()``.
+    """
+    __type__ = Node
+
+
 class Cluster(PRecord):
     """
     A record of the control service and the nodes in a cluster for acceptance
@@ -40,7 +50,7 @@ class Cluster(PRecord):
     :param list nodes: The ``Node`` s in this cluster.
     """
     control_node = field(type=Node)
-    nodes = field()  # Plist(Node)
+    nodes = field(type=_NodeList)
 
     @property
     def base_url(self):

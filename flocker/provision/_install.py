@@ -219,6 +219,9 @@ FLOCKER_CONTROL_NODE = %(control_node)s
 def task_enable_flocker_agent(node_name, control_node):
     """
     Configure and enable flocker-agent.
+
+    :param bytes node_name: The name this node is known by.
+    :param bytes control_node: The address of the control agent.
     """
     return [
         Put(
