@@ -47,13 +47,6 @@ class AlreadyAttachedVolume(VolumeException):
     """
 
 
-class UnattachedVolume(VolumeException):
-    """
-    An attempt was made to operate on an unattached volume but the operation
-    requires the volume to be attached.
-    """
-
-
 class IBlockDeviceAPI(Interface):
     """
     Common operations provided by all block device backends.
@@ -85,16 +78,6 @@ class IBlockDeviceAPI(Interface):
         List all the block devices available via the back end API.
 
         :returns: A ``list`` of ``BlockDeviceVolume``s.
-        """
-
-    def get_device_path(blockdevice_id):
-        """
-        Calculate the path at which ``blockdevice_id`` will be exposed on the
-        host when attached.
-
-        :param unicode blockdevice_id: The unique identifier for the block
-            device.
-        :returns: A ``FilePath`` for the device.
         """
 
 
@@ -223,26 +206,6 @@ class LoopbackBlockDeviceAPI(object):
             self._attached_directory.makedirs()
         except OSError:
             pass
-
-    def get_device_path(self, blockdevice_id):
-        """
-        For this loopback implementation, we create a new loop device if one
-        does not already exist or return the loop device that is already
-        associated with the block device backing file.
-        """
-        volume = self._get(blockdevice_id)
-
-        if volume.host is not None:
-            volume_path = self._attached_directory.descendant(
-                [volume.host, volume.blockdevice_id]
-            )
-            device_path = device_for_path(volume_path)
-            if device_path is None:
-                check_output(["losetup", "--find", volume_path.path])
-
-            return device_for_path(volume_path)
-
-        raise UnattachedVolume(blockdevice_id)
 
     def create_volume(self, size):
         """
