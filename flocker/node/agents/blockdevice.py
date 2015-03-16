@@ -118,7 +118,7 @@ class BlockDeviceVolume(PRecord):
     A block device that may be attached to a host.
 
     :ivar unicode blockdevice_id: The unique identifier of the block device.
-    :ivar int size: The size of the block device.
+    :ivar int size: The size, in bytes, of the block device.
     :ivar bytes host: The IP address of the host to which the block device is
         attached or ``None`` if it is currently unattached.
     """
