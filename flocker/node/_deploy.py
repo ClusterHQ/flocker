@@ -11,7 +11,7 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
-from pyrsistent import pmap, PRecord, field
+from pyrsistent import pmap, PRecord, field, pset
 
 from eliot import write_failure, Logger
 
@@ -600,7 +600,7 @@ class P2PNodeDeployer(object):
         if desired_proxies != set(self.network.enumerate_proxies()):
             phases.append(SetProxies(ports=desired_proxies))
 
-        if desired_open_ports != set(self.network.enumerate_open_ports()):
+        if desired_open_ports != pset(self.network.enumerate_open_ports()):
             phases.append(OpenPorts(ports=desired_open_ports))
 
         # We are a node-specific IDeployer:

@@ -25,7 +25,7 @@ from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
     ResizeDataset, _link_environment, _to_volume_name, IDeployer,
-    DeleteDataset,
+    DeleteDataset, OpenPorts
 )
 from ...testtools import CustomException
 from .. import _deploy
@@ -2380,13 +2380,16 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             current_cluster_state=EMPTY,
         )
 
-        expected = Sequentially(changes=[InParallel(changes=[
-            Sequentially(changes=[
-                StopApplication(application=old_postgres_app),
-                StartApplication(application=new_postgres_app,
-                                 hostname="node1.example.com")
+        expected = Sequentially(changes=[
+            OpenPorts(ports=frozenset([50433])),
+            InParallel(changes=[
+                Sequentially(changes=[
+                    StopApplication(application=old_postgres_app),
+                    StartApplication(application=new_postgres_app,
+                                     hostname="node1.example.com")
                 ]),
-        ])])
+            ]),
+        ])
 
         self.assertEqual(expected, result)
 
