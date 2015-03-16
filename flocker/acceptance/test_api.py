@@ -190,7 +190,7 @@ def get_test_cluster(test_case, node_count):
 
     :param TestCase test_case: The test case instance on which to register
         cleanup operations.
-    :param list node_count: The number of nodes to request in the cluster.
+    :param int node_count: The number of nodes to request in the cluster.
     :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
     """
     control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
