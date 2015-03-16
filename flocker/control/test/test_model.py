@@ -98,7 +98,7 @@ class ApplicationInitTests(make_with_init_tests(
         ports=pset(), volume=None, environment=pmap({}),
         links=pset(), restart_policy=RestartAlways(),
     ),
-    expected_defaults={'links': frozenset(), 'restart_policy': RestartNever()},
+    expected_defaults={'links': pset(), 'restart_policy': RestartNever()},
 )):
     """
     Tests for ``Application.__init__``.
@@ -229,7 +229,7 @@ class NodeStateTests(SynchronousTestCase):
 
 class DeploymentInitTests(make_with_init_tests(
         record_type=Deployment,
-        kwargs=dict(nodes=frozenset([
+        kwargs=dict(nodes=pset([
             Node(hostname=u'node1.example.com', applications=frozenset()),
             Node(hostname=u'node2.example.com', applications=frozenset())
         ]))

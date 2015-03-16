@@ -69,7 +69,7 @@ class FlockerDeployConfigureSSHTests(TestCase):
             nodes=frozenset([
                 Node(
                     hostname=str(self.server.ip),
-                    applications=None
+                    applications=[]
                 ),
                 # Node(
                 #     hostname='node2.example.com',
@@ -106,7 +106,7 @@ class FlockerDeployConfigureSSHTests(TestCase):
             nodes=frozenset([
                 Node(
                     hostname=str(self.server.ip),
-                    applications=None
+                    applications=[]
                 ),
             ])
         )
@@ -134,7 +134,7 @@ class FlockerDeployConfigureSSHTests(TestCase):
             nodes=frozenset([
                 Node(
                     hostname=str(self.server.ip),
-                    applications=None
+                    applications=[]
                 ),
             ])
         )
@@ -170,15 +170,15 @@ class FlockerDeployConfigureSSHTests(TestCase):
             nodes=frozenset([
                 Node(
                     hostname=b'node1.example.com',
-                    applications=None
+                    applications=[]
                 ),
                 Node(
                     hostname=b'node2.example.com',
-                    applications=None
+                    applications=[]
                 ),
                 Node(
                     hostname=b'node3.example.com',
-                    applications=None
+                    applications=[]
                 ),
 
             ])
