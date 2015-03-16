@@ -6,10 +6,12 @@ Create a Homebrew recipe for Flocker, using the VERSION environment variable.
 Inspired by https://github.com/tdsmith/labmisc/blob/master/mkpydeps.
 """
 
+import argparse
+import logging
 import sys
 from os import environ
 from json import load
-from urllib2 import HTTPError, urlopen
+from urllib2 import urlopen
 from hashlib import sha1
 from tl.eggdeps.graph import Graph
 
@@ -32,18 +34,6 @@ def get_dependency_graph(application):
     return dependency_graph
 
 
-def get_version():
-    """
-    :return str: The contents of the "VERSION" environment variable.
-
-    :raises Exception: If $VERSION is not set.
-    """
-    version = environ.get("VERSION")
-    if version is None:
-        raise Exception("Set the VERSION environment variable.")
-    return version
-
-
 def get_checksum(url):
     """
     Given the URL of a file, download that file and return its sha1 hash.
@@ -52,13 +42,12 @@ def get_checksum(url):
 
     :return str checksum: The sha1 hash of the file at ``url``.
     """
+    logging.info('Downloading {}'.format(url))
+    download = urlopen(url)
     try:
-        download = urlopen(url)
-    except HTTPError:
-        raise Exception("No file available at " + url)
-
-    checksum = sha1(download.read()).hexdigest()
-    download.close()
+        checksum = sha1(download.read()).hexdigest()
+    finally:
+        download.close()
     return checksum
 
 
@@ -117,16 +106,14 @@ def get_resource_stanzas(dependency_graph):
         f = urlopen(url)
         pypi_information = load(f)
         f.close()
-        resource_added = False
         for release in pypi_information['urls']:
             if release['packagetype'] == 'sdist':
                 url = release['url']
-                resource_added = True
                 resources += resource_template.format(
                     project_name=project_name, url=release['url'],
                     checksum=get_checksum(url))
                 break
-        if not resource_added:
+        else:
             raise Exception("sdist package not found for " + name)
     return resources
 
@@ -144,17 +131,42 @@ def main():
     If no command line argument is provided, use the standard release
     location for the indicated version.
     """
-    version = get_version()
-    if len(sys.argv) < 2:
+    logging.basicConfig(level=logging.INFO)
+
+    parser = argparse.ArgumentParser(
+        description='Create a Homebrew recipe from a source distribution.')
+    parser.add_argument(
+        '--flocker-version', help='version number for the Homebrew recipe'
+        ' (either this argument or the environment variable VERSION must be'
+        ' provided)')
+    parser.add_argument(
+        '--sdist', help='URL of the source distribution')
+    parser.add_argument(
+        '--output-file',
+        help='filename for created Homebrew recipe (default: stdout)')
+    args = parser.parse_args()
+
+    # If version not supplied, for backwards-compatibility, get it from
+    # the environment variable VERSION.
+    version = args.flocker_version
+    if version is None:
+        version = environ.get('VERSION')
+        if version is None:
+            parser.print_help()
+            sys.exit(1)
+    logging.info('Creating Homebrew recipe for version {}'.format(version))
+
+    # If url not supplied, for backwards-compatibility, use the Google
+    # Storage location specified in the release process.
+    url = args.sdist
+    if url is None:
         url = (b"https://storage.googleapis.com/archive.clusterhq.com/"
                "downloads/flocker/Flocker-{version}.tar.gz").format(
                    version=version)
-    else:
-        url = sys.argv[1]
 
     dependency_graph = get_dependency_graph(u"flocker")
 
-    print u"""require "formula"
+    recipe = u"""require "formula"
 
 class {class_name} < Formula
   homepage "https://clusterhq.com"
@@ -185,6 +197,16 @@ end
            class_name=get_class_name(version),
            resources=get_resource_stanzas(dependency_graph),
            dependencies=get_formatted_dependency_list(dependency_graph))
+
+    # If output-file not supplied, print to stdout.
+    filename = args.output_file
+    if filename is None:
+        sys.stdout.write(recipe)
+    else:
+        logging.info('Writing Homebrew recipe to file "{}"'.format(filename))
+        with open(filename, 'wt') as f:
+            f.write(recipe)
+
 
 if __name__ == "__main__":
     main()
