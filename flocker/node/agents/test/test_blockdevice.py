@@ -24,15 +24,6 @@ GIBIBYTE = 2**30
 REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
 
 
-def sorted_by_blockdevice_id(blockdevices):
-    """
-    :param list blockdevices: The ``BlockDeviceVolume`` instances to sort.
-    :returns: A ``list`` of ``BlockDeviceVolume``s sorted by their
-        ``blockdevice_id``.
-    """
-    return sorted(blockdevices, key=attrgetter('blockdevice_id'))
-
-
 class IBlockDeviceAPITestsMixin(object):
     """
     Tests to perform on ``IBlockDeviceAPI`` providers.
@@ -156,9 +147,9 @@ class IBlockDeviceAPITestsMixin(object):
             blockdevice_id=new_volume2.blockdevice_id,
             host=expected_host
         )
-        self.assertEqual(
-            sorted_by_blockdevice_id([new_volume1, attached_volume]),
-            sorted_by_blockdevice_id(self.api.list_volumes())
+        self.assertItemsEqual(
+            [new_volume1, attached_volume],
+            self.api.list_volumes()
         )
 
     def test_multiple_volumes_attached_to_host(self):
@@ -175,9 +166,9 @@ class IBlockDeviceAPITestsMixin(object):
             volume2.blockdevice_id, host=expected_host
         )
 
-        self.assertEqual(
-            sorted_by_blockdevice_id([attached_volume1, attached_volume2]),
-            sorted_by_blockdevice_id(self.api.list_volumes())
+        self.assertItemsEqual(
+            [attached_volume1, attached_volume2],
+            self.api.list_volumes()
         )
 
     def test_get_device_path_unknown_volume(self):
