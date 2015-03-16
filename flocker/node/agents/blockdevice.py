@@ -100,8 +100,8 @@ class IBlockDeviceAPI(Interface):
 
     def get_device_path(blockdevice_id):
         """
-        Return the path of the device through which ``blockdevice_id`` is
-        exposed on the host when attached.
+        Return the device path that has been allocated to the block device on
+        the host to which it is currently attached.
 
         :param unicode blockdevice_id: The unique identifier for the block
             device.
