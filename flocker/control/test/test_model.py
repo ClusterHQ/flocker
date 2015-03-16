@@ -6,7 +6,7 @@ Tests for ``flocker.node._model``.
 
 from uuid import uuid4
 
-from pyrsistent import InvariantException, pset, PRecord, PSet, field
+from pyrsistent import InvariantException, pset, PRecord, PSet, field, pmap
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -95,34 +95,14 @@ class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
     kwargs=dict(
         name=u'site-example.com', image=DockerImage.from_string(u"image"),
-        ports=(), volume=None, environment=None,
-        links=frozenset(), restart_policy=RestartAlways(),
+        ports=pset(), volume=None, environment=pmap({}),
+        links=pset(), restart_policy=RestartAlways(),
     ),
     expected_defaults={'links': frozenset(), 'restart_policy': RestartNever()},
 )):
     """
     Tests for ``Application.__init__``.
     """
-
-
-class ApplicationTests(SynchronousTestCase):
-    """
-    Other tests for ``Application``.
-    """
-    def test_repr(self):
-        """
-        ``Application.__repr__`` includes the name, image, ports, and links.
-        """
-        application = Application(name=u'site-example.com',
-                                  image=DockerImage.from_string(u"image"),
-                                  ports=(), links=frozenset())
-        self.assertEqual(
-            "<Application(name=u'site-example.com', image=None, ports=None, "
-            "volume=None, links=frozenset([]), environment=None, "
-            "memory_limit=None, cpu_shares=None, "
-            "restart_policy=<RestartNever()>)>",
-            repr(application)
-        )
 
 
 class NodeInitTests(make_with_init_tests(

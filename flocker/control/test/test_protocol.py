@@ -89,8 +89,7 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 NODE_STATE = NodeState(hostname=u'node1.example.com',
-                       # XXX need to switch relevant classes to pyrsistent:
-                       # running=[APP1], not_running=[APP2],
+                       running=[APP1], not_running=[APP2],
                        used_ports=[1, 2],
                        manifestations=frozenset([MANIFESTATION]))
 

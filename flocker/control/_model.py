@@ -224,8 +224,8 @@ class Application(PRecord):
                            # XXX hardcoded RestartNever
                            #serializer=lambda f, d: None,
                            #factory=lambda _: RestartNever())
-    # XXX we can switch this to pmap now that we have immutable dicts:
-    environment = field(mandatory=True, initial=None)
+    environment = field(mandatory=True, initial=pmap(), factory=pmap,
+                        type=PMap)
 
 
 class Dataset(PRecord):

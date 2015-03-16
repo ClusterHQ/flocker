@@ -21,7 +21,7 @@ class _ConfigurationEncoder(JSONEncoder):
     """
     def default(self, obj):
         if isinstance(obj, PRecord):
-            result = obj.serialize()
+            result = dict(obj)
             result[u"$__class__$"] = obj.__class__.__name__
             return result
         elif isinstance(obj, (PVector, PMap)):
