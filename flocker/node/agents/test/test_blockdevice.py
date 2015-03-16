@@ -213,7 +213,7 @@ class IBlockDeviceAPITestsMixin(object):
             u"Not a block device. Path: {!r}".format(device_path)
         )
 
-    def test_get_device_path_device_exists(self):
+    def test_get_device_path_device_repeatable_results(self):
         """
         ``get_device_path`` returns the same ``FilePath`` for the volume device
         when called multiple times.
