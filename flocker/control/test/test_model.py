@@ -422,44 +422,6 @@ class PSetFieldTests(SynchronousTestCase):
         record = Record()
         self.assertRaises(TypeError, record.set, "value", None)
 
-    def test_serialize_simple_objects(self):
-        """
-        ``pset_field`` serializes simple objects.
-        """
-        class Record(PRecord):
-            value = pset_field(int)
-        record = Record(value=[1, 2])
-        assert record.serialize() == {"value": [1, 2]}
-
-    def test_serialize_precord(self):
-        """
-        ``pset_field`` serializes ``PRecord`` instances.
-
-        This doesn't Just Work because putting dictionaries into sets is a
-        problem.
-        """
-        class Child(PRecord):
-            value = field()
-
-        class Parent(PRecord):
-            children = pset_field(Child)
-
-        parent = Parent(children=[Child(value=123)])
-        assert parent.serialize() == {"children": [{"value": 123}]}
-
-    def test_serialize_roundtrip(self):
-        """
-        ``pset_field`` can de-serialize ``PRecord`` instances.
-        """
-        class Child(PRecord):
-            value = field()
-
-        class Parent(PRecord):
-            children = pset_field(Child)
-
-        parent = Parent(children=[Child(value=123)])
-        assert Parent.create(parent.serialize()) == parent
-
     def test_mandatory(self):
         """
         ``pset_field`` is a mandatory field.

@@ -34,13 +34,8 @@ def pset_field(klass):
         __type__ = klass
     TheSet.__name__ = klass.__name__ + "PSet"
 
-    def serializer(format, data):
-        # Default is to return set()... which requires that contained
-        # instances be hashable, which doesn't work for e.g. dicts
-        # resulting from serializing a PRecord.
-        return list(data)
-    return field(type=TheSet, factory=TheSet.create, serializer=serializer,
-                 mandatory=True, initial=TheSet())
+    return field(type=TheSet, factory=TheSet.create, mandatory=True,
+                 initial=TheSet())
 
 
 class DockerImage(PRecord):
