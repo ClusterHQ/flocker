@@ -192,7 +192,7 @@ def task_disable_firewall():
 
 def task_enable_flocker_control():
     """
-    Eanble flocker-control service.
+    Enable flocker-control service.
     """
     return [
         Run.from_args(['systemctl', 'enable', 'flocker-control']),
@@ -218,7 +218,7 @@ FLOCKER_CONTROL_NODE = %(control_node)s
 
 def task_enable_flocker_agent(node_name, control_node):
     """
-    Configure and eanble flocker-agent.
+    Configure and enable flocker-agent.
     """
     return [
         Put(
