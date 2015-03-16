@@ -299,9 +299,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_node_hostname = u'192.0.2.123'
         # Control service reports that this node has no manifestations.
         received_node = Node(hostname=local_node_hostname)
-        received_cluster_state = Deployment(
-            nodes=frozenset([received_node])
-        )
+        received_cluster_state = Deployment(nodes=[received_node])
         discovered_manifestation = Manifestation(
             dataset=Dataset(dataset_id=uuid4()),
             primary=True
