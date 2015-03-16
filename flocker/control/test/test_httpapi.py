@@ -30,10 +30,10 @@ from ...restapi.testtools import (
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume, DockerImage
+    Deployment, AttachedVolume, DockerImage, Port
 )
 from ..httpapi import (
-    DatasetAPIUserV1, create_api_service, datasets_from_deployment,
+    ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
     api_dataset_from_dataset_and_node
 )
 from .._persistence import ConfigurationPersistenceService
@@ -51,7 +51,7 @@ class APITestsMixin(object):
 
     def initialize(self):
         """
-        Create initial objects for the ``DatasetAPIUserV1``.
+        Create initial objects for the ``ConfigurationAPIUserV1``.
         """
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
@@ -167,10 +167,311 @@ class VersionTestsMixin(APITestsMixin):
 
 def _build_app(test):
     test.initialize()
-    return DatasetAPIUserV1(test.persistence_service,
-                            test.cluster_state_service).app
+    return ConfigurationAPIUserV1(test.persistence_service,
+                                  test.cluster_state_service).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     VersionTestsMixin, "API", _build_app)
+
+
+class CreateContainerTestsMixin(APITestsMixin):
+    """
+    Tests for the container creation endpoint at ``/configuration/containers``.
+    """
+    def test_wrong_schema(self):
+        """
+        If a ``POST`` request made to the endpoint includes a body which
+        doesn't match the ``definitions/containers`` schema, the response is
+        an error indication a validation failure.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A,
+                u"name": u'postgres',
+                u'image': u'postgres',
+                u"junk": u"garbage"
+            },
+            BAD_REQUEST, {
+                u'description':
+                    u"The provided JSON doesn't match the required schema.",
+                u'errors': [
+                    u"Additional properties are not allowed "
+                    u"(u'junk' was unexpected)"
+                ]
+            }
+        )
+
+    def _container_name_collision_test(self, node1, node2):
+        """
+        Utility method to create two containers on the specified nodes.
+        """
+        # create a container
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node1, u"name": u"postgres", u"image": u"postgres"
+            }, CREATED
+        )
+        # try to create another container with the same name
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node2,
+                u"name": u'postgres',
+                u'image': u'postgres',
+            },
+            CONFLICT, {
+                u'description':
+                    u"The container name already exists.",
+            }
+        ))
+        return d
+
+    def test_container_name_collision_same_node(self):
+        """
+        A container will not be created if a container with the same name
+        already exists on the node we are attempting to create on.
+        """
+        return self._container_name_collision_test(self.NODE_A, self.NODE_A)
+
+    def test_container_name_collision_different_node(self):
+        """
+        A container will not be created if a container with the same name
+        already exists on another node than the node we are attempting to
+        create on.
+        """
+        return self._container_name_collision_test(self.NODE_A, self.NODE_B)
+
+    def _test_conflicting_ports(self, node1, node2):
+        """
+        Utility method to create two containers with the same ports on two
+        nodes.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node1, u"name": u"postgres",
+                u"image": u"postgres",
+                u"ports": [{u'internal': 5432, u'external': 54320}]
+            }, CREATED
+        )
+        # try to create another container with the same ports
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node2,
+                u"name": u'another_postgres',
+                u'image': u'postgres',
+                u'ports': [{u'internal': 5432, u'external': 54320}]
+            },
+            CONFLICT, {
+                u'description':
+                    u"A specified external port is already in use.",
+            }
+        ))
+        return d
+
+    def test_create_container_with_conflicting_ports_different_node(self):
+        """
+        A valid API request to create a container including port mappings
+        that conflict with the ports used by an application already running on
+        the same node return an error and therefoer do not create the
+        container.
+        """
+        return self._test_conflicting_ports(self.NODE_A, self.NODE_B)
+
+    def test_create_container_with_conflicting_ports(self):
+        """
+        A valid API request to create a container including port mappings
+        that conflict with the ports used by an application already running on
+        the same node return an error and therefoer do not create the
+        container.
+        """
+        return self._test_conflicting_ports(self.NODE_A, self.NODE_A)
+
+    def test_create_container_with_ports(self):
+        """
+        A valid API request to create a container including port mappings
+        results in an updated configuration.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(name='postgres',
+                                    image=DockerImage.from_string('postgres'))
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        ports = [
+            {'internal': 5432, 'external': 54320},
+        ]
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"image": u"postgres", u"ports": ports
+            }, CREATED
+        ))
+
+        def created(_):
+            application_ports = [Port(internal_port=5432, external_port=54320)]
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                            Application(
+                                name='another_postgres',
+                                image=DockerImage.from_string('postgres'),
+                                ports=frozenset(application_ports)
+                            )
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_create_container_with_ports_response(self):
+        """
+        A valid API request to create a container including port mappings
+        returns the port mapping supplied in the request in the response JSON.
+        """
+        ports = [
+            {'internal': 5432, 'external': 54320},
+        ]
+        container_json = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres", u"ports": ports
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres:latest", u"ports": ports
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
+    def test_configuration_updated_existing_node(self):
+        """
+        A valid API request to create a container on an existing node results
+        in an updated configuration.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(name='postgres',
+                                    image=DockerImage.from_string('postgres'))
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"image": u"postgres"
+            }, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                            Application(
+                                name='another_postgres',
+                                image=DockerImage.from_string('postgres')
+                            )
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_configuration_updated_new_node(self):
+        """
+        A valid API request to create a container on a new node results
+        in an updated configuration.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_B, u"name": u"postgres",
+                u"image": u"postgres"
+            }, CREATED
+        )
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_B,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                        ]
+                    ),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(created)
+        return d
+
+    def test_response(self):
+        """
+        A minimally valid API request to create a container returns the
+        expected JSON response.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres"
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres:latest"
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
+
+RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
+    CreateContainerTestsMixin, "CreateContainer", _build_app)
 
 
 class CreateDatasetTestsMixin(APITestsMixin):

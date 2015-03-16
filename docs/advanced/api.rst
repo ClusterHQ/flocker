@@ -22,7 +22,7 @@ To enable Flocker control service.
 The control service needs to accessible remotely.
 To configure FirewallD to allow access to the control service REST API, and for agent connections,
 
-.. task:: expose_flocker_control
+.. task:: open_control_firewall
 
 (On AWS, an external firewall is used instead, which will need to be configured similarily).
 For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
@@ -45,7 +45,7 @@ When you use the API to change the configuration, e.g. creating a new dataset:
 
 For more information read the :ref:`cluster architecture<architecture>` documentation.
 
-.. autoklein:: flocker.control.httpapi.DatasetAPIUserV1
+.. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1
     :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
     :prefix: /v1
     :examples_path: api_examples.yml
