@@ -145,15 +145,16 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'host': '192.168.0.3',
             'image': 'postgres',
             'name': 'postgres',
-            'restart_policy': 'no restart'
+            'restart_policy': {"name": "no restart"}
         },
         # Restart policy is on-failure but max retry count is negative
         {
             'host': '192.168.0.3',
             'image': 'postgres',
             'name': 'postgres',
-            'restart_policy': 'on-failure',
-            'maximum_retry_count': -1
+            'restart_policy': {
+                "name": "on-failure", "maximum_retry_count": -1
+            }
         },
         # Restart policy is on-failure but max retry count is NaN
         {
@@ -161,7 +162,19 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'image': 'postgres',
             'name': 'postgres',
             'restart_policy': 'on-failure',
-            'maximum_retry_count': '15'
+            'restart_policy': {
+                "name": "on-failure", "maximum_retry_count": "15"
+            }
+        },
+        # Restart policy has max retry count but no name
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': 'on-failure',
+            'restart_policy': {
+                "maximum_retry_count": 15
+            }
         },
     ],
     passing_instances=[
@@ -208,26 +221,27 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'host': '192.168.0.3',
             'image': 'docker/postgres:latest',
             'name': 'postgres',
-            'restart_policy': 'never'
+            'restart_policy': {'name': 'never'}
         },
         {
             'host': '192.168.0.3',
             'image': 'docker/postgres:latest',
             'name': 'postgres',
-            'restart_policy': 'always'
+            'restart_policy': {'name': 'always'}
         },
         {
             'host': '192.168.0.3',
             'image': 'docker/postgres:latest',
             'name': 'postgres',
-            'restart_policy': 'on-failure'
+            'restart_policy': {'name': 'on-failure'}
         },
         {
             'host': '192.168.0.3',
             'image': 'docker/postgres:latest',
             'name': 'postgres',
-            'restart_policy': 'on-failure',
-            'maximum_retry_count': 5
+            'restart_policy': {
+                'name': 'on-failure', 'maximum_retry_count': 5
+            }
         },
     ],
 )

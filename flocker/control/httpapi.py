@@ -446,7 +446,7 @@ class ConfigurationAPIUserV1(object):
     )
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
-        restart_policy=u"never", maximum_retry_count=None
+        restart_policy=None
     ):
         """
         Create a new dataset in the cluster configuration.

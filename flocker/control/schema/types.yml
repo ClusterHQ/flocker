@@ -48,14 +48,22 @@ definitions:
   restart_policy:
     title: "Container restart policy"
     description: "Policy for whether or not a container should be restarted after exit."
-    type: string
-    enum: ["never", "always", "on-failure"]
-
-  maximum_retry_count:
-    title: "Maximum attempts to restart a failed container"
-    description: "If a restart policy of on-failure is given, this is an optional integer value specifying the maximum restart attempts."
-    type: integer
-    minimum: 1
+    oneOf:
+    - additionalProperties: false
+      properties:
+        maximum_retry_count: {minimum: 1, type: integer}
+        name:
+          enum: [on-failure]
+          type: string
+      type: object
+      required:
+        - name
+    - additionalProperties: false
+      properties:
+        name:
+          enum: [never, always]
+          type: string
+      type: object
 
   ports:
     title: "Container ports"

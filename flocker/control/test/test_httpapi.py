@@ -329,8 +329,9 @@ class CreateContainerTestsMixin(APITestsMixin):
             b"POST", b"/configuration/containers",
             {
                 u"host": self.NODE_A, u"name": u"webserver",
-                u"image": u"nginx", u"restart_policy": u"on-failure",
-                u"maximum_retry_count": 5
+                u"image": u"nginx", u"restart_policy": {
+                    u"name": u"on-failure", u"maximum_retry_count": 5
+                }
             }, CREATED
         ))
 
@@ -366,8 +367,9 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         container_json = {
             u"host": self.NODE_B, u"name": u"webserver",
-            u"image": u"nginx:latest", u"restart_policy": u"on-failure",
-            u"maximum_retry_count": 10
+            u"image": u"nginx:latest", u"restart_policy": {
+                u"name": u"on-failure", u"maximum_retry_count": 10
+            }
         }
         return self.assertResult(
             b"POST", b"/configuration/containers",
