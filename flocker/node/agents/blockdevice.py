@@ -295,3 +295,16 @@ class LoopbackBlockDeviceAPI(object):
                 volumes.append(volume)
 
         return volumes
+
+    def get_device_path(self, blockdevice_id):
+        volume = self._get(blockdevice_id)
+        if volume.host is None:
+            raise UnattachedVolume(blockdevice_id)
+
+        volume_path = self._attached_directory.descendant(
+            [volume.host, volume.blockdevice_id]
+        )
+        device_path = device_for_path(volume_path)
+
+        if device_path is not None:
+            return FilePath(device_path)
