@@ -54,7 +54,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``create_volume`` returns a ``BlockVolume`` that is returned by
         ``list_volumes``.
         """
-        new_volume = self.api.create_volume(size=1000)
+        new_volume = self.api.create_volume(size=1024)
         self.assertIn(new_volume, self.api.list_volumes())
 
     def test_attach_unknown_volume(self):
@@ -75,7 +75,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``AlreadyAttachedVolume``.
         """
         host = b'192.0.2.123'
-        new_volume = self.api.create_volume(size=1234)
+        new_volume = self.api.create_volume(size=1024)
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id, host=host
         )
@@ -92,7 +92,7 @@ class IBlockDeviceAPITestsMixin(object):
         An attempt to attach a ``BlockDeviceVolume`` already attached to
         another host raises ``AlreadyAttachedVolume``.
         """
-        new_volume = self.api.create_volume(size=1234)
+        new_volume = self.api.create_volume(size=1024)
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id, host=b'192.0.2.123'
         )
@@ -109,7 +109,7 @@ class IBlockDeviceAPITestsMixin(object):
         An unattached ``BlockDeviceVolume`` can be attached.
         """
         expected_host = b'192.0.2.123'
-        new_volume = self.api.create_volume(size=1000)
+        new_volume = self.api.create_volume(size=1024)
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
@@ -126,7 +126,7 @@ class IBlockDeviceAPITestsMixin(object):
         An attached ``BlockDeviceVolume`` is listed.
         """
         expected_host = b'192.0.2.123'
-        new_volume = self.api.create_volume(size=1000)
+        new_volume = self.api.create_volume(size=1024)
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
@@ -144,8 +144,8 @@ class IBlockDeviceAPITestsMixin(object):
         ``BlockDeviceVolume``s.
         """
         expected_host = b'192.0.2.123'
-        new_volume1 = self.api.create_volume(size=1000)
-        new_volume2 = self.api.create_volume(size=1000)
+        new_volume1 = self.api.create_volume(size=1024)
+        new_volume2 = self.api.create_volume(size=1024)
         attached_volume = self.api.attach_volume(
             blockdevice_id=new_volume2.blockdevice_id,
             host=expected_host
@@ -160,8 +160,8 @@ class IBlockDeviceAPITestsMixin(object):
         ``attach_volume`` can attach multiple block devices to a single host.
         """
         expected_host = b'192.0.2.123'
-        volume1 = self.api.create_volume(size=1234)
-        volume2 = self.api.create_volume(size=1234)
+        volume1 = self.api.create_volume(size=1024)
+        volume2 = self.api.create_volume(size=1024)
         attached_volume1 = self.api.attach_volume(
             volume1.blockdevice_id, host=expected_host
         )
