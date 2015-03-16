@@ -61,10 +61,16 @@ class UnattachedVolume(VolumeException):
 class IBlockDeviceAPI(Interface):
     """
     Common operations provided by all block device backends.
+
+    Note: This is an early sketch of the interface and it'll be refined as we
+    real blockdevice providers are implemented.
     """
     def create_volume(size):
         """
         Create a new block device.
+
+        XXX: Probably needs to be some checking of valid sizes for different
+        backends. Perhaps the allowed sizes should be defined as constants?
 
         :param int size: The size of the new block device in bytes.
         :returns: A ``BlockDeviceVolume``.
