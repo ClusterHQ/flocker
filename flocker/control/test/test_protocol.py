@@ -541,9 +541,9 @@ class ClusterStatusCommandTests(SynchronousTestCase):
         """
         ClusterStatusCommand requires the following arguments.
         """
-        self.assertEqual(
-            sorted(['configuration', 'state', 'eliot_context']),
-            sorted(v[0] for v in ClusterStatusCommand.arguments))
+        self.assertItemsEqual(
+            ['configuration', 'state', 'eliot_context'],
+            (v[0] for v in ClusterStatusCommand.arguments))
 
 
 class AgentLocatorTests(SynchronousTestCase):
@@ -570,9 +570,9 @@ class NodeStateCommandTests(SynchronousTestCase):
         """
         ``NodeStateCommand`` requires the following arguments.
         """
-        self.assertEqual(
-            sorted(['node_state', 'eliot_context']),
-            sorted(v[0] for v in NodeStateCommand.arguments))
+        self.assertItemsEqual(
+            ['node_state', 'eliot_context'],
+            (v[0] for v in NodeStateCommand.arguments))
 
 
 class ControlServiceLocatorTests(SynchronousTestCase):

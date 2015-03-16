@@ -163,14 +163,16 @@ class ControlAMP(AMP):
         self.control_amp_service.disconnected(self)
 
 
-DEPLOYMENT_CONFIG = Field(u"configuration", repr, u"The cluster configuration")
-CLUSTER_STATE = Field(u"state", repr, u"The cluster state.")
+DEPLOYMENT_CONFIG = Field(u"configuration", repr,
+                          u"The cluster configuration")
+CLUSTER_STATE = Field(u"state", repr,
+                      u"The cluster state")
 
 LOG_SEND_CLUSTER_STATE = ActionType(
     "flocker:controlservice:send_cluster_state",
     [DEPLOYMENT_CONFIG, CLUSTER_STATE],
     [],
-    "Sending the configuration and state of the cluster.")
+    "Send the configuration and state of the cluster to all agents.")
 
 AGENT = Field(u"agent", repr, u"The agent we're sending to")
 
