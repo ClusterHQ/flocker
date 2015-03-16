@@ -30,7 +30,7 @@ CLUSTERHQ_REPO = {
     'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
                 "centos/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                     archive_bucket=ARCHIVE_BUCKET,
-                ),
+                    ),
 }
 
 
