@@ -268,7 +268,15 @@ class LoopbackBlockDeviceAPI(object):
 
     def attach_volume(self, blockdevice_id, host):
         """
-        Move an existing ``unattached`` file into a per-host directory.
+        Move an existing ``unattached`` file into a per-host directory and
+        create a loopback device backed by that file.
+
+        Note: Although `mkfs` can format files directly and `mount` can mount
+        files directly (with the `-o loop` option), we want to simulate a real
+        block device which will be allocated a real block device file on the
+        host to which it is attached. This allows the consumer of this API to
+        perform formatting and mount operations exactly the same as for a real
+        block device.
 
         See ``IBlockDeviceAPI.attach_volume`` for parameter and return type
         documentation.
@@ -283,6 +291,8 @@ class LoopbackBlockDeviceAPI(object):
                 pass
             new_path = host_directory.child(blockdevice_id)
             old_path.moveTo(new_path)
+            # The --find option allocates the next available /dev/loopX device
+            # name to the device.
             check_output(["losetup", "--find", new_path.path])
             attached_volume = volume.set(host=host)
             return attached_volume
