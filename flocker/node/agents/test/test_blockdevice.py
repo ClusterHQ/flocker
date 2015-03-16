@@ -69,6 +69,9 @@ class IBlockDeviceAPITestsMixin(object):
             UnknownVolume,
             self.api.attach_volume,
             blockdevice_id=unicode(uuid4()),
+            # XXX This IP address and others in following tests need to be
+            # parameterized so that these tests can be run against real cloud
+            # nodes.
             host=b'192.0.2.123'
         )
 
