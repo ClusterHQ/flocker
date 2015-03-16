@@ -62,7 +62,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}}
+    {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}, "deleted": false}
 
 -
   id:
@@ -80,7 +80,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}}
+    {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}, "deleted": false}
 
 -
   id:
@@ -107,7 +107,7 @@
   response: |
     HTTP/1.1 409 Conflict
 
-    {"message": "Specified dataset_id already associated with a dataset."}
+    {"description": "Specified dataset_id already associated with a dataset."}
 
 -
   id:
@@ -125,7 +125,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}}
+    {"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}, "deleted": false}
 
 -
   id:
@@ -142,7 +142,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}, "deleted": false}
 
 
 -
@@ -165,8 +165,8 @@
     HTTP/1.0 200 OK
 
     [
-      {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}},
-      {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
+      {"dataset_id": "a5f75af7-3fb9-4c1a-81ce-efeeb9f2c788", "primary": "%(NODE_0)s", "metadata": {}, "deleted": false},
+      {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}, "deleted": false}
     ]
 
 -
@@ -174,7 +174,8 @@
     "update dataset with primary"
 
   doc: |
-    Update a dataset with a new primary address.
+    Update a dataset with a new primary address. This will effectively move
+    the dataset's contents, making them accessible on the new primary node.
 
   requires:
     - "create dataset with dataset_id"
@@ -187,7 +188,7 @@
   response: |
     HTTP/1.1 200 OK
 
-    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_1)s"}
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_1)s", "deleted": false}
 
 -
   id:
@@ -197,9 +198,42 @@
     An attempt to update an unknown dataset results in a 404 Not Found response.
 
   request: |
-    POST /v1/configuration/datasets/<unknown_dataset_id> HTTP/1.1
+    POST /v1/configuration/datasets/31d50a07-f679-4f95-ae0d-56c93513fbc2 HTTP/1.1
 
     {"primary": "%(NODE_1)s"}
+
+  response: |
+    HTTP/1.1 404 Not Found
+
+    {"description": "Dataset not found."}
+
+-
+  id:
+    "delete dataset"
+
+  doc: |
+    Delete a dataset.
+
+  requires:
+    - "create dataset with dataset_id"
+
+  request: |
+    DELETE /v1/configuration/datasets/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_1)s", "deleted": true}
+
+-
+  id:
+    "delete dataset with unknown dataset id"
+
+  doc: |
+    An attempt to delete an unknown dataset results in a 404 Not Found response.
+
+  request: |
+    DELETE /v1/configuration/datasets/31d50a07-f679-4f95-ae0d-56c93513fbc2 HTTP/1.1
 
   response: |
     HTTP/1.1 404 Not Found
@@ -219,4 +253,75 @@
   response: |
     HTTP/1.1 200 OK
 
-    [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}}]
+    [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f",
+      "primary": "%(NODE_0)s",
+      "maximum_size": 1073741824,
+      "path": "/flocker/somearbitrarypath"}]
+
+-
+  id:
+    "create container"
+
+  doc: |
+    Create a new container.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest"}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest"}  
+
+-
+  id:
+    "create container with ports"
+
+  doc: |
+    Create a new container with port mappings.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "ports": [{"internal": 80, "external": 8080}]}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "ports": [{"internal": 80, "external": 8080}]}     
+
+-
+  id:
+    "create container with duplicate name"
+
+  doc: |
+    Attempt to create a new container with a specified name that is already
+    assigned to an existing container. This results in a failure to create the
+    container and an error response.
+
+  requires:
+    - "create container"
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest"}
+
+  response: |
+    HTTP/1.1 409 Conflict
+
+    {"description": "The container name specified already exists."}

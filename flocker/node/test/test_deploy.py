@@ -7,7 +7,8 @@ Tests for ``flocker.node._deploy``.
 from uuid import uuid4
 
 from zope.interface.verify import verifyObject
-from zope.interface import implementer
+
+from eliot.testing import validate_logging
 
 from pyrsistent import pmap, pset
 
@@ -16,13 +17,18 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import P2PNodeDeployer, change_node_state
+from ..testtools import ControllableDeployer, ControllableAction
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name, IDeployer)
+    ResizeDataset, _link_environment, _to_volume_name, IDeployer,
+    DeleteDataset,
+)
+from ...testtools import CustomException
+from .. import _deploy
 from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -136,43 +142,22 @@ HandoffVolumeIStateChangeTests = make_istatechange_tests(
 PushVolumeIStateChangeTests = make_istatechange_tests(
     PushDataset, dict(dataset=1, hostname=b"123"),
     dict(dataset=2, hostname=b"123"))
+DeleteDatasetTests = make_istatechange_tests(
+    DeleteDataset,
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))),
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))))
 
 
-NOT_CALLED = object()
-
-
-@implementer(IStateChange)
-class FakeChange(object):
+class ControllableActionIStateChangeTests(
+        make_istatechange_tests(
+            ControllableAction,
+            kwargs1=dict(result=1),
+            kwargs2=dict(result=2),
+        )
+):
     """
-    A change that returns the given result and records the deployer.
-
-    :ivar deployer: The deployer passed to ``run()``, or ``NOT_CALLED``
-        before that.
+    Tests for ``ControllableAction``.
     """
-    def __init__(self, result):
-        """
-        :param Deferred result: The result to return from ``run()``.
-        """
-        self.result = result
-        self.deployer = NOT_CALLED
-
-    def run(self, deployer):
-        self.deployer = deployer
-        return self.result
-
-    def was_run_called(self):
-        """
-        Return whether or not run() has been called yet.
-
-        :return: ``True`` if ``run()`` was called, otherwise ``False``.
-        """
-        return self.deployer != NOT_CALLED
-
-    def __eq__(self, other):
-        return False
-
-    def __ne__(self, other):
-        return True
 
 
 class SequentiallyTests(SynchronousTestCase):
@@ -183,7 +168,8 @@ class SequentiallyTests(SynchronousTestCase):
         """
         ``Sequentially.run`` runs sub-changes with the given deployer.
         """
-        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=succeed(None)),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
         change.run(deployer)
@@ -195,7 +181,8 @@ class SequentiallyTests(SynchronousTestCase):
         The result of ``Sequentially.run`` fires when all changes are done.
         """
         not_done1, not_done2 = Deferred(), Deferred()
-        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        subchanges = [ControllableAction(result=not_done1),
+                      ControllableAction(result=not_done2)]
         change = Sequentially(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
@@ -213,17 +200,18 @@ class SequentiallyTests(SynchronousTestCase):
         # not_done, the second one will finish as soon as its run() is
         # called.
         not_done = Deferred()
-        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=not_done),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
-        # Run the sequential change. We expect the first FakeChange's
+        # Run the sequential change. We expect the first ControllableAction's
         # run() to be called, but we expect second one *not* to be called
         # yet, since first one has finished.
         change.run(deployer)
-        called = [subchanges[0].was_run_called(),
-                  subchanges[1].was_run_called()]
+        called = [subchanges[0].called,
+                  subchanges[1].called]
         not_done.callback(None)
-        called.append(subchanges[1].was_run_called())
+        called.append(subchanges[1].called)
         self.assertEqual(called, [True, False, True])
 
     def test_failure_stops_later_change(self):
@@ -232,14 +220,15 @@ class SequentiallyTests(SynchronousTestCase):
         continuing to run later changes.
         """
         not_done = Deferred()
-        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=not_done),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
-        called = [subchanges[1].was_run_called()]
+        called = [subchanges[1].called]
         exception = RuntimeError()
         not_done.errback(exception)
-        called.extend([subchanges[1].was_run_called(),
+        called.extend([subchanges[1].called,
                        self.failureResultOf(result).value])
         self.assertEqual(called, [False, False, exception])
 
@@ -252,7 +241,8 @@ class InParallelTests(SynchronousTestCase):
         """
         ``InParallel.run`` runs sub-changes with the given deployer.
         """
-        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=succeed(None)),
+                      ControllableAction(result=succeed(None))]
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
@@ -264,7 +254,8 @@ class InParallelTests(SynchronousTestCase):
         The result of ``InParallel.run`` fires when all changes are done.
         """
         not_done1, not_done2 = Deferred(), Deferred()
-        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        subchanges = [ControllableAction(result=not_done1),
+                      ControllableAction(result=not_done2)]
         change = InParallel(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
@@ -280,19 +271,20 @@ class InParallelTests(SynchronousTestCase):
         """
         # The first change will not finish immediately when run(), but we
         # expect the second one to be run() nonetheless.
-        subchanges = [FakeChange(Deferred()), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=Deferred()),
+                      ControllableAction(result=succeed(None))]
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
-        called = [subchanges[0].was_run_called(),
-                  subchanges[1].was_run_called()]
+        called = [subchanges[0].called,
+                  subchanges[1].called]
         self.assertEqual(called, [True, True])
 
     def test_failure_result(self):
         """
         ``InParallel.run`` returns the first failure.
         """
-        subchanges = [FakeChange(fail(RuntimeError()))]
+        subchanges = [ControllableAction(result=fail(RuntimeError()))]
         change = InParallel(changes=subchanges)
         result = change.run(object())
         failure = self.failureResultOf(result, FirstError)
@@ -305,9 +297,9 @@ class InParallelTests(SynchronousTestCase):
         logged.
         """
         subchanges = [
-            FakeChange(fail(ZeroDivisionError('e1'))),
-            FakeChange(fail(ZeroDivisionError('e2'))),
-            FakeChange(fail(ZeroDivisionError('e3'))),
+            ControllableAction(result=fail(ZeroDivisionError('e1'))),
+            ControllableAction(result=fail(ZeroDivisionError('e2'))),
+            ControllableAction(result=fail(ZeroDivisionError('e3'))),
         ]
         change = InParallel(changes=subchanges)
         result = change.run(deployer=object())
@@ -1157,17 +1149,20 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
-    def test_discover_datasets(self):
+    DATASET_ID = u"uuid123"
+    DATASET_ID2 = u"uuid456"
+
+    def _setup_datasets(self):
         """
-        All datasets on the node are added to ``NodeState.manifestations``.
+        Setup a ``P2PNodeDeployer`` that will discover two manifestations.
+
+        :return: Suitably configured ``P2PNodeDeployer``.
         """
-        DATASET_ID = u"uuid123"
-        DATASET_ID2 = u"uuid456"
         volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID))
         ))
         self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID2))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID2))
         ))
 
         unit1 = Unit(name=u'site-example.com',
@@ -1183,24 +1178,47 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1}
 
         fake_docker = FakeDockerClient(units=units)
-        api = P2PNodeDeployer(
+        return P2PNodeDeployer(
             u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
+
+    def test_discover_datasets(self):
+        """
+        All datasets on the node are added to ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
         d = api.discover_local_state()
 
         self.assertEqual(
             pset(
                 {Manifestation(
                     dataset=Dataset(
-                        dataset_id=DATASET_ID,
+                        dataset_id=self.DATASET_ID,
                         metadata=pmap({u"name": u"site-example.com"})),
                     primary=True),
-                 Manifestation(dataset=Dataset(dataset_id=DATASET_ID2),
+                 Manifestation(dataset=Dataset(dataset_id=self.DATASET_ID2),
                                primary=True)}),
             self.successResultOf(d).manifestations)
+
+    def test_discover_manifestation_paths(self):
+        """
+        All datasets on the node have their paths added to
+        ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
+        d = api.discover_local_state()
+
+        self.assertEqual(
+            {self.DATASET_ID:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID)).get_filesystem().get_path(),
+             self.DATASET_ID2:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID2)).get_filesystem().get_path()},
+            self.successResultOf(d).paths)
 
 
 # A deployment with no information:
@@ -1495,6 +1513,95 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             InParallel(changes=[StartApplication(
                 application=APPLICATION_WITH_VOLUME,
                 hostname=hostname)])])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_deleted(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        dataset must be deleted if the desired configuration specifies
+        that the dataset has the ``deleted`` attribute set to True.
+
+        Note that for now this happens regardless of whether the node
+        actually has the dataset, since the deployer doesn't know about
+        replicas... see FLOC-1240.
+        """
+        docker = FakeDockerClient(units={})
+        node = Node(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
+        self.assertEqual(expected, changes)
+
+    def test_deletion_after_application_stop(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` ensures dataset
+        deletion happens after application stop phase to make sure nothing
+        is using the deleted dataset.
+        """
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    container_image=u'flocker/wordpress:v1.0.0',
+                    activation_state=u'active')
+
+        docker = FakeDockerClient(units={unit.name: unit})
+        node = Node(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        to_stop = StopApplication(application=Application(
+            name=unit.name, image=DockerImage.from_string(
+                unit.container_image)))
+        expected = Sequentially(changes=[
+            InParallel(changes=[to_stop]),
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
         self.assertEqual(expected, changes)
 
     def test_volume_wait(self):
@@ -2674,46 +2781,6 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         ])
         self.assertEqual(expected, changes)
 
-    def test_local_state_overrides_cluster_state(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` uses the given
-        local state to override cluster state, since the latter may be
-        stale.
-        """
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        docker = FakeDockerClient(units={})
-
-        current_node = Node(
-            hostname=u"node1.example.com",
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-        desired_node = current_node
-
-        desired = Deployment(nodes=frozenset([desired_node]))
-        # This is at odds with local state, which knows that the dataset
-        # does actually exist:
-        current = Deployment(nodes=frozenset())
-
-        api = P2PNodeDeployer(
-            current_node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        # If P2PNodeDeployer is buggy and not overriding cluster state
-        # with local state this would result in a dataset creation action:
-        expected = Sequentially(changes=[])
-        self.assertEqual(expected, changes)
-
 
 class SetProxiesTests(SynchronousTestCase):
     """
@@ -2931,8 +2998,13 @@ class ChangeNodeStateTests(SynchronousTestCase):
                               create_volume_service(self),
                               docker_client=FakeDockerClient(),
                               network=make_memory_network())
-        self.patch(api, "calculate_necessary_state_changes",
-                   lambda *args, **kwargs: succeed(FakeChange(deferred)))
+        self.patch(
+            api,
+            "calculate_necessary_state_changes",
+            lambda *args, **kwargs: succeed(
+                ControllableAction(result=deferred)
+            )
+        )
         result = change_node_state(api, desired_configuration=EMPTY,
                                    current_cluster_state=EMPTY)
         deferred.callback(123)
@@ -2943,7 +3015,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
         The result of ``calculate_necessary_state_changes`` is called with the
         deployer.
         """
-        change = FakeChange(succeed(None))
+        change = ControllableAction(result=succeed(None))
         api = P2PNodeDeployer(u'node.example.com',
                               create_volume_service(self),
                               docker_client=FakeDockerClient(),
@@ -2973,19 +3045,19 @@ class ChangeNodeStateTests(SynchronousTestCase):
                       current_cluster_state):
             arguments.extend([local_state, desired_configuration,
                               current_cluster_state])
-            return succeed(FakeChange(succeed(None)))
+            return succeed(ControllableAction(result=succeed(None)))
         api.calculate_necessary_state_changes = calculate
         change_node_state(api, desired, state)
         self.assertEqual(arguments, [local, desired, state])
 
 
-class CreateVolumeTests(SynchronousTestCase):
+class CreateDatasetTests(SynchronousTestCase):
     """
-    Tests for ``CreateVolume``.
+    Tests for ``CreateDataset``.
     """
     def test_creates(self):
         """
-        ``CreateVolume.run()`` creates the named volume.
+        ``CreateDataset.run()`` creates the named volume.
         """
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
@@ -3002,7 +3074,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_creates_respecting_size(self):
         """
-        ``CreateVolume.run()`` creates the named volume with a ``VolumeSize``
+        ``CreateDataset.run()`` creates the named volume with a ``VolumeSize``
         instance respecting the maximum_size passed in from the
         ``AttachedVolume``.
         """
@@ -3029,7 +3101,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_return(self):
         """
-        ``CreateVolume.run()`` returns a ``Deferred`` that fires with the
+        ``CreateDataset.run()`` returns a ``Deferred`` that fires with the
         created volume.
         """
         deployer = P2PNodeDeployer(
@@ -3044,6 +3116,55 @@ class CreateVolumeTests(SynchronousTestCase):
             _to_volume_name(volume.dataset.dataset_id)))
 
 
+class DeleteDatasetTests(TestCase):
+    """
+    Tests for ``DeleteDataset``.
+    """
+    def setUp(self):
+        self.volume_service = create_volume_service(self)
+        self.deployer = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+
+        id1 = unicode(uuid4())
+        self.volume1 = self.volume_service.get(_to_volume_name(id1))
+        id2 = unicode(uuid4())
+        self.volume2 = self.volume_service.get(_to_volume_name(id2))
+        self.successResultOf(self.volume_service.create(self.volume1))
+        self.successResultOf(self.volume_service.create(self.volume2))
+
+    def test_deletes(self):
+        """
+        ``DeleteDataset.run()`` deletes volumes whose ``dataset_id`` matches
+        the one the instance was created with.
+        """
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
+
+        self.assertEqual(
+            list(self.successResultOf(self.volume_service.enumerate())),
+            [self.volume1])
+
+    @validate_logging(
+        lambda test, logger: logger.flush_tracebacks(CustomException))
+    def test_failed_create(self, logger):
+        """
+        Failed deletions of volumes does not result in a failed result from
+        ``DeleteDataset.run()``.
+
+        The traceback is, however, logged.
+        """
+        self.patch(self.volume_service.pool, "destroy",
+                   lambda fs: fail(CustomException()))
+        self.patch(_deploy, "_logger", logger)
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
+
+
 class ResizeVolumeTests(TestCase):
     """
     Tests for ``ResizeVolume``.
@@ -3054,7 +3175,7 @@ class ResizeVolumeTests(TestCase):
         """
         size = VolumeSize(maximum_size=1234567890)
         volume_service = create_volume_service(self)
-        volume_name = VolumeName(namespace=u"default", dataset_id=b"myvol")
+        volume_name = VolumeName(namespace=u"default", dataset_id=u"myvol")
         volume = volume_service.get(volume_name)
         d = volume_service.create(volume)
 
@@ -3276,4 +3397,17 @@ class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
                                      make_memory_network()))):
     """
     ``IDeployer`` tests for ``P2PNodeDeployer``.
+    """
+
+
+class ControllableDeployerInterfaceTests(
+        ideployer_tests_factory(
+            lambda test: ControllableDeployer(
+                local_states=[succeed(NodeState(hostname=b'192.0.2.123'))],
+                calculated_actions=[InParallel(changes=[])],
+            )
+        )
+):
+    """
+    ``IDeployer`` tests for ``ControllableDeployer``.
     """

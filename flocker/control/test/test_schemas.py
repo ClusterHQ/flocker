@@ -28,9 +28,116 @@ VersionsTests = build_schema_test(
     ],
 )
 
-DatasetsSchemaTests = build_schema_test(
-    name="DatasetsSchemaTests",
-    schema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+ConfigurationContainersSchemaTests = build_schema_test(
+    name="ConfigurationContainersSchemaTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/configuration_container'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Host wrong type
+        {'host': 1, 'image': 'clusterhq/redis', 'name': 'my_container'},
+        # Host not a host
+        {
+            'host': 'idonotexist',
+            'image': 'clusterhq/redis',
+            'name': 'my_container'
+        },
+        # Name wrong type
+        {'host': '192.168.0.3', 'image': 'clusterhq/redis', 'name': 1},
+        # Image wrong type
+        {'host': '192.168.0.3', 'image': 1, 'name': 'my_container'},
+        # Name missing
+        {'host': '192.168.0.3', 'image': 'clusterhq/redis'},
+        # Host missing
+        {'image': 'clusterhq/redis', 'name': 'my_container'},
+        # Image missing
+        {'host': '192.168.0.3', 'name': 'my_container'},
+        # Name not valid
+        {'host': '192.168.0.3', 'image': 'clusterhq/redis', 'name': '@*!'},
+        # Ports given but not a list of mappings
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': 'I am not a list of port maps'
+        },
+        # Ports given but internal is not valid
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 'xxx', 'external': 8080}]
+        },
+        # Ports given but external is not valid
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 80, 'external': '1'}]
+        },
+        # Ports given but invalid key present
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'container': 80, 'external': '1'}]
+        },
+        # Ports given but external is not valid integer
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 80, 'external': 22.5}]
+        },
+        # Ports given but not unique
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [
+                {'internal': 80, 'external': 8080},
+                {'internal': 80, 'external': 8080},
+            ]
+        },
+    ],
+    passing_instances=[
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres',
+            'name': 'postgres'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres'
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [{'internal': 80, 'external': 8080}]
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'ports': [
+                {'internal': 80, 'external': 8080},
+                {'internal': 3306, 'external': 42000}
+            ]
+        },
+    ],
+)
+
+
+ConfigurationDatasetsSchemaTests = build_schema_test(
+    name="ConfigurationDatasetsSchemaTests",
+    schema={'$ref':
+            '/v1/endpoints.json#/definitions/configuration_dataset'},
     schema_store=SCHEMAS,
     failing_instances=[
         # wrong type for dataset_id
@@ -85,6 +192,10 @@ DatasetsSchemaTests = build_schema_test(
          u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
          u"dataset_id": u"x" * 36},
+
+        # wrong type for deleted
+        {u"primary": u"10.0.0.1",
+         u"deleted": u"hello"},
     ],
 
     passing_instances=[
@@ -102,18 +213,73 @@ DatasetsSchemaTests = build_schema_test(
         # dataset_id is a string of 36 characters
         {u"primary": u"10.0.0.1", u"dataset_id": u"x" * 36},
 
+        # deleted is a boolean
+        {u"primary": u"10.0.0.1", u"deleted": False},
+
         # All of them can be combined.
         {u"primary": u"10.0.0.1",
          u"metadata":
              dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
          u"maximum_size": 1024 * 1024 * 64,
-         u"dataset_id": u"x" * 36},
+         u"dataset_id": u"x" * 36,
+         u"deleted": True},
     ]
 )
 
-DatasetsArrayTests = build_schema_test(
-    name="DatasetsArrayTests",
-    schema={'$ref': '/v1/endpoints.json#/definitions/datasets_array'},
+StateDatasetsArraySchemaTests = build_schema_test(
+    name="StateDatasetsArraySchemaTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/state_datasets_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # not an array
+        {}, u"lalala", 123,
+
+        # missing primary
+        [{u"path": u"/123",
+          u"maximum_size": 1024 * 1024 * 1024,
+          u"dataset_id": u"x" * 36}],
+
+        # missing dataset_id
+        [{u"primary": u"10.0.0.1",
+          u"path": u"/123"}],
+
+        # wrong type for path
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36,
+          u"path": 123}],
+
+        # missing path
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36}],
+    ],
+
+    passing_instances=[
+        # only maximum_size is optional
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36,
+          u"path": u"/123"}],
+
+        # maximum_size is integer
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36,
+          u"path": u"/123",
+          u"maximum_size": 1024 * 1024 * 64}],
+
+        # multiple entries:
+        [{u"primary": u"10.0.0.1",
+          u"dataset_id": u"x" * 36,
+          u"path": u"/123"},
+         {u"primary": u"10.0.0.1",
+          u"dataset_id": u"y" * 36,
+          u"path": u"/123",
+          u"maximum_size": 1024 * 1024 * 64}],
+    ]
+)
+
+ConfigurationDatasetsArrayTests = build_schema_test(
+    name="ConfigurationDatasetsArrayTests",
+    schema={'$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets_array'},
     schema_store=SCHEMAS,
     failing_instances=[
         # Incorrect type
