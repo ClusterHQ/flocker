@@ -118,7 +118,7 @@ class ApplicationTests(SynchronousTestCase):
             "<Application(name=u'site-example.com', image=None, ports=None, "
             "volume=None, links=frozenset([]), environment=None, "
             "memory_limit=None, cpu_shares=None, "
-            "restart_policy=<RestartNever()>)>",
+            "restart_policy=<RestartNever(name=u'never')>)>",
             repr(application)
         )
 

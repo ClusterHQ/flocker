@@ -64,6 +64,8 @@ definitions:
           enum: [never, always]
           type: string
       type: object
+      required:
+        - name
 
   ports:
     title: "Container ports"

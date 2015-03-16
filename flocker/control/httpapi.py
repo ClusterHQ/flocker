@@ -467,12 +467,13 @@ class ConfigurationAPIUserV1(object):
             to the container as environment variables. Keys and values must be
             ``unicode``.
 
-        :param unicode restart_policy: A restart policy for the container, one
-            of "always", "never" or "on-failure"
-
-        :param int maximum_retry_count: If the restart policy is "on-failure",
-            this optional positive integer represents the maximum number of
-            attempts to restart a failed container.
+        :param dict restart_policy: A restart policy for the container, this
+            is a ``dict`` with at a minimum a "name" key, whose value must be
+            one of "always", "never" or "on-failure". If the "name" is given
+            as "on-failure", there may also be another optional key
+            "maximum_retry_count", containing a positive ``int`` specifying
+            the maximum number of times we should attempt to restart a failed
+            container.
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -512,6 +513,13 @@ class ConfigurationAPIUserV1(object):
         if environment:
             environment = frozenset(environment.items())
 
+        if restart_policy is None:
+            restart_policy = dict(name=u"never")
+
+        maximum_retry_count = None
+        if "maximum_retry_count" in restart_policy:
+            maximum_retry_count = restart_policy["maximum_retry_count"]
+
         application_restart_policies = {
             u"never": RestartNever(),
             u"on-failure": RestartOnFailure(
@@ -526,7 +534,7 @@ class ConfigurationAPIUserV1(object):
             image=DockerImage.from_string(image),
             ports=frozenset(application_ports),
             environment=environment,
-            restart_policy=application_restart_policies[restart_policy]
+            restart_policy=application_restart_policies[restart_policy["name"]]
         )
 
         new_node_config = node.transform(
@@ -596,15 +604,16 @@ def container_configuration_response(application, node):
     :param unicode node: The host on which this application is running.
     :return: A ``dict`` containing the container configuration.
     """
-    restart_policy = application.restart_policy.to_string()
     result = {
         "host": node, "name": application.name,
         "image": application.image.full_name,
-        "restart_policy": restart_policy
+        "restart_policy": {
+            "name": application.restart_policy.name
+        }
     }
-    if (restart_policy == u"on-failure"
+    if (application.restart_policy.name == u"on-failure"
             and application.restart_policy.maximum_retry_count is not None):
-        result['maximum_retry_count'] = (
+        result['restart_policy']['maximum_retry_count'] = (
             application.restart_policy.maximum_retry_count
         )
     if application.ports:
