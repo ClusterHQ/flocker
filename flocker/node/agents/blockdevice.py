@@ -124,8 +124,6 @@ class BlockDeviceVolume(PRecord):
     """
     blockdevice_id = field(type=unicode, mandatory=True)
     size = field(type=int, mandatory=True)
-    # XXX: Should be hostname, for consistency of is host a better name since
-    # we currently only expect IP addresses?
     host = field(type=(bytes, type(None)), initial=None)
 
 
