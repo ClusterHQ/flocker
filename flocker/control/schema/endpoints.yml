@@ -29,6 +29,10 @@ definitions:
       restart_policy:
         '$ref': 'types.json#/definitions/restart_policy'
       volumes:
+        title: Volumes to attach to the container
+        description: |
+          Volumes to attach to the container. Required keys are "dataset_id" and
+          "mountpoint". For now only one volume per container is supported.
         type: array
         items:
           '$ref': 'types.json#/definitions/volume'
