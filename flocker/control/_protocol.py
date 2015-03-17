@@ -32,7 +32,7 @@ from eliot import Logger, ActionType, Action, Field
 
 from characteristic import with_cmp
 
-from zope.interface import Interface
+from zope.interface import Interface, Attribute
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
@@ -272,6 +272,8 @@ class IConvergenceAgent(Interface):
     """
     The agent that will receive notifications from control service.
     """
+    logger = Attribute("An eliot ``Logger``.")
+
     def connected(client):
         """
         The client has connected to the control service.

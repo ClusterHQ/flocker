@@ -368,6 +368,7 @@ class AgentLoopService(object, MultiService):
         convergence_loop = build_convergence_loop_fsm(
             self.reactor, self.deployer
         )
+        self.logger = convergence_loop.logger
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
         self.factory = ReconnectingClientFactory.forProtocol(
             lambda: AgentAMP(self))
