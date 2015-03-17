@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Script to instantiate an OS X Virtual Machine to a snapshot with a clean
@@ -107,4 +107,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
