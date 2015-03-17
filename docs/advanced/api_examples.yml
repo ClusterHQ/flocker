@@ -304,8 +304,7 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "restart_policy": "on-failure",
-     "maximum_retry_count": 5}
+     "restart_policy": {"name": "on-failure","maximum_retry_count": 5}}
 
 -
   id:
