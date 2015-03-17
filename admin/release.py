@@ -436,22 +436,27 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     ]
 
     for operating_system in operating_systems:
-        distro = operating_system['distro']
-        os_version = operating_system['version']
-        arch = operating_system['arch']
-
         yield update_repo(
             rpm_directory=scratch_directory.child(
-                b'{}-{}-{}'.format(distro, os_version, arch)),
+                b'{}-{}-{}'.format(
+                    operating_system['distro'],
+                    operating_system['version'],
+                    operating_system['arch'])),
             target_bucket=target_bucket,
             target_key=os.path.join(
-                distro + target_distro_suffix, os_version, arch),
-            source_repo=os.path.join(build_server, b'results/omnibus',
-                version, b'{}-{}'.format(distro, os_version)),
+                operating_system['distro'] + target_distro_suffix,
+                operating_system['version'],
+                operating_system['arch']),
+            source_repo=os.path.join(
+                build_server, b'results/omnibus',
+                version,
+                b'{}-{}'.format(
+                    operating_system['distro'],
+                    operating_system['version'])),
             packages=FLOCKER_PACKAGES,
             flocker_version=version,
-            distro_name=distro,
-            distro_version=os_version,
+            distro_name=operating_system['distro'],
+            distro_version=operating_system['version'],
         )
 
 
