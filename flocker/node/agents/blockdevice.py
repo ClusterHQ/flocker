@@ -81,7 +81,7 @@ class IBlockDeviceAPI(Interface):
 
         :param unicode blockdevice_id: The unique identifier for the block
             device being attached.
-        :param bytes host: The IP address of a host to attach the volume to.
+        :param unicode host: The IP address of a host to attach the volume to.
         :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
             exist.
         :raises AlreadyAttachedVolume: If the supplied ``blockdevice_id`` is
@@ -118,12 +118,12 @@ class BlockDeviceVolume(PRecord):
 
     :ivar unicode blockdevice_id: The unique identifier of the block device.
     :ivar int size: The size, in bytes, of the block device.
-    :ivar bytes host: The IP address of the host to which the block device is
+    :ivar unicode host: The IP address of the host to which the block device is
         attached or ``None`` if it is currently unattached.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
     size = field(type=int, mandatory=True)
-    host = field(type=(bytes, type(None)), initial=None)
+    host = field(type=(unicode, type(None)), initial=None)
 
 
 def _losetup_list_parse(output):
@@ -284,7 +284,7 @@ class LoopbackBlockDeviceAPI(object):
         volume = self._get(blockdevice_id)
         if volume.host is None:
             old_path = self._unattached_directory.child(blockdevice_id)
-            host_directory = self._attached_directory.child(host)
+            host_directory = self._attached_directory.child(host.encode("utf-8"))
             try:
                 host_directory.makedirs()
             except OSError:
@@ -316,7 +316,7 @@ class LoopbackBlockDeviceAPI(object):
             volumes.append(volume)
 
         for host_directory in self._root_path.child('attached').children():
-            host_name = host_directory.basename().encode('ascii')
+            host_name = host_directory.basename().decode('ascii')
             for child in host_directory.children():
 
                 volume = BlockDeviceVolume(

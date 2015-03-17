@@ -62,7 +62,7 @@ class IBlockDeviceAPITestsMixin(object):
             # XXX This IP address and others in following tests need to be
             # parameterized so that these tests can be run against real cloud
             # nodes.
-            host=b'192.0.2.123'
+            host=u'192.0.2.123'
         )
 
     def test_attach_attached_volume(self):
@@ -70,7 +70,7 @@ class IBlockDeviceAPITestsMixin(object):
         An attempt to attach an already attached ``BlockDeviceVolume`` raises
         ``AlreadyAttachedVolume``.
         """
-        host = b'192.0.2.123'
+        host = u'192.0.2.123'
         new_volume = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id, host=host
@@ -90,21 +90,21 @@ class IBlockDeviceAPITestsMixin(object):
         """
         new_volume = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         attached_volume = self.api.attach_volume(
-            new_volume.blockdevice_id, host=b'192.0.2.123'
+            new_volume.blockdevice_id, host=u'192.0.2.123'
         )
 
         self.assertRaises(
             AlreadyAttachedVolume,
             self.api.attach_volume,
             blockdevice_id=attached_volume.blockdevice_id,
-            host=b'192.0.2.124'
+            host=u'192.0.2.124'
         )
 
     def test_attach_unattached_volume(self):
         """
         An unattached ``BlockDeviceVolume`` can be attached.
         """
-        expected_host = b'192.0.2.123'
+        expected_host = u'192.0.2.123'
         new_volume = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
@@ -121,7 +121,7 @@ class IBlockDeviceAPITestsMixin(object):
         """
         An attached ``BlockDeviceVolume`` is listed.
         """
-        expected_host = b'192.0.2.123'
+        expected_host = u'192.0.2.123'
         new_volume = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
@@ -139,7 +139,7 @@ class IBlockDeviceAPITestsMixin(object):
         ``list_volumes`` returns both attached and unattached
         ``BlockDeviceVolume``s.
         """
-        expected_host = b'192.0.2.123'
+        expected_host = u'192.0.2.123'
         new_volume1 = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         new_volume2 = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         attached_volume = self.api.attach_volume(
@@ -155,7 +155,7 @@ class IBlockDeviceAPITestsMixin(object):
         """
         ``attach_volume`` can attach multiple block devices to a single host.
         """
-        expected_host = b'192.0.2.123'
+        expected_host = u'192.0.2.123'
         volume1 = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         volume2 = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         attached_volume1 = self.api.attach_volume(
@@ -204,7 +204,7 @@ class IBlockDeviceAPITestsMixin(object):
         new_volume = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
-            b'192.0.2.123'
+            u'192.0.2.123'
         )
         device_path = self.api.get_device_path(attached_volume.blockdevice_id)
         self.assertTrue(
@@ -220,7 +220,7 @@ class IBlockDeviceAPITestsMixin(object):
         new_volume = self.api.create_volume(size=REALISTIC_BLOCKDEVICE_SIZE)
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
-            b'192.0.2.123'
+            u'192.0.2.123'
         )
 
         device_path1 = self.api.get_device_path(attached_volume.blockdevice_id)
@@ -391,12 +391,14 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         file.
         """
         expected_size = REALISTIC_BLOCKDEVICE_SIZE
-        expected_host = b'192.0.2.123'
+        expected_host = u'192.0.2.123'
         api = loopbackblockdeviceapi_for_test(test_case=self)
 
         blockdevice_id = unicode(uuid4())
 
-        host_dir = api._root_path.child('attached').child(expected_host)
+        host_dir = api._root_path.descendant([
+            b'attached', expected_host.encode("utf-8")
+        ])
         host_dir.makedirs()
         with host_dir.child(blockdevice_id).open('wb') as f:
             f.truncate(expected_size)
