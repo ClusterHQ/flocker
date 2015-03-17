@@ -278,7 +278,7 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "restart_policy": {"name": "never"}     
+     "restart_policy": {"name": "never"}
 
 -
   id:
@@ -321,7 +321,7 @@
      "name": "webserver",
      "image": "nginx:latest",
      "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},
-     "restart_policy": {"name": "never"}     
+     "restart_policy": {"name": "never"}
 
   response: |
     HTTP/1.1 201 Created
@@ -330,7 +330,7 @@
      "name": "webserver",
      "image": "nginx:latest",
      "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},    
-     "restart_policy": {"name": "never"}     
+     "restart_policy": {"name": "never"}
 
 -
   id:
@@ -346,7 +346,7 @@
      "name": "webserver",
      "image": "nginx:latest",
      "ports": [{"internal": 80, "external": 8080}],
-     "restart_policy": {"name": "never"}          
+     "restart_policy": {"name": "never"}
 
   response: |
     HTTP/1.1 201 Created
@@ -355,7 +355,7 @@
      "name": "webserver",
      "image": "nginx:latest",
      "ports": [{"internal": 80, "external": 8080}],
-     "restart_policy": {"name": "never"}     
+     "restart_policy": {"name": "never"}
 
 -
   id:
