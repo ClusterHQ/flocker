@@ -59,6 +59,8 @@ DATASET_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Dataset not found.")
 DATASET_DELETED = make_bad_request(
     code=METHOD_NOT_ALLOWED, description=u"The dataset has been deleted.")
+DATASET_ON_DIFFERENT_NODE = make_bad_request(
+    code=CONFLICT, description=u"The dataset is on another node.")
 
 
 class ConfigurationAPIUserV1(object):
@@ -427,11 +429,12 @@ class ConfigurationAPIUserV1(object):
             del dataset[u"deleted"]
         return datasets
 
-    def _get_attached_volume(self, volume):
+    def _get_attached_volume(self, host, volume):
         """
         Create an ``AttachedVolume`` given a volume dictionary.
 
-        :param dict: Parameters for specific volume passed to creation
+        :param unicode host: The host where the volume should be.
+        :param dict volume: Parameters for specific volume passed to creation
             endpoint.
 
         :return AttachedVolume: Corresponding instance.
@@ -440,8 +443,11 @@ class ConfigurationAPIUserV1(object):
 
         instances = list(manifestations_from_deployment(
             deployment, volume[u"dataset_id"]))
+
         if not list(m for (m, _) in instances if not m.dataset.deleted):
             raise DATASET_NOT_FOUND
+        if not list(n for (_, n) in instances if n.hostname == host):
+            raise DATASET_ON_DIFFERENT_NODE
 
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
@@ -516,7 +522,7 @@ class ConfigurationAPIUserV1(object):
         # Find the volume, if any:
         attached_volume = None
         if volumes:
-            attached_volume = self._get_attached_volume(volumes[0])
+            attached_volume = self._get_attached_volume(host, volumes[0])
 
         # Find the node.
         node = self._find_node_by_host(host, deployment)

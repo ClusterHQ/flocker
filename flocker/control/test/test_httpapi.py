@@ -641,15 +641,15 @@ class CreateContainerTestsMixin(APITestsMixin):
         If a volume is specified with a deleted dataset, a 404 error is
         returned.
         """
-        expected_dataset_id = unicode(uuid4())
+        dataset_id = unicode(uuid4())
         d = self.assertResponseCode(
             b"POST", b"/configuration/datasets",
-            {u"dataset_id": expected_dataset_id,
+            {u"dataset_id": dataset_id,
              u"primary": self.NODE_A}, CREATED)
         d.addCallback(lambda _: self.assertResponseCode(
             b"DELETE",
             b"/configuration/datasets/%s" % (
-                expected_dataset_id.encode('ascii'),),
+                dataset_id.encode('ascii'),),
             None, OK
         ))
         d.addCallback(lambda _: self.assertResult(
@@ -658,7 +658,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                 u"host": self.NODE_A, u"name": u"postgres",
                 u"image": u"postgres",
                 u"volumes": [
-                    {u'dataset_id': expected_dataset_id,
+                    {u'dataset_id': dataset_id,
                      u'mountpoint': u'/db'}]
             }, NOT_FOUND,
             {u"description": u"Dataset not found."},
@@ -670,6 +670,23 @@ class CreateContainerTestsMixin(APITestsMixin):
         If a volume is specified with a dataset that is on another node, a
         conflict error is returned.
         """
+        dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_B, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, CONFLICT,
+            {u"description": u"The dataset is on another node."},
+        ))
+        return d
 
     def test_in_use_dataset(self):
         """
