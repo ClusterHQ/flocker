@@ -284,7 +284,9 @@ class LoopbackBlockDeviceAPI(object):
         volume = self._get(blockdevice_id)
         if volume.host is None:
             old_path = self._unattached_directory.child(blockdevice_id)
-            host_directory = self._attached_directory.child(host.encode("utf-8"))
+            host_directory = self._attached_directory.child(
+                host.encode("utf-8")
+            )
             try:
                 host_directory.makedirs()
             except OSError:
