@@ -2,8 +2,9 @@
 Description=Flocker Control Service
 
 [Service]
-ExecStart=/usr/bin/flocker-control -p systemd:0 -a systemd:1
+ExecStart=/usr/sbin/flocker-control -p systemd:0 -a systemd:1
 Sockets=flocker-control-api.socket flocker-control-agent.socket
+NonBlocking=true
 
 PrivateTmp=true
 PrivateDev=true

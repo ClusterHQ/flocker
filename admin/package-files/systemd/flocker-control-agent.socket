@@ -3,7 +3,7 @@ Description=Flocker Control Agent Scoket
 
 [Socket]
 ListenStream=4524
-NonBlocking=true
+Service=flocker-control.service
 
 [Install]
 WantedBy=sockets.target
