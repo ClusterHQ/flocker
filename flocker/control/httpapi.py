@@ -434,7 +434,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with duplicate name",
             u"create container with ports",
             u"create container with environment",
-            u"create container with restart policy"
+            u"create container with restart policy",
         ]
     )
     @structured(
@@ -510,7 +510,7 @@ class ConfigurationAPIUserV1(object):
                 external_port=port['external']
             ))
 
-        if environment:
+        if environment is not None:
             environment = frozenset(environment.items())
 
         if restart_policy is None:
@@ -622,7 +622,7 @@ def container_configuration_response(application, node):
             result['ports'].append(dict(
                 internal=port.internal_port, external=port.external_port
             ))
-    if application.environment:
+    if application.environment is not None:
         result['environment'] = dict(application.environment)
     return result
 
