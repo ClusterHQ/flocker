@@ -620,6 +620,75 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json_result
         )
 
+    def test_unknown_dataset(self):
+        """
+        If a volume is specified with an unknown dataset ID, a 404 error is
+        returned.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': unicode(uuid4()), u'mountpoint': u'/db'}]
+            }, NOT_FOUND,
+            {u"description": u"Dataset not found."},
+        )
+
+    def test_deleted_dataset(self):
+        """
+        If a volume is specified with a deleted dataset, a 404 error is
+        returned.
+        """
+        expected_dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": expected_dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (
+                expected_dataset_id.encode('ascii'),),
+            None, OK
+        ))
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': expected_dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, NOT_FOUND,
+            {u"description": u"Dataset not found."},
+        ))
+        return d
+
+    def test_wrong_node_dataset(self):
+        """
+        If a volume is specified with a dataset that is on another node, a
+        conflict error is returned.
+        """
+
+    def test_in_use_dataset(self):
+        """
+        If a volume is specified with a dataset that is being used by another
+        application, a conflict error is returned.
+        """
+
+    def test_dataset_updates_configuration(self):
+        """
+        If a volume is specified with a valid dataset, the cluster
+        configuration is updated.
+        """
+
+    def test_dataset_result(self):
+        """
+        If a volume is specified with a valid dataset, the relevant
+        information is returned in the JSON response.
+        """
+
 
 RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
     CreateContainerTestsMixin, "CreateContainer", _build_app)

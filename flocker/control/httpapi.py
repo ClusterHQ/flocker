@@ -427,6 +427,22 @@ class ConfigurationAPIUserV1(object):
             del dataset[u"deleted"]
         return datasets
 
+    def _get_attached_volume(self, volume):
+        """
+        Create an ``AttachedVolume`` given a volume dictionary.
+
+        :param dict: Parameters for specific volume passed to creation
+            endpoint.
+
+        :return AttachedVolume: Corresponding instance.
+        """
+        deployment = self.persistence_service.get()
+
+        instances = list(manifestations_from_deployment(
+            deployment, volume[u"dataset_id"]))
+        if not list(m for (m, _) in instances if not m.dataset.deleted):
+            raise DATASET_NOT_FOUND
+
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
         """
@@ -492,11 +508,15 @@ class ConfigurationAPIUserV1(object):
 
         # Check if container by this name already exists, if it does
         # return error.
-
         for node in deployment.nodes:
             for application in node.applications:
                 if application.name == name:
                     raise CONTAINER_NAME_COLLISION
+
+        # Find the volume, if any:
+        attached_volume = None
+        if volumes:
+            attached_volume = self._get_attached_volume(volumes[0])
 
         # Find the node.
         node = self._find_node_by_host(host, deployment)
@@ -504,7 +524,6 @@ class ConfigurationAPIUserV1(object):
         # Check if we have any ports in the request. If we do, check existing
         # external ports exposed to ensure there is no conflict. If there is a
         # conflict, return an error.
-
         for port in ports:
             for current_node in deployment.nodes:
                 for application in current_node.applications:
