@@ -44,7 +44,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
     # XXX Avoid circular imports when importing these somewhere at the top of
     # the file. See https://clusterhq.atlassian.net/browse/FLOC-1223.
     from release import make_rpm_version
-    from admin.packaging import (ARCH_REQUIREMENT, Distribution,
+    from admin.packaging import (PACKAGE_ARCHITECTURE, Distribution,
         package_filename)
 
     rpm_version = make_rpm_version(intent.flocker_version)
@@ -62,7 +62,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
         package_name = package_filename(
             package_type=package_type,
             package=package,
-            architecture=ARCH_REQUIREMENT[package],
+            architecture=PACKAGE_ARCHITECTURE[package],
             rpm_version=rpm_version,
         )
         url = intent.source_repo + '/' + package_name
