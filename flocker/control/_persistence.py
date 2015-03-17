@@ -14,6 +14,10 @@ from twisted.internet.defer import succeed
 from ._model import SERIALIZABLE_CLASSES, Deployment
 
 
+# Serialization marker storing the class name:
+_CLASS_MARKER = u"$__class__$"
+
+
 class _ConfigurationEncoder(JSONEncoder):
     """
     JSON encoder that can encode the configuration model.
@@ -21,14 +25,14 @@ class _ConfigurationEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, PRecord):
             result = dict(obj)
-            result[u"$__class__$"] = obj.__class__.__name__
+            result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PMap):
             return dict(obj)
         elif isinstance(obj, (PSet, PVector, set)):
             return list(obj)
         elif isinstance(obj, FilePath):
-            return {u"$__class__$": u"FilePath",
+            return {_CLASS_MARKER: u"FilePath",
                     u"path": obj.path.decode("utf-8")}
         return JSONEncoder.default(self, obj)
 
@@ -53,12 +57,12 @@ def wire_decode(data):
     classes = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
 
     def decode_object(dictionary):
-        class_name = dictionary.get("$__class__$", None)
+        class_name = dictionary.get(_CLASS_MARKER, None)
         if class_name == u"FilePath":
             return FilePath(dictionary.get(u"path").encode("utf-8"))
         elif class_name in classes:
             dictionary = dictionary.copy()
-            dictionary.pop("$__class__$")
+            dictionary.pop(_CLASS_MARKER)
             return classes[class_name].create(dictionary)
         else:
             return dictionary

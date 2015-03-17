@@ -6,13 +6,17 @@ Tests for ``flocker.control._persistence``.
 
 from uuid import uuid4
 from twisted.internet import reactor
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from .._persistence import ConfigurationPersistenceService
+from pyrsistent import PRecord
+
+from .._persistence import (
+    ConfigurationPersistenceService, wire_decode, wire_encode,
+    )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
-    AttachedVolume)
+    AttachedVolume, SERIALIZABLE_CLASSES)
 
 
 DATASET = Dataset(dataset_id=unicode(uuid4()),
@@ -118,3 +122,41 @@ class ConfigurationPersistenceServiceTests(TestCase):
             self.assertEqual((l, l2), ([1, 1], [1]))
         d.addCallback(saved_again)
         return d
+
+
+class WireEncodeDecodeTests(SynchronousTestCase):
+    """
+    Tests for ``wire_encode`` and ``wire_decode``.
+    """
+    def test_encode_to_bytes(self):
+        """
+        ``wire_encode`` converts the given object to ``bytes``.
+        """
+        self.assertIsInstance(wire_encode(TEST_DEPLOYMENT), bytes)
+
+    def test_roundtrip(self):
+        """
+        ``wire_decode`` returns object passed to ``wire_encode``.
+        """
+        self.assertEqual(TEST_DEPLOYMENT,
+                         wire_decode(wire_encode(TEST_DEPLOYMENT)))
+
+    def test_no_arbitrary_decoding(self):
+        """
+        ``wire_decode`` will not decode classes that are not in
+        ``SERIALIZABLE_CLASSES``.
+        """
+        class Temp(PRecord):
+            """A class."""
+        SERIALIZABLE_CLASSES.append(Temp)
+
+        def cleanup():
+            if Temp in SERIALIZABLE_CLASSES:
+                SERIALIZABLE_CLASSES.remove(Temp)
+        self.addCleanup(cleanup)
+
+        data = wire_encode(Temp())
+        SERIALIZABLE_CLASSES.remove(Temp)
+        # Possibly future versions might throw exception, the key point is
+        # that the returned object is not a Temp instance.
+        self.assertFalse(isinstance(wire_decode(data), Temp))
