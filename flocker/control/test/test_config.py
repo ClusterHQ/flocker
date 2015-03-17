@@ -2644,10 +2644,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         applications = {
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
-                image=Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage(repository='flocker/mysql',
-                                      tag='v1.0.0'))
+                image=DockerImage(repository='flocker/mysql',
+                                  tag='v1.0.0'),
             )
         }
         exception = self.assertRaises(
@@ -3302,7 +3300,8 @@ def marshalled_restart_policy(policy):
         using ``ApplicationMarshaller``.
     """
     application = Application(
-        name=None, image=None, restart_policy=policy)
+        name=u"xxx", image=DockerImage.from_string(u"yyy"),
+        restart_policy=policy)
     return ApplicationMarshaller(application).convert()['restart_policy']
 
 

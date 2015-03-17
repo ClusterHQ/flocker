@@ -6,7 +6,7 @@ Tests for ``flocker.node._model``.
 
 from uuid import uuid4
 
-from pyrsistent import InvariantException, pset
+from pyrsistent import InvariantException, pset, PRecord, PSet, pmap
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -15,7 +15,7 @@ from ...testtools import make_with_init_tests
 from .._model import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
-    NodeState,
+    NodeState, pset_field,
 )
 
 
@@ -64,12 +64,13 @@ class DockerImageTests(SynchronousTestCase):
         """
         ``DockerImage.__repr__`` includes the repository and tag.
         """
-        image = DockerImage(repository=u'clusterhq/flocker',
-                            tag=u'release-14.0')
+        image = repr(DockerImage(repository=u'clusterhq/flocker',
+                                 tag=u'release-14.0'))
         self.assertEqual(
-            "<DockerImage(repository=u'clusterhq/flocker', "
-            "tag=u'release-14.0')>",
-            repr(image)
+            [image.startswith("DockerImage"),
+             "clusterhq/flocker" in image,
+             "release-14.0" in image],
+            [True, True, True],
         )
 
 
@@ -93,41 +94,24 @@ class DockerImageFromStringTests(SynchronousTestCase):
 class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
     kwargs=dict(
-        name=u'site-example.com', image=object(),
-        ports=None, volume=None, environment=None,
-        links=frozenset(), restart_policy=RestartAlways(),
+        name=u'site-example.com', image=DockerImage.from_string(u"image"),
+        ports=pset(), volume=None, environment=pmap({}),
+        links=pset(), restart_policy=RestartAlways(),
     ),
-    expected_defaults={'links': frozenset(), 'restart_policy': RestartNever()},
+    expected_defaults={'links': pset(), 'restart_policy': RestartNever()},
 )):
     """
     Tests for ``Application.__init__``.
     """
 
 
-class ApplicationTests(SynchronousTestCase):
-    """
-    Other tests for ``Application``.
-    """
-    def test_repr(self):
-        """
-        ``Application.__repr__`` includes the name, image, ports, and links.
-        """
-        application = Application(name=u'site-example.com', image=None,
-                                  ports=None, links=frozenset())
-        self.assertEqual(
-            "<Application(name=u'site-example.com', image=None, ports=None, "
-            "volume=None, links=frozenset([]), environment=None, "
-            "memory_limit=None, cpu_shares=None, "
-            "restart_policy=<RestartNever()>)>",
-            repr(application)
-        )
-
-
 class NodeInitTests(make_with_init_tests(
         record_type=Node,
         kwargs=dict(hostname=u'example.com', applications=pset([
-            Application(name=u'mysql-clusterhq', image=object()),
-            Application(name=u'site-clusterhq.com', image=object()),
+            Application(name=u'mysql-clusterhq', image=DockerImage.from_string(
+                u"image")),
+            Application(name=u'site-clusterhq.com',
+                        image=DockerImage.from_string(u"another")),
         ]))
 )):
     """
@@ -168,7 +152,8 @@ class NodeTests(SynchronousTestCase):
                 Application(name=u'a',
                             image=DockerImage.from_string(u'x'),
                             volume=AttachedVolume(
-                                manifestation=m1, mountpoint=None)),
+                                manifestation=m1,
+                                mountpoint=FilePath(b"/xxx"))),
             ])
 
     def test_manifestations_non_applications(self):
@@ -185,7 +170,8 @@ class NodeTests(SynchronousTestCase):
                         Application(name=u'a',
                                     image=DockerImage.from_string(u'x'),
                                     volume=AttachedVolume(
-                                        manifestation=m1, mountpoint=None))]),
+                                        manifestation=m1,
+                                        mountpoint=FilePath(b"/xxx")))]),
                     manifestations={m1.dataset_id: m1,
                                     m2.dataset_id: m2})
 
@@ -196,7 +182,7 @@ class NodeTests(SynchronousTestCase):
         """
         ``Node.applications`` must be ``Application`` instances.
         """
-        self.assertRaises(InvariantException,
+        self.assertRaises(TypeError,
                           Node, hostname=u"xxx", applications=[None])
 
     def test_manifestations_keys_are_their_ids(self):
@@ -243,7 +229,7 @@ class NodeStateTests(SynchronousTestCase):
 
 class DeploymentInitTests(make_with_init_tests(
         record_type=Deployment,
-        kwargs=dict(nodes=frozenset([
+        kwargs=dict(nodes=pset([
             Node(hostname=u'node1.example.com', applications=frozenset()),
             Node(hostname=u'node2.example.com', applications=frozenset())
         ]))
@@ -263,15 +249,17 @@ class DeploymentTests(SynchronousTestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object())}),
+            applications=frozenset({
+                Application(name=u'mysql-clusterhq',
+                            image=DockerImage.from_string(u"image")),
+                Application(name=u'site-clusterhq.com',
+                            image=DockerImage.from_string(u"image"))}),
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(name=u'site-clusterhq.com',
-                                                image=object())}),
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
         )
         deployment = Deployment(nodes=frozenset([node, another_node]))
         self.assertEqual(sorted(list(deployment.applications())),
@@ -286,12 +274,14 @@ class DeploymentTests(SynchronousTestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'postgresql-clusterhq',
-                                                image=object())}))
+            applications=frozenset({Application(
+                name=u'postgresql-clusterhq',
+                image=DockerImage.from_string(u"image"))}))
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(name=u'site-clusterhq.com',
-                                                image=object())}),
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
         )
         original = Deployment(nodes=frozenset([node]))
         updated = original.update_node(another_node)
@@ -307,12 +297,14 @@ class DeploymentTests(SynchronousTestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'postgresql-clusterhq',
-                                                image=object())}))
+            applications=frozenset({Application(
+                name=u'postgresql-clusterhq',
+                image=DockerImage.from_string(u"image"))}))
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({Application(name=u'site-clusterhq.com',
-                                                image=object())}),
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
         )
         updated_node = Node(
             hostname=u"node1.example.com",
@@ -337,7 +329,7 @@ class RestartOnFailureTests(SynchronousTestCase):
         maximum retry count is 0.
         """
         self.assertRaises(
-            ValueError,
+            InvariantException,
             RestartOnFailure, maximum_retry_count=0)
 
     def test_maximum_retry_count_not_negative(self):
@@ -346,7 +338,7 @@ class RestartOnFailureTests(SynchronousTestCase):
         maximum retry count is negative.
         """
         self.assertRaises(
-            ValueError,
+            InvariantException,
             RestartOnFailure, maximum_retry_count=-1)
 
     def test_maximum_retry_count_postive(self):
@@ -369,7 +361,7 @@ class RestartOnFailureTests(SynchronousTestCase):
         ``maximum_retry_count`` is not an ``int``
         """
         self.assertRaises(
-            TypeError,
+            InvariantException,
             RestartOnFailure, maximum_retry_count='foo'
         )
 
@@ -388,3 +380,55 @@ class AttachedVolumeTests(SynchronousTestCase):
                                         primary=True),
             mountpoint=FilePath(b"/blah"))
         self.assertIs(volume.dataset, volume.manifestation.dataset)
+
+
+class PSetFieldTests(SynchronousTestCase):
+    """
+    Tests for ``pset_field``.
+
+    This will hopefully be contributed upstream to pyrsistent, thus the
+    slightly different testing style.
+    """
+    def test_initial_value(self):
+        """
+        ``pset_field`` results in initial value that is empty.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        assert Record() == Record(value=[])
+
+    def test_factory(self):
+        """
+        ``pset_field`` has a factory that creates a ``PSet``.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        record = Record(value=[1, 2])
+        assert isinstance(record.value, PSet)
+
+    def test_checked_set(self):
+        """
+        ``pset_field`` results in a set that enforces its type.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        record = Record(value=[1, 2])
+        self.assertRaises(TypeError, record.value.add, "hello")
+
+    def test_type(self):
+        """
+        ``pset_field`` enforces its type.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        record = Record()
+        self.assertRaises(TypeError, record.set, "value", None)
+
+    def test_mandatory(self):
+        """
+        ``pset_field`` is a mandatory field.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        record = Record(value=[1])
+        self.assertRaises(InvariantException, record.remove, "value")
