@@ -452,49 +452,9 @@ class NodeManifestations(PRecord):
         pass
 
 
-class NodeState(PRecord):
-    """
-    The current state of a node.
-
-    This includes information that is state-specific and thus does not
-    belong in ``Node``, the latter being shared between both state and
-    configuration models.
-
-    :ivar unicode hostname: The hostname of the node.
-    :ivar running: A ``PSet`` of ``Application`` instances on this node
-        that are currently running or starting up.
-    :ivar not_running: A ``PSet`` of ``Application`` instances on this
-        node that are currently shutting down or stopped.
-    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
-        in use (by anything) on this node.
-    :ivar PSet manifestations: All ``Manifestation`` instances that
-        are present on the node.
-    :ivar PMap paths: The filesystem paths of the manifestations on this
-        node. Maps ``dataset_id`` to a ``FilePath``.
-    """
-    hostname = field(type=unicode, factory=unicode, mandatory=True)
-    used_ports = pset_field(int)
-    running = pset_field(Application)
-    not_running = pset_field(Application)
-    manifestations = pset_field(Manifestation)
-    paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap.create,
-                  mandatory=True)
-
-    def to_node(self):
-        """
-        Convert into a ``Node`` instance.
-
-        :return Node: Equivalent ``Node`` object.
-        """
-        return Node(hostname=self.hostname,
-                    manifestations={m.dataset_id: m
-                                    for m in self.manifestations},
-                    applications=self.running | self.not_running)
-
-
 # Classes that can be serialized to disk or sent over the network:
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState,
+    NodeManifestations, NodeApplications,
 ]
