@@ -75,6 +75,9 @@ dev_requirements = [
     # Packages are downloaded from Buildbot
     "requests==2.5.3",
     "requests-file==1.0",
+
+    # Functional programming is used in the release process.
+    "effect==0.1a13",
 ]
 
 # The test suite uses network namespaces
