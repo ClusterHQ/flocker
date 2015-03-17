@@ -46,6 +46,8 @@ class TaskDirective(Directive):
     Implementation of the C{task} directive.
     """
     required_arguments = 1
+    optional_arguments = 1
+    final_argument_whitespace = True
 
     option_spec = {
         'prompt': str
@@ -54,8 +56,12 @@ class TaskDirective(Directive):
     def run(self):
         task = getattr(tasks, 'task_%s' % (self.arguments[0],))
         prompt = self.options.get('prompt', '$')
+        if len(self.arguments) > 1:
+            task_arguments = self.arguments[1].split()
+        else:
+            task_arguments = []
 
-        commands = task()
+        commands = task(*task_arguments)
         lines = ['.. prompt:: bash %s' % (prompt,), '']
 
         for command in commands:

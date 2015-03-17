@@ -24,8 +24,6 @@ Interactions:
   convergence agents.
 """
 
-from pickle import dumps, loads
-
 from characteristic import with_cmp
 
 from zope.interface import Interface
@@ -37,29 +35,32 @@ from twisted.protocols.amp import (
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 
-from ._persistence import serialize_deployment, deserialize_deployment
+from ._persistence import wire_encode, wire_decode
+from ._model import Deployment, NodeState
 
 
-class NodeStateArgument(Argument):
+class SerializableArgument(Argument):
     """
-    AMP argument that takes a ``NodeState`` object.
+    AMP argument that takes an object that can be serialized by the
+    configuration persistence layer.
     """
+    def __init__(self, cls):
+        """
+        :param cls: The type of the objects we expect to (de)serialize.
+        """
+        Argument.__init__(self)
+        self._expected_class = cls
+
     def fromString(self, in_bytes):
-        return loads(in_bytes)
+        obj = wire_decode(in_bytes)
+        if not isinstance(obj, self._expected_class):
+            raise TypeError("{} is not a {}".format(obj, self._expected_class))
+        return obj
 
-    def toString(self, node_state):
-        return dumps(node_state)
-
-
-class DeploymentArgument(Argument):
-    """
-    AMP argument that takes a ``Deployment`` object.
-    """
-    def fromString(self, in_bytes):
-        return deserialize_deployment(in_bytes)
-
-    def toString(self, deployment):
-        return serialize_deployment(deployment)
+    def toString(self, obj):
+        if not isinstance(obj, self._expected_class):
+            raise TypeError("{} is not a {}".format(obj, self._expected_class))
+        return wire_encode(obj)
 
 
 class VersionCommand(Command):
@@ -80,8 +81,8 @@ class ClusterStatusCommand(Command):
     Having both as a single command simplifies the decision making process
     in the convergence agent during startup.
     """
-    arguments = [('configuration', DeploymentArgument()),
-                 ('state', DeploymentArgument())]
+    arguments = [('configuration', SerializableArgument(Deployment)),
+                 ('state', SerializableArgument(Deployment))]
     response = []
 
 
@@ -90,7 +91,7 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
-    arguments = [('node_state', NodeStateArgument())]
+    arguments = [('node_state', SerializableArgument(NodeState))]
     response = []
 
 

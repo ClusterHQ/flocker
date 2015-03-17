@@ -348,3 +348,35 @@
     HTTP/1.1 409 Conflict
 
     {"description": "The container name specified already exists."}
+
+-
+  id:
+    "remove a container"
+
+  doc: |
+    Delete a container.
+
+  requires:
+    - "create a container"
+
+  request: |
+    DELETE /v1/configuration/containers/webserver HTTP/1.1
+
+  response: |
+    HTTP/1.1 200 OK
+
+-
+  id:
+    "remove a container with unknown name"
+
+  doc: |
+    An attempt to delete an unknown container results in a 404 Not Found response.
+
+  request: |
+    DELETE /v1/configuration/containers/unknown_container HTTP/1.1
+
+  response: |
+    HTTP/1.1 404 Not Found
+
+    {"description": "Container not found."}
+

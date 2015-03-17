@@ -544,6 +544,90 @@ RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
     CreateContainerTestsMixin, "CreateContainer", _build_app)
 
 
+class DeleteContainerTestsMixin(APITestsMixin):
+    """
+    Tests for the container removal endpoint at
+    ``/configuration/datasets/<dataset_id>``.
+    """
+    def test_unknown_container(self):
+        """
+        NOT_FOUND is returned if the requested container doesn't exist.
+        """
+        unknown_name = u"xxx"
+        return self.assertResult(
+            b"DELETE",
+            b"/configuration/containers/%s" % (
+                unknown_name.encode('ascii'),),
+            None, NOT_FOUND,
+            {u"description": u'Container not found.'})
+
+    def _delete_test(self, name):
+        """
+        Create and then delete a container, ensuring the expected response
+        code of OK from deletion.
+
+        :param Application application: The container which will be deleted.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": name,
+                u"image": u"postgres"
+            }, CREATED
+        )
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE",
+            u"/configuration/containers/{}".format(name).encode("ascii"), None,
+            OK, None,
+        ))
+        return d
+
+    def test_delete(self):
+        """
+        The ``DELETE`` method removes the given container from the
+        configuration.
+        """
+        d = self._delete_test(u"mycontainer")
+
+        def deleted(_):
+            deployment = self.persistence_service.get()
+            origin = next(iter(deployment.nodes))
+            self.assertEqual(list(origin.applications), [])
+        d.addCallback(deleted)
+        return d
+
+    def test_delete_leaves_others(self):
+        """
+        The ``DELETE`` method does not remove unrelated containers.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"somecontainer",
+                u"image": u"postgres"
+            }, CREATED
+        )
+        d.addCallback(lambda _: self._delete_test(u"mycontainer"))
+
+        def deleted(_):
+            deployment = self.persistence_service.get()
+            origin = next(iter(deployment.nodes))
+            self.assertEqual(
+                list(origin.applications),
+                [Application(name=u"somecontainer",
+                             image=DockerImage.from_string(u"postgres"))])
+        d.addCallback(deleted)
+        return d
+
+
+RealTestsDeleteContainer, MemoryTestsDeleteContainer = (
+    buildIntegrationTests(
+        DeleteContainerTestsMixin, "DeleteContainer", _build_app)
+)
+
+
 class CreateDatasetTestsMixin(APITestsMixin):
     """
     Tests for the dataset creation endpoint at ``/configuration/datasets``.
@@ -1605,11 +1689,13 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
 
         node = Node(
             hostname=expected_hostname,
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object(),
-                                                volume=volume)}),
+            applications={
+                Application(
+                    name=u'mysql-clusterhq',
+                    image=DockerImage.from_string(u"xxx")),
+                Application(name=u'site-clusterhq.com',
+                            image=DockerImage.from_string(u"xxx"),
+                            volume=volume)},
             manifestations={expected_dataset.dataset_id:
                             volume.manifestation},
         )
