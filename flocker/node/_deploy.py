@@ -398,8 +398,9 @@ class P2PManifestationDeployer(object):
         pass
 
     def calculate_necessary_state_changes(self, *args, **kwargs):
-        # Does nothing in this branch.
-        return []
+        # Does nothing in this branch. Follow up will move
+        # calculate_necessary_state_changes code here.
+        return Sequentially(changes=[])
 
 
 @implementer(IDeployer)

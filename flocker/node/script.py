@@ -15,6 +15,7 @@ from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
 
 from zope.interface import implementer
+from twisted.application.service import MultiService
 
 from ..control._config import (
     FlockerConfiguration, marshal_configuration,
@@ -29,7 +30,8 @@ from ..common.script import (
 from ..control import (
     ConfigurationError, current_from_configuration, model_from_configuration,
 )
-from . import P2PNodeDeployer, change_node_state
+from . import (
+    ApplicationNodeDeployer, P2PManifestationDeployer, change_node_state)
 from ._loop import AgentLoopService
 
 
@@ -256,12 +258,21 @@ class ZFSAgentScript(object):
     def main(self, reactor, options, volume_service):
         host = options["destination-host"]
         port = options["destination-port"]
-        deployer = P2PNodeDeployer(options["hostname"].decode("ascii"),
-                                   volume_service)
-        loop = AgentLoopService(reactor=reactor, deployer=deployer,
-                                host=host, port=port)
-        volume_service.setServiceParent(loop)
-        return main_for_service(reactor, loop)
+        # XXX In follow up issue we will split this up into two separate
+        # scripts:
+        app_deployer = ApplicationNodeDeployer(
+            options["hostname"].decode("ascii"), volume_service)
+        dataset_deployer = P2PManifestationDeployer(
+            options["hostname"].decode("ascii"), volume_service)
+        loop1 = AgentLoopService(reactor=reactor, deployer=app_deployer,
+                                 host=host, port=port)
+        loop2 = AgentLoopService(reactor=reactor, deployer=dataset_deployer,
+                                 host=host, port=port)
+        parent_service = MultiService()
+        loop1.setServiceParent(parent_service)
+        loop2.setServiceParent(parent_service)
+        volume_service.setServiceParent(parent_service)
+        return main_for_service(reactor, parent_service)
 
 
 def flocker_zfs_agent_main():
