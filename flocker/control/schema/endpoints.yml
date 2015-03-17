@@ -22,6 +22,8 @@ definitions:
         '$ref': 'types.json#/definitions/container_name'
       image:
         '$ref': 'types.json#/definitions/container_image'
+      ports:
+        '$ref': 'types.json#/definitions/ports'
     required:
       - host
       - name

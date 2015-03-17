@@ -277,7 +277,30 @@
 
     {"host": "%(NODE_0)s",
      "name": "webserver",
-     "image": "nginx:latest"}
+     "image": "nginx:latest"}  
+
+-
+  id:
+    "create container with ports"
+
+  doc: |
+    Create a new container with port mappings.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "ports": [{"internal": 80, "external": 8080}]}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "ports": [{"internal": 80, "external": 8080}]}     
 
 -
   id:
@@ -302,3 +325,35 @@
     HTTP/1.1 409 Conflict
 
     {"description": "The container name specified already exists."}
+
+-
+  id:
+    "remove a container"
+
+  doc: |
+    Delete a container.
+
+  requires:
+    - "create a container"
+
+  request: |
+    DELETE /v1/configuration/containers/webserver HTTP/1.1
+
+  response: |
+    HTTP/1.1 200 OK
+
+-
+  id:
+    "remove a container with unknown name"
+
+  doc: |
+    An attempt to delete an unknown container results in a 404 Not Found response.
+
+  request: |
+    DELETE /v1/configuration/containers/unknown_container HTTP/1.1
+
+  response: |
+    HTTP/1.1 404 Not Found
+
+    {"description": "Container not found."}
+
