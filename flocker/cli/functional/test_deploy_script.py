@@ -66,16 +66,16 @@ class FlockerDeployConfigureSSHTests(TestCase):
         keys on each node in the supplied ``Deployment``.
         """
         deployment = Deployment(
-            nodes=frozenset([
+            nodes=[
                 Node(
-                    hostname=str(self.server.ip),
-                    applications=None
+                    hostname=unicode(self.server.ip),
+                    applications=[]
                 ),
                 # Node(
                 #     hostname='node2.example.com',
                 #     applications=None
                 # )
-            ])
+            ]
         )
 
         script = DeployScript(
@@ -103,12 +103,12 @@ class FlockerDeployConfigureSSHTests(TestCase):
         self.config.configure_ssh = fail
 
         deployment = Deployment(
-            nodes=frozenset([
+            nodes=[
                 Node(
-                    hostname=str(self.server.ip),
-                    applications=None
+                    hostname=unicode(self.server.ip),
+                    applications=[]
                 ),
-            ])
+            ]
         )
 
         script = DeployScript(
@@ -131,12 +131,12 @@ class FlockerDeployConfigureSSHTests(TestCase):
         self.config.configure_ssh = fail
 
         deployment = Deployment(
-            nodes=frozenset([
+            nodes=[
                 Node(
-                    hostname=str(self.server.ip),
-                    applications=None
+                    hostname=unicode(self.server.ip),
+                    applications=[]
                 ),
-            ])
+            ]
         )
 
         script = DeployScript(
@@ -167,21 +167,21 @@ class FlockerDeployConfigureSSHTests(TestCase):
         self.config.configure_ssh = fail
 
         deployment = Deployment(
-            nodes=frozenset([
+            nodes=[
                 Node(
-                    hostname=b'node1.example.com',
-                    applications=None
+                    hostname=u'node1.example.com',
+                    applications=[]
                 ),
                 Node(
-                    hostname=b'node2.example.com',
-                    applications=None
+                    hostname=u'node2.example.com',
+                    applications=[]
                 ),
                 Node(
-                    hostname=b'node3.example.com',
-                    applications=None
+                    hostname=u'node3.example.com',
+                    applications=[]
                 ),
 
-            ])
+            ]
         )
 
         script = DeployScript(
@@ -190,9 +190,12 @@ class FlockerDeployConfigureSSHTests(TestCase):
 
         def check_logs(ignored_first_error):
             failures = self.flushLoggedErrors(ZeroDivisionError)
+            # SSH configuration is performed in parallel threads so the order
+            # of logged errors depends on the thread scheduling. Sort the
+            # results before comparing.
             self.assertEqual(
-                expected_errors,
-                [f.value for f in failures]
+                sorted(expected_errors),
+                sorted(f.value for f in failures)
             )
 
         result.addErrback(check_logs)
