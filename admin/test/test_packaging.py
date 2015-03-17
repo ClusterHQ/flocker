@@ -875,6 +875,7 @@ class OmnibusPackageBuilderTests(TestCase):
         target_path = FilePath(self.mktemp())
         flocker_cli_path = target_path.child('flocker-cli')
         flocker_node_path = target_path.child('flocker-node')
+        empty_path = target_path.child('empty')
 
         expected_virtualenv_path = FilePath('/opt/flocker')
         expected_prefix = FilePath('/')
@@ -996,6 +997,8 @@ class OmnibusPackageBuilderTests(TestCase):
                         # Systemd configuration
                         package_files.child('systemd'):
                             FilePath("/usr/lib/systemd/system/"),
+                        # Flocker Control State dir
+                        empty_path: FilePath('/var/lib/flocker/'),
                     },
                     name='clusterhq-flocker-node',
                     prefix=expected_prefix,
@@ -1009,7 +1012,8 @@ class OmnibusPackageBuilderTests(TestCase):
                     description=PACKAGE_NODE.DESCRIPTION.value,
                     category=expected_category,
                     dependencies=[Dependency(package='node-dep')],
-                    after_install=package_files.child('after-install.sh')
+                    after_install=package_files.child('after-install.sh'),
+                    directories=[FilePath('/var/lib/flocker/')],
                 ),
                 LintPackage(
                     package_type=expected_package_type,

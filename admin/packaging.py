@@ -770,6 +770,8 @@ def omnibus_package_builder(
     flocker_cli_path.makedirs()
     flocker_node_path = target_dir.child('flocker-node')
     flocker_node_path.makedirs()
+    empty_path = target_dir.child('empty')
+    empty_path.makedirs()
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt  # noqa
     virtualenv_dir = FilePath('/opt/flocker')
@@ -893,6 +895,8 @@ def omnibus_package_builder(
                     # SystemD configuration
                     package_files.child('systemd'):
                         FilePath('/usr/lib/systemd/system'),
+                    # Flocker Control State dir
+                    empty_path: FilePath('/var/lib/flocker/'),
                 },
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),
@@ -908,6 +912,7 @@ def omnibus_package_builder(
                 dependencies=make_dependencies(
                     'node', rpm_version, distribution),
                 after_install=package_files.child('after-install.sh'),
+                directories=[FilePath('/var/lib/flocker/')],
             ),
             LintPackage(
                 package_type=distribution.package_type(),
