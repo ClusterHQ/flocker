@@ -429,31 +429,30 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     elif is_weekly_release(version):
         target_distro_suffix = "-testing"
 
-    yield update_repo(
-        rpm_directory=scratch_directory.child(b'fedora-20-x86_64'),
-        target_bucket=target_bucket,
-        target_key=os.path.join(b'fedora' + target_distro_suffix, b'20',
-                                b'x86_64'),
-        source_repo=os.path.join(build_server, b'results/omnibus', version,
-                                 b'fedora-20'),
-        packages=FLOCKER_PACKAGES,
-        flocker_version=version,
-        distro_name='fedora',
-        distro_version='20',
-    )
 
-    yield update_repo(
-        rpm_directory=scratch_directory.child(b'centos-7-x86_64'),
-        target_bucket=target_bucket,
-        target_key=os.path.join(b'centos' + target_distro_suffix, b'7',
-                                b'x86_64'),
-        source_repo=os.path.join(build_server, b'results/omnibus', version,
-                                 b'centos-7'),
-        packages=FLOCKER_PACKAGES,
-        flocker_version=version,
-        distro_name='centos',
-        distro_version='7',
-    )
+    operating_systems = [
+        {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
+        {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
+    ]
+
+    for operating_system in operating_systems:
+        distro = operating_system['distro']
+        os_version = operating_system['version']
+        arch = operating_system['arch']
+
+        yield update_repo(
+            rpm_directory=scratch_directory.child(
+                b'{}-{}-{}'.format(distro, os_version, arch)),
+            target_bucket=target_bucket,
+            target_key=os.path.join(
+                distro + target_distro_suffix, os_version, arch),
+            source_repo=os.path.join(build_server, b'results/omnibus',
+                version, b'{}-{}'.format(distro, os_version)),
+            packages=FLOCKER_PACKAGES,
+            flocker_version=version,
+            distro_name=distro,
+            distro_version=os_version,
+        )
 
 
 def publish_rpms_main(args, base_path, top_level):
