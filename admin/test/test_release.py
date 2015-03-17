@@ -1215,10 +1215,7 @@ class UploadRPMsTests(TestCase):
                 distro_version=self.operating_systems[0]['version'],
             )
 
-        self.assertEqual(
-            u'404 Client Error: None',
-            unicode(exception.exception),
-        )
+        self.assertEqual(404, exception.exception.response.status_code)
 
     def test_development_repositories_created(self):
         """
