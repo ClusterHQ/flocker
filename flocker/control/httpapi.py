@@ -27,6 +27,7 @@ from . import (
     Dataset, Manifestation, Node, Application, DockerImage, Port,
     RestartOnFailure, RestartNever, RestartAlways
 )
+from ._config import ApplicationMarshaller
 from .. import __version__
 
 
@@ -653,24 +654,8 @@ def container_configuration_response(application, node):
     """
     result = {
         "host": node, "name": application.name,
-        "image": application.image.full_name,
-        "restart_policy": {
-            "name": application.restart_policy.name
-        }
     }
-    if (application.restart_policy.name == u"on-failure"
-            and application.restart_policy.maximum_retry_count is not None):
-        result['restart_policy']['maximum_retry_count'] = (
-            application.restart_policy.maximum_retry_count
-        )
-    if application.ports:
-        result['ports'] = []
-        for port in application.ports:
-            result['ports'].append(dict(
-                internal=port.internal_port, external=port.external_port
-            ))
-    if application.environment:
-        result['environment'] = dict(application.environment)
+    result.update(ApplicationMarshaller(application).convert())
     return result
 
 
