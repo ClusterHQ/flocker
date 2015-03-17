@@ -22,7 +22,7 @@ from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
 
 from .._protocol import (
-    NodeStateArgument, DeploymentArgument,
+    SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     AgentAMP, ControlAMPService, ControlAMP
 )
@@ -100,9 +100,9 @@ class SerializationTests(SynchronousTestCase):
     """
     def test_nodestate(self):
         """
-        ``NodeStateArgument`` can round-trip a ``NodeState`` instance.
+        ``SerializableArgument`` can round-trip a ``NodeState`` instance.
         """
-        argument = NodeStateArgument()
+        argument = SerializableArgument(NodeState)
         as_bytes = argument.toString(NODE_STATE)
         deserialized = argument.fromString(as_bytes)
         self.assertEqual([bytes, NODE_STATE],
@@ -110,13 +110,31 @@ class SerializationTests(SynchronousTestCase):
 
     def test_deployment(self):
         """
-        ``DeploymentArgument`` can round-trip a ``Deployment`` instance.
+        ``SerializableArgument`` can round-trip a ``Deployment`` instance.
         """
-        argument = DeploymentArgument()
+        argument = SerializableArgument(Deployment)
         as_bytes = argument.toString(TEST_DEPLOYMENT)
         deserialized = argument.fromString(as_bytes)
         self.assertEqual([bytes, TEST_DEPLOYMENT],
                          [type(as_bytes), deserialized])
+
+    def test_wrong_type_serialization(self):
+        """
+        ``SerializableArgument`` throws a ``TypeError`` if one attempts to
+        serialize an object of the wrong type.
+        """
+        argument = SerializableArgument(Deployment)
+        self.assertRaises(TypeError, argument.toString, NODE_STATE)
+
+    def test_wrong_type_deserialization(self):
+        """
+        ``SerializableArgument`` throws a ``TypeError`` if one attempts to
+        deserialize an object of the wrong type.
+        """
+        argument = SerializableArgument(Deployment)
+        as_bytes = argument.toString(TEST_DEPLOYMENT)
+        self.assertRaises(
+            TypeError, SerializableArgument(NodeState).fromString, as_bytes)
 
 
 def build_control_amp_service(test):
