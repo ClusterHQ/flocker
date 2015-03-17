@@ -87,7 +87,7 @@ class ConfigurationPersistenceService(Service):
     def startService(self):
         if not self._path.exists():
             self._path.makedirs()
-        self._config_path = self._path.child(b"current_configuration.pickle")
+        self._config_path = self._path.child(b"current_configuration.v1.json")
         if self._config_path.exists():
             self._deployment = wire_decode(
                 self._config_path.getContent())
