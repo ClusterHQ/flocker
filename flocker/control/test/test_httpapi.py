@@ -242,6 +242,76 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         return self._container_name_collision_test(self.NODE_A, self.NODE_B)
 
+    def test_create_container_with_environment(self):
+        """
+        An API request to create a container including environment
+        variables results in the existing configuration being updated.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        environment = {
+            u'SITES_ENABLED_PATH': u'/etc/nginx/sites-enabled',
+            u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
+        }
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx", u"environment": environment
+            }, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='webserver',
+                                image=DockerImage.from_string('nginx'),
+                                environment=frozenset(environment.items())
+                            ),
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_create_container_with_environment_response(self):
+        """
+        An API request to create a container including environment
+        variables returns the environment mapping supplied in the request in
+        the response JSON.
+        """
+        environment = {
+            u'SITES_ENABLED_PATH': u'/etc/nginx/sites-enabled',
+            u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
+        }
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx", u"environment": environment
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"environment": environment
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
     def _test_conflicting_ports(self, node1, node2):
         """
         Utility method to create two containers with the same ports on two
@@ -472,6 +542,90 @@ class CreateContainerTestsMixin(APITestsMixin):
 
 RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
     CreateContainerTestsMixin, "CreateContainer", _build_app)
+
+
+class DeleteContainerTestsMixin(APITestsMixin):
+    """
+    Tests for the container removal endpoint at
+    ``/configuration/datasets/<dataset_id>``.
+    """
+    def test_unknown_container(self):
+        """
+        NOT_FOUND is returned if the requested container doesn't exist.
+        """
+        unknown_name = u"xxx"
+        return self.assertResult(
+            b"DELETE",
+            b"/configuration/containers/%s" % (
+                unknown_name.encode('ascii'),),
+            None, NOT_FOUND,
+            {u"description": u'Container not found.'})
+
+    def _delete_test(self, name):
+        """
+        Create and then delete a container, ensuring the expected response
+        code of OK from deletion.
+
+        :param Application application: The container which will be deleted.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": name,
+                u"image": u"postgres"
+            }, CREATED
+        )
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE",
+            u"/configuration/containers/{}".format(name).encode("ascii"), None,
+            OK, None,
+        ))
+        return d
+
+    def test_delete(self):
+        """
+        The ``DELETE`` method removes the given container from the
+        configuration.
+        """
+        d = self._delete_test(u"mycontainer")
+
+        def deleted(_):
+            deployment = self.persistence_service.get()
+            origin = next(iter(deployment.nodes))
+            self.assertEqual(list(origin.applications), [])
+        d.addCallback(deleted)
+        return d
+
+    def test_delete_leaves_others(self):
+        """
+        The ``DELETE`` method does not remove unrelated containers.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"somecontainer",
+                u"image": u"postgres"
+            }, CREATED
+        )
+        d.addCallback(lambda _: self._delete_test(u"mycontainer"))
+
+        def deleted(_):
+            deployment = self.persistence_service.get()
+            origin = next(iter(deployment.nodes))
+            self.assertEqual(
+                list(origin.applications),
+                [Application(name=u"somecontainer",
+                             image=DockerImage.from_string(u"postgres"))])
+        d.addCallback(deleted)
+        return d
+
+
+RealTestsDeleteContainer, MemoryTestsDeleteContainer = (
+    buildIntegrationTests(
+        DeleteContainerTestsMixin, "DeleteContainer", _build_app)
+)
 
 
 class CreateDatasetTestsMixin(APITestsMixin):
@@ -1535,11 +1689,13 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
 
         node = Node(
             hostname=expected_hostname,
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object(),
-                                                volume=volume)}),
+            applications={
+                Application(
+                    name=u'mysql-clusterhq',
+                    image=DockerImage.from_string(u"xxx")),
+                Application(name=u'site-clusterhq.com',
+                            image=DockerImage.from_string(u"xxx"),
+                            volume=volume)},
             manifestations={expected_dataset.dataset_id:
                             volume.manifestation},
         )
