@@ -4,8 +4,6 @@
 Effectful interface to RPM tools.
 """
 
-import os
-
 import requests
 from requests_file import FileAdapter
 from characteristic import attributes
@@ -122,7 +120,7 @@ def _list_new_metadata(repository_path, existing_metadata):
         metadata from.
     :param set existing_metadata: Filenames of existing metadata files.
     """
-    all_metadata = set([os.path.basename(path.path) for path in
+    all_metadata = set([path.basename() for path in
                         repository_path.child('repodata').walk()])
     new_metadata = all_metadata - existing_metadata
 
@@ -149,7 +147,7 @@ class FakeYum(object):
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
         packages = set([
-            os.path.basename(path.path) for path in
+            path.basename() for path in
             intent.repository_path.walk() if path.isfile()])
         for filename in ['repomd.xml', 'filelists.xml.gz', 'other.xml.gz',
                          'primary.xml.gz']:
