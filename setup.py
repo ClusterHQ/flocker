@@ -73,7 +73,7 @@ dev_requirements = [
     "apache-libcloud==0.16.0",
 
     # Packages are downloaded from Buildbot
-    "requests==2.5.3",
+    "requests==2.4.3",
     "requests-file==1.0",
 
     # Functional programming is used in the release process.
@@ -186,7 +186,7 @@ setup(
             "effect==0.1a13",
             "boto==2.30.0",
             # Packages are downloaded from Buildbot
-            "requests==2.5.3",
+            "requests==2.4.3",
             "requests-file==1.0",
             ],
         },
