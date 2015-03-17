@@ -101,7 +101,9 @@ definitions:
         '$ref': '#/definitions/dataset_id'
       mountpoint:
         '$ref': '#/definitions/volume_path'
-    required: ['dataset_id', 'mountpoint']
+    required:
+      - 'dataset_id'
+      - 'mountpoint'
     additionalProperties: false
 
   volume_path:
