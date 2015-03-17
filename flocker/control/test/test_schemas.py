@@ -158,6 +158,55 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 "maximum_retry_count": 15
             }
         },
+        # Volume with dataset_id of wrong type
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': 123,
+                         'mountpoint': '/var/db'}],
+        },
+        # Volume with mountpoint of wrong type
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': 123}],
+        },
+        # Volume missing dataset_id
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'mountpoint': '/var/db'}],
+        },
+        # Volume missing mountpoint
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36}],
+        },
+        # Volume with extra field
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': '/var/db',
+                         'extra': 'value'}],
+        },
+        # More than one volume (this will eventually work - see FLOC-49)
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': '/var/db'},
+                        {'dataset_id': "y" * 36,
+                         'mountpoint': '/var/db2'}],
+        },
     ],
     passing_instances=[
         {
@@ -224,6 +273,19 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'restart_policy': {
                 'name': 'on-failure', 'maximum_retry_count': 5
             }
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': '/var/db'}],
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [],
         },
     ],
 )

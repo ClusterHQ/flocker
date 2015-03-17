@@ -441,6 +441,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with ports",
             u"create container with environment",
             u"create container with restart policy",
+            u"create container with attached volume",
         ]
     )
     @structured(
@@ -452,7 +453,7 @@ class ConfigurationAPIUserV1(object):
     )
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
-        restart_policy=None
+        restart_policy=None, volumes=(),
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -480,6 +481,9 @@ class ConfigurationAPIUserV1(object):
             "maximum_retry_count", containing a positive ``int`` specifying
             the maximum number of times we should attempt to restart a failed
             container.
+
+        :param volumes: A iterable of ``dict`` with ``"dataset_id"`` and
+            ``"mountpoint"`` keys.
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.

@@ -28,6 +28,12 @@ definitions:
         '$ref': 'types.json#/definitions/environment'
       restart_policy:
         '$ref': 'types.json#/definitions/restart_policy'
+      volumes:
+        type: array
+        items:
+          '$ref': 'types.json#/definitions/volume'
+        minItems: 0
+        maxItems: 1
     required:
       - host
       - name
@@ -74,7 +80,7 @@ definitions:
         maximum_size:
           '$ref': 'types.json#/definitions/maximum_size'
         path:
-          '$ref': 'types.json#/definitions/path'
+          '$ref': 'types.json#/definitions/node_path'
       required:
         - primary
         - dataset_id
