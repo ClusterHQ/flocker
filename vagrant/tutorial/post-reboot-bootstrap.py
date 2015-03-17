@@ -19,8 +19,6 @@ build_server = sys.argv[3] or 'http://build.clusterhq.com/'
 # Make it possible to install flocker-node
 rpm_dist = check_output(['rpm', '-E', '%dist']).strip()
 
-# This uses development repo, because the marketing one has not been set up yet
-# this should be changed before merging.
 clusterhq_repo_url = (
     'https://s3.amazonaws.com/'
     'clusterhq-archive/'
