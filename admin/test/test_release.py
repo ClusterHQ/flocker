@@ -974,48 +974,6 @@ class UploadRPMsTests(TestCase):
             existing_s3_keys[index_path],
             aws.s3_buckets[self.target_bucket][index_path])
 
-    def test_existing_metadata_files_not_uploaded(self):
-        """
-        Calling :func:`update_repo` does not update repository metadata files
-        which are not the index.
-        """
-        index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
-        existing_metadata_file = os.path.join(self.target_key, 'repodata',
-                                              'filelists.xml.gz')
-
-        existing_s3_keys = {
-            index_path: 'old_metadata_index',
-            existing_metadata_file: 'old_metadata_content',
-        }
-
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: existing_s3_keys.copy(),
-            },
-        )
-
-        self.update_repo(
-            aws=aws,
-            yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
-            target_bucket=self.target_bucket,
-            target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
-            packages=self.packages,
-            flocker_version=self.dev_version,
-            distro_name=self.operating_systems[0]['distro'],
-            distro_version=self.operating_systems[0]['version'],
-        )
-
-        # This tests that filelists.xml.gz, a metadata file which is not the
-        # index, still has the content 'old_metadata_content', even though
-        # CreateRepo changes this content. This shows that this file which
-        # already existed on S3 is not re-uploaded.
-        self.assertEqual(
-            aws.s3_buckets[self.target_bucket][existing_metadata_file],
-            existing_s3_keys[existing_metadata_file])
-
     def test_new_metadata_files_uploaded(self):
         """
         Calling :func:`update_repo` uploads new repository metadata files to
