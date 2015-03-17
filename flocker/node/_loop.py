@@ -261,7 +261,7 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        d = self.deployer.discover_local_state()
+        d = self.deployer.discover_local_state(self.cluster_state)
 
         def got_local_state(local_state):
             # Current cluster state is likely out of date as regards the local
