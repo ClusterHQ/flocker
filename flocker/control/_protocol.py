@@ -201,6 +201,8 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
+    # XXX this isn't node_changed anymore really, it's cluster state
+    # updates; other than naming it's pretty much the same logic though
     def node_changed(self, node_state):
         """
         We've received a node state update from a connected client.

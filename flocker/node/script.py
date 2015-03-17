@@ -150,6 +150,8 @@ class ChangeStateScript(object):
         self._docker_client = docker_client
 
     def main(self, reactor, options, volume_service):
+        # XXX this and flocker-reportstate will need some hacks to keep
+        # working, shouldn't be too bad.
         deployer = P2PNodeDeployer(
             options['hostname'].decode("ascii"),
             volume_service, self._docker_client)

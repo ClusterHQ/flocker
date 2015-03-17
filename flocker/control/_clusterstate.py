@@ -20,18 +20,21 @@ class ClusterStateService(Service):
     isn't treated as correct.
     """
     def __init__(self):
-        self._nodes = {}
+        self._node_paths = {}
+        self._state = Deployment()
 
-    def update_node_state(self, node_state):
+    def update_cluster_state(self, cluster_state_update):
         """
         Update the state of a given node.
 
         XXX: Multiple nodes may report being primary for a dataset. Enforce
         consistency here. See https://clusterhq.atlassian.net/browse/FLOC-1303
 
-        :param NodeState node_state: The state of the node.
+        :param IClusterStateUpdate cluster_state_update: Update to cluster state.
         """
-        self._nodes[node_state.hostname] = node_state
+        if isinstance(cluster_state_update, NodeManifestations):
+            self._node_paths[cluster_state_update.hostname] = cluster_state_update.paths
+        self._state = cluster_state_update.update_cluster_state(self._state)
 
     def manifestation_path(self, hostname, dataset_id):
         """
@@ -42,7 +45,7 @@ class ClusterStateService(Service):
 
         :return FilePath: The path where the manifestation exists.
         """
-        return self._nodes[hostname].paths[dataset_id]
+        return self._nodes_paths[hostname][dataset_id]
 
     def as_deployment(self):
         """
@@ -50,5 +53,4 @@ class ClusterStateService(Service):
 
         :return Deployment: Current state of the cluster.
         """
-        return Deployment(nodes=frozenset(
-            (node_state.to_node() for node_state in self._nodes.values())))
+        return self._state
