@@ -84,7 +84,7 @@ class IDeployer(Interface):
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.
 
-        :return: A ``Deferred`` which fires with a ``INodeStateUpdate``
+        :return: A ``Deferred`` which fires with a ``IClusterStateUpdate``
              provider. This object will be passed to the control service
              (see ``flocker.control._protocol``).
         """

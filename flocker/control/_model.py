@@ -395,17 +395,61 @@ class _PathMap(CheckedPMap):
     __value_type__ = FilePath
 
 
-class INodeStateUpdate(Interface):
+class IClusterStateUpdate(Interface):
     """
-    New information that can be applied to a ``Node``.
+    New information that can be applied to a ``Deployment``.
     """
-    def update_node(node):
+    def update_deployment(deployment):
         """
-        Update the node with newly discoverd information about its state.
+        Update the cluster state with newly discovered information.
 
-        :param Node node: The current known node state.
-        :return Node: Updated node.
+        :param Deployment deployment: The current known cluster state.
+        :return Deployment: Updated cluster state.
         """
+
+
+@implementer(IClusterStateUpdate)
+class NodeApplications(PRecord):
+    """
+    The current state of a node's applications.
+
+    :ivar unicode hostname: The hostname of the node.
+    :ivar running: A ``PSet`` of ``Application`` instances on this node
+        that are currently running or starting up.
+    :ivar not_running: A ``PSet`` of ``Application`` instances on this
+        node that are currently shutting down or stopped.
+    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
+        in use (by anything) on this node.
+    """
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    used_ports = pset_field(int)
+    running = pset_field(Application)
+    not_running = pset_field(Application)
+
+    def update_deployment(self, deployment):
+        # Find the matching Node, replace its applications with
+        # combination of self.running and self.not_running
+        pass
+
+
+@implementer(IClusterStateUpdate)
+class NodeManifestations(PRecord):
+    """
+    The current state of a node's manifestations.
+
+    :ivar PSet manifestations: All ``Manifestation`` instances that
+        are present on the node.
+    :ivar PMap paths: The filesystem paths of the manifestations on this
+        node. Maps ``dataset_id`` to a ``FilePath``.
+    """
+    manifestations = pset_field(Manifestation)
+    paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap.create,
+                  mandatory=True)
+
+    def update_deployment(self, deployment):
+        # Find the matching Node, replace its manifestations with
+        # self.manifestations
+        pass
 
 
 class NodeState(PRecord):
