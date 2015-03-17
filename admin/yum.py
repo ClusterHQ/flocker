@@ -77,18 +77,14 @@ def perform_download_packages_from_repository(dispatcher, intent):
 
 @attributes([
     "repository_path",
-    "existing_metadata",
 ])
 class CreateRepo(object):
     """
     Create repository metadata, and return filenames of new and changed
     metadata files.
 
-    Note that this returns a list with the prefixes stripped.
-
     :ivar FilePath repository_path: Location of rpm files to create a
         repository from.
-    :ivar set existing_metadata: Filenames of existing metadata files.
     """
 
 
@@ -107,12 +103,10 @@ def perform_create_repository(dispatcher, intent):
         b'--update',
         b'--quiet',
         intent.repository_path.path])
-    return _list_new_metadata(
-        repository_path=intent.repository_path,
-        existing_metadata=intent.existing_metadata)
+    return _list_new_metadata(repository_path=intent.repository_path)
 
 
-def _list_new_metadata(repository_path, existing_metadata):
+def _list_new_metadata(repository_path):
     """
     List the filenames of new and changed repository metadata files.
 
@@ -120,13 +114,8 @@ def _list_new_metadata(repository_path, existing_metadata):
         metadata from.
     :param set existing_metadata: Filenames of existing metadata files.
     """
-    all_metadata = set([path.basename() for path in
-                        repository_path.child('repodata').walk()])
-    new_metadata = all_metadata - existing_metadata
-
-    # Always update the index file.
-    changed_metadata = new_metadata | {'repomd.xml'}
-    return changed_metadata
+    return set([path.path for path in
+                repository_path.child('repodata').walk()])
 
 yum_dispatcher = TypeDispatcher({
     DownloadPackagesFromRepository: perform_download_packages_from_repository,
@@ -153,9 +142,7 @@ class FakeYum(object):
                          'primary.xml.gz']:
             metadata_directory.child(filename).setContent(
                 'metadata content for: ' + ','.join(packages))
-        return _list_new_metadata(
-                repository_path=intent.repository_path,
-                existing_metadata=intent.existing_metadata)
+        return _list_new_metadata(repository_path=intent.repository_path)
 
     def get_dispatcher(self):
         """

@@ -389,20 +389,15 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         distro_version=distro_version,
         ))
 
-    existing_metadata = yield Effect(
-        ListS3Keys(bucket=target_bucket,
-                   prefix=os.path.join(target_key, 'repodata/')))
-
-    changed_metadata = yield Effect(CreateRepo(
+    new_metadata = yield Effect(CreateRepo(
         repository_path=rpm_directory,
-        existing_metadata=existing_metadata,
         ))
 
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
         target_bucket=target_bucket,
         target_key=target_key,
-        files=downloaded_packages | changed_metadata,
+        files=downloaded_packages | new_metadata,
         ))
 
 
