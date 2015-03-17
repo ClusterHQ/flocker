@@ -1535,13 +1535,13 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
 
         node = Node(
             hostname=expected_hostname,
-            applications=frozenset({
+            applications={
                 Application(
                     name=u'mysql-clusterhq',
                     image=DockerImage.from_string(u"xxx")),
                 Application(name=u'site-clusterhq.com',
                             image=DockerImage.from_string(u"xxx"),
-                            volume=volume)}),
+                            volume=volume)},
             manifestations={expected_dataset.dataset_id:
                             volume.manifestation},
         )
