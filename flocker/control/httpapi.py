@@ -25,7 +25,7 @@ from ..restapi import (
 )
 from . import (
     Dataset, Manifestation, Node, Application, DockerImage, Port,
-    RestartOnFailure, RestartNever, RestartAlways
+    RestartOnFailure, RestartNever, RestartAlways, AttachedVolume
 )
 from ._config import ApplicationMarshaller
 from .. import __version__
@@ -61,6 +61,9 @@ DATASET_DELETED = make_bad_request(
     code=METHOD_NOT_ALLOWED, description=u"The dataset has been deleted.")
 DATASET_ON_DIFFERENT_NODE = make_bad_request(
     code=CONFLICT, description=u"The dataset is on another node.")
+DATASET_IN_USE = make_bad_request(
+    code=CONFLICT,
+    description=u"The dataset is being used by another container.")
 
 
 class ConfigurationAPIUserV1(object):
@@ -448,6 +451,15 @@ class ConfigurationAPIUserV1(object):
             raise DATASET_NOT_FOUND
         if not list(n for (_, n) in instances if n.hostname == host):
             raise DATASET_ON_DIFFERENT_NODE
+        if list(app for app in deployment.applications() if
+                app.volume and
+                app.volume.manifestation.dataset_id == volume[u"dataset_id"]):
+            raise DATASET_IN_USE
+
+        return AttachedVolume(
+            manifestation=[m for (m, node) in instances
+                           if node.hostname == host and m.primary][0],
+            mountpoint=FilePath(volume[u"mountpoint"].encode("utf-8")))
 
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
@@ -569,6 +581,7 @@ class ConfigurationAPIUserV1(object):
             image=DockerImage.from_string(image),
             ports=frozenset(application_ports),
             environment=environment,
+            volume=attached_volume,
             restart_policy=application_restart_policies[restart_policy["name"]]
         )
 
@@ -685,6 +698,9 @@ def container_configuration_response(application, node):
         "host": node, "name": application.name,
     }
     result.update(ApplicationMarshaller(application).convert())
+    # Configuration format isn't quite the same as JSON format:
+    if u"volume" in result:
+        result[u"volumes"] = [result.pop(u"volume")]
     return result
 
 
