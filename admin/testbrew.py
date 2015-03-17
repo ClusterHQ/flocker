@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2015 ClusterHQ.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Script to instantiate an OS X Virtual Machine to a snapshot with a clean
