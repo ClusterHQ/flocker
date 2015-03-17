@@ -9,6 +9,7 @@ from twisted.application.service import Service
 from ._model import Deployment
 
 
+# XXX This still needs to be updated for new model.
 class ClusterStateService(Service):
     """
     Store known current cluster state, and combine partial updates with
