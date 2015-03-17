@@ -115,7 +115,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'POSTGRES_VERSION': 9.4
             }
         },
- # Restart policy given but not a string
+        # Restart policy given but not a string
         {
             'host': '192.168.0.3',
             'image': 'postgres',
