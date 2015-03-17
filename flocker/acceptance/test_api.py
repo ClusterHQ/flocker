@@ -369,6 +369,59 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
         return d
 
+    def test_create_container_with_environment(self):
+        """
+        Create a container including environment variables on a single-node
+        cluster.
+        """
+        data = {
+            u"name": "my_env_container",
+            u"host": None,
+            u"image": "clusterhq/flaskenv:latest",
+            u"ports": [{u"internal": 8080, u"external": 8080}],
+            u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'}
+        }
+        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
+
+        def create_container(cluster, data):
+            data[u"host"] = cluster.nodes[0].address
+            return cluster.create_container(data)
+
+        d = waiting_for_cluster.addCallback(create_container, data)
+
+        def check_result((cluster, response)):
+            self.assertEqual(response, data)
+
+        def verify_socket(host, port):
+            def can_connect():
+                s = socket.socket()
+                conn = s.connect_ex((host, port))
+                return False if conn else True
+
+            dl = loop_until(can_connect)
+            return dl
+
+        def query_environment(host, port):
+            """
+            The running container, clusterhq/flaskenv, is a simple Flask app
+            that returns a JSON dump of the container's environment, so we
+            make an HTTP request and parse the response.
+            """
+            req = get(
+                "http://{host}:{port}".format(host=host, port=port),
+                persistent=False
+            ).addCallback(json_content)
+            return req
+
+        d.addCallback(check_result)
+        d.addCallback(lambda _: verify_socket(data[u"host"], 8080))
+        d.addCallback(lambda _: query_environment(data[u"host"], 8080))
+        d.addCallback(
+            lambda response:
+                self.assertDictContainsSubset(data[u"environment"], response)
+        )
+        return d
+
 
 class DatasetAPITests(TestCase):
     """

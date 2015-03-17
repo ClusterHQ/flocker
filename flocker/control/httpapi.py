@@ -436,7 +436,8 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"create container",
             u"create container with duplicate name",
-            u"create container with ports"
+            u"create container with ports",
+            u"create container with environment",
         ]
     )
     @structured(
@@ -446,7 +447,9 @@ class ConfigurationAPIUserV1(object):
             '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
         schema_store=SCHEMAS
     )
-    def create_container_configuration(self, host, name, image, ports=()):
+    def create_container_configuration(
+        self, host, name, image, ports=(), environment=None
+    ):
         """
         Create a new dataset in the cluster configuration.
 
@@ -461,6 +464,10 @@ class ConfigurationAPIUserV1(object):
 
         :param list ports: A ``list`` of ``dict`` objects, mapping internal
             to external ports for the container.
+
+        :param dict environment: A ``dict`` of key/value pairs to be supplied
+            to the container as environment variables. Keys and values must be
+            ``unicode``.
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -497,11 +504,15 @@ class ConfigurationAPIUserV1(object):
                 external_port=port['external']
             ))
 
+        if environment is not None:
+            environment = frozenset(environment.items())
+
         # Create Application object, add to Deployment, save.
         application = Application(
             name=name,
             image=DockerImage.from_string(image),
-            ports=frozenset(application_ports)
+            ports=frozenset(application_ports),
+            environment=environment
         )
 
         new_node_config = node.transform(
@@ -615,7 +626,7 @@ def container_configuration_response(application, node):
     """
     result = {
         "host": node, "name": application.name,
-        "image": application.image.full_name
+        "image": application.image.full_name,
     }
     if application.ports:
         result['ports'] = []
@@ -623,6 +634,8 @@ def container_configuration_response(application, node):
             result['ports'].append(dict(
                 internal=port.internal_port, external=port.external_port
             ))
+    if application.environment:
+        result['environment'] = dict(application.environment)
     return result
 
 
