@@ -392,7 +392,7 @@ class ContainerAPITests(TestCase):
         def check_result((cluster, response)):
             self.assertEqual(response, data)
 
-        def inspect_container(host, port):
+        def verify_socket(host, port):
             def can_connect():
                 s = socket.socket()
                 conn = s.connect_ex((host, port))
@@ -402,6 +402,11 @@ class ContainerAPITests(TestCase):
             return dl
 
         def query_environment(host, port):
+            """
+            The running container, clusterhq/flaskenv, is a simple Flask app
+            that returns a JSON dump of the container's environment, so we
+            make an HTTP request and parse the response.
+            """
             req = get(
                 "http://{host}:{port}".format(host=host, port=port),
                 persistent=False
@@ -409,13 +414,13 @@ class ContainerAPITests(TestCase):
             return req
 
         d.addCallback(check_result)
-        d.addCallback(lambda _: inspect_container(data[u"host"], 8080))
-        req = d.addCallback(lambda _: query_environment(data[u"host"], 8080))
-        req.addCallback(
+        d.addCallback(lambda _: verify_socket(data[u"host"], 8080))
+        d.addCallback(lambda _: query_environment(data[u"host"], 8080))
+        d.addCallback(
             lambda response:
                 self.assertDictContainsSubset(data[u"environment"], response)
         )
-        return req
+        return d
 
 
 class DatasetAPITests(TestCase):
