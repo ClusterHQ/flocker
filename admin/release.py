@@ -389,9 +389,7 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         distro_version=distro_version,
         ))
 
-    new_metadata = yield Effect(CreateRepo(
-        repository_path=rpm_directory,
-        ))
+    new_metadata = yield Effect(CreateRepo(repository_path=rpm_directory))
 
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,

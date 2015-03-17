@@ -862,11 +862,13 @@ class UploadRPMsTests(TestCase):
 
     def test_repository_added_to(self):
         """
-        Calling :func:`update_repo` does not delete packages which already
-        exist in S3.
+        Calling :func:`update_repo` does not delete packages or metadata which
+        already exist in S3.
         """
         existing_s3_keys = {
             os.path.join(self.target_key, 'existing_package.rpm'): '',
+            os.path.join(self.target_key, 'repodata', 'existing_metadata.xml'):
+                '',
         }
 
         aws = FakeAWS(
@@ -889,8 +891,8 @@ class UploadRPMsTests(TestCase):
             distro_version=self.operating_systems[0]['version'],
         )
 
-        # The expected packages are the new packages plus the package which
-        # already existed in S3.
+        # The expected files are the new files plus the package which already
+        # existed in S3.
         expected_keys = existing_s3_keys.copy()
         expected_keys.update({
             os.path.join(self.target_key, package): self.repo_contents[package]
