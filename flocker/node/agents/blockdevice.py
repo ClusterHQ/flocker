@@ -137,23 +137,23 @@ def _losetup_list_parse(output):
     """
     devices = []
     for line in output.splitlines():
-        parts = line.split(':', 2)
+        parts = line.split(u":", 2)
         if len(parts) != 3:
             continue
         device_file, attributes, backing_file = parts
-        device_file = FilePath(device_file.strip())
+        device_file = FilePath(device_file.strip().encode("utf-8"))
 
         # Trim everything from the first left bracket, skipping over the
         # possible inode number which appears only when run as root.
-        left_bracket_offset = backing_file.find('(')
-        backing_file = backing_file[left_bracket_offset+1:]
+        left_bracket_offset = backing_file.find(b"(")
+        backing_file = backing_file[left_bracket_offset + 1:]
 
         # Trim everything from the right most right bracket
-        right_bracket_offset = backing_file.rfind(')')
+        right_bracket_offset = backing_file.rfind(b")")
         backing_file = backing_file[:right_bracket_offset]
 
         # Trim a possible embedded deleted flag
-        expected_suffix_list = ['(deleted)']
+        expected_suffix_list = [b"(deleted)"]
         for suffix in expected_suffix_list:
             offset = backing_file.rfind(suffix)
             if offset > -1:
@@ -162,7 +162,7 @@ def _losetup_list_parse(output):
         # Remove the space that may have been between the path and the deleted
         # flag.
         backing_file = backing_file.rstrip()
-        backing_file = FilePath(backing_file)
+        backing_file = FilePath(backing_file.encode("utf-8"))
         devices.append((device_file, backing_file))
     return devices
 
