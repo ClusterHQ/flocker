@@ -118,12 +118,7 @@ class IRestartPolicy(Interface):
 
 
 @implementer(IRestartPolicy)
-<<<<<<< HEAD
-@attributes([Attribute("name", default_value=u"never")], apply_immutable=True)
-class RestartNever(object):
-=======
 class RestartNever(PRecord):
->>>>>>> 64e9f8ed60f7f3d8e9eadabe775df39a77dcd70c
     """
     A restart policy that never restarts an application.
     """
