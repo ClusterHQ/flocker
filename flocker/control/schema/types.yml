@@ -52,7 +52,9 @@ definitions:
     oneOf:
     - additionalProperties: false
       properties:
-        maximum_retry_count: {minimum: 1, type: integer}
+        maximum_retry_count:
+          minimum: 1
+          type: integer
         name:
           enum:
             - "on-failure"
