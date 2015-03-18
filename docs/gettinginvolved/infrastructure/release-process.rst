@@ -350,8 +350,16 @@ Release
         git commit -m "New Homebrew recipe"
         git push
 
-   - Follow the :ref:`Flocker client installation documentation for OS X<installing-flocker-cli-osx>`.
-     These instructions should be taken from the release documentation built for this tag by Buildbot.
+   - Test Homebrew on OS X:
+
+     Export the version number of the release being completed as an environment variable:
+
+     .. prompt:: bash [osx-user]$
+
+        export VERSION=0.1.2
+
+     .. task:: test_homebrew flocker-${VERSION}
+           :prompt: [osx-user]$
 
 #. Update the documentation.
 
