@@ -212,25 +212,6 @@ class ApplicationMarshaller(object):
         config['restart_policy'] = self.convert_restart_policy()
         return config
 
-    def convert_memory_limit(self):
-        """
-        :returns: ``None`` if there is no memory limit specified on this
-        application, otherwise an ``int`` representing the memory limit
-        in bytes.
-        """
-        return self._application.memory_limit
-
-    def convert_cpu_shares(self):
-        """
-        :returns: ``None`` if there is no CPU shares weighting on this
-        application, otherwise an ``int`` representing the CPU shares.
-        """
-        return self._application.cpu_shares
-
-=======
-        return config
-
->>>>>>> ac0017f934e1034bcd05b52b5b0afb8c8e588dfd
     def convert_restart_policy(self):
         """
         :returns: A ``dict`` of ``IRestartPolicy`` attributes in a format

@@ -497,14 +497,20 @@ class CreateContainerTestsMixin(APITestsMixin):
             u"host": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"cpu_shares": 512
         }]
-        applications = [
-            Application(
-                name='webserver',
-                image=DockerImage.from_string('nginx'),
-                cpu_shares=512
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        cpu_shares=512
+                    ),
+                ]
             ),
-        ]
-        return self._test_create_container(request_data, applications)
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
 
     def test_create_container_with_cpu_shares_response(self):
         """
