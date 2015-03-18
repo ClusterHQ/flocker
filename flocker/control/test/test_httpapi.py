@@ -539,14 +539,20 @@ class CreateContainerTestsMixin(APITestsMixin):
             u"host": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"memory_limit": 262144000
         }]
-        applications = [
-            Application(
-                name='webserver',
-                image=DockerImage.from_string('nginx'),
-                memory_limit=262144000
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        memory_limit=262144000
+                    ),
+                ]
             ),
-        ]
-        return self._test_create_container(request_data, applications)
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
 
     def test_create_container_with_memory_limit_response(self):
         """
