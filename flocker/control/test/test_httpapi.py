@@ -493,42 +493,24 @@ class CreateContainerTestsMixin(APITestsMixin):
         A valid API request to create a container including CPU shares
         results in an updated configuration.
         """
-        saving = self.persistence_service.save(Deployment(
-            nodes={
-                Node(hostname=self.NODE_A),
-                Node(hostname=self.NODE_B),
-            }
-        ))
-
-        saving.addCallback(lambda _: self.assertResponseCode(
-            b"POST", b"/configuration/containers",
-            {
-                u"host": self.NODE_A, u"name": u"webserver",
-                u"image": u"nginx", u"cpu_shares": 512
-            }, CREATED
-        ))
-
-        def created(_):
-            deployment = self.persistence_service.get()
-            expected = Deployment(
-                nodes={
-                    Node(
-                        hostname=self.NODE_A,
-                        applications=[
-                            Application(
-                                name='webserver',
-                                image=DockerImage.from_string('nginx'),
-                                cpu_shares=512
-                            ),
-                        ]
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"cpu_shares": 512
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        cpu_shares=512
                     ),
-                    Node(hostname=self.NODE_B),
-                }
-            )
-            self.assertEqual(deployment, expected)
-
-        saving.addCallback(created)
-        return saving
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
 
     def test_create_container_with_cpu_shares_response(self):
         """
