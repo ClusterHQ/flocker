@@ -23,7 +23,9 @@ Tutorial Box (:file:`vagrant/tutorial`)
 Building
 ^^^^^^^^
 
-To build one of the above boxes, install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory:
+To build one of the above boxes,
+upgrade VirtualBox and Vagrant to the latest versions,
+install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory:
 
 .. code-block:: sh
 
