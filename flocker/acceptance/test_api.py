@@ -277,7 +277,7 @@ class ContainerAPITests(TestCase):
             u"name": "my_env_container",
             u"host": None,
             u"image": "clusterhq/flaskenv:latest",
-            u"ports": [{u"internal": 8080, u"external": 8080}],
+            u"ports": [{u"internal": 8080, u"external": 8081}],
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'}
         }
         waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
@@ -313,8 +313,8 @@ class ContainerAPITests(TestCase):
             return req
 
         d.addCallback(check_result)
-        d.addCallback(lambda _: verify_socket(data[u"host"], 8080))
-        d.addCallback(lambda _: query_environment(data[u"host"], 8080))
+        d.addCallback(lambda _: verify_socket(data[u"host"], 8081))
+        d.addCallback(lambda _: query_environment(data[u"host"], 8081))
         d.addCallback(
             lambda response:
                 self.assertDictContainsSubset(data[u"environment"], response)
