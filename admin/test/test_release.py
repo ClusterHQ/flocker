@@ -1066,6 +1066,9 @@ class UploadRPMsTests(TestCase):
         )
 
         index_path = os.path.join(self.target_key, 'repodata', 'repomd.xml')
+        # There are two buckets. One had existing packages on S3. One had
+        # no existing packages on S3. This tests that the repository metadata
+        # index is different for each of these buckets.
         self.assertNotEqual(
             aws.s3_buckets[self.target_bucket][index_path],
             aws.s3_buckets[self.alternative_bucket][index_path])
