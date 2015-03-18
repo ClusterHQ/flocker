@@ -453,7 +453,7 @@ class ConfigurationAPIUserV1(object):
     )
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
-        restart_policy=None
+        restart_policy=None, cpu_shares=None
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -481,6 +481,10 @@ class ConfigurationAPIUserV1(object):
             "maximum_retry_count", containing a positive ``int`` specifying
             the maximum number of times we should attempt to restart a failed
             container.
+
+        :param int cpu_shares: A positive integer specifying the relative
+            weighting of CPU cycles for this container (see Docker's run
+            reference for further information).
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -533,7 +537,8 @@ class ConfigurationAPIUserV1(object):
             image=DockerImage.from_string(image),
             ports=frozenset(application_ports),
             environment=environment,
-            restart_policy=policy
+            restart_policy=policy,
+            cpu_shares=cpu_shares
         )
 
         new_node_config = node.transform(

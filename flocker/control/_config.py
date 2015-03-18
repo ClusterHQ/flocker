@@ -210,7 +210,17 @@ class ApplicationMarshaller(object):
         if volume:
             config['volume'] = volume
         config['restart_policy'] = self.convert_restart_policy()
+        cpu_shares = self.convert_cpu_shares()
+        if cpu_shares:
+            config['cpu_shares'] = cpu_shares
         return config
+
+    def convert_cpu_shares(self):
+        """
+        :returns: ``None`` if there is CPU shares weighting on this
+        application, otherwise an ``int`` representing the CPU shares.
+        """
+        return self._application.cpu_shares
 
     def convert_restart_policy(self):
         """
