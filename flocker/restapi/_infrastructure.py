@@ -21,7 +21,7 @@ from eliot.twisted import DeferredContext
 
 from ._error import (
     ILLEGAL_CONTENT_TYPE, DECODING_ERROR, BadRequest, InvalidRequestJSON)
-from ._logging import LOG_SYSTEM, REQUEST
+from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
 from ._schema import getValidator
 
 _ASCENDING = b"ascending"
@@ -47,6 +47,22 @@ class EndpointResponse(object):
         self.result = result
 
 
+def _get_logger(self):
+    """
+    Find the specific or default ``Logger``.
+
+    :return: A ``Logger`` object.
+    """
+    try:
+        logger = self.logger
+    except AttributeError:
+        return _logger
+    else:
+        if logger is None:
+            logger = _logger
+        return logger
+
+
 def _logging(original):
     """
     Decorate a method which implements an API endpoint to add Eliot-based
@@ -58,16 +74,10 @@ def _logging(original):
     """
     @wraps(original)
     def logger(self, request, **routeArguments):
-        try:
-            logger = self.logger
-        except AttributeError:
-            logger = _logger
-        else:
-            if logger is None:
-                logger = _logger
+        logger = _get_logger(self)
 
-        path = repr(request.path).decode("ascii")
-        action = REQUEST(logger, request_path=path)
+        action = REQUEST(logger, request_path=request.path,
+                         method=request.method)
 
         # Generate a serialized action context that uniquely identifies
         # position within the logs, though there won't actually be any log
@@ -181,14 +191,28 @@ def structured(inputSchema, outputSchema, schema_store=None):
                 if errors:
                     raise InvalidRequestJSON(errors=errors, schema=inputSchema)
 
-            # Just assume there are no conflicts between these collections
-            # of arguments right now.  When there is a schema for the JSON
-            # hopefully we can do some static verification that no routing
-            # arguments conflict with any top-level keys in the request
-            # body and then we can be sure there are no conflicts here.
-            objects.update(routeArguments)
+            eliot_action = JSON_REQUEST(_get_logger(self), json=objects.copy())
+            with eliot_action.context():
+                # Just assume there are no conflicts between these collections
+                # of arguments right now.  When there is a schema for the JSON
+                # hopefully we can do some static verification that no routing
+                # arguments conflict with any top-level keys in the request
+                # body and then we can be sure there are no conflicts here.
+                objects.update(routeArguments)
 
-            return maybeDeferred(original, self, **objects)
+                d = DeferredContext(maybeDeferred(original, self, **objects))
+
+                def got_result(result):
+                    code = OK
+                    json = result
+                    if isinstance(result, EndpointResponse):
+                        code = result.code
+                        json = result.result
+                    eliot_action.add_success_fields(code=code, json=json)
+                    return result
+                d.addCallback(got_result)
+                d.addActionFinish()
+                return d.result
 
         loadAndDispatch.inputSchema = inputSchema
         loadAndDispatch.outputSchema = outputSchema
