@@ -12,7 +12,7 @@ from zope.interface.verify import verifyObject
 from characteristic import attributes, Attribute
 
 from eliot import ActionType, start_action, MemoryLogger, Logger
-from eliot.testing import validate_logging, assertHasAction
+from eliot.testing import validate_logging, assertHasAction, LoggedAction
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
@@ -20,7 +20,7 @@ from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError, AMP
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
 
@@ -627,7 +627,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         self.patch(control_amp_service, 'logger', logger)
 
         connection_protocol = ControlAMP(control_amp_service)
-        connection_protocol.makeConnection(StringTransport())
+        connection_protocol.callRemote = lambda *args, **kwargs: succeed({})
 
         control_amp_service._send_state_to_connections(
             connections=[connection_protocol])
@@ -654,3 +654,29 @@ class SendStateToConnectionsTests(SynchronousTestCase):
                 "agent": connection_protocol,
             }
         )
+
+    @validate_logging(None)
+    def test_error_sending(self, logger):
+        """
+        An error sending to one agent does not prevent others from being
+        notified.
+        """
+        control_amp_service = build_control_amp_service(self)
+        self.patch(control_amp_service, 'logger', logger)
+
+        connection_protocol = ControlAMP(control_amp_service)
+        connection_protocol.callRemote = lambda *args, **kwargs: succeed({})
+
+        error = ConnectionLost()
+        disconnected_protocol = ControlAMP(control_amp_service)
+        disconnected_protocol.callRemote = lambda *args, **kwargs: fail(
+            error)
+
+        control_amp_service._send_state_to_connections(
+            connections=[disconnected_protocol, connection_protocol])
+
+        actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
+        self.assertEqual(
+            (actions[1].succeeded, actions[0].succeeded,
+             actions[0].end_message["exception"]),
+            (True, False, u"twisted.internet.error.ConnectionLost"))
