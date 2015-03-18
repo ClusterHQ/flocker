@@ -6,7 +6,7 @@ Tests for ``flocker.control._persistence``.
 
 from uuid import uuid4
 
-from eliot.testing import validate_logging
+from eliot.testing import validate_logging, assertHasMessage, assertHasAction
 
 from twisted.internet import reactor
 from twisted.trial.unittest import TestCase, SynchronousTestCase
@@ -16,6 +16,7 @@ from pyrsistent import PRecord
 
 from .._persistence import (
     ConfigurationPersistenceService, wire_decode, wire_encode,
+    _LOG_SAVE, _LOG_STARTUP,
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
@@ -42,15 +43,18 @@ class ConfigurationPersistenceServiceTests(TestCase):
     """
     Tests for ``ConfigurationPersistenceService``.
     """
-    def service(self, path):
+    def service(self, path, logger=None):
         """
         Start a service, schedule its stop.
 
         :param FilePath path: Where to store data.
+        :param logger: Optional eliot ``Logger`` to set before startup.
 
         :return: Started ``ConfigurationPersistenceService``.
         """
         service = ConfigurationPersistenceService(reactor, path)
+        if logger:
+            self.patch(service, "logger", logger)
         service.startService()
         self.addCleanup(service.stopService)
         return service
@@ -79,17 +83,21 @@ class ConfigurationPersistenceServiceTests(TestCase):
         self.service(path)
         self.assertTrue(path.child(b"current_configuration.v1.json").exists())
 
-    def test_save_then_get(self):
+    @validate_logging(assertHasAction, _LOG_SAVE, True,
+                      dict(configuration=TEST_DEPLOYMENT))
+    def test_save_then_get(self, logger):
         """
         A configuration that was saved can subsequently retrieved.
         """
-        service = self.service(FilePath(self.mktemp()))
+        service = self.service(FilePath(self.mktemp()), logger)
         d = service.save(TEST_DEPLOYMENT)
         d.addCallback(lambda _: service.get())
         d.addCallback(self.assertEqual, TEST_DEPLOYMENT)
         return d
 
-    def test_persist_across_restarts(self):
+    @validate_logging(assertHasMessage, _LOG_STARTUP,
+                      dict(configuration=TEST_DEPLOYMENT))
+    def test_persist_across_restarts(self, logger):
         """
         A configuration that was saved can be loaded from a new service.
         """
@@ -100,7 +108,7 @@ class ConfigurationPersistenceServiceTests(TestCase):
         d.addCallback(lambda _: service.stopService())
 
         def retrieve_in_new_service(_):
-            new_service = self.service(path)
+            new_service = self.service(path, logger)
             self.assertEqual(new_service.get(), TEST_DEPLOYMENT)
         d.addCallback(retrieve_in_new_service)
         return d
@@ -133,8 +141,7 @@ class ConfigurationPersistenceServiceTests(TestCase):
         """
         Failed callbacks don't prevent later callbacks from being called.
         """
-        service = self.service(FilePath(self.mktemp()))
-        self.patch(service, "logger", logger)
+        service = self.service(FilePath(self.mktemp()), logger)
         l = []
         service.register(lambda: 1/0)
         service.register(lambda: l.append(1))

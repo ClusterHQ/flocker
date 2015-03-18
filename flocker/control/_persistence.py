@@ -6,7 +6,7 @@ Persistence of cluster configuration.
 
 from json import dumps, loads, JSONEncoder
 
-from eliot import Logger, write_traceback
+from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
 from pyrsistent import PRecord, PVector, PMap, PSet
 
@@ -72,6 +72,13 @@ def wire_decode(data):
     return loads(data, object_hook=decode_object)
 
 
+_DEPLOYMENT_FIELD = Field(u"configuration", repr)
+_LOG_STARTUP = MessageType(u"flocker-control:persistence:startup",
+                           [_DEPLOYMENT_FIELD])
+_LOG_SAVE = ActionType(u"flocker-control:persistence:save",
+                       [_DEPLOYMENT_FIELD], [])
+
+
 class ConfigurationPersistenceService(Service):
     """
     Persist configuration to disk, and load it back.
@@ -99,6 +106,7 @@ class ConfigurationPersistenceService(Service):
         else:
             self._deployment = Deployment(nodes=frozenset())
             self._sync_save(self._deployment)
+        _LOG_STARTUP(configuration=self.get()).write(self.logger)
 
     def register(self, change_callback):
         """
@@ -121,19 +129,20 @@ class ConfigurationPersistenceService(Service):
 
         :return Deferred: Fires when write is finished.
         """
-        self._sync_save(deployment)
-        self._deployment = deployment
-        # At some future point this will likely involve talking to a
-        # distributed system (e.g. ZooKeeper or etcd), so the API doesn't
-        # guarantee immediate saving of the data.
-        for callback in self._change_callbacks:
-            try:
-                callback()
-            except:
-                # Second argument will be ignored in next Eliot release, so
-                # not bothering with particular value.
-                write_traceback(self.logger, u"")
-        return succeed(None)
+        with _LOG_SAVE(self.logger, configuration=deployment):
+            self._sync_save(deployment)
+            self._deployment = deployment
+            # At some future point this will likely involve talking to a
+            # distributed system (e.g. ZooKeeper or etcd), so the API doesn't
+            # guarantee immediate saving of the data.
+            for callback in self._change_callbacks:
+                try:
+                    callback()
+                except:
+                    # Second argument will be ignored in next Eliot release, so
+                    # not bothering with particular value.
+                    write_traceback(self.logger, u"")
+            return succeed(None)
 
     def get(self):
         """
