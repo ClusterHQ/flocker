@@ -69,8 +69,6 @@ You'll need to do this every time you start a new shell.
    |latest-installable|
    alice@mercury:~/flocker-tutorial$
 
-.. _installing-flocker-cli-osx:
-
 OS X
 ----
 
