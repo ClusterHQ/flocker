@@ -424,6 +424,68 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json
         )
 
+    def test_create_container_with_cpu_shares(self):
+        """
+        A valid API request to create a container including CPU shares
+        results in an updated configuration.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx", u"cpu_shares": 512
+            }, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='webserver',
+                                image=DockerImage.from_string('nginx'),
+                                cpu_shares=512
+                            ),
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_create_container_with_cpu_shares_response(self):
+        """
+        A valid API request to create a container including CPU shares
+        returns the CPU shares supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"cpu_shares": 512
+        }
+        container_json_response = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"cpu_shares": 512,
+            u"restart_policy": {u"name": "never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_response
+        )
+
     def _test_conflicting_ports(self, node1, node2):
         """
         Utility method to create two containers with the same ports on two
