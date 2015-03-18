@@ -59,6 +59,7 @@ JAILBREAK_PREFIX = [
     # switch away from SSH soon.
     b"-o", b"PreferredAuthentications=publickey",
     b"-p", b"%d" % (22,), my_ip,
+    b"PATH=$PATH:/home/core/gentoo/sbin",
 ]
 
 
