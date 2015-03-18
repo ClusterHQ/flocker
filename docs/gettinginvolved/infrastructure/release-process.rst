@@ -254,7 +254,7 @@ Release
 
       export VERSION=0.1.2
 
-#. Create a clean, local copy of the Flocker release branches and `homebrew-tap`_ master  with no modifications:
+#. Create a clean, local copy of the Flocker release branch and `homebrew-tap`_ master  with no modifications:
 
    .. prompt:: bash [vagrant@localhost]$
 
