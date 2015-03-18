@@ -54,7 +54,8 @@ definitions:
       properties:
         maximum_retry_count: {minimum: 1, type: integer}
         name:
-          enum: [on-failure]
+          enum:
+            - "on-failure"
           type: string
       type: object
       required:
@@ -62,7 +63,9 @@ definitions:
     - additionalProperties: false
       properties:
         name:
-          enum: [never, always]
+          enum:
+            - "never"
+            - "always"
           type: string
       type: object
       required:
