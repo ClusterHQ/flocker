@@ -444,6 +444,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with restart policy",
             u"create container with cpu shares",
             u"create container with memory limit",
+            u"create container with links",
         ]
     )
     @structured(
@@ -455,7 +456,8 @@ class ConfigurationAPIUserV1(object):
     )
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
-        restart_policy=None, cpu_shares=None, memory_limit=None
+        restart_policy=None, cpu_shares=None, memory_limit=None,
+        links=None
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -490,6 +492,9 @@ class ConfigurationAPIUserV1(object):
 
         :param int memory_limit: A positive integer specifying the maximum
             amount of memory in bytes available to this container.
+
+        :param list links: A ``list`` of ``dict`` objects, mapping container
+            links via "alias", "local_port" and "remote_port" values.
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -536,6 +541,8 @@ class ConfigurationAPIUserV1(object):
         policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
         policy = policy_factory(**restart_policy)
 
+        application_links = []
+
         # Create Application object, add to Deployment, save.
         application = Application(
             name=name,
@@ -544,7 +551,8 @@ class ConfigurationAPIUserV1(object):
             environment=environment,
             restart_policy=policy,
             cpu_shares=cpu_shares,
-            memory_limit=memory_limit
+            memory_limit=memory_limit,
+            links=frozenset(application_links)
         )
 
         new_node_config = node.transform(
