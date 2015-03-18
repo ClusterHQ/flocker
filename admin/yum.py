@@ -9,6 +9,7 @@ from requests_file import FileAdapter
 from characteristic import attributes
 from effect import sync_performer, TypeDispatcher
 from subprocess import check_call
+from hashlib import md5
 
 
 @attributes([
@@ -138,10 +139,17 @@ class FakeYum(object):
         packages = set([
             file for file in
             intent.repository_path.listdir() if file.endswith('rpm')])
-        for filename in ['repomd.xml', 'filelists.xml.gz', 'other.xml.gz',
+
+        index_filename = 'repomd.xml'
+        for filename in [index_filename, 'filelists.xml.gz', 'other.xml.gz',
                          'primary.xml.gz']:
-            metadata_directory.child(filename).setContent(
-                'metadata content for: ' + ','.join(packages))
+            content = 'metadata content for: ' + ','.join(packages)
+
+            if filename != index_filename:
+                # The index filename is always the same
+                filename = md5(filename).hexdigest()
+            metadata_directory.child(filename).setContent(content)
+
         return _list_new_metadata(repository_path=intent.repository_path)
 
     def get_dispatcher(self):
