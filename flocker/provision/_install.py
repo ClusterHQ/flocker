@@ -433,3 +433,27 @@ def configure_cluster(control_node, agent_nodes):
                 control_node=control_node,
             ),
         )
+
+
+def stop_cluster(control_node, agent_nodes):
+    """
+    Stop flocker-control and flocker-agent on a collection of nodes.
+
+    :param bytes control_node: The address of the control node.
+    :param list agent_nodes: List of addresses of agent nodes.
+    """
+    run(
+        username='root',
+        address=control_node,
+        commands=[
+            Run.from_args(['systemctl', 'stop', 'flocker-control']),
+        ],
+    )
+    for node in agent_nodes:
+        run(
+            username='root',
+            address=node,
+            commands=[
+                Run.from_args(['systemctl', 'stop', 'flocker-agent']),
+            ],
+        )

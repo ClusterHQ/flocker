@@ -23,6 +23,8 @@ from ..control import (
 )
 from flocker.testtools import loop_until
 
+from flocker.provision._install import stop_cluster
+
 try:
     from pymongo import MongoClient
     from pymongo.errors import ConnectionFailure
@@ -201,6 +203,18 @@ def _clean_node(test_case, node):
             [b"flocker"], None)
 
 
+def _stop_acceptance_cluster(test_case):
+    """
+    Stop the Flocker cluster configured for the accpetance tests.
+    """
+    control_node = environ.pop("FLOCKER_ACCEPTANCE_CONTROL_NODE", None)
+    agent_nodes_env_var = environ.pop("FLOCKER_ACCEPTANCE_AGENT_NODES", "")
+    agent_nodes = filter(None, agent_nodes_env_var.split(':'))
+
+    if control_node and agent_nodes:
+        stop_cluster(control_node, agent_nodes)
+
+
 def get_nodes(test_case, num_nodes):
     """
     Create or get ``num_nodes`` nodes with no Docker containers on them.
@@ -218,6 +232,8 @@ def get_nodes(test_case, num_nodes):
 
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
+    _stop_acceptance_cluster()
+
     nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_NODES")
 
     if nodes_env_var is None:
