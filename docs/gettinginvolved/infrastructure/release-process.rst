@@ -350,7 +350,8 @@ Release
         git commit -m "New Homebrew recipe"
         git push
 
-   - Test Homebrew on OS X:
+   - Test Homebrew on OS X.
+     ClusterHQ has a Mac Mini available with instructions for launching a Virtual Machine to do this with:
 
      Export the version number of the release being completed as an environment variable:
 
