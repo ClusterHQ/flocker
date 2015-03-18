@@ -2,7 +2,7 @@
 Description=Flocker Control Service
 
 [Service]
-ExecStart=/usr/sbin/flocker-control -p systemd:0 -a systemd:1
+ExecStart=/usr/sbin/flocker-control -p systemd:INET:0 -a systemd:INET:1
 Sockets=flocker-control-api.socket flocker-control-agent.socket
 NonBlocking=true
 
