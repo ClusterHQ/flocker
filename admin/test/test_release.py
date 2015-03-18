@@ -1007,17 +1007,18 @@ class UploadRPMsTests(TestCase):
         )
 
         repodata_files = [
-            key for key in aws.s3_buckets[self.target_bucket] if
+            key[len(self.target_key) + len('/repodata/'):] for key in
+            aws.s3_buckets[self.target_bucket] if
             key.startswith(os.path.join(self.target_key, 'repodata'))]
 
         # The hashes used in the fake aren't going to be the same as the
         # hashes in the real implementation. What matters is that they change
         # depending on the package names.
         expected_repodata = [
-            'test/target/key/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
-            'test/target/key/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
-            'test/target/key/repodata/repomd.xml',  # noqa
-            'test/target/key/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',
+            '90ea647eafe44d1479109c1c4093ab48-other.xml.gz',
+            'repomd.xml',
+            '3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',
         ]
         self.assertEqual(sorted(repodata_files), sorted(expected_repodata))
 
