@@ -1,6 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 from characteristic import attributes, Attribute
+from twisted.python.constants import Values, ValueConstant
 
 
 @attributes([
@@ -22,3 +23,17 @@ class PackageSource(object):
     :ivar bytes build_server: The builderver to install from.
         Only meaningful if a branch is specified.
     """
+
+
+class Variants(Values):
+    """
+    Provisioning variants for wider acceptance testing coverage.
+
+    :ivar DISTRO_TESTING: Install packages from the distribution's
+        proposed-updates repository.
+    :ivar DOCKER_HEAD: Install docker from a repository tracking docker HEAD.
+    :ivar ZFS_TESTING: Install latest zfs build.
+    """
+    DISTRO_TESTING = ValueConstant("distro-testing")
+    DOCKER_HEAD = ValueConstant("docker-head")
+    ZFS_TESTING = ValueConstant("zfs-testing")
