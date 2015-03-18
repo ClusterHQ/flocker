@@ -13,6 +13,8 @@ from characteristic import attributes
 
 from ._common import PackageSource
 
+from flocker.cli import configure_ssh
+
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                  "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
@@ -348,6 +350,7 @@ def configure_cluster(control_node, agent_nodes):
         commands=task_enable_flocker_control(),
     )
     for node in agent_nodes:
+        configure_ssh(node, 22)
         run(
             username='root',
             address=node,
