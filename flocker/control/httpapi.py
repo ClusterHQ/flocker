@@ -25,9 +25,10 @@ from ..restapi import (
 )
 from . import (
     Dataset, Manifestation, Node, Application, DockerImage, Port,
-    RestartOnFailure, RestartNever, RestartAlways
 )
-from ._config import ApplicationMarshaller
+from ._config import (
+    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
+)
 from .. import __version__
 
 
@@ -522,17 +523,9 @@ class ConfigurationAPIUserV1(object):
         if restart_policy is None:
             restart_policy = dict(name=u"never")
 
-        maximum_retry_count = None
-        if "maximum_retry_count" in restart_policy:
-            maximum_retry_count = restart_policy["maximum_retry_count"]
-
-        application_restart_policies = {
-            u"never": RestartNever(),
-            u"on-failure": RestartOnFailure(
-                maximum_retry_count=maximum_retry_count
-            ),
-            u"always": RestartAlways(),
-        }
+        policy_name = restart_policy.pop("name")
+        policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
+        policy = policy_factory(**restart_policy)
 
         # Create Application object, add to Deployment, save.
         application = Application(
@@ -540,7 +533,7 @@ class ConfigurationAPIUserV1(object):
             image=DockerImage.from_string(image),
             ports=frozenset(application_ports),
             environment=environment,
-            restart_policy=application_restart_policies[restart_policy["name"]]
+            restart_policy=policy
         )
 
         new_node_config = node.transform(
