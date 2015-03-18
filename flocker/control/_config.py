@@ -210,12 +210,6 @@ class ApplicationMarshaller(object):
         if volume:
             config['volume'] = volume
         config['restart_policy'] = self.convert_restart_policy()
-        cpu_shares = self.convert_cpu_shares()
-        if cpu_shares:
-            config['cpu_shares'] = cpu_shares
-        memory_limit = self.convert_memory_limit()
-        if memory_limit:
-            config['memory_limit'] = memory_limit
         return config
 
     def convert_memory_limit(self):
@@ -233,6 +227,10 @@ class ApplicationMarshaller(object):
         """
         return self._application.cpu_shares
 
+=======
+        return config
+
+>>>>>>> ac0017f934e1034bcd05b52b5b0afb8c8e588dfd
     def convert_restart_policy(self):
         """
         :returns: A ``dict`` of ``IRestartPolicy`` attributes in a format

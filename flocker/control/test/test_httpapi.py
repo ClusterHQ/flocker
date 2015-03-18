@@ -31,7 +31,7 @@ from ...restapi.testtools import (
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
-    RestartAlways
+    RestartAlways, RestartNever
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -228,6 +228,43 @@ class CreateContainerTestsMixin(APITestsMixin):
         ))
         return d
 
+    def _test_create_container(self, request_data, node_data):
+        """
+        Utility method to create one or more containers via the API and
+        compare the result to an expected deployment.
+
+        :param list request_data: A ``list`` of ``dict`` instances representing
+            the JSON data for one or more API requests.
+        :param list node_data: A ``set`` of ``Node`` instances that
+            are expected to be deployed.
+        :return: A ``Deferred`` that fires with an assertion on the deployment
+            result.
+
+            request_data, applications
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        for request in request_data:
+            saving.addCallback(lambda _: self.assertResponseCode(
+                b"POST", b"/configuration/containers",
+                request, CREATED
+            ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes=node_data
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
     def test_container_name_collision_same_node(self):
         """
         A container will not be created if a container with the same name
@@ -314,83 +351,110 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json_result
         )
 
-    def test_create_containers_with_restart_policies(self):
+    def test_create_containers_with_restart_policy_always(self):
         """
         A valid API request to create a container including a restart policy
-        results in an updated configuration.
+        of "always" results in an updated configuration.
         """
-        saving = self.persistence_service.save(Deployment(
-            nodes={
-                Node(hostname=self.NODE_A),
-                Node(hostname=self.NODE_B),
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"always"
             }
-        ))
-
-        saving.addCallback(lambda _: self.assertResponseCode(
-            b"POST", b"/configuration/containers",
-            {
-                u"host": self.NODE_A, u"name": u"webserver",
-                u"image": u"nginx", u"restart_policy": {
-                    u"name": u"on-failure", u"maximum_retry_count": 5
-                }
-            }, CREATED
-        ))
-
-        saving.addCallback(lambda _: self.assertResponseCode(
-            b"POST", b"/configuration/containers",
-            {
-                u"host": self.NODE_A, u"name": u"webserver2",
-                u"image": u"nginx", u"restart_policy": {
-                    u"name": u"always"
-                }
-            }, CREATED
-        ))
-
-        saving.addCallback(lambda _: self.assertResponseCode(
-            b"POST", b"/configuration/containers",
-            {
-                u"host": self.NODE_A, u"name": u"webserver3",
-                u"image": u"nginx", u"restart_policy": {
-                    u"name": u"on-failure"
-                }
-            }, CREATED
-        ))
-
-        def created(_):
-            deployment = self.persistence_service.get()
-            expected = Deployment(
-                nodes={
-                    Node(
-                        hostname=self.NODE_A,
-                        applications=[
-                            Application(
-                                name='webserver',
-                                image=DockerImage.from_string('nginx'),
-                                restart_policy=RestartOnFailure(
-                                    maximum_retry_count=5
-                                )
-                            ),
-                            Application(
-                                name='webserver2',
-                                image=DockerImage.from_string('nginx'),
-                                restart_policy=RestartAlways()
-                            ),
-                            Application(
-                                name='webserver3',
-                                image=DockerImage.from_string('nginx'),
-                                restart_policy=RestartOnFailure(
-                                    maximum_retry_count=None
-                                )
-                            ),
-                        ]
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartAlways()
                     ),
-                    Node(hostname=self.NODE_B),
-                }
-            )
-            self.assertEqual(deployment, expected)
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
 
-        saving.addCallback(created)
-        return saving
+    def test_create_containers_with_restart_policy_onfailure(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "on-failure" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"on-failure", u"maximum_retry_count": 5
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartOnFailure(
+                            maximum_retry_count=5
+                        )
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_never(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "never" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"never"
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartNever()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_never_default(self):
+        """
+        A valid API request to create a container with no restart policy
+        specified results in an updated configuration with a default restart
+        policy for this container of "never".
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx"
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartNever()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
 
     def test_create_container_with_restart_policy_onfailure_response(self):
         """
@@ -448,18 +512,16 @@ class CreateContainerTestsMixin(APITestsMixin):
         returns the CPU shares supplied in the request in the response
         JSON.
         """
-        container_json = {
+        container_json = pmap({
             u"host": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"cpu_shares": 512
-        }
-        container_json_response = {
-            u"host": self.NODE_B, u"name": u"webserver",
-            u"image": u"nginx:latest", u"cpu_shares": 512,
-            u"restart_policy": {u"name": "never"}
-        }
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
         return self.assertResult(
             b"POST", b"/configuration/containers",
-            container_json, CREATED, container_json_response
+            dict(container_json), CREATED, dict(container_json_response)
         )
 
     def test_create_container_with_memory_limit(self):
