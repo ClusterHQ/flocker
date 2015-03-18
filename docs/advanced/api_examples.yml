@@ -282,6 +282,30 @@
 
 -
   id:
+    "create container with links"
+
+  doc: |
+    Create a new container with links to one or more other containers.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}     
+
+-
+  id:
     "create container with memory limit"
 
   doc: |

@@ -62,7 +62,9 @@ definitions:
 
   container_links:
     title: "Container links"
-    description: "A mapping of links between containers, specifying the local and remote ports."
+    description: |
+        A mapping of links between containers, specifying the local and remote ports.
+        See https://docs.clusterhq.com/en/latest/advanced/configuration.html for more information.
     type: array
     minItems: 1
     items:
