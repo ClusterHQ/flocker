@@ -317,7 +317,7 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "cpu_shares: 512}
+     "cpu_shares": 512}
 
   response: |
     HTTP/1.1 201 Created
