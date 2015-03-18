@@ -662,6 +662,8 @@ def container_configuration_response(application, node):
     result.update(ApplicationMarshaller(application).convert())
     if application.cpu_shares is not None:
         result["cpu_shares"] = application.cpu_shares
+    if application.memory_limit is not None:
+        result["memory_limit"] = application.memory_limit
     return result
 
 
