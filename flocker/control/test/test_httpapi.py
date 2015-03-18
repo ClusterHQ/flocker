@@ -228,52 +228,6 @@ class CreateContainerTestsMixin(APITestsMixin):
         ))
         return d
 
-    def _test_create_container(self, request_data, applications):
-        """
-        Utility method to create one or more containers via the API and
-        compare the result to an expected deployment. This method deploys to
-        and compares the result of one node only, with a second node
-        containing no applications. Applications are always deployed to the
-        same node in this method, overriding any host specified in the request
-        blob.
-
-        :param list request_data: A ``list`` of ``dict`` instances representing
-            the JSON data for one or more API requests.
-        :param list applications: A ``list`` of ``Application`` instances that
-            are expected to be deployed.
-        :return: A ``Deferred`` that fires with an assertion on the deployment
-            result.
-        """
-        saving = self.persistence_service.save(Deployment(
-            nodes={
-                Node(hostname=self.NODE_A),
-                Node(hostname=self.NODE_B),
-            }
-        ))
-
-        for request in request_data:
-            request[u"host"] = self.NODE_A
-            saving.addCallback(lambda _: self.assertResponseCode(
-                b"POST", b"/configuration/containers",
-                request, CREATED
-            ))
-
-        def created(_):
-            deployment = self.persistence_service.get()
-            expected = Deployment(
-                nodes={
-                    Node(
-                        hostname=self.NODE_A,
-                        applications=applications
-                    ),
-                    Node(hostname=self.NODE_B),
-                }
-            )
-            self.assertEqual(deployment, expected)
-
-        saving.addCallback(created)
-        return saving
-
     def test_container_name_collision_same_node(self):
         """
         A container will not be created if a container with the same name
