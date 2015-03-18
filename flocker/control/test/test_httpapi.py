@@ -488,6 +488,48 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json
         )
 
+    def test_create_container_with_cpu_shares(self):
+        """
+        A valid API request to create a container including CPU shares
+        results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"cpu_shares": 512
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        cpu_shares=512
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_cpu_shares_response(self):
+        """
+        A valid API request to create a container including CPU shares
+        returns the CPU shares supplied in the request in the response
+        JSON.
+        """
+        container_json = pmap({
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"cpu_shares": 512
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            dict(container_json), CREATED, dict(container_json_response)
+        )
+
     def _test_conflicting_ports(self, node1, node2):
         """
         Utility method to create two containers with the same ports on two
