@@ -655,6 +655,8 @@ def container_configuration_response(application, node):
         "host": node, "name": application.name,
     }
     result.update(ApplicationMarshaller(application).convert())
+    if application.cpu_shares is not None:
+        result["cpu_shares"] = application.cpu_shares
     return result
 
 

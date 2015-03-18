@@ -536,18 +536,16 @@ class CreateContainerTestsMixin(APITestsMixin):
         returns the CPU shares supplied in the request in the response
         JSON.
         """
-        container_json = {
+        container_json = pmap({
             u"host": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"cpu_shares": 512
-        }
-        container_json_response = {
-            u"host": self.NODE_B, u"name": u"webserver",
-            u"image": u"nginx:latest", u"cpu_shares": 512,
-            u"restart_policy": {u"name": "never"}
-        }
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
         return self.assertResult(
             b"POST", b"/configuration/containers",
-            container_json, CREATED, container_json_response
+            dict(container_json), CREATED, dict(container_json_response)
         )
 
     def _test_conflicting_ports(self, node1, node2):

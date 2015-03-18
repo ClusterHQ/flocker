@@ -47,7 +47,9 @@ definitions:
 
   cpu_shares:
     title: "Container CPU shares"
-    description: "A number specifying the relative weighting of CPU cycles given to a container."
+    description: |
+        A number specifying the relative weighting of CPU cycles given to a container.
+        See https://docs.docker.com/reference/run/ for more information.
     type: integer
     minimum: 1
     maximum: 1024
