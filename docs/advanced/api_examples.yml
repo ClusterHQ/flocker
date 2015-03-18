@@ -282,6 +282,30 @@
 
 -
   id:
+    "create container with cpu shares"
+
+  doc: |
+    Create a new container with CPU shares.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "cpu_shares: 512}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "cpu_shares": 512}
+
+-
+  id:
     "create container with restart policy"
 
   doc: |
