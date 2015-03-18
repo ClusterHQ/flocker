@@ -45,6 +45,34 @@ definitions:
     maxProperties: 16
     additionalProperties: false
 
+  restart_policy:
+    title: "Container restart policy"
+    type: object
+    description: "Policy for whether or not a container should be restarted after exit."
+    oneOf:
+    - additionalProperties: false
+      properties:
+        maximum_retry_count:
+          minimum: 1
+          type: integer
+        name:
+          enum:
+            - "on-failure"
+          type: string
+      type: object
+      required:
+        - name
+    - additionalProperties: false
+      properties:
+        name:
+          enum:
+            - "never"
+            - "always"
+          type: string
+      type: object
+      required:
+        - name
+
   ports:
     title: "Container ports"
     description: "Mapping of internal to external ports."
