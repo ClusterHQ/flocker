@@ -158,6 +158,27 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 "maximum_retry_count": 15
             }
         },
+        # CPU shares given but not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'cpu_shares': '512'
+        },
+        # CPU shares given but negative
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'cpu_shares': -512
+        },
+        # CPU shares given but greater than max
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'cpu_shares': 1025
+        },
     ],
     passing_instances=[
         {
@@ -224,6 +245,12 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'restart_policy': {
                 'name': 'on-failure', 'maximum_retry_count': 5
             }
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'cpu_shares': 512
         },
     ],
 )
