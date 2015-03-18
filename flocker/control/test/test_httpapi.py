@@ -527,7 +527,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json_response
         )
 
-    def test_create_container_with_cpu_shares(self):
+    def test_create_container_with_memory_limit(self):
         """
         A valid API request to create a container including CPU shares
         results in an updated configuration.
@@ -545,7 +545,6 @@ class CreateContainerTestsMixin(APITestsMixin):
         ]
 
         return self._test_create_container(request_data, applications)
-
 
     def test_create_container_with_memory_limit_response(self):
         """
