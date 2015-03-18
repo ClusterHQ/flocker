@@ -70,8 +70,7 @@ class PortsTests(TestCase):
                  external_port=self.external_port)
         ])
 
-        application = get_mongo_application()
-        application.ports = ports
+        application = get_mongo_application().set("ports", ports)
 
         d = assert_expected_deployment(self, {
             self.node_1: set([application]),

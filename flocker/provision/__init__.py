@@ -4,7 +4,7 @@
 Provisioning for acceptance tests.
 """
 
-from ._common import PackageSource
+from ._common import PackageSource, Variants
 from ._install import provision
 from ._rackspace import rackspace_provisioner
 from ._aws import aws_provisioner
@@ -17,7 +17,7 @@ CLOUD_PROVIDERS = {
 }
 
 __all__ = [
-    'PackageSource', 'provision',
-    'rackspace_provisioner', 'aws_provisioner', 'digitalocean_provisioner',
+    'PackageSource', 'Variants',
+    'provision',
     'CLOUD_PROVIDERS',
 ]

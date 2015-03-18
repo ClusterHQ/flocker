@@ -13,7 +13,27 @@ definitions:
       - flocker
     additionalProperties: false
 
+  configuration_container:
+    type: object
+    properties:
+      host:
+        '$ref': 'types.json#/definitions/host'
+      name:
+        '$ref': 'types.json#/definitions/container_name'
+      image:
+        '$ref': 'types.json#/definitions/container_image'
+      ports:
+        '$ref': 'types.json#/definitions/ports'
+      environment:
+        '$ref': 'types.json#/definitions/environment'      
+    required:
+      - host
+      - name
+      - image
+    additionalProperties: false
+
   configuration_dataset:
+    description: "The configuration for a particular dataset."
     type: object
     properties:
       primary:
@@ -34,17 +54,15 @@ definitions:
 
   # A sequence of datasets
   configuration_datasets_array:
+    description: "An array of configuration datasets."
     type: array
-    items:
-      description: "An array of datasets"
-      type: object
-      oneOf:
-        - {"$ref": "#/definitions/configuration_dataset" }
+    items: {"$ref": "#/definitions/configuration_dataset" }
 
   state_datasets_array:
+    description: "An array of state datasets."
     type: array
     items:
-      description: "An array of datasets"
+      description: "The state of a particular dataset."
       type: object
       properties:
         primary:

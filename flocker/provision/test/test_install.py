@@ -40,10 +40,11 @@ class InstallFlockerTests(SynchronousTestCase):
         With no arguments, ``task_install_flocker`` installs the latest
         release.
         """
-        commands = task_install_flocker()
+        distribution = 'fedora-20'
+        commands = task_install_flocker(distribution=distribution)
         self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO),
+            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
             Run(command="yum install -y clusterhq-flocker-node")
         ])
 
@@ -53,11 +54,14 @@ class InstallFlockerTests(SynchronousTestCase):
         ``task_install_flocker`` installs that version from our release
         repositories.
         """
+        distribution = 'fedora-20'
         source = PackageSource(os_version="1.2.3-1")
-        commands = task_install_flocker(package_source=source)
+        commands = task_install_flocker(
+            package_source=source,
+            distribution=distribution)
         self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO),
+            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
             Run(command="yum install -y clusterhq-flocker-node-1.2.3-1")
         ])
 
@@ -67,13 +71,14 @@ class InstallFlockerTests(SynchronousTestCase):
         ``task_install_flocker`` installs the latest build of the branch from
         our build server.
         """
+        distribution = 'fedora-20'
         source = PackageSource(branch="branch")
         commands = task_install_flocker(
             package_source=source,
-            distribution="fedora-20")
+            distribution=distribution)
         self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO),
+            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
             Put(content="""\
 [clusterhq-build]
 name=clusterhq-build
@@ -92,14 +97,15 @@ enabled=0
         ``task_install_flocker`` installs the latest build of the branch from
         that build server.
         """
+        distribution = "fedora-20"
         source = PackageSource(branch="branch",
                                build_server='http://nowhere.example/')
         commands = task_install_flocker(
             package_source=source,
-            distribution="fedora-20")
+            distribution=distribution)
         self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO),
+            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
             Put(content="""\
 [clusterhq-build]
 name=clusterhq-build
@@ -118,13 +124,14 @@ enabled=0
         ``task_install_flocker`` installs the specifed build of the branch from
         that build server.
         """
+        distribution = "fedora-20"
         source = PackageSource(branch="branch", os_version='1.2.3-1')
         commands = task_install_flocker(
             package_source=source,
-            distribution="fedora-20")
+            distribution=distribution)
         self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO),
+            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
             Put(content="""\
 [clusterhq-build]
 name=clusterhq-build

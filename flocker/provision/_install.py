@@ -11,12 +11,20 @@ from textwrap import dedent
 from urlparse import urljoin
 from characteristic import attributes
 
-from ._common import PackageSource, Kernel
+from ._common import PackageSource, Variants, Kernel
 
-ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
-            "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
-CLUSTERHQ_REPO = ("https://storage.googleapis.com/archive.clusterhq.com/"
-                  "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm")
+ZFS_REPO = {
+    'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
+                 "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
+    'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
+                "epel/zfs-release.el7.noarch.rpm",
+}
+CLUSTERHQ_REPO = {
+    'fedora-20': "https://s3.amazonaws.com/clusterhq-archive/"
+                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm",
+    'centos-7': "https://s3.amazonaws.com/clusterhq-archive/"
+                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm",
+}
 
 
 @attributes(["command"])
@@ -96,6 +104,14 @@ def run_with_fabric(username, address, commands):
 run = run_with_fabric
 
 
+def task_test_homebrew(recipe_url):
+    return [
+        Run(command="brew update"),
+        Run(command="brew install {url}".format(url=recipe_url)),
+        Run(command="brew test {url}".format(url=recipe_url)),
+    ]
+
+
 def task_install_ssh_key():
     return [
         Sudo.from_args(['cp', '.ssh/authorized_keys',
@@ -156,6 +172,17 @@ def task_install_digitalocean_kernel():
     url = koji_kernel_url(DIGITALOCEAN_KERNEL)
     return [
         Run.from_args(['yum', 'update', '-y', url]),
+    ]
+
+
+def task_upgrade_kernel_centos():
+    return [
+        Run.from_args([
+            "yum", "install", "-y", "kernel-devel", "kernel"]),
+        # For dkms and ... ?
+        Run.from_args([
+            "yum", "install", "-y", "epel-release"]),
+        Run.from_args(['sync'])
     ]
 
 
@@ -229,8 +256,9 @@ def task_create_flocker_pool_file():
     ]
 
 
-def task_install_flocker(package_source=PackageSource(),
-                         distribution=None):
+def task_install_flocker(
+        distribution=None,
+        package_source=PackageSource()):
     """
     Install flocker.
 
@@ -239,8 +267,8 @@ def task_install_flocker(package_source=PackageSource(),
         package.
     """
     commands = [
-        Run(command="yum install -y " + ZFS_REPO),
-        Run(command="yum install -y " + CLUSTERHQ_REPO)
+        Run(command="yum install -y " + ZFS_REPO[distribution]),
+        Run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
     ]
 
     if package_source.branch:
@@ -296,7 +324,70 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
     return [Run.from_args(['docker', 'pull', image]) for image in images]
 
 
-def provision(distribution, package_source):
+def task_enable_updates_testing(distribution):
+    """
+    Enable the distribution's proposed updates repository.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
+    if distribution == 'fedora-20':
+        return [
+            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
+            Run.from_args([
+                'yum-config-manager', '--enable', 'updates-testing'])
+        ]
+    else:
+        raise NotImplementedError
+
+
+def task_enable_docker_head_repository(distribution):
+    """
+    Enable the distribution's repository containing in-development docker
+    builds.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
+    if distribution == 'fedora-20':
+        return [
+            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
+            Run.from_args([
+                'yum-config-manager',
+                '--add-repo',
+                'https://copr.fedoraproject.org/coprs/lsm5/docker-io/repo/fedora-20/lsm5-docker-io-fedora-20.repo',  # noqa
+            ])
+        ]
+    elif distribution == "centos-7":
+        return [
+            Put(content=dedent("""\
+                [virt7-testing]
+                name=virt7-testing
+                baseurl=http://cbs.centos.org/repos/virt7-testing/x86_64/os/
+                enabled=1
+                gpgcheck=0
+                """),
+                path="/etc/yum.repos.d/virt7-testing.repo")
+        ]
+    else:
+        raise NotImplementedError
+
+
+def task_enable_zfs_testing(distribution):
+    """
+    Enable the zfs-testing repository.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
+    if distribution in ('fedora-20', 'centos-7'):
+        return [
+            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
+            Run.from_args([
+                'yum-config-manager', '--enable', 'zfs-testing'])
+        ]
+    else:
+        raise NotImplementedError
+
+
+def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
 
@@ -305,11 +396,23 @@ def provision(distribution, package_source):
 
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.
-    :param bytes distribution: See func:`task_install`
-    :param PackageSource package_source: See func:`task_install`
+    :param bytes distribution: See func:`task_install_flocker`
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
     """
     commands = []
-    commands += task_install_kernel_devel()
+
+    if Variants.DISTRO_TESTING in variants:
+        commands += task_enable_updates_testing(distribution)
+    if Variants.DOCKER_HEAD in variants:
+        commands += task_enable_docker_head_repository(distribution)
+    if Variants.ZFS_TESTING in variants:
+        commands += task_enable_zfs_testing(distribution)
+
+    if distribution in ('fedora-20',):
+        commands += task_install_kernel_devel()
+
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
     commands += task_enable_docker()
