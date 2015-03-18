@@ -254,15 +254,12 @@ Release
 
       export VERSION=0.1.2
 
-#. Create a clean, local copy of the Flocker and `homebrew-tap`_ release branches with no modifications:
+#. Create a clean, local copy of the Flocker release branches and `homebrew-tap`_ master  with no modifications:
 
    .. prompt:: bash [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
-      cd homebrew-tap-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/master
-      git push --set-upstream origin release/flocker-${VERSION}
       cd ../flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
@@ -353,23 +350,8 @@ Release
         git commit -m "New Homebrew recipe"
         git push
 
-   - Test the new recipe on OS X with `Homebrew`_ installed:
-
-     Try installing the new recipe directly from a GitHub link
-
-     .. prompt:: bash $
-
-        brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
-        brew test flocker-${VERSION}
-
-   - Make a pull request:
-
-     Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
-
-     Include the ``brew install`` line from the previous step, so that the reviewer knows how to test the new recipe.
-
-   - Do not continue until the pull request is merged.
-     Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
+   - Follow the :ref:`Flocker client installation documentation for OS X<installing-flocker-cli-osx>`.
+     These instructions should be taken from the release documentation built for this tag by Buildbot.
 
 #. Update the documentation.
 
