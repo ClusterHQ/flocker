@@ -282,6 +282,30 @@
 
 -
   id:
+    "create container with memory limit"
+
+  doc: |
+    Create a new container with a memory limit, in this example 250MB.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "memory_limit": 262144000}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "memory_limit": 262144000}
+
+-
+  id:
     "create container with cpu shares"
 
   doc: |
