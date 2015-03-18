@@ -23,7 +23,11 @@ Tutorial Box (:file:`vagrant/tutorial`)
 Building
 ^^^^^^^^
 
-To build one of the above boxes,
+Buildbot's `flocker-vagrant-tutorial-box` builder builds the tutorial box.
+The `flocker-vagrant-dev-box` builder builds the development box on some branches but not others.
+The `flocker-vagrant-dev-box` builder can be forced on any branch.
+
+To build one of the above boxes locally,
 upgrade VirtualBox and Vagrant to the latest versions,
 install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory:
 
