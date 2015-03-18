@@ -254,12 +254,11 @@ Release
 
       export VERSION=0.1.2
 
-#. Create a clean, local copy of the Flocker release branch and `homebrew-tap`_ master  with no modifications:
+#. Create a clean, local copy of the Flocker release branch with no modifications:
 
    .. prompt:: bash [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
       cd ../flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
@@ -344,7 +343,9 @@ Release
 
      .. prompt:: bash [vagrant@localhost]$
 
-        cd ../homebrew-tap-${VERSION}
+        cd ..
+        git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
+        cd homebrew-tap-${VERSION}
         ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
         git add flocker-${VERSION}.rb
         git commit -m "New Homebrew recipe"
