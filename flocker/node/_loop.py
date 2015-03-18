@@ -15,6 +15,9 @@ control service, and sends inputs to the ConvergenceLoop state machine.
 
 from zope.interface import implementer
 
+from eliot import ActionType, Field
+from eliot.twisted import DeferredContext
+
 from characteristic import attributes
 
 from machinist import (
@@ -231,6 +234,17 @@ class ConvergenceLoopOutputs(Names):
     CONVERGE = NamedConstant()
 
 
+_FIELD_CONNECTION = Field(
+    u"connection",
+    lambda client: repr(client),
+    "The AMP connection to control service")
+
+LOG_SEND_TO_CONTROL_SERVICE = ActionType(
+    u"flocker:agent:send_to_control_service",
+    [_FIELD_CONNECTION], [],
+    "Send the local state to the control service.")
+
+
 class ConvergenceLoop(object):
     """
     World object for the convergence loop state machine, executing the actions
@@ -261,7 +275,7 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        d = self.deployer.discover_local_state()
+        d = DeferredContext(self.deployer.discover_local_state())
 
         def got_local_state(local_state):
             # Current cluster state is likely out of date as regards the local
@@ -269,7 +283,11 @@ class ConvergenceLoop(object):
             self.cluster_state = self.cluster_state.update_node(
                 local_state.to_node()
             )
-            self.client.callRemote(NodeStateCommand, node_state=local_state)
+            with LOG_SEND_TO_CONTROL_SERVICE(
+                    self.fsm.logger, connection=self.client) as context:
+                self.client.callRemote(NodeStateCommand,
+                                       node_state=local_state,
+                                       eliot_context=context)
             action = self.deployer.calculate_necessary_state_changes(
                 local_state, self.configuration, self.cluster_state
             )
@@ -350,6 +368,7 @@ class AgentLoopService(object, MultiService):
         convergence_loop = build_convergence_loop_fsm(
             self.reactor, self.deployer
         )
+        self.logger = convergence_loop.logger
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
         self.factory = ReconnectingClientFactory.forProtocol(
             lambda: AgentAMP(self))
