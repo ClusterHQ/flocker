@@ -11,7 +11,7 @@ unless Vagrant.has_plugin?("vagrant-reload")
 end
 
 =begin
-  The following error may occur when running `vagrant up`, potentially because
+  The following error may occur when running `vagrant up`, because
   of a problem with some VirtualBox versions.
 
     # Failed to mount folders in Linux guest. This is usually because
@@ -26,8 +26,9 @@ end
     #
     # /sbin/mount.vboxsf: mounting failed with the error: No such device
 
-  To avoid this potential issue, the vagrant-vbguest plugin is required.
+  To help avoid this potential issue, the vagrant-vbguest plugin is required.
   If it remains, try updating VirtualBox.
+  Known working versions include Vagrant 1.7.2 and VirtualBox 4.3.24r98716.
 =end
 unless Vagrant.has_plugin?("vagrant-vbguest")
   raise "vagrant-vbguest plugin is not installed"

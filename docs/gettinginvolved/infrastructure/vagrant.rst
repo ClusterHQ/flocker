@@ -33,6 +33,8 @@ install the necessary Vagrant plugins and run the :file:`build` script in the co
    vagrant plugin install vagrant-vbguest
    ./build
 
+If an error occurs similar to ``/sbin/mount.vboxsf: mounting failed with the error: No such device`` try using the known working versions Vagrant 1.7.2 and VirtualBox 4.3.24r98716.
+
 This will generate a :file:`flocker-<box>-<version>.box` file.
 
 Upload this file to `Google Cloud Storage <https://console.developers.google.com/project/apps~hybridcluster-docker/storage/clusterhq-vagrant/>`_,
