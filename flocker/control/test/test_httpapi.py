@@ -228,6 +228,47 @@ class CreateContainerTestsMixin(APITestsMixin):
         ))
         return d
 
+    def _test_create_container(self, request_data, applications):
+        """
+        Utility method to create a container via the API and compare the result
+        to an expected deployment. This method deploys to and compares the
+        result of one node only, with a second node containing no applications.
+
+        :param dict request_data: The JSON data for the API request.
+        :param list applications: A ``list`` of ``Application`` instances that
+            are expected to be deployed.
+        :return: A ``Deferred`` that fires with an assertion on the deployment
+            result.
+        """
+
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            request_data, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=applications
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
     def test_container_name_collision_same_node(self):
         """
         A container will not be created if a container with the same name
@@ -479,6 +520,46 @@ class CreateContainerTestsMixin(APITestsMixin):
         container_json_response = {
             u"host": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"cpu_shares": 512,
+            u"restart_policy": {u"name": "never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_response
+        )
+
+    def test_create_container_with_cpu_shares(self):
+        """
+        A valid API request to create a container including CPU shares
+        results in an updated configuration.
+        """
+        request_data = {
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"memory_limit": 262144000
+        }
+        applications = [
+            Application(
+                name='webserver',
+                image=DockerImage.from_string('nginx'),
+                memory_limit=262144000
+            ),
+        ]
+
+        return self._test_create_container(request_data, applications)
+
+
+    def test_create_container_with_memory_limit_response(self):
+        """
+        A valid API request to create a container including a memory limit
+        returns the memory limit supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000
+        }
+        container_json_response = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000,
             u"restart_policy": {u"name": "never"}
         }
         return self.assertResult(
