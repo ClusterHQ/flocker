@@ -344,7 +344,8 @@ class ContainerAPITests(TestCase):
             u"name": "my_container",
             u"host": None,
             u"image": "clusterhq/flask:latest",
-            u"ports": [{u"internal": 80, u"external": 8080}]
+            u"ports": [{u"internal": 80, u"external": 8080}],
+            u'restart_policy': {u'name': u'never'}
         }
         waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
 
@@ -379,7 +380,8 @@ class ContainerAPITests(TestCase):
             u"host": None,
             u"image": "clusterhq/flaskenv:latest",
             u"ports": [{u"internal": 8080, u"external": 8080}],
-            u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'}
+            u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'},
+            u'restart_policy': {u'name': u'never'}
         }
         waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
 
