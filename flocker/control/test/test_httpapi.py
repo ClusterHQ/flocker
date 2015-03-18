@@ -230,17 +230,20 @@ class CreateContainerTestsMixin(APITestsMixin):
 
     def _test_create_container(self, request_data, applications):
         """
-        Utility method to create a container via the API and compare the result
-        to an expected deployment. This method deploys to and compares the
-        result of one node only, with a second node containing no applications.
+        Utility method to create one or more containers via the API and
+        compare the result to an expected deployment. This method deploys to
+        and compares the result of one node only, with a second node
+        containing no applications. Applications are always deployed to the
+        same node in this method, overriding any host specified in the request
+        blob.
 
-        :param dict request_data: The JSON data for the API request.
+        :param list request_data: A ``list`` of ``dict`` instances representing
+            the JSON data for one or more API requests.
         :param list applications: A ``list`` of ``Application`` instances that
             are expected to be deployed.
         :return: A ``Deferred`` that fires with an assertion on the deployment
             result.
         """
-
         saving = self.persistence_service.save(Deployment(
             nodes={
                 Node(hostname=self.NODE_A),
@@ -248,10 +251,12 @@ class CreateContainerTestsMixin(APITestsMixin):
             }
         ))
 
-        saving.addCallback(lambda _: self.assertResponseCode(
-            b"POST", b"/configuration/containers",
-            request_data, CREATED
-        ))
+        for request in request_data:
+            request[u"host"] = self.NODE_A
+            saving.addCallback(lambda _: self.assertResponseCode(
+                b"POST", b"/configuration/containers",
+                request, CREATED
+            ))
 
         def created(_):
             deployment = self.persistence_service.get()
@@ -470,10 +475,10 @@ class CreateContainerTestsMixin(APITestsMixin):
         A valid API request to create a container including CPU shares
         results in an updated configuration.
         """
-        request_data = {
+        request_data = [{
             u"host": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"cpu_shares": 512
-        }
+        }]
         applications = [
             Application(
                 name='webserver',
@@ -508,10 +513,10 @@ class CreateContainerTestsMixin(APITestsMixin):
         A valid API request to create a container including CPU shares
         results in an updated configuration.
         """
-        request_data = {
+        request_data = [{
             u"host": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"memory_limit": 262144000
-        }
+        }]
         applications = [
             Application(
                 name='webserver',
@@ -519,7 +524,6 @@ class CreateContainerTestsMixin(APITestsMixin):
                 memory_limit=262144000
             ),
         ]
-
         return self._test_create_container(request_data, applications)
 
     def test_create_container_with_memory_limit_response(self):
