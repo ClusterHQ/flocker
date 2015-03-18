@@ -1010,11 +1010,16 @@ class UploadRPMsTests(TestCase):
             key for key in aws.s3_buckets[self.target_bucket] if
             key.startswith(os.path.join(self.target_key, 'repodata'))]
 
-        # What matters is that there is more than just the index.
-        # Other tests cover the creation and modification of particular
-        # metadata filenames, but these change because of `createrepo` options
-        # such as whether to use hashes in filenames or not.
-        self.assertGreater(len(repodata_files), 1)
+        # The hashes used in the fake aren't going to be the same as the
+        # hashes in the real implementation. What matters is that they change
+        # depending on the package names.
+        expected_repodata = [
+            'test/target/key/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'test/target/key/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'test/target/key/repodata/repomd.xml',  # noqa
+            'test/target/key/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+        ]
+        self.assertEqual(sorted(repodata_files), sorted(expected_repodata))
 
     def test_create_repository_accounts_for_existing_packages(self):
         """

@@ -147,7 +147,7 @@ class FakeYum(object):
 
             if filename != index_filename:
                 # The index filename is always the same
-                filename = md5(filename).hexdigest()
+                filename = md5(filename).hexdigest() + '-' + filename
             metadata_directory.child(filename).setContent(content)
 
         return _list_new_metadata(repository_path=intent.repository_path)
