@@ -1,5 +1,5 @@
 [Unit]
-Description=Flocker Control Agent Scoket
+Description=Flocker Control Agent Socket
 
 [Socket]
 ListenStream=4524
