@@ -543,7 +543,8 @@ class ConfigurationAPIUserV1(object):
             ports=frozenset(application_ports),
             environment=environment,
             restart_policy=policy,
-            cpu_shares=cpu_shares
+            cpu_shares=cpu_shares,
+            memory_limit=memory_limit
         )
 
         new_node_config = node.transform(

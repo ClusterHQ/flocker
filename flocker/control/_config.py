@@ -213,11 +213,22 @@ class ApplicationMarshaller(object):
         cpu_shares = self.convert_cpu_shares()
         if cpu_shares:
             config['cpu_shares'] = cpu_shares
+        memory_limit = self.convert_memory_limit()
+        if memory_limit:
+            config['memory_limit'] = memory_limit
         return config
+
+    def convert_memory_limit(self):
+        """
+        :returns: ``None`` if there is no memory limit specified on this
+        application, otherwise an ``int`` representing the memory limit
+        in bytes.
+        """
+        return self._application.memory_limit
 
     def convert_cpu_shares(self):
         """
-        :returns: ``None`` if there is CPU shares weighting on this
+        :returns: ``None`` if there is no CPU shares weighting on this
         application, otherwise an ``int`` representing the CPU shares.
         """
         return self._application.cpu_shares
