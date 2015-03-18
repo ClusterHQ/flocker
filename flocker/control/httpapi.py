@@ -442,6 +442,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with ports",
             u"create container with environment",
             u"create container with restart policy",
+            u"create container with cpu shares",
         ]
     )
     @structured(
