@@ -30,7 +30,8 @@ from ...restapi.testtools import (
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure
+    Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
+    RestartAlways
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -313,7 +314,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json_result
         )
 
-    def test_create_container_with_restart_policy(self):
+    def test_create_containers_with_restart_policies(self):
         """
         A valid API request to create a container including a restart policy
         results in an updated configuration.
@@ -335,6 +336,26 @@ class CreateContainerTestsMixin(APITestsMixin):
             }, CREATED
         ))
 
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver2",
+                u"image": u"nginx", u"restart_policy": {
+                    u"name": u"always"
+                }
+            }, CREATED
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver3",
+                u"image": u"nginx", u"restart_policy": {
+                    u"name": u"on-failure"
+                }
+            }, CREATED
+        ))
+
         def created(_):
             deployment = self.persistence_service.get()
             expected = Deployment(
@@ -347,6 +368,18 @@ class CreateContainerTestsMixin(APITestsMixin):
                                 image=DockerImage.from_string('nginx'),
                                 restart_policy=RestartOnFailure(
                                     maximum_retry_count=5
+                                )
+                            ),
+                            Application(
+                                name='webserver2',
+                                image=DockerImage.from_string('nginx'),
+                                restart_policy=RestartAlways()
+                            ),
+                            Application(
+                                name='webserver3',
+                                image=DockerImage.from_string('nginx'),
+                                restart_policy=RestartOnFailure(
+                                    maximum_retry_count=None
                                 )
                             ),
                         ]
