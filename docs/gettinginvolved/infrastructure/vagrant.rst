@@ -27,6 +27,8 @@ To build one of the above boxes,
 upgrade VirtualBox and Vagrant to the latest versions,
 install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory:
 
+XXX Passing options to the build script may be necessary in some cases https://clusterhq.atlassian.net/browse/FLOC-1559.
+
 .. code-block:: sh
 
    vagrant plugin install vagrant-reload
