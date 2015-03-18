@@ -136,8 +136,8 @@ class FakeYum(object):
         metadata_directory = intent.repository_path.child('repodata')
         metadata_directory.createDirectory()
         packages = set([
-            path.basename() for path in
-            intent.repository_path.walk() if path.isfile()])
+            file for file in
+            intent.repository_path.listdir() if file.endswith('rpm')])
         for filename in ['repomd.xml', 'filelists.xml.gz', 'other.xml.gz',
                          'primary.xml.gz']:
             metadata_directory.child(filename).setContent(
