@@ -5,6 +5,9 @@ Tests for ``flocker.control._persistence``.
 """
 
 from uuid import uuid4
+
+from eliot.testing import validate_logging
+
 from twisted.internet import reactor
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -121,6 +124,25 @@ class ConfigurationPersistenceServiceTests(TestCase):
         def saved_again(_):
             self.assertEqual((l, l2), ([1, 1], [1]))
         d.addCallback(saved_again)
+        return d
+
+    @validate_logging(
+        lambda test, logger:
+        test.assertEqual(len(logger.flush_tracebacks(ZeroDivisionError)), 1))
+    def test_register_for_callback_failure(self, logger):
+        """
+        Failed callbacks don't prevent later callbacks from being called.
+        """
+        service = self.service(FilePath(self.mktemp()))
+        self.patch(service, "logger", logger)
+        l = []
+        service.register(lambda: 1/0)
+        service.register(lambda: l.append(1))
+        d = service.save(TEST_DEPLOYMENT)
+
+        def saved(_):
+            self.assertEqual(l, [1])
+        d.addCallback(saved)
         return d
 
 

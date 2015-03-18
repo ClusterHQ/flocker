@@ -4,8 +4,11 @@
 Persistence of cluster configuration.
 """
 
-from pyrsistent import PRecord, PVector, PMap, PSet
 from json import dumps, loads, JSONEncoder
+
+from eliot import Logger, write_traceback
+
+from pyrsistent import PRecord, PVector, PMap, PSet
 
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
@@ -75,6 +78,8 @@ class ConfigurationPersistenceService(Service):
 
     :ivar Deployment _deployment: The current desired deployment configuration.
     """
+    logger = Logger()
+
     def __init__(self, reactor, path):
         """
         :param reactor: Reactor to use for thread pool.
@@ -122,9 +127,12 @@ class ConfigurationPersistenceService(Service):
         # distributed system (e.g. ZooKeeper or etcd), so the API doesn't
         # guarantee immediate saving of the data.
         for callback in self._change_callbacks:
-            # Handle errors by catching and logging them
-            # https://clusterhq.atlassian.net/browse/FLOC-1311
-            callback()
+            try:
+                callback()
+            except:
+                # Second argument will be ignored in next Eliot release, so
+                # not bothering with particular value.
+                write_traceback(self.logger, u"")
         return succeed(None)
 
     def get(self):
