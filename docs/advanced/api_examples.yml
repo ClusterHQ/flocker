@@ -270,7 +270,7 @@
 
     {"host": "%(NODE_0)s",
      "name": "webserver",
-     "image": "nginx:latest"}}
+     "image": "nginx:latest"}
 
   response: |
     HTTP/1.1 201 Created
