@@ -79,16 +79,17 @@ class IDeployer(Interface):
     changes to bring local state and desired cluster configuration into
     alignment.
     """
-    def discover_local_state():
+    def discover_local_state(cluster_state):
         """
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.
 
-        :return: A ``Deferred`` which fires with an object describing
-             local state. This object will be passed to the control
-             service (see ``flocker.control._protocol``) and may also be
-             passed to this object's
-             ``calculate_necessary_state_changes()`` method.
+        :param Deployment cluster_state: The last known state of the whole
+            cluster.
+
+        :return: A ``Deferred`` which fires with a ``IClusterStateUpdate``
+             provider. This object will be passed to the control service
+             (see ``flocker.control._protocol``).
         """
 
     def calculate_necessary_state_changes(local_state,
@@ -382,9 +383,30 @@ class SetProxies(object):
 
 
 @implementer(IDeployer)
-class P2PNodeDeployer(object):
+class P2PManifestationDeployer(object):
     """
-    Start and stop applications.
+    Discover and calculate changes for peer-to-peer manifestations
+    (e.g. ZFS) on a node.
+
+    :ivar unicode hostname: The hostname of the node that this is running
+            on.
+    :ivar VolumeService volume_service: The volume manager for this node.
+    """
+    def discover_local_state(self, cluster_state):
+        # XXX Move manifestation discovery code out of ApplicationNodeDeployer,
+        # Return a NodeManifestations instance.
+        pass
+
+    def calculate_necessary_state_changes(self, *args, **kwargs):
+        # Does nothing in this branch. Follow up will move
+        # calculate_necessary_state_changes code here.
+        return Sequentially(changes=[])
+
+
+@implementer(IDeployer)
+class ApplicationNodeDeployer(object):
+    """
+    Discover and calculate changes for applications running on a node.
 
     :ivar unicode hostname: The hostname of the node that this is running
             on.
@@ -405,13 +427,22 @@ class P2PNodeDeployer(object):
         self.network = network
         self.volume_service = volume_service
 
-    def discover_local_state(self):
+    def discover_local_state(self, cluster_state):
         """
         List all the ``Application``\ s running on this node.
 
-        :returns: A ``Deferred`` which fires with a ``NodeState``
+        :param Deployment cluster_state: The last known state of the whole
+            cluster.
+
+        :returns: A ``Deferred`` which fires with a ``NodeApplications``
             instance.
         """
+        # XXX delete manifestations code that is unrelated to
+        # applications, return NodeApplications instance.  Application's
+        # attached volumes/manifestations can be calculated based on
+        # passed-in cluster_state. This has a potential race condition
+        # unfortunately, but probably not an issue in practice.
+
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
         # strip the namespace since there will only ever be one.
