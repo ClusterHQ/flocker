@@ -30,6 +30,8 @@ def provision_rackspace(node, package_source, distribution, variants):
             distribution=node.distribution,
             variants=variants,
         )
+        # https://clusterhq.atlassian.net/browse/FLOC-1550
+        # This should be part of ._install.configure_cluster
         + task_open_control_firewall()
     )
     run(
