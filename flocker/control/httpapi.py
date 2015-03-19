@@ -24,7 +24,7 @@ from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
 from . import (
-    Dataset, Manifestation, Node, Application, DockerImage, Port,
+    Dataset, Manifestation, Node, Application, DockerImage, Port, Link
 )
 from ._config import (
     ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
@@ -51,6 +51,13 @@ CONTAINER_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Container not found.")
 CONTAINER_PORT_COLLISION = make_bad_request(
     code=CONFLICT, description=u"A specified external port is already in use."
+)
+LINK_PORT_COLLISION = make_bad_request(
+    code=CONFLICT,
+    description=u"The local ports in a container's links must be unique."
+)
+LINK_ALIAS_COLLISION = make_bad_request(
+    code=CONFLICT, description=u"Link aliases must be unique."
 )
 DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
@@ -444,6 +451,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with restart policy",
             u"create container with cpu shares",
             u"create container with memory limit",
+            u"create container with links",
         ]
     )
     @structured(
@@ -455,7 +463,8 @@ class ConfigurationAPIUserV1(object):
     )
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
-        restart_policy=None, cpu_shares=None, memory_limit=None
+        restart_policy=None, cpu_shares=None, memory_limit=None,
+        links=()
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -491,6 +500,9 @@ class ConfigurationAPIUserV1(object):
         :param int memory_limit: A positive integer specifying the maximum
             amount of memory in bytes available to this container.
 
+        :param list links: A ``list`` of ``dict`` objects, mapping container
+            links via "alias", "local_port" and "remote_port" values.
+
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
         """
@@ -518,6 +530,25 @@ class ConfigurationAPIUserV1(object):
                         if application_port.external_port == port['external']:
                             raise CONTAINER_PORT_COLLISION
 
+        # If links are present, check that there are no conflicts in local
+        # ports or alias names.
+        link_aliases = set()
+        link_local_ports = set()
+        application_links = set()
+        for link in links:
+            if link['alias'] in link_aliases:
+                raise LINK_ALIAS_COLLISION
+            if link['local_port'] in link_local_ports:
+                raise LINK_PORT_COLLISION
+            link_aliases.add(link['alias'])
+            link_local_ports.add(link['local_port'])
+            application_links.add(
+                Link(
+                    alias=link['alias'], local_port=link['local_port'],
+                    remote_port=link['remote_port']
+                )
+            )
+
         # If we have ports specified, add these to the Application instance.
         application_ports = []
         for port in ports:
@@ -544,7 +575,8 @@ class ConfigurationAPIUserV1(object):
             environment=environment,
             restart_policy=policy,
             cpu_shares=cpu_shares,
-            memory_limit=memory_limit
+            memory_limit=memory_limit,
+            links=application_links
         )
 
         new_node_config = node.transform(
