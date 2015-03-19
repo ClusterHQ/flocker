@@ -1978,8 +1978,6 @@ class DatasetsStateTestsMixin(APITestsMixin):
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname,
-                running=[],
-                not_running=[],
                 manifestations={expected_manifestation},
                 paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
             )
@@ -2010,8 +2008,6 @@ class DatasetsStateTestsMixin(APITestsMixin):
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname1,
-                running=[],
-                not_running=[],
                 manifestations={expected_manifestation1},
                 paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
             )
@@ -2019,8 +2015,6 @@ class DatasetsStateTestsMixin(APITestsMixin):
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname2,
-                running=[],
-                not_running=[],
                 manifestations={expected_manifestation2},
                 paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
             )

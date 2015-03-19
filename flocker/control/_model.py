@@ -188,6 +188,8 @@ class Application(PRecord):
 
     :ivar IRestartPolicy restart_policy: The restart policy for this
         application.
+
+    :ivar bool running: Whether or not the application is running.
     """
     name = field(mandatory=True)
     image = field(mandatory=True, type=DockerImage)
@@ -199,6 +201,7 @@ class Application(PRecord):
     restart_policy = field(mandatory=True, initial=RestartNever())
     environment = field(mandatory=True, initial=pmap(), factory=pmap,
                         type=PMap)
+    running = field(mandatory=True, initial=True, type=bool)
 
 
 class Dataset(PRecord):
@@ -404,8 +407,7 @@ class NodeState(PRecord):
     configuration models.
 
     :ivar unicode hostname: The hostname of the node.
-    :ivar running: A ``PSet`` of ``Application`` instances on this node
-        that are currently running or starting up.
+    :ivar applications: A ``PSet`` of ``Application`` instances on this node.
     :ivar not_running: A ``PSet`` of ``Application`` instances on this
         node that are currently shutting down or stopped.
     :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
@@ -417,8 +419,7 @@ class NodeState(PRecord):
     """
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = pset_field(int)
-    running = pset_field(Application)
-    not_running = pset_field(Application)
+    applications = pset_field(Application)
     manifestations = pset_field(Manifestation)
     paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap.create,
                   mandatory=True)
@@ -432,7 +433,7 @@ class NodeState(PRecord):
         return Node(hostname=self.hostname,
                     manifestations={m.dataset_id: m
                                     for m in self.manifestations},
-                    applications=self.running | self.not_running)
+                    applications=self.applications)
 
 
 # Classes that can be serialized to disk or sent over the network:

@@ -86,14 +86,15 @@ APP1 = Application(
     image=DockerImage.from_string(u'postgresql'))
 APP2 = Application(
     name=u'myapp2',
-    image=DockerImage.from_string(u'mysql'))
+    image=DockerImage.from_string(u'mysql'),
+    running=False)
 TEST_DEPLOYMENT = Deployment(nodes=frozenset([
     Node(hostname=u'node1.example.com',
          applications=frozenset([APP1, APP2]))]))
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
 NODE_STATE = NodeState(hostname=u'node1.example.com',
-                       running=[APP1], not_running=[APP2],
+                       applications=[APP1, APP2],
                        used_ports=[1, 2],
                        manifestations=frozenset([MANIFESTATION]))
 
