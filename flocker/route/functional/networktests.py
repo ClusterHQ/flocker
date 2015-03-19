@@ -146,8 +146,8 @@ def make_network_tests(make_network):
             open_port_two = self.network.open_port(port + 1)
 
             self.assertEqual(
-                sorted([open_port_one, open_port_two]),
-                sorted(self.network.enumerate_open_ports()))
+                set([open_port_one, open_port_two]),
+                set(self.network.enumerate_open_ports()))
 
         def test_deleted_open_ports_not_enumerated(self):
             """
