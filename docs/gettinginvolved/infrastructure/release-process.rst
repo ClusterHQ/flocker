@@ -241,6 +241,9 @@ Release
 
 #. Create and log in to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
+   This copies your local git configuration from `~/.gitconfig`.
+   If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
+
    From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    .. prompt:: bash $
