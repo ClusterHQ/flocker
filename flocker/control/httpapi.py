@@ -24,7 +24,10 @@ from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
 from . import (
-    Dataset, Manifestation, Node, Application, DockerImage, Port
+    Dataset, Manifestation, Node, Application, DockerImage, Port,
+)
+from ._config import (
+    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
 )
 from .. import __version__
 
@@ -438,6 +441,8 @@ class ConfigurationAPIUserV1(object):
             u"create container with duplicate name",
             u"create container with ports",
             u"create container with environment",
+            u"create container with restart policy",
+            u"create container with cpu shares",
         ]
     )
     @structured(
@@ -448,7 +453,8 @@ class ConfigurationAPIUserV1(object):
         schema_store=SCHEMAS
     )
     def create_container_configuration(
-        self, host, name, image, ports=(), environment=None
+        self, host, name, image, ports=(), environment=None,
+        restart_policy=None, cpu_shares=None
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -468,6 +474,18 @@ class ConfigurationAPIUserV1(object):
         :param dict environment: A ``dict`` of key/value pairs to be supplied
             to the container as environment variables. Keys and values must be
             ``unicode``.
+
+        :param dict restart_policy: A restart policy for the container, this
+            is a ``dict`` with at a minimum a "name" key, whose value must be
+            one of "always", "never" or "on-failure". If the "name" is given
+            as "on-failure", there may also be another optional key
+            "maximum_retry_count", containing a positive ``int`` specifying
+            the maximum number of times we should attempt to restart a failed
+            container.
+
+        :param int cpu_shares: A positive integer specifying the relative
+            weighting of CPU cycles for this container (see Docker's run
+            reference for further information).
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -507,12 +525,21 @@ class ConfigurationAPIUserV1(object):
         if environment is not None:
             environment = frozenset(environment.items())
 
+        if restart_policy is None:
+            restart_policy = dict(name=u"never")
+
+        policy_name = restart_policy.pop("name")
+        policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
+        policy = policy_factory(**restart_policy)
+
         # Create Application object, add to Deployment, save.
         application = Application(
             name=name,
             image=DockerImage.from_string(image),
             ports=frozenset(application_ports),
-            environment=environment
+            environment=environment,
+            restart_policy=policy,
+            cpu_shares=cpu_shares
         )
 
         new_node_config = node.transform(
@@ -626,16 +653,10 @@ def container_configuration_response(application, node):
     """
     result = {
         "host": node, "name": application.name,
-        "image": application.image.full_name,
     }
-    if application.ports:
-        result['ports'] = []
-        for port in application.ports:
-            result['ports'].append(dict(
-                internal=port.internal_port, external=port.external_port
-            ))
-    if application.environment:
-        result['environment'] = dict(application.environment)
+    result.update(ApplicationMarshaller(application).convert())
+    if application.cpu_shares is not None:
+        result["cpu_shares"] = application.cpu_shares
     return result
 
 

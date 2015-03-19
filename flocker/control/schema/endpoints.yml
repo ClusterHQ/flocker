@@ -25,7 +25,11 @@ definitions:
       ports:
         '$ref': 'types.json#/definitions/ports'
       environment:
-        '$ref': 'types.json#/definitions/environment'      
+        '$ref': 'types.json#/definitions/environment'
+      restart_policy:
+        '$ref': 'types.json#/definitions/restart_policy'
+      cpu_shares:
+        '$ref': 'types.json#/definitions/cpu_shares'
     required:
       - host
       - name
