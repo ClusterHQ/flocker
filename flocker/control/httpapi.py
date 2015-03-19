@@ -54,7 +54,7 @@ CONTAINER_PORT_COLLISION = make_bad_request(
 )
 LINK_PORT_COLLISION = make_bad_request(
     code=CONFLICT,
-    description=u"Local port links in a container must be unique."
+    description=u"The local ports in a container's links must be unique."
 )
 LINK_ALIAS_COLLISION = make_bad_request(
     code=CONFLICT, description=u"Link aliases must be unique."
@@ -464,7 +464,7 @@ class ConfigurationAPIUserV1(object):
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
         restart_policy=None, cpu_shares=None, memory_limit=None,
-        links=None
+        links=()
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -535,20 +535,19 @@ class ConfigurationAPIUserV1(object):
         link_aliases = set()
         link_local_ports = set()
         application_links = set()
-        if links is not None:
-            for link in links:
-                if link['alias'] in link_aliases:
-                    raise LINK_ALIAS_COLLISION
-                if link['local_port'] in link_local_ports:
-                    raise LINK_PORT_COLLISION
-                link_aliases.add(link['alias'])
-                link_local_ports.add(link['local_port'])
-                application_links.add(
-                    Link(
-                        alias=link['alias'], local_port=link['local_port'],
-                        remote_port=link['remote_port']
-                    )
+        for link in links:
+            if link['alias'] in link_aliases:
+                raise LINK_ALIAS_COLLISION
+            if link['local_port'] in link_local_ports:
+                raise LINK_PORT_COLLISION
+            link_aliases.add(link['alias'])
+            link_local_ports.add(link['local_port'])
+            application_links.add(
+                Link(
+                    alias=link['alias'], local_port=link['local_port'],
+                    remote_port=link['remote_port']
                 )
+            )
 
         # If we have ports specified, add these to the Application instance.
         application_ports = []
@@ -577,7 +576,7 @@ class ConfigurationAPIUserV1(object):
             restart_policy=policy,
             cpu_shares=cpu_shares,
             memory_limit=memory_limit,
-            links=frozenset(application_links)
+            links=application_links
         )
 
         new_node_config = node.transform(

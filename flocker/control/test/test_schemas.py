@@ -267,6 +267,28 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'remote_port': '54320'
             }]
         },
+        # Links given but local port is greater than max (65535)
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 65536,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but remote port is greater than max (65535)
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': 65536
+            }]
+        },
     ],
     passing_instances=[
         {

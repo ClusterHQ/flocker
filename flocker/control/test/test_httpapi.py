@@ -539,9 +539,9 @@ class CreateContainerTestsMixin(APITestsMixin):
             u"host": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"links": [
                 {
-                    'alias': 'postgres',
-                    'local_port': 5432,
-                    'remote_port': 54320
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
                 },
             ]
         })
@@ -562,14 +562,14 @@ class CreateContainerTestsMixin(APITestsMixin):
             u"host": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"links": [
                 {
-                    'alias': 'postgres',
-                    'local_port': 5432,
-                    'remote_port': 54320
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
                 },
                 {
-                    'alias': 'mysql',
-                    'local_port': 3306,
-                    'remote_port': 33060
+                    u'alias': u'mysql',
+                    u'local_port': 3306,
+                    u'remote_port': 33060
                 },
             ]
         }]
@@ -643,7 +643,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                 ]
             }, CONFLICT, {
                 u"description":
-                    u"Local port links in a container must be unique."
+                    u"The local ports in a container's links must be unique."
                 }
         )
         return d
