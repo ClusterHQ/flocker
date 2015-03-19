@@ -124,7 +124,7 @@ class BuildSequence(object):
 
     def run(self):
         for step in self.steps:
-            with start_action(self.logger, self._system, step=step):
+            with start_action(self.logger, self._system, step=repr(step)):
                 step.run()
 
 
