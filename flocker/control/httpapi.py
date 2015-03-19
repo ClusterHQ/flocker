@@ -24,7 +24,7 @@ from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
 from . import (
-    Dataset, Manifestation, Node, Application, DockerImage, Port,
+    Dataset, Manifestation, Node, Application, DockerImage, Port, Link
 )
 from ._config import (
     ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
@@ -51,6 +51,13 @@ CONTAINER_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Container not found.")
 CONTAINER_PORT_COLLISION = make_bad_request(
     code=CONFLICT, description=u"A specified external port is already in use."
+)
+LINK_PORT_COLLISION = make_bad_request(
+    code=CONFLICT,
+    description=u"Local port links in a container must be unique."
+)
+LINK_ALIAS_COLLISION = make_bad_request(
+    code=CONFLICT, description=u"Link aliases must be unique."
 )
 DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
@@ -522,6 +529,12 @@ class ConfigurationAPIUserV1(object):
                     for application_port in application.ports:
                         if application_port.external_port == port['external']:
                             raise CONTAINER_PORT_COLLISION
+
+        # If links are present, check that there are no conflicts in local
+        # ports or alias names.
+        if links is not None:
+            for link in links:
+                import pdb;pdb.set_trace()
 
         # If we have ports specified, add these to the Application instance.
         application_ports = []

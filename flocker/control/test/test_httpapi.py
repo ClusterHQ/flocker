@@ -530,6 +530,34 @@ class CreateContainerTestsMixin(APITestsMixin):
             dict(container_json), CREATED, dict(container_json_response)
         )
 
+    def test_create_container_with_links_response(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container returns the link information in the response JSON.
+        """
+        self.fail("not implemented yet")
+
+    def test_create_container_with_links(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container results in an updated configuration.
+        """
+        self.fail("not implemented yet")
+
+    def test_create_container_with_links_alias_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "alias" value.
+        """
+        self.fail("not implemented yet")
+
+    def test_create_container_with_links_local_port_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "local_port" value.
+        """
+        self.fail("not implemented yet")
+
     def test_create_container_with_memory_limit(self):
         """
         A valid API request to create a container including a memory limit
