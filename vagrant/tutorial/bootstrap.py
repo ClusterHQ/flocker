@@ -35,7 +35,8 @@ if branch:
     # buildserver repository corresponding to that branch.
     # This repo will be disabled by default.
     with open('/etc/yum.repos.d/clusterhq-build.repo', 'w') as repo:
-        result_path = os.path.join('/results/omnibus', branch, 'fedora-$releasever')
+        result_path = os.path.join('/results/omnibus', branch,
+                                   'fedora-$releasever')
         base_url = urljoin(build_server, result_path)
         repo.write(dedent(b"""
             [clusterhq-build]
