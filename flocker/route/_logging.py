@@ -65,3 +65,10 @@ DELETE_PROXY = ActionType(
     [TARGET_IP, TARGET_PORT],
     [],
     u"Flocker is deleting an existing proxy.")
+
+
+DELETE_OPEN_PORT = ActionType(
+    _system(u"delete_open_port"),
+    [TARGET_PORT],
+    [],
+    U"Flocker is close a firewall port.")

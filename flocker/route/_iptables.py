@@ -17,7 +17,11 @@ from eliot import Logger
 from psutil import net_connections
 from twisted.python.filepath import FilePath
 
-from ._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES, OPEN_PORT
+from ._logging import (
+    IPTABLES,
+    CREATE_PROXY_TO, DELETE_PROXY,
+    OPEN_PORT, DELETE_OPEN_PORT,
+)
 from ._interfaces import INetwork
 from ._model import Proxy, OpenPort
 
@@ -245,8 +249,10 @@ def delete_proxy(logger, proxy):
 
 
 def delete_open_port(logger, port):
-    # FIXME
-    action = OPEN_PORT(
+    """
+    :see: ``HostNetwork.delete_open_port``
+    """
+    action = DELETE_OPEN_PORT(
         logger=logger, target_port=port)
 
     with action:
@@ -287,7 +293,7 @@ def enumerate_open_ports():
     Inspect the system's iptables configuration to determine which ports
     are currently open.
 
-    :see: :py:meth:`INetwork.enumerate_proxies` for parameter documentation.
+    :see: :py:meth:`INetwork.enumerate_open_ports` for parameter documentation.
     """
     ports = []
     for rule in get_flocker_rules(
