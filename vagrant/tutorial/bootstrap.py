@@ -69,11 +69,13 @@ check_call(['systemctl', 'enable', 'docker'])
 
 
 # Enable firewalld
-# We don't need to start it, since when the box is packaged,
-# the machine will be reset.  We *do* need to unmask it,
-# since the existing box won't allow it to be enabled.
+# We need to unmask it, since the base box has it masked.
 check_call(['systemctl', 'unmask', 'firewalld'])
 check_call(['systemctl', 'enable', 'firewalld'])
+check_call(['systemctl', 'start', 'firewalld'])
+# We need to open the firewall for the flocker-control
+for service in ['flocker-control-api', 'flocker-control-agent']:
+    check_call(['firewall-cmd', '--permanent', '--add-service', service])
 
 # Make it easy to authenticate as root
 check_call(['mkdir', '-p', '/root/.ssh'])
