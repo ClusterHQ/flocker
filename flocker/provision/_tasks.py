@@ -14,6 +14,8 @@ from ._install import (
     task_upgrade_kernel,
     task_upgrade_kernel_centos,
     task_upgrade_selinux,
+    task_enable_flocker_control,
+    task_enable_flocker_agent,
     task_open_control_firewall,
 )
 
@@ -27,5 +29,7 @@ __all__ = [
     'task_upgrade_kernel',
     'task_upgrade_kernel_centos',
     'task_upgrade_selinux',
+    'task_enable_flocker_control',
+    'task_enable_flocker_agent',
     'task_open_control_firewall',
 ]
