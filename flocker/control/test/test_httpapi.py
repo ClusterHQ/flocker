@@ -604,14 +604,49 @@ class CreateContainerTestsMixin(APITestsMixin):
         A container will not be created if the supplied configuration includes
         links with a duplicated "alias" value.
         """
-        self.fail("not implemented yet")
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"postgres", u"local_port": 5433,
+                        u"remote_port": 54330
+                    },
+                ]
+            }, CONFLICT, {u"description": u"Link aliases must be unique."}
+        )
+        return d
 
     def test_create_container_with_links_local_port_collision(self):
         """
         A container will not be created if the supplied configuration includes
         links with a duplicated "local_port" value.
         """
-        self.fail("not implemented yet")
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"another_postgres", u"local_port": 5432,
+                        u"remote_port": 54321
+                    },
+                ]
+            }, CONFLICT, {
+                u"description":
+                    u"Local port links in a container must be unique."
+                }
+        )
+        return d
 
     def test_create_container_with_memory_limit(self):
         """
