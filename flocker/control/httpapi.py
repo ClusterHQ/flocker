@@ -534,7 +534,7 @@ class ConfigurationAPIUserV1(object):
         # ports or alias names.
         if links is not None:
             for link in links:
-                import pdb;pdb.set_trace()
+                pass
 
         # If we have ports specified, add these to the Application instance.
         application_ports = []
