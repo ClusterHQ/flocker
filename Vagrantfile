@@ -17,6 +17,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box_version = "> 0.3.2.1714"
 
   config.vm.provision :shell, :inline => $bootstrap, :privileged => true
+  # Use the git configuration from the host in the VM
+  config.vm.provision "file", source: "~/.gitconfig", destination: ".gitconfig"
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
