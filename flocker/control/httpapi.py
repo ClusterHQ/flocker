@@ -24,7 +24,10 @@ from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
 from . import (
-    Dataset, Manifestation, Node, Application, DockerImage, Port
+    Dataset, Manifestation, Node, Application, DockerImage, Port,
+)
+from ._config import (
+    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
 )
 from .. import __version__
 
@@ -44,6 +47,8 @@ SCHEMAS = {
 CONTAINER_NAME_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The container name already exists."
 )
+CONTAINER_NOT_FOUND = make_bad_request(
+    code=NOT_FOUND, description=u"Container not found.")
 CONTAINER_PORT_COLLISION = make_bad_request(
     code=CONFLICT, description=u"A specified external port is already in use."
 )
@@ -426,12 +431,18 @@ class ConfigurationAPIUserV1(object):
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
         """
-        Create and start a new container.
+        Add a new container to the configuration.
+
+        The container will be automatically started once it is created on
+        the cluster.
         """,
         examples=[
             u"create container",
             u"create container with duplicate name",
-            u"create container with ports"
+            u"create container with ports",
+            u"create container with environment",
+            u"create container with restart policy",
+            u"create container with cpu shares",
         ]
     )
     @structured(
@@ -441,7 +452,10 @@ class ConfigurationAPIUserV1(object):
             '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
         schema_store=SCHEMAS
     )
-    def create_container_configuration(self, host, name, image, ports=()):
+    def create_container_configuration(
+        self, host, name, image, ports=(), environment=None,
+        restart_policy=None, cpu_shares=None
+    ):
         """
         Create a new dataset in the cluster configuration.
 
@@ -456,6 +470,22 @@ class ConfigurationAPIUserV1(object):
 
         :param list ports: A ``list`` of ``dict`` objects, mapping internal
             to external ports for the container.
+
+        :param dict environment: A ``dict`` of key/value pairs to be supplied
+            to the container as environment variables. Keys and values must be
+            ``unicode``.
+
+        :param dict restart_policy: A restart policy for the container, this
+            is a ``dict`` with at a minimum a "name" key, whose value must be
+            one of "always", "never" or "on-failure". If the "name" is given
+            as "on-failure", there may also be another optional key
+            "maximum_retry_count", containing a positive ``int`` specifying
+            the maximum number of times we should attempt to restart a failed
+            container.
+
+        :param int cpu_shares: A positive integer specifying the relative
+            weighting of CPU cycles for this container (see Docker's run
+            reference for further information).
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -492,11 +522,24 @@ class ConfigurationAPIUserV1(object):
                 external_port=port['external']
             ))
 
+        if environment is not None:
+            environment = frozenset(environment.items())
+
+        if restart_policy is None:
+            restart_policy = dict(name=u"never")
+
+        policy_name = restart_policy.pop("name")
+        policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
+        policy = policy_factory(**restart_policy)
+
         # Create Application object, add to Deployment, save.
         application = Application(
             name=name,
             image=DockerImage.from_string(image),
-            ports=frozenset(application_ports)
+            ports=frozenset(application_ports),
+            environment=environment,
+            restart_policy=policy,
+            cpu_shares=cpu_shares
         )
 
         new_node_config = node.transform(
@@ -513,6 +556,48 @@ class ConfigurationAPIUserV1(object):
             return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
+
+    @app.route("/configuration/containers/<name>", methods=['DELETE'])
+    @user_documentation(
+        """
+        Remove a container from the configuration.
+
+        This will lead to the container being stopped and not being
+        restarted again.
+        """,
+        examples=[
+            u"remove a container",
+            u"remove a container with unknown name",
+        ]
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={},
+        schema_store=SCHEMAS
+    )
+    def delete_container_configuration(self, name):
+        """
+        Remove a container from the cluster configuration.
+
+        :param unicode name: A unique identifier for the container within
+            the Flocker cluster.
+
+        :return: An ``EndpointResponse``.
+        """
+        deployment = self.persistence_service.get()
+
+        for node in deployment.nodes:
+            for application in node.applications:
+                if application.name == name:
+                    updated_node = node.transform(
+                        ["applications"], lambda s: s.remove(application))
+                    d = self.persistence_service.save(
+                        deployment.update_node(updated_node))
+                    d.addCallback(lambda _: None)
+                    return d
+
+        # Didn't find the application:
+        raise CONTAINER_NOT_FOUND
 
 
 def manifestations_from_deployment(deployment, dataset_id):
@@ -568,14 +653,10 @@ def container_configuration_response(application, node):
     """
     result = {
         "host": node, "name": application.name,
-        "image": application.image.full_name
     }
-    if application.ports:
-        result['ports'] = []
-        for port in application.ports:
-            result['ports'].append(dict(
-                internal=port.internal_port, external=port.external_port
-            ))
+    result.update(ApplicationMarshaller(application).convert())
+    if application.cpu_shares is not None:
+        result["cpu_shares"] = application.cpu_shares
     return result
 
 

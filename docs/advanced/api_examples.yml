@@ -277,7 +277,84 @@
 
     {"host": "%(NODE_0)s",
      "name": "webserver",
-     "image": "nginx:latest"}  
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"}}
+
+-
+  id:
+    "create container with cpu shares"
+
+  doc: |
+    Create a new container with CPU shares.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "cpu_shares": 512}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "cpu_shares": 512}
+
+-
+  id:
+    "create container with restart policy"
+
+  doc: |
+    Create a new container with a restart policy.
+    The value of restart_policy must be a dictionary with a "name" key, which in turn must be one of "never", "on-failure" or "always".
+    If the value given for "name" is "on-failure", you may also optionally provide a "maximum_retry_count" value.
+    This is a positive integer specifying the maximum number of attempts to restart a failed container.
+    If a restart policy is not specified, the container will be created with a restart policy of "never".
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}}
+
+-
+  id:
+    "create container with environment"
+
+  doc: |
+    Create a new container with environment variables.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},
+     "restart_policy": {"name": "never"}}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},    
+     "restart_policy": {"name": "never"}}
 
 -
   id:
@@ -292,7 +369,8 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "ports": [{"internal": 80, "external": 8080}]}
+     "ports": [{"internal": 80, "external": 8080}],
+     "restart_policy": {"name": "never"}}
 
   response: |
     HTTP/1.1 201 Created
@@ -300,7 +378,8 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "ports": [{"internal": 80, "external": 8080}]}     
+     "ports": [{"internal": 80, "external": 8080}],
+     "restart_policy": {"name": "never"}}
 
 -
   id:
@@ -325,3 +404,35 @@
     HTTP/1.1 409 Conflict
 
     {"description": "The container name specified already exists."}
+
+-
+  id:
+    "remove a container"
+
+  doc: |
+    Delete a container.
+
+  requires:
+    - "create a container"
+
+  request: |
+    DELETE /v1/configuration/containers/webserver HTTP/1.1
+
+  response: |
+    HTTP/1.1 200 OK
+
+-
+  id:
+    "remove a container with unknown name"
+
+  doc: |
+    An attempt to delete an unknown container results in a 404 Not Found response.
+
+  request: |
+    DELETE /v1/configuration/containers/unknown_container HTTP/1.1
+
+  response: |
+    HTTP/1.1 404 Not Found
+
+    {"description": "Container not found."}
+

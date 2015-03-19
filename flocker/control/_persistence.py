@@ -4,37 +4,69 @@
 Persistence of cluster configuration.
 """
 
-from pickle import dumps, loads
+from pyrsistent import PRecord, PVector, PMap, PSet
+from json import dumps, loads, JSONEncoder
 
+from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.defer import succeed
 
-from ._model import Deployment
+from ._model import SERIALIZABLE_CLASSES, Deployment
 
 
-# These should not use Pickle!@!
-# https://clusterhq.atlassian.net/browse/FLOC-1241
-def serialize_deployment(deployment):
+# Serialization marker storing the class name:
+_CLASS_MARKER = u"$__class__$"
+
+
+class _ConfigurationEncoder(JSONEncoder):
     """
-    Convert a ``Deployment`` object to ``bytes``.
-
-    :param Deployment deployment: Object to serialize.
-
-    :return bytes: Serialized object.
+    JSON encoder that can encode the configuration model.
     """
-    return dumps(deployment)
+    def default(self, obj):
+        if isinstance(obj, PRecord):
+            result = dict(obj)
+            result[_CLASS_MARKER] = obj.__class__.__name__
+            return result
+        elif isinstance(obj, PMap):
+            return dict(obj)
+        elif isinstance(obj, (PSet, PVector, set)):
+            return list(obj)
+        elif isinstance(obj, FilePath):
+            return {_CLASS_MARKER: u"FilePath",
+                    u"path": obj.path.decode("utf-8")}
+        return JSONEncoder.default(self, obj)
 
 
-def deserialize_deployment(data):
+def wire_encode(obj):
     """
-    Create a ``Deployment`` object that was previously serialized to given
-    ``bytes``.
+    Encode the given configuration object into bytes.
 
-    :param bytes data: Output of ``serialize_deployment``.
-
-    :return Deployment: Deserialized object.
+    :param obj: An object from the configuration model, e.g. ``Deployment``.
+    :return bytes: Encoded object.
     """
-    return loads(data)
+    return dumps(obj, cls=_ConfigurationEncoder)
+
+
+def wire_decode(data):
+    """
+    Decode the given configuration object from bytes.
+
+    :param bytes data: Encoded object.
+    :param obj: An object from the configuration model, e.g. ``Deployment``.
+    """
+    classes = {cls.__name__: cls for cls in SERIALIZABLE_CLASSES}
+
+    def decode_object(dictionary):
+        class_name = dictionary.get(_CLASS_MARKER, None)
+        if class_name == u"FilePath":
+            return FilePath(dictionary.get(u"path").encode("utf-8"))
+        elif class_name in classes:
+            dictionary = dictionary.copy()
+            dictionary.pop(_CLASS_MARKER)
+            return classes[class_name].create(dictionary)
+        else:
+            return dictionary
+    return loads(data, object_hook=decode_object)
 
 
 class ConfigurationPersistenceService(Service):
@@ -55,9 +87,9 @@ class ConfigurationPersistenceService(Service):
     def startService(self):
         if not self._path.exists():
             self._path.makedirs()
-        self._config_path = self._path.child(b"current_configuration.pickle")
+        self._config_path = self._path.child(b"current_configuration.v1.json")
         if self._config_path.exists():
-            self._deployment = deserialize_deployment(
+            self._deployment = wire_decode(
                 self._config_path.getContent())
         else:
             self._deployment = Deployment(nodes=frozenset())
@@ -76,7 +108,7 @@ class ConfigurationPersistenceService(Service):
         """
         Save and flush new deployment to disk synchronously.
         """
-        self._config_path.setContent(serialize_deployment(deployment))
+        self._config_path.setContent(wire_encode(deployment))
 
     def save(self, deployment):
         """

@@ -12,7 +12,7 @@ from ._install import (
 )
 
 
-def provision_rackspace(node, package_source, distribution):
+def provision_rackspace(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
     """
@@ -28,6 +28,7 @@ def provision_rackspace(node, package_source, distribution):
         provision(
             package_source=package_source,
             distribution=node.distribution,
+            variants=variants,
         )
         + task_open_control_firewall()
     )
