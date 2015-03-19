@@ -38,6 +38,12 @@ definitions:
           '$ref': 'types.json#/definitions/volume'
         minItems: 0
         maxItems: 1
+      cpu_shares:
+        '$ref': 'types.json#/definitions/cpu_shares'
+      memory_limit:
+        '$ref': 'types.json#/definitions/memory_limit'
+      links:
+        '$ref': 'types.json#/definitions/container_links'
     required:
       - host
       - name

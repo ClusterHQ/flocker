@@ -11,6 +11,9 @@ from zope.interface.verify import verifyObject
 
 from characteristic import attributes, Attribute
 
+from eliot import ActionType, start_action, MemoryLogger, Logger
+from eliot.testing import validate_logging, assertHasAction
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError, AMP
@@ -24,7 +27,8 @@ from twisted.application.internet import StreamServerEndpointService
 from .._protocol import (
     SerializableArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    AgentAMP, ControlAMPService, ControlAMP
+    AgentAMP, ControlAMPService, ControlAMP, _AgentLocator,
+    ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
 )
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -156,7 +160,39 @@ def build_control_amp_service(test):
                              TCP4ServerEndpoint(MemoryReactor(), 1234))
 
 
-class ControlAMPTests(SynchronousTestCase):
+class ControlTestCase(SynchronousTestCase):
+    """
+    Base TestCase for control tests that supplies a utility
+    method to patch the callRemote method of the AMP protocol instance,
+    discarding Eliot contexts whose context level may be unknown.
+    """
+
+    def patch_call_remote(self, capture_list, protocol):
+        """
+        Patch the callRemote method for this test case's protocol.
+
+        :param capture_list: A `list` to which results will be added.
+
+        :param protocol: Either `None` to default to self.protocol, or
+            a ``ControlAMP`` instance.
+        """
+
+        def capture_call_remote(capture, *args, **kwargs):
+            # Ditch the eliot context whose context level is difficult to
+            # predict.
+            kwargs.pop('eliot_context')
+            capture.append((args, kwargs))
+            return succeed(None)
+
+        self.patch(
+            protocol,
+            "callRemote",
+            lambda *args, **kwargs: capture_call_remote(
+                capture_list, *args, **kwargs)
+        )
+
+
+class ControlAMPTests(ControlTestCase):
     """
     Tests for ``ControlAMP`` and ``ControlServiceLocator``.
     """
@@ -182,9 +218,7 @@ class ControlAMPTests(SynchronousTestCase):
         When a connection is made the cluster status is sent to the new client.
         """
         sent = []
-        self.patch(self.protocol, "callRemote",
-                   lambda *args, **kwargs: sent.append((args, kwargs))
-                   or succeed(None))
+        self.patch_call_remote(sent, self.protocol)
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
 
@@ -224,7 +258,8 @@ class ControlAMPTests(SynchronousTestCase):
         """
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE))
+                                   node_state=NODE_STATE,
+                                   eliot_context=TEST_ACTION))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
             Deployment(
@@ -246,16 +281,14 @@ class ControlAMPTests(SynchronousTestCase):
         another_protocol.makeConnection(StringTransport())
         sent1 = []
         sent2 = []
-        self.patch(self.protocol, "callRemote",
-                   lambda *args, **kwargs: sent1.append((args, kwargs))
-                   or succeed(None))
-        self.patch(another_protocol, "callRemote",
-                   lambda *args, **kwargs: sent2.append((args, kwargs))
-                   or succeed(None))
+
+        self.patch_call_remote(sent1, self.protocol)
+        self.patch_call_remote(sent2, protocol=another_protocol)
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE))
+                                   node_state=NODE_STATE,
+                                   eliot_context=TEST_ACTION))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
             [sent1[-1], sent2[-1]],
@@ -264,7 +297,7 @@ class ControlAMPTests(SynchronousTestCase):
                    state=cluster_state)))] * 2)
 
 
-class ControlAMPServiceTests(SynchronousTestCase):
+class ControlAMPServiceTests(ControlTestCase):
     """
     Unit tests for ``ControlAMPService``.
     """
@@ -309,6 +342,22 @@ class ControlAMPServiceTests(SynchronousTestCase):
              [c.transport.disconnecting for c in connections]),
             ([False] * 3, [True] * 3))
 
+    def assertArgsEqual(self, expected, actual):
+        """
+        Utility method to assert that two sets of arguments are equal.
+        This method takes two tuples that are unpacked in to a list (args)
+        and a dictionary (kwargs) and performs separate comparisons of these
+        between the supplied expected and actual parameters.
+
+        :param expected: A `tuple` of the expected args and kwargs.
+        :param actual: A `tuple` of the actual args and kwargs.
+        """
+        expected_args, expected_kwargs = expected
+        actual_args, actual_kwargs = actual
+
+        self.assertEqual(expected_args, actual_args)
+        self.assertDictEqual(expected_kwargs, actual_kwargs)
+
     def test_configuration_change(self):
         """
         A configuration change results in connected protocols being notified
@@ -319,14 +368,21 @@ class ControlAMPServiceTests(SynchronousTestCase):
         protocol = ControlAMP(service)
         protocol.makeConnection(StringTransport())
         sent = []
-        self.patch(protocol, "callRemote",
-                   lambda *args, **kwargs: sent.append((args, kwargs))
-                   or succeed(None))
-        service.configuration_service.save(TEST_DEPLOYMENT)
+        self.patch_call_remote(sent, protocol=protocol)
 
-        self.assertEqual(sent, [((ClusterStatusCommand,),
-                                 dict(configuration=TEST_DEPLOYMENT,
-                                      state=Deployment(nodes=frozenset())))])
+        service.configuration_service.save(TEST_DEPLOYMENT)
+        # Should only be one callRemote call.
+        (sent,) = sent
+        self.assertArgsEqual(
+            sent,
+            (
+                (ClusterStatusCommand,),
+                dict(
+                    configuration=TEST_DEPLOYMENT,
+                    state=Deployment(nodes=frozenset())
+                )
+            )
+        )
 
 
 @implementer(IConvergenceAgent)
@@ -339,6 +395,8 @@ class FakeAgent(object):
     """
     Fake agent for testing.
     """
+    logger = Logger()
+
     def connected(self, client):
         self.is_connected = True
         self.client = client
@@ -350,6 +408,9 @@ class FakeAgent(object):
     def cluster_updated(self, configuration, cluster_state):
         self.desired = configuration
         self.actual = cluster_state
+
+
+TEST_ACTION = start_action(MemoryLogger(), 'test:action')
 
 
 class AgentClientTests(SynchronousTestCase):
@@ -396,9 +457,13 @@ class AgentClientTests(SynchronousTestCase):
         """
         self.client.makeConnection(StringTransport())
         actual = Deployment(nodes=frozenset())
-        d = self.server.callRemote(ClusterStatusCommand,
-                                   configuration=TEST_DEPLOYMENT,
-                                   state=actual)
+        d = self.server.callRemote(
+            ClusterStatusCommand,
+            configuration=TEST_DEPLOYMENT,
+            state=actual,
+            eliot_context=TEST_ACTION
+        )
+
         self.successResultOf(d)
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                client=self.client,
@@ -470,3 +535,122 @@ class FakeAgentInterfaceTests(iconvergence_agent_tests_factory(
     """
     ``IConvergenceAgent`` tests for ``FakeAgent``.
     """
+
+SEND_REQUEST = ActionType(
+    u'test:send_request',
+    [],
+    [],
+    u'client makes request to server.'
+)
+
+HANDLE_REQUEST = ActionType(
+    u'test:handle_request',
+    [],
+    [],
+    u'server receives request from client.'
+)
+
+
+class ClusterStatusCommandTests(SynchronousTestCase):
+    """
+    Tests for ``ClusterStatusCommand``.
+    """
+    def test_command_arguments(self):
+        """
+        ClusterStatusCommand requires the following arguments.
+        """
+        self.assertItemsEqual(
+            ['configuration', 'state', 'eliot_context'],
+            (v[0] for v in ClusterStatusCommand.arguments))
+
+
+class AgentLocatorTests(SynchronousTestCase):
+    """
+    Tests for ``_AgentLocator``.
+    """
+    @validate_logging(None)
+    def test_logger(self, logger):
+        """
+        ``_AgentLocator.logger`` is a property that returns the ``logger``
+        attribute of the ``Agent`` supplied to its initialiser.
+        """
+        fake_agent = FakeAgent()
+        self.patch(fake_agent, 'logger', logger)
+        locator = _AgentLocator(agent=fake_agent)
+        self.assertIs(logger, locator.logger)
+
+
+class NodeStateCommandTests(SynchronousTestCase):
+    """
+    Tests for ``NodeStateCommand``.
+    """
+    def test_command_arguments(self):
+        """
+        ``NodeStateCommand`` requires the following arguments.
+        """
+        self.assertItemsEqual(
+            ['node_state', 'eliot_context'],
+            (v[0] for v in NodeStateCommand.arguments))
+
+
+class ControlServiceLocatorTests(SynchronousTestCase):
+    """
+    Tests for ``ControlServiceLocator``.
+    """
+    @validate_logging(None)
+    def test_logger(self, logger):
+        """
+        ``ControlServiceLocator.logger`` is a property that returns the
+        ``logger`` attribute of the ``ControlAMPService`` supplied to its
+        initialiser.
+        """
+        fake_control_amp_service = build_control_amp_service(self)
+        self.patch(fake_control_amp_service, 'logger', logger)
+        locator = ControlServiceLocator(
+            control_amp_service=fake_control_amp_service
+        )
+        self.assertIs(logger, locator.logger)
+
+
+class SendStateToConnectionsTests(SynchronousTestCase):
+    """
+    Tests for ``ControlAMPService._send_state_to_connections``.
+    """
+    @validate_logging(None)
+    def test_logging(self, logger):
+        """
+        ``_send_state_to_connections`` logs a single LOG_SEND_CLUSTER_STATE
+        action and a LOG_SEND_TO_AGENT action for the remote calls to each of
+        its connections.
+        """
+        control_amp_service = build_control_amp_service(self)
+        self.patch(control_amp_service, 'logger', logger)
+
+        connection_protocol = ControlAMP(control_amp_service)
+        connection_protocol.makeConnection(StringTransport())
+
+        control_amp_service._send_state_to_connections(
+            connections=[connection_protocol])
+
+        assertHasAction(
+            self,
+            logger,
+            LOG_SEND_CLUSTER_STATE,
+            succeeded=True,
+            startFields={
+                "configuration": (
+                    control_amp_service.configuration_service.get()
+                ),
+                "state": control_amp_service.cluster_state.as_deployment()
+            }
+        )
+
+        assertHasAction(
+            self,
+            logger,
+            LOG_SEND_TO_AGENT,
+            succeeded=True,
+            startFields={
+                "agent": connection_protocol,
+            }
+        )

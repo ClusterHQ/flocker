@@ -158,6 +158,137 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 "maximum_retry_count": 15
             }
         },
+        # CPU shares given but not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'cpu_shares': '512'
+        },
+        # CPU shares given but negative
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'cpu_shares': -512
+        },
+        # CPU shares given but greater than max
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'cpu_shares': 1025
+        },
+        # Memory limit given but not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'memory_limit': '250MB'
+        },
+        # Memory limit given but negative
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'memory_limit': -1024
+        },
+        # Links given but not a list
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': {
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': 54320
+            }
+        },
+        # Links given but alias missing
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but local port missing
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'remote_port': 54320
+            }]
+        },
+        # Links given but remote port missing
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+            }]
+        },
+        # Links given but alias is not a string
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': {"name": "postgres"},
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but local port is not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': '5432',
+                'remote_port': 54320
+            }]
+        },
+        # Links given but remote port is not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': '54320'
+            }]
+        },
+        # Links given but local port is greater than max (65535)
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 65536,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but remote port is greater than max (65535)
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': 65536
+            }]
+        },
         # Volume with dataset_id of wrong type
         {
             'host': '192.168.0.3',
@@ -273,6 +404,28 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'restart_policy': {
                 'name': 'on-failure', 'maximum_retry_count': 5
             }
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'cpu_shares': 512
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'memory_limit': 262144000
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
         },
         {
             'host': '192.168.0.3',

@@ -1,0 +1,9 @@
+[Unit]
+Description=Flocker Control REST API
+
+[Socket]
+ListenStream=4523
+Service=flocker-control.service
+
+[Install]
+WantedBy=sockets.target
