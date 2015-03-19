@@ -69,6 +69,10 @@ definitions:
     minItems: 1
     items:
       type: object
+      required:
+        - alias
+        - local_port
+        - remote_port
       additionalProperties: false
       properties:
         local_port:

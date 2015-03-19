@@ -193,6 +193,80 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'name': 'postgres',
             'memory_limit': -1024
         },
+        # Links given but not a list
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': {
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': 54320
+            }
+        },
+        # Links given but alias missing
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but local port missing
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'remote_port': 54320
+            }]
+        },
+        # Links given but remote port missing
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+            }]
+        },
+        # Links given but alias is not a string
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': {"name": "postgres"},
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but local port is not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': '5432',
+                'remote_port': 54320
+            }]
+        },
+        # Links given but remote port is not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': '54320'
+            }]
+        },
     ],
     passing_instances=[
         {
@@ -271,6 +345,16 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'image': 'docker/postgres:latest',
             'name': 'postgres',
             'memory_limit': 262144000
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
         },
     ],
 )
