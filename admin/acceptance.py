@@ -69,6 +69,16 @@ def extend_environ(**kwargs):
     return env
 
 
+def remove_known_host(hostname):
+    """
+    Remove all keys belonging to hostname from a known_hosts file.
+
+    param bytes hostname: Remove all keys belonging to this hostname from
+        known_hosts.
+    """
+    check_safe_call(['ssh-keygen', '-R', hostname])
+
+
 def run_tests(nodes, control_node, agent_nodes, trial_args):
     """
     Run the acceptance tests.
@@ -161,6 +171,9 @@ class VagrantRunner(object):
                 address=node,
                 commands=task_pull_docker_images()
             )
+
+            remove_known_host(node.address)
+
         return self.NODE_ADDRESSES
 
     def stop_nodes(self):
@@ -214,10 +227,7 @@ class LibcloudRunner(object):
 
             self.nodes.append(node)
 
-            # From ssh-keygen(1):
-            # -R hostname
-            # Removes all keys belonging to hostname from a known_hosts file.
-            check_safe_call(['ssh-keygen', '-R', node.address])
+            remove_known_host(node.address)
             node.provision(package_source=self.package_source,
                            variants=self.variants)
             del node
