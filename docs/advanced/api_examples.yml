@@ -107,7 +107,7 @@
   response: |
     HTTP/1.1 409 Conflict
 
-    {"message": "Specified dataset_id already associated with a dataset."}
+    {"description": "Specified dataset_id already associated with a dataset."}
 
 -
   id:
@@ -198,7 +198,7 @@
     An attempt to update an unknown dataset results in a 404 Not Found response.
 
   request: |
-    POST /v1/configuration/datasets/<unknown_dataset_id> HTTP/1.1
+    POST /v1/configuration/datasets/31d50a07-f679-4f95-ae0d-56c93513fbc2 HTTP/1.1
 
     {"primary": "%(NODE_1)s"}
 
@@ -233,7 +233,7 @@
     An attempt to delete an unknown dataset results in a 404 Not Found response.
 
   request: |
-    DELETE /v1/configuration/datasets/<unknown_dataset_id> HTTP/1.1
+    DELETE /v1/configuration/datasets/31d50a07-f679-4f95-ae0d-56c93513fbc2 HTTP/1.1
 
   response: |
     HTTP/1.1 404 Not Found
@@ -257,3 +257,233 @@
       "primary": "%(NODE_0)s",
       "maximum_size": 1073741824,
       "path": "/flocker/somearbitrarypath"}]
+
+-
+  id:
+    "create container"
+
+  doc: |
+    Create a new container.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest"}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"}}
+
+-
+  id:
+    "create container with links"
+
+  doc: |
+    Create a new container with links to one or more other containers.
+    This will inject a series of environment variables in to your container that map the alias and local ports in the environment variable's label to the specified remote port in its value.
+    For example, in the request data below, the created container will include an environment variable called POSTGRES_PORT_5432_TCP with a value of 54320.
+    See https://docs.docker.com/userguide/dockerlinks/#environment-variables for more information on the environment created by container links.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}     
+
+-
+  id:
+    "create container with memory limit"
+
+  doc: |
+    Create a new container with a memory limit, in this example 250MB (250 * 1024 * 1024).
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "memory_limit": 262144000}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "memory_limit": 262144000}
+
+-
+  id:
+    "create container with cpu shares"
+
+  doc: |
+    Create a new container with CPU shares.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "cpu_shares": 512}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "cpu_shares": 512}
+
+-
+  id:
+    "create container with restart policy"
+
+  doc: |
+    Create a new container with a restart policy.
+    The value of restart_policy must be a dictionary with a "name" key, which in turn must be one of "never", "on-failure" or "always".
+    If the value given for "name" is "on-failure", you may also optionally provide a "maximum_retry_count" value.
+    This is a positive integer specifying the maximum number of attempts to restart a failed container.
+    If a restart policy is not specified, the container will be created with a restart policy of "never".
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}}
+
+-
+  id:
+    "create container with environment"
+
+  doc: |
+    Create a new container with environment variables.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},
+     "restart_policy": {"name": "never"}}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},    
+     "restart_policy": {"name": "never"}}
+
+-
+  id:
+    "create container with ports"
+
+  doc: |
+    Create a new container with port mappings.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "ports": [{"internal": 80, "external": 8080}],
+     "restart_policy": {"name": "never"}}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "ports": [{"internal": 80, "external": 8080}],
+     "restart_policy": {"name": "never"}}
+
+-
+  id:
+    "create container with duplicate name"
+
+  doc: |
+    Attempt to create a new container with a specified name that is already
+    assigned to an existing container. This results in a failure to create the
+    container and an error response.
+
+  requires:
+    - "create container"
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest"}
+
+  response: |
+    HTTP/1.1 409 Conflict
+
+    {"description": "The container name specified already exists."}
+
+-
+  id:
+    "remove a container"
+
+  doc: |
+    Delete a container.
+
+  requires:
+    - "create a container"
+
+  request: |
+    DELETE /v1/configuration/containers/webserver HTTP/1.1
+
+  response: |
+    HTTP/1.1 200 OK
+
+-
+  id:
+    "remove a container with unknown name"
+
+  doc: |
+    An attempt to delete an unknown container results in a 404 Not Found response.
+
+  request: |
+    DELETE /v1/configuration/containers/unknown_container HTTP/1.1
+
+  response: |
+    HTTP/1.1 404 Not Found
+
+    {"description": "Container not found."}
+

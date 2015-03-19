@@ -7,7 +7,6 @@ Tests for ``flocker.node._deploy``.
 from uuid import uuid4
 
 from zope.interface.verify import verifyObject
-from zope.interface import implementer
 
 from eliot.testing import validate_logging
 
@@ -18,6 +17,7 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import P2PNodeDeployer, change_node_state
+from ..testtools import ControllableDeployer, ControllableAction
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState)
@@ -148,41 +148,16 @@ DeleteDatasetTests = make_istatechange_tests(
     dict(dataset=Dataset(dataset_id=unicode(uuid4()))))
 
 
-NOT_CALLED = object()
-
-
-@implementer(IStateChange)
-class FakeChange(object):
+class ControllableActionIStateChangeTests(
+        make_istatechange_tests(
+            ControllableAction,
+            kwargs1=dict(result=1),
+            kwargs2=dict(result=2),
+        )
+):
     """
-    A change that returns the given result and records the deployer.
-
-    :ivar deployer: The deployer passed to ``run()``, or ``NOT_CALLED``
-        before that.
+    Tests for ``ControllableAction``.
     """
-    def __init__(self, result):
-        """
-        :param Deferred result: The result to return from ``run()``.
-        """
-        self.result = result
-        self.deployer = NOT_CALLED
-
-    def run(self, deployer):
-        self.deployer = deployer
-        return self.result
-
-    def was_run_called(self):
-        """
-        Return whether or not run() has been called yet.
-
-        :return: ``True`` if ``run()`` was called, otherwise ``False``.
-        """
-        return self.deployer != NOT_CALLED
-
-    def __eq__(self, other):
-        return False
-
-    def __ne__(self, other):
-        return True
 
 
 class SequentiallyTests(SynchronousTestCase):
@@ -193,7 +168,8 @@ class SequentiallyTests(SynchronousTestCase):
         """
         ``Sequentially.run`` runs sub-changes with the given deployer.
         """
-        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=succeed(None)),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
         change.run(deployer)
@@ -205,7 +181,8 @@ class SequentiallyTests(SynchronousTestCase):
         The result of ``Sequentially.run`` fires when all changes are done.
         """
         not_done1, not_done2 = Deferred(), Deferred()
-        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        subchanges = [ControllableAction(result=not_done1),
+                      ControllableAction(result=not_done2)]
         change = Sequentially(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
@@ -223,17 +200,18 @@ class SequentiallyTests(SynchronousTestCase):
         # not_done, the second one will finish as soon as its run() is
         # called.
         not_done = Deferred()
-        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=not_done),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
-        # Run the sequential change. We expect the first FakeChange's
+        # Run the sequential change. We expect the first ControllableAction's
         # run() to be called, but we expect second one *not* to be called
         # yet, since first one has finished.
         change.run(deployer)
-        called = [subchanges[0].was_run_called(),
-                  subchanges[1].was_run_called()]
+        called = [subchanges[0].called,
+                  subchanges[1].called]
         not_done.callback(None)
-        called.append(subchanges[1].was_run_called())
+        called.append(subchanges[1].called)
         self.assertEqual(called, [True, False, True])
 
     def test_failure_stops_later_change(self):
@@ -242,14 +220,15 @@ class SequentiallyTests(SynchronousTestCase):
         continuing to run later changes.
         """
         not_done = Deferred()
-        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=not_done),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
-        called = [subchanges[1].was_run_called()]
+        called = [subchanges[1].called]
         exception = RuntimeError()
         not_done.errback(exception)
-        called.extend([subchanges[1].was_run_called(),
+        called.extend([subchanges[1].called,
                        self.failureResultOf(result).value])
         self.assertEqual(called, [False, False, exception])
 
@@ -262,7 +241,8 @@ class InParallelTests(SynchronousTestCase):
         """
         ``InParallel.run`` runs sub-changes with the given deployer.
         """
-        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=succeed(None)),
+                      ControllableAction(result=succeed(None))]
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
@@ -274,7 +254,8 @@ class InParallelTests(SynchronousTestCase):
         The result of ``InParallel.run`` fires when all changes are done.
         """
         not_done1, not_done2 = Deferred(), Deferred()
-        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        subchanges = [ControllableAction(result=not_done1),
+                      ControllableAction(result=not_done2)]
         change = InParallel(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
@@ -290,19 +271,20 @@ class InParallelTests(SynchronousTestCase):
         """
         # The first change will not finish immediately when run(), but we
         # expect the second one to be run() nonetheless.
-        subchanges = [FakeChange(Deferred()), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=Deferred()),
+                      ControllableAction(result=succeed(None))]
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
-        called = [subchanges[0].was_run_called(),
-                  subchanges[1].was_run_called()]
+        called = [subchanges[0].called,
+                  subchanges[1].called]
         self.assertEqual(called, [True, True])
 
     def test_failure_result(self):
         """
         ``InParallel.run`` returns the first failure.
         """
-        subchanges = [FakeChange(fail(RuntimeError()))]
+        subchanges = [ControllableAction(result=fail(RuntimeError()))]
         change = InParallel(changes=subchanges)
         result = change.run(object())
         failure = self.failureResultOf(result, FirstError)
@@ -315,9 +297,9 @@ class InParallelTests(SynchronousTestCase):
         logged.
         """
         subchanges = [
-            FakeChange(fail(ZeroDivisionError('e1'))),
-            FakeChange(fail(ZeroDivisionError('e2'))),
-            FakeChange(fail(ZeroDivisionError('e3'))),
+            ControllableAction(result=fail(ZeroDivisionError('e1'))),
+            ControllableAction(result=fail(ZeroDivisionError('e2'))),
+            ControllableAction(result=fail(ZeroDivisionError('e3'))),
         ]
         change = InParallel(changes=subchanges)
         result = change.run(deployer=object())
@@ -406,7 +388,7 @@ class StartApplicationTests(SynchronousTestCase):
                               tag=u'9.3.5'),
             environment=variables.copy(),
             links=frozenset(),
-            ports=None
+            ports=(),
         )
 
         StartApplication(application=application,
@@ -684,7 +666,7 @@ APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
 DATASET_ID = unicode(uuid4())
 DATASET = Dataset(dataset_id=DATASET_ID,
                   metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
+APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
 APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
@@ -802,8 +784,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_application_with_links(self):
         """
@@ -928,8 +910,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_locally_owned_volume_with_size(self):
         """
@@ -1008,8 +990,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_remotely_owned_volumes_ignored(self):
         """
@@ -2799,46 +2781,6 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         ])
         self.assertEqual(expected, changes)
 
-    def test_local_state_overrides_cluster_state(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` uses the given
-        local state to override cluster state, since the latter may be
-        stale.
-        """
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        docker = FakeDockerClient(units={})
-
-        current_node = Node(
-            hostname=u"node1.example.com",
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-        desired_node = current_node
-
-        desired = Deployment(nodes=frozenset([desired_node]))
-        # This is at odds with local state, which knows that the dataset
-        # does actually exist:
-        current = Deployment(nodes=frozenset())
-
-        api = P2PNodeDeployer(
-            current_node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        # If P2PNodeDeployer is buggy and not overriding cluster state
-        # with local state this would result in a dataset creation action:
-        expected = Sequentially(changes=[])
-        self.assertEqual(expected, changes)
-
 
 class SetProxiesTests(SynchronousTestCase):
     """
@@ -3056,8 +2998,13 @@ class ChangeNodeStateTests(SynchronousTestCase):
                               create_volume_service(self),
                               docker_client=FakeDockerClient(),
                               network=make_memory_network())
-        self.patch(api, "calculate_necessary_state_changes",
-                   lambda *args, **kwargs: succeed(FakeChange(deferred)))
+        self.patch(
+            api,
+            "calculate_necessary_state_changes",
+            lambda *args, **kwargs: succeed(
+                ControllableAction(result=deferred)
+            )
+        )
         result = change_node_state(api, desired_configuration=EMPTY,
                                    current_cluster_state=EMPTY)
         deferred.callback(123)
@@ -3068,7 +3015,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
         The result of ``calculate_necessary_state_changes`` is called with the
         deployer.
         """
-        change = FakeChange(succeed(None))
+        change = ControllableAction(result=succeed(None))
         api = P2PNodeDeployer(u'node.example.com',
                               create_volume_service(self),
                               docker_client=FakeDockerClient(),
@@ -3098,7 +3045,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
                       current_cluster_state):
             arguments.extend([local_state, desired_configuration,
                               current_cluster_state])
-            return succeed(FakeChange(succeed(None)))
+            return succeed(ControllableAction(result=succeed(None)))
         api.calculate_necessary_state_changes = calculate
         change_node_state(api, desired, state)
         self.assertEqual(arguments, [local, desired, state])
@@ -3450,4 +3397,17 @@ class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
                                      make_memory_network()))):
     """
     ``IDeployer`` tests for ``P2PNodeDeployer``.
+    """
+
+
+class ControllableDeployerInterfaceTests(
+        ideployer_tests_factory(
+            lambda test: ControllableDeployer(
+                local_states=[succeed(NodeState(hostname=b'192.0.2.123'))],
+                calculated_actions=[InParallel(changes=[])],
+            )
+        )
+):
+    """
+    ``IDeployer`` tests for ``ControllableDeployer``.
     """

@@ -30,10 +30,11 @@ from ...restapi.testtools import (
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume, DockerImage
+    Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
+    RestartAlways, RestartNever, Link
 )
 from ..httpapi import (
-    DatasetAPIUserV1, create_api_service, datasets_from_deployment,
+    ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
     api_dataset_from_dataset_and_node
 )
 from .._persistence import ConfigurationPersistenceService
@@ -51,7 +52,7 @@ class APITestsMixin(object):
 
     def initialize(self):
         """
-        Create initial objects for the ``DatasetAPIUserV1``.
+        Create initial objects for the ``ConfigurationAPIUserV1``.
         """
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
@@ -167,10 +168,846 @@ class VersionTestsMixin(APITestsMixin):
 
 def _build_app(test):
     test.initialize()
-    return DatasetAPIUserV1(test.persistence_service,
-                            test.cluster_state_service).app
+    return ConfigurationAPIUserV1(test.persistence_service,
+                                  test.cluster_state_service).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     VersionTestsMixin, "API", _build_app)
+
+
+class CreateContainerTestsMixin(APITestsMixin):
+    """
+    Tests for the container creation endpoint at ``/configuration/containers``.
+    """
+    def test_wrong_schema(self):
+        """
+        If a ``POST`` request made to the endpoint includes a body which
+        doesn't match the ``definitions/containers`` schema, the response is
+        an error indication a validation failure.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A,
+                u"name": u'postgres',
+                u'image': u'postgres',
+                u"junk": u"garbage"
+            },
+            BAD_REQUEST, {
+                u'description':
+                    u"The provided JSON doesn't match the required schema.",
+                u'errors': [
+                    u"Additional properties are not allowed "
+                    u"(u'junk' was unexpected)"
+                ]
+            }
+        )
+
+    def _container_name_collision_test(self, node1, node2):
+        """
+        Utility method to create two containers on the specified nodes.
+        """
+        # create a container
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node1, u"name": u"postgres", u"image": u"postgres"
+            }, CREATED
+        )
+        # try to create another container with the same name
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node2,
+                u"name": u'postgres',
+                u'image': u'postgres',
+            },
+            CONFLICT, {
+                u'description':
+                    u"The container name already exists.",
+            }
+        ))
+        return d
+
+    def _test_create_container(self, request_data, node_data):
+        """
+        Utility method to create one or more containers via the API and
+        compare the result to an expected deployment.
+
+        :param list request_data: A ``list`` of ``dict`` instances representing
+            the JSON data for one or more API requests.
+        :param list node_data: A ``set`` of ``Node`` instances that
+            are expected to be deployed.
+        :return: A ``Deferred`` that fires with an assertion on the deployment
+            result.
+
+            request_data, applications
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        for request in request_data:
+            saving.addCallback(lambda _: self.assertResponseCode(
+                b"POST", b"/configuration/containers",
+                request, CREATED
+            ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes=node_data
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_container_name_collision_same_node(self):
+        """
+        A container will not be created if a container with the same name
+        already exists on the node we are attempting to create on.
+        """
+        return self._container_name_collision_test(self.NODE_A, self.NODE_A)
+
+    def test_container_name_collision_different_node(self):
+        """
+        A container will not be created if a container with the same name
+        already exists on another node than the node we are attempting to
+        create on.
+        """
+        return self._container_name_collision_test(self.NODE_A, self.NODE_B)
+
+    def test_create_container_with_environment(self):
+        """
+        An API request to create a container including environment
+        variables results in the existing configuration being updated.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        environment = {
+            u'SITES_ENABLED_PATH': u'/etc/nginx/sites-enabled',
+            u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
+        }
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx", u"environment": environment
+            }, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='webserver',
+                                image=DockerImage.from_string('nginx'),
+                                environment=frozenset(environment.items())
+                            ),
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_create_container_with_environment_response(self):
+        """
+        An API request to create a container including environment
+        variables returns the environment mapping supplied in the request in
+        the response JSON.
+        """
+        environment = {
+            u'SITES_ENABLED_PATH': u'/etc/nginx/sites-enabled',
+            u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
+        }
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx", u"environment": environment
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"environment": environment,
+            u"restart_policy": {u"name": u"never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
+    def test_create_containers_with_restart_policy_always(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "always" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"always"
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartAlways()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_onfailure(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "on-failure" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"on-failure", u"maximum_retry_count": 5
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartOnFailure(
+                            maximum_retry_count=5
+                        )
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_never(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "never" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"never"
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartNever()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_never_default(self):
+        """
+        A valid API request to create a container with no restart policy
+        specified results in an updated configuration with a default restart
+        policy for this container of "never".
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx"
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartNever()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_restart_policy_onfailure_response(self):
+        """
+        A valid API request to create a container including restart policy
+        returns the restart policy supplied in the request in the response
+        JSON, including the max retry count for an on-failure policy.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"restart_policy": {
+                u"name": u"on-failure", u"maximum_retry_count": 10
+            }
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
+    def test_create_container_with_restart_policy_response(self):
+        """
+        A valid API request to create a container including restart policy
+        returns the restart policy supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"restart_policy": {u"name": u"never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
+    def test_create_container_with_cpu_shares(self):
+        """
+        A valid API request to create a container including CPU shares
+        results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"cpu_shares": 512
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        cpu_shares=512
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_cpu_shares_response(self):
+        """
+        A valid API request to create a container including CPU shares
+        returns the CPU shares supplied in the request in the response
+        JSON.
+        """
+        container_json = pmap({
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"cpu_shares": 512
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            dict(container_json), CREATED, dict(container_json_response)
+        )
+
+    def test_create_container_with_links_response(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container returns the link information in the response JSON.
+        """
+        container_json = pmap({
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"links": [
+                {
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
+                },
+            ]
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            dict(container_json), CREATED, dict(container_json_response)
+        )
+
+    def test_create_container_with_links(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"links": [
+                {
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
+                },
+                {
+                    u'alias': u'mysql',
+                    u'local_port': 3306,
+                    u'remote_port': 33060
+                },
+            ]
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        links=frozenset([
+                            Link(
+                                local_port=5432,
+                                remote_port=54320,
+                                alias="postgres"
+                            ),
+                            Link(
+                                local_port=3306,
+                                remote_port=33060,
+                                alias="mysql"
+                            ),
+                        ])
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_links_alias_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "alias" value.
+        """
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"postgres", u"local_port": 5433,
+                        u"remote_port": 54330
+                    },
+                ]
+            }, CONFLICT, {u"description": u"Link aliases must be unique."}
+        )
+        return d
+
+    def test_create_container_with_links_local_port_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "local_port" value.
+        """
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"another_postgres", u"local_port": 5432,
+                        u"remote_port": 54321
+                    },
+                ]
+            }, CONFLICT, {
+                u"description":
+                    u"The local ports in a container's links must be unique."
+                }
+        )
+        return d
+
+    def test_create_container_with_memory_limit(self):
+        """
+        A valid API request to create a container including a memory limit
+        results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"memory_limit": 262144000
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        memory_limit=262144000
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_memory_limit_response(self):
+        """
+        A valid API request to create a container including a memory limit
+        returns the memory limit supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000
+        }
+        container_json_response = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000,
+            u"restart_policy": {u"name": "never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_response
+        )
+
+    def _test_conflicting_ports(self, node1, node2):
+        """
+        Utility method to create two containers with the same ports on two
+        nodes.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node1, u"name": u"postgres",
+                u"image": u"postgres",
+                u"ports": [{u'internal': 5432, u'external': 54320}]
+            }, CREATED
+        )
+        # try to create another container with the same ports
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node2,
+                u"name": u'another_postgres',
+                u'image': u'postgres',
+                u'ports': [{u'internal': 5432, u'external': 54320}]
+            },
+            CONFLICT, {
+                u'description':
+                    u"A specified external port is already in use.",
+            }
+        ))
+        return d
+
+    def test_create_container_with_conflicting_ports_different_node(self):
+        """
+        A valid API request to create a container including port mappings
+        that conflict with the ports used by an application already running on
+        the same node return an error and therefoer do not create the
+        container.
+        """
+        return self._test_conflicting_ports(self.NODE_A, self.NODE_B)
+
+    def test_create_container_with_conflicting_ports(self):
+        """
+        A valid API request to create a container including port mappings
+        that conflict with the ports used by an application already running on
+        the same node return an error and therefoer do not create the
+        container.
+        """
+        return self._test_conflicting_ports(self.NODE_A, self.NODE_A)
+
+    def test_create_container_with_ports(self):
+        """
+        A valid API request to create a container including port mappings
+        results in an updated configuration.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(name='postgres',
+                                    image=DockerImage.from_string('postgres'))
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        ports = [
+            {'internal': 5432, 'external': 54320},
+        ]
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"image": u"postgres", u"ports": ports
+            }, CREATED
+        ))
+
+        def created(_):
+            application_ports = [Port(internal_port=5432, external_port=54320)]
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                            Application(
+                                name='another_postgres',
+                                image=DockerImage.from_string('postgres'),
+                                ports=frozenset(application_ports)
+                            )
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_create_container_with_ports_response(self):
+        """
+        A valid API request to create a container including port mappings
+        returns the port mapping supplied in the request in the response JSON.
+        """
+        ports = [
+            {'internal': 5432, 'external': 54320},
+        ]
+        container_json = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres", u"ports": ports
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres:latest", u"ports": ports,
+            u"restart_policy": {u"name": u"never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
+    def test_configuration_updated_existing_node(self):
+        """
+        A valid API request to create a container on an existing node results
+        in an updated configuration.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(name='postgres',
+                                    image=DockerImage.from_string('postgres'))
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"image": u"postgres"
+            }, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                            Application(
+                                name='another_postgres',
+                                image=DockerImage.from_string('postgres')
+                            )
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_configuration_updated_new_node(self):
+        """
+        A valid API request to create a container on a new node results
+        in an updated configuration.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_B, u"name": u"postgres",
+                u"image": u"postgres"
+            }, CREATED
+        )
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_B,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                        ]
+                    ),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(created)
+        return d
+
+    def test_response(self):
+        """
+        A minimally valid API request to create a container returns the
+        expected JSON response.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres"
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres:latest",
+            u"restart_policy": {u"name": u"never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
+
+RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
+    CreateContainerTestsMixin, "CreateContainer", _build_app)
+
+
+class DeleteContainerTestsMixin(APITestsMixin):
+    """
+    Tests for the container removal endpoint at
+    ``/configuration/datasets/<dataset_id>``.
+    """
+    def test_unknown_container(self):
+        """
+        NOT_FOUND is returned if the requested container doesn't exist.
+        """
+        unknown_name = u"xxx"
+        return self.assertResult(
+            b"DELETE",
+            b"/configuration/containers/%s" % (
+                unknown_name.encode('ascii'),),
+            None, NOT_FOUND,
+            {u"description": u'Container not found.'})
+
+    def _delete_test(self, name):
+        """
+        Create and then delete a container, ensuring the expected response
+        code of OK from deletion.
+
+        :param Application application: The container which will be deleted.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": name,
+                u"image": u"postgres"
+            }, CREATED
+        )
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE",
+            u"/configuration/containers/{}".format(name).encode("ascii"), None,
+            OK, None,
+        ))
+        return d
+
+    def test_delete(self):
+        """
+        The ``DELETE`` method removes the given container from the
+        configuration.
+        """
+        d = self._delete_test(u"mycontainer")
+
+        def deleted(_):
+            deployment = self.persistence_service.get()
+            origin = next(iter(deployment.nodes))
+            self.assertEqual(list(origin.applications), [])
+        d.addCallback(deleted)
+        return d
+
+    def test_delete_leaves_others(self):
+        """
+        The ``DELETE`` method does not remove unrelated containers.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"somecontainer",
+                u"image": u"postgres"
+            }, CREATED
+        )
+        d.addCallback(lambda _: self._delete_test(u"mycontainer"))
+
+        def deleted(_):
+            deployment = self.persistence_service.get()
+            origin = next(iter(deployment.nodes))
+            self.assertEqual(
+                list(origin.applications),
+                [Application(name=u"somecontainer",
+                             image=DockerImage.from_string(u"postgres"))])
+        d.addCallback(deleted)
+        return d
+
+
+RealTestsDeleteContainer, MemoryTestsDeleteContainer = (
+    buildIntegrationTests(
+        DeleteContainerTestsMixin, "DeleteContainer", _build_app)
+)
 
 
 class CreateDatasetTestsMixin(APITestsMixin):
@@ -1234,11 +2071,13 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
 
         node = Node(
             hostname=expected_hostname,
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object(),
-                                                volume=volume)}),
+            applications={
+                Application(
+                    name=u'mysql-clusterhq',
+                    image=DockerImage.from_string(u"xxx")),
+                Application(name=u'site-clusterhq.com',
+                            image=DockerImage.from_string(u"xxx"),
+                            volume=volume)},
             manifestations={expected_dataset.dataset_id:
                             volume.manifestation},
         )

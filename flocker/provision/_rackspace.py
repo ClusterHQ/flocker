@@ -7,20 +7,32 @@ Rackspace provisioner.
 from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import (
     provision, run,
-    task_disable_firewall, task_open_control_firewall
+    task_disable_firewall, task_open_control_firewall,
+    task_upgrade_kernel_centos,
 )
 
 
-def provision_rackspace(node, package_source, distribution):
+def provision_rackspace(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
     """
+    if distribution in ('centos-7',):
+        run(
+            username='root',
+            address=node.address,
+            commands=task_upgrade_kernel_centos(),
+        )
+        node.reboot()
+
     commands = (
         provision(
             package_source=package_source,
             distribution=node.distribution,
+            variants=variants,
         )
         + task_disable_firewall()
+        # https://clusterhq.atlassian.net/browse/FLOC-1550
+        # This should be part of ._install.configure_cluster
         + task_open_control_firewall()
     )
     run(
@@ -37,6 +49,7 @@ def provision_rackspace(node, package_source, distribution):
 
 IMAGE_NAMES = {
     'fedora-20': u'Fedora 20 (Heisenbug) (PVHVM)',
+    'centos-7': u'CentOS 7 (PVHVM)',
 }
 
 

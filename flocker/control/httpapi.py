@@ -23,7 +23,12 @@ from pyrsistent import discard
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
-from . import Dataset, Manifestation, Node, Deployment
+from . import (
+    Dataset, Manifestation, Node, Application, DockerImage, Port, Link
+)
+from ._config import (
+    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
+)
 from .. import __version__
 
 
@@ -39,6 +44,21 @@ SCHEMAS = {
         SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
 
+CONTAINER_NAME_COLLISION = make_bad_request(
+    code=CONFLICT, description=u"The container name already exists."
+)
+CONTAINER_NOT_FOUND = make_bad_request(
+    code=NOT_FOUND, description=u"Container not found.")
+CONTAINER_PORT_COLLISION = make_bad_request(
+    code=CONFLICT, description=u"A specified external port is already in use."
+)
+LINK_PORT_COLLISION = make_bad_request(
+    code=CONFLICT,
+    description=u"The local ports in a container's links must be unique."
+)
+LINK_ALIAS_COLLISION = make_bad_request(
+    code=CONFLICT, description=u"Link aliases must be unique."
+)
 DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
 PRIMARY_NODE_NOT_FOUND = make_bad_request(
@@ -49,7 +69,7 @@ DATASET_DELETED = make_bad_request(
     code=METHOD_NOT_ALLOWED, description=u"The dataset has been deleted.")
 
 
-class DatasetAPIUserV1(object):
+class ConfigurationAPIUserV1(object):
     """
     A user accessing the API.
 
@@ -69,6 +89,23 @@ class DatasetAPIUserV1(object):
         """
         self.persistence_service = persistence_service
         self.cluster_state_service = cluster_state_service
+
+    def _find_node_by_host(self, host, deployment):
+        """
+        Find a Node matching the specified host, or create a new one if it does
+        not already exist.
+        :param node: A ``unicode`` representing a host / IP address.
+        :param deployment: A ``Deployment`` instance.
+        :return: A ``Node`` instance.
+        """
+        for node in deployment.nodes:
+            if host == node.hostname:
+                return node
+
+        # The node wasn't found in the configuration so create a new node.
+        # FLOC-1278 will make sure we're not creating nonsense
+        # configuration in this step.
+        return Node(hostname=host)
 
     @app.route("/version", methods=['GET'])
     @user_documentation("""
@@ -183,27 +220,11 @@ class DatasetAPIUserV1(object):
         )
         manifestation = Manifestation(dataset=dataset, primary=True)
 
-        primary_nodes = list(
-            node for node in deployment.nodes if primary == node.hostname
-        )
-        if len(primary_nodes) == 0:
-            # The node wasn't found in the configuration so create a new node
-            # to which a manifestation can be added.  FLOC-1278 will make sure
-            # we're not creating nonsense configuration in this step.
-            primary_node = Node(hostname=primary)
-        else:
-            # One was found.  Add the manifestation to it.
-            (primary_node,) = primary_nodes
+        primary_node = self._find_node_by_host(primary, deployment)
 
         new_node_config = primary_node.transform(
             ("manifestations", manifestation.dataset_id), manifestation)
-
-        other_nodes = frozenset(
-            node for node in deployment.nodes if node is not primary_node
-        )
-        new_deployment = Deployment(
-            nodes=other_nodes | frozenset({new_node_config})
-        )
+        new_deployment = deployment.update_node(new_node_config)
         saving = self.persistence_service.save(new_deployment)
 
         def saved(ignored):
@@ -414,6 +435,207 @@ class DatasetAPIUserV1(object):
             del dataset[u"deleted"]
         return datasets
 
+    @app.route("/configuration/containers", methods=['POST'])
+    @user_documentation(
+        """
+        Add a new container to the configuration.
+
+        The container will be automatically started once it is created on
+        the cluster.
+        """,
+        examples=[
+            u"create container",
+            u"create container with duplicate name",
+            u"create container with ports",
+            u"create container with environment",
+            u"create container with restart policy",
+            u"create container with cpu shares",
+            u"create container with memory limit",
+            u"create container with links",
+        ]
+    )
+    @structured(
+        inputSchema={
+            '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
+        outputSchema={
+            '$ref': '/v1/endpoints.json#/definitions/configuration_container'},
+        schema_store=SCHEMAS
+    )
+    def create_container_configuration(
+        self, host, name, image, ports=(), environment=None,
+        restart_policy=None, cpu_shares=None, memory_limit=None,
+        links=()
+    ):
+        """
+        Create a new dataset in the cluster configuration.
+
+        :param unicode host: The address of the node on which the container
+            will run.
+
+        :param unicode name: A unique identifier for the container within
+            the Flocker cluster.
+
+        :param unicode image: The name of the Docker image to use for the
+            container.
+
+        :param list ports: A ``list`` of ``dict`` objects, mapping internal
+            to external ports for the container.
+
+        :param dict environment: A ``dict`` of key/value pairs to be supplied
+            to the container as environment variables. Keys and values must be
+            ``unicode``.
+
+        :param dict restart_policy: A restart policy for the container, this
+            is a ``dict`` with at a minimum a "name" key, whose value must be
+            one of "always", "never" or "on-failure". If the "name" is given
+            as "on-failure", there may also be another optional key
+            "maximum_retry_count", containing a positive ``int`` specifying
+            the maximum number of times we should attempt to restart a failed
+            container.
+
+        :param int cpu_shares: A positive integer specifying the relative
+            weighting of CPU cycles for this container (see Docker's run
+            reference for further information).
+
+        :param int memory_limit: A positive integer specifying the maximum
+            amount of memory in bytes available to this container.
+
+        :param list links: A ``list`` of ``dict`` objects, mapping container
+            links via "alias", "local_port" and "remote_port" values.
+
+        :return: An ``EndpointResponse`` describing the container which has
+            been added to the cluster configuration.
+        """
+        deployment = self.persistence_service.get()
+
+        # Check if container by this name already exists, if it does
+        # return error.
+
+        for node in deployment.nodes:
+            for application in node.applications:
+                if application.name == name:
+                    raise CONTAINER_NAME_COLLISION
+
+        # Find the node.
+        node = self._find_node_by_host(host, deployment)
+
+        # Check if we have any ports in the request. If we do, check existing
+        # external ports exposed to ensure there is no conflict. If there is a
+        # conflict, return an error.
+
+        for port in ports:
+            for current_node in deployment.nodes:
+                for application in current_node.applications:
+                    for application_port in application.ports:
+                        if application_port.external_port == port['external']:
+                            raise CONTAINER_PORT_COLLISION
+
+        # If links are present, check that there are no conflicts in local
+        # ports or alias names.
+        link_aliases = set()
+        link_local_ports = set()
+        application_links = set()
+        for link in links:
+            if link['alias'] in link_aliases:
+                raise LINK_ALIAS_COLLISION
+            if link['local_port'] in link_local_ports:
+                raise LINK_PORT_COLLISION
+            link_aliases.add(link['alias'])
+            link_local_ports.add(link['local_port'])
+            application_links.add(
+                Link(
+                    alias=link['alias'], local_port=link['local_port'],
+                    remote_port=link['remote_port']
+                )
+            )
+
+        # If we have ports specified, add these to the Application instance.
+        application_ports = []
+        for port in ports:
+            application_ports.append(Port(
+                internal_port=port['internal'],
+                external_port=port['external']
+            ))
+
+        if environment is not None:
+            environment = frozenset(environment.items())
+
+        if restart_policy is None:
+            restart_policy = dict(name=u"never")
+
+        policy_name = restart_policy.pop("name")
+        policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
+        policy = policy_factory(**restart_policy)
+
+        # Create Application object, add to Deployment, save.
+        application = Application(
+            name=name,
+            image=DockerImage.from_string(image),
+            ports=frozenset(application_ports),
+            environment=environment,
+            restart_policy=policy,
+            cpu_shares=cpu_shares,
+            memory_limit=memory_limit,
+            links=application_links
+        )
+
+        new_node_config = node.transform(
+            ["applications"],
+            lambda s: s.add(application)
+        )
+
+        new_deployment = deployment.update_node(new_node_config)
+        saving = self.persistence_service.save(new_deployment)
+
+        # Return passed in dictionary with CREATED response code.
+        def saved(_):
+            result = container_configuration_response(application, host)
+            return EndpointResponse(CREATED, result)
+        saving.addCallback(saved)
+        return saving
+
+    @app.route("/configuration/containers/<name>", methods=['DELETE'])
+    @user_documentation(
+        """
+        Remove a container from the configuration.
+
+        This will lead to the container being stopped and not being
+        restarted again.
+        """,
+        examples=[
+            u"remove a container",
+            u"remove a container with unknown name",
+        ]
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={},
+        schema_store=SCHEMAS
+    )
+    def delete_container_configuration(self, name):
+        """
+        Remove a container from the cluster configuration.
+
+        :param unicode name: A unique identifier for the container within
+            the Flocker cluster.
+
+        :return: An ``EndpointResponse``.
+        """
+        deployment = self.persistence_service.get()
+
+        for node in deployment.nodes:
+            for application in node.applications:
+                if application.name == name:
+                    updated_node = node.transform(
+                        ["applications"], lambda s: s.remove(application))
+                    d = self.persistence_service.save(
+                        deployment.update_node(updated_node))
+                    d.addCallback(lambda _: None)
+                    return d
+
+        # Didn't find the application:
+        raise CONTAINER_NOT_FOUND
+
 
 def manifestations_from_deployment(deployment, dataset_id):
     """
@@ -457,6 +679,26 @@ def datasets_from_deployment(deployment):
                 )
 
 
+def container_configuration_response(application, node):
+    """
+    Return a container dict  which confirms to
+    ``/v1/endpoints.json#/definitions/configuration_container``
+
+    :param Application application: An ``Application`` instance.
+    :param unicode node: The host on which this application is running.
+    :return: A ``dict`` containing the container configuration.
+    """
+    result = {
+        "host": node, "name": application.name,
+    }
+    result.update(ApplicationMarshaller(application).convert())
+    if application.cpu_shares is not None:
+        result["cpu_shares"] = application.cpu_shares
+    if application.memory_limit is not None:
+        result["memory_limit"] = application.memory_limit
+    return result
+
+
 def api_dataset_from_dataset_and_node(dataset, node_hostname):
     """
     Return a dataset dict which conforms to
@@ -495,7 +737,7 @@ def create_api_service(persistence_service, cluster_state_service, endpoint):
     :return: Service that will listen on the endpoint using HTTP API server.
     """
     api_root = Resource()
-    user = DatasetAPIUserV1(persistence_service, cluster_state_service)
+    user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
     api_root.putChild('v1', user.app.resource())
     api_root._v1_user = user  # For unit testing purposes, alas
     return StreamServerEndpointService(endpoint, Site(api_root))

@@ -5,36 +5,54 @@ AWS provisioner.
 """
 
 from ._libcloud import LibcloudProvisioner
+from ._common import Variants
 from ._install import (
     provision, run,
     task_install_ssh_key,
     task_upgrade_kernel,
     task_upgrade_selinux,
+    task_upgrade_kernel_centos,
+    task_enable_updates_testing
 )
 
 
-def provision_aws(node, package_source, distribution):
+def provision_aws(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
     """
+    username = {
+        'fedora-20': 'fedora',
+        'centos-7': 'centos',
+    }[distribution]
     run(
-        username='fedora',
+        username=username,
         address=node.address,
         commands=task_install_ssh_key(),
     )
-    run(
-        username='root',
-        address=node.address,
-        commands=task_upgrade_kernel(),
-    )
+
+    if Variants.DISTRO_TESTING in variants:
+        # FIXME: We shouldn't need to duplicate this here.
+        run(
+            username='root',
+            address=node.address,
+            commands=task_enable_updates_testing(distribution)
+        )
+
+    if distribution in ('centos-7',):
+        run(
+            username='root',
+            address=node.address,
+            commands=task_upgrade_kernel_centos(),
+        )
+        node.reboot()
+    elif distribution in ('fedora-20',):
+        run(
+            username='root',
+            address=node.address,
+            commands=task_upgrade_kernel(),
+        )
 
     node.reboot()
-
-    run(
-        username='root',
-        address=node.address,
-        commands=task_upgrade_selinux(),
-    )
 
     run(
         username='root',
@@ -42,13 +60,16 @@ def provision_aws(node, package_source, distribution):
         commands=provision(
             package_source=package_source,
             distribution=node.distribution,
-        )
+            variants=variants,
+        ) + task_upgrade_selinux(),
     )
     return node.address
 
 
 IMAGE_NAMES = {
     'fedora-20': 'Fedora-x86_64-20-20140407-sda',
+    'centos-7': 'CentOS 7 x86_64 (2014_09_29) EBS HVM'
+                '-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d2a117ba.2',
 }
 
 

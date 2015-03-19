@@ -80,6 +80,12 @@ You can run all unit tests by doing:
 
    $ tox
 
+You can also run specific tests in a specific environment:
+
+.. code-block:: console
+
+   $ tox -e py27 flocker.control.test.test_httpapi
+
 Functional tests require ``ZFS`` and ``Docker`` to be installed and in the case of the latter running as well.
 In addition, ``tox`` needs to be run as root:
 

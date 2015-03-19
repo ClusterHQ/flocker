@@ -10,7 +10,12 @@ import pwd
 import socket
 from unittest import skipUnless
 
+from zope.interface import implementer
+
+from characteristic import attributes
+
 from ._docker import BASE_DOCKER_API_URL
+from . import IDeployer, IStateChange
 from ..testtools import loop_until
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
@@ -67,3 +72,39 @@ def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
         return responded
 
     return loop_until(check_if_in_states)
+
+
+@implementer(IStateChange)
+@attributes(['result'])
+class ControllableAction(object):
+    """
+    ``IStateChange`` whose results can be controlled.
+    """
+    called = False
+    deployer = None
+
+    def run(self, deployer):
+        self.called = True
+        self.deployer = deployer
+        return self.result
+
+
+@implementer(IDeployer)
+class ControllableDeployer(object):
+    """
+    ``IDeployer`` whose results can be controlled.
+    """
+    def __init__(self, local_states, calculated_actions):
+        self.local_states = local_states
+        self.calculated_actions = calculated_actions
+        self.calculate_inputs = []
+
+    def discover_local_state(self):
+        return self.local_states.pop(0)
+
+    def calculate_necessary_state_changes(self, local_state,
+                                          desired_configuration,
+                                          cluster_state):
+        self.calculate_inputs.append(
+            (local_state, desired_configuration, cluster_state))
+        return self.calculated_actions.pop(0)

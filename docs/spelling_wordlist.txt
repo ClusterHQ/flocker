@@ -11,6 +11,7 @@ checksum
 chmod
 cli
 CLI
+clusterhq
 Copr
 dataset
 datasets
@@ -57,6 +58,7 @@ proxied
 proxying
 Rackspace
 Redis
+redis
 snapshotting
 stateful
 sysadmin

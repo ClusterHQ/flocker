@@ -19,25 +19,34 @@ from docutils import nodes
 from docutils.statemachine import StringList
 
 from . import _tasks as tasks
-from ._install import Run, Sudo, Comment
+from ._install import Run, Sudo, Comment, Put
 
 
 def run(command):
-    return [command.command]
+    return command.command
 
 
 def sudo(command):
-    return ["sudo %s" % (command.command,)]
+    return "sudo %s" % (command.command,)
 
 
 def comment(command):
-    return ["# %s" % (command.comment)]
+    return "# %s" % (command.comment)
+
+
+def put(command):
+    return [
+        "cat <<EOF > %s" % (command.path,),
+    ] + command.content.splitlines() + [
+        "EOF",
+    ]
 
 
 HANDLERS = {
     Run: run,
     Sudo: sudo,
     Comment: comment,
+    Put: put,
 }
 
 
@@ -46,6 +55,8 @@ class TaskDirective(Directive):
     Implementation of the C{task} directive.
     """
     required_arguments = 1
+    optional_arguments = 1
+    final_argument_whitespace = True
 
     option_spec = {
         'prompt': str
@@ -54,9 +65,13 @@ class TaskDirective(Directive):
     def run(self):
         task = getattr(tasks, 'task_%s' % (self.arguments[0],))
         prompt = self.options.get('prompt', '$')
+        if len(self.arguments) > 1:
+            task_arguments = self.arguments[1].split()
+        else:
+            task_arguments = []
 
-        commands = task()
-        lines = ['.. prompt:: bash %s' % (prompt,), '']
+        commands = task(*task_arguments)
+        lines = ['.. prompt:: bash %s,> auto' % (prompt,), '']
 
         for command in commands:
             try:
@@ -64,7 +79,15 @@ class TaskDirective(Directive):
             except KeyError:
                 raise self.error("task: %s not supported"
                                  % (type(command).__name__,))
-            lines += ['   %s' % (line,) for line in handler(command)]
+            # handler can return either a string or a list.  If it returns a
+            # list, treat the elements after the first as continuation lines.
+            command_line = handler(command)
+            if isinstance(command_line, list):
+                lines.append('   %s %s' % (prompt, command_line[0],))
+                lines.extend(['   > %s' % (line,)
+                              for line in command_line[1:]])
+            else:
+                lines.append('   %s %s' % (prompt, command_line,))
 
         # The following three lines record (some?) of the dependencies of the
         # directive, so automatic regeneration happens.  Specifically, it
