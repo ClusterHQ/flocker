@@ -4,112 +4,54 @@
 Tests for the control service REST API.
 """
 
+from os import environ
 import socket
 
-from signal import SIGINT
-from os import kill
 from uuid import uuid4
 from json import dumps, loads
 
+from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
+from unittest import SkipTest
 from treq import get, post, content, delete, json_content
-from characteristic import attributes
+from pyrsistent import PRecord, field, CheckedPVector
 
-from .testtools import get_nodes, run_SSH
-from ..testtools import loop_until, random_name
+from ..testtools import loop_until
 
 from ..control.httpapi import REST_API_PORT
 
 
-def wait_for_api(hostname):
+class Node(PRecord):
     """
-    Wait until REST API is available.
-
-    :param str hostname: The host where the control service is
-         running.
-
-    :return Deferred: Fires when REST API is available.
-    """
-    def api_available():
-        try:
-            s = socket.socket()
-            s.connect((hostname, REST_API_PORT))
-            return True
-        except socket.error:
-            return False
-    return loop_until(api_available)
-
-
-@attributes(['address', 'agents'])
-class Node(object):
-    """
-    A record of a cluster node and its agents.
+    A record of a cluster node.
 
     :ivar bytes address: The IPv4 address of the node.
-    :ivar list agents: A list of ``RemoteService`` instances for the
-        convergence agent processes that have been started on this node.
     """
+    address = field(type=bytes)
 
 
-@attributes(['address', 'process'])
-class RemoteService(object):
+class _NodeList(CheckedPVector):
     """
-    A record of a background SSH process and the node that it's running on.
+    A list of nodes.
 
-    :ivar bytes address: The IPv4 address on which the service is running.
-    :ivar Subprocess.Popen process: The running ``SSH`` process that is running
-        the remote process.
+    See https://github.com/tobgu/pyrsistent/issues/26 for more succinct
+    idiom combining this with ``field()``.
     """
+    __type__ = Node
 
 
-def close(process):
-    """
-    Kill a process.
-
-    :param subprocess.Popen process: The process to be killed.
-    """
-    process.stdin.close()
-    kill(process.pid, SIGINT)
-
-
-def remote_service_for_test(test_case, address, command):
-    """
-    Start a remote process (via SSH) for a test and register a cleanup function
-    to stop it when the test finishes.
-
-    :param TestCase test_case: The test case instance on which to register
-        cleanup operations.
-    :param bytes address: The IPv4 address of the node on which to run
-        ``command``.
-    :param list command: The command line arguments to run remotely via SSH.
-    :returns: A ``RemoteService`` instance.
-    """
-    service = RemoteService(
-        address=address,
-        process=run_SSH(
-            port=22,
-            user='root',
-            node=address,
-            command=command,
-            input=b"",
-            key=None,
-            background=True
-        )
-    )
-    test_case.addCleanup(close, service.process)
-    return service
-
-
-@attributes(['control_service', 'nodes'])
-class Cluster(object):
+class Cluster(PRecord):
     """
     A record of the control service and the nodes in a cluster for acceptance
     testing.
 
-    :param RemoteService control_service: The remotely running
-        ``flocker-control`` process.
+    :param Node control_node: The node running the ``flocker-control``
+        service.
     :param list nodes: The ``Node`` s in this cluster.
     """
+    control_node = field(type=Node)
+    nodes = field(type=_NodeList)
+
     @property
     def base_url(self):
         """
@@ -117,7 +59,7 @@ class Cluster(object):
             service.
         """
         return b"http://{}:{}/v1".format(
-            self.control_service.address, REST_API_PORT
+            self.control_node.address, REST_API_PORT
         )
 
     def datasets_state(self):
@@ -252,84 +194,41 @@ class Cluster(object):
         return request
 
 
-def cluster_for_test(test_case, node_addresses):
+def get_test_cluster(test_case, node_count):
     """
-    Build a ``Cluster`` instance with the supplied ``node_addresses``.
-
-    ``flocker-control`` is started on the node with the lowest address and with
-    a blank database.
-
-    ``flocker-zfs-agent`` is started on every node.
-
-    The processes will be killed after each test.
+    Build a ``Cluster`` instance with at least ``node_count`` nodes.
 
     :param TestCase test_case: The test case instance on which to register
         cleanup operations.
-    :param list node_address: The IPv4 addresses of the nodes in the cluster.
-    :returns: A ``Cluster`` instance.
+    :param int node_count: The number of nodes to request in the cluster.
+    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
     """
-    # Start servers; eventually we will have these already running on
-    # nodes, but for now needs to be done manually.
-    # https://clusterhq.atlassian.net/browse/FLOC-1383
+    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
 
-    control_service = remote_service_for_test(
-        test_case,
-        sorted(node_addresses)[0],
-        [b"flocker-control",
-         b"--data-path",
-         b"/tmp/flocker.acceptance.test_api.cluster_for_test.%s" % (
-             random_name(),)]
-    )
+    if control_node is None:
+        raise SkipTest(
+            "Set acceptance testing control node IP address using the " +
+            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
 
-    # https://clusterhq.atlassian.net/browse/FLOC-1382
-    nodes = []
-    for node_address in node_addresses:
-        agent_service = remote_service_for_test(
-            test_case,
-            node_address,
-            [b"flocker-zfs-agent", node_address, control_service.address],
-        )
-        node = Node(
-            address=node_address,
-            agents=[agent_service]
-        )
-        nodes.append(node)
+    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_AGENT_NODES')
 
-    return Cluster(control_service=control_service, nodes=nodes)
+    if agent_nodes_env_var is None:
+        raise SkipTest(
+            "Set acceptance testing node IP addresses using the " +
+            "FLOCKER_ACCEPTANCE_AGENT_NODES environment variable and a " +
+            "colon separated list.")
 
+    agent_nodes = filter(None, agent_nodes_env_var.split(':'))
 
-def create_cluster_and_wait_for_api(test_case, node_addresses):
-    """
-    Build a ``Cluster`` instance with the supplied ``node_addresses``.
+    if len(agent_nodes) < node_count:
+        raise SkipTest("This test requires a minimum of {necessary} nodes, "
+                       "{existing} node(s) are set.".format(
+                           necessary=node_count, existing=len(agent_nodes)))
 
-    :param TestCase test_case: The test case instance on which to register
-        cleanup operations.
-    :param list node_addresses: The IPv4 addresses of the nodes in the cluster.
-    :returns: A ``Cluster`` instance.
-    """
-    cluster = cluster_for_test(test_case, node_addresses)
-    waiting = wait_for_api(cluster.control_service.address)
-    api_ready = waiting.addCallback(lambda ignored: cluster)
-    return api_ready
-
-
-def wait_for_cluster(test_case, node_count):
-    """
-    Build a ``Cluster`` instance with ``node_count`` nodes.
-
-    :param TestCase test_case: The test case instance on which to register
-        cleanup operations.
-    :param list node_count: The number of nodes to create in the cluster.
-    :returns: A ``Deferred`` which fires with a ``Cluster`` instance when the
-        ``control_service`` is accepting API requests.
-    """
-    getting_nodes = get_nodes(test_case, node_count)
-
-    getting_nodes.addCallback(
-        lambda nodes: create_cluster_and_wait_for_api(test_case, nodes)
-    )
-
-    return getting_nodes
+    return succeed(Cluster(
+        control_node=Node(address=control_node),
+        nodes=map(lambda address: Node(address=address), agent_nodes),
+    ))
 
 
 class ContainerAPITests(TestCase):
@@ -347,7 +246,7 @@ class ContainerAPITests(TestCase):
             u"ports": [{u"internal": 80, u"external": 8080}],
             u'restart_policy': {u'name': u'never'}
         }
-        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
+        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
 
         def create_container(cluster, data):
             data[u"host"] = cluster.nodes[0].address
@@ -379,11 +278,11 @@ class ContainerAPITests(TestCase):
             u"name": "my_env_container",
             u"host": None,
             u"image": "clusterhq/flaskenv:latest",
-            u"ports": [{u"internal": 8080, u"external": 8080}],
+            u"ports": [{u"internal": 8080, u"external": 8081}],
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'},
-            u'restart_policy': {u'name': u'never'}
+            u'restart_policy': {u'name': u'never'},
         }
-        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
+        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
 
         def create_container(cluster, data):
             data[u"host"] = cluster.nodes[0].address
@@ -416,8 +315,8 @@ class ContainerAPITests(TestCase):
             return req
 
         d.addCallback(check_result)
-        d.addCallback(lambda _: verify_socket(data[u"host"], 8080))
-        d.addCallback(lambda _: query_environment(data[u"host"], 8080))
+        d.addCallback(lambda _: verify_socket(data[u"host"], 8081))
+        d.addCallback(lambda _: query_environment(data[u"host"], 8081))
         d.addCallback(
             lambda response:
                 self.assertDictContainsSubset(data[u"environment"], response)
@@ -438,7 +337,7 @@ class DatasetAPITests(TestCase):
             actual cluster state.
         """
         # Create a 1 node cluster
-        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=1)
+        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
 
         # Configure a dataset on node1
         def configure_dataset(cluster):
@@ -474,7 +373,7 @@ class DatasetAPITests(TestCase):
         A dataset can be moved from one node to another.
         """
         # Create a 2 node cluster
-        waiting_for_cluster = wait_for_cluster(test_case=self, node_count=2)
+        waiting_for_cluster = get_test_cluster(test_case=self, node_count=2)
 
         # Configure a dataset on node1
         def configure_dataset(cluster):
