@@ -348,8 +348,7 @@ class Node(PRecord):
 
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     applications = pset_field(Application, optional=True)
-    manifestations = field(type=PMap, initial=pmap(), factory=pmap,
-                           mandatory=True)
+    manifestations = pmap_field(unicode, Manifestation, optional=True)
 
 
 class Deployment(PRecord):
