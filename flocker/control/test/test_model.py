@@ -6,7 +6,7 @@ Tests for ``flocker.node._model``.
 
 from uuid import uuid4
 
-from pyrsistent import InvariantException, pset, PRecord, PSet, pmap
+from pyrsistent import InvariantException, pset, PRecord, PSet, pmap, PMap
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -15,7 +15,7 @@ from ...testtools import make_with_init_tests
 from .._model import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
-    NodeState, pset_field,
+    NodeState, pset_field, pmap_field,
 )
 
 
@@ -458,6 +458,113 @@ class PSetFieldTests(SynchronousTestCase):
         """
         class Record(PRecord):
             value = pset_field(int, optional=True)
+        assert ((Record(value=[1, 2]).value, Record(value=None).value) ==
+                (pset([1, 2]), None))
+
+    def test_name(self):
+        """
+        The created set class name is based on the type of items in the set.
+        """
+        class Something(object):
+            pass
+
+        class Record(PRecord):
+            value = pset_field(Something)
+        assert Record().value.__class__.__name__ == "SomethingPSet"
+
+
+class PMapFieldTests(SynchronousTestCase):
+    """
+    Tests for ``pmap_field``.
+
+    This will hopefully be contributed upstream to pyrsistent, thus the
+    slightly different testing style.
+    """
+    def test_initial_value(self):
+        """
+        ``pmap_field`` results in initial value that is empty.
+        """
+        class Record(PRecord):
+            value = pmap_field(int, int)
+        assert Record() == Record(value={})
+
+    def test_factory(self):
+        """
+        ``pmap_field`` has a factory that creates a ``PMap``.
+        """
+        class Record(PRecord):
+            value = pmap_field(int, int)
+        record = Record(value={1:  1234})
+        assert isinstance(record.value, PMap)
+
+    def test_checked_map_key(self):
+        """
+        ``pmap_field`` results in a map that enforces its key type.
+        """
+        class Record(PRecord):
+            value = pmap_field(int, type(None))
+        record = Record(value={1: None})
+        self.assertRaises(TypeError, record.value.set, "hello", None)
+
+    def test_checked_map_value(self):
+        """
+        ``pmap_field`` results in a map that enforces its value type.
+        """
+        class Record(PRecord):
+            value = pmap_field(int, type(None))
+        record = Record(value={1: None})
+        self.assertRaises(TypeError, record.value.set, 2, 4)
+
+    def test_mandatory(self):
+        """
+        ``pmap_field`` is a mandatory field.
+        """
+        class Record(PRecord):
+            value = pmap_field(int, int)
+        record = Record()
+        self.assertRaises(InvariantException, record.remove, "value")
+
+    def test_default_non_optional(self):
+        """
+        By default ``pmap_field`` is non-optional, i.e. does not allow
+        ``None``.
+        """
+        class Record(PRecord):
+            value = pmap_field(int, int)
+        # Ought to be TypeError, but pyrsistent doesn't quite allow that:
+        self.assertRaises(AttributeError, Record, value=None)
+
+    def test_explicit_non_optional(self):
+        """
+        If ``optional`` argument is ``False`` then ``pmap_field`` is
+        non-optional, i.e. does not allow ``None``.
+        """
+        class Record(PRecord):
+            value = pmap_field(int, int, optional=False)
+        # Ought to be TypeError, but pyrsistent doesn't quite allow that:
+        self.assertRaises(AttributeError, Record, value=None)
+
+    def test_optional(self):
+        """
+        If ``optional`` argument is true, ``None`` is acceptable alternative
+        to a set.
+        """
+        class Record(PRecord):
+            value = pmap_field(int, int, optional=True)
         self.assertEqual(
-            (Record(value=[1, 2]).value, Record(value=None).value),
-            (pset([1, 2]), None))
+            (Record(value={1: 2}).value, Record(value=None).value),
+            (pmap({1: 2}), None))
+
+    def test_name(self):
+        """
+        The created map class name is based on the types of items in the map.
+        """
+        class Something(object):
+            pass
+
+        class Another(object):
+            pass
+
+        class Record(PRecord):
+            value = pmap_field(Something, Another)
+        assert Record().value.__class__.__name__ == "SomethingAnotherPMap"

@@ -26,18 +26,19 @@ from pyrsistent import (
 from zope.interface import Interface, implementer
 
 
-def pset_field(klass, optional=False):
+def pset_field(item_type, optional=False):
     """
-    Create checked ``PSet`` field that can serialize recursively.
+    Create checked ``PSet`` field.
 
+    :param item_type: The required type for the items in the set.
     :param bool optional: If true, ``None`` can be used as a value for
         this field.
 
     :return: A ``field`` containing a ``CheckedPSet`` of the given type.
     """
     class TheSet(CheckedPSet):
-        __type__ = klass
-    TheSet.__name__ = klass.__name__ + "PSet"
+        __type__ = item_type
+    TheSet.__name__ = item_type.__name__ + "PSet"
 
     if optional:
         def factory(argument):
@@ -50,6 +51,35 @@ def pset_field(klass, optional=False):
     return field(type=optional_type(TheSet) if optional else TheSet,
                  factory=factory, mandatory=True,
                  initial=TheSet())
+
+
+def pmap_field(key_type, value_type, optional=False):
+    """
+    Create a checked ``PMap`` field.
+
+    :param key: The required type for the keys of the map.
+    :param value: The required type for the values of the map.
+    :param bool optional: If true, ``None`` can be used as a value for
+        this field.
+
+    :return: A ``field`` containing a ``CheckedPMap``.
+    """
+    class TheMap(CheckedPMap):
+        __key_type__ = key_type
+        __value_type__ = value_type
+    TheMap.__name__ = key_type.__name__ + value_type.__name__ + "PMap"
+
+    if optional:
+        def factory(argument):
+            if argument is None:
+                return None
+            else:
+                return TheMap(argument)
+    else:
+        factory = TheMap
+    return field(mandatory=True, initial=TheMap(),
+                 type=optional_type(TheMap) if optional else TheMap,
+                 factory=factory)
 
 
 class DockerImage(PRecord):
@@ -295,13 +325,15 @@ class Node(PRecord):
         resolveable name so that Flocker can connect to the node.  This may be
         a literal IP address instead of a proper hostname.
 
-    :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
-        describing the applications which are to run on this ``Node``.
+    :ivar applications: A ``PSet`` of ``Application`` instances describing
+        the applications which are to run on this ``Node``. Or ``None`` if
+        this information is unknown.
 
     :ivar PMap manifestations: Mapping between dataset IDs and
         corresponding ``Manifestation`` instances that are present on the
         node. Includes both those attached as volumes to any applications,
-        and those that are unattached.
+        and those that are unattached. ``None`` if this information is
+        unknown.
     """
     def __invariant__(self):
         manifestations = self.manifestations.values()
@@ -315,7 +347,7 @@ class Node(PRecord):
         return (True, "")
 
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    applications = pset_field(Application)
+    applications = pset_field(Application, optional=True)
     manifestations = field(type=PMap, initial=pmap(), factory=pmap,
                            mandatory=True)
 
@@ -398,17 +430,6 @@ class DatasetChanges(object):
     """
 
 
-class _PathMap(CheckedPMap):
-    """
-    A mapping between dataset IDs and the paths where they are mounted.
-
-    See https://github.com/tobgu/pyrsistent/issues/26 for more succinct
-    idiom combining this with ``field()``.
-    """
-    __key_type__ = unicode
-    __value_type__ = FilePath
-
-
 class NodeState(PRecord):
     """
     The current state of a node.
@@ -434,8 +455,7 @@ class NodeState(PRecord):
     running = pset_field(Application)
     not_running = pset_field(Application)
     manifestations = pset_field(Manifestation)
-    paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap.create,
-                  mandatory=True)
+    paths = pmap_field(unicode, FilePath)
 
     def to_node(self):
         """
