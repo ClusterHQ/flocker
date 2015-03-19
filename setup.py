@@ -71,6 +71,13 @@ dev_requirements = [
     # The cloud acceptance test runner needs these
     "fabric==1.10.0",
     "apache-libcloud==0.16.0",
+
+    # Packages are downloaded from Buildbot
+    "requests==2.4.3",
+    "requests-file==1.0",
+
+    # Functional programming is used in the release process.
+    "effect==0.1a13",
 ]
 
 # The test suite uses network namespaces
@@ -178,6 +185,9 @@ setup(
             "tl.eggdeps",
             "effect==0.1a13",
             "boto==2.30.0",
+            # Packages are downloaded from Buildbot
+            "requests==2.4.3",
+            "requests-file==1.0",
             ],
         },
 

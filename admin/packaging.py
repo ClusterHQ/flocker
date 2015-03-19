@@ -53,6 +53,11 @@ ARCH = {
     },
 }
 
+PACKAGE_ARCHITECTURE = {
+    'clusterhq-flocker-cli': 'all',
+    'clusterhq-flocker-node': 'all',
+    'clusterhq-python-flocker': 'native',
+}
 
 def package_filename(package_type, package, architecture, rpm_version):
     package_name_format = PACKAGE_NAME_FORMAT[package_type]
@@ -582,6 +587,10 @@ IGNORED_WARNINGS = {
         # This isn't an distribution package so we deliberately install in /opt
         'dir-or-file-in-opt',
 
+        # This isn't a distribution package, so the precise details of the
+        # distro portion of the version don't need to be followed.
+        'debian-revision-not-well-formed',
+
         # virtualenv's interpreter is correct.
         'wrong-path-for-interpreter',
         # Virtualenv creates symlinks for local/{bin,include,lib}. Ignore them.
@@ -808,7 +817,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='native',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-python-flocker'],
                 description=PACKAGE_PYTHON.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -821,7 +830,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-python-flocker',
-                architecture='native',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-python-flocker'],
             ),
 
             # flocker-cli steps
@@ -848,7 +857,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-cli'],
                 description=PACKAGE_CLI.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -860,7 +869,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-cli',
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-cli'],
             ),
 
             # flocker-node steps
@@ -906,7 +915,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-node'],
                 description=PACKAGE_NODE.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -920,7 +929,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-node',
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-node'],
             ),
         )
     )
