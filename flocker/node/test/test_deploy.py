@@ -723,8 +723,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(NodeState(hostname=u'example.com',
-                                   running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'example.com'),
                          self.successResultOf(d))
 
     def test_discover_one(self):
@@ -751,7 +750,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(NodeState(hostname=u'example.com',
-                                   running=[application], not_running=[]),
+                                   applications=[application]),
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
@@ -785,7 +784,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).running)
+                              self.successResultOf(d).applications)
 
     def test_discover_application_with_links(self):
         """
@@ -815,7 +814,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_discover_application_with_ports(self):
         """
@@ -849,7 +848,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_discover_locally_owned_volume(self):
         """
@@ -911,7 +910,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).running)
+                              self.successResultOf(d).applications)
 
     def test_discover_locally_owned_volume_with_size(self):
         """
@@ -991,7 +990,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).running)
+                              self.successResultOf(d).applications)
 
     def test_discover_remotely_owned_volumes_ignored(self):
         """
@@ -1021,7 +1020,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_ignore_unknown_volumes(self):
         """
@@ -1056,7 +1055,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_not_running_units(self):
         """
@@ -1078,7 +1077,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             Application(name=unit.name,
                         image=DockerImage.from_string(
                             unit.container_image
-                        )) for unit in units.values()
+                        ),
+                        running=False) for unit in units.values()
         ]
         applications.sort()
         api = P2PNodeDeployer(
@@ -1091,7 +1091,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         result = self.successResultOf(d)
 
         self.assertEqual(NodeState(hostname=u'example.com',
-                                   running=[], not_running=applications),
+                                   applications=applications),
                          result)
 
     def test_discover_used_ports(self):
@@ -1112,8 +1112,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         state = self.successResultOf(discovering)
 
         self.assertEqual(
-            NodeState(hostname=u'example.com',
-                      running=[], not_running=[], used_ports=used_ports),
+            NodeState(hostname=u'example.com', used_ports=used_ports),
             state
         )
 
@@ -1147,7 +1146,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     DATASET_ID = u"uuid123"
     DATASET_ID2 = u"uuid456"
@@ -2075,7 +2074,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             current_cluster_state=EMPTY)
         to_stop = Application(
             name=unit.name,
-            image=DockerImage.from_string(unit.container_image)
+            image=DockerImage.from_string(unit.container_image),
+            running=False,
         )
         expected = Sequentially(changes=[InParallel(changes=[
             StopApplication(application=to_stop)])])
@@ -2946,8 +2946,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
                               current_cluster_state=EMPTY)
         d.addCallback(lambda _: api.discover_local_state())
 
-        self.assertEqual(NodeState(hostname=u'node.example.com',
-                                   running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'node.example.com'),
                          self.successResultOf(d))
 
     def test_applications_started(self):
@@ -2985,7 +2984,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
                                                tag=u'release-14.0'),)
         self.assertEqual(
             NodeState(hostname=u'node.example.com',
-                      running=[expected_application], not_running=[]),
+                      applications=[expected_application]),
             self.successResultOf(d))
 
     def test_result(self):
