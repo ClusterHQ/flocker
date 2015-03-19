@@ -203,7 +203,7 @@ def _clean_node(test_case, node):
             [b"flocker"], None)
 
 
-def _stop_acceptance_cluster(test_case):
+def _stop_acceptance_cluster():
     """
     Stop the Flocker cluster configured for the accpetance tests.
     """
