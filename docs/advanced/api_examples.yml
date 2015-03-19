@@ -309,7 +309,7 @@
     "create container with memory limit"
 
   doc: |
-    Create a new container with a memory limit, in this example 250MB.
+    Create a new container with a memory limit, in this example 250MB (250 * 1024 * 1024).
 
   request: |
     POST /v1/configuration/containers HTTP/1.1
