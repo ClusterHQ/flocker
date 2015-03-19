@@ -25,8 +25,8 @@ zfs_repo_url = (
 check_call(['yum', 'install', '-y',  zfs_repo_url])
 
 clusterhq_repo_url = (
-    'https://storage.googleapis.com/'
-    'archive.clusterhq.com/'
+    'https://s3.amazonaws.com/'
+    'clusterhq-archive/'
     'fedora/clusterhq-release%s.noarch.rpm') % (rpm_dist,)
 check_call(['yum', 'install', '-y', clusterhq_repo_url])
 

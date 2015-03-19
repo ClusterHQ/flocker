@@ -53,6 +53,11 @@ ARCH = {
     },
 }
 
+PACKAGE_ARCHITECTURE = {
+    'clusterhq-flocker-cli': 'all',
+    'clusterhq-flocker-node': 'all',
+    'clusterhq-python-flocker': 'native',
+}
 
 def package_filename(package_type, package, architecture, rpm_version):
     package_name_format = PACKAGE_NAME_FORMAT[package_type]
@@ -808,7 +813,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='native',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-python-flocker'],
                 description=PACKAGE_PYTHON.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -821,7 +826,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-python-flocker',
-                architecture='native',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-python-flocker'],
             ),
 
             # flocker-cli steps
@@ -848,7 +853,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-cli'],
                 description=PACKAGE_CLI.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -860,7 +865,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-cli',
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-cli'],
             ),
 
             # flocker-node steps
@@ -906,7 +911,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-node'],
                 description=PACKAGE_NODE.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -920,7 +925,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-node',
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-node'],
             ),
         )
     )
