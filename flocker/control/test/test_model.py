@@ -432,3 +432,32 @@ class PSetFieldTests(SynchronousTestCase):
             value = pset_field(int)
         record = Record(value=[1])
         self.assertRaises(InvariantException, record.remove, "value")
+
+    def test_default_non_optional(self):
+        """
+        By default ``pset_field`` is non-optional, i.e. does not allow
+        ``None``.
+        """
+        class Record(PRecord):
+            value = pset_field(int)
+        self.assertRaises(TypeError, Record, value=None)
+
+    def test_explicit_non_optional(self):
+        """
+        If ``optional`` argument is ``False`` then ``pset_field`` is
+        non-optional, i.e. does not allow ``None``.
+        """
+        class Record(PRecord):
+            value = pset_field(int, optional=False)
+        self.assertRaises(TypeError, Record, value=None)
+
+    def test_optional(self):
+        """
+        If ``optional`` argument is true, ``None`` is acceptable alternative
+        to a set.
+        """
+        class Record(PRecord):
+            value = pset_field(int, optional=True)
+        self.assertEqual(
+            (Record(value=[1, 2]).value, Record(value=None).value),
+            (pset([1, 2]), None))

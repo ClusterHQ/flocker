@@ -17,16 +17,21 @@ There are different categories of classes:
 from characteristic import attributes
 
 from twisted.python.filepath import FilePath
+
 from pyrsistent import (
     pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap,
+    optional as optional_type
     )
 
 from zope.interface import Interface, implementer
 
 
-def pset_field(klass):
+def pset_field(klass, optional=False):
     """
     Create checked ``PSet`` field that can serialize recursively.
+
+    :param bool optional: If true, ``None`` can be used as a value for
+        this field.
 
     :return: A ``field`` containing a ``CheckedPSet`` of the given type.
     """
@@ -34,7 +39,16 @@ def pset_field(klass):
         __type__ = klass
     TheSet.__name__ = klass.__name__ + "PSet"
 
-    return field(type=TheSet, factory=TheSet.create, mandatory=True,
+    if optional:
+        def factory(argument):
+            if argument is None:
+                return None
+            else:
+                return TheSet.create(argument)
+    else:
+        factory = TheSet.create
+    return field(type=optional_type(TheSet) if optional else TheSet,
+                 factory=factory, mandatory=True,
                  initial=TheSet())
 
 
