@@ -587,6 +587,10 @@ IGNORED_WARNINGS = {
         # This isn't an distribution package so we deliberately install in /opt
         'dir-or-file-in-opt',
 
+        # This isn't a distribution package, so the precise details of the
+        # distro portion of the version don't need to be followed.
+        'debian-revision-not-well-formed',
+
         # virtualenv's interpreter is correct.
         'wrong-path-for-interpreter',
         # Virtualenv creates symlinks for local/{bin,include,lib}. Ignore them.
