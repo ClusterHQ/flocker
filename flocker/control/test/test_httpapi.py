@@ -532,7 +532,7 @@ class CreateContainerTestsMixin(APITestsMixin):
 
     def test_create_container_with_memory_limit(self):
         """
-        A valid API request to create a container including CPU shares
+        A valid API request to create a container including a memory limit
         results in an updated configuration.
         """
         request_data = [{
