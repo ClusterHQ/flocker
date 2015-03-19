@@ -1,14 +1,17 @@
 admin
 app
 apps
+backend
 behaviour
 Btrfs
 bugfix
 Buildbot
+CentOS
 checksum
 chmod
 cli
 CLI
+clusterhq
 Copr
 dataset
 datasets
@@ -44,6 +47,7 @@ multi
 mv
 namespace
 NAT'd
+online
 pem
 petabyte
 petabytes
@@ -53,6 +57,7 @@ proxied
 proxying
 Rackspace
 Redis
+redis
 snapshotting
 stateful
 sysadmin
@@ -66,3 +71,4 @@ workflow
 yml
 yourlaptop
 ZFS
+Zulip

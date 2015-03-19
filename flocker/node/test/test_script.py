@@ -27,6 +27,7 @@ from .._docker import FakeDockerClient, Unit
 from ...control._model import (
     Application, Deployment, DockerImage, Node, AttachedVolume, Dataset,
     Manifestation)
+from ...control._config import dataset_id_from_name
 from .._loop import AgentLoopService
 from .._deploy import P2PNodeDeployer
 
@@ -118,7 +119,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             links=frozenset(),
             )
 
-        node = Node(hostname='node1.example.com',
+        node = Node(hostname=u'node1.example.com',
                     applications=frozenset([application]))
         options = self.options()
         deployment_config = {"nodes": {node.hostname: [application.name]},
@@ -174,23 +175,29 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             'version': 1
         }}
 
+        manifestation = Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id_from_name(
+                    "mysql-something"),
+                metadata=pmap({'name': 'mysql-something'})),
+            primary=True)
+
         expected_current_config = Deployment(nodes=frozenset([
-            Node(hostname='node2.example.com', applications=frozenset([
-                Application(
-                    name='mysql-something',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                    volume=AttachedVolume(
-                        manifestation=Manifestation(
-                            dataset=Dataset(
-                                dataset_id=None,
-                                metadata=pmap({'name': 'mysql-something'})),
-                            primary=True),
-                        mountpoint=FilePath(b'/var/lib/data'),
-                    )
-                ),
-            ]))]))
+            Node(hostname=u'node2.example.com',
+                 applications=frozenset([
+                     Application(
+                         name='mysql-something',
+                         image=DockerImage.from_string('unknown'),
+                         ports=frozenset(),
+                         links=frozenset(),
+                         volume=AttachedVolume(
+                             manifestation=manifestation,
+                             mountpoint=FilePath(b'/var/lib/data'),
+                         )
+                     ),
+                 ]),
+                 manifestations={
+                     manifestation.dataset_id: manifestation})]))
 
         options.parseOptions(
             [safe_dump(deployment_config),
@@ -213,7 +220,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                 repository=u'hybridlogic/mysql5.9', tag=u'latest'),
         )
 
-        node = Node(hostname='node1.example.com',
+        node = Node(hostname=u'node1.example.com',
                     applications=frozenset([application]))
         options = self.options()
         deployment_config = {"nodes": {node.hostname: [application.name]},
@@ -416,7 +423,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"example.com"])
+        options.parseOptions([b"1.2.3.4", b"example.com"])
         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
@@ -426,7 +433,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         script = ZFSAgentScript()
         options = ZFSAgentOptions()
-        options.parseOptions([b"example.com"])
+        options.parseOptions([b"1.2.3.4", b"example.com"])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
                                         Service()))
 
@@ -436,7 +443,8 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"--destination-port", b"1234", b"example.com"])
+        options.parseOptions([b"--destination-port", b"1234", b"1.2.3.4",
+                              b"example.com"])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
@@ -451,11 +459,11 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                                            deployer=None,
                                            host=u"example.com",
                                            port=1234),
-                          P2PNodeDeployer, u"example.com", service, True))
+                          P2PNodeDeployer, b"1.2.3.4", service, True))
 
 
-class ZFSAgentOptionsTests(
-        make_volume_options_tests(ZFSAgentOptions, [b"example.com"])):
+class ZFSAgentOptionsTests(make_volume_options_tests(
+        ZFSAgentOptions, [b"1.2.3.4", b"example.com"])):
     """
     Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """
@@ -465,7 +473,7 @@ class ZFSAgentOptionsTests(
         4524.
         """
         options = ZFSAgentOptions()
-        options.parseOptions([b"example.com"])
+        options.parseOptions([b"1.2.3.4", b"example.com"])
         self.assertEqual(options["destination-port"], 4524)
 
     def test_custom_port(self):
@@ -474,14 +482,24 @@ class ZFSAgentOptionsTests(
         destination port.
         """
         options = ZFSAgentOptions()
-        options.parseOptions([b"--destination-port", b"1234", b"example.com"])
+        options.parseOptions([b"--destination-port", b"1234",
+                              b"1.2.3.4", b"example.com"])
         self.assertEqual(options["destination-port"], 1234)
 
     def test_host(self):
         """
-        The required command-line argument allows configuring the
+        The second required command-line argument allows configuring the
         destination host.
         """
         options = ZFSAgentOptions()
-        options.parseOptions([b"control.example.com"])
+        options.parseOptions([b"1.2.3.4", b"control.example.com"])
         self.assertEqual(options["destination-host"], u"control.example.com")
+
+    def test_hostname(self):
+        """
+        The first required command-line argument allows configuring the
+        hostname of the node the agent is operating on.
+        """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"5.6.7.8", b"control.example.com"])
+        self.assertEqual(options["hostname"], u"5.6.7.8")

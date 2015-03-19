@@ -4,25 +4,31 @@
 Tests for ``flocker.node._deploy``.
 """
 
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 from zope.interface.verify import verifyObject
-from zope.interface import implementer
 
-from pyrsistent import pmap
+from eliot.testing import validate_logging
+
+from pyrsistent import pmap, pset
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import P2PNodeDeployer, change_node_state
+from ..testtools import ControllableDeployer, ControllableAction
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name, IDeployer)
+    ResizeDataset, _link_environment, _to_volume_name, IDeployer,
+    DeleteDataset,
+)
+from ...testtools import CustomException
+from .. import _deploy
 from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -136,43 +142,22 @@ HandoffVolumeIStateChangeTests = make_istatechange_tests(
 PushVolumeIStateChangeTests = make_istatechange_tests(
     PushDataset, dict(dataset=1, hostname=b"123"),
     dict(dataset=2, hostname=b"123"))
+DeleteDatasetTests = make_istatechange_tests(
+    DeleteDataset,
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))),
+    dict(dataset=Dataset(dataset_id=unicode(uuid4()))))
 
 
-NOT_CALLED = object()
-
-
-@implementer(IStateChange)
-class FakeChange(object):
+class ControllableActionIStateChangeTests(
+        make_istatechange_tests(
+            ControllableAction,
+            kwargs1=dict(result=1),
+            kwargs2=dict(result=2),
+        )
+):
     """
-    A change that returns the given result and records the deployer.
-
-    :ivar deployer: The deployer passed to ``run()``, or ``NOT_CALLED``
-        before that.
+    Tests for ``ControllableAction``.
     """
-    def __init__(self, result):
-        """
-        :param Deferred result: The result to return from ``run()``.
-        """
-        self.result = result
-        self.deployer = NOT_CALLED
-
-    def run(self, deployer):
-        self.deployer = deployer
-        return self.result
-
-    def was_run_called(self):
-        """
-        Return whether or not run() has been called yet.
-
-        :return: ``True`` if ``run()`` was called, otherwise ``False``.
-        """
-        return self.deployer != NOT_CALLED
-
-    def __eq__(self, other):
-        return False
-
-    def __ne__(self, other):
-        return True
 
 
 class SequentiallyTests(SynchronousTestCase):
@@ -183,7 +168,8 @@ class SequentiallyTests(SynchronousTestCase):
         """
         ``Sequentially.run`` runs sub-changes with the given deployer.
         """
-        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=succeed(None)),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
         change.run(deployer)
@@ -195,7 +181,8 @@ class SequentiallyTests(SynchronousTestCase):
         The result of ``Sequentially.run`` fires when all changes are done.
         """
         not_done1, not_done2 = Deferred(), Deferred()
-        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        subchanges = [ControllableAction(result=not_done1),
+                      ControllableAction(result=not_done2)]
         change = Sequentially(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
@@ -213,17 +200,18 @@ class SequentiallyTests(SynchronousTestCase):
         # not_done, the second one will finish as soon as its run() is
         # called.
         not_done = Deferred()
-        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=not_done),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
-        # Run the sequential change. We expect the first FakeChange's
+        # Run the sequential change. We expect the first ControllableAction's
         # run() to be called, but we expect second one *not* to be called
         # yet, since first one has finished.
         change.run(deployer)
-        called = [subchanges[0].was_run_called(),
-                  subchanges[1].was_run_called()]
+        called = [subchanges[0].called,
+                  subchanges[1].called]
         not_done.callback(None)
-        called.append(subchanges[1].was_run_called())
+        called.append(subchanges[1].called)
         self.assertEqual(called, [True, False, True])
 
     def test_failure_stops_later_change(self):
@@ -232,14 +220,15 @@ class SequentiallyTests(SynchronousTestCase):
         continuing to run later changes.
         """
         not_done = Deferred()
-        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=not_done),
+                      ControllableAction(result=succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
-        called = [subchanges[1].was_run_called()]
+        called = [subchanges[1].called]
         exception = RuntimeError()
         not_done.errback(exception)
-        called.extend([subchanges[1].was_run_called(),
+        called.extend([subchanges[1].called,
                        self.failureResultOf(result).value])
         self.assertEqual(called, [False, False, exception])
 
@@ -252,7 +241,8 @@ class InParallelTests(SynchronousTestCase):
         """
         ``InParallel.run`` runs sub-changes with the given deployer.
         """
-        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=succeed(None)),
+                      ControllableAction(result=succeed(None))]
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
@@ -264,7 +254,8 @@ class InParallelTests(SynchronousTestCase):
         The result of ``InParallel.run`` fires when all changes are done.
         """
         not_done1, not_done2 = Deferred(), Deferred()
-        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        subchanges = [ControllableAction(result=not_done1),
+                      ControllableAction(result=not_done2)]
         change = InParallel(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
@@ -280,19 +271,20 @@ class InParallelTests(SynchronousTestCase):
         """
         # The first change will not finish immediately when run(), but we
         # expect the second one to be run() nonetheless.
-        subchanges = [FakeChange(Deferred()), FakeChange(succeed(None))]
+        subchanges = [ControllableAction(result=Deferred()),
+                      ControllableAction(result=succeed(None))]
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
-        called = [subchanges[0].was_run_called(),
-                  subchanges[1].was_run_called()]
+        called = [subchanges[0].called,
+                  subchanges[1].called]
         self.assertEqual(called, [True, True])
 
     def test_failure_result(self):
         """
         ``InParallel.run`` returns the first failure.
         """
-        subchanges = [FakeChange(fail(RuntimeError()))]
+        subchanges = [ControllableAction(result=fail(RuntimeError()))]
         change = InParallel(changes=subchanges)
         result = change.run(object())
         failure = self.failureResultOf(result, FirstError)
@@ -305,9 +297,9 @@ class InParallelTests(SynchronousTestCase):
         logged.
         """
         subchanges = [
-            FakeChange(fail(ZeroDivisionError('e1'))),
-            FakeChange(fail(ZeroDivisionError('e2'))),
-            FakeChange(fail(ZeroDivisionError('e3'))),
+            ControllableAction(result=fail(ZeroDivisionError('e1'))),
+            ControllableAction(result=fail(ZeroDivisionError('e2'))),
+            ControllableAction(result=fail(ZeroDivisionError('e3'))),
         ]
         change = InParallel(changes=subchanges)
         result = change.run(deployer=object())
@@ -396,7 +388,7 @@ class StartApplicationTests(SynchronousTestCase):
                               tag=u'9.3.5'),
             environment=variables.copy(),
             links=frozenset(),
-            ports=None
+            ports=(),
         )
 
         StartApplication(application=application,
@@ -674,7 +666,7 @@ APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
 DATASET_ID = unicode(uuid4())
 DATASET = Dataset(dataset_id=DATASET_ID,
                   metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
+APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
 APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
@@ -792,8 +784,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_application_with_links(self):
         """
@@ -918,8 +910,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_locally_owned_volume_with_size(self):
         """
@@ -998,8 +990,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_remotely_owned_volumes_ignored(self):
         """
@@ -1097,7 +1089,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
         result = self.successResultOf(d)
-        result.not_running.sort()
 
         self.assertEqual(NodeState(hostname=u'example.com',
                                    running=[], not_running=applications),
@@ -1158,18 +1149,20 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
-    def test_discover_unattached_datasets(self):
+    DATASET_ID = u"uuid123"
+    DATASET_ID2 = u"uuid456"
+
+    def _setup_datasets(self):
         """
-        Datasets that are not attached to any applications are added to
-        ``NodeState.other_manifestations``.
+        Setup a ``P2PNodeDeployer`` that will discover two manifestations.
+
+        :return: Suitably configured ``P2PNodeDeployer``.
         """
-        DATASET_ID = u"uuid123"
-        DATASET_ID2 = u"uuid456"
         volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID))
         ))
         self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID2))
+            self.volume_service.get(_to_volume_name(self.DATASET_ID2))
         ))
 
         unit1 = Unit(name=u'site-example.com',
@@ -1185,19 +1178,47 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1}
 
         fake_docker = FakeDockerClient(units=units)
-        api = P2PNodeDeployer(
+        return P2PNodeDeployer(
             u'example.com',
             self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
+
+    def test_discover_datasets(self):
+        """
+        All datasets on the node are added to ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
         d = api.discover_local_state()
 
         self.assertEqual(
-            frozenset([Manifestation(
-                dataset=Dataset(dataset_id=DATASET_ID2),
-                primary=True)]),
-            self.successResultOf(d).other_manifestations)
+            pset(
+                {Manifestation(
+                    dataset=Dataset(
+                        dataset_id=self.DATASET_ID,
+                        metadata=pmap({u"name": u"site-example.com"})),
+                    primary=True),
+                 Manifestation(dataset=Dataset(dataset_id=self.DATASET_ID2),
+                               primary=True)}),
+            self.successResultOf(d).manifestations)
+
+    def test_discover_manifestation_paths(self):
+        """
+        All datasets on the node have their paths added to
+        ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
+        d = api.discover_local_state()
+
+        self.assertEqual(
+            {self.DATASET_ID:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID)).get_filesystem().get_path(),
+             self.DATASET_ID2:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID2)).get_filesystem().get_path()},
+            self.successResultOf(d).paths)
 
 
 # A deployment with no information:
@@ -1470,6 +1491,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node = Node(
             hostname=hostname,
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
 
         # This completely expresses the configuration for a cluster of one node
@@ -1492,6 +1515,95 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 hostname=hostname)])])
         self.assertEqual(expected, changes)
 
+    def test_dataset_deleted(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        dataset must be deleted if the desired configuration specifies
+        that the dataset has the ``deleted`` attribute set to True.
+
+        Note that for now this happens regardless of whether the node
+        actually has the dataset, since the deployer doesn't know about
+        replicas... see FLOC-1240.
+        """
+        docker = FakeDockerClient(units={})
+        node = Node(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
+        self.assertEqual(expected, changes)
+
+    def test_deletion_after_application_stop(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` ensures dataset
+        deletion happens after application stop phase to make sure nothing
+        is using the deleted dataset.
+        """
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    container_image=u'flocker/wordpress:v1.0.0',
+                    activation_state=u'active')
+
+        docker = FakeDockerClient(units={unit.name: unit})
+        node = Node(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = Deployment(nodes=[node])
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
+        api = P2PNodeDeployer(
+            node.hostname,
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+        desired = current.update_node(node.transform(
+            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+
+        to_stop = StopApplication(application=Application(
+            name=unit.name, image=DockerImage.from_string(
+                unit.container_image)))
+        expected = Sequentially(changes=[
+            InParallel(changes=[to_stop]),
+            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
+                "deleted", True))])
+            ])
+        self.assertEqual(expected, changes)
+
     def test_volume_wait(self):
         """
         ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
@@ -1510,6 +1622,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         another_node = Node(
             hostname=u"node2.example.com",
             applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -1524,7 +1637,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
             Node(hostname=another_node.hostname,
                  applications=frozenset()),
         }))
@@ -1563,6 +1678,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1573,9 +1690,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # application is running here.
         current = Deployment(nodes=frozenset([node, another_node]))
 
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
         api = P2PNodeDeployer(
             node.hostname,
-            create_volume_service(self), docker_client=docker,
+            volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
@@ -1583,7 +1704,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset()),
             Node(hostname=another_node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
         }))
 
         changes = api.calculate_necessary_state_changes(
@@ -1635,10 +1758,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
         desired_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1694,10 +1821,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+            manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                            MANIFESTATION_WITH_SIZE},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1768,6 +1898,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(
                 hostname=u"node1.example.com",
                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
             Node(
                 hostname=u"node2.example.com",
@@ -1778,6 +1909,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(
                 hostname=u"node2.example.com",
                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
             Node(
                 hostname=u"node1.example.com",
@@ -1844,6 +1977,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         another_node = Node(
             hostname=u"node2.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
 
         current = Deployment(nodes=frozenset([node, another_node]))
@@ -1856,7 +1990,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+                 manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                 MANIFESTATION_WITH_SIZE}),
             Node(hostname=another_node.hostname,
                  applications=frozenset()),
         }))
@@ -1983,10 +2119,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
             applications=frozenset({discovered_another_application}),
+            manifestations={volume2.manifestation.dataset_id:
+                            volume2.manifestation},
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -1994,18 +2133,26 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # at the other node.
         current = Deployment(nodes=frozenset([node, another_node]))
 
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
         api = P2PNodeDeployer(
             node.hostname,
-            create_volume_service(self), docker_client=docker,
+            volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
         # We're swapping the location of applications:
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({another_application})),
+                 applications=frozenset({another_application}),
+                 manifestations={volume2.manifestation.dataset_id:
+                                 volume2.manifestation}),
             Node(hostname=another_node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
         }))
 
         changes = api.calculate_necessary_state_changes(
@@ -2074,7 +2221,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({new_postgres_app})),
+                 applications=frozenset({new_postgres_app}),
+                 manifestations={
+                     new_postgres_app.volume.manifestation.dataset_id:
+                     new_postgres_app.volume.manifestation}),
         }))
         result = api.calculate_necessary_state_changes(
             self.successResultOf(api.discover_local_state()),
@@ -2290,103 +2440,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         self.assertEqual(expected, result)
 
-    def test_dataset_id_populated(self):
-        """
-        If one of ``Dataset`` objects in the desired configuration is missing
-        its dataset ID, and a ``Dataset`` with matching name exists in
-        current configuration, the desired ``Dataset`` has its ID set to
-        the matching ID.
-
-        This is part of supporting configuration files that don't specify
-        dataset IDs.
-        """
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
-        desired_application = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                manifestation=Manifestation(dataset=dataset, primary=True),
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-            ),
-        )
-        desired = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([desired_application])
-            )
-        ]))
-        actual = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([APPLICATION_WITH_VOLUME_SIZE])
-            )
-        ]))
-        api = P2PNodeDeployer(u"node", create_volume_service(self),
-                              docker_client=FakeDockerClient(),
-                              network=make_memory_network())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()), desired, actual)
-
-        # Desired configuration was changed to set the correct dataset ID,
-        # which is why a resize is happening:
-        expected = Sequentially(changes=[
-            InParallel(
-                changes=[ResizeDataset(
-                    dataset=APPLICATION_WITH_VOLUME.volume.dataset,
-                    )]
-            ),
-            InParallel(
-                changes=[
-                    StartApplication(
-                        application=APPLICATION_WITH_VOLUME,
-                        hostname=u'node')
-                ])])
-        self.assertEqual(result, expected)
-
-    def test_dataset_id_generated(self):
-        """
-        If one of ``Dataset`` objects in the desired configuration is missing
-        its dataset ID, and no ``Dataset`` with matching name exists in
-        current configuration, a new dataset ID will be generated.
-
-        This is part of supporting configuration files that don't specify
-        dataset IDs.
-        """
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
-        desired_application = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                manifestation=Manifestation(dataset=dataset, primary=True),
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-            ),
-        )
-        desired = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([desired_application])
-            )
-        ]))
-        actual = Deployment(nodes=frozenset())
-        api = P2PNodeDeployer(u"node", create_volume_service(self),
-                              docker_client=FakeDockerClient(),
-                              network=make_memory_network())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()), desired, actual)
-
-        # CreateVolume:
-        dataset = result.changes[0].changes[0].dataset
-        # StartApplication:
-        dataset2 = result.changes[1].changes[0].application.volume.dataset
-        # New UUID was generated, but only once:
-        self.assertEqual(UUID(dataset.dataset_id), UUID(dataset2.dataset_id))
-
 
 class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         SynchronousTestCase):
@@ -2416,7 +2469,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         node = Node(
             hostname=hostname,
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired = Deployment(nodes=frozenset({node}))
 
@@ -2445,7 +2498,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
 
         current = Deployment(nodes=frozenset([node, another_node]))
@@ -2458,7 +2511,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 other_manifestations=frozenset({MANIFESTATION})),
+                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION}),
             Node(hostname=another_node.hostname),
         }))
 
@@ -2485,7 +2538,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -2493,16 +2546,20 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
         current = Deployment(nodes=frozenset([node, another_node]))
 
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
         api = P2PNodeDeployer(
             node.hostname,
-            create_volume_service(self), docker_client=docker,
+            volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname),
             Node(hostname=another_node.hostname,
-                 other_manifestations=frozenset({MANIFESTATION}))}))
+                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION})}))
 
         changes = api.calculate_necessary_state_changes(
             self.successResultOf(api.discover_local_state()),
@@ -2526,11 +2583,14 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         work for the dataset if it was and continues to be on the node.
         """
         volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
         docker = FakeDockerClient(units={})
 
         current_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset({MANIFESTATION}),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = current_node
 
@@ -2560,15 +2620,19 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         maximum_size that differs to the existing dataset size.
         """
         volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
         docker = FakeDockerClient(units={})
 
         current_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset([MANIFESTATION]),
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
         desired_node = Node(
             hostname=u"node1.example.com",
-            other_manifestations=frozenset([MANIFESTATION_WITH_SIZE]),
+            manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                            MANIFESTATION_WITH_SIZE},
         )
 
         current = Deployment(nodes=frozenset([current_node]))
@@ -2603,12 +2667,15 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         size. The dataset will be resized before moving.
         """
         volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(_to_volume_name(DATASET_ID))))
+
         docker = FakeDockerClient(units={})
 
         current_nodes = [
             Node(
                 hostname=u"node1.example.com",
-                other_manifestations=frozenset([MANIFESTATION]),
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
             Node(
                 hostname=u"node2.example.com",
@@ -2620,7 +2687,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
             ),
             Node(
                 hostname=u"node2.example.com",
-                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
         ]
 
@@ -2672,7 +2740,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         current_nodes = [
             Node(
                 hostname=u"node1.example.com",
-                other_manifestations=frozenset([MANIFESTATION]),
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
             Node(
                 hostname=u"node2.example.com",
@@ -2685,7 +2753,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
             ),
             Node(
                 hostname=u"node2.example.com",
-                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                                MANIFESTATION_WITH_SIZE},
             ),
         ]
 
@@ -2929,8 +2998,13 @@ class ChangeNodeStateTests(SynchronousTestCase):
                               create_volume_service(self),
                               docker_client=FakeDockerClient(),
                               network=make_memory_network())
-        self.patch(api, "calculate_necessary_state_changes",
-                   lambda *args, **kwargs: succeed(FakeChange(deferred)))
+        self.patch(
+            api,
+            "calculate_necessary_state_changes",
+            lambda *args, **kwargs: succeed(
+                ControllableAction(result=deferred)
+            )
+        )
         result = change_node_state(api, desired_configuration=EMPTY,
                                    current_cluster_state=EMPTY)
         deferred.callback(123)
@@ -2941,7 +3015,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
         The result of ``calculate_necessary_state_changes`` is called with the
         deployer.
         """
-        change = FakeChange(succeed(None))
+        change = ControllableAction(result=succeed(None))
         api = P2PNodeDeployer(u'node.example.com',
                               create_volume_service(self),
                               docker_client=FakeDockerClient(),
@@ -2971,19 +3045,19 @@ class ChangeNodeStateTests(SynchronousTestCase):
                       current_cluster_state):
             arguments.extend([local_state, desired_configuration,
                               current_cluster_state])
-            return succeed(FakeChange(succeed(None)))
+            return succeed(ControllableAction(result=succeed(None)))
         api.calculate_necessary_state_changes = calculate
         change_node_state(api, desired, state)
         self.assertEqual(arguments, [local, desired, state])
 
 
-class CreateVolumeTests(SynchronousTestCase):
+class CreateDatasetTests(SynchronousTestCase):
     """
-    Tests for ``CreateVolume``.
+    Tests for ``CreateDataset``.
     """
     def test_creates(self):
         """
-        ``CreateVolume.run()`` creates the named volume.
+        ``CreateDataset.run()`` creates the named volume.
         """
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
@@ -3000,7 +3074,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_creates_respecting_size(self):
         """
-        ``CreateVolume.run()`` creates the named volume with a ``VolumeSize``
+        ``CreateDataset.run()`` creates the named volume with a ``VolumeSize``
         instance respecting the maximum_size passed in from the
         ``AttachedVolume``.
         """
@@ -3027,7 +3101,7 @@ class CreateVolumeTests(SynchronousTestCase):
 
     def test_return(self):
         """
-        ``CreateVolume.run()`` returns a ``Deferred`` that fires with the
+        ``CreateDataset.run()`` returns a ``Deferred`` that fires with the
         created volume.
         """
         deployer = P2PNodeDeployer(
@@ -3042,6 +3116,55 @@ class CreateVolumeTests(SynchronousTestCase):
             _to_volume_name(volume.dataset.dataset_id)))
 
 
+class DeleteDatasetTests(TestCase):
+    """
+    Tests for ``DeleteDataset``.
+    """
+    def setUp(self):
+        self.volume_service = create_volume_service(self)
+        self.deployer = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=FakeDockerClient(),
+            network=make_memory_network())
+
+        id1 = unicode(uuid4())
+        self.volume1 = self.volume_service.get(_to_volume_name(id1))
+        id2 = unicode(uuid4())
+        self.volume2 = self.volume_service.get(_to_volume_name(id2))
+        self.successResultOf(self.volume_service.create(self.volume1))
+        self.successResultOf(self.volume_service.create(self.volume2))
+
+    def test_deletes(self):
+        """
+        ``DeleteDataset.run()`` deletes volumes whose ``dataset_id`` matches
+        the one the instance was created with.
+        """
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
+
+        self.assertEqual(
+            list(self.successResultOf(self.volume_service.enumerate())),
+            [self.volume1])
+
+    @validate_logging(
+        lambda test, logger: logger.flush_tracebacks(CustomException))
+    def test_failed_create(self, logger):
+        """
+        Failed deletions of volumes does not result in a failed result from
+        ``DeleteDataset.run()``.
+
+        The traceback is, however, logged.
+        """
+        self.patch(self.volume_service.pool, "destroy",
+                   lambda fs: fail(CustomException()))
+        self.patch(_deploy, "_logger", logger)
+        delete = DeleteDataset(
+            dataset=Dataset(dataset_id=self.volume2.name.dataset_id))
+        self.successResultOf(delete.run(self.deployer))
+
+
 class ResizeVolumeTests(TestCase):
     """
     Tests for ``ResizeVolume``.
@@ -3052,7 +3175,7 @@ class ResizeVolumeTests(TestCase):
         """
         size = VolumeSize(maximum_size=1234567890)
         volume_service = create_volume_service(self)
-        volume_name = VolumeName(namespace=u"default", dataset_id=b"myvol")
+        volume_name = VolumeName(namespace=u"default", dataset_id=u"myvol")
         volume = volume_service.get(volume_name)
         d = volume_service.create(volume)
 
@@ -3274,4 +3397,17 @@ class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
                                      make_memory_network()))):
     """
     ``IDeployer`` tests for ``P2PNodeDeployer``.
+    """
+
+
+class ControllableDeployerInterfaceTests(
+        ideployer_tests_factory(
+            lambda test: ControllableDeployer(
+                local_states=[succeed(NodeState(hostname=b'192.0.2.123'))],
+                calculated_actions=[InParallel(changes=[])],
+            )
+        )
+):
+    """
+    ``IDeployer`` tests for ``ControllableDeployer``.
     """

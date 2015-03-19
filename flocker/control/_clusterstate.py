@@ -6,7 +6,7 @@ Combine and retrieve current cluster state.
 
 from twisted.application.service import Service
 
-from ._model import Deployment, Node
+from ._model import Deployment
 
 
 class ClusterStateService(Service):
@@ -32,15 +32,22 @@ class ClusterStateService(Service):
         """
         self._nodes[node_state.hostname] = node_state
 
+    def manifestation_path(self, hostname, dataset_id):
+        """
+        Get the filesystem path of a manifestation on a particular node.
+
+        :param unicode hostname: The name of the host.
+        :param unicode dataset_id: The dataset identifier.
+
+        :return FilePath: The path where the manifestation exists.
+        """
+        return self._nodes[hostname].paths[dataset_id]
+
     def as_deployment(self):
         """
         Return cluster state as a Deployment object.
 
         :return Deployment: Current state of the cluster.
         """
-        return Deployment(nodes=frozenset([
-            Node(hostname=hostname,
-                 other_manifestations=node_state.other_manifestations,
-                 applications=frozenset(
-                     node_state.running + node_state.not_running))
-            for hostname, node_state in self._nodes.items()]))
+        return Deployment(nodes=frozenset(
+            (node_state.to_node() for node_state in self._nodes.values())))

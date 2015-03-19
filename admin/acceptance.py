@@ -17,11 +17,12 @@ from twisted.python import log
 
 from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
-from flocker.provision import PackageSource
+from flocker.provision import PackageSource, Variants
 import flocker
 from flocker.provision._install import (
     run as run_tasks_on_node,
-    task_pull_docker_images
+    task_pull_docker_images,
+    configure_cluster,
 )
 
 
@@ -69,11 +70,15 @@ def extend_environ(**kwargs):
     return env
 
 
-def run_tests(nodes, trial_args):
+def run_tests(nodes, control_node, agent_nodes, trial_args):
     """
-    Run the acceptances tests.
+    Run the acceptance tests.
 
     :param list nodes: The list of nodes to run the acceptance tests against.
+    :param bytes control_node: The address of the control node to run API
+        acceptance tests against.
+    :param list agent_nodes: The list of nodes running flocker agent, to run
+        API acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
     """
@@ -82,7 +87,10 @@ def run_tests(nodes, trial_args):
     return safe_call(
         ['trial'] + list(trial_args),
         env=extend_environ(
-            FLOCKER_ACCEPTANCE_NODES=':'.join(nodes)))
+            FLOCKER_ACCEPTANCE_NODES=':'.join(nodes),
+            FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node,
+            FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(agent_nodes),
+            ))
 
 
 class INodeRunner(Interface):
@@ -104,7 +112,8 @@ class INodeRunner(Interface):
 
 
 RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'package_source']
+    'distribution', 'top_level', 'config', 'package_source', 'variants'
+]
 
 
 @implementer(INodeRunner)
@@ -128,6 +137,10 @@ class VagrantRunner(object):
         if not self.vagrant_path.exists():
             raise UsageError("Distribution not found: %s."
                              % (self.distribution,))
+
+        if self.variants:
+            raise UsageError("Unsupored varianta: %s."
+                             % (', '.join(self.variants),))
 
     def start_nodes(self):
         # Destroy the box to begin, so that we are guaranteed
@@ -165,9 +178,6 @@ class LibcloudRunner(object):
     Run the tests against rackspace nodes.
     """
     def __init__(self):
-        if self.distribution != 'fedora-20':
-            raise ValueError("Distribution not supported: %r."
-                             % (self.distribution,))
         self.nodes = []
 
         self.metadata = self.config.get('metadata', {})
@@ -204,7 +214,13 @@ class LibcloudRunner(object):
                 raise
 
             self.nodes.append(node)
-            node.provision(package_source=self.package_source)
+
+            # From ssh-keygen(1):
+            # -R hostname
+            # Removes all keys belonging to hostname from a known_hosts file.
+            check_safe_call(['ssh-keygen', '-R', node.address])
+            node.provision(package_source=self.package_source,
+                           variants=self.variants)
             del node
 
         return [node.address for node in self.nodes]
@@ -290,6 +306,15 @@ class RunOptions(Options):
         """
         Options.__init__(self)
         self.top_level = top_level
+        self['variants'] = []
+
+    def opt_variant(self, arg):
+        """
+        Specify a variant of the provisioning to run.
+
+        Supported variants: distro-testing, docker-head, zfs-testing.
+        """
+        self['variants'].append(Variants.lookupByValue(arg))
 
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
@@ -329,6 +354,7 @@ class RunOptions(Options):
             config=self['config'],
             distribution=self['distribution'],
             package_source=package_source,
+            variants=self['variants'],
         )
 
 
@@ -370,7 +396,11 @@ def main(args, base_path, top_level):
 
     try:
         nodes = runner.start_nodes()
-        result = run_tests(nodes, options['trial-args'])
+        configure_cluster(control_node=nodes[0], agent_nodes=nodes)
+        result = run_tests(
+            nodes=nodes,
+            control_node=nodes[0], agent_nodes=nodes,
+            trial_args=options['trial-args'])
     except:
         result = 1
         raise

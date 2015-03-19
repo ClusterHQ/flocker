@@ -3,15 +3,42 @@
 
 """
 Record types for representing deployment models.
+
+There are different categories of classes:
+
+1. Those that involve information that can be both in configuration and state.
+   This includes ``Deployment`` and all classes on it.
+   (Metadata should really be configuration only, but that hasn't been
+   fixed yet on the model level.)
+2. State-specific classes, currently ``NodeState``.
+3. Configuration-specific classes, none implemented yet.
 """
 
-from characteristic import attributes, Attribute
-from pyrsistent import pmap
+from characteristic import attributes
+
+from twisted.python.filepath import FilePath
+from pyrsistent import (
+    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap,
+    )
+
 from zope.interface import Interface, implementer
 
 
-@attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
-class DockerImage(object):
+def pset_field(klass):
+    """
+    Create checked ``PSet`` field that can serialize recursively.
+
+    :return: A ``field`` containing a ``CheckedPSet`` of the given type.
+    """
+    class TheSet(CheckedPSet):
+        __type__ = klass
+    TheSet.__name__ = klass.__name__ + "PSet"
+
+    return field(type=TheSet, factory=TheSet.create, mandatory=True,
+                 initial=TheSet())
+
+
+class DockerImage(PRecord):
     """
     An image that can be used to run an application using Docker.
 
@@ -20,6 +47,8 @@ class DockerImage(object):
     :ivar unicode full_name: A readonly property which combines the repository
         and tag in a format that can be passed to `docker run`.
     """
+    repository = field(mandatory=True)
+    tag = field(mandatory=True, initial=u"latest")
 
     @property
     def full_name(self):
@@ -51,22 +80,35 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@attributes(["manifestation", "mountpoint"])
-class AttachedVolume(object):
+class Port(PRecord):
     """
-    A volume attached to an application to be deployed.
+    A record representing the mapping between a port exposed internally by an
+    application and the corresponding port exposed to the outside world.
 
-    :ivar Manifestation manifestation: The ``Manifestation`` that is being
-        attached as a volume. For now this is always from a ``Dataset``
-        with the same as the name of the application it is attached to
-        https://clusterhq.atlassian.net/browse/FLOC-49).
-
-    :ivar FilePath mountpoint: The path within the container where this
-        volume should be mounted.
+    :ivar int internal_port: The port number exposed by the application.
+    :ivar int external_port: The port number exposed to the outside world.
     """
-    @property
-    def dataset(self):
-        return self.manifestation.dataset
+    internal_port = field(mandatory=True, type=int)
+    external_port = field(mandatory=True, type=int)
+
+
+class Link(PRecord):
+    """
+    A record representing the mapping between a port exposed internally to
+    an application, and the corresponding external port of a possibly remote
+    application.
+
+    :ivar int local_port: The port the local application expects to access.
+        This is used to determine the environment variables to populate in the
+        container.
+    :ivar int remote_port: The port exposed externally by the remote
+        application.
+    :ivar unicode alias: Environment variable prefix to use for exposing
+        connection information.
+    """
+    local_port = field(mandatory=True, type=int)
+    remote_port = field(mandatory=True, type=int)
+    alias = field(mandatory=True)
 
 
 class IRestartPolicy(Interface):
@@ -76,37 +118,31 @@ class IRestartPolicy(Interface):
 
 
 @implementer(IRestartPolicy)
-@attributes([], apply_immutable=True,
-            # https://github.com/hynek/characteristic/pull/22
-            apply_with_init=False)
-class RestartNever(object):
+class RestartNever(PRecord):
     """
     A restart policy that never restarts an application.
     """
 
 
 @implementer(IRestartPolicy)
-@attributes([], apply_immutable=True,
-            # https://github.com/hynek/characteristic/pull/22
-            apply_with_init=False)
-class RestartAlways(object):
+class RestartAlways(PRecord):
     """
     A restart policy that always restarts an application.
     """
 
 
 @implementer(IRestartPolicy)
-@attributes([Attribute("maximum_retry_count", default_value=None)],
-            apply_immutable=True)
-class RestartOnFailure(object):
+class RestartOnFailure(PRecord):
     """
     A restart policy that restarts an application when it fails.
 
-    :ivar int maximum_retry_count: The number of times the application is
-        allowed to fail, before the giving up.
+    :ivar maximum_retry_count: The number of times the application is
+        allowed to fail before giving up, or ``None`` if there is no
+        maximum.
     """
+    maximum_retry_count = field(mandatory=True, initial=None)
 
-    def __init__(self):
+    def __invariant__(self):
         """
         Check that ``maximum_retry_count`` is positive or None
 
@@ -114,24 +150,17 @@ class RestartOnFailure(object):
         """
         if self.maximum_retry_count is not None:
             if not isinstance(self.maximum_retry_count, int):
-                raise TypeError(
-                    "maximum_retry_count must be an integer or None, "
-                    "got %r" % (self.maximum_retry_count,))
+                return (False,
+                        "maximum_retry_count must be an integer or None, "
+                        "got %r" % (self.maximum_retry_count,))
             if self.maximum_retry_count < 1:
-                raise ValueError(
-                    "maximum_retry_count must be positive, "
-                    "got %r" % (self.maximum_retry_count,))
+                return (False,
+                        "maximum_retry_count must be positive, "
+                        "got %r" % (self.maximum_retry_count,))
+        return (True, "")
 
 
-@attributes(["name", "image",
-             Attribute("ports", default_value=frozenset()),
-             Attribute("volume", default_value=None),
-             Attribute("links", default_value=frozenset()),
-             Attribute("environment", default_value=None),
-             Attribute("memory_limit", default_value=None),
-             Attribute("cpu_shares", default_value=None),
-             Attribute("restart_policy", default_value=RestartNever())])
-class Application(object):
+class Application(PRecord):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
@@ -152,7 +181,7 @@ class Application(object):
         should be created between applications, or ``None`` if configuration
         information isn't available.
 
-    :ivar frozenset environment: A ``frozenset`` of environment variables
+    :ivar PSet environment: A ``frozenset`` of environment variables
         that should be exposed in the ``Application`` container, or ``None``
         if no environment variables are specified. A ``frozenset`` of
         variables contains a ``tuple`` series mapping (key, value).
@@ -160,36 +189,32 @@ class Application(object):
     :ivar IRestartPolicy restart_policy: The restart policy for this
         application.
     """
+    name = field(mandatory=True)
+    image = field(mandatory=True, type=DockerImage)
+    ports = pset_field(Port)
+    volume = field(mandatory=True, initial=None)
+    links = pset_field(Link)
+    memory_limit = field(mandatory=True, initial=None)
+    cpu_shares = field(mandatory=True, initial=None)
+    restart_policy = field(mandatory=True, initial=RestartNever())
+    environment = field(mandatory=True, initial=pmap(), factory=pmap,
+                        type=PMap)
 
 
-@attributes(["dataset", "primary"])
-class Manifestation(object):
-    """
-    A dataset that is mounted on a node.
-
-    :ivar Dataset dataset: The dataset being mounted.
-
-    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
-    """
-
-
-@attributes(["dataset_id",
-             Attribute("maximum_size", default_value=None),
-             Attribute("metadata", default_value=pmap())])
-class Dataset(object):
+class Dataset(PRecord):
     """
     The filesystem data for a particular application.
 
     At some point we'll want a way of reserving metadata for ourselves.
-
-    maximum_size really should be metadata:
-    https://clusterhq.atlassian.net/browse/FLOC-1215
 
     :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
         if this is coming out of human-supplied configuration, in which
         case it will need to be looked up from actual state for existing
         datasets, or a new one generated if a new dataset will need tbe
         created.
+
+    :ivar bool deleted: If ``True``, this dataset has been deleted and its
+        data is unavailable, or will soon become unavailable.
 
     :ivar PMap metadata: Mapping between ``unicode`` keys and
         corresponding values. Typically there will be a ``"name"`` key whose
@@ -198,15 +223,59 @@ class Dataset(object):
     :ivar int maximum_size: The maximum size in bytes of this dataset, or
         ``None`` if there is no specified limit.
     """
+    dataset_id = field(mandatory=True, type=unicode, factory=unicode)
+    deleted = field(mandatory=True, initial=False, type=bool)
+    maximum_size = field(mandatory=True, initial=None)
+    metadata = field(mandatory=True, type=PMap, factory=pmap, initial=pmap(),
+                     serializer=lambda f, d: dict(d))
 
 
-@attributes(["hostname",
-             Attribute("applications", default_value=frozenset()),
-             Attribute("other_manifestations", default_value=frozenset())])
-class Node(object):
+class Manifestation(PRecord):
+    """
+    A dataset that is mounted on a node.
+
+    :ivar Dataset dataset: The dataset being mounted.
+
+    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
+    """
+    dataset = field(mandatory=True, type=Dataset)
+    primary = field(mandatory=True, type=bool)
+
+    @property
+    def dataset_id(self):
+        """
+        :return unicode: The dataset ID of the dataset.
+        """
+        return self.dataset.dataset_id
+
+
+class AttachedVolume(PRecord):
+    """
+    A volume attached to an application to be deployed.
+
+    :ivar Manifestation manifestation: The ``Manifestation`` that is being
+        attached as a volume. For now this is always from a ``Dataset``
+        with the same as the name of the application it is attached to
+        https://clusterhq.atlassian.net/browse/FLOC-49).
+
+    :ivar FilePath mountpoint: The path within the container where this
+        volume should be mounted.
+    """
+    manifestation = field(mandatory=True, type=Manifestation)
+    mountpoint = field(mandatory=True, type=FilePath)
+
+    @property
+    def dataset(self):
+        return self.manifestation.dataset
+
+
+class Node(PRecord):
     """
     A single node on which applications will be managed (deployed,
     reconfigured, destroyed, etc).
+
+    Manifestations attached to applications must also be present in the
+    ``manifestations`` attribute.
 
     :ivar unicode hostname: The hostname of the node.  This must be a
         resolveable name so that Flocker can connect to the node.  This may be
@@ -215,32 +284,39 @@ class Node(object):
     :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
 
-    :ivar frozenset other_manifestations: ``Manifestation`` instances that
-        are present on the node but are not attached as volumes to any
-        applications.
+    :ivar PMap manifestations: Mapping between dataset IDs and
+        corresponding ``Manifestation`` instances that are present on the
+        node. Includes both those attached as volumes to any applications,
+        and those that are unattached.
     """
-    def manifestations(self):
-        """
-        All manifestations present on this node.
+    def __invariant__(self):
+        manifestations = self.manifestations.values()
+        for app in self.applications:
+            if app.volume is not None:
+                if app.volume.manifestation not in manifestations:
+                    return (False, '%r manifestation is not on node' % (app,))
+        for key, value in self.manifestations.items():
+            if key != value.dataset_id:
+                return (False, '%r is not correct key for %r' % (key, value))
+        return (True, "")
 
-        :return frozenset: All ``Manifestation`` instances from this node.
-        """
-        return self.other_manifestations | frozenset(
-            [application.volume.manifestation
-             for application in self.applications
-             if application.volume is not None])
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    applications = pset_field(Application)
+    manifestations = field(type=PMap, initial=pmap(), factory=pmap,
+                           mandatory=True)
 
 
-@attributes(["nodes"])
-class Deployment(object):
+class Deployment(PRecord):
     """
     A ``Deployment`` describes the configuration of a number of applications on
     a number of cooperating nodes.  This might describe the real state of an
     existing deployment or be used to represent a desired future state.
 
-    :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
+    :ivar PSet nodes: A set containing ``Node`` instances
         describing the configuration of each cooperating node.
     """
+    nodes = pset_field(Node)
+
     def applications(self):
         """
         Return all applications in all nodes.
@@ -251,33 +327,20 @@ class Deployment(object):
             for application in node.applications:
                 yield application
 
+    def update_node(self, node):
+        """
+        Create new ``Deployment`` based on this one which replaces existing
+        ``Node`` with updated version, or just adds given ``Node`` if no
+        existing ones have matching hostname.
 
-@attributes(['internal_port', 'external_port'])
-class Port(object):
-    """
-    A record representing the mapping between a port exposed internally by an
-    application and the corresponding port exposed to the outside world.
+        :param Node node: An update for ``Node`` with same hostname in
+             this ``Deployment``.
 
-    :ivar int internal_port: The port number exposed by the application.
-    :ivar int external_port: The port number exposed to the outside world.
-    """
-
-
-@attributes(['local_port', 'remote_port', 'alias'])
-class Link(object):
-    """
-    A record representing the mapping between a port exposed internally to
-    an application, and the corresponding external port of a possibly remote
-    application.
-
-    :ivar int local_port: The port the local application expects to access.
-        This is used to determine the environment variables to populate in the
-        container.
-    :ivar int remote_port: The port exposed externally by the remote
-        application.
-    :ivar unicode alias: Environment variable prefix to use for exposing
-        connection information.
-    """
+        :return Deployment: Updated with new ``Node``.
+        """
+        return Deployment(nodes=frozenset(
+            list(n for n in self.nodes if n.hostname != node.hostname) +
+            [node]))
 
 
 @attributes(["dataset", "hostname"])
@@ -294,7 +357,7 @@ class DatasetHandoff(object):
     """
 
 
-@attributes(["going", "coming", "creating", "resizing"])
+@attributes(["going", "coming", "creating", "resizing", "deleting"])
 class DatasetChanges(object):
     """
     The dataset-related changes necessary to change the current state to
@@ -316,24 +379,65 @@ class DatasetChanges(object):
         node resize any existing datasets that are desired somewhere on
         the cluster and locally exist with a different maximum_size to the
         desired maximum_size. These must be resized.
+
+    :ivar frozenset deleting: The ``Dataset``\ s that should be deleted.
     """
 
 
-@attributes(["hostname", "running", "not_running",
-             Attribute("used_ports", default_value=frozenset()),
-             Attribute("other_manifestations", default_value=frozenset())])
-class NodeState(object):
+class _PathMap(CheckedPMap):
+    """
+    A mapping between dataset IDs and the paths where they are mounted.
+
+    See https://github.com/tobgu/pyrsistent/issues/26 for more succinct
+    idiom combining this with ``field()``.
+    """
+    __key_type__ = unicode
+    __value_type__ = FilePath
+
+
+class NodeState(PRecord):
     """
     The current state of a node.
 
+    This includes information that is state-specific and thus does not
+    belong in ``Node``, the latter being shared between both state and
+    configuration models.
+
     :ivar unicode hostname: The hostname of the node.
-    :ivar running: A ``list`` of ``Application`` instances on this node
+    :ivar running: A ``PSet`` of ``Application`` instances on this node
         that are currently running or starting up.
-    :ivar not_running: A ``list`` of ``Application`` instances on this
+    :ivar not_running: A ``PSet`` of ``Application`` instances on this
         node that are currently shutting down or stopped.
-    :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
+    :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
-    :ivar frozenset other_manifestations: ``Manifestation`` instances that
-        are present on the node but are not attached as volumes to any
-        applications.
+    :ivar PSet manifestations: All ``Manifestation`` instances that
+        are present on the node.
+    :ivar PMap paths: The filesystem paths of the manifestations on this
+        node. Maps ``dataset_id`` to a ``FilePath``.
     """
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    used_ports = pset_field(int)
+    running = pset_field(Application)
+    not_running = pset_field(Application)
+    manifestations = pset_field(Manifestation)
+    paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap.create,
+                  mandatory=True)
+
+    def to_node(self):
+        """
+        Convert into a ``Node`` instance.
+
+        :return Node: Equivalent ``Node`` object.
+        """
+        return Node(hostname=self.hostname,
+                    manifestations={m.dataset_id: m
+                                    for m in self.manifestations},
+                    applications=self.running | self.not_running)
+
+
+# Classes that can be serialized to disk or sent over the network:
+SERIALIZABLE_CLASSES = [
+    Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
+    RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
+    NodeState,
+]

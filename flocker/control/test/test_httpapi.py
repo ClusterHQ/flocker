@@ -15,7 +15,10 @@ from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
-from twisted.web.http import CREATED, OK, CONFLICT, BAD_REQUEST
+from twisted.web.http import (
+    CREATED, OK, CONFLICT, BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR,
+    NOT_ALLOWED as METHOD_NOT_ALLOWED
+)
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
 from twisted.web.client import FileBodyProducer, readBody
@@ -27,10 +30,11 @@ from ...restapi.testtools import (
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume
+    Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
+    RestartAlways, RestartNever, Link
 )
 from ..httpapi import (
-    DatasetAPIUserV1, create_api_service, datasets_from_deployment,
+    ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
     api_dataset_from_dataset_and_node
 )
 from .._persistence import ConfigurationPersistenceService
@@ -42,9 +46,13 @@ class APITestsMixin(object):
     """
     Helpers for writing integration tests for the Dataset Manager API.
     """
+    # These addresses taken from RFC 5737 (TEST-NET-1)
+    NODE_A = u"192.0.2.1"
+    NODE_B = u"192.0.2.2"
+
     def initialize(self):
         """
-        Create initial objects for the ``DatasetAPIUserV1``.
+        Create initial objects for the ``ConfigurationAPIUserV1``.
         """
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
@@ -103,8 +111,20 @@ class APITestsMixin(object):
         requesting = self.assertResponseCode(
             method, path, request_body, expected_code)
         requesting.addCallback(readBody)
-        requesting.addCallback(lambda body: self.assertEqual(
-            expected_result, loads(body)))
+        requesting.addCallback(loads)
+
+        def assertEqualAndReturn(expected, actual):
+            """
+            Assert that ``expected`` is equal to ``actual`` and return
+            ``actual`` for further processing.
+            """
+            self.assertEqual(expected, actual)
+            return actual
+
+        requesting.addCallback(
+            lambda actual_result: assertEqualAndReturn(
+                expected_result, actual_result)
+        )
         return requesting
 
     def assertResultItems(self, method, path, request_body,
@@ -148,20 +168,852 @@ class VersionTestsMixin(APITestsMixin):
 
 def _build_app(test):
     test.initialize()
-    return DatasetAPIUserV1(test.persistence_service,
-                            test.cluster_state_service).app
+    return ConfigurationAPIUserV1(test.persistence_service,
+                                  test.cluster_state_service).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     VersionTestsMixin, "API", _build_app)
 
 
+class CreateContainerTestsMixin(APITestsMixin):
+    """
+    Tests for the container creation endpoint at ``/configuration/containers``.
+    """
+    def test_wrong_schema(self):
+        """
+        If a ``POST`` request made to the endpoint includes a body which
+        doesn't match the ``definitions/containers`` schema, the response is
+        an error indication a validation failure.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A,
+                u"name": u'postgres',
+                u'image': u'postgres',
+                u"junk": u"garbage"
+            },
+            BAD_REQUEST, {
+                u'description':
+                    u"The provided JSON doesn't match the required schema.",
+                u'errors': [
+                    u"Additional properties are not allowed "
+                    u"(u'junk' was unexpected)"
+                ]
+            }
+        )
+
+    def _container_name_collision_test(self, node1, node2):
+        """
+        Utility method to create two containers on the specified nodes.
+        """
+        # create a container
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node1, u"name": u"postgres", u"image": u"postgres"
+            }, CREATED
+        )
+        # try to create another container with the same name
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node2,
+                u"name": u'postgres',
+                u'image': u'postgres',
+            },
+            CONFLICT, {
+                u'description':
+                    u"The container name already exists.",
+            }
+        ))
+        return d
+
+    def _test_create_container(self, request_data, node_data):
+        """
+        Utility method to create one or more containers via the API and
+        compare the result to an expected deployment.
+
+        :param list request_data: A ``list`` of ``dict`` instances representing
+            the JSON data for one or more API requests.
+        :param list node_data: A ``set`` of ``Node`` instances that
+            are expected to be deployed.
+        :return: A ``Deferred`` that fires with an assertion on the deployment
+            result.
+
+            request_data, applications
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        for request in request_data:
+            saving.addCallback(lambda _: self.assertResponseCode(
+                b"POST", b"/configuration/containers",
+                request, CREATED
+            ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes=node_data
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_container_name_collision_same_node(self):
+        """
+        A container will not be created if a container with the same name
+        already exists on the node we are attempting to create on.
+        """
+        return self._container_name_collision_test(self.NODE_A, self.NODE_A)
+
+    def test_container_name_collision_different_node(self):
+        """
+        A container will not be created if a container with the same name
+        already exists on another node than the node we are attempting to
+        create on.
+        """
+        return self._container_name_collision_test(self.NODE_A, self.NODE_B)
+
+    def test_create_container_with_environment(self):
+        """
+        An API request to create a container including environment
+        variables results in the existing configuration being updated.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        environment = {
+            u'SITES_ENABLED_PATH': u'/etc/nginx/sites-enabled',
+            u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
+        }
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx", u"environment": environment
+            }, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='webserver',
+                                image=DockerImage.from_string('nginx'),
+                                environment=frozenset(environment.items())
+                            ),
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_create_container_with_environment_response(self):
+        """
+        An API request to create a container including environment
+        variables returns the environment mapping supplied in the request in
+        the response JSON.
+        """
+        environment = {
+            u'SITES_ENABLED_PATH': u'/etc/nginx/sites-enabled',
+            u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
+        }
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx", u"environment": environment
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"environment": environment,
+            u"restart_policy": {u"name": u"never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
+    def test_create_containers_with_restart_policy_always(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "always" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"always"
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartAlways()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_onfailure(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "on-failure" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"on-failure", u"maximum_retry_count": 5
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartOnFailure(
+                            maximum_retry_count=5
+                        )
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_never(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "never" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"never"
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartNever()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_never_default(self):
+        """
+        A valid API request to create a container with no restart policy
+        specified results in an updated configuration with a default restart
+        policy for this container of "never".
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx"
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartNever()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_restart_policy_onfailure_response(self):
+        """
+        A valid API request to create a container including restart policy
+        returns the restart policy supplied in the request in the response
+        JSON, including the max retry count for an on-failure policy.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"restart_policy": {
+                u"name": u"on-failure", u"maximum_retry_count": 10
+            }
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
+    def test_create_container_with_restart_policy_response(self):
+        """
+        A valid API request to create a container including restart policy
+        returns the restart policy supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"restart_policy": {u"name": u"never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
+    def test_create_container_with_cpu_shares(self):
+        """
+        A valid API request to create a container including CPU shares
+        results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"cpu_shares": 512
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        cpu_shares=512
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_cpu_shares_response(self):
+        """
+        A valid API request to create a container including CPU shares
+        returns the CPU shares supplied in the request in the response
+        JSON.
+        """
+        container_json = pmap({
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"cpu_shares": 512
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            dict(container_json), CREATED, dict(container_json_response)
+        )
+
+    def test_create_container_with_links_response(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container returns the link information in the response JSON.
+        """
+        container_json = pmap({
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"links": [
+                {
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
+                },
+            ]
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            dict(container_json), CREATED, dict(container_json_response)
+        )
+
+    def test_create_container_with_links(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"links": [
+                {
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
+                },
+                {
+                    u'alias': u'mysql',
+                    u'local_port': 3306,
+                    u'remote_port': 33060
+                },
+            ]
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        links=frozenset([
+                            Link(
+                                local_port=5432,
+                                remote_port=54320,
+                                alias="postgres"
+                            ),
+                            Link(
+                                local_port=3306,
+                                remote_port=33060,
+                                alias="mysql"
+                            ),
+                        ])
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_links_alias_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "alias" value.
+        """
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"postgres", u"local_port": 5433,
+                        u"remote_port": 54330
+                    },
+                ]
+            }, CONFLICT, {u"description": u"Link aliases must be unique."}
+        )
+        return d
+
+    def test_create_container_with_links_local_port_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "local_port" value.
+        """
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"another_postgres", u"local_port": 5432,
+                        u"remote_port": 54321
+                    },
+                ]
+            }, CONFLICT, {
+                u"description":
+                    u"The local ports in a container's links must be unique."
+                }
+        )
+        return d
+
+    def test_create_container_with_memory_limit(self):
+        """
+        A valid API request to create a container including a memory limit
+        results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"memory_limit": 262144000
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        memory_limit=262144000
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_memory_limit_response(self):
+        """
+        A valid API request to create a container including a memory limit
+        returns the memory limit supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000
+        }
+        container_json_response = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000,
+            u"restart_policy": {u"name": "never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_response
+        )
+
+    def _test_conflicting_ports(self, node1, node2):
+        """
+        Utility method to create two containers with the same ports on two
+        nodes.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node1, u"name": u"postgres",
+                u"image": u"postgres",
+                u"ports": [{u'internal': 5432, u'external': 54320}]
+            }, CREATED
+        )
+        # try to create another container with the same ports
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": node2,
+                u"name": u'another_postgres',
+                u'image': u'postgres',
+                u'ports': [{u'internal': 5432, u'external': 54320}]
+            },
+            CONFLICT, {
+                u'description':
+                    u"A specified external port is already in use.",
+            }
+        ))
+        return d
+
+    def test_create_container_with_conflicting_ports_different_node(self):
+        """
+        A valid API request to create a container including port mappings
+        that conflict with the ports used by an application already running on
+        the same node return an error and therefoer do not create the
+        container.
+        """
+        return self._test_conflicting_ports(self.NODE_A, self.NODE_B)
+
+    def test_create_container_with_conflicting_ports(self):
+        """
+        A valid API request to create a container including port mappings
+        that conflict with the ports used by an application already running on
+        the same node return an error and therefoer do not create the
+        container.
+        """
+        return self._test_conflicting_ports(self.NODE_A, self.NODE_A)
+
+    def test_create_container_with_ports(self):
+        """
+        A valid API request to create a container including port mappings
+        results in an updated configuration.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(name='postgres',
+                                    image=DockerImage.from_string('postgres'))
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        ports = [
+            {'internal': 5432, 'external': 54320},
+        ]
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"image": u"postgres", u"ports": ports
+            }, CREATED
+        ))
+
+        def created(_):
+            application_ports = [Port(internal_port=5432, external_port=54320)]
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                            Application(
+                                name='another_postgres',
+                                image=DockerImage.from_string('postgres'),
+                                ports=frozenset(application_ports)
+                            )
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_create_container_with_ports_response(self):
+        """
+        A valid API request to create a container including port mappings
+        returns the port mapping supplied in the request in the response JSON.
+        """
+        ports = [
+            {'internal': 5432, 'external': 54320},
+        ]
+        container_json = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres", u"ports": ports
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres:latest", u"ports": ports,
+            u"restart_policy": {u"name": u"never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
+    def test_configuration_updated_existing_node(self):
+        """
+        A valid API request to create a container on an existing node results
+        in an updated configuration.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(name='postgres',
+                                    image=DockerImage.from_string('postgres'))
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"image": u"postgres"
+            }, CREATED
+        ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                            Application(
+                                name='another_postgres',
+                                image=DockerImage.from_string('postgres')
+                            )
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
+    def test_configuration_updated_new_node(self):
+        """
+        A valid API request to create a container on a new node results
+        in an updated configuration.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_B, u"name": u"postgres",
+                u"image": u"postgres"
+            }, CREATED
+        )
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_B,
+                        applications=[
+                            Application(
+                                name='postgres',
+                                image=DockerImage.from_string('postgres')
+                            ),
+                        ]
+                    ),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(created)
+        return d
+
+    def test_response(self):
+        """
+        A minimally valid API request to create a container returns the
+        expected JSON response.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres"
+        }
+        container_json_result = {
+            u"host": self.NODE_B, u"name": u"postgres",
+            u"image": u"postgres:latest",
+            u"restart_policy": {u"name": u"never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_result
+        )
+
+
+RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
+    CreateContainerTestsMixin, "CreateContainer", _build_app)
+
+
+class DeleteContainerTestsMixin(APITestsMixin):
+    """
+    Tests for the container removal endpoint at
+    ``/configuration/datasets/<dataset_id>``.
+    """
+    def test_unknown_container(self):
+        """
+        NOT_FOUND is returned if the requested container doesn't exist.
+        """
+        unknown_name = u"xxx"
+        return self.assertResult(
+            b"DELETE",
+            b"/configuration/containers/%s" % (
+                unknown_name.encode('ascii'),),
+            None, NOT_FOUND,
+            {u"description": u'Container not found.'})
+
+    def _delete_test(self, name):
+        """
+        Create and then delete a container, ensuring the expected response
+        code of OK from deletion.
+
+        :param Application application: The container which will be deleted.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": name,
+                u"image": u"postgres"
+            }, CREATED
+        )
+        d.addCallback(lambda _: self.assertResult(
+            b"DELETE",
+            u"/configuration/containers/{}".format(name).encode("ascii"), None,
+            OK, None,
+        ))
+        return d
+
+    def test_delete(self):
+        """
+        The ``DELETE`` method removes the given container from the
+        configuration.
+        """
+        d = self._delete_test(u"mycontainer")
+
+        def deleted(_):
+            deployment = self.persistence_service.get()
+            origin = next(iter(deployment.nodes))
+            self.assertEqual(list(origin.applications), [])
+        d.addCallback(deleted)
+        return d
+
+    def test_delete_leaves_others(self):
+        """
+        The ``DELETE`` method does not remove unrelated containers.
+        """
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"somecontainer",
+                u"image": u"postgres"
+            }, CREATED
+        )
+        d.addCallback(lambda _: self._delete_test(u"mycontainer"))
+
+        def deleted(_):
+            deployment = self.persistence_service.get()
+            origin = next(iter(deployment.nodes))
+            self.assertEqual(
+                list(origin.applications),
+                [Application(name=u"somecontainer",
+                             image=DockerImage.from_string(u"postgres"))])
+        d.addCallback(deleted)
+        return d
+
+
+RealTestsDeleteContainer, MemoryTestsDeleteContainer = (
+    buildIntegrationTests(
+        DeleteContainerTestsMixin, "DeleteContainer", _build_app)
+)
+
+
 class CreateDatasetTestsMixin(APITestsMixin):
     """
-    Tests for the dataset creation endpoint at ``/datasets``.
+    Tests for the dataset creation endpoint at ``/configuration/datasets``.
     """
-    # These addresses taken from RFC 5737 (TEST-NET-1)
-    NODE_A = u"192.0.2.1"
-    NODE_B = u"192.0.2.2"
-
     def test_wrong_schema(self):
         """
         If a ``POST`` request made to the endpoint includes a body which
@@ -169,7 +1021,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         error indication a validation failure.
         """
         return self.assertResult(
-            b"POST", b"/datasets",
+            b"POST", b"/configuration/datasets",
             {u"primary": self.NODE_A, u"junk": u"garbage"},
             BAD_REQUEST, {
                 u'description':
@@ -203,7 +1055,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
             nodes={
                 Node(
                     hostname=self.NODE_A,
-                    other_manifestations=frozenset({existing_manifestation})
+                    manifestations={existing_manifestation.dataset_id:
+                                    existing_manifestation}
                 ),
                 Node(hostname=self.NODE_B),
             }
@@ -211,7 +1064,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def saved(ignored):
             return self.assertResult(
-                b"POST", b"/datasets",
+                b"POST", b"/configuration/datasets",
                 {u"primary": primary, u"dataset_id": modifier(dataset_id)},
                 CONFLICT,
                 {u"description": u"The provided dataset_id is already in use."}
@@ -225,8 +1078,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 # They came out of the set backwards.
                 node_a, node_b = node_b, node_a
             self.assertEqual(
-                (frozenset({existing_manifestation}), frozenset()),
-                (node_a.other_manifestations, node_b.other_manifestations)
+                ({existing_manifestation.dataset_id: existing_manifestation},
+                 {}),
+                (node_a.manifestations, node_b.manifestations)
             )
 
         posting.addCallback(failed)
@@ -266,7 +1120,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         unchanged and an error response is returned to the client.
         """
         return self.assertResult(
-            b"POST", b"/datasets", {u"primary": self.NODE_A},
+            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
             BAD_REQUEST, {
                 u"description":
                     u"The provided primary node is not part of the cluster."
@@ -289,7 +1143,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         client.
         """
         creating = self.assertResponseCode(
-            b"POST", b"/datasets", {u"primary": self.NODE_A},
+            b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
             CREATED)
         creating.addCallback(readBody)
         creating.addCallback(loads)
@@ -297,7 +1151,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
         def got_result(result):
             dataset_id = result.pop(u"dataset_id")
             self.assertEqual(
-                {u"primary": self.NODE_A, u"metadata": {}}, result
+                {u"primary": self.NODE_A, u"metadata": {}, u"deleted": False},
+                result
             )
             deployment = self.persistence_service.get()
             self.assertEqual({dataset_id}, set(get_dataset_ids(deployment)))
@@ -317,7 +1172,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def saved(ignored):
             return self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_B}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_B},
+                CREATED
             )
         saving.addCallback(saved)
 
@@ -344,10 +1200,12 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         creating = gatherResults([
             self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_A}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+                CREATED
             ).addCallback(readBody).addCallback(loads),
             self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_A}, CREATED
+                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+                CREATED
             ).addCallback(readBody).addCallback(loads),
         ])
 
@@ -370,8 +1228,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
             u"dataset_id": dataset_id,
             u"metadata": metadata,
         }
+        expected = dataset.copy()
+        expected[u"deleted"] = False
         creating = self.assertResult(
-            b"POST", b"/datasets", dataset, CREATED, dataset
+            b"POST", b"/configuration/datasets", dataset, CREATED, expected
         )
 
         def created(ignored):
@@ -380,15 +1240,15 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 Deployment(nodes=frozenset({
                     Node(
                         hostname=self.NODE_A,
-                        other_manifestations=frozenset({
-                            Manifestation(
+                        manifestations={
+                            dataset_id: Manifestation(
                                 dataset=Dataset(
                                     dataset_id=dataset_id,
                                     metadata=pmap(metadata)
                                 ),
                                 primary=True
                             )
-                        })
+                        }
                     )
                 })),
                 deployment
@@ -410,8 +1270,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
         }
         response = dataset.copy()
         response[u"metadata"] = {}
+        response[u"deleted"] = False
         creating = self.assertResult(
-            b"POST", b"/datasets", dataset, CREATED, response
+            b"POST", b"/configuration/datasets", dataset, CREATED, response
         )
 
         def created(ignored):
@@ -420,21 +1281,455 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 Deployment(nodes=frozenset({
                     Node(
                         hostname=self.NODE_A,
-                        other_manifestations=frozenset({
-                            Manifestation(
+                        manifestations={
+                            dataset_id: Manifestation(
                                 dataset=Dataset(
                                     dataset_id=dataset_id,
                                     maximum_size=maximum_size
                                 ),
                                 primary=True
                             )
-                        })
+                        }
                     )
                 })),
                 deployment
             )
         creating.addCallback(created)
         return creating
+
+
+class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
+    """
+    Tests for the dataset modification endpoint at
+    ``/configuration/datasets/<dataset_id>``.
+    """
+    def test_unknown_dataset(self):
+        """
+        NOT_FOUND is returned if the requested dataset_id doesn't exist.
+        The error includes the requested dataset_id.
+        """
+        unknown_dataset_id = unicode(uuid4())
+        return self.assertResult(
+            b"POST",
+            b"/configuration/datasets/%s" % (
+                unknown_dataset_id.encode('ascii'),),
+            {u'primary': self.NODE_A},
+            NOT_FOUND,
+            {u"description": u'Dataset not found.'})
+
+    def _test_change_primary(self, dataset, deployment, origin, target):
+        """
+        Helper method which pre-populates the persistence_service with the
+        supplied ``dataset``, makes an API call to move the supplied
+        ``dataset`` from ``origin`` to ``target`` and finally asserts that the
+        API call returned the expected result and that the persistence_service
+        has been updated.
+
+        :param Dataset dataset: The dataset which will be moved.
+        :param Deployment deployment: The deployment that contains the dataset.
+        :param bytes origin: The node IP address of the node that holds the
+            current primary manifestation of the ``dataset``.
+        :param bytes target: The node IP address of the node to which the
+            dataset will be moved.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
+        expected_dataset_id = dataset.dataset_id
+
+        expected_dataset = {
+            u"dataset_id": expected_dataset_id,
+            u"primary": target,
+            u"metadata": {},
+            u"deleted": False,
+        }
+
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_dataset_id.encode('ascii'),),
+                {u"primary": target},
+                OK,
+                expected_dataset
+            )
+
+            def got_result(result):
+                deployment = self.persistence_service.get()
+                for node in deployment.nodes:
+                    if node.hostname == target:
+                        dataset_ids = [
+                            (m.primary, m.dataset.dataset_id)
+                            for m in node.manifestations.values()
+                        ]
+                        self.assertIn((True, expected_dataset_id), dataset_ids)
+                        break
+                else:
+                    self.fail('Node not found. {}'.format(target))
+
+            creating.addCallback(got_result)
+            return creating
+        saving.addCallback(saved)
+        return saving
+
+    def test_change_primary_to_unconfigured_node(self):
+        """
+        If a different primary IP address is supplied and it identifies a node
+        which is not yet part of the cluster configuration, the modification
+        request succeeds and the dataset's primary becomes the given address.
+        """
+        expected_manifestation = _manifestation()
+        current_primary_node = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        deployment = Deployment(nodes=frozenset([current_primary_node]))
+
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_B
+        )
+
+    def test_unknown_primary_node(self):
+        """
+        A dataset's primary IP address must belong to a node in the cluster.
+        XXX: Skip this test until FLOC-1278 is implemented.
+
+        This is an alternative to the behaviour above.
+        The dataset creation API currently behaves this way.
+        Perhaps it shouldn't.
+        And instead allow datasets to be created with an as yet unknown node.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {u"primary": self.NODE_B},
+                BAD_REQUEST, {
+                    u"description":
+                    u"The provided primary node is not part of the cluster."
+                }
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+    test_unknown_primary_node.todo = (
+        "See FLOC-1278.  Make this pass by inspecting cluster state "
+        "instead of desired configuration to determine whether a node is "
+        "valid or not."
+    )
+
+    def test_change_primary_to_configured_node(self):
+        """
+        If a different primary IP address is supplied and it identifies a node
+        which is already part of the cluster configuration, the modification
+        request succeeds and the dataset's primary becomes the given address.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        node_b = Node(hostname=self.NODE_B)
+        deployment = Deployment(nodes=frozenset([node_a, node_b]))
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_B
+        )
+
+    def test_primary_unchanged(self):
+        """
+        If the current primary IP address is supplied, the modification request
+        succeeds.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        node_b = Node(hostname=self.NODE_B)
+        deployment = Deployment(nodes=frozenset([node_a, node_b]))
+        return self._test_change_primary(
+            expected_manifestation.dataset, deployment,
+            self.NODE_A, self.NODE_A
+        )
+
+    def test_only_replicas(self):
+        """
+        If there are only replica manifestations of the requested dataset, 500
+        response is returned and ``IndexError`` is logged.
+
+        XXX The 500 error message really should be clearer.
+        See https://clusterhq.atlassian.net/browse/FLOC-1393
+
+        XXX This situation should return a more friendly error code and
+        message.
+        See https://clusterhq.atlassian.net/browse/FLOC-1403.
+        """
+        expected_manifestation = _manifestation(primary=False)
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        node_b = Node(hostname=self.NODE_B)
+        deployment = Deployment(nodes=frozenset([node_a, node_b]))
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {u"primary": self.NODE_B},
+                INTERNAL_SERVER_ERROR,
+                u'ELIOT LOG REFERENCE'
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+    test_only_replicas.todo = (
+        "XXX: Perhaps this test isn't necessary. "
+        "There should always be a primary."
+        "But perhaps there should be a test that demonstrates the general 500 "
+        "response message format."
+        "See https://clusterhq.atlassian.net/browse/FLOC-1393 and "
+        "https://clusterhq.atlassian.net/browse/FLOC-1403"
+    )
+
+    def test_primary_invalid(self):
+        """
+        A request with an invalid (non-IPv4) primary IP address is rejected
+        with ``BAD_REQUEST``.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResponseCode(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {u"primary": u'192.0.2.257'},
+                BAD_REQUEST,
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+
+    def test_no_primary(self):
+        """
+        An update request without a primary address is allowed.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation},
+        )
+        deployment = Deployment(nodes=frozenset([node_a]))
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            creating = self.assertResponseCode(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset.dataset_id.encode('ascii')
+                ),
+                {},
+                OK,
+            )
+            return creating
+        saving.addCallback(saved)
+        return saving
+    test_no_primary.todo = (
+        'It should be possible to submit a dataset update request without a '
+        'primary address, but the input schema currently requires the primary '
+        'attribute. This will need to be addressed before or as part of '
+        'https://clusterhq.atlassian.net/browse/FLOC-1404'
+    )
+
+RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
+    buildIntegrationTests(
+        UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
+)
+
+
+class DeleteDatasetTestsMixin(APITestsMixin):
+    """
+    Tests for the dataset deletion endpoint at
+    ``/configuration/datasets/<dataset_id>``.
+    """
+    def test_unknown_dataset(self):
+        """
+        NOT_FOUND is returned if the requested dataset_id doesn't exist.
+        The error includes the requested dataset_id.
+        """
+        unknown_dataset_id = unicode(uuid4())
+        return self.assertResult(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (
+                unknown_dataset_id.encode('ascii'),),
+            None, NOT_FOUND,
+            {u"description": u'Dataset not found.'})
+
+    def _test_delete(self, dataset):
+        """
+        Helper method which makes an API call to delete the supplied
+        ``dataset`` from ``origin`` and finally asserts that the API call
+        returned the expected result and that the persistence_service has
+        been updated.
+
+        :param Dataset dataset: The dataset which will be deleted.
+        :returns: A ``Deferred`` which fires when all assertions have been
+            executed.
+        """
+        deployment = self.persistence_service.get()
+        expected_dataset_id = dataset.dataset_id
+        # There's only one node:
+        origin = next(iter(deployment.nodes))
+
+        expected_dataset = {
+            u"dataset_id": expected_dataset_id,
+            u"primary": origin.hostname,
+            u"metadata": {},
+            u"deleted": True,
+        }
+
+        deleting = self.assertResult(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (
+                expected_dataset_id.encode('ascii'),),
+            None, OK, expected_dataset
+        )
+
+        def got_result(result):
+            deployment = self.persistence_service.get()
+            for node in deployment.nodes:
+                if node.hostname == origin.hostname:
+                    dataset_ids = [
+                        (m.dataset.deleted, m.dataset.dataset_id)
+                        for m in node.manifestations.values()
+                    ]
+                    self.assertIn((True, expected_dataset_id), dataset_ids)
+                    break
+            else:
+                self.fail('Node not found. {}'.format(node.hostname))
+
+        deleting.addCallback(got_result)
+        return deleting
+
+    def _setup_manifestation(self):
+        """
+        Create and save a configuration with a single node that has a
+        manifestation.
+
+        :return: ``Deferred`` firing with the newly created
+            ``Manifestation`` that ``_test_delete`` can delete.
+        """
+        expected_manifestation = _manifestation()
+        node_a = Node(
+            hostname=self.NODE_A,
+            applications=frozenset(),
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        d = self.persistence_service.save(
+            Deployment(nodes=frozenset([node_a])))
+        d.addCallback(lambda _: expected_manifestation)
+        return d
+
+    def test_delete(self):
+        """
+        The ``DELETE`` action sets the ``deleted`` attribute to true on the
+        given dataset.
+        """
+        d = self._setup_manifestation()
+        d.addCallback(lambda manifestation: self._test_delete(
+            manifestation.dataset))
+        return d
+
+    def test_delete_idempotent(self):
+        """
+        The ``DELETE`` action on an already ``deleted`` dataset has same
+        response as original deletion.
+        """
+        created = self._setup_manifestation()
+
+        def got_manifestation(expected_manifestation):
+            d = self._test_delete(expected_manifestation.dataset)
+            d.addCallback(lambda _: self._test_delete(expected_manifestation))
+            return d
+        created.addCallback(got_manifestation)
+        return created
+
+    def test_update_deleted(self):
+        """
+        Attempting to update a deleted dataset results in a Method Not Allowed
+        error.
+        """
+        created = self._setup_manifestation()
+
+        def got_manifestation(expected_manifestation):
+            d = self._test_delete(expected_manifestation.dataset)
+            d.addCallback(lambda _: self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (
+                    expected_manifestation.dataset_id.encode('ascii')
+                ),
+                {u"primary": u"192.168.1.1"},
+                METHOD_NOT_ALLOWED, {
+                    u"description":
+                    u"The dataset has been deleted."
+                }
+            ))
+            return d
+        created.addCallback(got_manifestation)
+        return created
+
+    def test_multiple_manifestations(self):
+        """
+        If there are multiple manifestations on multiple nodes the ``DELETE``
+        action will mark all of their datasets as deleted.
+        """
+        raise NotImplementedError()
+    test_multiple_manifestations.todo = "Implement in FLOC-1240"
+
+
+RealTestsDeleteDataset, MemoryTestsDeleteDataset = (
+    buildIntegrationTests(
+        DeleteDatasetTestsMixin, "DeleteDataset", _build_app)
+)
 
 
 def get_dataset_ids(deployment):
@@ -448,11 +1743,184 @@ def get_dataset_ids(deployment):
         the datasets.
     """
     for node in deployment.nodes:
-        for manifestation in node.manifestations():
+        for manifestation in node.manifestations.values():
             yield manifestation.dataset.dataset_id
+
 
 RealTestsCreateDataset, MemoryTestsCreateDataset = buildIntegrationTests(
     CreateDatasetTestsMixin, "CreateDataset", _build_app)
+
+
+def _manifestation(**kwargs):
+    """
+    :param kwargs: Additional keyword arguments to use to initialize the
+        manifestation's ``Dataset``.
+        If ``kwargs`` includes a ``primary`` key its value will be supplied to
+        the ``Manifestation`` initialiser as the ``primary`` argument in order
+        to control whether to create a primary or replica
+        ``Manifestation``. Defaults to ``True``.
+
+    :return: A ``Manifestation`` for a dataset with a new
+        random identifier.
+    """
+    primary = kwargs.pop('primary', True)
+    dataset_id = unicode(uuid4())
+    existing_dataset = Dataset(dataset_id=dataset_id, **kwargs)
+    return Manifestation(dataset=existing_dataset, primary=primary)
+
+
+class GetDatasetConfigurationTestsMixin(APITestsMixin):
+    """
+    Tests for the dataset configuration retrieval endpoint at
+    ``/datasets``.
+    """
+    def test_empty(self):
+        """
+        When the cluster configuration includes no datasets, the
+        endpoint returns an empty list.
+        """
+        return self.assertResult(
+            b"GET", b"/configuration/datasets", None, OK, []
+        )
+
+    def _dataset_test(self, deployment, expected):
+        """
+        Verify that when the control service has ``deployment``
+        persisted as its configuration, the response from the
+        configuration listing endpoint includes the items in
+        ``expected``.
+
+        :param Deployment deployment: The deployment configuration to
+            use.
+
+        :param list expected: The objects expected to be returned by
+            the endpoint, disregarding order.
+
+        :return: A ``Deferred`` that fires successfully if the
+            expected results are received or which fires with a
+            failure if there is a problem.
+        """
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            return self.assertResultItems(
+                b"GET", b"/configuration/datasets", None, OK, expected
+            )
+        saving.addCallback(saved)
+        return saving
+
+    def _one_dataset_test(self, **kwargs):
+        """
+        Assert that when a single manifestation exists on the cluster a ``GET``
+        request to the ``/configuration/datasets`` returns a list of one object
+        that represents that manifestation.
+
+        :param kwargs: Additional arguments to use when creating the
+            manifestation.  See ``_manifestation``.
+
+        :return: A ``Deferred`` that fires when the assertion has been made.
+        """
+        manifestation = _manifestation(**kwargs)
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    manifestations={manifestation.dataset_id:
+                                    manifestation},
+                ),
+            },
+        )
+        expected = [
+            api_dataset_from_dataset_and_node(
+                manifestation.dataset, self.NODE_A
+            )
+        ]
+        return self._dataset_test(deployment, expected)
+
+    def test_one_dataset(self):
+        """
+        When the cluster configuration includes one dataset, the
+        endpoint returns a single-element list containing the dataset.
+        """
+        return self._one_dataset_test()
+
+    def test_dataset_with_other_properties(self):
+        """
+        A dataset with a maximum size and non-empty metadata has both
+        of those values included in the response from the endpoint.
+        """
+        return self._one_dataset_test(
+            maximum_size=1024 * 1024 * 100, metadata=pmap({u"foo": u"bar"})
+        )
+
+    def test_several_nodes(self):
+        """
+        When the cluster configuration includes several nodes, each
+        with a dataset, the endpoint returns a list containing
+        information for the dataset on each node.
+        """
+        manifestation_a = _manifestation()
+        manifestation_b = _manifestation()
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    manifestations={manifestation_a.dataset_id:
+                                    manifestation_a},
+                ),
+                Node(
+                    hostname=self.NODE_B,
+                    manifestations={manifestation_b.dataset_id:
+                                    manifestation_b},
+                ),
+            },
+        )
+        expected = [
+            api_dataset_from_dataset_and_node(
+                manifestation_a.dataset, self.NODE_A
+            ),
+            api_dataset_from_dataset_and_node(
+                manifestation_b.dataset, self.NODE_B
+            ),
+        ]
+        return self._dataset_test(deployment, expected)
+
+    def test_several_datasets(self):
+        """
+        When the cluster configuration includes a node with several
+        datasets, the endpoint returns a list containing information
+        for each dataset.
+        """
+        manifestation_a = _manifestation()
+        manifestation_b = _manifestation()
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    manifestations={
+                        manifestation_a.dataset_id: manifestation_a,
+                        manifestation_b.dataset_id: manifestation_b,
+                    },
+                ),
+            },
+        )
+        expected = [
+            api_dataset_from_dataset_and_node(
+                manifestation_a.dataset, self.NODE_A
+            ),
+            api_dataset_from_dataset_and_node(
+                manifestation_b.dataset, self.NODE_A
+            ),
+        ]
+        return self._dataset_test(deployment, expected)
+
+
+RealTestsGetDatasetConfiguration, MemoryTestsGetDatasetConfiguration = (
+    buildIntegrationTests(
+        GetDatasetConfigurationTestsMixin, "GetDatasetConfiguration",
+        _build_app
+    )
+)
 
 
 class CreateAPIServiceTests(SynchronousTestCase):
@@ -512,13 +1980,14 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 running=[],
                 not_running=[],
-                other_manifestations=frozenset([expected_manifestation])
+                manifestations={expected_manifestation},
+                paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
             )
         )
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata={}
+            path=u"/path/dataset",
         )
         response = [expected_dict]
         return self.assertResult(
@@ -543,7 +2012,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname1,
                 running=[],
                 not_running=[],
-                other_manifestations=frozenset([expected_manifestation1])
+                manifestations={expected_manifestation1},
+                paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
             )
         )
         self.cluster_state_service.update_node_state(
@@ -551,18 +2021,19 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname2,
                 running=[],
                 not_running=[],
-                other_manifestations=frozenset([expected_manifestation2])
+                manifestations={expected_manifestation2},
+                paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
             )
         )
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
             primary=expected_hostname1,
-            metadata={}
+            path=u"/aa",
         )
         expected_dict2 = dict(
             dataset_id=expected_dataset2.dataset_id,
             primary=expected_hostname2,
-            metadata={}
+            path=u"/bb",
         )
         response = [expected_dict1, expected_dict2]
         return self.assertResultItems(
@@ -600,18 +2071,23 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
 
         node = Node(
             hostname=expected_hostname,
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object(),
-                                                volume=volume)}),
+            applications={
+                Application(
+                    name=u'mysql-clusterhq',
+                    image=DockerImage.from_string(u"xxx")),
+                Application(name=u'site-clusterhq.com',
+                            image=DockerImage.from_string(u"xxx"),
+                            volume=volume)},
+            manifestations={expected_dataset.dataset_id:
+                            volume.manifestation},
         )
 
         deployment = Deployment(nodes=frozenset([node]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata=thaw(expected_dataset.metadata)
+            metadata=thaw(expected_dataset.metadata),
+            deleted=False,
         )
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
@@ -628,14 +2104,16 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         node = Node(
             hostname=expected_hostname,
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation},
         )
 
         deployment = Deployment(nodes=frozenset([node]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata=thaw(expected_dataset.metadata)
+            metadata=thaw(expected_dataset.metadata),
+            deleted=False,
         )
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
@@ -655,25 +2133,30 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
 
         node1 = Node(
             hostname=expected_hostname,
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object(),
-                                                volume=volume)}),
+            applications=frozenset({
+                Application(
+                    name=u'mysql-clusterhq',
+                    image=DockerImage.from_string("mysql")),
+                Application(name=u'site-clusterhq.com',
+                            image=DockerImage.from_string("site"),
+                            volume=volume)}),
+            manifestations={expected_dataset.dataset_id: volume.manifestation},
         )
         expected_manifestation = Manifestation(dataset=expected_dataset,
                                                primary=False)
         node2 = Node(
             hostname=u"node2.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([expected_manifestation])
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation},
         )
 
         deployment = Deployment(nodes=frozenset([node1, node2]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            metadata=thaw(expected_dataset.metadata)
+            metadata=thaw(expected_dataset.metadata),
+            deleted=False,
         )
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
@@ -695,13 +2178,15 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         node1 = Node(
             hostname=u"node1.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation1])
+            manifestations={manifestation1.dataset_id:
+                            manifestation1},
         )
 
         node2 = Node(
             hostname=u"node2.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation2])
+            manifestations={manifestation2.dataset_id:
+                            manifestation2},
         )
 
         deployment = Deployment(nodes=frozenset([node1, node2]))
@@ -724,13 +2209,15 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         node1 = Node(
             hostname=u"node1.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation1])
+            manifestations={manifestation1.dataset_id:
+                            manifestation1},
         )
 
         node2 = Node(
             hostname=u"node2.example.com",
             applications=frozenset(),
-            other_manifestations=frozenset([manifestation2])
+            manifestations={manifestation2.dataset_id:
+                            manifestation2},
         )
 
         deployment = Deployment(nodes=frozenset([node1, node2]))
@@ -756,6 +2243,7 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             dataset_id=dataset.dataset_id,
             primary=expected_hostname,
             metadata={},
+            deleted=False,
         )
         self.assertEqual(
             expected,
@@ -778,6 +2266,24 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             primary=expected_hostname,
             maximum_size=expected_size,
             metadata={},
+            deleted=False,
+        )
+        self.assertEqual(
+            expected,
+            api_dataset_from_dataset_and_node(dataset, expected_hostname)
+        )
+
+    def test_deleted(self):
+        """
+        ``deleted`` key is set to True if the dataset is deleted.
+        """
+        dataset = Dataset(dataset_id=unicode(uuid4()), deleted=True)
+        expected_hostname = u'192.0.2.101'
+        expected = dict(
+            dataset_id=dataset.dataset_id,
+            primary=expected_hostname,
+            metadata={},
+            deleted=True,
         )
         self.assertEqual(
             expected,

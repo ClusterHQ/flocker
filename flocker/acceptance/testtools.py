@@ -23,6 +23,8 @@ from ..control import (
 )
 from flocker.testtools import loop_until
 
+from flocker.provision._install import stop_cluster
+
 try:
     from pymongo import MongoClient
     from pymongo.errors import ConnectionFailure
@@ -112,12 +114,13 @@ def get_node_state(node):
     Call flocker-reportstate on the specified node and return its output,
     as ``Application`` instances parsed via class ``FlockerConfiguration``.
     """
-    yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+    yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
     state = safe_load(yaml)
     return FlockerConfiguration(state).applications()
 
 
-def _run_SSH(port, user, node, command, input, key=None):
+def run_SSH(port, user, node, command, input, key=None,
+            background=False):
     """
     Run a command via SSH.
 
@@ -128,23 +131,40 @@ def _run_SSH(port, user, node, command, input, key=None):
     :type command: ``list`` of ``bytes``.
     :param bytes input: Input to send to command.
     :param FilePath key: If not None, the path to a private key to use.
+    :param background: If ``True``, don't block waiting for SSH process to
+         end or read its stdout. I.e. it will run "in the background".
+         Also ensures remote process has pseudo-tty so killing the local SSH
+         process will kill the remote one.
 
-    :return: stdout as ``bytes``.
+    :return: stdout as ``bytes`` if ``background`` is false, otherwise
+        return the ``subprocess.Process`` object.
     """
     quotedCommand = ' '.join(map(shell_quote, command))
     command = [
         b'ssh',
         b'-p', b'%d' % (port,),
         ]
+
     if key is not None:
         command.extend([
             b"-i",
             key.path])
+
+    if background:
+        # Force pseudo-tty so that remote process exists when the ssh
+        # client does:
+        command.extend([b"-t", b"-t"])
+
     command.extend([
         b'@'.join([user, node]),
         quotedCommand
     ])
-    process = Popen(command, stdout=PIPE, stdin=PIPE)
+    if background:
+        process = Popen(command, stdin=PIPE)
+        process.stdin.write(input)
+        return process
+    else:
+        process = Popen(command, stdout=PIPE, stdin=PIPE)
 
     result = process.communicate(input)
     if process.returncode != 0:
@@ -179,8 +199,30 @@ def _clean_node(test_case, node):
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
     # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
-    _run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
-             [b"flocker"], None)
+    run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
+            [b"flocker"], None)
+
+
+def _stop_acceptance_cluster():
+    """
+    Stop the Flocker cluster configured for the accpetance tests.
+
+    XXX https://clusterhq.atlassian.net/browse/FLOC-1563
+    Flocker doesn't support using flocker-deploy along-side flocker-control and
+    flocker-agent. Since flocker-deploy (in it's SSH using incarnation) is
+    going away, we do the hack of stopping the cluster before running tests
+    that use flocker-deploy. This introduces an order dependency on the
+    acceptance test-suite.
+
+    This also removes the environment variables associated with the cluster, so
+    that tests attempting to use it will be skipped.
+    """
+    control_node = environ.pop("FLOCKER_ACCEPTANCE_CONTROL_NODE", None)
+    agent_nodes_env_var = environ.pop("FLOCKER_ACCEPTANCE_AGENT_NODES", "")
+    agent_nodes = filter(None, agent_nodes_env_var.split(':'))
+
+    if control_node and agent_nodes:
+        stop_cluster(control_node, agent_nodes)
 
 
 def get_nodes(test_case, num_nodes):
@@ -195,11 +237,15 @@ def get_nodes(test_case, num_nodes):
     will be created instead to replace this in some circumstances, see
     https://clusterhq.atlassian.net/browse/FLOC-900
 
+    XXX https://clusterhq.atlassian.net/browse/FLOC-1563
+    This also stop flocker-control and flocker-agent on the nodes.
+
     :param test_case: The ``TestCase`` running this unit test.
     :param int num_nodes: The number of nodes to start up.
 
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
+
     nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_NODES")
 
     if nodes_env_var is None:
@@ -240,6 +286,10 @@ def get_nodes(test_case, num_nodes):
                 unreachable=", ".join(str(node) for node in unreachable_nodes),
             )
         )
+
+    # Stop flocker-control and flocker-agent here, as by this point, we know
+    # that we aren't skipping this test.
+    _stop_acceptance_cluster()
 
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
@@ -315,7 +365,7 @@ def assert_expected_deployment(test_case, expected_deployment):
         addresses.
     """
     for node, expected in expected_deployment.items():
-        yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+        yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
         state = safe_load(yaml)
         test_case.assertSetEqual(
             set(FlockerConfiguration(state).applications().values()),

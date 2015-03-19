@@ -149,7 +149,8 @@ class ChangeStateScript(object):
 
     def main(self, reactor, options, volume_service):
         deployer = P2PNodeDeployer(
-            options['hostname'], volume_service, self._docker_client)
+            options['hostname'].decode("ascii"),
+            volume_service, self._docker_client)
         return change_node_state(deployer, options['deployment'],
                                  options['current'])
 
@@ -157,7 +158,8 @@ class ChangeStateScript(object):
 def flocker_changestate_main():
     return FlockerScriptRunner(
         script=VolumeScript(ChangeStateScript()),
-        options=ChangeStateOptions()
+        options=ChangeStateOptions(),
+        logging=False,
     ).main()
 
 
@@ -213,7 +215,8 @@ class ReportStateScript(object):
 def flocker_reportstate_main():
     return FlockerScriptRunner(
         script=VolumeScript(ReportStateScript()),
-        options=ReportStateOptions()
+        options=ReportStateOptions(),
+        logging=False,
     ).main()
 
 
@@ -227,14 +230,20 @@ class ZFSAgentOptions(Options):
     flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
     """
 
-    synopsis = "Usage: flocker-zfs-agent [OPTIONS] <control-service-hostname>"
+    synopsis = (
+        "Usage: flocker-zfs-agent [OPTIONS] <local-hostname> "
+        "<control-service-hostname>")
 
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
     ]
 
-    def parseArgs(self, host):
+    def parseArgs(self, hostname, host):
+        # Passing in the 'hostname' (really node identity) via command
+        # line is a hack.  See
+        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution.
+        self["hostname"] = unicode(hostname, "ascii")
         self["destination-host"] = unicode(host, "ascii")
 
 
@@ -247,10 +256,10 @@ class ZFSAgentScript(object):
     def main(self, reactor, options, volume_service):
         host = options["destination-host"]
         port = options["destination-port"]
-        loop = AgentLoopService(reactor=reactor,
-                                deployer=P2PNodeDeployer(host, volume_service),
-                                host=host,
-                                port=port)
+        deployer = P2PNodeDeployer(options["hostname"].decode("ascii"),
+                                   volume_service)
+        loop = AgentLoopService(reactor=reactor, deployer=deployer,
+                                host=host, port=port)
         volume_service.setServiceParent(loop)
         return main_for_service(reactor, loop)
 

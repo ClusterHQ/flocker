@@ -13,62 +13,47 @@ definitions:
       - flocker
     additionalProperties: false
 
-  datasets:
+  configuration_container:
     type: object
     properties:
-      dataset_id:
-        title: "Unique identifier"
-        description: |
-          An opaque identifier, unique across the cluster, identifying a
-          particular dataset.  If not given, a new identifier will be generated
-          and returned.
-        type: string
-        # The length of a stringified uuid
-        minLength: 36
-        maxLength: 36
+      host:
+        '$ref': 'types.json#/definitions/host'
+      name:
+        '$ref': 'types.json#/definitions/container_name'
+      image:
+        '$ref': 'types.json#/definitions/container_image'
+      ports:
+        '$ref': 'types.json#/definitions/ports'
+      environment:
+        '$ref': 'types.json#/definitions/environment'
+      restart_policy:
+        '$ref': 'types.json#/definitions/restart_policy'
+      cpu_shares:
+        '$ref': 'types.json#/definitions/cpu_shares'
+      memory_limit:
+        '$ref': 'types.json#/definitions/memory_limit'
+      links:
+        '$ref': 'types.json#/definitions/container_links'
+    required:
+      - host
+      - name
+      - image
+    additionalProperties: false
 
-      metadata:
-        title: "Data about a dataset"
-        description: |
-          Additional key/value data describing the dataset.  These items are
-          not interpreted by Flocker.  If not given, no metadata will be
-          associated with the new dataset.
-        type: object
-        # We limit the total number of properties and the lengths of the keys
-        # and values of those properties in order to put an upper bound on the
-        # total amount of metadata we're committing to accept and store.  The
-        # particular values in these limits are arbitrary and aren't as
-        # important as just having some "reasonably" small limits.
-        patternProperties:
-          "^.{1,256}$":
-            type: string
-            maxLength: 256
-        maxProperties: 16
-        additionalProperties: false
-
+  configuration_dataset:
+    description: "The configuration for a particular dataset."
+    type: object
+    properties:
       primary:
-        title: "Primary manifestation"
-        description: |
-          The address of the node which will be given the primary manifestation
-          of the newly created dataset.  This must be the address of a node
-          that has introduced itself to the cluster.
-        type: string
-        oneOf:
-          - format: ipv4
-
+        '$ref': 'types.json#/definitions/primary'
+      dataset_id:
+        '$ref': 'types.json#/definitions/dataset_id'
+      deleted:
+        '$ref': 'types.json#/definitions/deleted'
+      metadata:
+        '$ref': 'types.json#/definitions/metadata'
       maximum_size:
-        title: "Maximum size"
-        description: |
-          The upper limit on how much data the dataset will be allowed to
-          store, as an integer number of bytes.
-        type: number
-        # 64 MiB.  Sort of an arbitrary limit but inspired by the lower bound
-        # on what this can be set to for the ZFS backend.  Could probably be
-        # considered more carefully.
-        minimum: 67108864
-        # This is how you require integers, of course.
-        divisibleBy: 1
-
+        '$ref': 'types.json#/definitions/maximum_size'
     required:
       # Temporarily required until volume backends settle down and we know
       # more about what it means to not have a primary manifestation.
@@ -76,10 +61,28 @@ definitions:
     additionalProperties: false
 
   # A sequence of datasets
-  datasets_array:
+  configuration_datasets_array:
+    description: "An array of configuration datasets."
+    type: array
+    items: {"$ref": "#/definitions/configuration_dataset" }
+
+  state_datasets_array:
+    description: "An array of state datasets."
     type: array
     items:
-      description: "The dataset"
+      description: "The state of a particular dataset."
       type: object
-      oneOf:
-        - {"$ref": "#/definitions/datasets" }
+      properties:
+        primary:
+          '$ref': 'types.json#/definitions/primary'
+        dataset_id:
+          '$ref': 'types.json#/definitions/dataset_id'
+        maximum_size:
+          '$ref': 'types.json#/definitions/maximum_size'
+        path:
+          '$ref': 'types.json#/definitions/path'
+      required:
+        - primary
+        - dataset_id
+        - path
+      additionalProperties: false

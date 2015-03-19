@@ -473,15 +473,15 @@ class CreateLinksTests(TestCase):
         )
 
 
-def canned_package(root):
+def canned_package(root, version=b'0.3.2'):
     """
     Create a directory containing an empty Python package which can be
     installed and with a name and version which can later be tested.
 
     :param test_case: The ``TestCase`` whose mktemp method will be called.
+    :param version: The version of the created package.
     :return: A ``PythonPackage`` instance.
     """
-    version = '1.2.3'
     name = 'FooBar'
     root.makedirs()
     setup_py = root.child('setup.py')
@@ -517,16 +517,18 @@ class GetPackageVersionTests(TestCase):
         step = GetPackageVersion(virtualenv=None, package_name=None)
         self.assertIs(None, step.version)
 
-    def test_version_found(self):
+    def assert_version_found(self, version):
         """
-        ``GetPackageVersion`` assigns the version of a found package to its
-        ``version`` attribute.
+        ``GetPackageVersion`` assigns the exact version of a found package to
+        its ``version`` attribute.
+
+        :param version: The version of the package to test package.
         """
         test_env = FilePath(self.mktemp())
         virtualenv = VirtualEnv(root=test_env)
         InstallVirtualEnv(virtualenv=virtualenv).run()
         package_root = FilePath(self.mktemp())
-        test_package = canned_package(root=package_root)
+        test_package = canned_package(root=package_root, version=version)
         InstallApplication(
             virtualenv=virtualenv, package_uri=package_root.path).run()
 
@@ -534,6 +536,27 @@ class GetPackageVersionTests(TestCase):
             virtualenv=virtualenv, package_name=test_package.name)
         step.run()
         self.assertEqual(test_package.version, step.version)
+
+    def test_version_found(self):
+        """
+        ``GetPackageVersion`` assigns the exact version of a found package to
+        its ``version`` attribute.
+
+        In particular, newer versions of pip/setuptools normalize the version
+        accoding to PEP440. We aren't prepared to handle that yet.
+        """
+        versions = [
+            '0.3.2',
+            '0.3.3dev5',
+            '0.3.2+doc1',
+            '0.3.2-1-gf661a6a',
+            '0.3.2+doc1-1-gf661a6a',
+            '0.3.2pre1',
+            '0.3.2-1-gf661a6a-dirty'
+            '0.3.2+doc1-dirty'
+        ]
+        for version in versions:
+            self.assert_version_found(version=version)
 
     def test_version_not_found(self):
         """
@@ -852,6 +875,7 @@ class OmnibusPackageBuilderTests(TestCase):
         target_path = FilePath(self.mktemp())
         flocker_cli_path = target_path.child('flocker-cli')
         flocker_node_path = target_path.child('flocker-node')
+        empty_path = target_path.child('empty')
 
         expected_virtualenv_path = FilePath('/opt/flocker')
         expected_prefix = FilePath('/')
@@ -868,6 +892,8 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_url = PACKAGE.URL.value
         expected_vendor = PACKAGE.VENDOR.value
         expected_maintainer = PACKAGE.MAINTAINER.value
+
+        package_files = FilePath('/package-files')
 
         expected = BuildSequence(
             steps=(
@@ -912,6 +938,8 @@ class OmnibusPackageBuilderTests(TestCase):
                 CreateLinks(
                     links=[
                         (FilePath('/opt/flocker/bin/flocker-deploy'),
+                         flocker_cli_path),
+                        (FilePath('/opt/flocker/bin/flocker'),
                          flocker_cli_path),
                     ]
                 ),
@@ -959,7 +987,19 @@ class OmnibusPackageBuilderTests(TestCase):
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_paths={flocker_node_path: FilePath("/usr/sbin")},
+                    source_paths={
+                        flocker_node_path: FilePath("/usr/sbin"),
+                        package_files.child('firewalld-services'):
+                            FilePath("/usr/lib/firewalld/services/"),
+                        # Ubuntu firewall configuration
+                        package_files.child('ufw-applications.d'):
+                            FilePath("/etc/ufw/applications.d/"),
+                        # Systemd configuration
+                        package_files.child('systemd'):
+                            FilePath("/usr/lib/systemd/system/"),
+                        # Flocker Control State dir
+                        empty_path: FilePath('/var/lib/flocker/'),
+                    },
                     name='clusterhq-flocker-node',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
@@ -972,6 +1012,8 @@ class OmnibusPackageBuilderTests(TestCase):
                     description=PACKAGE_NODE.DESCRIPTION.value,
                     category=expected_category,
                     dependencies=[Dependency(package='node-dep')],
+                    after_install=package_files.child('after-install.sh'),
+                    directories=[FilePath('/var/lib/flocker/')],
                 ),
                 LintPackage(
                     package_type=expected_package_type,
@@ -989,7 +1031,9 @@ class OmnibusPackageBuilderTests(TestCase):
             omnibus_package_builder(distribution=distribution,
                                     destination_path=expected_destination_path,
                                     package_uri=expected_package_uri,
-                                    target_dir=target_path))
+                                    target_dir=target_path,
+                                    package_files=FilePath('/package-files'),
+                                    ))
 
 
 class DockerBuildOptionsTests(TestCase):
@@ -1098,12 +1142,13 @@ class DockerBuildScriptTests(TestCase):
             arguments.append((args, kwargs))
             return build_step
         script.build_command = record_arguments
-        script.main()
+        script.main(top_level=FilePath('/top-level'))
         expected_build_arguments = [(
             (),
             dict(destination_path=expected_destination_path,
                  package_uri=expected_package_uri,
-                 distribution=distribution)
+                 distribution=distribution,
+                 package_files=FilePath('/top-level/admin/package-files'))
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)

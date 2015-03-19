@@ -53,6 +53,11 @@ ARCH = {
     },
 }
 
+PACKAGE_ARCHITECTURE = {
+    'clusterhq-flocker-cli': 'all',
+    'clusterhq-flocker-node': 'all',
+    'clusterhq-python-flocker': 'native',
+}
 
 def package_filename(package_type, package, architecture, rpm_version):
     package_name_format = PACKAGE_NAME_FORMAT[package_type]
@@ -420,6 +425,7 @@ class GetPackageVersion(object):
     'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
     'architecture', 'description', 'dependencies', 'category',
     Attribute('directories', default_factory=list),
+    Attribute('after_install', default_value=None),
 ])
 class BuildPackage(object):
     """
@@ -452,23 +458,7 @@ class BuildPackage(object):
     def run(self):
         architecture = self.architecture
 
-        depends_arguments = []
-        for requirement in self.dependencies:
-            depends_arguments.extend(
-                ['--depends', requirement.format(self.package_type)])
-
-        for directory in self.directories:
-            depends_arguments.extend(
-                ['--directories', directory.path])
-
-        path_arguments = []
-        for source_path, package_path in self.source_paths.items():
-            # Think of /= as a separate operator. It causes fpm to copy the
-            # content of the directory rather than the directory its self.
-            path_arguments.append(
-                "%s/=%s" % (source_path.path, package_path.path))
-
-        run_command([
+        command = [
             'fpm',
             '--force',
             '-s', 'dir',
@@ -486,8 +476,27 @@ class BuildPackage(object):
             '--architecture', architecture,
             '--description', self.description,
             '--category', self.category,
-            ] + depends_arguments + path_arguments
-        )
+        ]
+
+        for requirement in self.dependencies:
+            command.extend(
+                ['--depends', requirement.format(self.package_type)])
+
+        for directory in self.directories:
+            command.extend(
+                ['--directories', directory.path])
+
+        if self.after_install is not None:
+            command.extend(
+                ['--after-install', self.after_install.path])
+
+        for source_path, package_path in self.source_paths.items():
+            # Think of /= as a separate operator. It causes fpm to copy the
+            # content of the directory rather than the directory its self.
+            command.append(
+                "%s/=%s" % (source_path.path, package_path.path))
+
+        run_command(command)
 
 
 @attributes(['package_version_step'])
@@ -567,11 +576,20 @@ IGNORED_WARNINGS = {
         'non-executable-script',
         'devel-file-in-non-devel-package',
         'unstripped-binary-or-object',
+
+        # Firewall and systemd configuration live in /usr/lib
+        'only-non-binary-in-usr-lib',
+        # We don't allow configuring ufw firewall applications.
+        'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
         # This isn't an distribution package so we deliberately install in /opt
         'dir-or-file-in-opt',
+
+        # This isn't a distribution package, so the precise details of the
+        # distro portion of the version don't need to be followed.
+        'debian-revision-not-well-formed',
 
         # virtualenv's interpreter is correct.
         'wrong-path-for-interpreter',
@@ -612,7 +630,11 @@ IGNORED_WARNINGS = {
         # Our omnibus packages are never going to be used by upstream so
         # there's no bug to close.
         # https://lintian.debian.org/tags/new-package-should-close-itp-bug.html
-        'new-package-should-close-itp-bug'
+        'new-package-should-close-itp-bug',
+
+        # We don't allow configuring ufw firewall applications.
+        ('file-in-etc-not-marked-as-conffile '
+         'etc/ufw/applications.d/flocker-control')
     ),
 }
 
@@ -718,7 +740,8 @@ class PACKAGE_NODE(PACKAGE):
 
 
 def omnibus_package_builder(
-        distribution, destination_path, package_uri, target_dir=None):
+        distribution, destination_path, package_uri,
+        package_files, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
     ``destination_path``, containing the package installed from ``package_uri``
@@ -741,6 +764,8 @@ def omnibus_package_builder(
         the resulting RPM file.
     :param Package package: A ``Package`` instance with a ``pip install``
         compatible package URI.
+    :param FilePath package_files: Directory containg system-level files
+        to be installed with packages.
     :param FilePath target_dir: An optional path in which to create the
         virtualenv from which the package will be generated. Default is a
         temporary directory created using ``mkdtemp``.
@@ -754,6 +779,8 @@ def omnibus_package_builder(
     flocker_cli_path.makedirs()
     flocker_node_path = target_dir.child('flocker-node')
     flocker_node_path.makedirs()
+    empty_path = target_dir.child('empty')
+    empty_path.makedirs()
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt  # noqa
     virtualenv_dir = FilePath('/opt/flocker')
@@ -790,7 +817,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='native',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-python-flocker'],
                 description=PACKAGE_PYTHON.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -803,7 +830,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-python-flocker',
-                architecture='native',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-python-flocker'],
             ),
 
             # flocker-cli steps
@@ -813,6 +840,8 @@ def omnibus_package_builder(
             CreateLinks(
                 links=[
                     (FilePath('/opt/flocker/bin/flocker-deploy'),
+                     flocker_cli_path),
+                    (FilePath('/opt/flocker/bin/flocker'),
                      flocker_cli_path),
                 ]
             ),
@@ -828,7 +857,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-cli'],
                 description=PACKAGE_CLI.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -840,7 +869,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-cli',
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-cli'],
             ),
 
             # flocker-node steps
@@ -864,7 +893,20 @@ def omnibus_package_builder(
             BuildPackage(
                 package_type=distribution.package_type(),
                 destination_path=destination_path,
-                source_paths={flocker_node_path: FilePath("/usr/sbin")},
+                source_paths={
+                    flocker_node_path: FilePath("/usr/sbin"),
+                    # Fedora/CentOS firewall configuration
+                    package_files.child('firewalld-services'):
+                        FilePath("/usr/lib/firewalld/services/"),
+                    # Ubuntu firewall configuration
+                    package_files.child('ufw-applications.d'):
+                        FilePath("/etc/ufw/applications.d/"),
+                    # SystemD configuration
+                    package_files.child('systemd'):
+                        FilePath('/usr/lib/systemd/system'),
+                    # Flocker Control State dir
+                    empty_path: FilePath('/var/lib/flocker/'),
+                },
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
@@ -873,11 +915,13 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-node'],
                 description=PACKAGE_NODE.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
                     'node', rpm_version, distribution),
+                after_install=package_files.child('after-install.sh'),
+                directories=[FilePath('/var/lib/flocker/')],
             ),
             LintPackage(
                 package_type=distribution.package_type(),
@@ -885,7 +929,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-node',
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-node'],
             ),
         )
     )
@@ -1028,7 +1072,7 @@ class DockerBuildScript(object):
         """
         Check command line arguments and run the build steps.
 
-        :param top_level: ignored.
+        :param FilePath top_level: The top-level of the flocker repository.
         :param base_path: ignored.
         """
         options = DockerBuildOptions()
@@ -1044,6 +1088,7 @@ class DockerBuildScript(object):
             distribution=CURRENT_DISTRIBUTION,
             destination_path=options['destination-path'],
             package_uri=options['package-uri'],
+            package_files=top_level.descendant(['admin', 'package-files']),
         ).run()
 
 docker_main = DockerBuildScript().main
