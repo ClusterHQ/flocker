@@ -45,9 +45,9 @@ def pset_field(item_type, optional=False):
             if argument is None:
                 return None
             else:
-                return TheSet.create(argument)
+                return TheSet(argument)
     else:
-        factory = TheSet.create
+        factory = TheSet
     return field(type=optional_type(TheSet) if optional else TheSet,
                  factory=factory, mandatory=True,
                  initial=TheSet())
