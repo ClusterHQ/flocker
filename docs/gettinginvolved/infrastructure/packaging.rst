@@ -74,6 +74,26 @@ These are in the `clusterhq-archive` bucket.
 Within this bucket there are `development` and `marketing` keys.
 Within each of these are keys for each supported operating system.
 
+`clusterhq-archive`
+-------------------
+
+This bucket has the following policy::
+
+   {
+   	"Version": "2008-10-17",
+   	"Id": "PolicyForPublicAccess",
+   	"Statement": [
+   		{
+   			"Sid": "1",
+   			"Effect": "Allow",
+   			"Principal": "*",
+   			"Action": "s3:GetObject",
+   			"Resource": "arn:aws:s3:::clusterhq-archive/*"
+   		}
+   	]
+   }
+
+A policy can be set by going to a bucket's "Properties", "Permissions", then "Add bucket policy".
 
 `clusterhq-release package`
 ---------------------------
