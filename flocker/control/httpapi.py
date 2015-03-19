@@ -443,6 +443,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with environment",
             u"create container with restart policy",
             u"create container with cpu shares",
+            u"create container with memory limit",
         ]
     )
     @structured(
@@ -454,7 +455,7 @@ class ConfigurationAPIUserV1(object):
     )
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
-        restart_policy=None, cpu_shares=None
+        restart_policy=None, cpu_shares=None, memory_limit=None
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -486,6 +487,9 @@ class ConfigurationAPIUserV1(object):
         :param int cpu_shares: A positive integer specifying the relative
             weighting of CPU cycles for this container (see Docker's run
             reference for further information).
+
+        :param int memory_limit: A positive integer specifying the maximum
+            amount of memory in bytes available to this container.
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -539,7 +543,8 @@ class ConfigurationAPIUserV1(object):
             ports=frozenset(application_ports),
             environment=environment,
             restart_policy=policy,
-            cpu_shares=cpu_shares
+            cpu_shares=cpu_shares,
+            memory_limit=memory_limit
         )
 
         new_node_config = node.transform(
@@ -657,6 +662,8 @@ def container_configuration_response(application, node):
     result.update(ApplicationMarshaller(application).convert())
     if application.cpu_shares is not None:
         result["cpu_shares"] = application.cpu_shares
+    if application.memory_limit is not None:
+        result["memory_limit"] = application.memory_limit
     return result
 
 

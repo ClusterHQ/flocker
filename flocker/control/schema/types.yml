@@ -45,6 +45,12 @@ definitions:
     maxProperties: 16
     additionalProperties: false
 
+  memory_limit:
+    title: "Container memory limit"
+    description: "A number specifying the maximum memory in bytes available to this container. Minimum 1048576 (1MB)."
+    type: integer
+    minimum: 1048576
+  
   cpu_shares:
     title: "Container CPU shares"
     description: |
