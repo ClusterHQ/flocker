@@ -532,9 +532,23 @@ class ConfigurationAPIUserV1(object):
 
         # If links are present, check that there are no conflicts in local
         # ports or alias names.
+        link_aliases = set()
+        link_local_ports = set()
+        application_links = set()
         if links is not None:
             for link in links:
-                pass
+                if link['alias'] in link_aliases:
+                    raise LINK_ALIAS_COLLISION
+                if link['local_port'] in link_local_ports:
+                    raise LINK_PORT_COLLISION
+                link_aliases.add(link['alias'])
+                link_local_ports.add(link['local_port'])
+                application_links.add(
+                    Link(
+                        alias=link['alias'], local_port=link['local_port'],
+                        remote_port=link['remote_port']
+                    )
+                )
 
         # If we have ports specified, add these to the Application instance.
         application_ports = []
@@ -553,8 +567,6 @@ class ConfigurationAPIUserV1(object):
         policy_name = restart_policy.pop("name")
         policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
         policy = policy_factory(**restart_policy)
-
-        application_links = []
 
         # Create Application object, add to Deployment, save.
         application = Application(
