@@ -1326,6 +1326,75 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[SetProxies(ports=frozenset())])
         self.assertEqual(expected, result)
 
+    def test_open_port_needs_creating(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``IStateChange``, specifically a ``OpenPorts`` with a list of
+        ports to open. One for each port exposed by ``Application``\ s
+        hosted on this node.
+        """
+        fake_docker = FakeDockerClient(units={})
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    container_image=u'clusterhq/mysql:release-14.0',
+                    activation_state=u'active',
+                    ports=frozenset([PortMap(
+                        external_port=1001,
+                        internal_port=3306,
+                        )]),
+                    )
+
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+
+        api = P2PNodeDeployer(u'node2.example.com',
+                              create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
+        expected_destination_port = 1001
+        port = Port(internal_port=3306,
+                    external_port=expected_destination_port)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'release-14.0'),
+            ports=frozenset([port]),
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=api.hostname,
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired, current_cluster_state=EMPTY)
+        expected = Sequentially(changes=[
+            OpenPorts(ports=frozenset([expected_destination_port]))])
+        self.assertEqual(expected, result)
+
+    def test_open_ports_empty(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``OpenPorts`` instance containing an empty `ports`
+        list if there are no local applications that need open_ports.
+        """
+        network = make_memory_network()
+        network.open_port(port=3306)
+
+        api = P2PNodeDeployer(u'node2.example.com',
+                              create_volume_service(self),
+                              docker_client=FakeDockerClient(),
+                              network=network)
+        desired = Deployment(nodes=frozenset())
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired, current_cluster_state=EMPTY)
+        expected = Sequentially(changes=[OpenPorts(ports=frozenset())])
+        self.assertEqual(expected, result)
+
     def test_application_needs_stopping(self):
         """
         ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that an
@@ -1424,7 +1493,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name=u'mysql-hybridcluster',
                     container_image=u'clusterhq/mysql:latest',
-                    activation_state=u'active')
+                    activation_state=u'active',
+                    )
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
@@ -2338,11 +2408,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
+        network = make_memory_network()
+        network.open_port(50432)
 
         api = P2PNodeDeployer(
             u'node1.example.com',
             create_volume_service(self), docker_client=docker,
-            network=make_memory_network()
+            network=network,
         )
 
         old_postgres_app = Application(
