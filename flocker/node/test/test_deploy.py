@@ -388,7 +388,7 @@ class StartApplicationTests(SynchronousTestCase):
                               tag=u'9.3.5'),
             environment=variables.copy(),
             links=frozenset(),
-            ports=None
+            ports=(),
         )
 
         StartApplication(application=application,
@@ -666,7 +666,7 @@ APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
 DATASET_ID = unicode(uuid4())
 DATASET = Dataset(dataset_id=DATASET_ID,
                   metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
+APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
 APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
@@ -784,8 +784,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_application_with_links(self):
         """
@@ -910,8 +910,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_locally_owned_volume_with_size(self):
         """
@@ -990,8 +990,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).running)
 
     def test_discover_remotely_owned_volumes_ignored(self):
         """

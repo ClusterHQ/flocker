@@ -353,7 +353,7 @@ class UnitTests(TestCase):
             "volumes=[<Volume(node_path=FilePath('/tmp'), "
             "container_path=FilePath('/blah'))>], "
             "mem_limit=None, cpu_shares=None, "
-            "restart_policy=<RestartNever()>)>",
+            "restart_policy=RestartNever())>",
 
             repr(Unit(name=u'site-example.com',
                       container_name=u'flocker--site-example.com',

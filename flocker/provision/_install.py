@@ -11,7 +11,9 @@ from textwrap import dedent
 from urlparse import urljoin
 from characteristic import attributes
 
-from ._common import PackageSource
+from ._common import PackageSource, Variants
+
+from flocker.cli import configure_ssh
 
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
@@ -196,6 +198,16 @@ def task_disable_firewall():
          'FORWARD', '0', '-j', 'ACCEPT'])
 
 
+def task_enable_flocker_control():
+    """
+    Enable flocker-control service.
+    """
+    return [
+        Run.from_args(['systemctl', 'enable', 'flocker-control']),
+        Run.from_args(['systemctl', 'start', 'flocker-control']),
+    ]
+
+
 def task_open_control_firewall():
     """
     Open the firewall for flocker-control.
@@ -204,6 +216,32 @@ def task_open_control_firewall():
         configure_firewalld(['--add-service', service])
         for service in ['flocker-control-api', 'flocker-control-agent']
     ])
+
+
+AGENT_CONFIG = """\
+FLOCKER_NODE_NAME = %(node_name)s
+FLOCKER_CONTROL_NODE = %(control_node)s
+"""
+
+
+def task_enable_flocker_agent(node_name, control_node):
+    """
+    Configure and enable flocker-agent.
+
+    :param bytes node_name: The name this node is known by.
+    :param bytes control_node: The address of the control agent.
+    """
+    return [
+        Put(
+            path='/etc/sysconfig/flocker-agent',
+            content=AGENT_CONFIG % {
+                'node_name': node_name,
+                'control_node': control_node
+            },
+        ),
+        Run.from_args(['systemctl', 'enable', 'flocker-agent']),
+        Run.from_args(['systemctl', 'start', 'flocker-agent']),
+    ]
 
 
 def task_create_flocker_pool_file():
@@ -285,21 +323,143 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
     return [Run.from_args(['docker', 'pull', image]) for image in images]
 
 
-def provision(distribution, package_source):
+def task_enable_updates_testing(distribution):
+    """
+    Enable the distribution's proposed updates repository.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
+    if distribution == 'fedora-20':
+        return [
+            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
+            Run.from_args([
+                'yum-config-manager', '--enable', 'updates-testing'])
+        ]
+    else:
+        raise NotImplementedError
+
+
+def task_enable_docker_head_repository(distribution):
+    """
+    Enable the distribution's repository containing in-development docker
+    builds.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
+    if distribution == 'fedora-20':
+        return [
+            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
+            Run.from_args([
+                'yum-config-manager',
+                '--add-repo',
+                'https://copr.fedoraproject.org/coprs/lsm5/docker-io/repo/fedora-20/lsm5-docker-io-fedora-20.repo',  # noqa
+            ])
+        ]
+    elif distribution == "centos-7":
+        return [
+            Put(content=dedent("""\
+                [virt7-testing]
+                name=virt7-testing
+                baseurl=http://cbs.centos.org/repos/virt7-testing/x86_64/os/
+                enabled=1
+                gpgcheck=0
+                """),
+                path="/etc/yum.repos.d/virt7-testing.repo")
+        ]
+    else:
+        raise NotImplementedError
+
+
+def task_enable_zfs_testing(distribution):
+    """
+    Enable the zfs-testing repository.
+
+    :param bytes distribution: See func:`task_install_flocker`
+    """
+    if distribution in ('fedora-20', 'centos-7'):
+        return [
+            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
+            Run.from_args([
+                'yum-config-manager', '--enable', 'zfs-testing'])
+        ]
+    else:
+        raise NotImplementedError
+
+
+def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
 
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.
-    :param bytes distribution: See func:`task_install`
-    :param PackageSource package_source: See func:`task_install`
+    :param bytes distribution: See func:`task_install_flocker`
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
     """
     commands = []
+
+    if Variants.DISTRO_TESTING in variants:
+        commands += task_enable_updates_testing(distribution)
+    if Variants.DOCKER_HEAD in variants:
+        commands += task_enable_docker_head_repository(distribution)
+    if Variants.ZFS_TESTING in variants:
+        commands += task_enable_zfs_testing(distribution)
+
     if distribution in ('fedora-20',):
         commands += task_install_kernel_devel()
+
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
     commands += task_enable_docker()
     commands += task_create_flocker_pool_file()
     commands += task_pull_docker_images()
     return commands
+
+
+def configure_cluster(control_node, agent_nodes):
+    """
+    Configure flocker-control and flocker-agent on a collection of nodes.
+
+    :param bytes control_node: The address of the control node.
+    :param list agent_nodes: List of addresses of agent nodes.
+    """
+    run(
+        username='root',
+        address=control_node,
+        commands=task_enable_flocker_control(),
+    )
+    for node in agent_nodes:
+        configure_ssh(node, 22)
+        run(
+            username='root',
+            address=node,
+            commands=task_enable_flocker_agent(
+                node_name=node,
+                control_node=control_node,
+            ),
+        )
+
+
+def stop_cluster(control_node, agent_nodes):
+    """
+    Stop flocker-control and flocker-agent on a collection of nodes.
+
+    :param bytes control_node: The address of the control node.
+    :param list agent_nodes: List of addresses of agent nodes.
+    """
+    run(
+        username='root',
+        address=control_node,
+        commands=[
+            Run.from_args(['systemctl', 'stop', 'flocker-control']),
+        ],
+    )
+    for node in agent_nodes:
+        run(
+            username='root',
+            address=node,
+            commands=[
+                Run.from_args(['systemctl', 'stop', 'flocker-agent']),
+            ],
+        )

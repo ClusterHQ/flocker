@@ -6,6 +6,9 @@ Tests for ``flocker.node._loop``.
 
 from uuid import uuid4
 
+from eliot.testing import validate_logging, assertHasAction
+from machinist import LOG_FSM_TRANSITION
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
@@ -17,7 +20,7 @@ from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
-    ClusterStatus, ConvergenceLoop,
+    ClusterStatus, ConvergenceLoop, LOG_SEND_TO_CONTROL_SERVICE
     )
 from ..testtools import ControllableDeployer, ControllableAction
 from ...control import NodeState, Deployment, Node, Manifestation, Dataset
@@ -266,7 +269,16 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                 {"result": None})
         return client
 
-    def test_convergence_done_notify(self):
+    def assert_log_send(self, logger):
+        """
+        Assert that sending node state logs an appropriate action.
+        """
+        transition = assertHasAction(self, logger, LOG_FSM_TRANSITION, True)
+        send = assertHasAction(self, logger, LOG_SEND_TO_CONTROL_SERVICE, True)
+        self.assertIn(send, transition.children)
+
+    @validate_logging(assert_log_send)
+    def test_convergence_done_notify(self, logger):
         """
         A FSM doing convergence that gets a discovery result, sends the
         discovered state to the control service using the last received
@@ -277,6 +289,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         action = ControllableAction(result=Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
         loop = build_convergence_loop_fsm(Clock(), deployer)
+        self.patch(loop, "logger", logger)
         loop.receive(
             _ClientStatusUpdate(
                 client=client,
