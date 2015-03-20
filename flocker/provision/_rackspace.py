@@ -7,7 +7,7 @@ Rackspace provisioner.
 from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import (
     provision, run,
-    task_disable_firewall, task_open_control_firewall,
+    task_open_control_firewall,
     task_upgrade_kernel_centos,
 )
 
@@ -30,7 +30,6 @@ def provision_rackspace(node, package_source, distribution, variants):
             distribution=node.distribution,
             variants=variants,
         )
-        + task_disable_firewall()
         # https://clusterhq.atlassian.net/browse/FLOC-1550
         # This should be part of ._install.configure_cluster
         + task_open_control_firewall()
