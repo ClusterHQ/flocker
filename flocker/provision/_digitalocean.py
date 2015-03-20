@@ -10,7 +10,7 @@ from ._libcloud import LibcloudProvisioner
 from ._install import (
     provision, run,
     task_install_digitalocean_kernel, DIGITALOCEAN_KERNEL,
-    task_disable_firewall, task_open_control_firewall
+    task_open_control_firewall
 )
 from ._common import Kernel
 
@@ -270,7 +270,8 @@ def provision_digitalocean(node, package_source, distribution, token):
             package_source=package_source,
             distribution=node.distribution,
         )
-        + task_disable_firewall()
+        # https://clusterhq.atlassian.net/browse/FLOC-1550
+        # This should be part of ._install.configure_cluster
         + task_open_control_firewall()
     )
     return node.address
