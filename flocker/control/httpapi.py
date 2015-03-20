@@ -435,6 +435,30 @@ class ConfigurationAPIUserV1(object):
             del dataset[u"deleted"]
         return datasets
 
+    @app.route("/configuration/containers", methods=['GET'])
+    @user_documentation(
+        """
+        Get the cluster's container configuration.
+        """,
+        examples=[u"get configured containers"],
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_containers_array',
+        },
+        schema_store=SCHEMAS,
+    )
+    def get_containers_configuration(self):
+        """
+        Get the configured datasets.
+
+        :return: A ``list`` of ``dict`` representing each of the containers
+            that are configured to exist anywhere on the cluster.
+        """
+        return list(containers_from_deployment(self.persistence_service.get()))
+
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
         """
@@ -677,6 +701,18 @@ def datasets_from_deployment(deployment):
                 yield api_dataset_from_dataset_and_node(
                     manifestation.dataset, node.hostname
                 )
+
+
+def containers_from_deployment(deployment):
+    """
+    Extract the containers from the supplied deployment instance.
+
+    :param Deployment deployment: A ``Deployment`` describing the state
+        of the cluster.
+
+    :return: Iterable returning all containers.
+    """
+    pass
 
 
 def container_configuration_response(application, node):
