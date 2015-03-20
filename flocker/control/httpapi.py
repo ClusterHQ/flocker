@@ -456,11 +456,11 @@ class ConfigurationAPIUserV1(object):
         instances = list(manifestations_from_deployment(
             deployment, volume[u"dataset_id"]))
 
-        if not list(m for (m, _) in instances if not m.dataset.deleted):
+        if not any(m for (m, _) in instances if not m.dataset.deleted):
             raise DATASET_NOT_FOUND
-        if not list(n for (_, n) in instances if n.hostname == host):
+        if not any(n for (_, n) in instances if n.hostname == host):
             raise DATASET_ON_DIFFERENT_NODE
-        if list(app for app in deployment.applications() if
+        if any(app for app in deployment.applications() if
                 app.volume and
                 app.volume.manifestation.dataset_id == volume[u"dataset_id"]):
             raise DATASET_IN_USE
@@ -554,7 +554,8 @@ class ConfigurationAPIUserV1(object):
                 if application.name == name:
                     raise CONTAINER_NAME_COLLISION
 
-        # Find the volume, if any:
+        # Find the volume, if any; currently we only support one volume
+        # https://clusterhq.atlassian.net/browse/FLOC-49
         attached_volume = None
         if volumes:
             attached_volume = self._get_attached_volume(host, volumes[0])
