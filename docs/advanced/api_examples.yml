@@ -260,6 +260,29 @@
 
 -
   id:
+    "get configured containers"
+
+  doc: |
+    Get a list of all containers that have been configured for a
+    deployment.  These containers may or may not actually exist on the
+    cluster.
+
+  requires:
+    - "create container"
+
+  request: |
+    GET /v1/configuration/containers HTTP/1.1
+
+  response: |
+    HTTP/1.0 200 OK
+
+    [
+      {"host": "%(NODE_0)s", "name": "webserver", "image": "nginx:latest", "restart_policy": {"name": "never"}},
+      {"host": "%(NODE_0)s", "name": "database", "image": "postgres:latest", "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}},
+    ]
+
+-
+  id:
     "create container"
 
   doc: |
