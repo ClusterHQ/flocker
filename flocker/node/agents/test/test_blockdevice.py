@@ -296,6 +296,7 @@ class BlockDeviceDeployerCalculateNecessaryStateChangesTests(
         """
         expected_hostname = u'192.0.2.123'
         expected_dataset_id = unicode(uuid4())
+
         local_state = NodeState(
             hostname=expected_hostname,
             paths={
@@ -303,7 +304,7 @@ class BlockDeviceDeployerCalculateNecessaryStateChangesTests(
                     u'/flocker/{}'.format(expected_dataset_id)
                 )
             },
-            manifestations=[
+            manifestations={
                 Manifestation(
                     primary=True,
                     dataset=Dataset(
@@ -313,32 +314,16 @@ class BlockDeviceDeployerCalculateNecessaryStateChangesTests(
                         # deleted will always be False.
                         metadata={},
                         deleted=False,
-                    )
+                    ),
                 ),
-            ]
+            },
         )
 
-        desired_configuration = Deployment(
-            nodes=[
-                Node(
-                    hostname=expected_hostname,
-                    manifestations={
-                        expected_dataset_id: Manifestation(
-                            primary=True,
-                            dataset=Dataset(
-                                dataset_id=expected_dataset_id,
-                                maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
-                                # Configuration contains metadata and deleted
-                                # attributes, but the state will always have
-                                # empty metadata and deleted=False, never True.
-                                metadata={"name": "my_volume"},
-                                deleted=False,
-                            )
-                        )
-                    }
-                )
-            ]
+        desired_node_configuration = local_state.to_node().transform(
+            ("manifestations", expected_dataset_id, "dataset", "metadata"),
+            {u"name": u"my_volume"}
         )
+        desired_configuration = Deployment(nodes=[desired_node_configuration])
 
         actual_changes = self._calculate_changes(
             expected_hostname,
