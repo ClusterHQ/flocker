@@ -264,8 +264,7 @@
 
   doc: |
     Get a list of all containers that have been configured for a
-    deployment.  These containers may or may not actually exist on the
-    cluster.
+    deployment.
 
   requires:
     - "create container"
@@ -277,8 +276,18 @@
     HTTP/1.0 200 OK
 
     [
-      {"host": "%(NODE_0)s", "name": "webserver", "image": "nginx:latest", "restart_policy": {"name": "never"}},
-      {"host": "%(NODE_0)s", "name": "database", "image": "postgres:latest", "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}},
+      {
+        "host": "%(NODE_0)s",
+        "name": "webserver",
+        "image": "nginx:latest",
+        "restart_policy": {"name": "never"}
+      },
+      {
+        "host": "%(NODE_0)s",
+        "name": "database",
+        "image": "postgres:latest",
+        "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}
+      },
     ]
 
 -

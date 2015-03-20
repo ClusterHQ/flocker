@@ -445,6 +445,8 @@ class ConfigurationAPIUserV1(object):
     @user_documentation(
         """
         Get the cluster's container configuration.
+        These containers may or may not actually exist on the
+        cluster.
         """,
         examples=[u"get configured containers"],
     )
