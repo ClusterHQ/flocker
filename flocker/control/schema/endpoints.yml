@@ -40,6 +40,11 @@ definitions:
       - image
     additionalProperties: false
 
+  configuration_containers_array:
+    description: "An array of configuration containers."
+    type: array
+    items: {"$ref": "#/definitions/configuration_container" }
+
   configuration_dataset:
     description: "The configuration for a particular dataset."
     type: object

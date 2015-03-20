@@ -712,7 +712,9 @@ def containers_from_deployment(deployment):
 
     :return: Iterable returning all containers.
     """
-    pass
+    for node in deployment.nodes:
+        for application in node.applications:
+            yield container_configuration_response(application, node.hostname)
 
 
 def container_configuration_response(application, node):
