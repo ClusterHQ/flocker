@@ -1,0 +1,39 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# This requires Vagrant 1.6.2 or newer (earlier versions can't reliably
+# configure the Fedora 20 network stack).
+Vagrant.require_version ">= 1.6.2"
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = "2"
+
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
+
+FLOCKER_VERSION = ENV['VERSION']
+FLOCKER_PYTHON = "clusterhq-python-flocker-#{FLOCKER_VERSION}.x86_64.rpm"
+FLOCKER_NODE = "clusterhq-flocker-node-#{FLOCKER_VERSION}.noarch.rpm"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "clusterhq/flocker-tutorial"
+  config.vm.box_version = "= 0.3.3dev7"
+
+  if Vagrant.has_plugin?("vagrant-cachier")
+    config.cache.scope = :box
+  end
+
+  config.vm.define "node1" do |node1|
+    node1.vm.network :private_network, :ip => "172.16.255.250"
+    node1.vm.hostname = "node1"
+    node1.vm.provision "file", source: FLOCKER_PYTHON, destination: FLOCKER_PYTHON
+    node1.vm.provision "file", source: FLOCKER_NODE, destination: FLOCKER_NODE
+    node1.vm.provision "shell",
+      inline: "rpm -e clusterhq-flocker-node clusterhq-python-flocker; rpm -i #{FLOCKER_PYTHON} #{FLOCKER_NODE}"
+    # node1.vm.provision "shell",
+    #   inline: "kill $(cat control.pid); flocker-control --port 80 > control.log & echo $! > control.pid"
+    # node1.vm.provision "shell",
+    #   inline: "kill $(cat agent1.pid); flocker-iaas-memory-agent --host 172.16.255.220 --destination-host=172.16.255.220 --destination-port=4524 > agent1.log & echo $! > agent1.pid"
+    # node1.vm.provision "shell",
+    #   inline: "kill $(cat agent2.pid); flocker-iaas-memory-agent --host 172.16.255.221 --destination-host=172.16.255.220 --destination-port=4524 > agent2.log & echo $! > agent2.pid"
+  end
+end

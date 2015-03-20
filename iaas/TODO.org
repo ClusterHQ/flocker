@@ -1,0 +1,39 @@
+* flocker-dataset-agent
+  * standard options
+  * create a loopback IaaS
+  * Create an agent with loopback deployer
+  * create generic change calculate helper
+    * detect which volumes need to be created
+
+* create IDeployer that operates with an IaaS
+  * use IaaS to do "local" state discovery
+  * use generic calculate helper with proper parameters passed in
+
+* create loopback IaaS (minimal functionality to support dataset creation)
+  * implement create_volume
+    * create a file of some size (maybe size is required parameter)
+    * put it in the IaaS's "unattached" directory
+  * implement attach_volume
+    * move file into per-host (eg named after node ip) directory
+  * implement list_volumes
+    * list all files in "unattached" directory and all per-host directories
+
+* IStateChange for creating a block-device-backed dataset (monolithic for now, refactor later)
+  - CreateBlockDeviceDataset()
+  - write a functional test, save unit tests for refactoring
+    - execute the state change
+    - read /proc/mounts to verify the thing was mounted
+    - verify it is attached to the right "host" - should be in correct per-node directory
+  * use IaaS.create_volume
+  * attach it
+  * run mkfs on it
+  * mount it
+
+.
+.
+.
+
+implement OpenStack IaaS
+implement EBS IaaS
+implement VMware IaaS
+...

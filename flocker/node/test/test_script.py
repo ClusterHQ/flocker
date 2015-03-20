@@ -7,21 +7,24 @@ Tests for :module:`flocker.node.script`.
 from StringIO import StringIO
 
 from pyrsistent import pmap
+from yaml import safe_dump, safe_load
+
+from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 
-from yaml import safe_dump, safe_load
 from ...testtools import StandardOptionsTestsMixin, MemoryCoreReactor
 from ...volume.testtools import make_volume_options_tests
 from ...route import make_memory_network
+from ...common.script import ICommandLineScript
 
 from ..script import (
-    ZFSAgentOptions, ZFSAgentScript,
+    ZFSAgentOptions, ZFSAgentScript, DatasetAgentScript,
     ChangeStateOptions, ChangeStateScript,
-    ReportStateOptions, ReportStateScript)
+    ReportStateOptions, ReportStateScript, DatasetAgentOptions)
 from .. import script as script_module
 from .._docker import FakeDockerClient, Unit
 from ...control._model import (
@@ -462,44 +465,127 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                           P2PNodeDeployer, b"1.2.3.4", service, True))
 
 
-class ZFSAgentOptionsTests(make_volume_options_tests(
+class DatasetAgentScriptTests(SynchronousTestCase):
+    def test_interface(self):
+        """
+        ``DatasetAgentScript`` instances provide ``ICommandLineScript``.
+        """
+        self.assertTrue(
+            verifyObject(
+                ICommandLineScript,
+                DatasetAgentScript(deployer_factory=lambda hostname: None)
+            )
+        )
+
+    def test_agent_loop_service(self):
+        """
+        ``DatasetAgentScript.main`` creates ``AgentLoopService`` configured
+        with the destination given by the options.
+        """
+        deployer = object()
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([
+            b"--destination-port", b"1234", b"10.0.0.1", b"10.0.0.2",
+        ])
+
+        def factory(**kw):
+            if kw.keys() != ["hostname"]:
+                raise TypeError("wrong arguments")
+            return deployer
+        agent = DatasetAgentScript(deployer_factory=factory)
+        agent.main(reactor, options)
+        self.assertEqual(
+            AgentLoopService(
+                reactor=reactor,
+                deployer=deployer,
+                host=b"10.0.0.2",
+                port=1234,
+            ),
+            agent.service
+        )
+
+    def test_deployer_factory_called_with_hostname(self):
+        """
+        ``DatasetAgentScript.main`` calls its ``deployer_factory`` with the
+        hostname given by the options.
+        """
+        spied = []
+
+        def deployer_factory(hostname):
+            spied.append(hostname)
+            return object()
+
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"10.0.0.1", b"10.0.0.2"])
+        agent = DatasetAgentScript(deployer_factory=deployer_factory)
+        agent.main(reactor, options)
+        self.assertEqual([b"10.0.0.1"], spied)
+
+
+def make_amp_agent_options_tests(options_type):
+    """
+    """
+
+    class Tests(SynchronousTestCase):
+        def setUp(self):
+            self.options = options_type()
+
+        def test_default_port(self):
+            """
+            The default AMP destination port configured by ``ZFSAgentOptions``
+            is 4524.
+            """
+            self.options.parseOptions([b"1.2.3.4", b"example.com"])
+            self.assertEqual(self.options["destination-port"], 4524)
+
+        def test_custom_port(self):
+            """
+            The ``--destination-port`` command-line option allows configuring
+            the destination port.
+            """
+            self.options.parseOptions([b"--destination-port", b"1234",
+                                       b"1.2.3.4", b"example.com"])
+            self.assertEqual(self.options["destination-port"], 1234)
+
+        def test_host(self):
+            """
+            The second required command-line argument allows configuring the
+            destination host.
+            """
+            self.options.parseOptions([b"1.2.3.4", b"control.example.com"])
+            self.assertEqual(
+                self.options["destination-host"], u"control.example.com"
+            )
+
+        def test_hostname(self):
+            """
+            The first required command-line argument allows configuring the
+            hostname of the node the agent is operating on.
+            """
+            self.options.parseOptions([b"5.6.7.8", b"control.example.com"])
+            self.assertEqual(self.options["hostname"], u"5.6.7.8")
+
+    return Tests
+
+
+class DatasetAgentOptionsTests(
+        make_amp_agent_options_tests(DatasetAgentOptions)
+):
+    """
+    Tests for ``DatasetAgentOptions``.
+    """
+
+
+class ZFSAgentOptionsTests(make_amp_agent_options_tests(ZFSAgentOptions)):
+    """
+    Tests for ``ZFSAgentOptions``.
+    """
+
+
+class ZFSAgentOptionsVolumeTests(make_volume_options_tests(
         ZFSAgentOptions, [b"1.2.3.4", b"example.com"])):
     """
     Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """
-    def test_default_port(self):
-        """
-        The default AMP destination port configured by ``ZFSAgentOptions`` is
-        4524.
-        """
-        options = ZFSAgentOptions()
-        options.parseOptions([b"1.2.3.4", b"example.com"])
-        self.assertEqual(options["destination-port"], 4524)
-
-    def test_custom_port(self):
-        """
-        The ``--destination-port`` command-line option allows configuring the
-        destination port.
-        """
-        options = ZFSAgentOptions()
-        options.parseOptions([b"--destination-port", b"1234",
-                              b"1.2.3.4", b"example.com"])
-        self.assertEqual(options["destination-port"], 1234)
-
-    def test_host(self):
-        """
-        The second required command-line argument allows configuring the
-        destination host.
-        """
-        options = ZFSAgentOptions()
-        options.parseOptions([b"1.2.3.4", b"control.example.com"])
-        self.assertEqual(options["destination-host"], u"control.example.com")
-
-    def test_hostname(self):
-        """
-        The first required command-line argument allows configuring the
-        hostname of the node the agent is operating on.
-        """
-        options = ZFSAgentOptions()
-        options.parseOptions([b"5.6.7.8", b"control.example.com"])
-        self.assertEqual(options["hostname"], u"5.6.7.8")
