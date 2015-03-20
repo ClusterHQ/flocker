@@ -21,11 +21,18 @@ ZFS_REPO = {
     'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                 "epel/zfs-release.el7.noarch.rpm",
 }
+
+ARCHIVE_BUCKET = 'clusterhq-archive'
+
 CLUSTERHQ_REPO = {
-    'fedora-20': "https://s3.amazonaws.com/clusterhq-archive/"
-                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm",
-    'centos-7': "https://s3.amazonaws.com/clusterhq-archive/"
-                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm",
+    'fedora-20': "https://s3.amazonaws.com/{archive_bucket}/"
+                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                     archive_bucket=ARCHIVE_BUCKET,
+                 ),
+    'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
+                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                    archive_bucket=ARCHIVE_BUCKET,
+                    ),
 }
 
 
@@ -139,7 +146,7 @@ def task_upgrade_kernel_centos():
         # For dkms and ... ?
         Run.from_args([
             "yum", "install", "-y", "epel-release"]),
-        Run.from_args(['sync'])
+        Run.from_args(['sync']),
     ]
 
 
@@ -179,8 +186,7 @@ def configure_firewalld(rule):
     return [
         Run.from_args(command + rule)
         for command in [['firewall-cmd', '--permanent'],
-                        ['firewall-cmd']]
-    ]
+                        ['firewall-cmd']]]
 
 
 def task_disable_firewall():

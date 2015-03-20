@@ -31,7 +31,7 @@ from ...restapi.testtools import (
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
-    RestartAlways, RestartNever
+    RestartAlways, RestartNever, Link
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -528,6 +528,168 @@ class CreateContainerTestsMixin(APITestsMixin):
         return self.assertResult(
             b"POST", b"/configuration/containers",
             dict(container_json), CREATED, dict(container_json_response)
+        )
+
+    def test_create_container_with_links_response(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container returns the link information in the response JSON.
+        """
+        container_json = pmap({
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"links": [
+                {
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
+                },
+            ]
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            dict(container_json), CREATED, dict(container_json_response)
+        )
+
+    def test_create_container_with_links(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"links": [
+                {
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
+                },
+                {
+                    u'alias': u'mysql',
+                    u'local_port': 3306,
+                    u'remote_port': 33060
+                },
+            ]
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        links=frozenset([
+                            Link(
+                                local_port=5432,
+                                remote_port=54320,
+                                alias="postgres"
+                            ),
+                            Link(
+                                local_port=3306,
+                                remote_port=33060,
+                                alias="mysql"
+                            ),
+                        ])
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_links_alias_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "alias" value.
+        """
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"postgres", u"local_port": 5433,
+                        u"remote_port": 54330
+                    },
+                ]
+            }, CONFLICT, {u"description": u"Link aliases must be unique."}
+        )
+        return d
+
+    def test_create_container_with_links_local_port_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "local_port" value.
+        """
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"another_postgres", u"local_port": 5432,
+                        u"remote_port": 54321
+                    },
+                ]
+            }, CONFLICT, {
+                u"description":
+                    u"The local ports in a container's links must be unique."
+                }
+        )
+        return d
+
+    def test_create_container_with_memory_limit(self):
+        """
+        A valid API request to create a container including a memory limit
+        results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"memory_limit": 262144000
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        memory_limit=262144000
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_memory_limit_response(self):
+        """
+        A valid API request to create a container including a memory limit
+        returns the memory limit supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000
+        }
+        container_json_response = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000,
+            u"restart_policy": {u"name": "never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_response
         )
 
     def _test_conflicting_ports(self, node1, node2):

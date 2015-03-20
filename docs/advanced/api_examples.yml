@@ -282,6 +282,57 @@
 
 -
   id:
+    "create container with links"
+
+  doc: |
+    Create a new container with links to one or more other containers.
+    This will inject a series of environment variables in to your container that map the alias and local ports in the environment variable's label to the specified remote port in its value.
+    For example, in the request data below, the created container will include an environment variable called POSTGRES_PORT_5432_TCP with a value of 54320.
+    See https://docs.docker.com/userguide/dockerlinks/#environment-variables for more information on the environment created by container links.
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}     
+
+-
+  id:
+    "create container with memory limit"
+
+  doc: |
+    Create a new container with a memory limit, in this example 250MB (250 * 1024 * 1024).
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "memory_limit": 262144000}
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"},
+     "memory_limit": 262144000}
+
+-
+  id:
     "create container with cpu shares"
 
   doc: |
