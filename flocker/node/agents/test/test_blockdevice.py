@@ -225,7 +225,8 @@ class BlockDeviceDeployerCalculateNecessaryStateChangesTests(
             changes
         )
 
-    def _calculate_changes(self, local_hostname, local_state, desired_configuration):
+    def _calculate_changes(self, local_hostname, local_state,
+                           desired_configuration):
         # Control service still reports that this node has no manifestations.
         current_cluster_state = Deployment(
             nodes=frozenset([Node(hostname=local_hostname)])
@@ -241,7 +242,6 @@ class BlockDeviceDeployerCalculateNecessaryStateChangesTests(
         return deployer.calculate_necessary_state_changes(
             local_state, desired_configuration, current_cluster_state
         )
-
 
     def test_local_state_overrides_cluster_state(self):
         """
@@ -277,7 +277,9 @@ class BlockDeviceDeployerCalculateNecessaryStateChangesTests(
             })
         )
 
-        actual_changes = self._calculate_changes(local_hostname, local_state, desired_configuration)
+        actual_changes = self._calculate_changes(
+            local_hostname, local_state, desired_configuration
+        )
 
         # If Deployer is buggy and not overriding cluster state
         # with local state this would result in a dataset creation action:

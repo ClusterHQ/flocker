@@ -7,7 +7,7 @@ convergence agent that can be re-used against many different kinds of block
 devices.
 """
 
-from uuid import UUID, uuid4
+from uuid import UUID
 from subprocess import check_output
 
 from eliot import Message, ActionType, Field, Logger
@@ -241,17 +241,18 @@ class BlockDeviceVolume(PRecord):
     host = field(type=(unicode, type(None)), initial=None)
     dataset_id = field(type=UUID, mandatory=True)
 
-
     @classmethod
     def from_dataset_id(cls, dataset_id, size, host=None):
         """
-        Create a new ``BlockDeviceVolume`` with a ``blockdevice_id`` derived from the given ``dataset_id``.
+        Create a new ``BlockDeviceVolume`` with a ``blockdevice_id`` derived
+        from the given ``dataset_id``.
 
         This is for convenience of implementation of the loopback backend (to
         avoid needing a separate data store for mapping dataset ids to block
         device ids and back again).
 
-        Parameters accepted have the same meaning as the attributes of this type.
+        Parameters accepted have the same meaning as the attributes of this
+        type.
         """
         return cls(
             size=size, host=host, dataset_id=dataset_id,
@@ -261,17 +262,21 @@ class BlockDeviceVolume(PRecord):
     @classmethod
     def from_blockdevice_id(cls, blockdevice_id, size, host=None):
         """
-        Create a new ``BlockDeviceVolume`` with a ``dataset_id`` derived from the given ``blockdevice_id``.
+        Create a new ``BlockDeviceVolume`` with a ``dataset_id`` derived from
+        the given ``blockdevice_id``.
 
         This reverses the transformation performed by ``from_dataset_id``.
 
-        Parameters accepted have the same meaning as the attributes of this type.
+        Parameters accepted have the same meaning as the attributes of this
+        type.
         """
-        dataset_id = UUID(blockdevice_id[6:]) # "block-"
+        # Strip the "block-" prefix we added.
+        dataset_id = UUID(blockdevice_id[6:])
         return cls(
             size=size, host=host, dataset_id=dataset_id,
             blockdevice_id=blockdevice_id,
         )
+
 
 def _losetup_list_parse(output):
     """

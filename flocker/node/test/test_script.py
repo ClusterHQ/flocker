@@ -477,6 +477,7 @@ class DatasetAgentServiceFactoryTests(SynchronousTestCase):
         configured with the destination given by the options.
         """
         deployer = object()
+
         def factory(**kw):
             if kw.keys() != ["hostname"]:
                 raise TypeError("wrong arguments")
@@ -502,8 +503,8 @@ class DatasetAgentServiceFactoryTests(SynchronousTestCase):
 
     def test_deployer_factory_called_with_hostname(self):
         """
-        ``DatasetAgentServiceFactory.main`` calls its ``deployer_factory`` with the
-        hostname given by the options.
+        ``DatasetAgentServiceFactory.main`` calls its ``deployer_factory`` with
+        the hostname given by the options.
         """
         spied = []
 
@@ -542,14 +543,16 @@ class DatasetAgentScriptTests(SynchronousTestCase):
 
     def test_service_factory_called_with_main_arguments(self):
         """
-        ``DatasetAgentScript`` calls the ``service_factory`` with the reactor and
-        options passed to ``DatasetAgentScript.main``.
+        ``DatasetAgentScript`` calls the ``service_factory`` with the reactor
+        and options passed to ``DatasetAgentScript.main``.
         """
         args = []
         service = Service()
+
         def service_factory(reactor, options):
             args.append((reactor, options))
             return service
+
         agent = DatasetAgentScript(service_factory=service_factory)
         agent.main(self.reactor, self.options)
         self.assertEqual([(self.reactor, self.options)], args)
@@ -581,14 +584,16 @@ class DatasetAgentScriptTests(SynchronousTestCase):
 
     def test_main_deferred_fires_after_service_stop(self):
         """
-        The ``Deferred`` returned by ``DatasetAgentScript.main`` doesn't fire until
-        after the ``Deferred`` returned by the ``stopService`` method of the
-        service created by ``service_factory``.
+        The ``Deferred`` returned by ``DatasetAgentScript.main`` doesn't fire
+        until after the ``Deferred`` returned by the ``stopService`` method of
+        the service created by ``service_factory``.
         """
         shutdown_deferred = Deferred()
+
         class SlowShutdown(Service):
             def stopService(self):
                 return shutdown_deferred
+
         service = SlowShutdown()
         agent = DatasetAgentScript(
             service_factory=lambda reactor, options: service
