@@ -334,7 +334,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        image = u"busybox"
+        image = u"busybox:latest"
         # Make sure image is gone:
         docker = Client()
         try:
