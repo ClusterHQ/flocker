@@ -11,6 +11,7 @@ from yaml import safe_dump, safe_load
 
 from zope.interface.verify import verifyObject
 
+from twisted.internet.defer import Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
@@ -23,6 +24,7 @@ from ...common.script import ICommandLineScript
 
 from ..script import (
     ZFSAgentOptions, ZFSAgentScript, DatasetAgentScript,
+    DatasetAgentServiceFactory,
     ChangeStateOptions, ChangeStateScript,
     ReportStateOptions, ReportStateScript, DatasetAgentOptions)
 from .. import script as script_module
@@ -465,36 +467,29 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                           P2PNodeDeployer, b"1.2.3.4", service, True))
 
 
-class DatasetAgentScriptTests(SynchronousTestCase):
-    def test_interface(self):
+class DatasetAgentServiceFactoryTests(SynchronousTestCase):
+    """
+    Tests for ``DatasetAgentServiceFactory``.
+    """
+    def test_get_service(self):
         """
-        ``DatasetAgentScript`` instances provide ``ICommandLineScript``.
-        """
-        self.assertTrue(
-            verifyObject(
-                ICommandLineScript,
-                DatasetAgentScript(deployer_factory=lambda hostname: None)
-            )
-        )
-
-    def test_agent_loop_service(self):
-        """
-        ``DatasetAgentScript.main`` creates ``AgentLoopService`` configured
-        with the destination given by the options.
+        ``DatasetAgentServiceFactory.get_service`` creates ``AgentLoopService``
+        configured with the destination given by the options.
         """
         deployer = object()
+        def factory(**kw):
+            if kw.keys() != ["hostname"]:
+                raise TypeError("wrong arguments")
+            return deployer
+
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([
             b"--destination-port", b"1234", b"10.0.0.1", b"10.0.0.2",
         ])
-
-        def factory(**kw):
-            if kw.keys() != ["hostname"]:
-                raise TypeError("wrong arguments")
-            return deployer
-        agent = DatasetAgentScript(deployer_factory=factory)
-        agent.main(reactor, options)
+        service_factory = DatasetAgentServiceFactory(
+            deployer_factory=factory
+        )
         self.assertEqual(
             AgentLoopService(
                 reactor=reactor,
@@ -502,12 +497,12 @@ class DatasetAgentScriptTests(SynchronousTestCase):
                 host=b"10.0.0.2",
                 port=1234,
             ),
-            agent.service
+            service_factory.get_service(reactor, options)
         )
 
     def test_deployer_factory_called_with_hostname(self):
         """
-        ``DatasetAgentScript.main`` calls its ``deployer_factory`` with the
+        ``DatasetAgentServiceFactory.main`` calls its ``deployer_factory`` with the
         hostname given by the options.
         """
         spied = []
@@ -519,13 +514,101 @@ class DatasetAgentScriptTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"10.0.0.1", b"10.0.0.2"])
-        agent = DatasetAgentScript(deployer_factory=deployer_factory)
-        agent.main(reactor, options)
+        agent = DatasetAgentServiceFactory(deployer_factory=deployer_factory)
+        agent.get_service(reactor, options)
         self.assertEqual([b"10.0.0.1"], spied)
+
+
+class DatasetAgentScriptTests(SynchronousTestCase):
+    """
+    Tests for ``DatasetAgentScript``.
+    """
+    def setUp(self):
+        self.reactor = MemoryCoreReactor()
+        self.options = DatasetAgentOptions()
+
+    def test_interface(self):
+        """
+        ``DatasetAgentScript`` instances provide ``ICommandLineScript``.
+        """
+        self.assertTrue(
+            verifyObject(
+                ICommandLineScript,
+                DatasetAgentScript(
+                    service_factory=lambda reactor, options: Service()
+                )
+            )
+        )
+
+    def test_service_factory_called_with_main_arguments(self):
+        """
+        ``DatasetAgentScript`` calls the ``service_factory`` with the reactor and
+        options passed to ``DatasetAgentScript.main``.
+        """
+        args = []
+        service = Service()
+        def service_factory(reactor, options):
+            args.append((reactor, options))
+            return service
+        agent = DatasetAgentScript(service_factory=service_factory)
+        agent.main(self.reactor, self.options)
+        self.assertEqual([(self.reactor, self.options)], args)
+
+    def test_main_starts_service(self):
+        """
+        ```DatasetAgentScript.main`` starts the service created by its
+        ``service_factory`` .
+        """
+        service = Service()
+        agent = DatasetAgentScript(
+            service_factory=lambda reactor, options: service
+        )
+        agent.main(self.reactor, self.options)
+        self.assertTrue(service.running)
+
+    def test_main_stops_service(self):
+        """
+        When the reactor passed to ``DatasetAgentScript.main`` shuts down, the
+        service created by the ``service_factory`` is stopped.
+        """
+        service = Service()
+        agent = DatasetAgentScript(
+            service_factory=lambda reactor, options: service
+        )
+        agent.main(self.reactor, self.options)
+        self.reactor.fireSystemEvent("shutdown")
+        self.assertFalse(service.running)
+
+    def test_main_deferred_fires_after_service_stop(self):
+        """
+        The ``Deferred`` returned by ``DatasetAgentScript.main`` doesn't fire until
+        after the ``Deferred`` returned by the ``stopService`` method of the
+        service created by ``service_factory``.
+        """
+        shutdown_deferred = Deferred()
+        class SlowShutdown(Service):
+            def stopService(self):
+                return shutdown_deferred
+        service = SlowShutdown()
+        agent = DatasetAgentScript(
+            service_factory=lambda reactor, options: service
+        )
+        stop_deferred = agent.main(self.reactor, self.options)
+        self.reactor.fireSystemEvent("shutdown")
+        self.assertNoResult(stop_deferred)
+        shutdown_deferred.callback(None)
+        self.assertIs(None, self.successResultOf(stop_deferred))
 
 
 def make_amp_agent_options_tests(options_type):
     """
+    Create a test case which contains the tests that should apply to any and
+    all convergence agents (dataset or container).
+
+    :param options_type: An ``Options`` subclass  to be tested.
+
+    :return: A ``SynchronousTestCase`` subclass defining tests for that options
+        type.
     """
 
     class Tests(SynchronousTestCase):

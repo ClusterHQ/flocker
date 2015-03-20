@@ -11,7 +11,7 @@ from functools import partial
 from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
 
-from characteristic import attributes
+from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 
@@ -305,28 +305,68 @@ class DatasetAgentOptions(Options):
 
 
 @implementer(ICommandLineScript)
-@attributes(["deployer_factory"])
-class DatasetAgentScript(object):
+class DatasetAgentScript(PRecord):
     """
     Implement top-level logic for the ``flocker-dataset-agent`` script.
+
+    :ivar service_factory: A two-argument callable that returns an ``IService``
+        provider that will get run when this script is run.  The arguments
+        passed to it are the reactor being used and a ``DatasetAgentOptions``
+        instance which has parsed any command line options that were given.
+    """
+    service_factory = field(mandatory=True)
+
+    def main(self, reactor, options):
+        return main_for_service(
+            reactor,
+            self.service_factory(reactor, options)
+        )
+
+
+class DatasetAgentServiceFactory(PRecord):
+    """
+    Implement general agent setup in a way that's usable by
+    ``DatasetAgentScript`` but also easily testable.
+
+    Possibly ``ICommandLineScript`` should be replaced by something that is
+    inherently more easily tested so that this separation isn't required.
 
     :ivar deployer_factory: A one-argument callable to create an ``IDeployer``
         provider for this script.  The one argument is the ``hostname`` keyword
         argument (it must be passed by keyword).
-
-    :ivar service: The ``AgentLoopService`` that is created and started by
-        ``main``.
     """
-    def main(self, reactor, options):
-        self.service = AgentLoopService(
+    deployer_factory = field(mandatory=True)
+
+    def get_service(self, reactor, options):
+        """
+        Create an ``AgentLoopService`` instance.
+
+        :param reactor: The reactor to give to the service so it can schedule
+            timed events and make network connections.
+
+        :param DatasetAgentOptions options: The command-line options to use to
+            configure the loop and the loop's deployer.
+
+        :return: The ``AgentLoopService`` instance.
+        """
+        return AgentLoopService(
             reactor=reactor,
             deployer=self.deployer_factory(hostname=options["hostname"]),
             host=options["destination-host"], port=options["destination-port"],
         )
-        return main_for_service(reactor, self.service)
 
 
 def flocker_dataset_agent_main():
+    """
+    Implementation of the ``flocker-dataset-agent`` command line script.
+
+    This starts a dataset convergence agent.  It currently supports only the
+    loopback block device backend.  Later it will be capable of starting a
+    dataset agent using any of the support dataset backends.
+    """
+    # Later, construction of this object can be moved into
+    # DatasetAgentServiceFactory.get_service where various options passed on
+    # the command line could alter what is created and how it is initialized.
     api = LoopbackBlockDeviceAPI.from_path(
         b"/var/lib/flocker/loopback"
     )
@@ -334,9 +374,13 @@ def flocker_dataset_agent_main():
         BlockDeviceDeployer,
         block_device_api=api,
     )
+    service_factory = DatasetAgentServiceFactory(
+        deployer_factory=deployer_factory
+    ).get_service
+    agent_script = DatasetAgentScript(
+        service_factory=service_factory,
+    )
     return FlockerScriptRunner(
-        script=DatasetAgentScript(
-            deployer_factory=deployer_factory
-        ),
+        script=agent_script,
         options=DatasetAgentOptions()
     ).main()
