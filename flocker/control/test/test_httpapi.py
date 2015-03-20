@@ -966,6 +966,46 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         saving.addCallback(saved)
         return saving
 
+    def test_single_container_single_node(self):
+        """
+        When the cluster configuration includes a single container, the
+        endpoint returns a single-element list containing the container
+        data.
+        """
+        self.fail("not implemented yet")
+
+    def test_single_container_multi_node_cluster(self):
+        """
+        When the cluster configuration includes a single container on a
+        multi-node cluster, the endpoint returns a single-element list
+        containing only the data about the single container, returning
+        no information about the empty node.
+        """
+        self.fail("not implemented yet")
+
+    def test_multi_containers_single_node(self):
+        """
+        When the cluster configuration includes several containers, the
+        endpoint returns a list containing the container data.
+        """
+        self.fail("not implemented yet")
+
+    def test_multi_containers_multi_nodes(self):
+        """
+        When the cluster configuration includes containers on more than one
+        node, the endpoint returns a list containing the container data for
+        all nodes.
+        """
+        self.fail("not implemented yet")
+
+    def test_container_with_volume(self):
+        """
+        When the cluster configuration includes a container with an attached
+        volume, the endpoint returns the volume information in the container
+        data suppled in the response.
+        """
+        self.fail("not implemented yet")
+
 
 RealTestsGetContainerConfiguration, MemoryTestsGetContainerConfiguration = (
     buildIntegrationTests(
