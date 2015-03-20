@@ -148,13 +148,26 @@ class CreateBlockDeviceDataset(PRecord):
                 dataset_id=UUID(self.dataset.dataset_id),
                 size=self.dataset.maximum_size,
             )
+
+            # This will be factored into a separate IStateChange to support the
+            # case where the volume exists but is not attached.  That object
+            # will be used by this one to perform this work.
             volume = api.attach_volume(
                 volume.blockdevice_id, deployer.hostname
             )
             device = api.get_device_path(volume.blockdevice_id)
             self.mountpoint.makedirs()
+
+            # This will be factored into a separate IStateChange to support the
+            # case where the volume is attached but has no filesystem.  That
+            # object will be used by this one to perform this work.
             check_output(["mkfs", "-t", "ext4", device.path])
+
+            # This will be factored into a separate IStateChange to support the
+            # case where the only state change necessary is mounting.  That
+            # object will be used by this one to perform this mount.  FLOC-1498
             check_output(["mount", device.path, self.mountpoint.path])
+
             action.add_success_fields(
                 block_device_path=device,
                 block_device_id=volume.blockdevice_id,
