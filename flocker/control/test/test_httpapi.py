@@ -35,7 +35,7 @@ from .. import (
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
-    api_dataset_from_dataset_and_node
+    api_dataset_from_dataset_and_node, container_configuration_response
 )
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
@@ -972,7 +972,26 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         endpoint returns a single-element list containing the container
         data.
         """
-        self.fail("not implemented yet")
+        application = Application(
+            name='postgres',
+            image=DockerImage.from_string('postgres')
+        )
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        application
+                    ]
+                ),
+            },
+        )
+        expected = [
+            container_configuration_response(
+                application, self.NODE_A
+            )
+        ]
+        return self._containers_test(deployment, expected)
 
     def test_single_container_multi_node_cluster(self):
         """
