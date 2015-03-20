@@ -315,7 +315,7 @@ a.download:before {
 }
 
 .section .highlighted   {
-    background-color: #FFFF00
+    background-color: rgba(54, 255, 85, 0.55);
 }
 
 .mob-nav {
