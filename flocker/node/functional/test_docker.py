@@ -171,7 +171,7 @@ class GenericDockerClientTests(TestCase):
         client.exists = lambda _: succeed(False)
         # Illegal container name should make Docker complain when we try to
         # install the container:
-        d = client.add(u"!!!###!!!", u"busybox")
+        d = client.add(u"!!!###!!!", u"busybox:latest")
         return self.assertFailure(d, self.clientException)
 
     def test_dead_is_listed(self):
@@ -186,7 +186,7 @@ class GenericDockerClientTests(TestCase):
         unit never reaches that state.
         """
         name = random_name()
-        d = self.start_container(unit_name=name, image_name="busybox",
+        d = self.start_container(unit_name=name, image_name="busybox:latest",
                                  expected_states=(u'inactive',))
         return d
 
@@ -198,7 +198,7 @@ class GenericDockerClientTests(TestCase):
         reach an `inactive` substate of `dead`.
         """
         name = random_name()
-        d = self.start_container(unit_name=name, image_name="busybox",
+        d = self.start_container(unit_name=name, image_name="busybox:latest",
                                  expected_states=(u'inactive',))
 
         def remove_container(client):
@@ -359,7 +359,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         name = random_name()
         client = self.make_client()
         self.addCleanup(client.remove, name)
-        d = client.add(name, u"busybox")
+        d = client.add(name, u"busybox:latest")
 
         def added(_):
             self.assertTrue(
@@ -375,7 +375,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         client = self.make_client()
         name = random_name()
         self.addCleanup(client.remove, name)
-        d = client.add(name, u"busybox")
+        d = client.add(name, u"busybox:latest")
         d.addCallback(lambda _: client.list())
 
         def got_list(units):
@@ -595,7 +595,7 @@ class DockerClientTests(TestCase):
         name = random_name()
         client = DockerClient()
         self.addCleanup(client.remove, name)
-        d = client.add(name, u"busybox")
+        d = client.add(name, u"busybox:latest")
         d.addCallback(lambda _: self.assertTrue(
             docker.inspect_container(u"flocker--" + name)))
         return d
@@ -676,7 +676,7 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         client2 = NamespacedDockerClient(random_name())
         name = random_name()
 
-        d = client.add(name, u"busybox")
+        d = client.add(name, u"busybox:latest")
         self.addCleanup(client.remove, name)
         d.addCallback(lambda _: client2.list())
         d.addCallback(self.assertEqual, set())
