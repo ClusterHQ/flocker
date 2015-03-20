@@ -567,7 +567,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
 
     def test_restart_policy_on_failure_maximum_count(self):
         """
-        An container with a restart policy of on-failure and a maximum
+        A container with a restart policy of on-failure and a maximum
         retry count is not restarted if it fails as many times than the
         specified maximum.
         """
@@ -575,7 +575,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
             mode=u"failure",
             restart_policy=RestartOnFailure(maximum_retry_count=5))
 
-        d.addCallback(self.assertEqual, "5")
+        d.addCallback(self.assertEqual, "6")
         return d
 
 
