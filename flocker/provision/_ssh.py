@@ -1,5 +1,5 @@
 from pipes import quote as shell_quote
-from characteristic import attributes
+from pyrsistent import PRecord, field
 from twisted.python import log
 
 from effect import (
@@ -9,17 +9,43 @@ from effect.twisted import (
 from twisted.conch.endpoints import (
     SSHCommandClientEndpoint, _NewConnectionHelper, _ReadFile, ConsoleUI)
 
+from crochet import run_in_reactor
+from crochet import setup
+from twisted.conch.ssh.keys import Key
+from twisted.internet import reactor
+from twisted.internet.defer import Deferred
+from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
+from twisted.internet.error import ConnectionDone
+from twisted.protocols.basic import LineOnlyReceiver
+from twisted.python.filepath import FilePath
+import os
+
+
+class CommandProtocol(LineOnlyReceiver, PRecord, object):
+    delimiter = b'\n'
+
+    deferred = field(type=Deferred)
+    address = field(type=bytes)
+    username = field(type=bytes)
+
+    def connectionMade(self):
+        self.transport.disconnecting = False
+
+    def connectionLost(self, reason):
+        if reason.check(ConnectionDone):
+            self.deferred.callback(None)
+        else:
+            self.deferred.errback(reason)
+
+    def lineReceived(self, line):
+        log.msg(format="%(line)s",
+                system="SSH[%s@%s]" % (self.username, self.address),
+                username=self.username, address=self.address, line=line)
+
 
 def run_with_crochet(username, address, commands):
     from ._install import Run, Sudo, Put, Comment
-    from crochet import setup
     setup()
-    from twisted.internet import reactor
-    from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
-    import os
-    from crochet import run_in_reactor
-    from twisted.conch.ssh.keys import Key
-    from twisted.python.filepath import FilePath
     key_path = FilePath(os.path.expanduser('~/.ssh/id_rsa'))
     if key_path.exists():
         keys = [Key.fromString(key_path.getContent())]
@@ -38,32 +64,11 @@ def run_with_crochet(username, address, commands):
         knownHosts=None, ui=ConsoleUI(lambda: _ReadFile(b"yes")))
     connection = run_in_reactor(connection_helper.secureConnection)().wait()
 
-    from twisted.protocols.basic import LineOnlyReceiver
-    from twisted.internet.defer import Deferred
-    from twisted.internet.error import ConnectionDone
-
-    @attributes(['deferred'])
-    class CommandProtocol(LineOnlyReceiver, object):
-        delimiter = b'\n'
-
-        def connectionMade(self):
-            self.transport.disconnecting = False
-
-        def connectionLost(self, reason):
-            if reason.check(ConnectionDone):
-                self.deferred.callback(None)
-            else:
-                self.deferred.errback(reason)
-
-        def lineReceived(self, line):
-            log.msg(format="%(line)s",
-                    system="SSH[%s@%s]" % (username, address),
-                    username=username, address=address, line=line)
-
     def do_remote(endpoint):
         d = Deferred()
         return connectProtocol(
-            endpoint, CommandProtocol(deferred=d)
+            endpoint, CommandProtocol(
+                deferred=d, username=username, address=address)
             ).addCallback(lambda _: d)
 
     @deferred_performer
@@ -100,9 +105,7 @@ def run_with_crochet(username, address, commands):
         make_twisted_dispatcher(reactor),
     ])
 
-    from crochet import run_in_reactor
-    for command in commands:
-        run_in_reactor(perform)(dispatcher, Effect(command)).wait()
+    run_in_reactor(perform)(dispatcher, commands).wait()
 
     run_in_reactor(connection_helper.cleanupConnection)(
         connection, False).wait()

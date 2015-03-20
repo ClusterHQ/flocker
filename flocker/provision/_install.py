@@ -10,11 +10,14 @@ import posixpath
 from textwrap import dedent
 from urlparse import urljoin
 from characteristic import attributes
+from effect import Effect, parallel
 
 from ._common import PackageSource, Variants
 from ._ssh import run_with_crochet
+from ._effect import sequence
 
 from flocker.cli import configure_ssh
+__all__ = ['run_with_crochet']
 
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
@@ -80,6 +83,30 @@ class Comment(object):
     """
 
 
+def run(command):
+    return Effect(Run(command=command))
+
+
+def sudo(command):
+    return Effect(Sudo(command=command))
+
+
+def put(content, path):
+    return Effect(Put(content=content, pat=path))
+
+
+def comment(comment):
+    return Effect(Comment(comment=comment))
+
+
+def run_from_args(command):
+    return Effect(Run.from_args(command))
+
+
+def sudo_from_args(command):
+    return Effect(Sudo.from_args(command))
+
+
 def run_with_fabric(username, address, commands):
     """
     Run a series of commands on a remote host.
@@ -111,43 +138,40 @@ def run_with_fabric(username, address, commands):
     disconnect_all()
 
 
-run = run_with_crochet
-
-
 def task_test_homebrew(recipe_url):
-    return [
-        Run(command="brew update"),
-        Run(command="brew install {url}".format(url=recipe_url)),
-        Run(command="brew test {url}".format(url=recipe_url)),
-    ]
+    return sequence([
+        run("brew update"),
+        run("brew install {url}".format(url=recipe_url)),
+        run("brew test {url}".format(url=recipe_url)),
+    ])
 
 
 def task_install_ssh_key():
-    return [
-        Sudo.from_args(['cp', '.ssh/authorized_keys',
-                       '/root/.ssh/authorized_keys']),
-    ]
+    return sequence([
+        sudo_from_args(['cp', '.ssh/authorized_keys',
+                        '/root/.ssh/authorized_keys']),
+    ])
 
 
 def task_upgrade_kernel():
     """
     Upgrade kernel.
     """
-    return [
-        Run.from_args(['yum', 'upgrade', '-y', 'kernel']),
+    return sequence([
+        run_from_args(['yum', 'upgrade', '-y', 'kernel']),
         Comment(comment="# The upgrade doesn't make the new kernel default."),
-        Run.from_args(['grubby', '--set-default-index', '0']),
-    ]
+        run_from_args(['grubby', '--set-default-index', '0']),
+    ])
 
 
 def task_upgrade_kernel_centos():
     return [
-        Run.from_args([
+        run_from_args([
             "yum", "install", "-y", "kernel-devel", "kernel"]),
         # For dkms and ... ?
-        Run.from_args([
+        run_from_args([
             "yum", "install", "-y", "epel-release"]),
-        Run.from_args(['sync']),
+        run_from_args(['sync']),
     ]
 
 
@@ -157,7 +181,7 @@ def task_install_kernel_devel():
 
     This is so we can compile zfs.
     """
-    return [Run(command="""
+    return [run("""
 UNAME_R=$(uname -r)
 PV=${UNAME_R%.*}
 KV=${PV%%-*}
@@ -173,8 +197,8 @@ def task_enable_docker():
     Start docker and configure it to start automatically.
     """
     return [
-        Run(command="systemctl enable docker.service"),
-        Run(command="systemctl start docker.service"),
+        run_from_args(["systemctl", "enable", "docker.service"]),
+        run_from_args(["systemctl", "start", "docker.service"]),
     ]
 
 
@@ -184,10 +208,10 @@ def configure_firewalld(rule):
 
     :param list rule: List of `firewall-cmd` arguments.
     """
-    return [
-        Run.from_args(command + rule)
+    return sequence([
+        run_from_args(command + rule)
         for command in [['firewall-cmd', '--permanent'],
-                        ['firewall-cmd']]]
+                        ['firewall-cmd']]])
 
 
 def task_disable_firewall():
@@ -203,17 +227,17 @@ def task_enable_flocker_control():
     """
     Enable flocker-control service.
     """
-    return [
-        Run.from_args(['systemctl', 'enable', 'flocker-control']),
-        Run.from_args(['systemctl', 'start', 'flocker-control']),
-    ]
+    return sequence([
+        run_from_args(['systemctl', 'enable', 'flocker-control']),
+        run_from_args(['systemctl', 'start', 'flocker-control']),
+    ])
 
 
 def task_open_control_firewall():
     """
     Open the firewall for flocker-control.
     """
-    return reduce(list.__add__, [
+    return sequence([
         configure_firewalld(['--add-service', service])
         for service in ['flocker-control-api', 'flocker-control-agent']
     ])
@@ -232,28 +256,28 @@ def task_enable_flocker_agent(node_name, control_node):
     :param bytes node_name: The name this node is known by.
     :param bytes control_node: The address of the control agent.
     """
-    return [
-        Put(
+    return sequence([
+        put(
             path='/etc/sysconfig/flocker-agent',
             content=AGENT_CONFIG % {
                 'node_name': node_name,
                 'control_node': control_node
             },
         ),
-        Run.from_args(['systemctl', 'enable', 'flocker-agent']),
-        Run.from_args(['systemctl', 'start', 'flocker-agent']),
-    ]
+        run_from_args(['systemctl', 'enable', 'flocker-agent']),
+        run_from_args(['systemctl', 'start', 'flocker-agent']),
+    ])
 
 
 def task_create_flocker_pool_file():
     """
     Create a file-back zfs pool for flocker.
     """
-    return [
-        Run(command='mkdir -p /var/opt/flocker'),
-        Run(command='truncate --size 10G /var/opt/flocker/pool-vdev'),
-        Run(command='zpool create flocker /var/opt/flocker/pool-vdev'),
-    ]
+    return sequence([
+        run('mkdir -p /var/opt/flocker'),
+        run('truncate --size 10G /var/opt/flocker/pool-vdev'),
+        run('zpool create flocker /var/opt/flocker/pool-vdev'),
+    ])
 
 
 def task_install_flocker(
@@ -267,8 +291,8 @@ def task_install_flocker(
         package.
     """
     commands = [
-        Run(command="yum install -y " + ZFS_REPO[distribution]),
-        Run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+        run(command="yum install -y " + ZFS_REPO[distribution]),
+        run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
     ]
 
     if package_source.branch:
@@ -282,7 +306,7 @@ def task_install_flocker(
             gpgcheck=0
             enabled=0
             """) % (base_url,)
-        commands.append(Put(content=repo,
+        commands.append(put(content=repo,
                             path='/etc/yum.repos.d/clusterhq-build.repo'))
         branch_opt = ['--enablerepo=clusterhq-build']
     else:
@@ -293,16 +317,16 @@ def task_install_flocker(
     else:
         package = 'clusterhq-flocker-node'
 
-    commands.append(Run.from_args(
+    commands.append(run_from_args(
         ["yum", "install"] + branch_opt + ["-y", package]))
 
-    return commands
+    return sequence(commands)
 
 
 def task_upgrade_selinux():
-    return [
-        Run.from_args(['yum', 'upgrade', '-y', 'selinux-policy']),
-    ]
+    return sequence([
+        run_from_args(['yum', 'upgrade', '-y', 'selinux-policy']),
+    ])
 
 
 ACCEPTANCE_IMAGES = [
@@ -321,10 +345,9 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
     :param list images: List of images to pull. Defaults to images used in
         acceptance tests.
     """
-    from effect import ParallelEffects, Effect
-    return [ParallelEffects(
-        [Effect(Run.from_args(['docker', 'pull', image])) for image in images]
-    )]
+    return parallel([
+        run_from_args(['docker', 'pull', image]) for image in images
+    ])
 
 
 def task_enable_updates_testing(distribution):
@@ -334,11 +357,11 @@ def task_enable_updates_testing(distribution):
     :param bytes distribution: See func:`task_install_flocker`
     """
     if distribution == 'fedora-20':
-        return [
-            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
-            Run.from_args([
+        return sequence([
+            run_from_args(['yum', 'install', '-y', 'yum-utils']),
+            run_from_args([
                 'yum-config-manager', '--enable', 'updates-testing'])
-        ]
+        ])
     else:
         raise NotImplementedError
 
@@ -351,16 +374,16 @@ def task_enable_docker_head_repository(distribution):
     :param bytes distribution: See func:`task_install_flocker`
     """
     if distribution == 'fedora-20':
-        return [
-            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
-            Run.from_args([
+        return sequence([
+            run_from_args(['yum', 'install', '-y', 'yum-utils']),
+            run_from_args([
                 'yum-config-manager',
                 '--add-repo',
                 'https://copr.fedoraproject.org/coprs/lsm5/docker-io/repo/fedora-20/lsm5-docker-io-fedora-20.repo',  # noqa
             ])
-        ]
+        ])
     elif distribution == "centos-7":
-        return [
+        return sequence([
             Put(content=dedent("""\
                 [virt7-testing]
                 name=virt7-testing
@@ -369,7 +392,7 @@ def task_enable_docker_head_repository(distribution):
                 gpgcheck=0
                 """),
                 path="/etc/yum.repos.d/virt7-testing.repo")
-        ]
+        ])
     else:
         raise NotImplementedError
 
@@ -381,11 +404,11 @@ def task_enable_zfs_testing(distribution):
     :param bytes distribution: See func:`task_install_flocker`
     """
     if distribution in ('fedora-20', 'centos-7'):
-        return [
-            Run.from_args(['yum', 'install', '-y', 'yum-utils']),
-            Run.from_args([
+        return sequence([
+            run_from_args(['yum', 'install', '-y', 'yum-utils']),
+            run_from_args([
                 'yum-config-manager', '--enable', 'zfs-testing'])
-        ]
+        ])
     else:
         raise NotImplementedError
 
@@ -404,21 +427,23 @@ def provision(distribution, package_source, variants):
     commands = []
 
     if Variants.DISTRO_TESTING in variants:
-        commands += task_enable_updates_testing(distribution)
+        commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
-        commands += task_enable_docker_head_repository(distribution)
+        commands.append(task_enable_docker_head_repository(distribution))
     if Variants.ZFS_TESTING in variants:
-        commands += task_enable_zfs_testing(distribution)
+        commands.append(task_enable_zfs_testing(distribution))
 
     if distribution in ('fedora-20',):
-        commands += task_install_kernel_devel()
+        commands.append(task_install_kernel_devel())
 
-    commands += task_install_flocker(package_source=package_source,
-                                     distribution=distribution)
-    commands += task_enable_docker()
-    commands += task_create_flocker_pool_file()
-    commands += task_pull_docker_images()
-    return commands
+    commands += [
+        task_install_flocker(package_source=package_source,
+                             distribution=distribution),
+        task_enable_docker(),
+        task_create_flocker_pool_file(),
+        task_pull_docker_images(),
+    ]
+    return sequence(commands)
 
 
 def configure_cluster(control_node, agent_nodes):
@@ -428,14 +453,14 @@ def configure_cluster(control_node, agent_nodes):
     :param bytes control_node: The address of the control node.
     :param list agent_nodes: List of addresses of agent nodes.
     """
-    run(
+    run_with_crochet(
         username='root',
         address=control_node,
         commands=task_enable_flocker_control(),
     )
     for node in agent_nodes:
         configure_ssh(node, 22)
-        run(
+        run_with_crochet(
             username='root',
             address=node,
             commands=task_enable_flocker_agent(
@@ -452,18 +477,14 @@ def stop_cluster(control_node, agent_nodes):
     :param bytes control_node: The address of the control node.
     :param list agent_nodes: List of addresses of agent nodes.
     """
-    run(
+    run_with_crochet(
         username='root',
         address=control_node,
-        commands=[
-            Run.from_args(['systemctl', 'stop', 'flocker-control']),
-        ],
+        commands=run_from_args(['systemctl', 'stop', 'flocker-control']),
     )
     for node in agent_nodes:
-        run(
+        run_with_crochet(
             username='root',
             address=node,
-            commands=[
-                Run.from_args(['systemctl', 'stop', 'flocker-agent']),
-            ],
+            commands=run_from_args(['systemctl', 'stop', 'flocker-agent']),
         )
