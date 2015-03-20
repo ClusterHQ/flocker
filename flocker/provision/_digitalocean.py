@@ -206,7 +206,8 @@ def latest_droplet_kernel(droplet,
     return latest_kernel
 
 
-def provision_digitalocean(node, package_source, distribution, token):
+def provision_digitalocean(node, token,
+                           package_source, distribution, variants):
     """
     Provision Flocker on this node.
 
@@ -216,6 +217,8 @@ def provision_digitalocean(node, package_source, distribution, token):
     :param bytes distribution: The label of the distribution to be installed on
         the node.
     :param bytes token: A DigitalOcean v2 API token.
+    :param set variants: The set of variant configurations to use when
+        provisioning
     """
     # DO doesn't support booting the droplet's own kernel.
     # * http://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/2814988-give-option-to-use-the-droplet-s-own-bootloader # noqa
@@ -269,6 +272,7 @@ def provision_digitalocean(node, package_source, distribution, token):
         commands=provision(
             package_source=package_source,
             distribution=node.distribution,
+            variants=variants,
         )
         # https://clusterhq.atlassian.net/browse/FLOC-1550
         # This should be part of ._install.configure_cluster
