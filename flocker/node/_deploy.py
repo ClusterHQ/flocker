@@ -20,9 +20,10 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
-    NodeState, DockerImage, Port, Link, Manifestation, Dataset
+    NodeState, DockerImage, Port, Link, Manifestation, Dataset,
+    pset_field,
     )
-from ..route import make_host_network, Proxy
+from ..route import make_host_network, Proxy, OpenPort
 from ..volume._ipc import RemoteVolumeManager, standard_node
 from ..volume._model import VolumeSize
 from ..volume.service import VolumeName
@@ -362,7 +363,7 @@ class SetProxies(object):
     """
     Set the ports which will be forwarded to other nodes.
 
-    :ivar ports: A collection of ``Port`` objects.
+    :ivar proxy: A collection of ``Port`` objects.
     """
     def run(self, deployer):
         results = []
@@ -386,23 +387,23 @@ class OpenPorts(PRecord):
     """
     Set the ports which will have the firewall opened.
 
-    :ivar ports: A collection of ``Port`` objects.
+    :ivar ports: A list of :class:`OpenPort`s.
     """
 
-    ports = field()
+    ports = pset_field(OpenPort)
 
     def run(self, deployer):
         results = []
         # XXX: The proxy manipulation operations are blocking. Convert to a
         # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320
-        for port in deployer.network.enumerate_open_ports():
+        for open_port in deployer.network.enumerate_open_ports():
             try:
-                deployer.network.delete_open_port(port)
+                deployer.network.delete_open_port(open_port)
             except:
                 results.append(fail())
-        for port in self.ports:
+        for open_port in self.ports:
             try:
-                deployer.network.open_port(port)
+                deployer.network.open_port(open_port.port)
             except:
                 results.append(fail())
         return gather_deferreds(results)
@@ -583,7 +584,8 @@ class P2PNodeDeployer(object):
                 desired_node_applications = node.applications
                 for application in node.applications:
                     for port in application.ports:
-                        desired_open_ports.add(port.external_port)
+                        desired_open_ports.add(
+                            OpenPort(port=port.external_port))
             else:
                 for application in node.applications:
                     for port in application.ports:

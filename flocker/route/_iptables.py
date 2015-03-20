@@ -192,10 +192,8 @@ def create_proxy_to(logger, ip, port):
 
 
 def open_port(logger, port):
-    action = OPEN_PORT(
-        logger=logger, target_port=port)
-
-    with action:
+    with OPEN_PORT(
+            logger=logger, target_port=port):
         encoded_port = unicode(port).encode("ascii")
         iptables(logger, [
             b"--table", b"filter",

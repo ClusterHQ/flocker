@@ -75,8 +75,8 @@ def make_network_tests(make_network):
             proxy_two = self.network.create_proxy_to(ip, port + 1)
 
             self.assertEqual(
-                [proxy_one, proxy_two],
-                self.network.enumerate_proxies())
+                set([proxy_one, proxy_two]),
+                set(self.network.enumerate_proxies()))
 
         def test_deleted_proxies_not_enumerated(self):
             """
@@ -89,6 +89,9 @@ def make_network_tests(make_network):
             self.assertEqual([], self.network.enumerate_proxies())
 
         def test_only_specified_proxy_deleted(self):
+            """
+            Proxies other than a deleted proxy are still listed.
+            """
             proxy_one = self.network.create_proxy_to(IPAddress("10.0.0.1"), 1)
             proxy_two = self.network.create_proxy_to(IPAddress("10.0.0.2"), 2)
             self.network.delete_proxy(proxy_one)
@@ -160,6 +163,9 @@ def make_network_tests(make_network):
             self.assertEqual([], self.network.enumerate_open_ports())
 
         def test_only_specified_open_port_deleted(self):
+            """
+            Open ports other than a deleted port are still listed.
+            """
             open_port_one = self.network.open_port(1)
             open_port_two = self.network.open_port(2)
             self.network.delete_open_port(open_port_one)

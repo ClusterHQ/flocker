@@ -16,9 +16,3 @@ systemctl restart docker
 for image in busybox clusterhq/mongodb dockerfile/redis clusterhq/flask; do
     docker pull "${image}"
 done
-
-
-## Hacks to demonstrate other changes
-systemctl unmask firewalld
-systemctl enable firewalld
-systemctl start firewalld

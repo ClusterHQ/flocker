@@ -70,6 +70,8 @@ check_call(['systemctl', 'enable', 'docker'])
 
 
 # Enable firewalld
+# Typical deployments will have a firewall enabled, so enable it on vagrant to
+# make the environment more realistic.
 # We need to unmask it, since the base box has it masked.
 check_call(['systemctl', 'unmask', 'firewalld'])
 check_call(['systemctl', 'enable', 'firewalld'])

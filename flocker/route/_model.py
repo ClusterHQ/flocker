@@ -15,12 +15,12 @@ class Proxy(PRecord):
 
     :ivar int port: The TCP port number on which this proxy operates.
     """
-    ip = field()
-    port = field(type=int)
+    ip = field(mandatory=True)
+    port = field(type=int, mandatory=True)
 
 
 class OpenPort(PRecord):
     """
     :ivar int port: The TCP port which is opened.
     """
-    port = field(type=int)
+    port = field(type=int, mandatory=True)
