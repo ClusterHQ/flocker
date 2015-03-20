@@ -22,15 +22,21 @@ Interactions:
   NodeStateCommand, the control service then aggregates that update with
   the rest of the nodes' state and sends a ClusterStatusCommand to all
   convergence agents.
+
+Eliot contexts are transferred along with AMP commands, allowing tracing
+of logged actions across processes (see
+http://eliot.readthedocs.org/en/0.6.0/threads.html).
 """
+
+from eliot import Logger, ActionType, Action, Field
 
 from characteristic import with_cmp
 
-from zope.interface import Interface
+from zope.interface import Interface, Attribute
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, CommandLocator, AMP,
+    Argument, Command, Integer, CommandLocator, AMP, Unicode,
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
@@ -63,6 +69,19 @@ class SerializableArgument(Argument):
         return wire_encode(obj)
 
 
+class _EliotActionArgument(Unicode):
+    """
+    AMP argument that serializes/deserializes Eliot actions.
+    """
+    def fromStringProto(self, inString, proto):
+        return Action.continue_task(
+            proto.logger,
+            Unicode.fromStringProto(self, inString, proto))
+
+    def toString(self, inObject):
+        return inObject.serialize_task_id()
+
+
 class VersionCommand(Command):
     """
     Return configuration protocol version of the control service.
@@ -82,7 +101,8 @@ class ClusterStatusCommand(Command):
     in the convergence agent during startup.
     """
     arguments = [('configuration', SerializableArgument(Deployment)),
-                 ('state', SerializableArgument(Deployment))]
+                 ('state', SerializableArgument(Deployment)),
+                 ('eliot_context', _EliotActionArgument())]
     response = []
 
 
@@ -91,7 +111,8 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
-    arguments = [('node_state', SerializableArgument(NodeState))]
+    arguments = [('node_state', SerializableArgument(NodeState)),
+                 ('eliot_context', _EliotActionArgument())]
     response = []
 
 
@@ -107,14 +128,19 @@ class ControlServiceLocator(CommandLocator):
         CommandLocator.__init__(self)
         self.control_amp_service = control_amp_service
 
+    @property
+    def logger(self):
+        return self.control_amp_service.logger
+
     @VersionCommand.responder
     def version(self):
         return {"major": 1}
 
     @NodeStateCommand.responder
-    def node_changed(self, node_state):
-        self.control_amp_service.node_changed(node_state)
-        return {}
+    def node_changed(self, eliot_context, node_state):
+        with eliot_context:
+            self.control_amp_service.node_changed(node_state)
+            return {}
 
 
 class ControlAMP(AMP):
@@ -138,12 +164,34 @@ class ControlAMP(AMP):
         self.control_amp_service.disconnected(self)
 
 
+DEPLOYMENT_CONFIG = Field(u"configuration", repr,
+                          u"The cluster configuration")
+CLUSTER_STATE = Field(u"state", repr,
+                      u"The cluster state")
+
+LOG_SEND_CLUSTER_STATE = ActionType(
+    "flocker:controlservice:send_cluster_state",
+    [DEPLOYMENT_CONFIG, CLUSTER_STATE],
+    [],
+    "Send the configuration and state of the cluster to all agents.")
+
+AGENT = Field(u"agent", repr, u"The agent we're sending to")
+
+LOG_SEND_TO_AGENT = ActionType(
+    "flocker:controlservice:send_state_to_agent",
+    [AGENT],
+    [],
+    "Send the configuration and state of the cluster to a specific agent.")
+
+
 class ControlAMPService(Service):
     """
     Control Service AMP server.
 
     Convergence agents connect to this server.
     """
+    logger = Logger()
+
     def __init__(self, cluster_state, configuration_service, endpoint):
         """
         :param ClusterStateService cluster_state: Object that records known
@@ -177,12 +225,20 @@ class ControlAMPService(Service):
         """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
-        for connection in connections:
-            connection.callRemote(ClusterStatusCommand,
-                                  configuration=configuration,
-                                  state=state)
-            # Handle errors from callRemote by logging them
-            # https://clusterhq.atlassian.net/browse/FLOC-1311
+        with LOG_SEND_CLUSTER_STATE(self.logger,
+                                    configuration=configuration,
+                                    state=state):
+            for connection in connections:
+                with LOG_SEND_TO_AGENT(
+                        self.logger, agent=connection) as action:
+                    connection.callRemote(
+                        ClusterStatusCommand,
+                        configuration=configuration,
+                        state=state,
+                        eliot_context=action
+                    )
+                # Handle errors from callRemote by logging them
+                # https://clusterhq.atlassian.net/browse/FLOC-1311
 
     def connected(self, connection):
         """
@@ -216,6 +272,8 @@ class IConvergenceAgent(Interface):
     """
     The agent that will receive notifications from control service.
     """
+    logger = Attribute("An eliot ``Logger``.")
+
     def connected(client):
         """
         The client has connected to the control service.
@@ -254,10 +312,18 @@ class _AgentLocator(CommandLocator):
         CommandLocator.__init__(self)
         self.agent = agent
 
+    @property
+    def logger(self):
+        """
+        The ``Logger`` to use for Eliot logging.
+        """
+        return self.agent.logger
+
     @ClusterStatusCommand.responder
-    def cluster_updated(self, configuration, state):
-        self.agent.cluster_updated(configuration, state)
-        return {}
+    def cluster_updated(self, eliot_context, configuration, state):
+        with eliot_context:
+            self.agent.cluster_updated(configuration, state)
+            return {}
 
 
 class AgentAMP(AMP):

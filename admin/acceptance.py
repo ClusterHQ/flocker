@@ -20,7 +20,8 @@ from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
 from flocker.provision._install import (
     run as run_tasks_on_node,
-    task_pull_docker_images
+    task_pull_docker_images,
+    configure_cluster,
 )
 
 
@@ -68,11 +69,15 @@ def extend_environ(**kwargs):
     return env
 
 
-def run_tests(nodes, trial_args):
+def run_tests(nodes, control_node, agent_nodes, trial_args):
     """
-    Run the acceptances tests.
+    Run the acceptance tests.
 
     :param list nodes: The list of nodes to run the acceptance tests against.
+    :param bytes control_node: The address of the control node to run API
+        acceptance tests against.
+    :param list agent_nodes: The list of nodes running flocker agent, to run
+        API acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
     """
@@ -81,7 +86,10 @@ def run_tests(nodes, trial_args):
     return safe_call(
         ['trial'] + list(trial_args),
         env=extend_environ(
-            FLOCKER_ACCEPTANCE_NODES=':'.join(nodes)))
+            FLOCKER_ACCEPTANCE_NODES=':'.join(nodes),
+            FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node,
+            FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(agent_nodes),
+            ))
 
 
 class INodeRunner(Interface):
@@ -211,6 +219,10 @@ class LibcloudRunner(object):
                 raise
 
             self.nodes.append(node)
+
+            # From ssh-keygen(1):
+            # -R hostname
+            # Removes all keys belonging to hostname from a known_hosts file.
             check_safe_call(['ssh-keygen', '-R', node.address])
             node.provision(package_source=self.package_source,
                            variants=self.variants)
@@ -375,7 +387,11 @@ def main(args, base_path, top_level):
 
     try:
         nodes = runner.start_nodes()
-        result = run_tests(nodes, options['trial-args'])
+        configure_cluster(control_node=nodes[0], agent_nodes=nodes)
+        result = run_tests(
+            nodes=nodes,
+            control_node=nodes[0], agent_nodes=nodes,
+            trial_args=options['trial-args'])
     except:
         result = 1
         raise

@@ -16,6 +16,7 @@ By the end of the release process we will have:
 - a tag in version control,
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
 - Fedora 20 RPMs for software on the node and client,
+- CentOS 7 RPMs for software on the node and client,
 - a Vagrant base tutorial image,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
@@ -241,6 +242,9 @@ Release
 
 #. Create and log in to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
+   This copies your local git configuration from `~/.gitconfig`.
+   If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
+
    From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    .. prompt:: bash $
@@ -309,13 +313,13 @@ Release
       python setup.py sdist bdist_wheel
       gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
 
-#. Build RPM packages and upload them to ``archive.clusterhq.com``
+#. Build RPM packages and upload them to Amazon S3:
 
    .. note:: Skip this step for a documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
-      admin/upload-rpms "${VERSION}"
+      admin/publish-packages
 
 #. Copy the tutorial box to the final location:
    

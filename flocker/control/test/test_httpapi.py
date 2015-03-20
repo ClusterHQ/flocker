@@ -30,7 +30,8 @@ from ...restapi.testtools import (
 
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume, DockerImage, Port
+    Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
+    RestartAlways, RestartNever, Link
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -227,6 +228,43 @@ class CreateContainerTestsMixin(APITestsMixin):
         ))
         return d
 
+    def _test_create_container(self, request_data, node_data):
+        """
+        Utility method to create one or more containers via the API and
+        compare the result to an expected deployment.
+
+        :param list request_data: A ``list`` of ``dict`` instances representing
+            the JSON data for one or more API requests.
+        :param list node_data: A ``set`` of ``Node`` instances that
+            are expected to be deployed.
+        :return: A ``Deferred`` that fires with an assertion on the deployment
+            result.
+
+            request_data, applications
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        for request in request_data:
+            saving.addCallback(lambda _: self.assertResponseCode(
+                b"POST", b"/configuration/containers",
+                request, CREATED
+            ))
+
+        def created(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes=node_data
+            )
+            self.assertEqual(deployment, expected)
+
+        saving.addCallback(created)
+        return saving
+
     def test_container_name_collision_same_node(self):
         """
         A container will not be created if a container with the same name
@@ -305,11 +343,353 @@ class CreateContainerTestsMixin(APITestsMixin):
         }
         container_json_result = {
             u"host": self.NODE_B, u"name": u"webserver",
-            u"image": u"nginx:latest", u"environment": environment
+            u"image": u"nginx:latest", u"environment": environment,
+            u"restart_policy": {u"name": u"never"}
         }
         return self.assertResult(
             b"POST", b"/configuration/containers",
             container_json, CREATED, container_json_result
+        )
+
+    def test_create_containers_with_restart_policy_always(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "always" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"always"
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartAlways()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_onfailure(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "on-failure" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"on-failure", u"maximum_retry_count": 5
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartOnFailure(
+                            maximum_retry_count=5
+                        )
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_never(self):
+        """
+        A valid API request to create a container including a restart policy
+        of "never" results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"restart_policy": {
+                u"name": u"never"
+            }
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartNever()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_containers_with_restart_policy_never_default(self):
+        """
+        A valid API request to create a container with no restart policy
+        specified results in an updated configuration with a default restart
+        policy for this container of "never".
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx"
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        restart_policy=RestartNever()
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_restart_policy_onfailure_response(self):
+        """
+        A valid API request to create a container including restart policy
+        returns the restart policy supplied in the request in the response
+        JSON, including the max retry count for an on-failure policy.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"restart_policy": {
+                u"name": u"on-failure", u"maximum_retry_count": 10
+            }
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
+    def test_create_container_with_restart_policy_response(self):
+        """
+        A valid API request to create a container including restart policy
+        returns the restart policy supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"restart_policy": {u"name": u"never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
+    def test_create_container_with_cpu_shares(self):
+        """
+        A valid API request to create a container including CPU shares
+        results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"cpu_shares": 512
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        cpu_shares=512
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_cpu_shares_response(self):
+        """
+        A valid API request to create a container including CPU shares
+        returns the CPU shares supplied in the request in the response
+        JSON.
+        """
+        container_json = pmap({
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"cpu_shares": 512
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            dict(container_json), CREATED, dict(container_json_response)
+        )
+
+    def test_create_container_with_links_response(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container returns the link information in the response JSON.
+        """
+        container_json = pmap({
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"links": [
+                {
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
+                },
+            ]
+        })
+        container_json_response = container_json.set(
+            u"restart_policy", {u"name": "never"}
+        )
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            dict(container_json), CREATED, dict(container_json_response)
+        )
+
+    def test_create_container_with_links(self):
+        """
+        An API request to create a container including links to be injected in
+        to the container results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"links": [
+                {
+                    u'alias': u'postgres',
+                    u'local_port': 5432,
+                    u'remote_port': 54320
+                },
+                {
+                    u'alias': u'mysql',
+                    u'local_port': 3306,
+                    u'remote_port': 33060
+                },
+            ]
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        links=frozenset([
+                            Link(
+                                local_port=5432,
+                                remote_port=54320,
+                                alias="postgres"
+                            ),
+                            Link(
+                                local_port=3306,
+                                remote_port=33060,
+                                alias="mysql"
+                            ),
+                        ])
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_links_alias_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "alias" value.
+        """
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"postgres", u"local_port": 5433,
+                        u"remote_port": 54330
+                    },
+                ]
+            }, CONFLICT, {u"description": u"Link aliases must be unique."}
+        )
+        return d
+
+    def test_create_container_with_links_local_port_collision(self):
+        """
+        A container will not be created if the supplied configuration includes
+        links with a duplicated "local_port" value.
+        """
+        d = self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"webserver",
+                u"image": u"nginx:latest", u"links": [
+                    {
+                        u"alias": u"postgres", u"local_port": 5432,
+                        u"remote_port": 54320
+                    },
+                    {
+                        u"alias": u"another_postgres", u"local_port": 5432,
+                        u"remote_port": 54321
+                    },
+                ]
+            }, CONFLICT, {
+                u"description":
+                    u"The local ports in a container's links must be unique."
+                }
+        )
+        return d
+
+    def test_create_container_with_memory_limit(self):
+        """
+        A valid API request to create a container including a memory limit
+        results in an updated configuration.
+        """
+        request_data = [{
+            u"host": self.NODE_A, u"name": u"webserver",
+            u"image": u"nginx", u"memory_limit": 262144000
+        }]
+        node_data = {
+            Node(
+                hostname=self.NODE_A,
+                applications=[
+                    Application(
+                        name='webserver',
+                        image=DockerImage.from_string('nginx'),
+                        memory_limit=262144000
+                    ),
+                ]
+            ),
+            Node(hostname=self.NODE_B),
+        }
+        return self._test_create_container(request_data, node_data)
+
+    def test_create_container_with_memory_limit_response(self):
+        """
+        A valid API request to create a container including a memory limit
+        returns the memory limit supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000
+        }
+        container_json_response = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"memory_limit": 262144000,
+            u"restart_policy": {u"name": "never"}
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json_response
         )
 
     def _test_conflicting_ports(self, node1, node2):
@@ -430,7 +810,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         }
         container_json_result = {
             u"host": self.NODE_B, u"name": u"postgres",
-            u"image": u"postgres:latest", u"ports": ports
+            u"image": u"postgres:latest", u"ports": ports,
+            u"restart_policy": {u"name": u"never"}
         }
         return self.assertResult(
             b"POST", b"/configuration/containers",
@@ -532,7 +913,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         }
         container_json_result = {
             u"host": self.NODE_B, u"name": u"postgres",
-            u"image": u"postgres:latest"
+            u"image": u"postgres:latest",
+            u"restart_policy": {u"name": u"never"}
         }
         return self.assertResult(
             b"POST", b"/configuration/containers",

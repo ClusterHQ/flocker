@@ -1,11 +1,12 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.control.test.test_script -*-
 
 """
 Script for starting control service server.
 """
 
 from twisted.python.usage import Options
-from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.internet.endpoints import serverFromString
 from twisted.python.filepath import FilePath
 from twisted.application.service import MultiService
 
@@ -25,10 +26,10 @@ class ControlOptions(Options):
     optParameters = [
         ["data-path", "d", FilePath(b"/var/lib/flocker"),
          "The directory where data will be persisted.", FilePath],
-        ["port", "p", REST_API_PORT, "The external API port to listen on.",
-         int],
-        ["agent-port", "a", 4524,
-         "The port convergence agents will connect to.", int],
+        ["port", "p", 'tcp:%d' % (REST_API_PORT,),
+         "The external API port to listen on."],
+        ["agent-port", "a", 'tcp:4524',
+         "The port convergence agents will connect to."],
     ]
 
 
@@ -44,10 +45,10 @@ class ControlScript(object):
         persistence.setServiceParent(top_service)
         cluster_state = ClusterStateService()
         cluster_state.setServiceParent(top_service)
-        create_api_service(persistence, cluster_state, TCP4ServerEndpoint(
+        create_api_service(persistence, cluster_state, serverFromString(
             reactor, options["port"])).setServiceParent(top_service)
         amp_service = ControlAMPService(
-            cluster_state, persistence, TCP4ServerEndpoint(
+            cluster_state, persistence, serverFromString(
                 reactor, options["agent-port"]))
         amp_service.setServiceParent(top_service)
         return main_for_service(reactor, top_service)

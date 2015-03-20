@@ -1,5 +1,5 @@
-Flocker Next Release (2015-02-11)
-=================================
+Flocker 0.3.3dev8 (2015-03-17)
+==============================
 
 - New getting started guide. (FLOC-1261)
 - Updated to Twisted 15.0. (FLOC-1302)
@@ -9,9 +9,11 @@ Flocker Next Release (2015-02-11)
 - The documentation has a new theme. (FLOC-1257)
 - Omnibus packages are now used for distribution. (FLOC-508)
 - Added instructions for reporting security issues. (FLOC-1183)
-- Added a Volume REST API for version and dataset management. (FLOC-1152, FLOC-1162, FLOC-1271)
+- Added a Volume REST API for version, containers and dataset management. (FLOC-1152, FLOC-1162, FLOC-1271)
 - Flocker no longer conflicts with Homebrew's Python. (FLOC-660)
 - Flocker is now supported on Fedora 20 on Rackspace Cloud Servers, AWS and DigitalOcean. (FLOC-965, FLOC-958)
+- Flocker development machine now uses CentOS 7. (FLOC-1497)
+- Flocker documentation is now hosted on Amazon S3. (FLOC-561)
 
 Flocker 0.3.2 (2014-11-19)
 ==========================

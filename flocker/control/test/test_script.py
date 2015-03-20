@@ -25,7 +25,7 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
         """
         options = ControlOptions()
         options.parseOptions([])
-        self.assertEqual(options["port"], REST_API_PORT)
+        self.assertEqual(options["port"], b'tcp:%d' % (REST_API_PORT,))
 
     def test_custom_port(self):
         """
@@ -33,8 +33,8 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
         port.
         """
         options = ControlOptions()
-        options.parseOptions([b"--port", b"1234"])
-        self.assertEqual(options["port"], 1234)
+        options.parseOptions([b"--port", b"tcp:1234"])
+        self.assertEqual(options["port"], b"tcp:1234")
 
     def test_default_path(self):
         """
@@ -59,7 +59,7 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
         """
         options = ControlOptions()
         options.parseOptions([])
-        self.assertEqual(options["agent-port"], 4524)
+        self.assertEqual(options["agent-port"], b'tcp:4524')
 
     def test_custom_agent_port(self):
         """
@@ -67,8 +67,8 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
         port.
         """
         options = ControlOptions()
-        options.parseOptions([b"--agent-port", b"1234"])
-        self.assertEqual(options["agent-port"], 1234)
+        options.parseOptions([b"--agent-port", b"tcp:1234"])
+        self.assertEqual(options["agent-port"], b"tcp:1234")
 
 
 class ControlScriptEffectsTests(SynchronousTestCase):
@@ -81,7 +81,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         """
         options = ControlOptions()
         options.parseOptions(
-            [b"--port", b"8001", b"--data-path", self.mktemp()])
+            [b"--port", b"tcp:8001", b"--data-path", self.mktemp()])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
         server = reactor.tcpServers[0]
@@ -115,7 +115,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         """
         options = ControlOptions()
         options.parseOptions(
-            [b"--port", b"8001", b"--data-path", self.mktemp()])
+            [b"--port", b"tcp:8001", b"--data-path", self.mktemp()])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
         server = reactor.tcpServers[0]
@@ -129,7 +129,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         """
         options = ControlOptions()
         options.parseOptions(
-            [b"--agent-port", b"8001", b"--data-path", self.mktemp()])
+            [b"--agent-port", b"tcp:8001", b"--data-path", self.mktemp()])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
         server = reactor.tcpServers[1]

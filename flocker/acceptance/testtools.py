@@ -23,6 +23,8 @@ from ..control import (
 )
 from flocker.testtools import loop_until
 
+from flocker.provision._install import stop_cluster
+
 try:
     from pymongo import MongoClient
     from pymongo.errors import ConnectionFailure
@@ -201,6 +203,28 @@ def _clean_node(test_case, node):
             [b"flocker"], None)
 
 
+def _stop_acceptance_cluster():
+    """
+    Stop the Flocker cluster configured for the accpetance tests.
+
+    XXX https://clusterhq.atlassian.net/browse/FLOC-1563
+    Flocker doesn't support using flocker-deploy along-side flocker-control and
+    flocker-agent. Since flocker-deploy (in it's SSH using incarnation) is
+    going away, we do the hack of stopping the cluster before running tests
+    that use flocker-deploy. This introduces an order dependency on the
+    acceptance test-suite.
+
+    This also removes the environment variables associated with the cluster, so
+    that tests attempting to use it will be skipped.
+    """
+    control_node = environ.pop("FLOCKER_ACCEPTANCE_CONTROL_NODE", None)
+    agent_nodes_env_var = environ.pop("FLOCKER_ACCEPTANCE_AGENT_NODES", "")
+    agent_nodes = filter(None, agent_nodes_env_var.split(':'))
+
+    if control_node and agent_nodes:
+        stop_cluster(control_node, agent_nodes)
+
+
 def get_nodes(test_case, num_nodes):
     """
     Create or get ``num_nodes`` nodes with no Docker containers on them.
@@ -213,11 +237,15 @@ def get_nodes(test_case, num_nodes):
     will be created instead to replace this in some circumstances, see
     https://clusterhq.atlassian.net/browse/FLOC-900
 
+    XXX https://clusterhq.atlassian.net/browse/FLOC-1563
+    This also stop flocker-control and flocker-agent on the nodes.
+
     :param test_case: The ``TestCase`` running this unit test.
     :param int num_nodes: The number of nodes to start up.
 
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
+
     nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_NODES")
 
     if nodes_env_var is None:
@@ -258,6 +286,10 @@ def get_nodes(test_case, num_nodes):
                 unreachable=", ".join(str(node) for node in unreachable_nodes),
             )
         )
+
+    # Stop flocker-control and flocker-agent here, as by this point, we know
+    # that we aren't skipping this test.
+    _stop_acceptance_cluster()
 
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])

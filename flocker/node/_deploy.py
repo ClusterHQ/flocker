@@ -20,9 +20,10 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
-    NodeState, DockerImage, Port, Link, Manifestation, Dataset
+    NodeState, DockerImage, Port, Link, Manifestation, Dataset,
+    pset_field,
     )
-from ..route import make_host_network, Proxy
+from ..route import make_host_network, Proxy, OpenPort
 from ..volume._ipc import RemoteVolumeManager, standard_node
 from ..volume._model import VolumeSize
 from ..volume.service import VolumeName
@@ -362,7 +363,7 @@ class SetProxies(object):
     """
     Set the ports which will be forwarded to other nodes.
 
-    :ivar ports: A collection of ``Port`` objects.
+    :ivar proxy: A collection of ``Port`` objects.
     """
     def run(self, deployer):
         results = []
@@ -376,6 +377,33 @@ class SetProxies(object):
         for proxy in self.ports:
             try:
                 deployer.network.create_proxy_to(proxy.ip, proxy.port)
+            except:
+                results.append(fail())
+        return gather_deferreds(results)
+
+
+@implementer(IStateChange)
+class OpenPorts(PRecord):
+    """
+    Set the ports which will have the firewall opened.
+
+    :ivar ports: A list of :class:`OpenPort`s.
+    """
+
+    ports = pset_field(OpenPort)
+
+    def run(self, deployer):
+        results = []
+        # XXX: The proxy manipulation operations are blocking. Convert to a
+        # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320
+        for open_port in deployer.network.enumerate_open_ports():
+            try:
+                deployer.network.delete_open_port(open_port)
+            except:
+                results.append(fail())
+        for open_port in self.ports:
+            try:
+                deployer.network.open_port(open_port.port)
             except:
                 results.append(fail())
         return gather_deferreds(results)
@@ -549,10 +577,15 @@ class P2PNodeDeployer(object):
         phases = []
 
         desired_proxies = set()
+        desired_open_ports = set()
         desired_node_applications = []
         for node in desired_configuration.nodes:
             if node.hostname == self.hostname:
                 desired_node_applications = node.applications
+                for application in node.applications:
+                    for port in application.ports:
+                        desired_open_ports.add(
+                            OpenPort(port=port.external_port))
             else:
                 for application in node.applications:
                     for port in application.ports:
@@ -560,8 +593,12 @@ class P2PNodeDeployer(object):
                         # https://clusterhq.atlassian.net/browse/FLOC-322
                         desired_proxies.add(Proxy(ip=node.hostname,
                                                   port=port.external_port))
+
         if desired_proxies != set(self.network.enumerate_proxies()):
             phases.append(SetProxies(ports=desired_proxies))
+
+        if desired_open_ports != set(self.network.enumerate_open_ports()):
+            phases.append(OpenPorts(ports=desired_open_ports))
 
         # We are a node-specific IDeployer:
         current_node_state = local_state
