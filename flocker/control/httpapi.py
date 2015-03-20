@@ -24,7 +24,8 @@ from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
 from . import (
-    Dataset, Manifestation, Node, Application, DockerImage, Port, Link
+    Dataset, Manifestation, Node, Application, DockerImage, Port,
+    AttachedVolume, Link
 )
 from ._config import (
     ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
@@ -67,6 +68,11 @@ DATASET_NOT_FOUND = make_bad_request(
     code=NOT_FOUND, description=u"Dataset not found.")
 DATASET_DELETED = make_bad_request(
     code=METHOD_NOT_ALLOWED, description=u"The dataset has been deleted.")
+DATASET_ON_DIFFERENT_NODE = make_bad_request(
+    code=CONFLICT, description=u"The dataset is on another node.")
+DATASET_IN_USE = make_bad_request(
+    code=CONFLICT,
+    description=u"The dataset is being used by another container.")
 
 
 class ConfigurationAPIUserV1(object):
@@ -459,6 +465,35 @@ class ConfigurationAPIUserV1(object):
         """
         return list(containers_from_deployment(self.persistence_service.get()))
 
+    def _get_attached_volume(self, host, volume):
+        """
+        Create an ``AttachedVolume`` given a volume dictionary.
+
+        :param unicode host: The host where the volume should be.
+        :param dict volume: Parameters for specific volume passed to creation
+            endpoint.
+
+        :return AttachedVolume: Corresponding instance.
+        """
+        deployment = self.persistence_service.get()
+
+        instances = list(manifestations_from_deployment(
+            deployment, volume[u"dataset_id"]))
+
+        if not list(m for (m, _) in instances if not m.dataset.deleted):
+            raise DATASET_NOT_FOUND
+        if not list(n for (_, n) in instances if n.hostname == host):
+            raise DATASET_ON_DIFFERENT_NODE
+        if list(app for app in deployment.applications() if
+                app.volume and
+                app.volume.manifestation.dataset_id == volume[u"dataset_id"]):
+            raise DATASET_IN_USE
+
+        return AttachedVolume(
+            manifestation=[m for (m, node) in instances
+                           if node.hostname == host and m.primary][0],
+            mountpoint=FilePath(volume[u"mountpoint"].encode("utf-8")))
+
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
         """
@@ -473,6 +508,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with ports",
             u"create container with environment",
             u"create container with restart policy",
+            u"create container with attached volume",
             u"create container with cpu shares",
             u"create container with memory limit",
             u"create container with links",
@@ -488,7 +524,7 @@ class ConfigurationAPIUserV1(object):
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
         restart_policy=None, cpu_shares=None, memory_limit=None,
-        links=()
+        links=(), volumes=()
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -517,6 +553,9 @@ class ConfigurationAPIUserV1(object):
             the maximum number of times we should attempt to restart a failed
             container.
 
+        :param volumes: A iterable of ``dict`` with ``"dataset_id"`` and
+            ``"mountpoint"`` keys.
+
         :param int cpu_shares: A positive integer specifying the relative
             weighting of CPU cycles for this container (see Docker's run
             reference for further information).
@@ -534,11 +573,15 @@ class ConfigurationAPIUserV1(object):
 
         # Check if container by this name already exists, if it does
         # return error.
-
         for node in deployment.nodes:
             for application in node.applications:
                 if application.name == name:
                     raise CONTAINER_NAME_COLLISION
+
+        # Find the volume, if any:
+        attached_volume = None
+        if volumes:
+            attached_volume = self._get_attached_volume(host, volumes[0])
 
         # Find the node.
         node = self._find_node_by_host(host, deployment)
@@ -546,7 +589,6 @@ class ConfigurationAPIUserV1(object):
         # Check if we have any ports in the request. If we do, check existing
         # external ports exposed to ensure there is no conflict. If there is a
         # conflict, return an error.
-
         for port in ports:
             for current_node in deployment.nodes:
                 for application in current_node.applications:
@@ -597,6 +639,7 @@ class ConfigurationAPIUserV1(object):
             image=DockerImage.from_string(image),
             ports=frozenset(application_ports),
             environment=environment,
+            volume=attached_volume,
             restart_policy=policy,
             cpu_shares=cpu_shares,
             memory_limit=memory_limit,
@@ -730,6 +773,9 @@ def container_configuration_response(application, node):
         "host": node, "name": application.name,
     }
     result.update(ApplicationMarshaller(application).convert())
+    # Configuration format isn't quite the same as JSON format:
+    if u"volume" in result:
+        result[u"volumes"] = [result.pop(u"volume")]
     if application.cpu_shares is not None:
         result["cpu_shares"] = application.cpu_shares
     if application.memory_limit is not None:

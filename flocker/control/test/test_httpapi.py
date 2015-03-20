@@ -921,6 +921,165 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json_result
         )
 
+    def test_unknown_dataset(self):
+        """
+        If a volume is specified with an unknown dataset ID, a 404 error is
+        returned.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': unicode(uuid4()), u'mountpoint': u'/db'}]
+            }, NOT_FOUND,
+            {u"description": u"Dataset not found."},
+        )
+
+    def test_deleted_dataset(self):
+        """
+        If a volume is specified with a deleted dataset, a 404 error is
+        returned.
+        """
+        dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (
+                dataset_id.encode('ascii'),),
+            None, OK
+        ))
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, NOT_FOUND,
+            {u"description": u"Dataset not found."},
+        ))
+        return d
+
+    def test_wrong_node_dataset(self):
+        """
+        If a volume is specified with a dataset that is on another node, a
+        conflict error is returned.
+        """
+        dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_B, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, CONFLICT,
+            {u"description": u"The dataset is on another node."},
+        ))
+        return d
+
+    def test_in_use_dataset(self):
+        """
+        If a volume is specified with a dataset that is being used by another
+        application, a conflict error is returned.
+        """
+        dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, CREATED,
+        ))
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres2",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, CONFLICT,
+            {u"description":
+             u"The dataset is being used by another container."},
+        ))
+        return d
+
+    def test_dataset_updates_configuration(self):
+        """
+        If a volume is specified with a valid dataset, the cluster
+        configuration is updated.
+        """
+        dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, CREATED,
+        ))
+
+        def check_config(_):
+            config = self.persistence_service.get()
+            self.assertEqual(
+                list(config.applications())[0].volume,
+                AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=dataset_id),
+                        primary=True),
+                    mountpoint=FilePath(b"/db")))
+        d.addCallback(check_config)
+        return d
+
+    def test_dataset_result(self):
+        """
+        If a volume is specified with a valid dataset, the relevant
+        information is returned in the JSON response.
+        """
+        dataset_id = unicode(uuid4())
+        json = {
+            u"host": self.NODE_A, u"name": u"postgres",
+            u"image": u"postgres:latest",
+            u"volumes": [
+                {u'dataset_id': dataset_id,
+                 u'mountpoint': u'/db'}],
+            u"restart_policy": {u"name": u"never"},
+        }
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            json, CREATED, json
+        ))
+        return d
+
 
 RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
     CreateContainerTestsMixin, "CreateContainer", _build_app)

@@ -28,6 +28,16 @@ definitions:
         '$ref': 'types.json#/definitions/environment'
       restart_policy:
         '$ref': 'types.json#/definitions/restart_policy'
+      volumes:
+        title: Volumes to attach to the container
+        description: |
+          Volumes to attach to the container. Required keys are "dataset_id" and
+          "mountpoint". For now only one volume per container is supported.
+        type: array
+        items:
+          '$ref': 'types.json#/definitions/volume'
+        minItems: 0
+        maxItems: 1
       cpu_shares:
         '$ref': 'types.json#/definitions/cpu_shares'
       memory_limit:
@@ -85,7 +95,7 @@ definitions:
         maximum_size:
           '$ref': 'types.json#/definitions/maximum_size'
         path:
-          '$ref': 'types.json#/definitions/path'
+          '$ref': 'types.json#/definitions/node_path'
       required:
         - primary
         - dataset_id
