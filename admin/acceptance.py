@@ -172,7 +172,7 @@ class VagrantRunner(object):
                 commands=task_pull_docker_images()
             )
 
-            remove_known_host(node.address)
+            remove_known_host(node)
 
         return self.NODE_ADDRESSES
 
