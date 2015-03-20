@@ -1000,14 +1000,59 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         containing only the data about the single container, returning
         no information about the empty node.
         """
-        self.fail("not implemented yet")
+        application = Application(
+            name='postgres',
+            image=DockerImage.from_string('postgres')
+        )
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        application
+                    ]
+                ),
+                Node(hostname=self.NODE_B)
+            },
+        )
+        expected = [
+            container_configuration_response(
+                application, self.NODE_A
+            )
+        ]
+        return self._containers_test(deployment, expected)
 
     def test_multi_containers_single_node(self):
         """
         When the cluster configuration includes several containers, the
         endpoint returns a list containing the container data.
         """
-        self.fail("not implemented yet")
+        application_ports = [Port(internal_port=5432, external_port=54320)]
+        applications = [
+            Application(
+                name='postgres',
+                image=DockerImage.from_string('postgres'),
+                ports=application_ports
+            ),
+            Application(
+                name='webserver',
+                image=DockerImage.from_string('nginx:latest'),
+            ),
+        ]
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=applications
+                ),
+            },
+        )
+        expected = [
+            container_configuration_response(
+                application, self.NODE_A
+            ) for application in applications
+        ]
+        return self._containers_test(deployment, expected)
 
     def test_multi_containers_multi_nodes(self):
         """
@@ -1015,7 +1060,53 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         node, the endpoint returns a list containing the container data for
         all nodes.
         """
-        self.fail("not implemented yet")
+        postgres_ports = [Port(internal_port=5432, external_port=54320)]
+        mysql_ports = [Port(internal_port=3306, external_port=33060)]
+        applications = {
+            self.NODE_A: [
+                Application(
+                    name='postgres',
+                    image=DockerImage.from_string('postgres'),
+                    ports=postgres_ports
+                ),
+                Application(
+                    name='webserver',
+                    image=DockerImage.from_string('nginx:latest'),
+                ),
+            ],
+            self.NODE_B: [
+                Application(
+                    name='mysql',
+                    image=DockerImage.from_string('mysql:5.6.17'),
+                    ports=mysql_ports,
+                    cpu_shares=512,
+                    memory_limit=524288000
+                ),
+            ]
+        }
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=applications[self.NODE_A]
+                ),
+                Node(
+                    hostname=self.NODE_B,
+                    applications=applications[self.NODE_B]
+                ),
+            },
+        )
+        expected_a = [
+            container_configuration_response(
+                application, self.NODE_A
+            ) for application in applications[self.NODE_A]
+        ]
+        expected_b = [
+            container_configuration_response(
+                application, self.NODE_B
+            ) for application in applications[self.NODE_B]
+        ]
+        return self._containers_test(deployment, expected_a + expected_b)
 
     def test_container_with_volume(self):
         """
@@ -1023,7 +1114,32 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         volume, the endpoint returns the volume information in the container
         data suppled in the response.
         """
-        self.fail("not implemented yet")
+        manifestation = _manifestation()
+        application = Application(
+            name='postgres',
+            image=DockerImage.from_string('postgres'),
+            volume=AttachedVolume(
+                manifestation=manifestation,
+                mountpoint=FilePath(b"/var/lib/postgresql/9.4/data/base")
+            )
+        )
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    manifestations={manifestation.dataset_id:
+                                    manifestation},
+                    applications=[application]
+                ),
+                Node(hostname=self.NODE_B),
+            },
+        )
+        expected = [
+            container_configuration_response(
+                application, self.NODE_A
+            )
+        ]
+        return self._containers_test(deployment, expected)
 
 
 RealTestsGetContainerConfiguration, MemoryTestsGetContainerConfiguration = (
