@@ -417,7 +417,6 @@ class NodeState(PRecord):
     """
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = pset_field(int)
-
     running = pset_field(Application)
     not_running = pset_field(Application)
     manifestations = pset_field(Manifestation)
