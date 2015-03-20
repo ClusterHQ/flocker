@@ -575,7 +575,9 @@ CMD sh -c "trap \"\" 2; sleep 3"
             mode=u"failure",
             restart_policy=RestartOnFailure(maximum_retry_count=5))
 
-        d.addCallback(self.assertEqual, "5")
+        # A Docker change e721ed9b5319e8e7c1daf87c34690f8a4e62c9e3 means that
+        # this value depends on the version of Docker.
+        d.addCallback(self.assertIn, ("5", "6"))
         return d
 
 
