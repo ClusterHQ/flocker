@@ -9,6 +9,7 @@ yum update -y
 # Install useful yum repos
 yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/epel/zfs-release$(rpm -E %dist).noarch.rpm
 yum install -y epel-release
+yum install -y https://s3.amazonaws.com/clusterhq-archive/centos/clusterhq-release$(rpm -E %dist).noarch.rpm
 
 # Install packages
 yum install -y \
