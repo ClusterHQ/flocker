@@ -1081,6 +1081,8 @@ class DockerBuildScript(object):
         :param FilePath top_level: The top-level of the flocker repository.
         :param base_path: ignored.
         """
+        to_file(self.sys_module.stderr)
+
         options = DockerBuildOptions()
 
         try:
