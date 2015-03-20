@@ -888,6 +888,11 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
                      flocker_node_path),
+                    # When the ZFS convergence agent is separated from the
+                    # container convergence agent, we'll be able to get rid of
+                    # flocker-zfs-agent and make that functionality part of
+                    # flocker-dataset-agent, controlled by a command line
+                    # argument or some such.  FLOC-1443
                     (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
                      flocker_node_path),
                 ]
