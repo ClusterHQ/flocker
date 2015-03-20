@@ -166,13 +166,13 @@ class VagrantRunner(object):
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
         for node in self.NODE_ADDRESSES:
+            remove_known_host(node.address)
+
             run_tasks_on_node(
                 username='root',
                 address=node,
                 commands=task_pull_docker_images()
             )
-
-            remove_known_host(node.address)
 
         return self.NODE_ADDRESSES
 
