@@ -926,6 +926,55 @@ RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
     CreateContainerTestsMixin, "CreateContainer", _build_app)
 
 
+class GetContainerConfigurationTestsMixin(APITestsMixin):
+    """
+    Tests for the container configuration retrieval endpoint at
+    ``/containers``.
+    """
+    def test_empty(self):
+        """
+        When the cluster configuration includes no datasets, the
+        endpoint returns an empty list.
+        """
+        return self.assertResult(
+            b"GET", b"/configuration/containers", None, OK, []
+        )
+
+    def _containers_test(self, deployment, expected):
+        """
+        Verify that when the control service has ``deployment``
+        persisted as its configuration, the response from the
+        configuration listing endpoint includes the items in
+        ``expected``.
+
+        :param Deployment deployment: The deployment configuration to
+            use.
+
+        :param list expected: The objects expected to be returned by
+            the endpoint, disregarding order.
+
+        :return: A ``Deferred`` that fires successfully if the
+            expected results are received or which fires with a
+            failure if there is a problem.
+        """
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            return self.assertResultItems(
+                b"GET", b"/configuration/containers", None, OK, expected
+            )
+        saving.addCallback(saved)
+        return saving
+
+
+RealTestsGetContainerConfiguration, MemoryTestsGetContainerConfiguration = (
+    buildIntegrationTests(
+        GetContainerConfigurationTestsMixin, "GetContainerConfiguration",
+        _build_app
+    )
+)
+
+
 class DeleteContainerTestsMixin(APITestsMixin):
     """
     Tests for the container removal endpoint at
