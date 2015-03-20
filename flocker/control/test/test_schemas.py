@@ -338,6 +338,14 @@ ConfigurationContainersSchemaTests = build_schema_test(
                         {'dataset_id': "y" * 36,
                          'mountpoint': '/var/db2'}],
         },
+        # Path doesn't start with /
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "y" * 36,
+                         'mountpoint': 'var/db2'}],
+        },
     ],
     passing_instances=[
         {
