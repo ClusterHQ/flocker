@@ -154,7 +154,7 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
         self.assertDiscoveredState(self.deployer, [])
 
 
-class BlockDeviceDeployerCalculateNecessaryStateChangesTests(
+class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         SynchronousTestCase
 ):
     """
