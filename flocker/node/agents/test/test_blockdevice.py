@@ -158,7 +158,8 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         SynchronousTestCase
 ):
     """
-    Tests for ``BlockDeviceDeployer.calculate_necessary_state_changes``.
+    Tests for ``BlockDeviceDeployer.calculate_necessary_state_changes`` in the
+    cases relating to dataset creation.
     """
     def test_no_devices_no_local_datasets(self):
         """
@@ -235,6 +236,21 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
 
     def _calculate_changes(self, local_hostname, local_state,
                            desired_configuration):
+        """
+        Create a ``BlockDeviceDeployer`` and call its
+        ``calculate_necessary_state_changes`` method with the given arguments
+        and an empty cluster state.
+
+        :param unicode local_hostname: The node identifier to give to the
+            ``BlockDeviceDeployer``.
+        :param local_state: As accepted by
+            ``IDeployer.calculate_necessary_state_changes``.
+        :param desired_configuration: As accepted by
+            ``IDeployer.calculate_necessary_state_changes``.
+
+        :return: The return value of
+            ``BlockDeviceDeployer.calculate_necessary_state_changes``.
+        """
         # Control service still reports that this node has no manifestations.
         current_cluster_state = Deployment(
             nodes=frozenset([Node(hostname=local_hostname)])
@@ -253,12 +269,14 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
 
     def test_local_state_overrides_cluster_state(self):
         """
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` uses the
-        given local state to override cluster state, since the latter may be
-        stale.
-
-        XXX: This may not be necessary since we don't currently use
-        cluster_state in our state change calculation.
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` bases its
+        decision about whether it is necessary to create a dataset by
+        inspecting the ``local_state`` argument.  It does this, instead of
+        inspecting the ``current_cluster_state`` argument, because the
+        ``local_state`` is presumed to be the most up-to-date information.
+        ``current_cluster_state`` has traveled a round-trip between the node
+        and the control service and had that period of time to fall behind the
+        actual node state.
         """
         local_hostname = u"192.0.2.1"
         dataset_id = unicode(uuid4())
@@ -289,18 +307,19 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             local_hostname, local_state, desired_configuration
         )
 
-        # If Deployer is buggy and not overriding cluster state
-        # with local state this would result in a dataset creation action:
+        # If Deployer is buggy and not overriding cluster state with local
+        # state this would result in a dataset creation action:
         expected_changes = InParallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
 
     def test_match_configuration_to_state_of_datasets(self):
         """
-        Dataset creation state changes are calculated by dataset_id only.
-        Discovered datasets with different attributes to those in the
-        configuration do not result in ``CreateBlockDeviceDataset`` state
-        changes.
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` determines
+        that a ``CreateBlockDeviceDataset`` change is not necessary if a
+        dataset's id appears in the local state.  In particular, it does this
+        even if other attributes of the dataset differ between the local state
+        and the given configuration.
         """
         expected_hostname = u'192.0.2.123'
         expected_dataset_id = unicode(uuid4())
