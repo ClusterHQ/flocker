@@ -151,7 +151,7 @@ class CreateBlockDeviceDataset(PRecord):
 
             # This will be factored into a separate IStateChange to support the
             # case where the volume exists but is not attached.  That object
-            # will be used by this one to perform this work.
+            # will be used by this one to perform this work.  FLOC-1575
             volume = api.attach_volume(
                 volume.blockdevice_id, deployer.hostname
             )
@@ -160,7 +160,7 @@ class CreateBlockDeviceDataset(PRecord):
 
             # This will be factored into a separate IStateChange to support the
             # case where the volume is attached but has no filesystem.  That
-            # object will be used by this one to perform this work.
+            # object will be used by this one to perform this work. FLOC-1576
             check_output(["mkfs", "-t", "ext4", device.path])
 
             # This will be factored into a separate IStateChange to support the
