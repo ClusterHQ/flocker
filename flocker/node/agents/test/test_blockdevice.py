@@ -10,6 +10,7 @@ from subprocess import check_output
 
 from zope.interface.verify import verifyObject
 
+from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
@@ -26,6 +27,12 @@ from ....control import Dataset, Manifestation, Node, NodeState, Deployment
 GIBIBYTE = 2 ** 30
 REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
 
+if not platform.isLinux():
+    # The majority of Flocker isn't supported except on Linux - this test
+    # module just happens to run some code that obviously breaks on some other
+    # platforms.  Rather than skipping each test module individually it would
+    # be nice to have some single global solution.  FLOC-1560, FLOC-1205
+    skip = "flocker.node.agents.blockdevice is only supported on Linux"
 
 class BlockDeviceDeployerTests(SynchronousTestCase):
     """
