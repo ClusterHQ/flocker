@@ -345,6 +345,8 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             },
         )
 
+        # Give the dataset some metadata in the configuration, thus diverging
+        # it from the representation in local_state.
         desired_node_configuration = local_state.to_node().transform(
             ("manifestations", expected_dataset_id, "dataset", "metadata"),
             {u"name": u"my_volume"}
