@@ -23,6 +23,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.provision "file", source: File.join(Dir.home, ".gitconfig"), destination: ".gitconfig"
   end
 
+  config.vm.provision "shell", inline: "\
+cd /vagrant && \
+./admin/build-package --distribution centos-7 $(pwd) && \
+VERSION=$(python -c \"import flocker, admin.release; print '-'.join(admin.release.make_rpm_version(flocker.__version__))\")
+rpm -e clusterhq-flocker-node clusterhq-python-flocker && \
+rpm -i clusterhq-python-flocker-${VERSION}.x86_64.rpm &&
+rpm -i clusterhq-flocker-node-${VERSION}.x86_64.rpm &&
+flocker --version
+"
+
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
   end
