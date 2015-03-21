@@ -256,8 +256,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             nodes=frozenset([Node(hostname=local_hostname)])
         )
 
-        # API shouldn't be called upon
-        api = object()
+        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
             hostname=local_hostname,
             block_device_api=api,
