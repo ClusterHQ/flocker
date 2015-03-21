@@ -34,6 +34,7 @@ if not platform.isLinux():
     # be nice to have some single global solution.  FLOC-1560, FLOC-1205
     skip = "flocker.node.agents.blockdevice is only supported on Linux"
 
+
 class BlockDeviceDeployerTests(SynchronousTestCase):
     """
     Tests for ``BlockDeviceDeployer``.
