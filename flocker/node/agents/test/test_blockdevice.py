@@ -212,7 +212,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
                 )
             })
         )
-        state = Deployment(nodes=frozenset())
+        state = Deployment(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
             hostname=node,
