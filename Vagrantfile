@@ -25,11 +25,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.provision "shell", inline: "\
 cd /vagrant && \
+rm -rf /tmp/build-flocker-package && \
+virtualenv /tmp/build-flocker-package && \
+. /tmp/build-flocker-package/bin/activate &&
+pip install --quiet --upgrade pip && \
+pip install -e .[release]
 ./admin/build-package --distribution centos-7 $(pwd) && \
 VERSION=$(python -c \"import flocker, admin.release; print '-'.join(admin.release.make_rpm_version(flocker.__version__))\")
-rpm -e clusterhq-flocker-node clusterhq-python-flocker && \
+{ rpm -e clusterhq-flocker-node; rpm -e clusterhq-python-flocker; true; } && \
 rpm -i clusterhq-python-flocker-${VERSION}.x86_64.rpm &&
-rpm -i clusterhq-flocker-node-${VERSION}.x86_64.rpm &&
+rpm -i clusterhq-flocker-node-${VERSION}.noarch.rpm &&
 flocker --version
 "
 
