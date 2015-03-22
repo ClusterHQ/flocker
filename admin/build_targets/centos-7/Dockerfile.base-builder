@@ -1,0 +1,10 @@
+# Copyright Hybrid Logic Ltd. See LICENSE file for details.
+#
+# A Docker image for building RPMs in a clean CentOS 7 build environment.
+#
+
+FROM centos:centos7
+MAINTAINER ClusterHQ <contact@clusterhq.com>
+RUN ["yum", "groupinstall", "--assumeyes", "Development Tools"]
+RUN ["yum", "install", "--assumeyes", "epel-release"]
+RUN ["yum", "install", "--assumeyes", "git", "python-devel", "python-virtualenv", "libffi-devel", "openssl-devel"]

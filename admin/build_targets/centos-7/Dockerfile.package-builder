@@ -1,0 +1,31 @@
+# Copyright Hybrid Logic Ltd. See LICENSE file for details.
+#
+# A Docker image for building RPMs in a clean CentOS 7 build environment.
+#
+
+FROM clusterhq/base-builder
+MAINTAINER ClusterHQ <contact@clusterhq.com>
+
+RUN ["yum", "install", "--assumeyes", "ruby-devel", "rpmlint"]
+
+# Despite being a packaging tool, fpm isn't yet packaged for Fedora.
+# See https://github.com/jordansissel/fpm/issues/611
+RUN ["gem", "install", "fpm"]
+
+COPY wheelhouse /wheelhouse
+
+RUN ["virtualenv", "/tmp/package-builder"]
+RUN ["/tmp/package-builder/bin/pip", "install", "--upgrade", "pip"]
+RUN ["/tmp/package-builder/bin/pip", "install", "wheel"]
+
+RUN \
+    /tmp/package-builder/bin/pip install --no-index -f /wheelhouse \
+    twisted==15.0.0 characteristic>=14.1.0 virtualenv \
+    effect==0.1a13  boto==2.30.0 requests==2.4.3 \
+    requests-file==1.0 ipaddr==2.1.11 eliot==0.6.0
+
+ENTRYPOINT [ \
+    "/tmp/package-builder/bin/python", \
+    "/flocker/admin/build-package-entrypoint", \
+    "--destination-path=/output", "Flocker" \
+]

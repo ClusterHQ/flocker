@@ -1,0 +1,22 @@
+# Copyright Hybrid Logic Ltd. See LICENSE file for details.
+#
+# A Docker image for building RPMs in a clean CentOS 7 build environment.
+#
+
+FROM clusterhq/base-builder
+MAINTAINER ClusterHQ <contact@clusterhq.com>
+
+RUN ["virtualenv", "/tmp/wheel-builder"]
+RUN ["/tmp/wheel-builder/bin/pip", "install", "--upgrade", "pip"]
+RUN ["/tmp/wheel-builder/bin/pip", "install", "wheel"]
+
+ENV WHEELHOUSE=/wheelhouse
+ENV PIP_WHEEL_DIR=/wheelhouse
+ENV PIP_FIND_LINKS=/wheelhouse
+
+VOLUME /wheelhouse
+VOLUME /application
+WORKDIR /application
+
+# --editable meaning, of course, "let me specify an `extras` requirement".
+CMD ["/tmp/wheel-builder/bin/pip", "wheel", "--editable", ".[release]"]

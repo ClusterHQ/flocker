@@ -321,6 +321,8 @@ def create_virtualenv(root):
             if pyc_target.exists():
                 pyc_target.linkTo(pyc)
 
+    run_command([root.child("bin").child("pip").path, "install", "wheel"])
+
     return VirtualEnv(root=root)
 
 
@@ -363,7 +365,8 @@ class VirtualEnv(object):
         python_path = self.root.child('bin').child('python').path
 
         run_command(
-            [python_path, '-m', 'pip', '--quiet', 'install', package_uri],
+            [python_path, '-m', 'pip', '--quiet',
+             'install', '--no-index', '-f', '/wheelhouse', package_uri],
         )
 
 
