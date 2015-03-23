@@ -257,41 +257,42 @@ class BlockDeviceVolume(PRecord):
     host = field(type=(unicode, type(None)), initial=None)
     dataset_id = field(type=UUID, mandatory=True)
 
-    @classmethod
-    def from_dataset_id(cls, dataset_id, size, host=None):
-        """
-        Create a new ``BlockDeviceVolume`` with a ``blockdevice_id`` derived
-        from the given ``dataset_id``.
 
-        This is for convenience of implementation of the loopback backend (to
-        avoid needing a separate data store for mapping dataset ids to block
-        device ids and back again).
+def _blockdevicevolume_from_dataset_id(dataset_id, size, host=None):
+    """
+    Create a new ``BlockDeviceVolume`` with a ``blockdevice_id`` derived
+    from the given ``dataset_id``.
 
-        Parameters accepted have the same meaning as the attributes of this
-        type.
-        """
-        return cls(
-            size=size, host=host, dataset_id=dataset_id,
-            blockdevice_id=u"block-{0}".format(dataset_id),
-        )
+    This is for convenience of implementation of the loopback backend (to
+    avoid needing a separate data store for mapping dataset ids to block
+    device ids and back again).
 
-    @classmethod
-    def from_blockdevice_id(cls, blockdevice_id, size, host=None):
-        """
-        Create a new ``BlockDeviceVolume`` with a ``dataset_id`` derived from
-        the given ``blockdevice_id``.
+    Parameters accepted have the same meaning as the attributes of
+    ``BlockDeviceVolume``.
+    """
+    return BlockDeviceVolume(
+        size=size, host=host, dataset_id=dataset_id,
+        blockdevice_id=u"block-{0}".format(dataset_id),
+    )
 
-        This reverses the transformation performed by ``from_dataset_id``.
 
-        Parameters accepted have the same meaning as the attributes of this
-        type.
-        """
-        # Strip the "block-" prefix we added.
-        dataset_id = UUID(blockdevice_id[6:])
-        return cls(
-            size=size, host=host, dataset_id=dataset_id,
-            blockdevice_id=blockdevice_id,
-        )
+def _blockdevicevolume_from_blockdevice_id(blockdevice_id, size, host=None):
+    """
+    Create a new ``BlockDeviceVolume`` with a ``dataset_id`` derived from
+    the given ``blockdevice_id``.
+
+    This reverses the transformation performed by
+    ``_blockdevicevolume_from_dataset_id``.
+
+    Parameters accepted have the same meaning as the attributes of
+    ``BlockDeviceVolume``.
+    """
+    # Strip the "block-" prefix we added.
+    dataset_id = UUID(blockdevice_id[6:])
+    return BlockDeviceVolume(
+        size=size, host=host, dataset_id=dataset_id,
+        blockdevice_id=blockdevice_id,
+    )
 
 
 def _losetup_list_parse(output):
@@ -417,7 +418,7 @@ class LoopbackBlockDeviceAPI(object):
         See ``IBlockDeviceAPI.create_volume`` for parameter and return type
         documentation.
         """
-        volume = BlockDeviceVolume.from_dataset_id(
+        volume = _blockdevicevolume_from_dataset_id(
             size=size, dataset_id=dataset_id,
         )
         with self._unattached_directory.child(
@@ -478,7 +479,7 @@ class LoopbackBlockDeviceAPI(object):
         volumes = []
         for child in self._root_path.child('unattached').children():
             blockdevice_id = child.basename().decode('ascii')
-            volume = BlockDeviceVolume.from_blockdevice_id(
+            volume = _blockdevicevolume_from_blockdevice_id(
                 blockdevice_id=blockdevice_id,
                 size=child.getsize(),
             )
@@ -488,7 +489,7 @@ class LoopbackBlockDeviceAPI(object):
             host_name = host_directory.basename().decode('ascii')
             for child in host_directory.children():
                 blockdevice_id = child.basename().decode('ascii')
-                volume = BlockDeviceVolume.from_blockdevice_id(
+                volume = _blockdevicevolume_from_blockdevice_id(
                     blockdevice_id=blockdevice_id,
                     size=child.getsize(),
                     host=host_name,

@@ -18,7 +18,7 @@ from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume,
-    _losetup_list_parse, _losetup_list,
+    _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id
 )
 
 from ... import InParallel, IDeployer, IStateChange
@@ -824,7 +824,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         expected_size = REALISTIC_BLOCKDEVICE_SIZE
         api = loopbackblockdeviceapi_for_test(test_case=self)
         expected_dataset_id = uuid4()
-        blockdevice_volume = BlockDeviceVolume.from_dataset_id(
+        blockdevice_volume = _blockdevicevolume_from_dataset_id(
             size=expected_size,
             dataset_id=expected_dataset_id,
         )
@@ -845,7 +845,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         expected_dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(test_case=self)
 
-        blockdevice_volume = BlockDeviceVolume.from_dataset_id(
+        blockdevice_volume = _blockdevicevolume_from_dataset_id(
             size=expected_size,
             host=expected_host,
             dataset_id=expected_dataset_id,
@@ -1008,7 +1008,7 @@ class CreateBlockDeviceDatasetTests(SynchronousTestCase):
 
         [volume] = api.list_volumes()
 
-        expected_volume = BlockDeviceVolume.from_dataset_id(
+        expected_volume = _blockdevicevolume_from_dataset_id(
             dataset_id=dataset_id, host=host, size=dataset.maximum_size,
         )
 
