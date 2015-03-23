@@ -1,3 +1,0 @@
-implement OpenStack IaaS
-implement EBS IaaS
-implement VMware IaaS
