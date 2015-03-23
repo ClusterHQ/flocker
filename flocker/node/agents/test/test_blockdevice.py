@@ -975,44 +975,91 @@ class CreateBlockDeviceDatasetTests(SynchronousTestCase):
             )
         )
 
-    def test_run(self):
+    def _create_blockdevice_dataset(self, host, dataset_id, maximum_size):
         """
-        ``CreateBlockDeviceDataset.run`` uses the ``IDeployer``\ 's API object
-        to create a new volume, attach it to the deployer's node, initialize
-        the resulting block device with a filesystem, and mount the filesystem.
+        Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.
+
+        :param unicode host: The IP address of the host for the deployer.
+        :param UUID dataset_id: The uuid4 identifier for the dataset which will
+            be created.
+        :param int maximum_size: The size, in bytes, of the dataset which will
+            be created.
+        :returns: A 3-tuple of:
+            * ``BlockDeviceVolume`` created by the run operation
+            * The ``FilePath`` of the device where the volume is attached.
+            * The ``FilePath`` where the volume is expected to be mounted.
         """
-        host = u"192.0.2.1"
-        mountroot = mountroot_for_test(self)
         api = loopbackblockdeviceapi_for_test(self)
-        deployer = BlockDeviceDeployer(
-            hostname=host, block_device_api=api, mountroot=mountroot
+        mountroot = mountroot_for_test(self)
+        expected_mountpoint = mountroot.child(
+            unicode(dataset_id).encode("ascii")
         )
-        dataset_id = uuid4()
-        mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
+
+        deployer = BlockDeviceDeployer(
+            hostname=host,
+            block_device_api=api,
+            mountroot=mountroot
+        )
+
         dataset = Dataset(
             dataset_id=unicode(dataset_id),
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+            maximum_size=maximum_size,
         )
+
         change = CreateBlockDeviceDataset(
-            dataset=dataset, mountpoint=mountpoint
+            dataset=dataset, mountpoint=expected_mountpoint
         )
+
         change.run(deployer)
 
         [volume] = api.list_volumes()
+        device_path = api.get_device_path(volume.blockdevice_id)
+
+        return volume, device_path, expected_mountpoint
+
+    def test_run_create(self):
+        """
+        ``CreateBlockDeviceDataset.run`` uses the ``IDeployer``\ 's API object
+        to create a new volume.
+        """
+        host = u"192.0.2.1"
+        dataset_id = uuid4()
+        maximum_size = REALISTIC_BLOCKDEVICE_SIZE
+
+        (volume,
+         device_path,
+         expected_mountpoint) = self._create_blockdevice_dataset(
+             host=host,
+             dataset_id=dataset_id,
+             maximum_size=maximum_size
+         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
-            dataset_id=dataset_id, host=host, size=dataset.maximum_size,
+            dataset_id=dataset_id, host=host, size=maximum_size,
         )
 
         self.assertEqual(expected_volume, volume)
 
-        mounts = list(get_mounts())
+    def test_run_mkfs_and_mount(self):
+        """
+        ``CreateBlockDeviceDataset.run`` initializes the attached block device
+        with an ext4 filesystem and mounts it.
+        """
+        host = u"192.0.2.1"
+        dataset_id = uuid4()
+        maximum_size = REALISTIC_BLOCKDEVICE_SIZE
+
+        (volume,
+         device_path,
+         expected_mountpoint) = self._create_blockdevice_dataset(
+             host=host,
+             dataset_id=dataset_id,
+             maximum_size=maximum_size
+         )
 
         self.assertIn(
-            (api.get_device_path(volume.blockdevice_id),
-             mountpoint,
-             b"ext4"),
-            mounts
+            (device_path, expected_mountpoint, b"ext4"),
+            list(get_mounts())
         )
 
 
