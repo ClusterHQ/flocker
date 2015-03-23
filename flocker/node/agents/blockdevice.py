@@ -21,7 +21,7 @@ from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
 from .. import IDeployer, IStateChange, InParallel
-from ...control import Node, NodeState, Manifestation, Dataset
+from ...control import NodeState, Manifestation, Dataset
 
 
 class VolumeException(Exception):
@@ -559,8 +559,6 @@ class BlockDeviceDeployer(PRecord):
 
         state = NodeState(
             hostname=self.hostname,
-            running=(),
-            not_running=(),
             manifestations=manifestations,
             paths=paths
         )
