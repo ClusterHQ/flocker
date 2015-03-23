@@ -292,6 +292,39 @@
 
 -
   id:
+    "get actual containers"
+
+  doc: |
+    Get a list of all containers that are present in the cluster.
+
+  requires:
+    - "create container"
+
+  request: |
+    GET /v1/state/containers HTTP/1.1
+
+  response: |
+    HTTP/1.0 200 OK
+
+    [
+      {
+        "host": "%(NODE_0)s",
+        "name": "webserver",
+        "image": "nginx:latest",
+        "restart_policy": {"name": "never"},
+        "running": false
+      },
+      {
+        "host": "%(NODE_0)s",
+        "name": "database",
+        "image": "postgres:latest",
+        "restart_policy": {"name": "on-failure", "maximum_retry_count": 5},
+        "running": true
+      },
+    ]
+
+-
+  id:
     "create container"
 
   doc: |

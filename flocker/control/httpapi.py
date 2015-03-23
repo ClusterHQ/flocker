@@ -467,6 +467,38 @@ class ConfigurationAPIUserV1(object):
         """
         return list(containers_from_deployment(self.persistence_service.get()))
 
+    @app.route("/state/containers", methods=['GET'])
+    @user_documentation(
+        """
+        Get the cluster's actual containers.
+        """,
+        examples=[u"get actual containers"],
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/state_containers_array',
+        },
+        schema_store=SCHEMAS,
+    )
+    def get_containers_state(self):
+        """
+        Get the containers present in the cluster.
+
+        :return: A ``list`` of ``dict`` representing each of the containers
+            that are configured to exist anywhere on the cluster.
+        """
+        result = []
+        deployment = self.cluster_state_service.as_deployment()
+        for node in deployment.nodes:
+            for application in node.applications:
+                container = container_configuration_response(
+                    application, node.hostname)
+                container[u"running"] = application.running
+                result.append(container)
+        return result
+
     def _get_attached_volume(self, host, volume):
         """
         Create an ``AttachedVolume`` given a volume dictionary.

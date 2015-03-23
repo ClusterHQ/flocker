@@ -2701,6 +2701,7 @@ class ContainerStateTestsMixin(APITestsMixin):
             host=expected_hostname,
             image=u"busybox:latest",
             running=True,
+            restart_policy={u"name": u"never"},
         )
         response = [expected_dict]
         return self.assertResult(
@@ -2728,6 +2729,7 @@ class ContainerStateTestsMixin(APITestsMixin):
             host=expected_hostname,
             image=u"busybox:latest",
             running=False,
+            restart_policy={u"name": u"never"},
         )
         response = [expected_dict]
         return self.assertResult(
@@ -2762,16 +2764,18 @@ class ContainerStateTestsMixin(APITestsMixin):
             host=expected_hostname1,
             image=u"busybox:latest",
             running=True,
+            restart_policy={u"name": u"never"},
         )
         expected_dict2 = dict(
             name=u"myapp2",
             host=expected_hostname2,
             image=u"busybox2:latest",
             running=True,
+            restart_policy={u"name": u"never"},
         )
         response = [expected_dict1, expected_dict2]
         return self.assertResultItems(
-            b"GET", b"/state/datasets", None, OK, response
+            b"GET", b"/state/containers", None, OK, response
         )
 
 RealTestsContainerStateAPI, MemoryTestsContainerStateAPI = (
