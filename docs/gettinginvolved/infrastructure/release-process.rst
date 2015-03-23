@@ -343,7 +343,7 @@ Release
 
      .. prompt:: bash [vagrant@localhost]$
 
-        cd ..
+        cd
         git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
         cd homebrew-tap-${VERSION}
         ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
