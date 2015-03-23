@@ -321,7 +321,7 @@ def create_virtualenv(root):
             if pyc_target.exists():
                 pyc_target.linkTo(pyc)
 
-    run_command([root.child("bin").child("pip").path, "install", "wheel"])
+    run_command([root.child("bin").child("pip").path, "install", "--upgrade", "pip==6.0.8"])
 
     return VirtualEnv(root=root)
 
