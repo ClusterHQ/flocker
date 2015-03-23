@@ -1027,10 +1027,10 @@ class CreateBlockDeviceDatasetTests(SynchronousTestCase):
         (volume,
          device_path,
          expected_mountpoint) = self._create_blockdevice_dataset(
-             host=host,
-             dataset_id=dataset_id,
-             maximum_size=maximum_size
-         )
+            host=host,
+            dataset_id=dataset_id,
+            maximum_size=maximum_size
+        )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
             dataset_id=dataset_id, host=host, size=maximum_size,
@@ -1050,10 +1050,10 @@ class CreateBlockDeviceDatasetTests(SynchronousTestCase):
         (volume,
          device_path,
          expected_mountpoint) = self._create_blockdevice_dataset(
-             host=host,
-             dataset_id=dataset_id,
-             maximum_size=maximum_size
-         )
+            host=host,
+            dataset_id=dataset_id,
+            maximum_size=maximum_size
+        )
 
         self.assertIn(
             (device_path, expected_mountpoint, b"ext4"),
