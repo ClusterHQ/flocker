@@ -308,11 +308,9 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
 
     def test_match_configuration_to_state_of_datasets(self):
         """
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` determines
-        that a ``CreateBlockDeviceDataset`` change is not necessary if a
-        dataset's id appears in the local state.  In particular, it does this
-        even if other attributes of the dataset differ between the local state
-        and the given configuration.
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
+        yield a ``CreateBlockDeviceDataset`` change if a dataset with the same
+        ID exists with different metadata.
         """
         expected_hostname = u'192.0.2.123'
         expected_dataset_id = unicode(uuid4())
