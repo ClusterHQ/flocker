@@ -609,8 +609,8 @@ class BlockDeviceDeployer(PRecord):
             in configured_dataset_ids.difference(local_dataset_ids)
         )
 
-        # TODO check for non-None size on dataset; cannot create block devices
-        # of unspecified size.
+        # TODO prevent the configuration of unsized datasets on blockdevice
+        # backends; cannot create block devices of unspecified size. FLOC-1579
         creates = list(
             CreateBlockDeviceDataset(
                 dataset=manifestation.dataset,
