@@ -536,6 +536,11 @@ class BlockDeviceDeployer(PRecord):
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
 
     def discover_local_state(self):
+        """
+        Find all block devices that are currently associated with this host and
+        return a ``NodeState`` containing only ``Manifestation`` instances and
+        their mount paths.
+        """
         volumes = self.block_device_api.list_volumes()
 
         manifestations = [_manifestation_from_volume(v)
