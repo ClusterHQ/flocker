@@ -424,12 +424,15 @@ Flocker requires the latest available kernel.
 
 .. .. task:: upgrade_kernel_ubuntu
 
+.. sudo su -
+
 apt-add-repository -y ppa:zfs-native/stable
 add-apt-repository -y ppa:james-page/docker
+add-apt-repository -y http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/
+
 apt-get update
 apt-get -y upgrade
 apt-get -y install spl-dkms zfs-dkms zfsutils docker.io
 sync
 shutdown -r now
-sudo add-apt-repository -y http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/
-sudo apt-get install clusterhq-flocker-node clusterhq-python-flocker clusterhq-flocker-cli
+apt-get install clusterhq-flocker-node clusterhq-python-flocker clusterhq-flocker-cli
