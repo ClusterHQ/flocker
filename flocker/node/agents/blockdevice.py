@@ -577,13 +577,6 @@ class BlockDeviceDeployer(PRecord):
     def calculate_necessary_state_changes(self, local_state,
                                           desired_configuration,
                                           current_cluster_state):
-
-        from flocker.control._persistence import wire_encode
-        Message.new(
-            local_state=wire_encode(local_state),
-            desired_configuration=wire_encode(desired_configuration),
-        ).write(Logger())
-
         potential_configs = list(
             node for node in desired_configuration.nodes
             if node.hostname == self.hostname
