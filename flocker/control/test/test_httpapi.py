@@ -2666,3 +2666,84 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             expected,
             api_dataset_from_dataset_and_node(dataset, expected_hostname)
         )
+
+
+class ContainerStateTestsMixin(APITestsMixin):
+    """
+    Tests for the containers state endpoint at ``/state/containers``.
+    """
+    def test_empty(self):
+        """
+        When the cluster state includes no containers, the endpoint
+        returns an empty list.
+        """
+        response = []
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_one_container(self):
+        """
+        When the cluster state includes one container, the endpoint
+        returns a single-element list containing the container.
+        """
+        expected_application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox"))
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname,
+                applications={expected_application},
+            )
+        )
+        expected_dict = dict(
+            name=u"myapp",
+            host=expected_hostname,
+            image=u"busybox:latest",
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_two_containers(self):
+        """
+        When the cluster state includes more than one container, the endpoint
+        returns a list containing the containers in arbitrary order.
+        """
+        expected_application1 = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox"))
+        expected_hostname1 = u"192.0.2.101"
+        expected_application2 = Application(
+            name=u"myapp2", image=DockerImage.from_string(u"busybox2"))
+        expected_hostname2 = u"192.0.2.102"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname1,
+                applications={expected_application1},
+            )
+        )
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname2,
+                applications={expected_application2},
+            )
+        )
+        expected_dict1 = dict(
+            name=u"myapp",
+            host=expected_hostname1,
+            image=u"busybox:latest",
+        )
+        expected_dict2 = dict(
+            name=u"myapp2",
+            host=expected_hostname2,
+            image=u"busybox2:latest",
+        )
+        response = [expected_dict1, expected_dict2]
+        return self.assertResultItems(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+
+RealTestsContainerStateAPI, MemoryTestsContainerStateAPI = (
+    buildIntegrationTests(ContainerStateTestsMixin, "ContainerStateAPI",
+                          _build_app))
