@@ -30,7 +30,7 @@ POSTGRES_INTERNAL_PORT = 5432
 POSTGRES_EXTERNAL_PORT = 5432
 
 POSTGRES_APPLICATION_NAME = u"postgres-volume-example"
-POSTGRES_IMAGE = u"postgres"
+POSTGRES_IMAGE = u"postgres:9.4"
 POSTGRES_VOLUME_MOUNTPOINT = u'/var/lib/postgresql/data'
 
 POSTGRES_APPLICATION = Application(
@@ -40,6 +40,12 @@ POSTGRES_APPLICATION = Application(
         Port(internal_port=POSTGRES_INTERNAL_PORT,
              external_port=POSTGRES_EXTERNAL_PORT),
         ]),
+    environment=frozenset({
+        'LANG': 'en_US.utf8',
+        'PGDATA': '/var/lib/postgresql/data',
+        'PG_VERSION': '9.4.1-1.pgdg70+1',
+        'PG_MAJOR': '9.4'
+    }.items()),
     volume=AttachedVolume(
         manifestation=Manifestation(
             dataset=Dataset(
@@ -93,6 +99,7 @@ class PostgresTests(TestCase):
                             u"internal": POSTGRES_INTERNAL_PORT,
                             u"external": POSTGRES_EXTERNAL_PORT,
                         }],
+                        u"environment": POSTGRES_APPLICATION.environment,
                         u"volume": {
                             u"dataset_id":
                                 POSTGRES_APPLICATION.volume.dataset.dataset_id,
