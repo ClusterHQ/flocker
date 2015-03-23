@@ -2,7 +2,8 @@
 # -*- test-case-name: flocker.node.test.test_script,flocker.node.functional.test_script -*- # noqa
 
 """
-The command-line ``flocker-changestate`` and ``flocker-reportstate`` tools.
+The command-line ``flocker-changestate``, ``flocker-reportstate`` and
+``flocker-*-agent`` tools.
 """
 
 import sys
