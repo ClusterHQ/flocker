@@ -8,4 +8,4 @@ docker build -t clusterhq/wheel-builder -f admin/build_targets/centos-7/Dockerfi
 docker run --rm -v $(pwd):/application -v ${WHEELHOUSE}:/wheelhouse clusterhq/wheel-builder
 
 docker build -t clusterhq/package-builder -f admin/build_targets/centos-7/Dockerfile.package-builder admin/build_targets/centos-7/
-docker run --rm -v $(pwd):/flocker -v ${WHEELHOUSE}:/wheelhouse -v $(pwd):/output clusterhq/package-builder
+docker run --rm -v $(pwd):/flocker -v ${WHEELHOUSE}:/wheelhouse -v $(pwd):/output clusterhq/package-builder /flocker
