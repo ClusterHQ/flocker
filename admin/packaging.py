@@ -13,6 +13,8 @@ from subprocess import check_output, check_call, CalledProcessError, call
 from tempfile import mkdtemp
 from textwrap import dedent, fill
 
+from eliot import Logger, start_action, to_file
+
 from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
 from twisted.python import usage, log
@@ -117,9 +119,13 @@ class BuildSequence(object):
 
     :ivar tuple steps: A sequence of steps.
     """
+    logger = Logger()
+    _system = u"packaging:buildsequence:run"
+
     def run(self):
         for step in self.steps:
-            step.run()
+            with start_action(self.logger, self._system, step=repr(step)):
+                step.run()
 
 
 def run_command(args, added_env=None, cwd=None):
@@ -1082,6 +1088,8 @@ class DockerBuildScript(object):
         :param FilePath top_level: The top-level of the flocker repository.
         :param base_path: ignored.
         """
+        to_file(self.sys_module.stderr)
+
         options = DockerBuildOptions()
 
         try:
@@ -1167,6 +1175,8 @@ class BuildScript(object):
             directory.
         :param base_path: ignored.
         """
+        to_file(self.sys_module.stderr)
+
         options = BuildOptions()
 
         try:

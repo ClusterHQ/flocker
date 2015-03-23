@@ -189,15 +189,6 @@ def configure_firewalld(rule):
                         ['firewall-cmd']]]
 
 
-def task_disable_firewall():
-    """
-    Disable the firewall.
-    """
-    return configure_firewalld(
-        ['--direct', '--add-rule', 'ipv4', 'filter',
-         'FORWARD', '0', '-j', 'ACCEPT'])
-
-
 def task_enable_flocker_control():
     """
     Enable flocker-control service.

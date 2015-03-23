@@ -258,16 +258,12 @@ Release
 
       export VERSION=0.1.2
 
-#. Create a clean, local copy of the Flocker and `homebrew-tap`_ release branches with no modifications:
+#. Create a clean, local copy of the Flocker release branch with no modifications:
 
    .. prompt:: bash [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
-      cd homebrew-tap-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/master
-      git push --set-upstream origin release/flocker-${VERSION}
-      cd ../flocker-${VERSION}
+      cd flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
@@ -351,29 +347,28 @@ Release
 
      .. prompt:: bash [vagrant@localhost]$
 
-        cd ../homebrew-tap-${VERSION}
+        cd
+        git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
+        cd homebrew-tap-${VERSION}
         ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
         git add flocker-${VERSION}.rb
         git commit -m "New Homebrew recipe"
         git push
 
-   - Test the new recipe on OS X with `Homebrew`_ installed:
+   - Test Homebrew on OS X.
+     ClusterHQ has a Mac Mini available with instructions for launching a Virtual Machine to do this with:
 
-     Try installing the new recipe directly from a GitHub link
+     Export the version number of the release being completed as an environment variable:
 
-     .. prompt:: bash $
+     .. prompt:: bash [osx-user]$
 
-        brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
-        brew test flocker-${VERSION}
+        export VERSION=0.1.2
 
-   - Make a pull request:
+     .. task:: test_homebrew flocker-${VERSION}
+           :prompt: [osx-user]$
 
-     Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
-
-     Include the ``brew install`` line from the previous step, so that the reviewer knows how to test the new recipe.
-
-   - Do not continue until the pull request is merged.
-     Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
+     If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
+     The release process should not continue until the tests pass.
 
 #. Update the documentation.
 
