@@ -27,5 +27,5 @@ RUN \
 ENTRYPOINT [ \
     "/tmp/package-builder/bin/python", \
     "/flocker/admin/build-package-entrypoint", \
-    "--destination-path=/output", "Flocker" \
+    "--destination-path=/output" \
 ]
