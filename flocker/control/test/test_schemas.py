@@ -28,6 +28,28 @@ VersionsTests = build_schema_test(
     ],
 )
 
+
+ConfigurationContainersSchemaTests = build_schema_test(
+    name="ConfigurationContainersUpdateSchemaTests",
+    schema={
+        '$ref':
+            '/v1/endpoints.json#/definitions/configuration_container_update'
+    },
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Host missing
+        {},
+        # Host wrong type
+        {'host': 1},
+        # Host not a host
+        {'host': 'idonotexist'},
+    ],
+    passing_instances=[
+        {'host': '192.168.0.3'},
+    ],
+)
+
+
 ConfigurationContainersSchemaTests = build_schema_test(
     name="ConfigurationContainersSchemaTests",
     schema={'$ref': '/v1/endpoints.json#/definitions/configuration_container'},

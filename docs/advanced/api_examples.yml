@@ -292,6 +292,26 @@
 
 -
   id:
+    "move container"
+
+  doc: |
+    Move an existing named container to a new host.
+
+  request: |
+    PUT /v1/configuration/containers/webserver HTTP/1.1
+
+    {"host": "%(NODE_0)s"}
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"}}
+
+-
+  id:
     "create container"
 
   doc: |
