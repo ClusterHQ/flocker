@@ -157,7 +157,6 @@ class CreateBlockDeviceDataset(PRecord):
                 volume.blockdevice_id, deployer.hostname
             )
             device = api.get_device_path(volume.blockdevice_id)
-            self.mountpoint.makedirs()
 
             # This will be factored into a separate IStateChange to support the
             # case where the volume is attached but has no filesystem.  That
@@ -167,6 +166,7 @@ class CreateBlockDeviceDataset(PRecord):
             # This will be factored into a separate IStateChange to support the
             # case where the only state change necessary is mounting.  That
             # object will be used by this one to perform this mount.  FLOC-1498
+            self.mountpoint.makedirs()
             check_output(["mount", device.path, self.mountpoint.path])
 
             action.add_success_fields(
