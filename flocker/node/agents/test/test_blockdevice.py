@@ -21,7 +21,8 @@ from ..blockdevice import (
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id
 )
 
-from ... import InParallel, IDeployer, IStateChange
+from ... import InParallel, IStateChange
+from ...testtools import ideployer_tests_factory
 from ....control import Dataset, Manifestation, Node, NodeState, Deployment
 
 GIBIBYTE = 2 ** 30
@@ -35,24 +36,17 @@ if not platform.isLinux():
     skip = "flocker.node.agents.blockdevice is only supported on Linux"
 
 
-class BlockDeviceDeployerTests(SynchronousTestCase):
+class BlockDeviceDeployerTests(
+        ideployer_tests_factory(
+            lambda test: BlockDeviceDeployer(
+                hostname=u"localhost",
+                block_device_api=loopbackblockdeviceapi_for_test(test)
+            )
+        )
+):
     """
     Tests for ``BlockDeviceDeployer``.
     """
-    def test_interface(self):
-        """
-        ``BlockDeviceDeployer`` instances provide ``IDeployer``.
-        """
-        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
-        self.assertTrue(
-            verifyObject(
-                IDeployer,
-                BlockDeviceDeployer(
-                    hostname=u'192.0.2.123',
-                    block_device_api=api
-                )
-            )
-        )
 
 
 class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
