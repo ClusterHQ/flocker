@@ -259,7 +259,7 @@ Release
    .. prompt:: bash [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      cd ../flocker-${VERSION}
+      cd flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
