@@ -1314,33 +1314,127 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
     Tests for the container configuration update endpoint at
     ``/containers/<containername>``.
     """
+    def _create_container(self):
+        """
+        Utility function to create a container configuration via the API.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(hostname=self.NODE_A),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A,
+                u"name": u"mycontainer",
+                u"image": u"busybox"
+            }, CREATED
+        ))
+
+        return saving
+
     def test_update_same_host(self):
         """
         An API request to update a named container's host to the same host
         on which it is already running results in an unchanged configuration.
         """
-        self.fail("not implemented yet")
+        d = self._create_container()
+
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers/mycontainer",
+            {u"host": self.NODE_A}, OK
+        ))
+
+        def updated(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='mycontainer',
+                                image=DockerImage.from_string('busybox')
+                            ),
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(updated)
+        return d
 
     def test_update_new_host(self):
         """
         An API request to update a named container's host to a different host
         results in an updated configuration.
         """
-        self.fail("not implemented yet")
+        d = self._create_container()
+
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers/mycontainer",
+            {u"host": self.NODE_B}, OK
+        ))
+
+        def updated(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='mycontainer',
+                                image=DockerImage.from_string('busybox')
+                            ),
+                        ]
+                    ),
+                    Node(hostname=self.NODE_B),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(updated)
+        return d
 
     def test_update_invalid_container_name(self):
         """
         An API request to update a named container's host to a different host
         results in an error if the named container does not exist.
         """
-        self.fail("not implemented yet")
+        return self.assertResult(
+            b"POST", b"/configuration/containers/somecontainer",
+            {u"host": self.NODE_A}, NOT_FOUND,
+            {u"description": u"Container not found."},
+        )
 
     def test_response(self):
         """
         An API request to move a container to a new host returns the
         expected JSON response.
         """
-        self.fail("not implemented yet")
+        d = self._create_container()
+
+        def update_container(_):
+            request = {u"host": self.NODE_B}
+            result = {
+                u"host": self.NODE_B,
+                u"name": u"mycontainer",
+                u"image": u"busybox:latest",
+                u"restart_policy": {u"name": u"never"}
+            }
+            return self.assertResult(
+                b"POST", b"/configuration/containers/mycontainer",
+                request, OK, result
+            )
+
+        d.addCallback(update_container)
+        return d
 
 
 (RealTestsUpdateContainerConfiguration,

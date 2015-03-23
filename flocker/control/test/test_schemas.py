@@ -43,6 +43,8 @@ ConfigurationContainersSchemaTests = build_schema_test(
         {'host': 1},
         # Host not a host
         {'host': 'idonotexist'},
+        # Extra properties
+        {'host': '192.168.0.3', 'image': 'nginx:latest'},
     ],
     passing_instances=[
         {'host': '192.168.0.3'},
