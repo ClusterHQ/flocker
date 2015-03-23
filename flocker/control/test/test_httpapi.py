@@ -1402,6 +1402,95 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         d.addCallback(updated)
         return d
 
+    def test_update_moves_dataset(self):
+        """
+        An API request to update a named container's host to a different host
+        where the container has an attached dataset results in an updated
+        configuration, with the dataset's primary host also moved to the new
+        container host.
+        """
+        manifestation = _manifestation()
+        application = Application(
+            name='postgres',
+            image=DockerImage.from_string('postgres'),
+            volume=AttachedVolume(
+                manifestation=manifestation,
+                mountpoint=FilePath(b"/var/lib/postgresql/9.4/data/base")
+            )
+        )
+
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    manifestations={manifestation.dataset_id:
+                                    manifestation},
+                    applications=[application]
+                ),
+                Node(hostname=self.NODE_B),
+            },
+        )
+
+        d = self.persistence_service.save(deployment)
+
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers/postgres",
+            {u"host": self.NODE_B}, OK
+        ))
+
+        def updated(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(hostname=self.NODE_A),
+                    Node(
+                        hostname=self.NODE_B,
+                        manifestations={manifestation.dataset_id:
+                                        manifestation},
+                        applications=[application]
+                    ),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(updated)
+        return d
+
+    def test_update_nonexistent_host(self):
+        """
+        An API request to update a named container's host to a previously
+        unknown host results in an updated configuration, with the new Node
+        added to the deployment configuration.
+        """
+        d = self._create_container()
+
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers/mycontainer",
+            {u"host": u"192.0.2.3"}, OK
+        ))
+
+        def updated(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(hostname=self.NODE_A),
+                    Node(hostname=self.NODE_B),
+                    Node(
+                        hostname=u"192.0.2.3",
+                        applications=[
+                            Application(
+                                name='mycontainer',
+                                image=DockerImage.from_string('busybox')
+                            ),
+                        ]
+                    ),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(updated)
+        return d
+
     def test_update_invalid_container_name(self):
         """
         An API request to update a named container's host to a different host
