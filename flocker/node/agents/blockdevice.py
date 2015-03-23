@@ -586,13 +586,14 @@ class BlockDeviceDeployer(PRecord):
             if node.hostname == self.hostname
         )
         if len(potential_configs) == 0:
-            this_node_config = Node(hostname=None)
+            configured_manifestations = {}
         else:
             [this_node_config] = potential_configs
+            configured_manifestations = this_node_config.manifestations
 
         configured_dataset_ids = set(
-            manifestation.dataset.dataset_id for manifestation in
-            this_node_config.manifestations.values()
+            manifestation.dataset.dataset_id
+            for manifestation in configured_manifestations.values()
             # Don't create deleted datasets
             if not manifestation.dataset.deleted
         )
@@ -603,8 +604,9 @@ class BlockDeviceDeployer(PRecord):
         )
 
         manifestations_to_create = set(
-            this_node_config.manifestations[dataset_id] for dataset_id in
-            configured_dataset_ids.difference(local_dataset_ids)
+            configured_manifestations[dataset_id]
+            for dataset_id
+            in configured_dataset_ids.difference(local_dataset_ids)
         )
 
         # TODO check for non-None size on dataset; cannot create block devices
