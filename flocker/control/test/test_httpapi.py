@@ -2700,6 +2700,34 @@ class ContainerStateTestsMixin(APITestsMixin):
             name=u"myapp",
             host=expected_hostname,
             image=u"busybox:latest",
+            running=True,
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_one_container_not_running(self):
+        """
+        When the cluster state includes one container that is not running, the
+        endpoint returns a single-element list containing the container
+        indicating it is not running.
+        """
+        expected_application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox"),
+            running=False)
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname,
+                applications={expected_application},
+            )
+        )
+        expected_dict = dict(
+            name=u"myapp",
+            host=expected_hostname,
+            image=u"busybox:latest",
+            running=False,
         )
         response = [expected_dict]
         return self.assertResult(
@@ -2733,11 +2761,13 @@ class ContainerStateTestsMixin(APITestsMixin):
             name=u"myapp",
             host=expected_hostname1,
             image=u"busybox:latest",
+            running=True,
         )
         expected_dict2 = dict(
             name=u"myapp2",
             host=expected_hostname2,
             image=u"busybox2:latest",
+            running=True,
         )
         response = [expected_dict1, expected_dict2]
         return self.assertResultItems(
