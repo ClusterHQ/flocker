@@ -167,14 +167,14 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         node = u"192.0.2.1"
         other_node = u"192.0.2.2"
         configuration = Deployment(
-            nodes=frozenset({
+            nodes={
                 Node(
                     hostname=other_node,
                     manifestations={dataset_id: manifestation},
                 )
-            })
+            }
         )
-        state = Deployment(nodes=frozenset())
+        state = Deployment(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
             hostname=node,
@@ -199,12 +199,12 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         )
         node = u"192.0.2.1"
         configuration = Deployment(
-            nodes=frozenset({
+            nodes={
                 Node(
                     hostname=node,
                     manifestations={dataset_id: manifestation},
                 )
-            })
+            }
         )
         state = Deployment(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
@@ -247,7 +247,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         """
         # Control service still reports that this node has no manifestations.
         current_cluster_state = Deployment(
-            nodes=frozenset([Node(hostname=local_hostname)])
+            nodes={Node(hostname=local_hostname)}
         )
 
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
@@ -288,12 +288,12 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
 
         # Configuration requires a manifestation on this node.
         desired_configuration = Deployment(
-            nodes=frozenset({
+            nodes={
                 Node(
                     hostname=local_hostname,
                     manifestations={dataset_id: manifestation},
                 )
-            })
+            }
         )
 
         actual_changes = self._calculate_changes(
