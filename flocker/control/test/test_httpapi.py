@@ -1385,8 +1385,9 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
             deployment = self.persistence_service.get()
             expected = Deployment(
                 nodes={
+                    Node(hostname=self.NODE_A),
                     Node(
-                        hostname=self.NODE_A,
+                        hostname=self.NODE_B,
                         applications=[
                             Application(
                                 name='mycontainer',
@@ -1394,7 +1395,6 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                             ),
                         ]
                     ),
-                    Node(hostname=self.NODE_B),
                 }
             )
             self.assertEqual(deployment, expected)
