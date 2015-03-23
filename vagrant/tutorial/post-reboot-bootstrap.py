@@ -31,7 +31,8 @@ if branch:
     # buildserver repository corresponding to that branch.
     # This repo will be disabled by default.
     with open('/etc/yum.repos.d/clusterhq-build.repo', 'w') as repo:
-        result_path = os.path.join('/results/omnibus', branch, 'centos-$releasever')
+        result_path = os.path.join('/results/omnibus', branch,
+                                   'centos-$releasever')
         base_url = urljoin(build_server, result_path)
         repo.write(dedent(b"""
             [clusterhq-build]
@@ -62,6 +63,18 @@ check_call(['yum', 'install', '-y'] + branch_opt + [package])
 # We don't need to start it, since when the box is packaged,
 # the machine will be reset.
 check_call(['systemctl', 'enable', 'docker'])
+
+
+# Enable firewalld
+# Typical deployments will have a firewall enabled, so enable it on vagrant to
+# make the environment more realistic.
+# We need to unmask it, since the base box has it masked.
+check_call(['systemctl', 'unmask', 'firewalld'])
+check_call(['systemctl', 'enable', 'firewalld'])
+check_call(['systemctl', 'start', 'firewalld'])
+# We need to open the firewall for the flocker-control
+for service in ['flocker-control-api', 'flocker-control-agent']:
+    check_call(['firewall-cmd', '--permanent', '--add-service', service])
 
 # Make it easy to authenticate as root
 check_call(['mkdir', '-p', '/root/.ssh'])

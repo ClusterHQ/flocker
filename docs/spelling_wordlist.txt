@@ -43,6 +43,7 @@ lifecycle
 Mesos
 metadata
 microservices
+mountpoint
 multi
 mv
 namespace
@@ -64,6 +65,7 @@ stateful
 sysadmin
 terabytes
 timestamp
+username
 versioning
 virtualization
 VMware

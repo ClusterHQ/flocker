@@ -19,8 +19,8 @@ definitions:
       guaranteed to exist.
     type: boolean
 
-  path:
-    title: "Mount path"
+  node_path:
+    title: "Node mount path"
     description: |
       The filesystem path where the dataset is mounted on a node.
       Can only be present in cluster state, not in configuration.
@@ -50,7 +50,7 @@ definitions:
     description: "A number specifying the maximum memory in bytes available to this container. Minimum 1048576 (1MB)."
     type: integer
     minimum: 1048576
-  
+
   cpu_shares:
     title: "Container CPU shares"
     description: |
@@ -86,7 +86,7 @@ definitions:
           maximum: 65535
         alias:
           type: string
-          pattern: "[a-zA-Z0-9_-]+"
+          pattern: "^[a-zA-Z0-9_-]+$"
     uniqueItems: true
 
   restart_policy:
@@ -140,12 +140,34 @@ definitions:
       "^.+$":
         type: string
 
+  volume:
+    title: "A volume attached to a container"
+    description: |
+      A dataset that has been mounted inside a container.
+    type: object
+    properties:
+      dataset_id:
+        '$ref': '#/definitions/dataset_id'
+      mountpoint:
+        '$ref': '#/definitions/volume_path'
+    required:
+      - 'dataset_id'
+      - 'mountpoint'
+    additionalProperties: false
+
+  volume_path:
+    title: "Volume mount path"
+    description: |
+      The filesystem path where a volume is mounted inside a container.
+    type: string
+    pattern: "^\\/.*$"
+
   container_name:
     title: "Container name"
     description: "The name of the container."
     type: string
-    pattern: "[a-zA-Z0-9_-]+"
-    
+    pattern: "^[a-zA-Z0-9_-]+$"
+
   container_image:
     title: "Container image"
     description: |
