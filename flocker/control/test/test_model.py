@@ -486,7 +486,10 @@ class PSetFieldTests(SynchronousTestCase):
 
         class Record(PRecord):
             value = pset_field(Something)
-        assert Record().value.__class__.__name__ == "SomethingPSet"
+            value2 = pset_field(int)
+        assert ((Record().value.__class__.__name__,
+                 Record().value2.__class__.__name__) ==
+                ("SomethingPSet", "IntPSet"))
 
 
 class PMapFieldTests(SynchronousTestCase):
@@ -583,4 +586,7 @@ class PMapFieldTests(SynchronousTestCase):
 
         class Record(PRecord):
             value = pmap_field(Something, Another)
-        assert Record().value.__class__.__name__ == "SomethingAnotherPMap"
+            value2 = pmap_field(int, float)
+        assert ((Record().value.__class__.__name__,
+                 Record().value2.__class__.__name__) ==
+                ("SomethingAnotherPMap", "IntFloatPMap"))

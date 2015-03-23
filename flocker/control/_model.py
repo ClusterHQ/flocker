@@ -38,7 +38,7 @@ def pset_field(item_type, optional=False):
     """
     class TheSet(CheckedPSet):
         __type__ = item_type
-    TheSet.__name__ = item_type.__name__ + "PSet"
+    TheSet.__name__ = item_type.__name__.capitalize() + "PSet"
 
     if optional:
         def factory(argument):
@@ -67,7 +67,8 @@ def pmap_field(key_type, value_type, optional=False):
     class TheMap(CheckedPMap):
         __key_type__ = key_type
         __value_type__ = value_type
-    TheMap.__name__ = key_type.__name__ + value_type.__name__ + "PMap"
+    TheMap.__name__ = (key_type.__name__.capitalize() +
+                       value_type.__name__.capitalize() + "PMap")
 
     if optional:
         def factory(argument):
