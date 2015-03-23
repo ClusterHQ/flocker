@@ -10,7 +10,7 @@ devices.
 from uuid import UUID
 from subprocess import check_output
 
-from eliot import Message, ActionType, Field, Logger
+from eliot import ActionType, Field, Logger
 
 from zope.interface import implementer, Interface
 
