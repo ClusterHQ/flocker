@@ -416,3 +416,20 @@ You have also ensured that the ``flocker-deploy`` command line tool is able to c
 Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
 Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
 Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+
+Installing on Ubuntu 14.04
+--------------------------
+
+Flocker requires the latest available kernel.
+
+.. .. task:: upgrade_kernel_ubuntu
+
+apt-add-repository -y ppa:zfs-native/stable
+add-apt-repository -y ppa:james-page/docker
+apt-get update
+apt-get -y upgrade
+apt-get -y install spl-dkms zfs-dkms zfsutils docker.io
+sync
+shutdown -r now
+sudo add-apt-repository -y http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/
+sudo apt-get install clusterhq-flocker-node clusterhq-python-flocker clusterhq-flocker-cli
