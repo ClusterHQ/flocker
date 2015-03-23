@@ -339,11 +339,16 @@ class Node(PRecord):
         unknown.
     """
     def __invariant__(self):
-        manifestations = self.manifestations.values()
-        for app in self.applications:
+        if self.manifestations is None:
+            manifestations = []
+        else:
+            manifestations = self.manifestations.values()
+        for app in (self.applications or []):
             if app.volume is not None:
                 if app.volume.manifestation not in manifestations:
                     return (False, '%r manifestation is not on node' % (app,))
+        if self.manifestations is None:
+            return (True, "")
         for key, value in self.manifestations.items():
             if key != value.dataset_id:
                 return (False, '%r is not correct key for %r' % (key, value))

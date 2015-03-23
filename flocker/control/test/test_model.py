@@ -194,6 +194,24 @@ class NodeTests(SynchronousTestCase):
                           Node, hostname=u"xxx",
                           manifestations={u"123": MANIFESTATION})
 
+    def test_no_manifestations(self):
+        """
+        A ``Node`` may have ``manifestations`` set to ``None``, indicating
+        ignorance of the correct value.
+        """
+        self.assertEqual(
+            Node(hostname=u"1.2.3.4", manifestations=None).manifestations,
+            None)
+
+    def test_no_applications(self):
+        """
+        A ``Node`` may have ``applications`` set to ``None``, indicating
+        ignorance of the correct value.
+        """
+        self.assertEqual(
+            Node(hostname=u"1.2.3.4", applications=None).applications,
+            None)
+
 
 class NodeStateTests(SynchronousTestCase):
     """
