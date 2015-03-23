@@ -130,8 +130,8 @@ class CreateBlockDeviceDataset(PRecord):
 
     def run(self, deployer):
         """
-        Create a block device, attach it to the host of the supplied
-        ``deployer``, create an ``ext4`` filesystem on the device and mount it.
+        Create a block device, attach it to the local host, create an ``ext4``
+        filesystem on the device and mount it.
 
         Operations are performed synchronously.
 
