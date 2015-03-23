@@ -22,7 +22,7 @@ from twisted.python.procutils import which
 from ...testtools import if_root
 from .. import make_host_network
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
-from .networktests import make_proxying_tests
+from .networktests import make_network_tests
 
 try:
     from .iptables import create_network_namespace, get_iptables_rules
@@ -126,7 +126,7 @@ class GetIPTablesTests(TestCase):
         self.assertEqual(first, second)
 
 
-class IPTablesProxyTests(make_proxying_tests(make_host_network)):
+class IPTablesNetworkTests(make_network_tests(make_host_network)):
     """
     Apply the generic ``INetwork`` test suite to the implementation which
     manipulates the actual system configuration.
@@ -139,7 +139,7 @@ class IPTablesProxyTests(make_proxying_tests(make_host_network)):
         """
         self.namespace = create_network_namespace()
         self.addCleanup(self.namespace.restore)
-        super(IPTablesProxyTests, self).setUp()
+        super(IPTablesNetworkTests, self).setUp()
 
 
 class CreateTests(TestCase):

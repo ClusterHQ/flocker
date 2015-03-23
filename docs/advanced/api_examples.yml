@@ -260,6 +260,38 @@
 
 -
   id:
+    "get configured containers"
+
+  doc: |
+    Get a list of all containers that have been configured for a
+    deployment.
+
+  requires:
+    - "create container"
+
+  request: |
+    GET /v1/configuration/containers HTTP/1.1
+
+  response: |
+    HTTP/1.0 200 OK
+
+    [
+      {
+        "host": "%(NODE_0)s",
+        "name": "webserver",
+        "image": "nginx:latest",
+        "restart_policy": {"name": "never"}
+      },
+      {
+        "host": "%(NODE_0)s",
+        "name": "database",
+        "image": "postgres:latest",
+        "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}
+      },
+    ]
+
+-
+  id:
     "create container"
 
   doc: |
@@ -354,6 +386,37 @@
      "image": "nginx:latest",
      "restart_policy": {"name": "never"},
      "cpu_shares": 512}
+
+-
+  id:
+    "create container with attached volume"
+
+  doc: |
+    Create a new container with an existing dataset attached as a volume.
+
+  requires:
+    - "create dataset with dataset_id"
+
+  request: |
+    POST /v1/configuration/containers HTTP/1.1
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+                  "mountpoint": "/usr/share/nginx/html"}],
+    }
+
+  response: |
+    HTTP/1.1 201 Created
+
+    {"host": "%(NODE_0)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+                  "mountpoint": "/usr/share/nginx/html"}],
+     "restart_policy": {"name": "never"}
+    }
 
 -
   id:

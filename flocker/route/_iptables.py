@@ -17,11 +17,16 @@ from eliot import Logger
 from psutil import net_connections
 from twisted.python.filepath import FilePath
 
-from ._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
+from ._logging import (
+    IPTABLES,
+    CREATE_PROXY_TO, DELETE_PROXY,
+    OPEN_PORT, DELETE_OPEN_PORT,
+)
 from ._interfaces import INetwork
-from ._model import Proxy
+from ._model import Proxy, OpenPort
 
-FLOCKER_COMMENT_MARKER = b"flocker create_proxy_to"
+FLOCKER_PROXY_COMMENT_MARKER = b"flocker create_proxy_to"
+FLOCKER_OPENPORT_COMMENT_MARKER = b"flocker open_port"
 
 
 @attributes(["comment", "destination_port", "to_destination"])
@@ -86,7 +91,7 @@ def create_proxy_to(logger, ip, port):
             b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
             # Tag it as a flocker-created rule so we can recognize it later.
-            b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
+            b"--match", b"comment", b"--comment", FLOCKER_PROXY_COMMENT_MARKER,
 
             # If the filter matched, jump to the DNAT chain to handle doing the
             # actual packet mangling.  DNAT is a built-in chain that already
@@ -156,6 +161,16 @@ def create_proxy_to(logger, ip, port):
             b"--jump", b"DNAT", b"--to-destination", encoded_ip,
         ])
 
+        iptables(logger, [
+            b"--table", b"filter",
+            b"--insert", b"FORWARD",
+
+            b"--destination", encoded_ip,
+            b"--protocol", b"tcp", b"--destination-port", encoded_port,
+
+            b"--jump", b"ACCEPT",
+        ])
+
         # The network stack only considers forwarding traffic when certain
         # system configuration is in place.
         #
@@ -176,6 +191,26 @@ def create_proxy_to(logger, ip, port):
         return Proxy(ip=ip, port=port)
 
 
+def open_port(logger, port):
+    with OPEN_PORT(
+            logger=logger, target_port=port):
+        encoded_port = unicode(port).encode("ascii")
+        iptables(logger, [
+            b"--table", b"filter",
+            b"--insert", b"INPUT",
+
+            b"--protocol", b"tcp", b"--destination-port", encoded_port,
+
+            # Tag it as a flocker-created rule so we can recognize it later.
+            b"--match", b"comment",
+            b"--comment", FLOCKER_OPENPORT_COMMENT_MARKER,
+
+            b"--jump", b"ACCEPT",
+        ])
+
+    return OpenPort(port=port)
+
+
 def delete_proxy(logger, proxy):
     """
     :see: ``HostNetwork.delete_proxy``
@@ -188,7 +223,7 @@ def delete_proxy(logger, proxy):
          b"--delete", b"PREROUTING",
          b"--protocol", b"tcp", b"--destination-port", port,
          b"--match", b"addrtype", b"--dst-type", b"LOCAL",
-         b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
+         b"--match", b"comment", b"--comment", FLOCKER_PROXY_COMMENT_MARKER,
          b"--jump", b"DNAT", b"--to-destination", ip],
         [b"--table", b"nat",
          b"--delete", b"POSTROUTING",
@@ -199,11 +234,39 @@ def delete_proxy(logger, proxy):
          b"--protocol", b"tcp", b"--destination-port", port,
          b"--match", b"addrtype", b"--dst-type", b"LOCAL",
          b"--jump", b"DNAT", b"--to-destination", ip],
+        [b"--table", b"filter",
+         b"--delete", b"FORWARD",
+         b"--destination", ip,
+         b"--protocol", b"tcp", b"--destination-port", port,
+         b"--jump", b"ACCEPT"],
     ]
 
     with DELETE_PROXY(logger, target_ip=proxy.ip, target_port=proxy.port):
         for argv in commands:
             iptables(logger, argv)
+
+
+def delete_open_port(logger, port):
+    """
+    :see: ``HostNetwork.delete_open_port``
+    """
+    action = DELETE_OPEN_PORT(
+        logger=logger, target_port=port)
+
+    with action:
+        encoded_port = unicode(port.port).encode("ascii")
+        iptables(logger, [
+            b"--table", b"filter",
+            b"--delete", b"INPUT",
+
+            b"--protocol", b"tcp", b"--destination-port", encoded_port,
+
+            # Tag it as a flocker-created rule so we can recognize it later.
+            b"--match", b"comment",
+            b"--comment", FLOCKER_OPENPORT_COMMENT_MARKER,
+
+            b"--jump", b"ACCEPT",
+        ])
 
 
 def enumerate_proxies():
@@ -214,14 +277,33 @@ def enumerate_proxies():
     :see: :py:meth:`INetwork.enumerate_proxies` for parameter documentation.
     """
     proxies = []
-    for rule in get_flocker_rules():
+    for rule in get_flocker_rules(
+            comment_marker=FLOCKER_PROXY_COMMENT_MARKER,
+            table=b'nat'):
         proxies.append(
             Proxy(ip=rule.to_destination, port=rule.destination_port))
 
     return proxies
 
 
-def get_flocker_rules():
+def enumerate_open_ports():
+    """
+    Inspect the system's iptables configuration to determine which ports
+    are currently open.
+
+    :see: :py:meth:`INetwork.enumerate_open_ports` for parameter documentation.
+    """
+    ports = []
+    for rule in get_flocker_rules(
+            comment_marker=FLOCKER_OPENPORT_COMMENT_MARKER,
+            table=b'filter'):
+        ports.append(
+            OpenPort(port=rule.destination_port))
+
+    return ports
+
+
+def get_flocker_rules(comment_marker, table):
     """
     Look up all of the iptables rules created/managed by flocker.
 
@@ -231,10 +313,10 @@ def get_flocker_rules():
     # Life is horrible.
     # https://stackoverflow.com/questions/109553/how-can-i-programmatically-manage-iptables-rules-on-the-fly
     # At least we know all the rules we need to inspect are in the NAT table.
-    output = check_output([b"iptables-save", b"--table", b"nat"])
+    output = check_output([b"iptables-save"])
 
     # Find the beginning of the NAT table
-    header = b"*nat\n"
+    header = b"*%s\n" % (table,)
     begin = output.find(header) + len(header)
 
     # Find the end of the NAT table
@@ -251,7 +333,7 @@ def get_flocker_rules():
 
         options = parse_iptables_options(shlex.split(line))
 
-        if options.comment == FLOCKER_COMMENT_MARKER:
+        if options.comment == comment_marker:
             yield options
 
 
@@ -285,16 +367,20 @@ def parse_iptables_options(argv):
     try:
         destination_port_index = argv.index(b"--dport")
         destination_port = int(argv[destination_port_index + 1])
+    except (IndexError, ValueError):
+        destination_port = None
 
+    try:
         to_destination_index = argv.index(b"--to-destination")
         to_destination = IPAddress(argv[to_destination_index + 1])
+    except (IndexError, ValueError):
+        to_destination = None
 
-        # Find the comment last so that the other two attributes always have a
-        # value if the comment has a value.
+    try:
         comment_index = argv.index(b"--comment")
         comment = argv[comment_index + 1]
     except (IndexError, ValueError):
-        pass
+        comment = None
 
     return RuleOptions(
         comment=comment,
@@ -325,7 +411,18 @@ class HostNetwork(object):
         """
         return delete_proxy(self.logger, proxy)
 
+    def open_port(self, port):
+        """
+        Configure iptables to allow TCP traffic to the given port.
+        """
+        return open_port(self.logger, port)
+
+    def delete_open_port(self, port):
+        return delete_open_port(self.logger, port)
+
     enumerate_proxies = staticmethod(enumerate_proxies)
+
+    enumerate_open_ports = staticmethod(enumerate_open_ports)
 
     def enumerate_used_ports(self):
         """
@@ -344,9 +441,13 @@ class HostNetwork(object):
             proxy.port
             for proxy in self.enumerate_proxies()
         )
+        open_ports = set(
+            open_port.port
+            for open_port in self.enumerate_open_ports()
+        )
         # net_connections won't tell us about ports bound by sockets that
         # haven't entered the TCP state graph yet.
-        return frozenset(listening | proxied)
+        return frozenset(listening | proxied | open_ports)
 
 
 def make_host_network():

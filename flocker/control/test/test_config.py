@@ -2784,8 +2784,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         A dict with a version and empty applications list are returned if no
         applications are supplied.
         """
-        result = marshal_configuration(NodeState(
-            hostname=u"example", running=[], not_running=[]))
+        result = marshal_configuration(NodeState(hostname=u"example"))
         expected = {
             'applications': {},
             'used_ports': [],
@@ -2807,8 +2806,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(hostname=u"example", running=applications,
-                      not_running=[]))
+            NodeState(hostname=u"example", applications=applications))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2838,8 +2836,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(hostname=u"example", running=applications,
-                      not_running=[]))
+            NodeState(hostname=u"example", applications=applications))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2872,8 +2869,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(hostname=u"example", running=applications,
-                      not_running=[]))
+            NodeState(hostname=u"example", applications=applications))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2904,8 +2900,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(hostname=u"example", running=applications,
-                      not_running=[]))
+            NodeState(hostname=u"example", applications=applications))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2947,8 +2942,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(hostname=u"example", running=applications,
-                      not_running=[]))
+            NodeState(hostname=u"example", applications=applications))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2992,8 +2986,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(hostname=u"example", running=applications,
-                      not_running=[]))
+            NodeState(hostname=u"example", applications=applications))
         expected = {
             'used_ports': [],
             'applications': {
@@ -3031,8 +3024,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(hostname=u"example", running=applications,
-                      not_running=[]))
+            NodeState(hostname=u"example", applications=applications))
         expected = {
             'used_ports': [],
             'applications': {
@@ -3047,10 +3039,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
         }
         self.assertEqual(expected, result)
 
-    def test_running_and_not_running_applications(self):
+    def test_applications(self):
         """
-        Both the ``running`` and ``not_running`` application lists are
-        marshalled into the result.
+        All applications are marshalled into the result.
         """
         running = Application(
             name='mysql-hybridcluster',
@@ -3062,12 +3053,13 @@ class MarshalConfigurationTests(SynchronousTestCase):
             name='site-hybridcluster',
             image=DockerImage(repository='flocker/wordpress',
                               tag='v1.0.0'),
-            ports=frozenset([Port(internal_port=80, external_port=8080)])
+            ports=frozenset([Port(internal_port=80, external_port=8080)]),
+            running=False,
         )
 
         result = marshal_configuration(
-            NodeState(hostname=u"example", running=[running],
-                      not_running=[not_running]))
+            NodeState(hostname=u"example",
+                      applications=[running, not_running]))
 
         expected = {
             'used_ports': [],
@@ -3092,8 +3084,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         ``marshal_configuration``.
         """
         used_ports = frozenset({1, 20, 250, 15020, 65000})
-        state = NodeState(hostname=u"host",
-                          running=[], not_running=[], used_ports=used_ports)
+        state = NodeState(hostname=u"host", used_ports=used_ports)
         expected = {
             'used_ports': sorted(used_ports),
             'applications': {},
@@ -3148,7 +3139,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         }
         result = marshal_configuration(
             NodeState(hostname=u"example",
-                      running=applications, not_running=[]))
+                      applications=applications))
         config = FlockerConfiguration(result)
         apps = config.applications()
         self.assertEqual(expected_applications, apps)
