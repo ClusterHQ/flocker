@@ -123,8 +123,8 @@ class CreateBlockDeviceDataset(PRecord):
     :ivar FilePath mountpoint: The path at which to mount the created device.
     :ivar Logger logger: An Eliot ``Logger``.
     """
-    dataset = field()
-    mountpoint = field(mandatory=True)
+    dataset = field(mandatory=True, type=Dataset)
+    mountpoint = field(mandatory=True, type=FilePath)
 
     logger = Logger()
 
