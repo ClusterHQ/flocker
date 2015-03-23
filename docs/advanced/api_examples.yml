@@ -298,7 +298,7 @@
     Move an existing named container to a new host.
 
   request: |
-    PUT /v1/configuration/containers/webserver HTTP/1.1
+    POST /v1/configuration/containers/webserver HTTP/1.1
 
     {"host": "%(NODE_0)s"}
 

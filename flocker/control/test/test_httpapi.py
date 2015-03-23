@@ -1309,6 +1309,49 @@ RealTestsGetContainerConfiguration, MemoryTestsGetContainerConfiguration = (
 )
 
 
+class UpdateContainerConfigurationTestsMixin(APITestsMixin):
+    """
+    Tests for the container configuration update endpoint at
+    ``/containers/<containername>``.
+    """
+    def test_update_same_host(self):
+        """
+        An API request to update a named container's host to the same host
+        on which it is already running results in an unchanged configuration.
+        """
+        self.fail("not implemented yet")
+
+    def test_update_new_host(self):
+        """
+        An API request to update a named container's host to a different host
+        results in an updated configuration.
+        """
+        self.fail("not implemented yet")
+
+    def test_update_invalid_container_name(self):
+        """
+        An API request to update a named container's host to a different host
+        results in an error if the named container does not exist.
+        """
+        self.fail("not implemented yet")
+
+    def test_response(self):
+        """
+        An API request to move a container to a new host returns the
+        expected JSON response.
+        """
+        self.fail("not implemented yet")
+
+
+(RealTestsUpdateContainerConfiguration,
+    MemoryTestsUpdateContainerConfiguration) = (
+    buildIntegrationTests(
+        UpdateContainerConfigurationTestsMixin, "UpdateContainerConfiguration",
+        _build_app
+    )
+)
+
+
 class DeleteContainerTestsMixin(APITestsMixin):
     """
     Tests for the container removal endpoint at
