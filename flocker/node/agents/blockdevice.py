@@ -165,7 +165,9 @@ class CreateBlockDeviceDataset(PRecord):
 
             # This will be factored into a separate IStateChange to support the
             # case where the only state change necessary is mounting.  That
-            # object will be used by this one to perform this mount.  FLOC-1498
+            # object will be used by this one to perform this mount. It will
+            # also gracefully handle the case where the mountpoint directory
+            # already exists.  FLOC-1498
             self.mountpoint.makedirs()
             check_output(["mount", device.path, self.mountpoint.path])
 
