@@ -727,6 +727,14 @@ def make_script_tests(executable):
             """
             result = check_output([executable] + [b"--version"])
             self.assertEqual(result, b"%s\n" % (__version__,))
+
+        @skipUnless(which(executable), executable + " not installed")
+        def test_identification(self):
+            """
+            The script identifies itself as what it is.
+            """
+            result = check_output([executable] + [b"--help"])
+            self.assertIn(executable, result)
     return ScriptTests
 
 

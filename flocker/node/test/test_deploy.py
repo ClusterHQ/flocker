@@ -17,14 +17,16 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import P2PNodeDeployer, change_node_state
-from ..testtools import ControllableDeployer, ControllableAction
+from ..testtools import (
+    ControllableDeployer, ControllableAction, ideployer_tests_factory, EMPTY,
+)
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name, IDeployer,
+    ResizeDataset, _link_environment, _to_volume_name,
     DeleteDataset, OpenPorts
 )
 from ...testtools import CustomException
@@ -1218,10 +1220,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
              self.volume_service.get(_to_volume_name(
                  self.DATASET_ID2)).get_filesystem().get_path()},
             self.successResultOf(d).paths)
-
-
-# A deployment with no information:
-EMPTY = Deployment(nodes=frozenset())
 
 
 class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
@@ -3561,42 +3559,6 @@ class PushVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)
-
-
-def ideployer_tests_factory(fixture):
-    """
-    Create test case for IDeployer implementation.
-
-    :param fixture: Callable that takes ``TestCase`` instance and returns
-         a ``IDeployer`` provider.
-
-    :return: ``TestCase`` subclass that will test the given fixture.
-    """
-    class IDeployerTests(TestCase):
-        """
-        Tests for ``IDeployer``.
-        """
-        def test_interface(self):
-            """
-            The object claims to provide the interface.
-            """
-            self.assertTrue(verifyObject(IDeployer, fixture(self)))
-
-        def test_calculate_necessary_state_changes(self):
-            """
-            The object's ``calculate_necessary_state_changes`` method returns a
-            ``IStateChange`` provider.
-            """
-            deployer = fixture(self)
-            d = deployer.discover_local_state()
-            d.addCallback(
-                lambda local: deployer.calculate_necessary_state_changes(
-                    local, EMPTY, EMPTY))
-            d.addCallback(
-                lambda result: self.assertTrue(verifyObject(IStateChange,
-                                                            result)))
-            return d
-    return IDeployerTests
 
 
 class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
