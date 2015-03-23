@@ -394,7 +394,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         None.
         """
         name = random_name()
-        d = self.start_container(name, image_name=u"ubuntu")
+        d = self.start_container(name, image_name=u"busybox")
 
         def started(client):
             deferred_units = client.list()
