@@ -11,6 +11,7 @@ from uuid import UUID
 from subprocess import check_output
 
 from eliot import ActionType, Field, Logger
+from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
 
@@ -93,13 +94,13 @@ BLOCK_DEVICE_ID = Field(
 
 BLOCK_DEVICE_SIZE = Field(
     u"block_device_size",
-    lambda size: size,
+    identity,
     u"The size of the underlying block device."
 )
 
 BLOCK_DEVICE_HOST = Field(
     u"block_device_host",
-    lambda host: host,
+    identity,
     u"The host to which the underlying block device is attached."
 )
 
