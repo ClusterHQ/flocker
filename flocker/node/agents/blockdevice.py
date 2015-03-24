@@ -655,25 +655,16 @@ class BlockDeviceDeployer(PRecord):
             in manifestations_to_create
         )
 
-        # Issue *another* list_volumes() call.  We could avoid this if we could
-        # smuggle the results from the call made in discover_local_state into
-        # this method call somehow.  That information doesn't fit onto
-        # NodeState, though.  Stuffing it onto self would work but making
-        # discover_local_state have side-effects is probably worse than making
-        # some redundant API calls.  However, in the future, figure out how to
-        # make current_cluster_state carry this information.  It is, after all,
-        # part of the cluster state (and it's wasteful to have every agent list
-        # all the volumes - let alone twice).
+        deletes = self._calculate_deletes(configured_manifestations)
 
-        # Inspect configured_manifestations for datasets marked as deleted.
-        # Compare these to the volumes list established just above.  For each
-        # volume that exists with a dataset_id matching a deleted dataset,
-        # create a DestroyBlockDeviceDataset initialized with the volume object
-        # corresponding to the deleted dataset.  Note that by only inspecting
-        # configured_manifestations, only one convergence agent will attempt
-        # the destruction (but this also means volumes belonging to datasets
-        # manifest on offline agents won't be destroy).
+        return InParallel(changes=creates + deletes)
 
+    def _calculate_deletes(self, configured_manifestations):
+        """
+        :return: A ``list`` of ``DestroyBlockDeviceDataset`` instances for each
+            volume that needs to be destroyed based on the given configuration
+            and the actual state of volumes (ie which exist and which don't).
+        """
         volumes = self.block_device_api.list_volumes()
 
         delete_dataset_ids = set(
@@ -682,13 +673,9 @@ class BlockDeviceDeployer(PRecord):
             if manifestation.dataset.deleted
         )
 
-        deletes = [
+        return [
             DestroyBlockDeviceDataset(volume=volume)
             for volume in volumes
             # Only destroy volumes belonging to deleted datasets.
             if unicode(volume.dataset_id) in delete_dataset_ids
         ]
-
-        # Concatenate creates with the new list of deletions to execute them in
-        # parallel as well.
-        return InParallel(changes=creates + deletes)
