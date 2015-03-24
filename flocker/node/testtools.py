@@ -14,9 +14,14 @@ from zope.interface import implementer
 
 from characteristic import attributes
 
+from twisted.trial.unittest import TestCase
+
+from zope.interface.verify import verifyObject
+
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
 from ..testtools import loop_until
+from ..control import Deployment
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -108,3 +113,43 @@ class ControllableDeployer(object):
         self.calculate_inputs.append(
             (local_state, desired_configuration, cluster_state))
         return self.calculated_actions.pop(0)
+
+
+# A deployment with no information:
+EMPTY = Deployment(nodes=[])
+
+
+def ideployer_tests_factory(fixture):
+    """
+    Create test case for IDeployer implementation.
+
+    :param fixture: Callable that takes ``TestCase`` instance and returns
+         a ``IDeployer`` provider.
+
+    :return: ``TestCase`` subclass that will test the given fixture.
+    """
+    class IDeployerTests(TestCase):
+        """
+        Tests for ``IDeployer``.
+        """
+        def test_interface(self):
+            """
+            The object claims to provide the interface.
+            """
+            self.assertTrue(verifyObject(IDeployer, fixture(self)))
+
+        def test_calculate_necessary_state_changes(self):
+            """
+            The object's ``calculate_necessary_state_changes`` method returns a
+            ``IStateChange`` provider.
+            """
+            deployer = fixture(self)
+            d = deployer.discover_local_state()
+            d.addCallback(
+                lambda local: deployer.calculate_necessary_state_changes(
+                    local, EMPTY, EMPTY))
+            d.addCallback(
+                lambda result: self.assertTrue(verifyObject(IStateChange,
+                                                            result)))
+            return d
+    return IDeployerTests

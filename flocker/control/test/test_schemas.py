@@ -637,3 +637,34 @@ ConfigurationDatasetsArrayTests = build_schema_test(
         [{u"primary": u"10.0.0.1"}, {u"primary": u"10.0.0.2"}]
     ],
 )
+
+StateContainersArrayTests = build_schema_test(
+    name="StateContainersArrayTests",
+    schema={'$ref':
+            '/v1/endpoints.json#/definitions/state_containers_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Incorrect type
+        {},
+        # Wrong item type
+        ["string"],
+        # Failing dataset type (missing running)
+        [{u"host": u"10.0.0.1", u"name": u"lalala",
+          u"image": u"busybox:latest"}]
+    ],
+    passing_instances=[
+        [],
+        [{u"host": u"10.0.0.1", u"name": u"lalala",
+          u"image": u"busybox:latest", u'running': True}],
+        [{
+            u'host': u'192.168.0.3',
+            u'image': u'nginx:latest',
+            u'name': u'webserver2',
+            u'running': True},
+         {
+             u'host': u'192.168.0.3',
+             u'image': u'nginx:latest',
+             u'name': u'webserver',
+             u'running': False}],
+    ],
+)
