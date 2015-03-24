@@ -705,32 +705,35 @@ class ConfigurationAPIUserV1(object):
             for application in node.applications:
                 if application.name == name:
                     target_node = self._find_node_by_host(host, deployment)
-                    if application.volume is not None:
-                        # we have an attached dataset, let's move that
-                        # to the same host as we're moving this application
-                        # to.
-                        dataset_id = application.volume.dataset.dataset_id
-                        manifestation, dataset_node = (
-                            self._find_manifestation_and_node(dataset_id))
-                        if host != dataset_node.hostname:
-                            if manifestation.dataset.deleted:
-                                raise DATASET_DELETED
-                            import pdb;pdb.set_trace()
-                            new_dataset_node = dataset_node.transform(
+                    # We only need to perform a move if the node currently
+                    # hosting the container is not the node it's already on.
+                    if node.hostname != host:
+                        # If the container has a volume, we need to add the
+                        # manifestation to the new host first.
+                        if application.volume is not None:
+                            dataset_id = application.volume.dataset.dataset_id
+                            target_node = target_node.transform(
+                                ("manifestations", dataset_id),
+                                application.volume.manifestation
+                            )
+                        # Now we can add the application to the new host.
+                        target_node = target_node.transform(
+                            ["applications"], lambda s: s.add(application))
+                        # And remove it from the current host.
+                        node = node.transform(
+                            ["applications"], lambda s: s.remove(application))
+                        # Finally we can now remove the manifestation from the
+                        # current host too.
+                        if application.volume is not None:
+                            dataset_id = application.volume.dataset.dataset_id
+                            node = node.transform(
                                 ("manifestations", dataset_id), discard
                             )
-                            target_node = target_node.transform(
-                                ("manifestations", dataset_id), manifestation
-                            )
-                        import pdb;pdb.set_trace()
-                    new_target_node = target_node.transform(
-                        ["applications"], lambda s: s.add(application))
-                    if node.hostname != host:
-                        updated_node = node.transform(
-                            ["applications"], lambda s: s.remove(application))
-                        deployment = deployment.update_node(updated_node)
-                    new_deployment = deployment.update_node(new_target_node)
-                    saving = self.persistence_service.save(new_deployment)
+                        # Before updating the deployment and saving.
+                        deployment = deployment.update_node(node)
+                        deployment = deployment.update_node(target_node)
+
+                    saving = self.persistence_service.save(deployment)
 
                     def saved(_):
                         result = container_configuration_response(
