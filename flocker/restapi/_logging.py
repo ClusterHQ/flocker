@@ -13,10 +13,10 @@ from eliot import Field, ActionType
 
 LOG_SYSTEM = u"api"
 
-METHOD = Field.forTypes(
-    u"method", [unicode, bytes], u"The HTTP method of the request.")
-REQUEST_PATH = Field.forTypes(
-    u"request_path", [unicode, bytes],
+METHOD = Field(u"method", lambda method: method,
+               u"The HTTP method of the request.")
+REQUEST_PATH = Field(
+    u"request_path", lambda path: path,
     u"The absolute path of the resource to which the request was issued.")
 JSON = Field.forTypes(
     u"json", [unicode, bytes, dict, list, None, bool, float],
