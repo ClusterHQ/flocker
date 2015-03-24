@@ -53,7 +53,7 @@ class ConfigurationPersistenceServiceTests(TestCase):
         :return: Started ``ConfigurationPersistenceService``.
         """
         service = ConfigurationPersistenceService(reactor, path)
-        if logger:
+        if logger is not None:
             self.patch(service, "logger", logger)
         service.startService()
         self.addCleanup(service.stopService)
