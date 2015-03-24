@@ -194,53 +194,37 @@ class NodeTests(SynchronousTestCase):
                           Node, hostname=u"xxx",
                           manifestations={u"123": MANIFESTATION})
 
-    def test_no_manifestations(self):
-        """
-        A ``Node`` may have ``manifestations`` set to ``None``, indicating
-        ignorance of the correct value.
-        """
-        self.assertEqual(
-            Node(hostname=u"1.2.3.4", manifestations=None).manifestations,
-            None)
-
-    def test_no_applications(self):
-        """
-        A ``Node`` may have ``applications`` set to ``None``, indicating
-        ignorance of the correct value.
-        """
-        self.assertEqual(
-            Node(hostname=u"1.2.3.4", applications=None).applications,
-            None)
-
 
 class NodeStateTests(SynchronousTestCase):
     """
     Tests for ``NodeState``.
     """
-    def test_applications(self):
+    def test_manifestations_keys_are_their_ids(self):
         """
-        ``NodeState.to_node`` copies over the applications from the node state
-        to the resulting ``Node``.
+        The keys of the ``manifestations`` attribute must match the
+        value's ``dataset_id`` attribute.
         """
-        node_state = NodeState(hostname=u"host1",
-                               applications=[APP1, APP2])
-        self.assertEqual(node_state.to_node(),
-                         Node(hostname=u"host1",
-                              applications=[APP1, APP2]))
+        self.assertRaises(InvariantException,
+                          NodeState, hostname=u"xxx",
+                          manifestations={u"123": MANIFESTATION})
 
-    def test_manifestations(self):
+    def test_no_manifestations(self):
         """
-        ``NodeState.to_node`` copies over the manifestations to the ``Node``
-        instances it creates.
+        A ``NodeState`` may have ``manifestations`` set to ``None``, indicating
+        ignorance of the correct value.
         """
-        node_state = NodeState(
-            hostname=u"host2", manifestations=frozenset([MANIFESTATION]))
-        self.assertEqual(node_state.to_node(),
-                         Node(hostname=u"host2",
-                              applications=frozenset(),
-                              manifestations={
-                                  MANIFESTATION.dataset.dataset_id:
-                                  MANIFESTATION}))
+        self.assertEqual(
+            NodeState(hostname=u"1.2.3.4", manifestations=None).manifestations,
+            None)
+
+    def test_no_applications(self):
+        """
+        A ``NodeState`` may have ``applications`` set to ``None``, indicating
+        ignorance of the correct value.
+        """
+        self.assertEqual(
+            NodeState(hostname=u"1.2.3.4", applications=None).applications,
+            None)
 
 
 class DeploymentInitTests(make_with_init_tests(

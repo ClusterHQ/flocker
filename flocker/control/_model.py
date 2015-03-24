@@ -319,8 +319,8 @@ class AttachedVolume(PRecord):
 
 class Node(PRecord):
     """
-    A single node on which applications will be managed (deployed,
-    reconfigured, destroyed, etc).
+    Configuration for a single node on which applications will be managed
+    (deployed, reconfigured, destroyed, etc).
 
     Manifestations attached to applications must also be present in the
     ``manifestations`` attribute.
@@ -330,41 +330,34 @@ class Node(PRecord):
         a literal IP address instead of a proper hostname.
 
     :ivar applications: A ``PSet`` of ``Application`` instances describing
-        the applications which are to run on this ``Node``. Or ``None`` if
-        this information is unknown.
+        the applications which are to run on this ``Node``.
 
     :ivar PMap manifestations: Mapping between dataset IDs and
         corresponding ``Manifestation`` instances that are present on the
         node. Includes both those attached as volumes to any applications,
-        and those that are unattached. ``None`` if this information is
+        and those that are unattached.w ``None`` if this information is
         unknown.
     """
     def __invariant__(self):
-        if self.manifestations is None:
-            manifestations = []
-        else:
-            manifestations = self.manifestations.values()
-        for app in (self.applications or []):
+        manifestations = self.manifestations.values()
+        for app in self.applications:
             if app.volume is not None:
                 if app.volume.manifestation not in manifestations:
                     return (False, '%r manifestation is not on node' % (app,))
-        if self.manifestations is None:
-            return (True, "")
         for key, value in self.manifestations.items():
             if key != value.dataset_id:
                 return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    applications = pset_field(Application, optional=True)
-    manifestations = pmap_field(unicode, Manifestation, optional=True)
+    applications = pset_field(Application)
+    manifestations = pmap_field(unicode, Manifestation)
 
 
 class Deployment(PRecord):
     """
     A ``Deployment`` describes the configuration of a number of applications on
-    a number of cooperating nodes.  This might describe the real state of an
-    existing deployment or be used to represent a desired future state.
+    a number of cooperating nodes.
 
     :ivar PSet nodes: A set containing ``Node`` instances
         describing the configuration of each cooperating node.
@@ -442,37 +435,42 @@ class NodeState(PRecord):
     """
     The current state of a node.
 
-    This includes information that is state-specific and thus does not
-    belong in ``Node``, the latter being shared between both state and
-    configuration models.
-
     :ivar unicode hostname: The hostname of the node.
-    :ivar applications: A ``PSet`` of ``Application`` instances on this node.
-    :ivar not_running: A ``PSet`` of ``Application`` instances on this
-        node that are currently shutting down or stopped.
+    :ivar applications: A ``PSet`` of ``Application`` instances on this
+        node, or ``None`` if the information is not known.
     :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
-    :ivar PSet manifestations: All ``Manifestation`` instances that
-        are present on the node.
+    :ivar PMap manifestations: Mapping between dataset IDs and
+        corresponding ``Manifestation`` instances that are present on the
+        node. Includes both those attached as volumes to any applications,
+        and those that are unattached. ``None`` if this information is
+        unknown.
     :ivar PMap paths: The filesystem paths of the manifestations on this
         node. Maps ``dataset_id`` to a ``FilePath``.
     """
+    def __invariant__(self):
+        if self.manifestations is None:
+            return (True, "")
+        for key, value in self.manifestations.items():
+            if key != value.dataset_id:
+                return (False, '%r is not correct key for %r' % (key, value))
+        return (True, "")
+
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = pset_field(int)
-    applications = pset_field(Application)
-    manifestations = pset_field(Manifestation)
+    applications = pset_field(Application, optional=True)
+    manifestations = pmap_field(unicode, Manifestation, optional=True)
     paths = pmap_field(unicode, FilePath)
 
-    def to_node(self):
-        """
-        Convert into a ``Node`` instance.
 
-        :return Node: Equivalent ``Node`` object.
-        """
-        return Node(hostname=self.hostname,
-                    manifestations={m.dataset_id: m
-                                    for m in self.manifestations},
-                    applications=self.applications)
+class DeploymentState(PRecord):
+    """
+    A ``DeploymentState`` describes the state of the nodes in the cluster.
+
+    :ivar PSet nodes: A set containing ``NodeState`` instances describing
+        the state of each cooperating node.
+    """
+    nodes = pset_field(NodeState)
 
 
 # Classes that can be serialized to disk or sent over the network:
