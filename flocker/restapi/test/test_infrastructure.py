@@ -14,7 +14,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.web.http_headers import Headers
 from twisted.web.http import (
     BAD_REQUEST, INTERNAL_SERVER_ERROR, PAYMENT_REQUIRED, GONE,
-    NOT_ALLOWED, NOT_FOUND)
+    NOT_ALLOWED, NOT_FOUND, OK)
 
 from twisted.trial.unittest import SynchronousTestCase
 
@@ -189,7 +189,7 @@ class StructuredResultHandlingMixin(object):
 
     @validateLogging(
         assertJSONLogged, b"GET", b"/foo/bar", {},
-        {"foo": "bar", "baz": ["quux"]}, 200)
+        {"foo": "bar", "baz": ["quux"]}, OK)
     def test_encode(self, logger):
         """
         The return value of the decorated function is I{JSON} encoded and the
@@ -394,7 +394,7 @@ class StructuredJSONTests(SynchronousTestCase):
 
     @validateLogging(
         assertJSONLogged, b"PUT", b"/foo/bar",
-        {"foo": "bar", "baz": ["quux"]}, None, 200
+        {"foo": "bar", "baz": ["quux"]}, None, OK
     )
     def test_decode(self, logger):
         """
