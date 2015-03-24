@@ -596,10 +596,7 @@ class BlockDeviceDeployer(PRecord):
             if not manifestation.dataset.deleted
         )
 
-        local_dataset_ids = set(
-            manifestation.dataset.dataset_id for manifestation in
-            local_state.manifestations
-        )
+        local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set(
             configured_manifestations[dataset_id]
