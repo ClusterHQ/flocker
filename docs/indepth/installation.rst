@@ -433,7 +433,7 @@ apt-get update
 apt-get -y upgrade
 apt-get -y install spl-dkms
 apt-get -y install zfs-dkms zfsutils docker.io
-apt-get -f install
+
 sync
 shutdown -r now
 
@@ -445,4 +445,9 @@ wget -O clusterhq-python-flocker http://build.clusterhq.com/results/omnibus/mast
 wget -O clusterhq-flocker-node http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.8.661.g5c313b5_all.deb
 wget -O clusterhq-flocker-cli http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.8.661.g5c313b5_all.deb
 dpkg -i clusterhq-python-flocker clusterhq-flocker-node clusterhq-flocker-cli
-.. dpkg -i '/root/clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb'
+
+.. no need for systemctl equivalents - docker ps already works
+
+mkdir -p /var/opt/flocker
+truncate --size 10G /var/opt/flocker/pool-vdev
+zpool create flocker /var/opt/flocker/pool-vdev
