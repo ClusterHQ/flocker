@@ -1309,6 +1309,245 @@ RealTestsGetContainerConfiguration, MemoryTestsGetContainerConfiguration = (
 )
 
 
+class UpdateContainerConfigurationTestsMixin(APITestsMixin):
+    """
+    Tests for the container configuration update endpoint at
+    ``/containers/<containername>``.
+    """
+    def _create_container(self):
+        """
+        Utility function to create a container configuration via the API.
+        Also creates a second container not manipulated in the tests, to
+        ensure that unrelated applications do not get modified, moved or
+        wiped out.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(
+                            name=u'leavemealone',
+                            image=DockerImage.from_string(u'busybox'),
+                        ),
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A,
+                u"name": u"mycontainer",
+                u"image": u"busybox"
+            }, CREATED
+        ))
+
+        return saving
+
+    def test_update_same_host(self):
+        """
+        An API request to update a named container's host to the same host
+        on which it is already running results in an unchanged configuration.
+        """
+        d = self._create_container()
+
+        d.addCallback(lambda _: self.persistence_service.get())
+
+        def handle_expected(expected):
+            dr = self.assertResponseCode(
+                b"POST", b"/configuration/containers/mycontainer",
+                {u"host": self.NODE_A}, OK
+            )
+
+            def updated(_):
+                deployment = self.persistence_service.get()
+                self.assertEqual(deployment, expected)
+
+            dr.addCallback(updated)
+            return dr
+
+        d.addCallback(handle_expected)
+        return d
+
+    def test_update_new_host(self):
+        """
+        An API request to update a named container's host to a different host
+        results in an updated configuration.
+        """
+        d = self._create_container()
+
+        d.addCallback(lambda _: self.persistence_service.get())
+
+        def handle_expected(expected):
+            dr = self.assertResponseCode(
+                b"POST", b"/configuration/containers/mycontainer",
+                {u"host": self.NODE_B}, OK
+            )
+
+            def updated(_):
+                deployment = self.persistence_service.get()
+                application = Application(
+                    name=u"mycontainer",
+                    image=DockerImage.from_string(u"busybox"),
+                )
+                real_expected = expected
+                for node in expected.nodes:
+                    if node.hostname == self.NODE_B:
+                        node = node.transform(
+                            ["applications"], lambda s: s.add(application)
+                        )
+                    else:
+                        node = node.transform(
+                            ["applications"], lambda s: s.remove(application)
+                        )
+                    real_expected = real_expected.update_node(node)
+                self.assertEqual(deployment, real_expected)
+
+            dr.addCallback(updated)
+            return dr
+
+        d.addCallback(handle_expected)
+        return d
+
+    def test_update_moves_dataset(self):
+        """
+        An API request to update a named container's host to a different host
+        where the container has an attached dataset results in an updated
+        configuration, with the dataset's primary host also moved to the new
+        container host.
+        """
+        manifestation = _manifestation()
+        application = Application(
+            name=u'postgres',
+            image=DockerImage.from_string(u'postgres'),
+            volume=AttachedVolume(
+                manifestation=manifestation,
+                mountpoint=FilePath(b"/var/lib/postgresql/9.4/data/base")
+            )
+        )
+
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    manifestations={manifestation.dataset_id:
+                                    manifestation},
+                    applications=[application]
+                ),
+                Node(hostname=self.NODE_B),
+            },
+        )
+
+        d = self.persistence_service.save(deployment)
+
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers/postgres",
+            {u"host": self.NODE_B}, OK
+        ))
+
+        def updated(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(hostname=self.NODE_A),
+                    Node(
+                        hostname=self.NODE_B,
+                        manifestations={manifestation.dataset_id:
+                                        manifestation},
+                        applications=[application]
+                    ),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(updated)
+        return d
+
+    def test_update_nonexistent_host(self):
+        """
+        An API request to update a named container's host to a previously
+        unknown host results in an updated configuration, with the new Node
+        added to the deployment configuration.
+        """
+        d = self._create_container()
+
+        d.addCallback(lambda _: self.persistence_service.get())
+
+        def handle_expected(expected):
+            dr = self.assertResponseCode(
+                b"POST", b"/configuration/containers/mycontainer",
+                {u"host": u"192.0.2.3"}, OK
+            )
+
+            def updated(_):
+                deployment = self.persistence_service.get()
+                application = Application(
+                    name=u'mycontainer',
+                    image=DockerImage.from_string(u'busybox')
+                )
+                node = Node(hostname=u"192.0.2.3", applications=[application])
+                real_expected = expected.update_node(node)
+                for node in expected.nodes:
+                    if node.hostname == self.NODE_A:
+                        node = node.transform(
+                            ["applications"], lambda s: s.remove(application)
+                        )
+                    real_expected = real_expected.update_node(node)
+                self.assertEqual(deployment, real_expected)
+
+            dr.addCallback(updated)
+            return dr
+
+        d.addCallback(handle_expected)
+        return d
+
+    def test_update_invalid_container_name(self):
+        """
+        An API request to update a named container's host to a different host
+        results in an error if the named container does not exist.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/containers/somecontainer",
+            {u"host": self.NODE_A}, NOT_FOUND,
+            {u"description": u"Container not found."},
+        )
+
+    def test_response(self):
+        """
+        An API request to move a container to a new host returns the
+        expected JSON response.
+        """
+        d = self._create_container()
+
+        def update_container(_):
+            request = {u"host": self.NODE_B}
+            result = {
+                u"host": self.NODE_B,
+                u"name": u"mycontainer",
+                u"image": u"busybox:latest",
+                u"restart_policy": {u"name": u"never"}
+            }
+            return self.assertResult(
+                b"POST", b"/configuration/containers/mycontainer",
+                request, OK, result
+            )
+
+        d.addCallback(update_container)
+        return d
+
+
+(RealTestsUpdateContainerConfiguration,
+    MemoryTestsUpdateContainerConfiguration) = (
+    buildIntegrationTests(
+        UpdateContainerConfigurationTestsMixin, "UpdateContainerConfiguration",
+        _build_app
+    )
+)
+
+
 class DeleteContainerTestsMixin(APITestsMixin):
     """
     Tests for the container removal endpoint at

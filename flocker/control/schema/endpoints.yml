@@ -55,6 +55,16 @@ definitions:
     type: array
     items: {"$ref": "#/definitions/configuration_container" }
 
+  configuration_container_update:
+    description: "The configuration for a named container."
+    type: object
+    properties:
+      host:
+        '$ref': 'types.json#/definitions/host'
+    required:
+      - host
+    additionalProperties: false
+
   state_container:
     type: object
     properties:
