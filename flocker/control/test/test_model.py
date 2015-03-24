@@ -320,7 +320,34 @@ class DeploymentTests(SynchronousTestCase):
         Moving an ``Application`` from one node to another results in a new
         ``Deployment`` instance reflecting the updated configuration.
         """
-        self.fail("not implemented yet")
+        application = Application(
+            name=u"mycontainer",
+            image=DockerImage.from_string(u"busybox")
+        )
+        original_nodes = [
+            Node(
+                hostname=u"192.0.2.1",
+                applications=[application]
+            ),
+            Node(
+                hostname=u"192.0.2.2",
+                applications=[]
+            ),
+        ]
+        updated_nodes = [
+            Node(
+                hostname=u"192.0.2.1",
+                applications=[]
+            ),
+            Node(
+                hostname=u"192.0.2.2",
+                applications=[application]
+            ),
+        ]
+        original = Deployment(nodes=original_nodes)
+        expected = Deployment(nodes=updated_nodes)
+        updated = original.move_application(application, original_nodes[1])
+        self.assertEqual(updated, expected)
 
     def test_move_non_existent_application(self):
         """
@@ -328,7 +355,27 @@ class DeploymentTests(SynchronousTestCase):
         cluster has no effect and therefore results in an identical
         ``Deployment`` instance to the one we started with.
         """
-        self.fail("not implemented yet")
+        application = Application(
+            name=u"mycontainer",
+            image=DockerImage.from_string(u"busybox")
+        )
+        existing_application = Application(
+            name=u"realbusybox",
+            image=DockerImage.from_string(u"busybox")
+        )
+        nodes = [
+            Node(
+                hostname=u"192.0.2.1",
+                applications=[existing_application]
+            ),
+            Node(
+                hostname=u"192.0.2.2",
+                applications=[]
+            ),
+        ]
+        original = Deployment(nodes=nodes)
+        updated = original.move_application(application, nodes[1])
+        self.assertEqual(original, updated)
 
     def test_move_application_new_node(self):
         """
@@ -336,7 +383,41 @@ class DeploymentTests(SynchronousTestCase):
         this deployment results in a new ``Deployment`` instance reflecting
         the updated configuration.
         """
-        self.fail("not implemented yet")
+        application = Application(
+            name=u"mycontainer",
+            image=DockerImage.from_string(u"busybox")
+        )
+        original_nodes = [
+            Node(
+                hostname=u"192.0.2.1",
+                applications=[application]
+            ),
+            Node(
+                hostname=u"192.0.2.2",
+                applications=[]
+            ),
+        ]
+        updated_nodes = [
+            Node(
+                hostname=u"192.0.2.1",
+                applications=[]
+            ),
+            Node(
+                hostname=u"192.0.2.2",
+                applications=[]
+            ),
+            Node(
+                hostname=u"192.0.2.3",
+                applications=[application]
+            ),
+        ]
+        original = Deployment(nodes=original_nodes)
+        expected = Deployment(nodes=updated_nodes)
+        updated = original.move_application(
+            application,
+            Node(hostname=u"192.0.2.3")
+        )
+        self.assertEqual(updated, expected)
 
     def test_move_application_same_node(self):
         """
@@ -344,7 +425,23 @@ class DeploymentTests(SynchronousTestCase):
         the same node as currently hosts the application results in a
         ``Deployment`` instance identical to the one we started with.
         """
-        self.fail("not implemented yet")
+        application = Application(
+            name=u"mycontainer",
+            image=DockerImage.from_string(u"busybox")
+        )
+        nodes = [
+            Node(
+                hostname=u"192.0.2.1",
+                applications=[application]
+            ),
+            Node(
+                hostname=u"192.0.2.2",
+                applications=[]
+            ),
+        ]
+        original = Deployment(nodes=nodes)
+        updated = original.move_application(application, nodes[0])
+        self.assertEqual(original, updated)
 
 
 class RestartOnFailureTests(SynchronousTestCase):
