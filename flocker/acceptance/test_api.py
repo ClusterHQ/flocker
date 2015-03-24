@@ -412,7 +412,6 @@ class DatasetAPITests(TestCase):
 
         return waiting_for_move
 
-    # Make this test pass against the loopback block device backend.
     def test_dataset_deletion(self):
         """
         A dataset can be deleted, resulting in its removal from the node.
