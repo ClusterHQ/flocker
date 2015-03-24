@@ -284,8 +284,8 @@
         "restart_policy": {"name": "never"}
       },
       {
-        "host": "%(NODE_0)s",
-        "name": "webserver",
+        "host": "%(NODE_1)s",
+        "name": "webserver2",
         "image": "nginx:latest",
         "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
                      "mountpoint": "/usr/share/nginx/html"}],
@@ -373,7 +373,7 @@
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "never"},
-     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}     
+     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}
 
 -
   id:
@@ -436,8 +436,8 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
-     "name": "webserver",
+    {"host": "%(NODE_1)s",
+     "name": "webserver2",
      "image": "nginx:latest",
      "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
                   "mountpoint": "/usr/share/nginx/html"}],
@@ -446,8 +446,8 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
-     "name": "webserver",
+    {"host": "%(NODE_1)s",
+     "name": "webserver2",
      "image": "nginx:latest",
      "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
                   "mountpoint": "/usr/share/nginx/html"}],
