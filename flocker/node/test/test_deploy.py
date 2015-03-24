@@ -820,7 +820,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(sorted(applications),
+        self.assertItemsEqual(pset(applications),
                          sorted(self.successResultOf(d).running))
 
     def test_discover_application_with_links(self):
