@@ -424,7 +424,26 @@ Flocker requires the latest available kernel.
 
 .. .. task:: upgrade_kernel_ubuntu
 
-.. These commands need to be run as root, so sudo su -
+.. from AWS instructions
+
+.. create two instances then ssh ubuntu@...
+
+sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys
+
+.. now you can ssh root@...
+
+.. When 15.04 is available then the kernel can be backported from that, similar to apt-get install linux-image-generic-lts-utopic
+
+cd /tmp/
+wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
+wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb
+wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
+
+.. SELinux upgrade?
+
+shutdown -r now
+
+sudo dpkg -i linux-headers-3.18.0-*.deb linux-image-3.18.0-*.deb
 
 add-apt-repository -y ppa:zfs-native/stable
 add-apt-repository -y ppa:james-page/docker
@@ -451,3 +470,5 @@ dpkg -i clusterhq-python-flocker clusterhq-flocker-node clusterhq-flocker-cli
 mkdir -p /var/opt/flocker
 truncate --size 10G /var/opt/flocker/pool-vdev
 zpool create flocker /var/opt/flocker/pool-vdev
+
+.. try: apt-get install linux-image-generic-lts-utopic
