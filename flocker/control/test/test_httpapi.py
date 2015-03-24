@@ -2666,3 +2666,136 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             expected,
             api_dataset_from_dataset_and_node(dataset, expected_hostname)
         )
+
+
+class ContainerStateTestsMixin(APITestsMixin):
+    """
+    Tests for the containers state endpoint at ``/state/containers``.
+    """
+    def test_empty(self):
+        """
+        When the cluster state includes no containers, the endpoint
+        returns an empty list.
+        """
+        response = []
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_one_container(self):
+        """
+        When the cluster state includes one container, the endpoint
+        returns a single-element list containing the container.
+        """
+        manifestation = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=False
+        )
+        expected_application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox:1.2"),
+            ports=[Port(internal_port=80, external_port=8080)],
+            links=[Link(alias=u"db", local_port=1234, remote_port=5678)],
+            cpu_shares=512, memory_limit=1024*1024*100,
+            volume=AttachedVolume(manifestation=manifestation,
+                                  mountpoint=FilePath(b"/xxx/yyy")),
+            restart_policy=RestartAlways(),
+        )
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname,
+                applications={expected_application},
+                manifestations={manifestation},
+            )
+        )
+        expected_dict = dict(
+            name=u"myapp",
+            host=expected_hostname,
+            image=u"busybox:1.2",
+            running=True,
+            restart_policy={u"name": u"always"},
+            ports=[{u"internal": 80, u"external": 8080}],
+            links=[{"alias": u"db", u"local_port": 1234,
+                    u"remote_port": 5678}],
+            cpu_shares=512, memory_limit=1024*1024*100,
+            volumes=[{"dataset_id": manifestation.dataset_id,
+                      "mountpoint": u"/xxx/yyy"}],
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_one_container_not_running(self):
+        """
+        When the cluster state includes one container that is not running, the
+        endpoint returns a single-element list containing the container
+        indicating it is not running.
+        """
+        expected_application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox"),
+            running=False)
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname,
+                applications={expected_application},
+            )
+        )
+        expected_dict = dict(
+            name=u"myapp",
+            host=expected_hostname,
+            image=u"busybox:latest",
+            running=False,
+            restart_policy={u"name": u"never"},
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_two_containers(self):
+        """
+        When the cluster state includes more than one container, the endpoint
+        returns a list containing the containers in arbitrary order.
+        """
+        expected_application1 = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox"))
+        expected_hostname1 = u"192.0.2.101"
+        expected_application2 = Application(
+            name=u"myapp2", image=DockerImage.from_string(u"busybox2"))
+        expected_hostname2 = u"192.0.2.102"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname1,
+                applications={expected_application1},
+            )
+        )
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname2,
+                applications={expected_application2},
+            )
+        )
+        expected_dict1 = dict(
+            name=u"myapp",
+            host=expected_hostname1,
+            image=u"busybox:latest",
+            running=True,
+            restart_policy={u"name": u"never"},
+        )
+        expected_dict2 = dict(
+            name=u"myapp2",
+            host=expected_hostname2,
+            image=u"busybox2:latest",
+            running=True,
+            restart_policy={u"name": u"never"},
+        )
+        response = [expected_dict1, expected_dict2]
+        return self.assertResultItems(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+RealTestsContainerStateAPI, MemoryTestsContainerStateAPI = (
+    buildIntegrationTests(ContainerStateTestsMixin, "ContainerStateAPI",
+                          _build_app))
