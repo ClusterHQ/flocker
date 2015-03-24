@@ -298,19 +298,29 @@ class IBlockDeviceAPI(Interface):
     """
     def create_volume(dataset_id, size):
         """
-        Create a new block device.
+        Create a new volume.
 
         XXX: Probably needs to be some checking of valid sizes for different
         backends. Perhaps the allowed sizes should be defined as constants?
 
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
-        :param int size: The size of the new block device in bytes.
+        :param int size: The size of the new volume in bytes.
         :returns: A ``BlockDeviceVolume``.
         """
 
-    # Introduce a destroy_volume method.  It accepts a blockdevice_id and
-    # returns None.
+    def destroy_volume(blockdevice_id):
+        """
+        Destroy an existing volume.
+
+        :param unicode blockdevice_id: The unique identifier for the volume to
+            destroy.
+
+        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+            exist.
+
+        :return: ``None``
+        """
 
     def attach_volume(blockdevice_id, host):
         """
