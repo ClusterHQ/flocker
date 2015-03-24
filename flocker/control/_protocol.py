@@ -42,7 +42,7 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 
 from ._persistence import wire_encode, wire_decode
-from ._model import Deployment, NodeState
+from ._model import Deployment, NodeState, DeploymentState
 
 
 class SerializableArgument(Argument):
@@ -101,7 +101,7 @@ class ClusterStatusCommand(Command):
     in the convergence agent during startup.
     """
     arguments = [('configuration', SerializableArgument(Deployment)),
-                 ('state', SerializableArgument(Deployment)),
+                 ('state', SerializableArgument(DeploymentState)),
                  ('eliot_context', _EliotActionArgument())]
     response = []
 
