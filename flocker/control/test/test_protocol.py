@@ -669,14 +669,17 @@ class SendStateToConnectionsTests(SynchronousTestCase):
 
         error = ConnectionLost()
         disconnected_protocol = ControlAMP(control_amp_service)
-        disconnected_protocol.callRemote = lambda *args, **kwargs: fail(
-            error)
+        results = [succeed({}), fail(error)]
+        disconnected_protocol.callRemote = (
+            lambda *args, **kwargs: results.pop(0))
 
-        control_amp_service._send_state_to_connections(
-            connections=[disconnected_protocol, connected_protocol])
+        control_amp_service.connected(disconnected_protocol)
+        control_amp_service.connected(connected_protocol)
+        control_amp_service.node_changed(NodeState(hostname=u"1.2.3.4"))
 
         actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
+        print actions
         self.assertEqual(
-            (actions[1].succeeded, actions[0].succeeded,
-             actions[0].end_message["exception"]),
+            (actions[3].succeeded, actions[2].succeeded,
+             actions[2].end_message["exception"]),
             (True, False, u"twisted.internet.error.ConnectionLost"))
