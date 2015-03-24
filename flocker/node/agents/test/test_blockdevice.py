@@ -179,6 +179,9 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
                     primary=True,
                 ),
             },
+            paths={
+                unicode(dataset_id): FilePath(b"/flocker/").child(bytes(dataset_id)),
+            },
         )
         cluster_state = Deployment(
             nodes={local_state.to_node()}
@@ -193,6 +196,7 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
+        api.attach_volume(volume.blockdevice_id, node)
 
         deployer = BlockDeviceDeployer(
             hostname=node,
@@ -231,6 +235,9 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
                     primary=True,
                 ),
             },
+            paths={
+                unicode(dataset_id): FilePath(b"/flocker/").child(bytes(dataset_id)),
+            },
         )
         cluster_state = Deployment(
             nodes={local_state.to_node()}
@@ -247,6 +254,7 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
+        volume = api.attach_volume(volume.blockdevice_id, node)
 
         deployer = BlockDeviceDeployer(
             hostname=node,
