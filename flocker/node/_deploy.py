@@ -534,7 +534,8 @@ class P2PNodeDeployer(object):
                 hostname=self.hostname,
                 applications=applications,
                 used_ports=self.network.enumerate_used_ports(),
-                manifestations=manifestations,
+                manifestations={manifestation.dataset_id: manifestation
+                                for manifestation in manifestations},
                 paths=manifestation_paths,
             )
         d.addCallback(applications_from_units)
