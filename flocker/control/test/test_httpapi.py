@@ -1317,10 +1317,21 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
     def _create_container(self):
         """
         Utility function to create a container configuration via the API.
+        Also creates a second container not manipulated in the tests, to
+        ensure that unrelated applications do not get modified, moved or
+        wiped out.
         """
         saving = self.persistence_service.save(Deployment(
             nodes={
-                Node(hostname=self.NODE_A),
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(
+                            name='leavemealone',
+                            image=DockerImage.from_string('busybox'),
+                        ),
+                    ]
+                ),
                 Node(hostname=self.NODE_B),
             }
         ))
@@ -1356,6 +1367,10 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                         hostname=self.NODE_A,
                         applications=[
                             Application(
+                                name='leavemealone',
+                                image=DockerImage.from_string('busybox'),
+                            ),
+                            Application(
                                 name='mycontainer',
                                 image=DockerImage.from_string('busybox')
                             ),
@@ -1385,7 +1400,15 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
             deployment = self.persistence_service.get()
             expected = Deployment(
                 nodes={
-                    Node(hostname=self.NODE_A),
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='leavemealone',
+                                image=DockerImage.from_string('busybox'),
+                            ),
+                        ]
+                    ),
                     Node(
                         hostname=self.NODE_B,
                         applications=[
@@ -1473,7 +1496,15 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
             deployment = self.persistence_service.get()
             expected = Deployment(
                 nodes={
-                    Node(hostname=self.NODE_A),
+                    Node(
+                        hostname=self.NODE_A,
+                        applications=[
+                            Application(
+                                name='leavemealone',
+                                image=DockerImage.from_string('busybox'),
+                            ),
+                        ]
+                    ),
                     Node(hostname=self.NODE_B),
                     Node(
                         hostname=u"192.0.2.3",
