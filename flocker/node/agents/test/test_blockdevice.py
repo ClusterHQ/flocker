@@ -10,6 +10,8 @@ from subprocess import check_output
 
 from zope.interface.verify import verifyObject
 
+from pyrsistent import InvariantException
+
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
@@ -18,6 +20,7 @@ from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume,
+    DestroyBlockDeviceDataset,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id
 )
 
@@ -150,6 +153,122 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
 # BlockDeviceDeployer.calculate_necessary_state_changes.
 # Test (dataset configured as deleted) x (volume exists, volume doesn't exist)
 # Test (dataset configured on a different node and deleted) x (volume exists)
+
+class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
+        SynchronousTestCase
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_necessary_state_changes``
+    in the cases relating to dataset destruction.
+    """
+    def test_undeleted_dataset_not_deleted(self):
+        """
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
+        calculate a change to destroy datasets that are not marked as deleted
+        in the configuration.
+        """
+        dataset_id = uuid4()
+        node = u"192.0.2.1"
+        local_state = NodeState(
+            hostname=node,
+            manifestations={
+                Manifestation(
+                    dataset=Dataset(
+                        dataset_id=unicode(dataset_id),
+                    ),
+                    primary=True,
+                ),
+            },
+        )
+        cluster_state = Deployment(
+            nodes={local_state.to_node()}
+        )
+
+        local_config = local_state.to_node()
+        cluster_configuration = Deployment(
+            nodes={local_config}
+        )
+
+        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+        )
+
+        changes = deployer.calculate_necessary_state_changes(
+            local_state=local_state,
+            desired_configuration=cluster_configuration,
+            current_cluster_state=cluster_state,
+        )
+
+        self.assertEqual(
+            InParallel(changes=[]),
+            changes
+        )
+
+    def test_deleted_dataset_volume_exists(self):
+        """
+        If the configuration indicates a dataset with a primary manifestation
+        on the node has been deleted and the volume associated with
+        that dataset still exists,
+        ``BlockDeviceDeployer.calculate_necessary_state_changes``
+        returns a ``DestroyBlockDeviceDataset`` state change
+        operation.
+        """
+        dataset_id = uuid4()
+        node = u"192.0.2.1"
+        local_state = NodeState(
+            hostname=node,
+            manifestations={
+                Manifestation(
+                    dataset=Dataset(
+                        dataset_id=unicode(dataset_id),
+                    ),
+                    primary=True,
+                ),
+            },
+        )
+        cluster_state = Deployment(
+            nodes={local_state.to_node()}
+        )
+
+        local_config = local_state.to_node().transform(
+            ["manifestations", unicode(dataset_id), "dataset", "deleted"], True
+        )
+        cluster_configuration = Deployment(
+            nodes={local_config}
+        )
+
+        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+        )
+
+        changes = deployer.calculate_necessary_state_changes(
+            local_state=local_state,
+            desired_configuration=cluster_configuration,
+            current_cluster_state=cluster_state,
+        )
+
+        self.assertEqual(
+            InParallel(changes=[DestroyBlockDeviceDataset(volume=volume)]),
+            changes
+        )
+
+    def test_deleted_dataset_volume_does_not_exist(self):
+        pass
+
+    def test_deleted_dataset_belongs_to_other_node(self):
+        pass
 
 class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         SynchronousTestCase
@@ -976,6 +1095,58 @@ def mountroot_for_test(test_case):
     test_case.addCleanup(umount_all, mountroot)
     return mountroot
 
+
+class StateChangeTestsMixin(object):
+    state_change = None
+
+    def test_interface(self):
+        """
+        Instances of the type provide ``IStateChange``.
+        """
+        self.assertTrue(verifyObject(IStateChange, self.state_change()))
+
+
+def make_state_change_tests(state_change):
+    class Tests(SynchronousTestCase, StateChangeTestsMixin):
+        def setUp(self):
+            self.state_change = state_change
+    return Tests
+
+
+def _make_destroy():
+    return DestroyBlockDeviceDataset(
+        volume=BlockDeviceVolume(
+            blockdevice_id=u"abcd",
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=uuid4(),
+        ),
+    )
+
+class DestroyBlockDeviceDatasetTests(make_state_change_tests(_make_destroy)):
+    """
+    Tests for ``DestroyBlockDeviceDataset``.
+    """
+    def test_volume_required(self):
+        """
+        If ``volume`` is not supplied when initializing
+        ``DestroyBlockDeviceDataset``, ``pyrsistent.InvariantException`` is
+        raised.
+        """
+        self.assertRaises(InvariantException, DestroyBlockDeviceDataset)
+
+    def test_volume_must_be_volume(self):
+        """
+        If the value given for ``volume`` is not an instance of
+        ``BlockDeviceVolume`` when initializing ``DestroyBlockDeviceDataset``,
+        ``TypeError`` is raised. (XXX wth pyrsistent, pick an exception type)
+        """
+        self.assertRaises(
+            TypeError, DestroyBlockDeviceDataset, volume=object()
+        )
+
+    def test_run(self):
+        1/0
+
 # Add tests for DestroyBlockDeviceDataset
 # Test that it implements the interface
 # Test that the volume has been destroyed after it runs
@@ -984,24 +1155,16 @@ def mountroot_for_test(test_case):
 # Add tests for DetachBlockDeviceDataset (FLOC-1499)
 # Add tests for DestroyBlockDeviceDataset
 
-class CreateBlockDeviceDatasetTests(SynchronousTestCase):
+def _make_create():
+    return CreateBlockDeviceDataset(
+        dataset=Dataset(dataset_id=unicode(uuid4())),
+        mountpoint=FilePath('.')
+    )
+
+class CreateBlockDeviceDatasetTests(make_state_change_tests(_make_create)):
     """
     Tests for ``CreateBlockDeviceDataset``.
     """
-    def test_interface(self):
-        """
-        ``CreateBlockDeviceDataset`` provides ``IStateChange``.
-        """
-        self.assertTrue(
-            verifyObject(
-                IStateChange,
-                CreateBlockDeviceDataset(
-                    dataset=Dataset(dataset_id=unicode(uuid4())),
-                    mountpoint=FilePath('.')
-                )
-            )
-        )
-
     def _create_blockdevice_dataset(self, host, dataset_id, maximum_size):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.

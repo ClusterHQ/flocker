@@ -113,8 +113,31 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
 )
 
 
-# Create a new DestroyBlockDeviceDataset PRecord subclass implementing
-# IStateChange.  Give it a volume attribute.  Give it a run method that
+class BlockDeviceVolume(PRecord):
+    """
+    A block device that may be attached to a host.
+
+    :ivar unicode blockdevice_id: The unique identifier of the block device.
+    :ivar int size: The size, in bytes, of the block device.
+    :ivar unicode host: The IP address of the host to which the block device is
+        attached or ``None`` if it is currently unattached.
+    :ivar UUID dataset_id: The Flocker dataset ID associated with this volume.
+    """
+    blockdevice_id = field(type=unicode, mandatory=True)
+    size = field(type=int, mandatory=True)
+    host = field(type=(unicode, type(None)), initial=None)
+    dataset_id = field(type=UUID, mandatory=True)
+
+
+@implementer(IStateChange)
+class DestroyBlockDeviceDataset(PRecord):
+    volume = field(type=BlockDeviceVolume, mandatory=True, factory=lambda x: x)
+
+    def run(self, deployer):
+        pass
+        # return InSerial(changes=[Unmount(), Detach(), Destroy()]).run(deployer)
+
+# Give it a run method that
 # unmounts the filesystem (arguments determine via the API object's
 # get_device_path), calls the API object's detach_volume method with the
 # volume's blockdevice id, and calls the API object's destroy_volume method
@@ -260,22 +283,6 @@ class IBlockDeviceAPI(Interface):
             not attached to a host.
         :returns: A ``FilePath`` for the device.
         """
-
-
-class BlockDeviceVolume(PRecord):
-    """
-    A block device that may be attached to a host.
-
-    :ivar unicode blockdevice_id: The unique identifier of the block device.
-    :ivar int size: The size, in bytes, of the block device.
-    :ivar unicode host: The IP address of the host to which the block device is
-        attached or ``None`` if it is currently unattached.
-    :ivar UUID dataset_id: The Flocker dataset ID associated with this volume.
-    """
-    blockdevice_id = field(type=unicode, mandatory=True)
-    size = field(type=int, mandatory=True)
-    host = field(type=(unicode, type(None)), initial=None)
-    dataset_id = field(type=UUID, mandatory=True)
 
 
 def _blockdevicevolume_from_dataset_id(dataset_id, size, host=None):
@@ -585,11 +592,10 @@ class BlockDeviceDeployer(PRecord):
             mountpath = self._mountpath_for_manifestation(manifestation)
             paths[dataset_id] = mountpath
 
-        # Replace with a NodeState subclass
         state = NodeState(
             hostname=self.hostname,
             manifestations=manifestations,
-            paths=paths
+            paths=paths,
         )
         return succeed(state)
 
@@ -666,6 +672,21 @@ class BlockDeviceDeployer(PRecord):
         # the destruction (but this also means volumes belonging to datasets
         # manifest on offline agents won't be destroy).
 
+        volumes = self.block_device_api.list_volumes()
+
+        delete_dataset_ids = set(
+            manifestation.dataset.dataset_id
+            for manifestation in configured_manifestations.values()
+            if manifestation.dataset.deleted
+        )
+
+        deletes = [
+            DestroyBlockDeviceDataset(volume=volume)
+            for volume in volumes
+            # Only destroy volumes belonging to deleted datasets.
+            if unicode(volume.dataset_id) in delete_dataset_ids
+        ]
+
         # Concatenate creates with the new list of deletions to execute them in
         # parallel as well.
-        return InParallel(changes=creates)
+        return InParallel(changes=creates + deletes)
