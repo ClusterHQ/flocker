@@ -268,6 +268,7 @@
 
   requires:
     - "create container"
+    - "create container with restart policy"
 
   request: |
     GET /v1/configuration/containers HTTP/1.1
