@@ -273,7 +273,53 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         )
 
     def test_deleted_dataset_volume_does_not_exist(self):
-        pass
+        """
+        If the configuration indicates a dataset with a primary manifestation on
+        the node has been deleted but the volume associated with that dataset
+        no longer exists,
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
+        return a ``DestroyBlockDeviceDataset`` for that dataset.
+        """
+        dataset_id = uuid4()
+        node = u"192.0.2.1"
+        local_config = Node(
+            hostname=node,
+            manifestations={
+                unicode(dataset_id): Manifestation(
+                    dataset=Dataset(
+                        dataset_id=unicode(dataset_id),
+                        deleted=True,
+                    ),
+                    primary=True,
+                ),
+            },
+        )
+        cluster_configuration = Deployment(
+            nodes={local_config}
+        )
+
+        local_state = Node(hostname=node)
+        cluster_state = Deployment(
+            nodes={local_state},
+        )
+
+        api = loopbackblockdeviceapi_for_test(self)
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+        )
+
+        changes = deployer.calculate_necessary_state_changes(
+            local_state=local_state,
+            desired_configuration=cluster_configuration,
+            current_cluster_state=cluster_state,
+        )
+
+        self.assertEqual(
+            InParallel(changes=[]),
+            changes
+        )
 
     def test_deleted_dataset_belongs_to_other_node(self):
         """
