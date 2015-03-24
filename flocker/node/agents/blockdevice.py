@@ -589,6 +589,8 @@ class BlockDeviceDeployer(PRecord):
         paths = {}
         for manifestation in manifestations:
             dataset_id = manifestation.dataset.dataset_id
+            # TODO This assumes things are actually mounted.  Maybe they
+            # aren't.
             mountpath = self._mountpath_for_manifestation(manifestation)
             paths[dataset_id] = mountpath
 
