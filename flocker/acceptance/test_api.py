@@ -16,11 +16,31 @@ from unittest import SkipTest
 from treq import get, post, content, delete, json_content
 from pyrsistent import PRecord, field, CheckedPVector
 
-from ..testtools import (
-    loop_until, MONGO_IMAGE, require_mongo, verify_socket, get_mongo_client,
+from ..testtools import loop_until
+from .testtools import (
+    MONGO_IMAGE, require_mongo, get_mongo_client,
 )
 from ..node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 from ..control.httpapi import REST_API_PORT
+
+
+def verify_socket(host, port):
+    """
+    Wait until the destionation can be connected to.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+
+    :return Deferred: Firing when connection is possible.
+    """
+    def can_connect():
+        s = socket.socket()
+        conn = s.connect_ex((host, port))
+        print "Connection status", conn
+        return False if conn else True
+
+    dl = loop_until(can_connect)
+    return dl
 
 
 class Node(PRecord):
@@ -195,6 +215,24 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    def remove_container(self, name):
+        """
+        Remove a container.
+
+        :param unicode name: The name of the container to remove.
+
+        :returns: A tuple of (cluster, api_response)
+        """
+        request = delete(
+            self.base_url + b"/configuration/containers/" +
+            name.encode("ascii"),
+            persistent=False
+        )
+
+        request.addCallback(json_content)
+        request.addCallback(lambda response: (self, response))
+        return request
+
 
 def get_test_cluster(test_case, node_count):
     """
@@ -295,15 +333,6 @@ class ContainerAPITests(TestCase):
         def check_result((cluster, response)):
             self.assertEqual(response, data)
 
-        def verify_socket(host, port):
-            def can_connect():
-                s = socket.socket()
-                conn = s.connect_ex((host, port))
-                return False if conn else True
-
-            dl = loop_until(can_connect)
-            return dl
-
         def query_environment(host, port):
             """
             The running container, clusterhq/flaskenv, is a simple Flask app
@@ -342,12 +371,12 @@ class ContainerAPITests(TestCase):
                 u"image": MONGO_IMAGE,
                 u"ports": [{u"internal": 27017, u"external": 27017}],
                 u'restart_policy': {u'name': u'never'},
+                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                              u"mountpoint": u"/data/db"}],
             }
             created = cluster.create_container(mongodb)
             created.addCallback(
-                lambda _: verify_socket(mongodb[u"host"], 27017))
-            created.addCallback(
-                lambda _: get_mongo_client(cluster.nodes[0]))
+                lambda _: get_mongo_client(cluster.nodes[0].address))
 
             def got_mongo_client(client):
                 database = client.example
@@ -361,14 +390,12 @@ class ContainerAPITests(TestCase):
                 mongodb2[u"ports"] = [{u"internal": 27017, u"external": 27018}]
                 removed.addCallback(
                     lambda _: cluster.create_container(mongodb2))
-                removed.addCallback(
-                    lambda _: verify_socket(mongodb[u"host"], 27018))
                 removed.addCallback(lambda _: record)
                 return removed
             created.addCallback(inserted)
 
             def restarted(record):
-                d = get_mongo_client(cluster.nodes[1])
+                d = get_mongo_client(cluster.nodes[0].address, 27018)
                 d.addCallback(lambda client: client.example.posts.find_one())
                 d.addCallback(self.assertEqual, record)
                 return d
