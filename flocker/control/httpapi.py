@@ -702,7 +702,8 @@ class ConfigurationAPIUserV1(object):
         Remove a container from the configuration.
 
         This will lead to the container being stopped and not being
-        restarted again.
+        restarted again. Any datasets that were attached as volumes will
+        continue to exist on the cluster.
         """,
         examples=[
             u"remove a container",
