@@ -69,6 +69,16 @@ def extend_environ(**kwargs):
     return env
 
 
+def remove_known_host(hostname):
+    """
+    Remove all keys belonging to hostname from a known_hosts file.
+
+    param bytes hostname: Remove all keys belonging to this hostname from
+        known_hosts.
+    """
+    check_safe_call(['ssh-keygen', '-R', hostname])
+
+
 def run_tests(nodes, control_node, agent_nodes, trial_args):
     """
     Run the acceptance tests.
@@ -156,6 +166,7 @@ class VagrantRunner(object):
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
         for node in self.NODE_ADDRESSES:
+            remove_known_host(node)
             run_tasks_on_node(
                 username='root',
                 address=node,
@@ -214,10 +225,7 @@ class LibcloudRunner(object):
 
             self.nodes.append(node)
 
-            # From ssh-keygen(1):
-            # -R hostname
-            # Removes all keys belonging to hostname from a known_hosts file.
-            check_safe_call(['ssh-keygen', '-R', node.address])
+            remove_known_host(node)
             node.provision(package_source=self.package_source,
                            variants=self.variants)
             del node
