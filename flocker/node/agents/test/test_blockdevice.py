@@ -1337,7 +1337,7 @@ def make_state_change_tests(state_change):
     :param state_change: A no-argument callable that returns the
         ``IStateChange`` provider to be tested.
     """
-    class Tests(SynchronousTestCase, StateChangeTestsMixin):
+    class Tests(SynchronousTestCase, _StateChangeTestsMixin):
         def setUp(self):
             self.state_change = state_change
     return Tests
