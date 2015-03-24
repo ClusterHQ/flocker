@@ -706,7 +706,7 @@ class ConfigurationAPIUserV1(object):
                 if application.name == name:
                     target_node = self._find_node_by_host(host, deployment)
                     # We only need to perform a move if the node currently
-                    # hosting the container is not the node it's already on.
+                    # hosting the container is not the node it's moving to.
                     if node.hostname != host:
                         # If the container has a volume, we need to add the
                         # manifestation to the new host first.
