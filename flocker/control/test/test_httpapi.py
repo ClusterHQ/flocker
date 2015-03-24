@@ -1474,39 +1474,34 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         """
         d = self._create_container()
 
-        d.addCallback(lambda _: self.assertResponseCode(
-            b"POST", b"/configuration/containers/mycontainer",
-            {u"host": u"192.0.2.3"}, OK
-        ))
+        d.addCallback(lambda _: self.persistence_service.get())
 
-        def updated(_):
-            deployment = self.persistence_service.get()
-            expected = Deployment(
-                nodes={
-                    Node(
-                        hostname=self.NODE_A,
-                        applications=[
-                            Application(
-                                name=u'leavemealone',
-                                image=DockerImage.from_string(u'busybox'),
-                            ),
-                        ]
-                    ),
-                    Node(hostname=self.NODE_B),
-                    Node(
-                        hostname=u"192.0.2.3",
-                        applications=[
-                            Application(
-                                name=u'mycontainer',
-                                image=DockerImage.from_string(u'busybox')
-                            ),
-                        ]
-                    ),
-                }
+        def handle_expected(expected):
+            dr = self.assertResponseCode(
+                b"POST", b"/configuration/containers/mycontainer",
+                {u"host": u"192.0.2.3"}, OK
             )
-            self.assertEqual(deployment, expected)
 
-        d.addCallback(updated)
+            def updated(_):
+                deployment = self.persistence_service.get()
+                application = Application(
+                    name=u'mycontainer',
+                    image=DockerImage.from_string(u'busybox')
+                )
+                node = Node(hostname=u"192.0.2.3", applications=[application])
+                real_expected = expected.update_node(node)
+                for node in expected.nodes:
+                    if node.hostname == self.NODE_A:
+                        node = node.transform(
+                            ["applications"], lambda s: s.remove(application)
+                        )
+                    real_expected = real_expected.update_node(node)
+                self.assertEqual(deployment, real_expected)
+
+            dr.addCallback(updated)
+            return dr
+
+        d.addCallback(handle_expected)
         return d
 
     def test_update_invalid_container_name(self):
