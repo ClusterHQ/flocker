@@ -209,7 +209,7 @@ Using Amazon Web Services
 
    .. code-block:: sh
 
-      yourlaptop$ ssh rootec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+      yourlaptop$ ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 #. Upgrade the Kernel
 
@@ -468,5 +468,3 @@ dpkg -i clusterhq-python-flocker clusterhq-flocker-node
 mkdir -p /var/opt/flocker
 truncate --size 10G /var/opt/flocker/pool-vdev
 zpool create flocker /var/opt/flocker/pool-vdev
-
-.. try: apt-get install linux-image-generic-lts-utopic
