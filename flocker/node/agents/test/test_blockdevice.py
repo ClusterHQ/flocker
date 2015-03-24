@@ -149,11 +149,6 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
         self.assertDiscoveredState(self.deployer, [])
 
 
-# Introduce a test case for dataset destruction changes calculated by
-# BlockDeviceDeployer.calculate_necessary_state_changes.
-# Test (dataset configured as deleted) x (volume exists, volume doesn't exist)
-# Test (dataset configured on a different node and deleted) x (volume exists)
-
 class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         SynchronousTestCase
 ):
