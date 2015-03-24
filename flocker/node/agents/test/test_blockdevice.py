@@ -6,7 +6,7 @@ Tests for ``flocker.node.agents.blockdevice``.
 
 import os
 from uuid import uuid4
-from subprocess import check_output
+from subprocess import STDOUT, PIPE, Popen, check_output
 
 from zope.interface.verify import verifyObject
 
@@ -19,8 +19,10 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
+    UnattachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume,
-    DestroyBlockDeviceDataset,
+    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
+    DestroyVolume,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id
 )
 
@@ -901,12 +903,90 @@ class IBlockDeviceAPITestsMixin(object):
         # verify an unrelated volume is unmodified
         # verify volume doesn't appear in list_volumes result
 
-    # Test detaching an unknown volume (fail)
-    # Test detaching a detached volume (fail)
-    # Test detaching a volume with a mounted filesystem (fail)
-    # Test detaching an attached but not mounted volume (succeed)
-        # verify an unrelated volume is unmodified
-        # verify host of volume object in list_volumes result is None
+    def test_detach_unknown_volume(self):
+        """
+        ``detach_volume`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` does not exist.
+        """
+        blockdevice_id = unicode(uuid4)
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.detach_volume, blockdevice_id=blockdevice_id
+        )
+        self.assertEqual(exception.args, (blockdevice_id,))
+
+    def test_detach_detached_volume(self):
+        """
+        ``detach_volume`` raises ``UnattachedVolume`` if the supplied
+        ``blockdevice_id`` is not attached to a host.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        exception = self.assertRaises(
+            UnattachedVolume,
+            self.api.detach_volume, volume.blockdevice_id
+        )
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
+
+    # Test detaching a volume with a mounted filesystem (fail) XXX
+
+    def test_detach_volume(self):
+        """
+        A volume that is attached becomes detached after ``detach_volume`` is
+        called with its ``blockdevice_id``.
+        """
+        def fail_mount(device):
+            mountpoint = FilePath(self.mktemp())
+            mountpoint.makedirs()
+            process = Popen([b"mount", device_path.path, mountpoint.path], stdout=PIPE, stderr=STDOUT)
+            output = process.stdout.read()
+            process.wait()
+            return output
+
+        node = u"192.0.2.1"
+
+        # Create an unrelated, attached volume that should be undisturbed.
+        unrelated = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        unrelated = self.api.attach_volume(unrelated.blockdevice_id, node)
+
+        # Create the volume we'll detach.
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = self.api.attach_volume(
+            volume.blockdevice_id, node
+        )
+
+        device_path = self.api.get_device_path(volume.blockdevice_id)
+
+        attached_error = fail_mount(device_path)
+
+        detached = self.api.detach_volume(volume.blockdevice_id)
+
+        expected = (
+            # unchanged unrelated volume, detached version of the target volume
+            {unrelated, volume.set(host=None)},
+            # detached version of the target volume
+            volume.set(host=None),
+        )
+        self.assertEqual(
+            expected,
+            (set(self.api.list_volumes()), detached)
+        )
+
+        detached_error = fail_mount(device_path)
+
+        # Make an incredibly indirect assertion to try to demonstrate we've
+        # successfully detached the device.  The volume never had a filesystem
+        # initialized on it so we couldn't mount it before when it was
+        # attached.  Now that it's detached we still shouldn't be able to mount
+        # it - but the reason we can't mount it should have changed.
+        #
+        # This isn't particularly great, no.
+        self.assertNotEqual(attached_error, detached_error)
 
     # Test attaching a volume that has been deleted (fail)
     # Test attaching a volume that has been through the attach/detach cycle (succeed)
@@ -1218,26 +1298,30 @@ def make_state_change_tests(state_change):
     return Tests
 
 
-def _make_destroy():
+_ARBITRARY_VOLUME = BlockDeviceVolume(
+    blockdevice_id=u"abcd",
+    size=REALISTIC_BLOCKDEVICE_SIZE,
+    dataset_id=uuid4(),
+)
+
+
+def _make_destroy_dataset():
     return DestroyBlockDeviceDataset(
-        volume=BlockDeviceVolume(
-            blockdevice_id=u"abcd",
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-            dataset_id=uuid4(),
-        ),
+        volume=_ARBITRARY_VOLUME,
     )
 
-class DestroyBlockDeviceDatasetTests(make_state_change_tests(_make_destroy)):
+class DestroyBlockDeviceDatasetTests(
+        make_state_change_tests(_make_destroy_dataset)
+):
     """
     Tests for ``DestroyBlockDeviceDataset``.
     """
     def test_volume_required(self):
         """
         If ``volume`` is not supplied when initializing
-        ``DestroyBlockDeviceDataset``, ``pyrsistent.InvariantException`` is
-        raised.
+        ``DestroyBlockDeviceDataset``, ``TypeError`` is raised.
         """
-        self.assertRaises(InvariantException, DestroyBlockDeviceDataset)
+        self.assertRaises(TypeError, DestroyBlockDeviceDataset)
 
     def test_volume_must_be_volume(self):
         """
@@ -1284,21 +1368,164 @@ class DestroyBlockDeviceDatasetTests(make_state_change_tests(_make_destroy)):
         self.assertTrue(a != b)
 
     def test_run(self):
-        1/0
+        """
+        After running ``DestroyBlockDeviceDataset``, its volume has been unmounted,
+        detached, and destroyed.
+        """
+        node = u"192.0.2.3"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = api.attach_volume(volume.blockdevice_id, node)
+        device = api.get_device_path(volume.blockdevice_id)
+        mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
+        mountpoint.makedirs()
+        check_output([b"mkfs", b"-t", b"ext4", device.path])
+        check_output([b"mount", device.path, mountpoint.path])
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+            mountroot=mountroot,
+        )
+        change = DestroyBlockDeviceDataset(volume=volume)
+        self.successResultOf(change.run(deployer))
+
+        # It's only possible to destroy a volume that's been detached.  It's
+        # only possible to detach a volume that's been unmounted.  If the
+        # volume doesn't exist, all three things we wanted to happen have
+        # happened.
+        self.assertEqual([], api.list_volumes())
+
 
 # Add tests for DestroyBlockDeviceDataset
-# Test that it implements the interface
 # Test that the volume has been destroyed after it runs
 
 # Add tests for UnmountBlockDeviceDataset
 # Add tests for DetachBlockDeviceDataset (FLOC-1499)
 # Add tests for DestroyBlockDeviceDataset
 
+def _make_unmount():
+    return UnmountBlockDevice(
+        volume=_ARBITRARY_VOLUME,
+    )
+
+
+class UnmountBlockDeviceTests(make_state_change_tests(_make_unmount)):
+    """
+    Tests for ``UnmountBlockDevice``.
+    """
+    def test_run(self):
+        """
+        ``UnmountBlockDevice.run`` unmounts the filesystem / block device
+        associated with the volume passed to it (association as determined by
+        the deployer's ``IBlockDeviceAPI`` provider).
+        """
+        node = u"192.0.2.1"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = api.attach_volume(volume.blockdevice_id, node)
+        device = api.get_device_path(volume.blockdevice_id)
+        mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
+        mountpoint.makedirs()
+        check_output([b"mkfs", b"-t", b"ext4", device.path])
+        check_output([b"mount", device.path, mountpoint.path])
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+            mountroot=mountroot,
+        )
+
+        change = UnmountBlockDevice(volume=volume)
+        self.successResultOf(change.run(deployer))
+        self.assertNotIn(
+            device,
+            [device_path for (device_path, ignored, ignored) in get_mounts()]
+        )
+
+
+def _make_detach():
+    return DetachVolume(
+        volume=_ARBITRARY_VOLUME,
+    )
+
+
+class DetachVolumeTests(make_state_change_tests(_make_detach)):
+    """
+    Tests for ``DetachVolume``.
+    """
+    def test_run(self):
+        """
+        ``DetachVolume.run`` uses the deployer's ``IBlockDeviceAPI`` to detach its
+        volume from the deployer's node.
+        """
+        node = u"192.0.2.1"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = api.attach_volume(volume.blockdevice_id, node)
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+        )
+
+        change = DetachVolume(volume=volume)
+        self.successResultOf(change.run(deployer))
+
+        [volume] = api.list_volumes()
+        self.assertIs(None, volume.host)
+
+
+def _make_destroy_volume():
+    return DestroyVolume(
+        volume=_ARBITRARY_VOLUME,
+    )
+
+
+class DestroyVolumeTests(make_state_change_tests(_make_destroy_volume)):
+    """
+    Tests for ``DestroyVolume``.
+    """
+    def test_run(self):
+        """
+        ``DestroyVolume.run`` uses the deployer's ``IBlockDeviceAPI`` to destroy
+        its volume.
+        """
+        node = u"192.0.2.1"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+        )
+
+        change = DestroyVolume(volume=volume)
+        self.successResultOf(change.run(deployer))
+
+        self.assertEqual([], api.list_volumes())
+
+
 def _make_create():
     return CreateBlockDeviceDataset(
         dataset=Dataset(dataset_id=unicode(uuid4())),
         mountpoint=FilePath('.')
     )
+
 
 class CreateBlockDeviceDatasetTests(make_state_change_tests(_make_create)):
     """

@@ -13,14 +13,17 @@ from subprocess import check_output
 from eliot import ActionType, Field, Logger
 from eliot.serializers import identity
 
+from characteristic import with_cmp
+
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
 
+from twisted.python.components import proxyForInterface
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
-from .. import IDeployer, IStateChange, InParallel
+from .. import IDeployer, IStateChange, Sequentially, InParallel
 from ...control import NodeState, Manifestation, Dataset
 
 
@@ -129,13 +132,53 @@ class BlockDeviceVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
 
 
+@with_cmp(["change"])
+class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
+    """
+    Destroy the volume for a dataset with a primary manifestation on the node
+    where this state change runs.
+
+    :ivar IStateChange change: The real implementation of this state change.
+    """
+    def __init__(self, volume):
+        """
+        :param BlockDeviceVolume volume: The volume which will be destroyed.
+        """
+        sequence = Sequentially(changes=[
+            UnmountBlockDevice(volume=volume),
+            DetachVolume(volume=volume),
+            DestroyVolume(volume=volume),
+        ])
+        super(DestroyBlockDeviceDataset, self).__init__(sequence)
+
+
+def _volume():
+    return field(type=BlockDeviceVolume, mandatory=True, factory=lambda x: x)
+
+
 @implementer(IStateChange)
-class DestroyBlockDeviceDataset(PRecord):
-    volume = field(type=BlockDeviceVolume, mandatory=True, factory=lambda x: x)
+class UnmountBlockDevice(PRecord):
+    volume = _volume()
 
     def run(self, deployer):
-        pass
-        # return InSerial(changes=[Unmount(), Detach(), Destroy()]).run(deployer)
+        device = deployer.block_device_api.get_device_path(
+            self.volume.blockdevice_id
+        )
+        check_output([b"umount", device.path])
+        return succeed(None)
+
+
+@implementer(IStateChange)
+class DetachVolume(PRecord):
+    volume = _volume()
+
+    def run(self, deployer):
+        deployer.block_device_api.detach_volume(self.volume.blockdevice_id)
+        return succeed(None)
+
+
+class DestroyVolume(PRecord):
+    volume = _volume()
 
 # Give it a run method that
 # unmounts the filesystem (arguments determine via the API object's
@@ -260,8 +303,20 @@ class IBlockDeviceAPI(Interface):
             ``host``.
         """
 
-    # Introduce a detach_volume method.  It accepts a blockdevice_id and
-    # returns None.
+    def detach_volume(blockdevice_id):
+        """
+        Detach ``blockdevice_id`` from whatever host it is attached to.
+
+        :param unicode blockdevice_id: The unique identifier for the block
+            device being detached.
+
+        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+            exist.
+        :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
+            not attached to anything.
+        :returns: A ``BlockDeviceVolume`` with a ``host`` attribute set to
+            ``None``.
+        """
 
     def list_volumes():
         """
@@ -457,11 +512,6 @@ class LoopbackBlockDeviceAPI(object):
     # Implement destroy_volume.  It fails for attached volumes.  For unattached
     # volumes, it deletes the underlying file. (FLOC-1491)
 
-    # Implement detach_volume.  It fails for volumes that have a filesystem
-    # mounted (use the `get_mounts` helper from test_blockdevice.py to find
-    # out).  For unmounted volumes, it moves the underlying file back to the
-    # unattached directory. (FLOC-1493)
-
     def _get(self, blockdevice_id):
         for volume in self.list_volumes():
             if volume.blockdevice_id == blockdevice_id:
@@ -503,6 +553,27 @@ class LoopbackBlockDeviceAPI(object):
 
         raise AlreadyAttachedVolume(blockdevice_id)
 
+    def detach_volume(self, blockdevice_id):
+        """
+        Move an existing file from a per-host directory into the ``unattached``
+        directory and release the loopback device backed by that file.
+        """
+        volume = self._get(blockdevice_id)
+        if volume.host is None:
+            raise UnattachedVolume(blockdevice_id)
+
+        check_output([
+            b"losetup", b"--detach", self.get_device_path(blockdevice_id).path
+        ])
+        volume_path = self._attached_directory.descendant([
+            volume.host.encode("ascii"), volume.blockdevice_id.encode("ascii")
+        ])
+        new_path = self._unattached_directory.child(
+            volume.blockdevice_id.encode("ascii")
+        )
+        volume_path.moveTo(new_path)
+        return volume.set(host=None)
+
     def list_volumes(self):
         """
         Return ``BlockDeviceVolume`` instances for all the files in the
@@ -539,7 +610,7 @@ class LoopbackBlockDeviceAPI(object):
             raise UnattachedVolume(blockdevice_id)
 
         volume_path = self._attached_directory.descendant(
-            [volume.host, volume.blockdevice_id]
+            [volume.host.encode("ascii"), volume.blockdevice_id.encode("ascii")]
         )
         # May be None if the file hasn't been used for a loop device.
         return _device_for_path(volume_path)
