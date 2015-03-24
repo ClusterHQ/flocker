@@ -315,6 +315,37 @@ class DeploymentTests(SynchronousTestCase):
                           Deployment(nodes=frozenset([
                               updated_node, another_node]))))
 
+    def test_move_application(self):
+        """
+        Moving an ``Application`` from one node to another results in a new
+        ``Deployment`` instance reflecting the updated configuration.
+        """
+        self.fail("not implemented yet")
+
+    def test_move_non_existent_application(self):
+        """
+        Attempting to move an ``Application`` that does not exist on the
+        cluster has no effect and therefore results in an identical
+        ``Deployment`` instance to the one we started with.
+        """
+        self.fail("not implemented yet")
+
+    def test_move_application_new_node(self):
+        """
+        Moving an ``Application`` from one node to another not previously in
+        this deployment results in a new ``Deployment`` instance reflecting
+        the updated configuration.
+        """
+        self.fail("not implemented yet")
+
+    def test_move_application_same_node(self):
+        """
+        Moving an ``Application`` from one node to where the target node is
+        the same node as currently hosts the application results in a
+        ``Deployment`` instance identical to the one we started with.
+        """
+        self.fail("not implemented yet")
+
 
 class RestartOnFailureTests(SynchronousTestCase):
     """

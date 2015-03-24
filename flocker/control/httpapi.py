@@ -732,39 +732,13 @@ class ConfigurationAPIUserV1(object):
             been updated.
         """
         deployment = self.persistence_service.get()
-
+        target_node = self._find_node_by_host(host, deployment)
         for node in deployment.nodes:
             for application in node.applications:
                 if application.name == name:
-                    target_node = self._find_node_by_host(host, deployment)
-                    # We only need to perform a move if the node currently
-                    # hosting the container is not the node it's moving to.
-                    if node.hostname != host:
-                        # If the container has a volume, we need to add the
-                        # manifestation to the new host first.
-                        if application.volume is not None:
-                            dataset_id = application.volume.dataset.dataset_id
-                            target_node = target_node.transform(
-                                ("manifestations", dataset_id),
-                                application.volume.manifestation
-                            )
-                        # Now we can add the application to the new host.
-                        target_node = target_node.transform(
-                            ["applications"], lambda s: s.add(application))
-                        # And remove it from the current host.
-                        node = node.transform(
-                            ["applications"], lambda s: s.remove(application))
-                        # Finally we can now remove the manifestation from the
-                        # current host too.
-                        if application.volume is not None:
-                            dataset_id = application.volume.dataset.dataset_id
-                            node = node.transform(
-                                ("manifestations", dataset_id), discard
-                            )
-                        # Before updating the deployment and saving.
-                        deployment = deployment.update_node(node)
-                        deployment = deployment.update_node(target_node)
-
+                    deployment = deployment.move_application(
+                        application, target_node
+                    )
                     saving = self.persistence_service.save(deployment)
 
                     def saved(_):
