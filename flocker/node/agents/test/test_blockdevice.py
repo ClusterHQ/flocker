@@ -146,6 +146,11 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
         self.assertDiscoveredState(self.deployer, [])
 
 
+# Introduce a test case for dataset destruction changes calculated by
+# BlockDeviceDeployer.calculate_necessary_state_changes.
+# Test (dataset configured as deleted) x (volume exists, volume doesn't exist)
+# Test (dataset configured on a different node and deleted) x (volume exists)
+
 class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         SynchronousTestCase
 ):
@@ -665,6 +670,23 @@ class IBlockDeviceAPITestsMixin(object):
 
         self.assertEqual(device_path1, device_path2)
 
+    # Test deleting an unknown volume (fail)
+    # Test deleting a deleted volume (fail)
+    # Test deleting an attached volume (fail)
+    # Test deleting a volume that exists but is not attached (succeed)
+        # verify an unrelated volume is unmodified
+        # verify volume doesn't appear in list_volumes result
+
+    # Test detaching an unknown volume (fail)
+    # Test detaching a detached volume (fail)
+    # Test detaching a volume with a mounted filesystem (fail)
+    # Test detaching an attached but not mounted volume (succeed)
+        # verify an unrelated volume is unmodified
+        # verify host of volume object in list_volumes result is None
+
+    # Test attaching a volume that has been deleted (fail)
+    # Test attaching a volume that has been through the attach/detach cycle (succeed)
+
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
     """
@@ -954,6 +976,13 @@ def mountroot_for_test(test_case):
     test_case.addCleanup(umount_all, mountroot)
     return mountroot
 
+# Add tests for DestroyBlockDeviceDataset
+# Test that it implements the interface
+# Test that the volume has been destroyed after it runs
+
+# Add tests for UnmountBlockDeviceDataset
+# Add tests for DetachBlockDeviceDataset (FLOC-1499)
+# Add tests for DestroyBlockDeviceDataset
 
 class CreateBlockDeviceDatasetTests(SynchronousTestCase):
     """

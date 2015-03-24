@@ -113,6 +113,20 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
 )
 
 
+# Create a new DestroyBlockDeviceDataset PRecord subclass implementing
+# IStateChange.  Give it a volume attribute.  Give it a run method that
+# unmounts the filesystem (arguments determine via the API object's
+# get_device_path), calls the API object's detach_volume method with the
+# volume's blockdevice id, and calls the API object's destroy_volume method
+# with the volume's blockdevice id.  Do Eliot logging of what's happening.
+#
+# To practice for spliting up CreateBlockDeviceDataset and for the other gross
+# state changes, implement each step of DestroyBlockDeviceDataset as its own
+# stand-alone IStageChange implementer and create DestroyBlockDeviceDataset by
+# composing those.  Do this in a way that makes it very easy to test for use of
+# DestroyBlockDeviceDataset while also making it easy to use the more
+# fine-grained types directly when necessary.
+
 @implementer(IStateChange)
 class CreateBlockDeviceDataset(PRecord):
     """
@@ -205,6 +219,9 @@ class IBlockDeviceAPI(Interface):
         :returns: A ``BlockDeviceVolume``.
         """
 
+    # Introduce a destroy_volume method.  It accepts a blockdevice_id and
+    # returns None.
+
     def attach_volume(blockdevice_id, host):
         """
         Attach ``blockdevice_id`` to ``host``.
@@ -219,6 +236,9 @@ class IBlockDeviceAPI(Interface):
         :returns: A ``BlockDeviceVolume`` with a ``host`` attribute set to
             ``host``.
         """
+
+    # Introduce a detach_volume method.  It accepts a blockdevice_id and
+    # returns None.
 
     def list_volumes():
         """
@@ -427,6 +447,14 @@ class LoopbackBlockDeviceAPI(object):
             f.truncate(size)
         return volume
 
+    # Implement destroy_volume.  It fails for attached volumes.  For unattached
+    # volumes, it deletes the underlying file. (FLOC-1491)
+
+    # Implement detach_volume.  It fails for volumes that have a filesystem
+    # mounted (use the `get_mounts` helper from test_blockdevice.py to find
+    # out).  For unmounted volumes, it moves the underlying file back to the
+    # unattached directory. (FLOC-1493)
+
     def _get(self, blockdevice_id):
         for volume in self.list_volumes():
             if volume.blockdevice_id == blockdevice_id:
@@ -557,6 +585,7 @@ class BlockDeviceDeployer(PRecord):
             mountpath = self._mountpath_for_manifestation(manifestation)
             paths[dataset_id] = mountpath
 
+        # Replace with a NodeState subclass
         state = NodeState(
             hostname=self.hostname,
             manifestations=manifestations,
@@ -617,4 +646,26 @@ class BlockDeviceDeployer(PRecord):
             for manifestation
             in manifestations_to_create
         )
+
+        # Issue *another* list_volumes() call.  We could avoid this if we could
+        # smuggle the results from the call made in discover_local_state into
+        # this method call somehow.  That information doesn't fit onto
+        # NodeState, though.  Stuffing it onto self would work but making
+        # discover_local_state have side-effects is probably worse than making
+        # some redundant API calls.  However, in the future, figure out how to
+        # make current_cluster_state carry this information.  It is, after all,
+        # part of the cluster state (and it's wasteful to have every agent list
+        # all the volumes - let alone twice).
+
+        # Inspect configured_manifestations for datasets marked as deleted.
+        # Compare these to the volumes list established just above.  For each
+        # volume that exists with a dataset_id matching a deleted dataset,
+        # create a DestroyBlockDeviceDataset initialized with the volume object
+        # corresponding to the deleted dataset.  Note that by only inspecting
+        # configured_manifestations, only one convergence agent will attempt
+        # the destruction (but this also means volumes belonging to datasets
+        # manifest on offline agents won't be destroy).
+
+        # Concatenate creates with the new list of deletions to execute them in
+        # parallel as well.
         return InParallel(changes=creates)
