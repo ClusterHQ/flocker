@@ -6,45 +6,50 @@ Rackspace provisioner.
 
 from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import (
-    provision, run,
+    provision,
     task_disable_firewall, task_open_control_firewall,
     task_upgrade_kernel_centos,
 )
+from ._ssh import X as run
+
+from ._effect import sequence
+from effect import Func, Effect
+from effect.do import do_return, do
 
 
+@do
 def provision_rackspace(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
     """
     if distribution in ('centos-7',):
-        run(
+        yield Effect(run(
             username='root',
             address=node.address,
-            commands=task_upgrade_kernel_centos(),
-        )
-        node.reboot()
+            commands=sequence([
+                task_upgrade_kernel_centos(),
+                Effect(Func(node.reboot)),
+            ]),
+        ))
 
-    commands = (
+    commands = sequence([
         provision(
             package_source=package_source,
             distribution=node.distribution,
             variants=variants,
-        )
-        + task_disable_firewall()
+        ),
+        task_disable_firewall(),
         # https://clusterhq.atlassian.net/browse/FLOC-1550
         # This should be part of ._install.configure_cluster
-        + task_open_control_firewall()
-    )
-    run(
+        task_open_control_firewall(),
+    ])
+    yield Effect(run(
         username='root',
         address=node.address,
         commands=commands,
-    )
-    return node.address
+    ))
 
-    @property
-    def name(self):
-        return self._node.name
+    yield do_return(node.address)
 
 
 IMAGE_NAMES = {

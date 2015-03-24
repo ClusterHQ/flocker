@@ -20,10 +20,18 @@ from admin.release import make_rpm_version
 from flocker.provision import PackageSource, Variants
 import flocker
 from flocker.provision._install import (
-    run as run_tasks_on_node,
+    run_with_crochet as run_tasks_on_node,
     task_pull_docker_images,
     configure_cluster,
 )
+
+from crochet import setup, run_in_reactor
+from effect import (
+    parallel, ComposedDispatcher, TypeDispatcher, base_dispatcher)
+from effect.twisted import make_twisted_dispatcher, perform
+from twisted.internet import reactor
+from flocker.provision._ssh import perform_ssh, X
+from flocker.provision._effect import Sequence, perform_sequence
 
 
 def safe_call(command, **kwargs):
@@ -219,9 +227,25 @@ class LibcloudRunner(object):
             # -R hostname
             # Removes all keys belonging to hostname from a known_hosts file.
             check_safe_call(['ssh-keygen', '-R', node.address])
+            del node
+
+        setup()
+        commands = parallel([
             node.provision(package_source=self.package_source,
                            variants=self.variants)
-            del node
+            for node in self.nodes
+        ])
+        run_in_reactor(perform)(
+            ComposedDispatcher([
+                TypeDispatcher({
+                    Sequence: perform_sequence,
+                    X: perform_ssh,
+                }),
+                make_twisted_dispatcher(reactor),
+                base_dispatcher,
+            ]),
+            commands,
+        ).wait()
 
         return [node.address for node in self.nodes]
 

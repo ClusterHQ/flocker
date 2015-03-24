@@ -1,19 +1,19 @@
 from pipes import quote as shell_quote
-from pyrsistent import PRecord, field
 from twisted.python import log
 
+from characteristic import attributes
+
 from effect import (
-    sync_performer, TypeDispatcher, ComposedDispatcher, Effect)
+    sync_performer, TypeDispatcher, ComposedDispatcher, Effect,
+    )
 from effect.twisted import (
-    perform, deferred_performer, make_twisted_dispatcher)
+    perform, deferred_performer)
 from twisted.conch.endpoints import (
     SSHCommandClientEndpoint, _NewConnectionHelper, _ReadFile, ConsoleUI)
 
-from crochet import run_in_reactor
-from crochet import setup
 from twisted.conch.ssh.keys import Key
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
 from twisted.internet.error import ConnectionDone
 from twisted.protocols.basic import LineOnlyReceiver
@@ -21,12 +21,13 @@ from twisted.python.filepath import FilePath
 import os
 
 
-class CommandProtocol(LineOnlyReceiver, PRecord, object):
+@attributes([
+    "deferred",
+    "address",
+    "username",
+])
+class CommandProtocol(LineOnlyReceiver, object):
     delimiter = b'\n'
-
-    deferred = field(type=Deferred)
-    address = field(type=bytes)
-    username = field(type=bytes)
 
     def connectionMade(self):
         self.transport.disconnecting = False
@@ -43,9 +44,19 @@ class CommandProtocol(LineOnlyReceiver, PRecord, object):
                 username=self.username, address=self.address, line=line)
 
 
-def run_with_crochet(username, address, commands):
+@inlineCallbacks
+def run_with_crochet(base_dispatcher, username, address, commands):
     from ._install import Run, Sudo, Put, Comment
-    setup()
+
+    def can_connect():
+        import socket
+        s = socket.socket()
+        conn = s.connect_ex((address, 22))
+        return False if conn else True
+
+    from flocker.testtools import loop_until
+    yield loop_until(can_connect)
+
     key_path = FilePath(os.path.expanduser('~/.ssh/id_rsa'))
     if key_path.exists():
         keys = [Key.fromString(key_path.getContent())]
@@ -62,7 +73,7 @@ def run_with_crochet(username, address, commands):
         password=None,
         agentEndpoint=agentEndpoint,
         knownHosts=None, ui=ConsoleUI(lambda: _ReadFile(b"yes")))
-    connection = run_in_reactor(connection_helper.secureConnection)().wait()
+    connection = yield connection_helper.secureConnection()
 
     def do_remote(endpoint):
         d = Deferred()
@@ -102,10 +113,23 @@ def run_with_crochet(username, address, commands):
             Put: put,
             Comment: comment,
         }),
-        make_twisted_dispatcher(reactor),
+        base_dispatcher,
     ])
 
-    run_in_reactor(perform)(dispatcher, commands).wait()
+    yield perform(dispatcher, commands)
 
-    run_in_reactor(connection_helper.cleanupConnection)(
-        connection, False).wait()
+    yield connection_helper.cleanupConnection(
+        connection, False)
+
+
+@attributes([
+    "username", "address", "commands",
+])
+class X(object):
+    pass
+
+
+@deferred_performer
+def perform_ssh(dispatcher, intent):
+    return run_with_crochet(
+        dispatcher, intent.username, intent.address, intent.commands)

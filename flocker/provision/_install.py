@@ -92,7 +92,7 @@ def sudo(command):
 
 
 def put(content, path):
-    return Effect(Put(content=content, pat=path))
+    return Effect(Put(content=content, path=path))
 
 
 def comment(comment):
@@ -105,37 +105,6 @@ def run_from_args(command):
 
 def sudo_from_args(command):
     return Effect(Sudo.from_args(command))
-
-
-def run_with_fabric(username, address, commands):
-    """
-    Run a series of commands on a remote host.
-
-    :param bytes username: User to connect as.
-    :param bytes address: Address to connect to
-    :param list commands: List of commands to run.
-    """
-    from fabric.api import settings, run, put, sudo
-    from fabric.network import disconnect_all
-    from StringIO import StringIO
-
-    handlers = {
-        Run: lambda e: run(e.command),
-        Sudo: lambda e: sudo(e.command),
-        Put: lambda e: put(StringIO(e.content), e.path),
-        Comment: lambda e: None,
-    }
-
-    host_string = "%s@%s" % (username, address)
-    with settings(
-            connection_attempts=24,
-            timeout=5,
-            pty=False,
-            host_string=host_string):
-
-        for command in commands:
-            handlers[type(command)](command)
-    disconnect_all()
 
 
 def task_test_homebrew(recipe_url):
@@ -165,14 +134,14 @@ def task_upgrade_kernel():
 
 
 def task_upgrade_kernel_centos():
-    return [
+    return sequence([
         run_from_args([
             "yum", "install", "-y", "kernel-devel", "kernel"]),
         # For dkms and ... ?
         run_from_args([
             "yum", "install", "-y", "epel-release"]),
         run_from_args(['sync']),
-    ]
+    ])
 
 
 def task_install_kernel_devel():
@@ -181,7 +150,7 @@ def task_install_kernel_devel():
 
     This is so we can compile zfs.
     """
-    return [run("""
+    return sequence([run("""
 UNAME_R=$(uname -r)
 PV=${UNAME_R%.*}
 KV=${PV%%-*}
@@ -189,17 +158,17 @@ SV=${PV##*-}
 ARCH=$(uname -m)
 yum install -y https://kojipkgs.fedoraproject.org/packages/kernel/\
 ${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
-""")]
+""")])
 
 
 def task_enable_docker():
     """
     Start docker and configure it to start automatically.
     """
-    return [
+    return sequence([
         run_from_args(["systemctl", "enable", "docker.service"]),
         run_from_args(["systemctl", "start", "docker.service"]),
-    ]
+    ])
 
 
 def configure_firewalld(rule):

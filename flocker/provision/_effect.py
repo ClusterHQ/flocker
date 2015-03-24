@@ -1,11 +1,11 @@
 import sys
-from charcteristic import attributes
+from characteristic import attributes
 from effect import sync_performer, Effect
 from effect.do import do, do_return
 
 
 @attributes(['results', 'error'])
-class SequenceFailed(object):
+class SequenceFailed(Exception, object):
     """
     Raised if an effect in a :class:``Sequence`` fails.
 
@@ -30,7 +30,8 @@ def perform_sequence(dispatcher, intent):
     results = []
     for effect in list(intent.effects):
         try:
-            results.append((yield effect))
+            result = yield effect
+            results.append(result)
         except:
             raise SequenceFailed(results=results,
                                  error=sys.exc_info())
