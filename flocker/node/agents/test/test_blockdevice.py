@@ -1249,6 +1249,40 @@ class DestroyBlockDeviceDatasetTests(make_state_change_tests(_make_destroy)):
             TypeError, DestroyBlockDeviceDataset, volume=object()
         )
 
+    def test_equal(self):
+        """
+        Two ``DestroyBlockDeviceDataset`` instances compare as equal if they are
+        initialized with the same volume.
+        """
+        dataset_id = uuid4()
+        def volume():
+            # Avoid using the same instance, just provide the same data.
+            return BlockDeviceVolume(
+                blockdevice_id=u"abcd",
+                size=REALISTIC_BLOCKDEVICE_SIZE,
+                dataset_id=dataset_id,
+            )
+        a = DestroyBlockDeviceDataset(volume=volume())
+        b = DestroyBlockDeviceDataset(volume=volume())
+        self.assertTrue(a == b)
+
+    def test_not_equal(self):
+        """
+        Two ``DestroyBlockDeviceDataset`` instances compare as not equal if they
+        are initialized with different volumes.
+        """
+        a = DestroyBlockDeviceDataset(volume=BlockDeviceVolume(
+            blockdevice_id=u"abcd",
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=uuid4(),
+        ))
+        b = DestroyBlockDeviceDataset(volume=BlockDeviceVolume(
+            blockdevice_id=u"dcba",
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=uuid4(),
+        ))
+        self.assertTrue(a != b)
+
     def test_run(self):
         1/0
 
