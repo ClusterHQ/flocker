@@ -119,18 +119,18 @@ class ConfigurationPersistenceServiceTests(TestCase):
         change saved.
         """
         service = self.service(FilePath(self.mktemp()))
-        l = []
-        l2 = []
-        service.register(lambda: l.append(1))
+        callbacks = []
+        callbacks2 = []
+        service.register(lambda: callbacks.append(1))
         d = service.save(TEST_DEPLOYMENT)
 
         def saved(_):
-            service.register(lambda: l2.append(1))
+            service.register(lambda: callbacks2.append(1))
             return service.save(TEST_DEPLOYMENT)
         d.addCallback(saved)
 
         def saved_again(_):
-            self.assertEqual((l, l2), ([1, 1], [1]))
+            self.assertEqual((callbacks, callbacks2), ([1, 1], [1]))
         d.addCallback(saved_again)
         return d
 
@@ -142,13 +142,13 @@ class ConfigurationPersistenceServiceTests(TestCase):
         Failed callbacks don't prevent later callbacks from being called.
         """
         service = self.service(FilePath(self.mktemp()), logger)
-        l = []
+        callbacks = []
         service.register(lambda: 1/0)
-        service.register(lambda: l.append(1))
+        service.register(lambda: callbacks.append(1))
         d = service.save(TEST_DEPLOYMENT)
 
         def saved(_):
-            self.assertEqual(l, [1])
+            self.assertEqual(callbacks, [1])
         d.addCallback(saved)
         return d
 
