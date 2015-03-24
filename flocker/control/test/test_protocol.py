@@ -664,8 +664,8 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         control_amp_service = build_control_amp_service(self)
         self.patch(control_amp_service, 'logger', logger)
 
-        connection_protocol = ControlAMP(control_amp_service)
-        connection_protocol.callRemote = lambda *args, **kwargs: succeed({})
+        connected_protocol = ControlAMP(control_amp_service)
+        connected_protocol.callRemote = lambda *args, **kwargs: succeed({})
 
         error = ConnectionLost()
         disconnected_protocol = ControlAMP(control_amp_service)
@@ -673,7 +673,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
             error)
 
         control_amp_service._send_state_to_connections(
-            connections=[disconnected_protocol, connection_protocol])
+            connections=[disconnected_protocol, connected_protocol])
 
         actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
         self.assertEqual(
