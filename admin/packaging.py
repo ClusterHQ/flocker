@@ -13,6 +13,8 @@ from subprocess import check_output, check_call, CalledProcessError, call
 from tempfile import mkdtemp
 from textwrap import dedent, fill
 
+from eliot import Logger, start_action, to_file
+
 from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
 from twisted.python import usage, log
@@ -53,6 +55,11 @@ ARCH = {
     },
 }
 
+PACKAGE_ARCHITECTURE = {
+    'clusterhq-flocker-cli': 'all',
+    'clusterhq-flocker-node': 'all',
+    'clusterhq-python-flocker': 'native',
+}
 
 def package_filename(package_type, package, architecture, rpm_version):
     package_name_format = PACKAGE_NAME_FORMAT[package_type]
@@ -112,9 +119,13 @@ class BuildSequence(object):
 
     :ivar tuple steps: A sequence of steps.
     """
+    logger = Logger()
+    _system = u"packaging:buildsequence:run"
+
     def run(self):
         for step in self.steps:
-            step.run()
+            with start_action(self.logger, self._system, step=repr(step)):
+                step.run()
 
 
 def run_command(args, added_env=None, cwd=None):
@@ -582,6 +593,10 @@ IGNORED_WARNINGS = {
         # This isn't an distribution package so we deliberately install in /opt
         'dir-or-file-in-opt',
 
+        # This isn't a distribution package, so the precise details of the
+        # distro portion of the version don't need to be followed.
+        'debian-revision-not-well-formed',
+
         # virtualenv's interpreter is correct.
         'wrong-path-for-interpreter',
         # Virtualenv creates symlinks for local/{bin,include,lib}. Ignore them.
@@ -770,6 +785,8 @@ def omnibus_package_builder(
     flocker_cli_path.makedirs()
     flocker_node_path = target_dir.child('flocker-node')
     flocker_node_path.makedirs()
+    empty_path = target_dir.child('empty')
+    empty_path.makedirs()
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt  # noqa
     virtualenv_dir = FilePath('/opt/flocker')
@@ -806,7 +823,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='native',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-python-flocker'],
                 description=PACKAGE_PYTHON.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -819,7 +836,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-python-flocker',
-                architecture='native',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-python-flocker'],
             ),
 
             # flocker-cli steps
@@ -846,7 +863,7 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-cli'],
                 description=PACKAGE_CLI.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
@@ -858,7 +875,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-cli',
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-cli'],
             ),
 
             # flocker-node steps
@@ -877,6 +894,13 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
                      flocker_node_path),
+                    # When the ZFS convergence agent is separated from the
+                    # container convergence agent, we'll be able to get rid of
+                    # flocker-zfs-agent and make that functionality part of
+                    # flocker-dataset-agent, controlled by a command line
+                    # argument or some such.  FLOC-1443
+                    (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
+                     flocker_node_path),
                 ]
             ),
             BuildPackage(
@@ -890,6 +914,11 @@ def omnibus_package_builder(
                     # Ubuntu firewall configuration
                     package_files.child('ufw-applications.d'):
                         FilePath("/etc/ufw/applications.d/"),
+                    # SystemD configuration
+                    package_files.child('systemd'):
+                        FilePath('/usr/lib/systemd/system'),
+                    # Flocker Control State dir
+                    empty_path: FilePath('/var/lib/flocker/'),
                 },
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),
@@ -899,12 +928,13 @@ def omnibus_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-node'],
                 description=PACKAGE_NODE.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
                     'node', rpm_version, distribution),
                 after_install=package_files.child('after-install.sh'),
+                directories=[FilePath('/var/lib/flocker/')],
             ),
             LintPackage(
                 package_type=distribution.package_type(),
@@ -912,7 +942,7 @@ def omnibus_package_builder(
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-node',
-                architecture='all',
+                architecture=PACKAGE_ARCHITECTURE['clusterhq-flocker-node'],
             ),
         )
     )
@@ -1058,6 +1088,8 @@ class DockerBuildScript(object):
         :param FilePath top_level: The top-level of the flocker repository.
         :param base_path: ignored.
         """
+        to_file(self.sys_module.stderr)
+
         options = DockerBuildOptions()
 
         try:
@@ -1143,6 +1175,8 @@ class BuildScript(object):
             directory.
         :param base_path: ignored.
         """
+        to_file(self.sys_module.stderr)
+
         options = BuildOptions()
 
         try:

@@ -1,0 +1,18 @@
+[Unit]
+Description=Flocker Control Service
+
+[Service]
+ExecStart=/usr/sbin/flocker-control -p systemd:INET:0 -a systemd:INET:1
+Sockets=flocker-control-api.socket flocker-control-agent.socket
+NonBlocking=true
+
+PrivateTmp=true
+PrivateDev=true
+PrivateNetwork=true
+ProtectSystem=true
+ProtectHome=true
+ReadonlyDirectories=/
+ReadWriteDirectories=/var/lib/flocker
+
+[Install]
+WantedBy=multi-user.target

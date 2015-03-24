@@ -115,6 +115,237 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'POSTGRES_VERSION': 9.4
             }
         },
+        # Restart policy given but not a string
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': 1
+        },
+        # Restart policy string given but not an allowed value
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': {"name": "no restart"}
+        },
+        # Restart policy is on-failure but max retry count is negative
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': {
+                "name": "on-failure", "maximum_retry_count": -1
+            }
+        },
+        # Restart policy is on-failure but max retry count is NaN
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': 'on-failure',
+            'restart_policy': {
+                "name": "on-failure", "maximum_retry_count": "15"
+            }
+        },
+        # Restart policy has max retry count but no name
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'restart_policy': 'on-failure',
+            'restart_policy': {
+                "maximum_retry_count": 15
+            }
+        },
+        # CPU shares given but not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'cpu_shares': '512'
+        },
+        # CPU shares given but negative
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'cpu_shares': -512
+        },
+        # CPU shares given but greater than max
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'cpu_shares': 1025
+        },
+        # Memory limit given but not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'memory_limit': '250MB'
+        },
+        # Memory limit given but negative
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'memory_limit': -1024
+        },
+        # Links given but not a list
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': {
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': 54320
+            }
+        },
+        # Links given but alias missing
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but local port missing
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'remote_port': 54320
+            }]
+        },
+        # Links given but remote port missing
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+            }]
+        },
+        # Links given but alias is not a string
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': {"name": "postgres"},
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but local port is not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': '5432',
+                'remote_port': 54320
+            }]
+        },
+        # Links given but remote port is not an integer
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': '54320'
+            }]
+        },
+        # Links given but local port is greater than max (65535)
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 65536,
+                'remote_port': 54320
+            }]
+        },
+        # Links given but remote port is greater than max (65535)
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': 65536
+            }]
+        },
+        # Volume with dataset_id of wrong type
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': 123,
+                         'mountpoint': '/var/db'}],
+        },
+        # Volume with mountpoint of wrong type
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': 123}],
+        },
+        # Volume missing dataset_id
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'mountpoint': '/var/db'}],
+        },
+        # Volume missing mountpoint
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36}],
+        },
+        # Volume with extra field
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': '/var/db',
+                         'extra': 'value'}],
+        },
+        # More than one volume (this will eventually work - see FLOC-49)
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': '/var/db'},
+                        {'dataset_id': "y" * 36,
+                         'mountpoint': '/var/db2'}],
+        },
+        # Path doesn't start with /
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "y" * 36,
+                         'mountpoint': 'var/db2'}],
+        },
     ],
     passing_instances=[
         {
@@ -155,6 +386,67 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'POSTGRES_USER': 'admin',
                 'POSTGRES_VERSION': '9.4'
             }
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'restart_policy': {'name': 'never'}
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'restart_policy': {'name': 'always'}
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'restart_policy': {'name': 'on-failure'}
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'restart_policy': {
+                'name': 'on-failure', 'maximum_retry_count': 5
+            }
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'cpu_shares': 512
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'docker/postgres:latest',
+            'name': 'postgres',
+            'memory_limit': 262144000
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'nginx:latest',
+            'name': 'webserver',
+            'links': [{
+                'alias': 'postgres',
+                'local_port': 5432,
+                'remote_port': 54320
+            }]
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': '/var/db'}],
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [],
         },
     ],
 )
@@ -319,5 +611,36 @@ ConfigurationDatasetsArrayTests = build_schema_test(
         [],
         [{u"primary": u"10.0.0.1"}],
         [{u"primary": u"10.0.0.1"}, {u"primary": u"10.0.0.2"}]
+    ],
+)
+
+StateContainersArrayTests = build_schema_test(
+    name="StateContainersArrayTests",
+    schema={'$ref':
+            '/v1/endpoints.json#/definitions/state_containers_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Incorrect type
+        {},
+        # Wrong item type
+        ["string"],
+        # Failing dataset type (missing running)
+        [{u"host": u"10.0.0.1", u"name": u"lalala",
+          u"image": u"busybox:latest"}]
+    ],
+    passing_instances=[
+        [],
+        [{u"host": u"10.0.0.1", u"name": u"lalala",
+          u"image": u"busybox:latest", u'running': True}],
+        [{
+            u'host': u'192.168.0.3',
+            u'image': u'nginx:latest',
+            u'name': u'webserver2',
+            u'running': True},
+         {
+             u'host': u'192.168.0.3',
+             u'image': u'nginx:latest',
+             u'name': u'webserver',
+             u'running': False}],
     ],
 )

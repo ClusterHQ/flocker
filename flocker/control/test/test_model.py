@@ -199,26 +199,24 @@ class NodeStateTests(SynchronousTestCase):
     """
     Tests for ``NodeState``.
     """
-    def test_running_and_not_running_applications(self):
+    def test_applications(self):
         """
-        ``NodeState.to_node`` combines both running and not running
-        applications from the given node state.
+        ``NodeState.to_node`` copies over the applications from the node state
+        to the resulting ``Node``.
         """
         node_state = NodeState(hostname=u"host1",
-                               running=[APP1],
-                               not_running=[APP2])
+                               applications=[APP1, APP2])
         self.assertEqual(node_state.to_node(),
                          Node(hostname=u"host1",
-                              applications=frozenset([APP1, APP2])))
+                              applications=[APP1, APP2]))
 
-    def test_other_manifestations(self):
+    def test_manifestations(self):
         """
-        ``NodeState.to_node`` copies over other manifestations to the ``Node``
+        ``NodeState.to_node`` copies over the manifestations to the ``Node``
         instances it creates.
         """
         node_state = NodeState(
-            hostname=u"host2", running=[], not_running=[],
-            manifestations=frozenset([MANIFESTATION]))
+            hostname=u"host2", manifestations=frozenset([MANIFESTATION]))
         self.assertEqual(node_state.to_node(),
                          Node(hostname=u"host2",
                               applications=frozenset(),

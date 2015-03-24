@@ -13,17 +13,26 @@ from characteristic import attributes
 
 from ._common import PackageSource, Variants
 
+from flocker.cli import configure_ssh
+
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                  "fedora/zfs-release$(rpm -E %dist).noarch.rpm",
     'centos-7': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
                 "epel/zfs-release.el7.noarch.rpm",
 }
+
+ARCHIVE_BUCKET = 'clusterhq-archive'
+
 CLUSTERHQ_REPO = {
-    'fedora-20': "https://s3.amazonaws.com/clusterhq-archive/"
-                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm",
-    'centos-7': "https://s3.amazonaws.com/clusterhq-archive/"
-                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm",
+    'fedora-20': "https://s3.amazonaws.com/{archive_bucket}/"
+                 "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                     archive_bucket=ARCHIVE_BUCKET,
+                 ),
+    'centos-7': "https://s3.amazonaws.com/{archive_bucket}/"
+                "centos/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
+                    archive_bucket=ARCHIVE_BUCKET,
+                    ),
 }
 
 
@@ -137,7 +146,7 @@ def task_upgrade_kernel_centos():
         # For dkms and ... ?
         Run.from_args([
             "yum", "install", "-y", "epel-release"]),
-        Run.from_args(['sync'])
+        Run.from_args(['sync']),
     ]
 
 
@@ -177,17 +186,17 @@ def configure_firewalld(rule):
     return [
         Run.from_args(command + rule)
         for command in [['firewall-cmd', '--permanent'],
-                        ['firewall-cmd']]
+                        ['firewall-cmd']]]
+
+
+def task_enable_flocker_control():
+    """
+    Enable flocker-control service.
+    """
+    return [
+        Run.from_args(['systemctl', 'enable', 'flocker-control']),
+        Run.from_args(['systemctl', 'start', 'flocker-control']),
     ]
-
-
-def task_disable_firewall():
-    """
-    Disable the firewall.
-    """
-    return configure_firewalld(
-        ['--direct', '--add-rule', 'ipv4', 'filter',
-         'FORWARD', '0', '-j', 'ACCEPT'])
 
 
 def task_open_control_firewall():
@@ -198,6 +207,32 @@ def task_open_control_firewall():
         configure_firewalld(['--add-service', service])
         for service in ['flocker-control-api', 'flocker-control-agent']
     ])
+
+
+AGENT_CONFIG = """\
+FLOCKER_NODE_NAME = %(node_name)s
+FLOCKER_CONTROL_NODE = %(control_node)s
+"""
+
+
+def task_enable_flocker_agent(node_name, control_node):
+    """
+    Configure and enable flocker-agent.
+
+    :param bytes node_name: The name this node is known by.
+    :param bytes control_node: The address of the control agent.
+    """
+    return [
+        Put(
+            path='/etc/sysconfig/flocker-agent',
+            content=AGENT_CONFIG % {
+                'node_name': node_name,
+                'control_node': control_node
+            },
+        ),
+        Run.from_args(['systemctl', 'enable', 'flocker-agent']),
+        Run.from_args(['systemctl', 'start', 'flocker-agent']),
+    ]
 
 
 def task_create_flocker_pool_file():
@@ -371,3 +406,51 @@ def provision(distribution, package_source, variants):
     commands += task_create_flocker_pool_file()
     commands += task_pull_docker_images()
     return commands
+
+
+def configure_cluster(control_node, agent_nodes):
+    """
+    Configure flocker-control and flocker-agent on a collection of nodes.
+
+    :param bytes control_node: The address of the control node.
+    :param list agent_nodes: List of addresses of agent nodes.
+    """
+    run(
+        username='root',
+        address=control_node,
+        commands=task_enable_flocker_control(),
+    )
+    for node in agent_nodes:
+        configure_ssh(node, 22)
+        run(
+            username='root',
+            address=node,
+            commands=task_enable_flocker_agent(
+                node_name=node,
+                control_node=control_node,
+            ),
+        )
+
+
+def stop_cluster(control_node, agent_nodes):
+    """
+    Stop flocker-control and flocker-agent on a collection of nodes.
+
+    :param bytes control_node: The address of the control node.
+    :param list agent_nodes: List of addresses of agent nodes.
+    """
+    run(
+        username='root',
+        address=control_node,
+        commands=[
+            Run.from_args(['systemctl', 'stop', 'flocker-control']),
+        ],
+    )
+    for node in agent_nodes:
+        run(
+            username='root',
+            address=node,
+            commands=[
+                Run.from_args(['systemctl', 'stop', 'flocker-agent']),
+            ],
+        )

@@ -16,6 +16,7 @@ By the end of the release process we will have:
 - a tag in version control,
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
 - Fedora 20 RPMs for software on the node and client,
+- CentOS 7 RPMs for software on the node and client,
 - a Vagrant base tutorial image,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
@@ -241,6 +242,9 @@ Release
 
 #. Create and log in to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
+   This copies your local git configuration from `~/.gitconfig`.
+   If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
+
    From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    .. prompt:: bash $
@@ -254,16 +258,12 @@ Release
 
       export VERSION=0.1.2
 
-#. Create a clean, local copy of the Flocker and `homebrew-tap`_ release branches with no modifications:
+#. Create a clean, local copy of the Flocker release branch with no modifications:
 
    .. prompt:: bash [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
-      cd homebrew-tap-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/master
-      git push --set-upstream origin release/flocker-${VERSION}
-      cd ../flocker-${VERSION}
+      cd flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
@@ -309,13 +309,13 @@ Release
       python setup.py sdist bdist_wheel
       gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
 
-#. Build RPM packages and upload them to ``archive.clusterhq.com``
+#. Build RPM packages and upload them to Amazon S3:
 
    .. note:: Skip this step for a documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
-      admin/upload-rpms "${VERSION}"
+      admin/publish-packages
 
 #. Copy the tutorial box to the final location:
    
@@ -347,29 +347,28 @@ Release
 
      .. prompt:: bash [vagrant@localhost]$
 
-        cd ../homebrew-tap-${VERSION}
+        cd
+        git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
+        cd homebrew-tap-${VERSION}
         ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
         git add flocker-${VERSION}.rb
         git commit -m "New Homebrew recipe"
         git push
 
-   - Test the new recipe on OS X with `Homebrew`_ installed:
+   - Test Homebrew on OS X.
+     ClusterHQ has a Mac Mini available with instructions for launching a Virtual Machine to do this with:
 
-     Try installing the new recipe directly from a GitHub link
+     Export the version number of the release being completed as an environment variable:
 
-     .. prompt:: bash $
+     .. prompt:: bash [osx-user]$
 
-        brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
-        brew test flocker-${VERSION}
+        export VERSION=0.1.2
 
-   - Make a pull request:
+     .. task:: test_homebrew flocker-${VERSION}
+           :prompt: [osx-user]$
 
-     Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
-
-     Include the ``brew install`` line from the previous step, so that the reviewer knows how to test the new recipe.
-
-   - Do not continue until the pull request is merged.
-     Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
+     If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
+     The release process should not continue until the tests pass.
 
 #. Update the documentation.
 
