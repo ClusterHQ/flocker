@@ -192,7 +192,7 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
             nodes={local_config}
         )
 
-        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
+        api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
@@ -250,7 +250,7 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
             nodes={local_config}
         )
 
-        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
+        api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
