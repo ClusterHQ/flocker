@@ -177,8 +177,13 @@ class DetachVolume(PRecord):
         return succeed(None)
 
 
+@implementer(IStateChange)
 class DestroyVolume(PRecord):
     volume = _volume()
+
+    def run(self, deployer):
+        deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
+        return succeed(None)
 
 # Give it a run method that
 # unmounts the filesystem (arguments determine via the API object's
@@ -509,8 +514,15 @@ class LoopbackBlockDeviceAPI(object):
             f.truncate(size)
         return volume
 
-    # Implement destroy_volume.  It fails for attached volumes.  For unattached
-    # volumes, it deletes the underlying file. (FLOC-1491)
+    def destroy_volume(self, blockdevice_id):
+        """
+        Destroy the storage for the given unattached volume.
+        """
+        volume = self._get(blockdevice_id)
+        volume_path = self._unattached_directory.child(
+            volume.blockdevice_id.encode("ascii")
+        )
+        volume_path.remove()
 
     def _get(self, blockdevice_id):
         for volume in self.list_volumes():

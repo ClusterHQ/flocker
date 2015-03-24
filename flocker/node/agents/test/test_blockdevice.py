@@ -896,12 +896,35 @@ class IBlockDeviceAPITestsMixin(object):
 
         self.assertEqual(device_path1, device_path2)
 
-    # Test deleting an unknown volume (fail)
+    def test_destroy_unknown_volume(self):
+        """
+        ``destroy_volume`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` does not exist.
+        """
+        blockdevice_id = unicode(uuid4)
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.destroy_volume, blockdevice_id=blockdevice_id
+        )
+        self.assertEqual(exception.args, (blockdevice_id,))
+
+    def test_destroy_volume(self):
+        """
+        An unattached volume can be destroyed using ``destroy_volume``.
+        """
+        unrelated = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.api.destroy_volume(volume.blockdevice_id)
+        self.assertEqual([unrelated], self.api.list_volumes())
+
     # Test deleting a deleted volume (fail)
     # Test deleting an attached volume (fail)
-    # Test deleting a volume that exists but is not attached (succeed)
-        # verify an unrelated volume is unmodified
-        # verify volume doesn't appear in list_volumes result
 
     def test_detach_unknown_volume(self):
         """
@@ -987,6 +1010,19 @@ class IBlockDeviceAPITestsMixin(object):
         #
         # This isn't particularly great, no.
         self.assertNotEqual(attached_error, detached_error)
+
+    def test_reattach_detached_volume(self):
+        """
+        A volume that has been detached can be re-attached.
+        """
+        node = u"192.0.2.4"
+        # Create the volume we'll detach.
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = self.api.attach_volume(
+            volume.blockdevice_id, node
+        )
 
     # Test attaching a volume that has been deleted (fail)
     # Test attaching a volume that has been through the attach/detach cycle (succeed)
