@@ -276,7 +276,63 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         pass
 
     def test_deleted_dataset_belongs_to_other_node(self):
-        pass
+        """
+        If a dataset with a primary manifestation on one node is marked as deleted
+        in the configuration, the ``BlockDeviceDeployer`` for a different node
+        does not return a ``DestroyBlockDeviceDataset`` from its
+        ``calculate_necessary_state_changes`` for that dataset.
+        """
+        dataset_id = uuid4()
+        node = u"192.0.2.1"
+        other_node = u"192.0.2.2"
+        local_state = NodeState(
+            hostname=node,
+            manifestations={
+                Manifestation(
+                    dataset=Dataset(
+                        dataset_id=unicode(dataset_id),
+                    ),
+                    primary=True,
+                ),
+            },
+            paths={
+                unicode(dataset_id): FilePath(b"/flocker/").child(bytes(dataset_id)),
+            },
+        )
+        cluster_state = Deployment(
+            nodes={local_state.to_node()}
+        )
+
+        local_config = local_state.to_node().transform(
+            ["manifestations", unicode(dataset_id), "dataset", "deleted"], True
+        )
+        cluster_configuration = Deployment(
+            nodes={local_config}
+        )
+
+        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        api.attach_volume(volume.blockdevice_id, node)
+
+        deployer = BlockDeviceDeployer(
+            # This deployer is responsible for *other_node*, not node.
+            hostname=other_node,
+            block_device_api=api,
+        )
+
+        changes = deployer.calculate_necessary_state_changes(
+            local_state=NodeState(hostname=other_node),
+            desired_configuration=cluster_configuration,
+            current_cluster_state=cluster_state,
+        )
+
+        self.assertEqual(
+            InParallel(changes=[]),
+            changes
+        )
+
 
 class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         SynchronousTestCase
