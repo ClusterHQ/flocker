@@ -2687,21 +2687,39 @@ class ContainerStateTestsMixin(APITestsMixin):
         When the cluster state includes one container, the endpoint
         returns a single-element list containing the container.
         """
+        manifestation = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=False
+        )
         expected_application = Application(
-            name=u"myapp", image=DockerImage.from_string(u"busybox"))
+            name=u"myapp", image=DockerImage.from_string(u"busybox:1.2"),
+            ports=[Port(internal_port=80, external_port=8080)],
+            links=[Link(alias=u"db", local_port=1234, remote_port=5678)],
+            cpu_shares=512, memory_limit=1024*1024*100,
+            volume=AttachedVolume(manifestation=manifestation,
+                                  mountpoint=FilePath(b"/xxx/yyy")),
+            restart_policy=RestartAlways(),
+        )
         expected_hostname = u"192.0.2.101"
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname,
                 applications={expected_application},
+                manifestations={manifestation},
             )
         )
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
-            image=u"busybox:latest",
+            image=u"busybox:1.2",
             running=True,
-            restart_policy={u"name": u"never"},
+            restart_policy={u"name": u"always"},
+            ports=[{u"internal": 80, u"external": 8080}],
+            links=[{"alias": u"db", u"local_port": 1234,
+                    u"remote_port": 5678}],
+            cpu_shares=512, memory_limit=1024*1024*100,
+            volumes=[{"dataset_id": manifestation.dataset_id,
+                      "mountpoint": u"/xxx/yyy"}],
         )
         response = [expected_dict]
         return self.assertResult(
