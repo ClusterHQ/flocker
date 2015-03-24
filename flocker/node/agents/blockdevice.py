@@ -153,14 +153,32 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
 
 
 def _volume():
-    return field(type=BlockDeviceVolume, mandatory=True, factory=lambda x: x)
+    """
+    Create a ``PRecord`` ``field`` for to hold a ``BlockDeviceVolume`.
+    """
+    return field(
+        type=BlockDeviceVolume, mandatory=True,
+        # Disable the automatic PRecord.create factory.  Callers can just
+        # supply the right type, we don't need the magic coercion behavior
+        # supplied by default.
+        factory=lambda x: x
+    )
 
 
 @implementer(IStateChange)
 class UnmountBlockDevice(PRecord):
+    """
+    Unmount the filesystem mounted from the block device backed by a particular
+    volume.
+    """
     volume = _volume()
 
     def run(self, deployer):
+        """
+        Run the system ``unmount`` tool to unmount this change's volume's block
+        device.  The volume must be attached to this node and the corresponding
+        block device mounted.
+        """
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
@@ -170,33 +188,34 @@ class UnmountBlockDevice(PRecord):
 
 @implementer(IStateChange)
 class DetachVolume(PRecord):
+    """
+    Detach a volume from the node it is currently attached to.
+    """
     volume = _volume()
 
     def run(self, deployer):
+        """
+        Use the deployer's ``IBlockDeviceAPI`` to detach the volume.
+        """
         deployer.block_device_api.detach_volume(self.volume.blockdevice_id)
         return succeed(None)
 
 
 @implementer(IStateChange)
 class DestroyVolume(PRecord):
+    """
+    Destroy the storage (and therefore contents) of a volume.
+    """
     volume = _volume()
 
     def run(self, deployer):
+        """
+        Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
+        """
         deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
         return succeed(None)
 
-# Give it a run method that
-# unmounts the filesystem (arguments determine via the API object's
-# get_device_path), calls the API object's detach_volume method with the
-# volume's blockdevice id, and calls the API object's destroy_volume method
-# with the volume's blockdevice id.  Do Eliot logging of what's happening.
-#
-# To practice for spliting up CreateBlockDeviceDataset and for the other gross
-# state changes, implement each step of DestroyBlockDeviceDataset as its own
-# stand-alone IStageChange implementer and create DestroyBlockDeviceDataset by
-# composing those.  Do this in a way that makes it very easy to test for use of
-# DestroyBlockDeviceDataset while also making it easy to use the more
-# fine-grained types directly when necessary.
+# Do Eliot logging of what's happening.
 
 @implementer(IStateChange)
 class CreateBlockDeviceDataset(PRecord):
