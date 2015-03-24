@@ -295,7 +295,7 @@
     "move container"
 
   doc: |
-    Move an existing named container to a new host.
+    Move an existing named container (and any attached datasets) to a new host.
 
   request: |
     POST /v1/configuration/containers/webserver HTTP/1.1

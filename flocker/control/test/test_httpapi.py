@@ -1327,8 +1327,8 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                     hostname=self.NODE_A,
                     applications=[
                         Application(
-                            name='leavemealone',
-                            image=DockerImage.from_string('busybox'),
+                            name=u'leavemealone',
+                            image=DockerImage.from_string(u'busybox'),
                         ),
                     ]
                 ),
@@ -1354,34 +1354,22 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         """
         d = self._create_container()
 
-        d.addCallback(lambda _: self.assertResponseCode(
-            b"POST", b"/configuration/containers/mycontainer",
-            {u"host": self.NODE_A}, OK
-        ))
+        d.addCallback(lambda _: self.persistence_service.get())
 
-        def updated(_):
-            deployment = self.persistence_service.get()
-            expected = Deployment(
-                nodes={
-                    Node(
-                        hostname=self.NODE_A,
-                        applications=[
-                            Application(
-                                name='leavemealone',
-                                image=DockerImage.from_string('busybox'),
-                            ),
-                            Application(
-                                name='mycontainer',
-                                image=DockerImage.from_string('busybox')
-                            ),
-                        ]
-                    ),
-                    Node(hostname=self.NODE_B),
-                }
+        def handle_expected(expected):
+            dr = self.assertResponseCode(
+                b"POST", b"/configuration/containers/mycontainer",
+                {u"host": self.NODE_A}, OK
             )
-            self.assertEqual(deployment, expected)
 
-        d.addCallback(updated)
+            def updated(_):
+                deployment = self.persistence_service.get()
+                self.assertEqual(deployment, expected)
+
+            dr.addCallback(updated)
+            return dr
+
+        d.addCallback(handle_expected)
         return d
 
     def test_update_new_host(self):
@@ -1391,38 +1379,37 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         """
         d = self._create_container()
 
-        d.addCallback(lambda _: self.assertResponseCode(
-            b"POST", b"/configuration/containers/mycontainer",
-            {u"host": self.NODE_B}, OK
-        ))
+        d.addCallback(lambda _: self.persistence_service.get())
 
-        def updated(_):
-            deployment = self.persistence_service.get()
-            expected = Deployment(
-                nodes={
-                    Node(
-                        hostname=self.NODE_A,
-                        applications=[
-                            Application(
-                                name='leavemealone',
-                                image=DockerImage.from_string('busybox'),
-                            ),
-                        ]
-                    ),
-                    Node(
-                        hostname=self.NODE_B,
-                        applications=[
-                            Application(
-                                name='mycontainer',
-                                image=DockerImage.from_string('busybox')
-                            ),
-                        ]
-                    ),
-                }
+        def handle_expected(expected):
+            dr = self.assertResponseCode(
+                b"POST", b"/configuration/containers/mycontainer",
+                {u"host": self.NODE_B}, OK
             )
-            self.assertEqual(deployment, expected)
 
-        d.addCallback(updated)
+            def updated(_):
+                deployment = self.persistence_service.get()
+                application = Application(
+                    name=u"mycontainer",
+                    image=DockerImage.from_string(u"busybox"),
+                )
+                real_expected = expected
+                for node in expected.nodes:
+                    if node.hostname == self.NODE_B:
+                        node = node.transform(
+                            ["applications"], lambda s: s.add(application)
+                        )
+                    else:
+                        node = node.transform(
+                            ["applications"], lambda s: s.remove(application)
+                        )
+                    real_expected = real_expected.update_node(node)
+                self.assertEqual(deployment, real_expected)
+
+            dr.addCallback(updated)
+            return dr
+
+        d.addCallback(handle_expected)
         return d
 
     def test_update_moves_dataset(self):
@@ -1434,8 +1421,8 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         """
         manifestation = _manifestation()
         application = Application(
-            name='postgres',
-            image=DockerImage.from_string('postgres'),
+            name=u'postgres',
+            image=DockerImage.from_string(u'postgres'),
             volume=AttachedVolume(
                 manifestation=manifestation,
                 mountpoint=FilePath(b"/var/lib/postgresql/9.4/data/base")
@@ -1500,8 +1487,8 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                         hostname=self.NODE_A,
                         applications=[
                             Application(
-                                name='leavemealone',
-                                image=DockerImage.from_string('busybox'),
+                                name=u'leavemealone',
+                                image=DockerImage.from_string(u'busybox'),
                             ),
                         ]
                     ),
@@ -1510,8 +1497,8 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                         hostname=u"192.0.2.3",
                         applications=[
                             Application(
-                                name='mycontainer',
-                                image=DockerImage.from_string('busybox')
+                                name=u'mycontainer',
+                                image=DockerImage.from_string(u'busybox')
                             ),
                         ]
                     ),
