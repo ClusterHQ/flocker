@@ -17,14 +17,16 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import P2PNodeDeployer, change_node_state
-from ..testtools import ControllableDeployer, ControllableAction
+from ..testtools import (
+    ControllableDeployer, ControllableAction, ideployer_tests_factory, EMPTY,
+)
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name, IDeployer,
+    ResizeDataset, _link_environment, _to_volume_name,
     DeleteDataset, OpenPorts
 )
 from ...testtools import CustomException
@@ -723,8 +725,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(NodeState(hostname=u'example.com',
-                                   running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'example.com'),
                          self.successResultOf(d))
 
     def test_discover_one(self):
@@ -751,7 +752,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(NodeState(hostname=u'example.com',
-                                   running=[application], not_running=[]),
+                                   applications=[application]),
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
@@ -785,7 +786,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).running)
+                              self.successResultOf(d).applications)
 
     def test_discover_application_with_environment(self):
         """
@@ -851,7 +852,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_discover_application_with_ports(self):
         """
@@ -885,7 +886,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_discover_locally_owned_volume(self):
         """
@@ -947,7 +948,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).running)
+                              self.successResultOf(d).applications)
 
     def test_discover_locally_owned_volume_with_size(self):
         """
@@ -1027,7 +1028,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).running)
+                              self.successResultOf(d).applications)
 
     def test_discover_remotely_owned_volumes_ignored(self):
         """
@@ -1057,7 +1058,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_ignore_unknown_volumes(self):
         """
@@ -1092,7 +1093,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_not_running_units(self):
         """
@@ -1114,7 +1115,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             Application(name=unit.name,
                         image=DockerImage.from_string(
                             unit.container_image
-                        )) for unit in units.values()
+                        ),
+                        running=False) for unit in units.values()
         ]
         applications.sort()
         api = P2PNodeDeployer(
@@ -1127,7 +1129,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         result = self.successResultOf(d)
 
         self.assertEqual(NodeState(hostname=u'example.com',
-                                   running=[], not_running=applications),
+                                   applications=applications),
                          result)
 
     def test_discover_used_ports(self):
@@ -1148,8 +1150,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         state = self.successResultOf(discovering)
 
         self.assertEqual(
-            NodeState(hostname=u'example.com',
-                      running=[], not_running=[], used_ports=used_ports),
+            NodeState(hostname=u'example.com', used_ports=used_ports),
             state
         )
 
@@ -1183,7 +1184,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     DATASET_ID = u"uuid123"
     DATASET_ID2 = u"uuid456"
@@ -1255,10 +1256,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
              self.volume_service.get(_to_volume_name(
                  self.DATASET_ID2)).get_filesystem().get_path()},
             self.successResultOf(d).paths)
-
-
-# A deployment with no information:
-EMPTY = Deployment(nodes=frozenset())
 
 
 class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
@@ -2181,7 +2178,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             current_cluster_state=EMPTY)
         to_stop = Application(
             name=unit.name,
-            image=DockerImage.from_string(unit.container_image)
+            image=DockerImage.from_string(unit.container_image),
+            running=False,
         )
         expected = Sequentially(changes=[InParallel(changes=[
             StopApplication(application=to_stop)])])
@@ -3192,8 +3190,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
                               current_cluster_state=EMPTY)
         d.addCallback(lambda _: api.discover_local_state())
 
-        self.assertEqual(NodeState(hostname=u'node.example.com',
-                                   running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'node.example.com'),
                          self.successResultOf(d))
 
     def test_applications_started(self):
@@ -3231,7 +3228,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
                                                tag=u'release-14.0'),)
         self.assertEqual(
             NodeState(hostname=u'node.example.com',
-                      running=[expected_application], not_running=[]),
+                      applications=[expected_application]),
             self.successResultOf(d))
 
     def test_result(self):
@@ -3598,42 +3595,6 @@ class PushVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)
-
-
-def ideployer_tests_factory(fixture):
-    """
-    Create test case for IDeployer implementation.
-
-    :param fixture: Callable that takes ``TestCase`` instance and returns
-         a ``IDeployer`` provider.
-
-    :return: ``TestCase`` subclass that will test the given fixture.
-    """
-    class IDeployerTests(TestCase):
-        """
-        Tests for ``IDeployer``.
-        """
-        def test_interface(self):
-            """
-            The object claims to provide the interface.
-            """
-            self.assertTrue(verifyObject(IDeployer, fixture(self)))
-
-        def test_calculate_necessary_state_changes(self):
-            """
-            The object's ``calculate_necessary_state_changes`` method returns a
-            ``IStateChange`` provider.
-            """
-            deployer = fixture(self)
-            d = deployer.discover_local_state()
-            d.addCallback(
-                lambda local: deployer.calculate_necessary_state_changes(
-                    local, EMPTY, EMPTY))
-            d.addCallback(
-                lambda result: self.assertTrue(verifyObject(IStateChange,
-                                                            result)))
-            return d
-    return IDeployerTests
 
 
 class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(

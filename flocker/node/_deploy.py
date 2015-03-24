@@ -459,8 +459,7 @@ class P2PNodeDeployer(object):
 
         def applications_from_units(result):
             units, available_manifestations = result
-            running = []
-            not_running = []
+            applications = []
             manifestations = []  # Manifestation objects we're constructing
             manifestation_paths = {dataset_id: path for (path, (dataset_id, _))
                                    in available_manifestations.items()}
@@ -524,7 +523,7 @@ class P2PNodeDeployer(object):
                                 remote_port=int(value),
                                 alias=alias,
                             ))
-                application = Application(
+                applications.append(Application(
                     name=unit.name,
                     image=image,
                     ports=frozenset(ports),
@@ -532,11 +531,8 @@ class P2PNodeDeployer(object):
                     environment=environment if environment else None,
                     links=frozenset(links),
                     restart_policy=unit.restart_policy,
-                )
-                if unit.activation_state == u"active":
-                    running.append(application)
-                else:
-                    not_running.append(application)
+                    running=(unit.activation_state == u"active"),
+                ))
 
             manifestations += list(
                 Manifestation(dataset=Dataset(dataset_id=dataset_id,
@@ -547,8 +543,7 @@ class P2PNodeDeployer(object):
 
             return NodeState(
                 hostname=self.hostname,
-                running=running,
-                not_running=not_running,
+                applications=applications,
                 used_ports=self.network.enumerate_used_ports(),
                 manifestations=manifestations,
                 paths=manifestation_paths,
@@ -613,16 +608,18 @@ class P2PNodeDeployer(object):
 
         # We are a node-specific IDeployer:
         current_node_state = local_state
-        current_node_applications = current_node_state.running
-        all_applications = (current_node_state.running |
-                            current_node_state.not_running)
+        current_node_applications = set(
+            app for app in current_node_state.applications if app.running)
+        all_applications = current_node_state.applications
 
         # Compare the applications being changed by name only.  Other
         # configuration changes aren't important at this point.
         current_state = {app.name for app in current_node_applications}
         desired_local_state = {app.name for app in
                                desired_node_applications}
-        not_running = {app.name for app in current_node_state.not_running}
+        not_running = {
+            app.name for app
+            in all_applications.difference(current_node_applications)}
 
         # Don't start applications that exist on this node but aren't
         # running; instead they should be restarted:
