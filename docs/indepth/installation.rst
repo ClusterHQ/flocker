@@ -424,19 +424,25 @@ Flocker requires the latest available kernel.
 
 .. .. task:: upgrade_kernel_ubuntu
 
-.. sudo su -
+.. These commands need to be run as root, so sudo su -
 
 add-apt-repository -y ppa:zfs-native/stable
 add-apt-repository -y ppa:james-page/docker
-add-apt-repository -y http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/
 
 apt-get update
 apt-get -y upgrade
-apt-get -y install spl-dkms zfs-dkms zfsutils docker.io
+apt-get -y install spl-dkms
+apt-get -y install zfs-dkms zfsutils docker.io
+apt-get -f install
 sync
 shutdown -r now
-apt-get install clusterhq-flocker-node clusterhq-python-flocker clusterhq-flocker-cli
-wget -O clusterhq-flocker node
-dpkg -i install...
-http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-node_0.3.2+doc1-1.2014.gedf19ad_all.deb
-http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-python-flocker_0.3.2+doc1-1.2014.gedf19ad_amd64.deb
+
+.. These commands need to be run as root, so sudo su -
+
+.. This is a stopgap - there will be a proper repository on S3 to apt-get install from
+
+wget -O clusterhq-python-flocker http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb
+wget -O clusterhq-flocker-node http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.8.661.g5c313b5_all.deb
+wget -O clusterhq-flocker-cli http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.8.661.g5c313b5_all.deb
+dpkg -i clusterhq-python-flocker clusterhq-flocker-node clusterhq-flocker-cli
+.. dpkg -i '/root/clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb'
