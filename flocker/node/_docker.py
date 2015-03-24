@@ -555,13 +555,14 @@ class DockerClient(object):
                 else:
                     continue
                 # Retrieve environment variables for this container,
-                # disregarding the HOME and PATH environment variables that are
-                # included in every container and do not translate back to the
-                # deployed Flocker applications.
+                # disregarding any environment variables that are part
+                # of the image, rather than supplied in the configuration.
+                image_data = self._client.inspect_image(image)
                 unit_environment = []
-                environment_data = data[u"Config"][u"Env"]
-                for environment in environment_data:
-                    if not environment.startswith(("HOME", "PATH")):
+                container_environment = data[u"Config"][u"Env"]
+                image_environment = image_data[u"Config"]["Env"]
+                for environment in container_environment:
+                    if environment not in image_environment:
                         env_key, env_value = environment.split('=', 1)
                         unit_environment.append((env_key, env_value))
                 unit_environment = (

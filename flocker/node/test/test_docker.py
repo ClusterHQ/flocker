@@ -114,15 +114,9 @@ def make_idockerclient_tests(fixture):
                 Volume(node_path=FilePath(b'/tmp'),
                        container_path=FilePath(b'/var/lib/data')),
             )
-            # The openshift/busybox-http-app image includes the STI_SCRIPTS_URL
-            # environment variable, we need to manually include it here to
-            # ensure the expected and actual returned Units match up.
-            STI_SCRIPTS_URL = (u'https://raw.githubusercontent.com/mfojtik/'
-                               u'busybox-http/master/.sti/bin')
             environment = (
                 (u'CUSTOM_ENV_A', u'a value'),
                 (u'CUSTOM_ENV_B', u'another value'),
-                (u'STI_SCRIPTS_URL', STI_SCRIPTS_URL)
             )
             environment = Environment(variables=frozenset(environment))
             self.addCleanup(client.remove, name)

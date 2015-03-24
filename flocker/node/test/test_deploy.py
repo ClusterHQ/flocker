@@ -796,7 +796,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             ('CUSTOM_ENV_A', 'a value'),
             ('CUSTOM_ENV_B', 'something else'),
         )
-        environment = Environment(variables=frozenset(environment_variables))
+        environment = Environment(variables=environment_variables)
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
                      container_image=u'clusterhq/wordpress:latest',
@@ -809,7 +809,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             Application(
                 name=unit1.name,
                 image=DockerImage.from_string(unit1.container_image),
-                environment=frozenset(environment_variables)
+                environment=environment_variables
             )
         ]
         api = P2PNodeDeployer(
