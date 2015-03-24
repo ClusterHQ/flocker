@@ -60,7 +60,7 @@ if [ ! -e clusterhq-python-flocker-${VERSION}.x86_64.rpm ]; then
     /tmp/build-flocker-package/bin/pip install -e .[release]
     
     . /tmp/build-flocker-package/bin/activate
-    python ./admin/build-package --distribution fedora-20 $(pwd)
+    python ./admin/build-package --distribution fedora-20 /flocker
 fi
 
 #
