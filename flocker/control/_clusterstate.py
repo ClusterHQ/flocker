@@ -6,7 +6,7 @@ Combine and retrieve current cluster state.
 
 from twisted.application.service import Service
 
-from ._model import Deployment
+from ._model import DeploymentState
 
 
 class ClusterStateService(Service):
@@ -17,6 +17,10 @@ class ClusterStateService(Service):
     https://clusterhq.atlassian.net/browse/FLOC-1269 will deal with
     semantics of expiring data, which should happen so stale information
     isn't treated as correct.
+
+    https://clusterhq.atlassian.net/browse/FLOC-1542 will deal with
+    NodeState that has manifestations or application set to ``None``; for
+    now we assume all data is present in any given update.
     """
     def __init__(self):
         self._nodes = {}
@@ -45,9 +49,8 @@ class ClusterStateService(Service):
 
     def as_deployment(self):
         """
-        Return cluster state as a Deployment object.
+        Return cluster state as a ``DeploymentState`` object.
 
-        :return Deployment: Current state of the cluster.
+        :return DeploymentState: Current state of the cluster.
         """
-        return Deployment(nodes=frozenset(
-            (node_state.to_node() for node_state in self._nodes.values())))
+        return DeploymentState(nodes=self._nodes.values())
