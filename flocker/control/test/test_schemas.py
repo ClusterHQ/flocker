@@ -28,6 +28,30 @@ VersionsTests = build_schema_test(
     ],
 )
 
+
+ConfigurationContainersSchemaTests = build_schema_test(
+    name="ConfigurationContainersUpdateSchemaTests",
+    schema={
+        '$ref':
+            '/v1/endpoints.json#/definitions/configuration_container_update'
+    },
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Host missing
+        {},
+        # Host wrong type
+        {u'host': 1},
+        # Host not a host
+        {u'host': u'idonotexist'},
+        # Extra properties
+        {u'host': u'192.168.0.3', u'image': u'nginx:latest'},
+    ],
+    passing_instances=[
+        {u'host': u'192.168.0.3'},
+    ],
+)
+
+
 ConfigurationContainersSchemaTests = build_schema_test(
     name="ConfigurationContainersSchemaTests",
     schema={'$ref': '/v1/endpoints.json#/definitions/configuration_container'},
@@ -611,5 +635,36 @@ ConfigurationDatasetsArrayTests = build_schema_test(
         [],
         [{u"primary": u"10.0.0.1"}],
         [{u"primary": u"10.0.0.1"}, {u"primary": u"10.0.0.2"}]
+    ],
+)
+
+StateContainersArrayTests = build_schema_test(
+    name="StateContainersArrayTests",
+    schema={'$ref':
+            '/v1/endpoints.json#/definitions/state_containers_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Incorrect type
+        {},
+        # Wrong item type
+        ["string"],
+        # Failing dataset type (missing running)
+        [{u"host": u"10.0.0.1", u"name": u"lalala",
+          u"image": u"busybox:latest"}]
+    ],
+    passing_instances=[
+        [],
+        [{u"host": u"10.0.0.1", u"name": u"lalala",
+          u"image": u"busybox:latest", u'running': True}],
+        [{
+            u'host': u'192.168.0.3',
+            u'image': u'nginx:latest',
+            u'name': u'webserver2',
+            u'running': True},
+         {
+             u'host': u'192.168.0.3',
+             u'image': u'nginx:latest',
+             u'name': u'webserver',
+             u'running': False}],
     ],
 )

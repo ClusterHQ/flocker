@@ -16,7 +16,7 @@ from twisted.python.filepath import FilePath
 
 from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
-from flocker.provision import PackageSource, Variants
+from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
 from flocker.provision._install import (
     run as run_tasks_on_node,
@@ -67,6 +67,16 @@ def extend_environ(**kwargs):
     env = os.environ.copy()
     env.update(kwargs)
     return env
+
+
+def remove_known_host(hostname):
+    """
+    Remove all keys belonging to hostname from a known_hosts file.
+
+    param bytes hostname: Remove all keys belonging to this hostname from
+        known_hosts.
+    """
+    check_safe_call(['ssh-keygen', '-R', hostname])
 
 
 def run_tests(nodes, control_node, agent_nodes, trial_args):
@@ -156,6 +166,7 @@ class VagrantRunner(object):
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
         for node in self.NODE_ADDRESSES:
+            remove_known_host(node)
             run_tasks_on_node(
                 username='root',
                 address=node,
@@ -181,9 +192,15 @@ class LibcloudRunner(object):
 
         self.metadata = self.config.get('metadata', {})
         try:
-            self.creator = self.metadata['creator']
+            creator = self.metadata['creator']
         except KeyError:
             raise UsageError("Must specify creator metadata.")
+
+        if not creator.isalnum():
+            raise UsageError(
+                "Creator must be alphanumeric. Found {!r}".format(creator)
+            )
+        self.creator = creator
 
     def start_nodes(self):
         """
@@ -214,10 +231,7 @@ class LibcloudRunner(object):
 
             self.nodes.append(node)
 
-            # From ssh-keygen(1):
-            # -R hostname
-            # Removes all keys belonging to hostname from a known_hosts file.
-            check_safe_call(['ssh-keygen', '-R', node.address])
+            remove_known_host(node.address)
             node.provision(package_source=self.package_source,
                            variants=self.variants)
             del node
@@ -236,39 +250,7 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-def rackspace_runner(config, **kwargs):
-    """
-    Run the tests against rackspace nodes.
-    """
-    from flocker.provision import rackspace_provisioner
-    try:
-        rackspace_config = config['rackspace']
-    except KeyError:
-        raise UsageError("Must provided 'rackspace' config stanza.")
-
-    provisioner = rackspace_provisioner(**rackspace_config)
-    return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
-
-
-def aws_runner(config, **kwargs):
-    """
-    Run the tests against aws nodes.
-    """
-    from flocker.provision import aws_provisioner
-    try:
-        aws_config = config['aws']
-    except KeyError:
-        raise UsageError("Must provided 'aws' config stanza.")
-
-    provisioner = aws_provisioner(**aws_config)
-    return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
-
-
-PROVIDERS = {
-    'vagrant': VagrantRunner,
-    'rackspace': rackspace_runner,
-    'aws': aws_runner,
-}
+PROVIDERS = tuple(sorted(['vagrant'] + CLOUD_PROVIDERS.keys()))
 
 
 class RunOptions(Options):
@@ -280,7 +262,7 @@ class RunOptions(Options):
          'One of fedora-20.'],
         ['provider', None, 'vagrant',
          'The target provider to test against. '
-         'One of vagrant, rackspace.'],
+         'One of {}.'.format(', '.join(PROVIDERS))],
         ['config-file', None, None,
          'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab RPMS from'],
@@ -328,11 +310,6 @@ class RunOptions(Options):
         else:
             self['config'] = {}
 
-        if self['provider'] not in PROVIDERS:
-            raise UsageError(
-                "Provider %r not supported. Available providers: %s"
-                % (self['provider'], ', '.join(PROVIDERS.keys())))
-
         if self['flocker-version']:
             os_version = "%s-%s" % make_rpm_version(self['flocker-version'])
             if os_version.endswith('.dirty'):
@@ -347,14 +324,39 @@ class RunOptions(Options):
             build_server=self['build-server'],
         )
 
-        provider_factory = PROVIDERS[self['provider']]
-        self.runner = provider_factory(
-            top_level=self.top_level,
-            config=self['config'],
-            distribution=self['distribution'],
-            package_source=package_source,
-            variants=self['variants'],
-        )
+        if self['provider'] not in PROVIDERS:
+            raise UsageError(
+                "Provider %r not supported. Available providers: %s"
+                % (self['provider'], ', '.join(PROVIDERS)))
+
+        if self['provider'] in CLOUD_PROVIDERS:
+            # Configuration must include credentials etc for cloud providers.
+            try:
+                provider_config = self['config'][self['provider']]
+            except KeyError:
+                raise UsageError(
+                    "Configuration file must include a "
+                    "{!r} config stanza.".format(self['provider'])
+                )
+
+            provisioner = CLOUD_PROVIDERS[self['provider']](**provider_config)
+
+            self.runner = LibcloudRunner(
+                config=self['config'],
+                top_level=self.top_level,
+                distribution=self['distribution'],
+                package_source=package_source,
+                provisioner=provisioner,
+                variants=self['variants'],
+            )
+        else:
+            self.runner = VagrantRunner(
+                config=self['config'],
+                top_level=self.top_level,
+                distribution=self['distribution'],
+                package_source=package_source,
+                variants=self['variants'],
+            )
 
 
 def signal_handler(signal, frame):
