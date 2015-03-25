@@ -225,7 +225,7 @@ class LibcloudRunner(object):
 
             self.nodes.append(node)
 
-            remove_known_host(node)
+            remove_known_host(node.address)
             node.provision(package_source=self.package_source,
                            variants=self.variants)
             del node
