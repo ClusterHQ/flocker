@@ -115,8 +115,9 @@ def _list_new_metadata(repository_path):
         metadata from.
     :param set existing_metadata: Filenames of existing metadata files.
     """
-    return set([path.path for path in
-                repository_path.child('repodata').walk()])
+    return {"/".join(path.segmentsFrom(repository_path))
+            for path in repository_path.child('repodata').walk()}
+
 
 yum_dispatcher = TypeDispatcher({
     DownloadPackagesFromRepository: perform_download_packages_from_repository,
