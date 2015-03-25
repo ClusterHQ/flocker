@@ -37,3 +37,23 @@ class Variants(Values):
     DISTRO_TESTING = ValueConstant("distro-testing")
     DOCKER_HEAD = ValueConstant("docker-head")
     ZFS_TESTING = ValueConstant("zfs-testing")
+
+
+@attributes(
+    ['version', 'release', 'distribution', 'architecture']
+)
+class Kernel(object):
+    """
+    Represents the version information for a RPM kernel package.
+
+    :ivar bytes version: The RPM version number.
+    :ivar bytes release: The RPM release number.
+    :ivar bytes distribution: The RPM distribution label.
+    :ivar bytes architecture: x86_64 or i386.
+    """
+    @property
+    def version_tuple(self):
+        """
+        :returns: A tuple of integer version components for use in sorting.
+        """
+        return map(int, self.version.split('.'))
