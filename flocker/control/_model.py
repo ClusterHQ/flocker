@@ -502,10 +502,10 @@ class NodeState(PRecord):
         return (True, "")
 
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    used_ports = pset_field(int)
+    used_ports = pset_field(int, optional=True)
     applications = pset_field(Application, optional=True)
     manifestations = pmap_field(unicode, Manifestation, optional=True)
-    paths = pmap_field(unicode, FilePath)
+    paths = pmap_field(unicode, FilePath, optional=True)
 
 
 class DeploymentState(PRecord):
@@ -516,6 +516,32 @@ class DeploymentState(PRecord):
         the state of each cooperating node.
     """
     nodes = pset_field(NodeState)
+
+    def update_node(self, node_state):
+        """
+        Create new ``DeploymentState`` based on this one which updates an
+        existing ``NodeState`` with any known information from the given
+        ``NodeState``. Attributes which are set to ``None` on the given
+        update, indicating ignorance, will not be changed in the result.
+
+        The given ``NodeState`` will simply be added if no existing ones
+        have matching hostname.
+
+        :param NodeState node: An update for ``NodeState`` with same
+             hostname in this ``DeploymentState``.
+
+        :return DeploymentState: Updated with new ``NodeState``.
+        """
+        nodes = {n for n in self.nodes if n.hostname == node_state.hostname}
+        if not nodes:
+            return self.transform(["nodes"], lambda s: s.add(node_state))
+        updated_node, = nodes
+        for key, value in node_state.items():
+            if value is not None:
+                updated_node = updated_node.set(key, value)
+        return DeploymentState(nodes=frozenset(
+            list(n for n in self.nodes if n.hostname != node_state.hostname) +
+            [updated_node]))
 
 
 # Classes that can be serialized to disk or sent over the network:
