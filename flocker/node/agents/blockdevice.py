@@ -26,6 +26,10 @@ from twisted.python.filepath import FilePath
 from .. import IDeployer, IStateChange, Sequentially, InParallel
 from ...control import NodeState, Manifestation, Dataset
 
+# Eliot is transitioning away from the "Logger instances all over the place"
+# approach.  And it's hard to put Logger instances on PRecord subclasses which
+# we have a lot of.  So just use this global logger for now.
+_logger = Logger()
 
 class VolumeException(Exception):
     """
@@ -129,6 +133,20 @@ UNMOUNT_BLOCK_DEVICE = ActionType(
     u"A block-device-backed dataset is being unmounted.",
 )
 
+DETACH_VOLUME = ActionType(
+    u"agent:blockdevice:detach_volume",
+    [BLOCK_DEVICE_ID],
+    [],
+    u"The volume for a block-device-backed dataset is being detached."
+)
+
+DESTROY_VOLUME = ActionType(
+    u"agent:blockdevice:destroy_volume",
+    [BLOCK_DEVICE_ID],
+    [],
+    u"The volume for a block-device-backed dataset is being destroyed."
+)
+
 
 class BlockDeviceVolume(PRecord):
     """
@@ -154,8 +172,6 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
 
     :ivar IStateChange change: The real implementation of this state change.
     """
-    logger = Logger()
-
     def __init__(self, volume):
         """
         :param BlockDeviceVolume volume: The volume which will be destroyed.
@@ -168,16 +184,11 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
             DestroyVolume(volume=volume),
         ])
 
-        # XXX this doesn't work because when the logger is assigned to a
-        # PRecord, it becomes read-only.
-        for change in sequence.changes:
-            change.logger = self.logger
-
         super(DestroyBlockDeviceDataset, self).__init__(sequence)
 
     def run(self, deployer):
         with DESTROY_BLOCK_DEVICE_DATASET(
-                self.logger,
+                _logger,
                 block_device_id=self.volume.blockdevice_id
         ):
             result = self.change.run(deployer)
@@ -205,7 +216,6 @@ class UnmountBlockDevice(PRecord):
     volume.
     """
     volume = _volume()
-    logger = Logger()
 
     def run(self, deployer):
         """
@@ -213,7 +223,7 @@ class UnmountBlockDevice(PRecord):
         device.  The volume must be attached to this node and the corresponding
         block device mounted.
         """
-        with UNMOUNT_BLOCK_DEVICE(self.logger, block_device_id=self.volume.blockdevice_id):
+        with UNMOUNT_BLOCK_DEVICE(_logger, block_device_id=self.volume.blockdevice_id):
             device = deployer.block_device_api.get_device_path(
                 self.volume.blockdevice_id
             )
@@ -232,8 +242,9 @@ class DetachVolume(PRecord):
         """
         Use the deployer's ``IBlockDeviceAPI`` to detach the volume.
         """
-        deployer.block_device_api.detach_volume(self.volume.blockdevice_id)
-        return succeed(None)
+        with DETACH_VOLUME(_logger, block_device_id=self.volume.blockdevice_id):
+            deployer.block_device_api.detach_volume(self.volume.blockdevice_id)
+            return succeed(None)
 
 
 @implementer(IStateChange)
@@ -247,10 +258,10 @@ class DestroyVolume(PRecord):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
-        deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
-        return succeed(None)
+        with DESTROY_VOLUME(_logger, block_device_id=self.volume.blockdevice_id):
+            deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
+            return succeed(None)
 
-# Do Eliot logging of what's happening.
 
 @implementer(IStateChange)
 class CreateBlockDeviceDataset(PRecord):
@@ -260,12 +271,9 @@ class CreateBlockDeviceDataset(PRecord):
 
     :ivar Dataset dataset: The dataset for which to create a block device.
     :ivar FilePath mountpoint: The path at which to mount the created device.
-    :ivar Logger logger: An Eliot ``Logger``.
     """
     dataset = field(mandatory=True, type=Dataset)
     mountpoint = field(mandatory=True, type=FilePath)
-
-    logger = Logger()
 
     def run(self, deployer):
         """
@@ -280,7 +288,7 @@ class CreateBlockDeviceDataset(PRecord):
         :returns: An already fired ``Deferred`` with result ``None``.
         """
         with CREATE_BLOCK_DEVICE_DATASET(
-                self.logger,
+                _logger,
                 dataset=self.dataset, mountpoint=self.mountpoint
         ) as action:
             api = deployer.block_device_api

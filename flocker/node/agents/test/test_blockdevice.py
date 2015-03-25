@@ -10,23 +10,23 @@ from subprocess import STDOUT, PIPE, Popen, check_output
 
 from zope.interface.verify import verifyObject
 
-from pyrsistent import InvariantException
-
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from eliot.testing import validate_logging, LoggedAction, assertHasAction
 
+from .. import blockdevice
+
 from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     DestroyVolume,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
-    DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE,
+    DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
+    DESTROY_VOLUME,
 )
 
 from ... import InParallel, IStateChange
@@ -1426,7 +1426,9 @@ class DestroyBlockDeviceDatasetTests(
         self.assertEqual([action], all_such_actions)
         # Child actions are logged
         [unmount] = LoggedAction.of_type(logger.messages, UNMOUNT_BLOCK_DEVICE)
-        self.assertEqualItems([unmount], action.children)
+        [detach] = LoggedAction.of_type(logger.messages, DETACH_VOLUME)
+        [destroy] = LoggedAction.of_type(logger.messages, DESTROY_VOLUME)
+        self.assertEqual([unmount, detach, destroy], action.children)
 
     @validate_logging(verify_run_log)
     def test_run(self, logger):
@@ -1434,6 +1436,8 @@ class DestroyBlockDeviceDatasetTests(
         After running ``DestroyBlockDeviceDataset``, its volume has been unmounted,
         detached, and destroyed.
         """
+        self.patch(blockdevice, "_logger", logger)
+
         node = u"192.0.2.3"
         dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(self)
@@ -1454,7 +1458,6 @@ class DestroyBlockDeviceDatasetTests(
             mountroot=mountroot,
         )
         change = DestroyBlockDeviceDataset(volume=volume)
-        change.logger = logger
         self.successResultOf(change.run(deployer))
 
         # It's only possible to destroy a volume that's been detached.  It's
