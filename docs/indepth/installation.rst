@@ -345,6 +345,13 @@ Paste them into a root console on the target node:
 .. task:: install_flocker fedora-20
    :prompt: [root@node]#
 
+Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
+To enable and start Docker, run the following commands in a root console:
+
+.. task:: enable_docker
+   :prompt: [root@node]#
+
+
 Installing on CentOS 7
 ----------------------
 
@@ -368,17 +375,86 @@ Paste them into a root console on the target node:
 .. task:: install_flocker centos-7
    :prompt: [root@node]#
 
-
-.. _centos-7-install:
-
-Post installation configuration for Fedora 20 and CentOS 7
-----------------------------------------------------------
-
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker
    :prompt: [root@node]#
+
+
+Installing on Ubuntu 14.04
+--------------------------
+
+.. To test this:
+   * create two ubuntu medium instances on AWS with security group "acceptance"
+   * ssh ubuntu@... for each of the node IPs
+   * sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys
+   * ssh root@... for each of the node IPs
+   * This is similar to following the AWS instructions above but ignoring the "Upgrade the Kernel" step which is different on Ubuntu and SELinux can be ignored I think
+
+.. TODO Say that it needs at least X instead of "latest available"
+
+Flocker requires the latest available kernel.
+
+.. When 15.04 is available then the kernel can be backported from that, similar to `apt-get install linux-image-generic-lts-utopic`.
+
+.. prompt:: bash [root@node]#
+
+   # TODO instead of below, have .. task:: upgrade_kernel_ubuntu
+   cd /tmp/
+   mkdir kernel-packages
+   cd kernel-packages
+   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
+   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb
+   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
+   # XXX This brings up a prompt about upgrading grub, somehow work around that, see http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
+   # (maybe use export DEBIAN_FRONTEND=noninteractivesa)
+   sudo dpkg -i linux-headers-3.18.0-*.deb linux-image-3.18.0-*.deb
+   sync
+
+Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
+Thus we need to reboot into the new kernel.
+
+.. prompt:: bash [root@node]#
+
+   shutdown -r now
+
+
+Install newish versions of ZFS and Docker.
+
+.. prompt:: bash [root@node]#
+
+   add-apt-repository -y ppa:zfs-native/stable
+   add-apt-repository -y ppa:james-page/docker
+
+   apt-get update
+   apt-get -y upgrade
+   apt-get -y install spl-dkms
+   # TODO does docker.io need to be installed here?
+   # Take it out and check that a late-enough docker version is available
+   apt-get -y install zfs-dkms zfsutils docker.io
+
+   #TODO does this have to be done?
+   sync
+   shutdown -r now
+
+Now install the ``clusterhq-flocker-node`` package.
+
+.. prompt:: bash [root@node]#
+
+.. TODO is clusterhq-python-flocker necessary?
+.. This is a stopgap - there will be a proper repository on S3 to apt-get install from
+
+   wget -O clusterhq-python-flocker http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb
+   wget -O clusterhq-flocker-node http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.8.661.g5c313b5_all.deb
+   dpkg -i clusterhq-python-flocker clusterhq-flocker-node
+
+.. TODO is this the wrong anchor?
+
+.. _centos-7-install:
+
+Post installation configuration
+-------------------------------
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
@@ -410,51 +486,3 @@ You have also ensured that the ``flocker-deploy`` command line tool is able to c
 Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
 Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
 Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
-
-Installing on Ubuntu 14.04
---------------------------
-
-Flocker requires the latest available kernel.
-
-.. .. task:: upgrade_kernel_ubuntu
-
-.. To test this:
-   * create two ubuntu medium instances on AWS with security group "acceptance"
-   * ssh ubuntu@... for each of the node IPs
-   * sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys
-   * ssh root@... for each of the node IPs
-
-.. A new kernel is necessary. When 15.04 is available then the kernel can be backported from that, similar to `apt-get install linux-image-generic-lts-utopic`.
-   For now:
-   cd /tmp/
-   mkdir kernel-packages
-   cd kernel-packages
-   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
-   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb
-   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
-   sudo dpkg -i linux-headers-3.18.0-*.deb linux-image-3.18.0-*.deb # XXX This brings up a prompt about upgrading grub, somehow work around that, see http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade (maybe use export DEBIAN_FRONTEND=noninteractivesa)
-   shutdown -r now
-
-add-apt-repository -y ppa:zfs-native/stable
-add-apt-repository -y ppa:james-page/docker
-
-apt-get update
-apt-get -y upgrade
-apt-get -y install spl-dkms
-apt-get -y install zfs-dkms zfsutils docker.io
-
-sync
-shutdown -r now
-
-.. This is a stopgap - there will be a proper repository on S3 to apt-get install from
-
-wget -O clusterhq-python-flocker http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb
-wget -O clusterhq-flocker-node http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.8.661.g5c313b5_all.deb
-# XXX is clusterhq-python-flocker necessary?
-dpkg -i clusterhq-python-flocker clusterhq-flocker-node
-
-.. no need for systemctl equivalents - docker ps already works
-
-mkdir -p /var/opt/flocker
-truncate --size 10G /var/opt/flocker/pool-vdev
-zpool create flocker /var/opt/flocker/pool-vdev
