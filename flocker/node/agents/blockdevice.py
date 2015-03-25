@@ -178,6 +178,8 @@ def _logged_statechange(cls):
     @wraps(original_run)
     def run(self, deployer):
         with self._action:
+            # IStateChange.run nominally returns a Deferred.  Hook it up to the
+            # action properly.  Do this as part of FLOC-1549 or maybe earlier.
             return original_run(self, deployer)
 
     cls.run = run
@@ -262,6 +264,8 @@ class UnmountBlockDevice(PRecord):
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
+        # This should be asynchronous.  Do it as part of FLOC-1499.  Make sure
+        # to fix _logged_statechange to handle Deferreds too.
         check_output([b"umount", device.path])
         return succeed(None)
 
@@ -282,6 +286,8 @@ class DetachVolume(PRecord):
         """
         Use the deployer's ``IBlockDeviceAPI`` to detach the volume.
         """
+        # Make this asynchronous after FLOC-1549, probably as part of
+        # FLOC-1593.
         deployer.block_device_api.detach_volume(self.volume.blockdevice_id)
         return succeed(None)
 
@@ -302,6 +308,8 @@ class DestroyVolume(PRecord):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
+        # Make this asynchronous after FLOC-1549, probably as part of
+        # FLOC-1582.
         deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
         return succeed(None)
 
