@@ -424,26 +424,22 @@ Flocker requires the latest available kernel.
 
 .. .. task:: upgrade_kernel_ubuntu
 
-.. from AWS instructions
+.. To test this:
+   * create two ubuntu medium instances on AWS with security group "acceptance"
+   * ssh ubuntu@... for each of the node IPs
+   * sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys
+   * ssh root@... for each of the node IPs
 
-.. create two instances then ssh ubuntu@...
-
-sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys
-
-.. now you can ssh root@...
-
-.. When 15.04 is available then the kernel can be backported from that, similar to apt-get install linux-image-generic-lts-utopic
-
-cd /tmp/
-mkdir debpackages
-cd debpackages
-wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
-wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb
-wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
-sudo dpkg -i linux-headers-3.18.0-*.deb linux-image-3.18.0-*.deb # XXX This brings up a prompt about upgrading grub, somehow work around that, see http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade (maybe use export DEBIAN_FRONTEND=noninteractivesa)
-shutdown -r now
-
-.. SELinux upgrade?
+.. A new kernel is necessary. When 15.04 is available then the kernel can be backported from that, similar to `apt-get install linux-image-generic-lts-utopic`.
+   For now:
+   cd /tmp/
+   mkdir kernel-packages
+   cd kernel-packages
+   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
+   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb
+   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
+   sudo dpkg -i linux-headers-3.18.0-*.deb linux-image-3.18.0-*.deb # XXX This brings up a prompt about upgrading grub, somehow work around that, see http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade (maybe use export DEBIAN_FRONTEND=noninteractivesa)
+   shutdown -r now
 
 add-apt-repository -y ppa:zfs-native/stable
 add-apt-repository -y ppa:james-page/docker
