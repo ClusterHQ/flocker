@@ -10,7 +10,7 @@ from ._install import (
     task_open_control_firewall,
     task_upgrade_kernel_centos,
 )
-from ._ssh import X as run
+from ._ssh import RunRemotely
 
 from ._effect import sequence
 from effect import Func, Effect
@@ -23,7 +23,7 @@ def provision_rackspace(node, package_source, distribution, variants):
     Provision flocker on this node.
     """
     if distribution in ('centos-7',):
-        yield Effect(run(
+        yield Effect(RunRemotely(
             username='root',
             address=node.address,
             commands=sequence([
@@ -42,7 +42,7 @@ def provision_rackspace(node, package_source, distribution, variants):
         # This should be part of ._install.configure_cluster
         task_open_control_firewall(),
     ])
-    yield Effect(run(
+    yield Effect(RunRemotely(
         username='root',
         address=node.address,
         commands=commands,

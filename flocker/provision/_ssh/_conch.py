@@ -20,6 +20,8 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python.filepath import FilePath
 import os
 
+from ._model import Run, Sudo, Put, Comment
+
 
 @attributes([
     "deferred",
@@ -46,17 +48,8 @@ class CommandProtocol(LineOnlyReceiver, object):
 
 @inlineCallbacks
 def run_with_crochet(base_dispatcher, username, address, commands):
-    from ._install import Run, Sudo, Put, Comment
-
-    def can_connect():
-        import socket
-        s = socket.socket()
-        conn = s.connect_ex((address, 22))
-        return False if conn else True
 
     from flocker.testtools import loop_until
-    yield loop_until(can_connect)
-
     key_path = FilePath(os.path.expanduser('~/.ssh/id_rsa'))
     if key_path.exists():
         keys = [Key.fromString(key_path.getContent())]
@@ -73,7 +66,13 @@ def run_with_crochet(base_dispatcher, username, address, commands):
         password=None,
         agentEndpoint=agentEndpoint,
         knownHosts=None, ui=ConsoleUI(lambda: _ReadFile(b"yes")))
-    connection = yield connection_helper.secureConnection()
+
+    def connect():
+        connection = connection_helper.secureConnection()
+        connection.addErrback(lambda _: False)
+        return connection
+
+    connection = yield loop_until(connect)
 
     def do_remote(endpoint):
         d = Deferred()
@@ -120,13 +119,6 @@ def run_with_crochet(base_dispatcher, username, address, commands):
 
     yield connection_helper.cleanupConnection(
         connection, False)
-
-
-@attributes([
-    "username", "address", "commands",
-])
-class X(object):
-    pass
 
 
 @deferred_performer

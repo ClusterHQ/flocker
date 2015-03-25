@@ -5,15 +5,19 @@
 Install flocker on a remote node.
 """
 
-from pipes import quote as shell_quote
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin
-from characteristic import attributes
-from effect import Effect, parallel
+from effect import parallel, Func, Effect
 
 from ._common import PackageSource, Variants, Kernel
-from ._ssh import run_with_crochet
+from ._ssh import (
+    run, run_from_args,
+    sudo_from_args,
+    put, comment,
+    run_with_crochet,
+    RunRemotely
+)
 from ._effect import sequence
 
 from flocker.cli import configure_ssh
@@ -40,73 +44,6 @@ CLUSTERHQ_REPO = {
 }
 
 
-@attributes(["command"])
-class Run(object):
-    """
-    Run a shell command on a remote host.
-
-    :param bytes command: The command to run.
-    """
-    @classmethod
-    def from_args(cls, command_args):
-        return cls(command=" ".join(map(shell_quote, command_args)))
-
-
-@attributes(["command"])
-class Sudo(object):
-    """
-    Run a shell command on a remote host.
-
-    :param bytes command: The command to run.
-    """
-    @classmethod
-    def from_args(cls, command_args):
-        return cls(command=" ".join(map(shell_quote, command_args)))
-
-
-@attributes(["content", "path"])
-class Put(object):
-    """
-    Create a file with the given content on a remote host.
-
-    :param bytes content: The desired contests.
-    :param bytes path: The remote path to create.
-    """
-
-
-@attributes(["comment"])
-class Comment(object):
-    """
-    Record a comment to be shown in the documentation corresponding to a task.
-
-    :param bytes comment: The desired comment.
-    """
-
-
-def run(command):
-    return Effect(Run(command=command))
-
-
-def sudo(command):
-    return Effect(Sudo(command=command))
-
-
-def put(content, path):
-    return Effect(Put(content=content, path=path))
-
-
-def comment(comment):
-    return Effect(Comment(comment=comment))
-
-
-def run_from_args(command):
-    return Effect(Run.from_args(command))
-
-
-def sudo_from_args(command):
-    return Effect(Sudo.from_args(command))
-
-
 def task_test_homebrew(recipe_url):
     return sequence([
         run("brew update"),
@@ -128,7 +65,7 @@ def task_upgrade_kernel():
     """
     return sequence([
         run_from_args(['yum', 'upgrade', '-y', 'kernel']),
-        Comment(comment="# The upgrade doesn't make the new kernel default."),
+        comment(comment="# The upgrade doesn't make the new kernel default."),
         run_from_args(['grubby', '--set-default-index', '0']),
     ])
 
@@ -174,7 +111,7 @@ def task_install_digitalocean_kernel():
     """
     url = koji_kernel_url(DIGITALOCEAN_KERNEL)
     return sequence([
-        Run.from_args(['yum', 'update', '-y', url]),
+        run_from_args(['yum', 'update', '-y', url]),
     ])
 
 
@@ -389,7 +326,7 @@ def task_enable_docker_head_repository(distribution):
         ])
     elif distribution == "centos-7":
         return sequence([
-            Put(content=dedent("""\
+            put(content=dedent("""\
                 [virt7-testing]
                 name=virt7-testing
                 baseurl=http://cbs.centos.org/repos/virt7-testing/x86_64/os/
@@ -461,21 +398,26 @@ def configure_cluster(control_node, agent_nodes):
     :param bytes control_node: The address of the control node.
     :param list agent_nodes: List of addresses of agent nodes.
     """
-    run_with_crochet(
-        username='root',
-        address=control_node,
-        commands=task_enable_flocker_control(),
-    )
-    for node in agent_nodes:
-        configure_ssh(node, 22)
-        run_with_crochet(
+    return sequence([
+        RunRemotely(
             username='root',
-            address=node,
-            commands=task_enable_flocker_agent(
-                node_name=node,
-                control_node=control_node,
-            ),
-        )
+            address=control_node,
+            commands=task_enable_flocker_control(),
+        ),
+        sequence([
+            sequence([
+                Effect(Func(lambda node=node: configure_ssh(node, 22))),
+                RunRemotely(
+                    username='root',
+                    address=node,
+                    commands=task_enable_flocker_agent(
+                        node_name=node,
+                        control_node=control_node,
+                    ),
+                ),
+            ]) for node in agent_nodes
+        ])
+    ])
 
 
 def stop_cluster(control_node, agent_nodes):
@@ -485,14 +427,18 @@ def stop_cluster(control_node, agent_nodes):
     :param bytes control_node: The address of the control node.
     :param list agent_nodes: List of addresses of agent nodes.
     """
-    run_with_crochet(
-        username='root',
-        address=control_node,
-        commands=run_from_args(['systemctl', 'stop', 'flocker-control']),
-    )
-    for node in agent_nodes:
-        run_with_crochet(
+    return sequence([
+        RunRemotely(
             username='root',
-            address=node,
-            commands=run_from_args(['systemctl', 'stop', 'flocker-agent']),
-        )
+            address=control_node,
+            commands=run_from_args(['systemctl', 'stop', 'flocker-control']),
+        ),
+        sequence([
+            RunRemotely(
+                username='root',
+                address=node,
+                commands=run_from_args(['systemctl', 'stop', 'flocker-agent']),
+            )
+            for node in agent_nodes
+        ])
+    ])

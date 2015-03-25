@@ -25,27 +25,8 @@ from flocker.provision._install import (
     configure_cluster,
 )
 
-from crochet import setup, run_in_reactor
-from effect import (
-    parallel, ComposedDispatcher, TypeDispatcher, base_dispatcher)
-from effect.twisted import (
-    make_twisted_dispatcher,
-    perform as perform_with_twisted
-)
-from twisted.internet import reactor
-from flocker.provision._ssh import perform_ssh, X
-from flocker.provision._effect import Sequence, perform_sequence
-
-
-def perform(dispatcher, effect):
-    """
-    Perform an effect in a reactor with crochet.
-    """
-    setup()
-    return run_in_reactor(perform_with_twisted)(
-        dispatcher,
-        effect,
-    ).wait()
+from effect import parallel
+from flocker.provision._ssh._crochet import perform, dispatcher
 
 
 def safe_call(command, **kwargs):
@@ -261,17 +242,7 @@ class LibcloudRunner(object):
                            variants=self.variants)
             for node in self.nodes
         ])
-        perform(
-            ComposedDispatcher([
-                TypeDispatcher({
-                    Sequence: perform_sequence,
-                    X: perform_ssh,
-                }),
-                make_twisted_dispatcher(reactor),
-                base_dispatcher,
-            ]),
-            commands,
-        )
+        perform(dispatcher, commands)
 
         return [node.address for node in self.nodes]
 
@@ -434,7 +405,8 @@ def main(args, base_path, top_level):
 
     try:
         nodes = runner.start_nodes()
-        configure_cluster(control_node=nodes[0], agent_nodes=nodes)
+        perform(dispatcher,
+                configure_cluster(control_node=nodes[0], agent_nodes=nodes))
         result = run_tests(
             nodes=nodes,
             control_node=nodes[0], agent_nodes=nodes,
