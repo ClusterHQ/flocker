@@ -824,6 +824,56 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertItemsEqual(pset(applications),
                               sorted(self.successResultOf(d).applications))
 
+    def test_discover_application_with_environment_and_links(self):
+        """
+        An ``Application`` with ``Environment`` and ``Link`` objects is
+        discovered from a ``Unit`` with both custom environment variables and
+        environment variables representing container links. The environment
+        variables taking the format <ALIAS>_PORT_<PORT>_TCP are separated in
+        to ``Link`` representations in the ``Application``.
+        """
+        environment_variables = (
+            ('CUSTOM_ENV_A', 'a value'),
+            ('CUSTOM_ENV_B', 'something else'),
+        )
+        link_environment_variables = (
+            ('APACHE_PORT_80_TCP', 'tcp://example.com:8080'),
+            ('APACHE_PORT_80_TCP_PROTO', 'tcp'),
+            ('APACHE_PORT_80_TCP_ADDR', 'example.com'),
+            ('APACHE_PORT_80_TCP_PORT', '8080'),
+        )
+        unit_environment = environment_variables + link_environment_variables
+        environment = Environment(variables=frozenset(unit_environment))
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
+                     environment=environment,
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        links = [
+            Link(local_port=80, remote_port=8080, alias="APACHE")
+        ]
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                environment=environment_variables,
+                links=frozenset(links)
+            )
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertItemsEqual(pset(applications),
+                              sorted(self.successResultOf(d).applications))
+
     def test_discover_application_with_links(self):
         """
         An ``Application`` with ``Link`` objects is discovered from a ``Unit``

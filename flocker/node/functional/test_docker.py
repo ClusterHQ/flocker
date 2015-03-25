@@ -407,6 +407,46 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(started)
         return d
 
+    def test_list_only_custom_environment(self):
+        """
+        When a container containing custom environment variables is launched
+        and the image used also injects environment variables, only the custom
+        variables we injected are returned by ``DockerClient.list``, whereas
+        variables set by the image are discarded.
+
+        All Docker containers have a PATH environment variable. In addition,
+        the openshift/busybox-http-app image contains an STI_SCRIPTS_URL
+        environment variable. These are therefore disregarded the variables
+        disregarded in this test, whereas our custom environment is listed in
+        the returned Units.
+
+        https://registry.hub.docker.com/u/openshift/busybox-http/dockerfile/
+        """
+        name = random_name()
+        environment = {
+            'my_variable': 'some value',
+            'another_variable': '12345'
+        }
+        environment = frozenset(environment.items())
+        d = self.start_container(
+            name,
+            image_name=u"openshift/busybox-http",
+            environment=Environment(variables=environment)
+        )
+
+        def started(client):
+            deferred_units = client.list()
+
+            def check_units(units):
+                unit = [unit for unit in units if unit.name == name][0]
+                expected = Environment(variables=environment)
+                self.assertEqual(unit.environment, expected)
+
+            deferred_units.addCallback(check_units)
+
+        d.addCallback(started)
+        return d
+
     def test_add_with_volumes(self):
         """
         ``DockerClient.add`` accepts a list of ``Volume`` instances which are
