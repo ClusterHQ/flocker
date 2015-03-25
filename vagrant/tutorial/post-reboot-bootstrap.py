@@ -57,7 +57,7 @@ else:
     package = 'clusterhq-flocker-node'
 
 # Install flocker-node
-check_call(['yum', 'install', '-y'] + branch_opt + [package])
+check_call(['yum', 'install', '-y', '--enablerepo=zfs-testing'] + branch_opt + [package])
 
 # Enable docker.
 # We don't need to start it, since when the box is packaged,
