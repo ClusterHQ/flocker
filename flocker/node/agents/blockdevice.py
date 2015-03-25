@@ -806,7 +806,8 @@ class BlockDeviceDeployer(PRecord):
         for manifestation in manifestations:
             dataset_id = manifestation.dataset.dataset_id
             # TODO This assumes things are actually mounted.  Maybe they
-            # aren't.
+            # aren't.  FLOC-1498 and FLOC-1499 need correct information here.
+            # Probably other folks won't mind it either.
             mountpath = self._mountpath_for_manifestation(manifestation)
             paths[dataset_id] = mountpath
 
