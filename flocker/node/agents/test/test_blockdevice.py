@@ -276,9 +276,9 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
 
     def test_deleted_dataset_volume_does_not_exist(self):
         """
-        If the configuration indicates a dataset with a primary manifestation
-        on the node has been deleted but the volume associated with that
-        dataset no longer exists,
+        If the configuration indicates that a dataset with a primary
+        manifestation on the node has been deleted but the volume associated
+        with that dataset no longer exists,
         ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
         return a ``DestroyBlockDeviceDataset`` for that dataset.
         """
@@ -929,8 +929,29 @@ class IBlockDeviceAPITestsMixin(object):
         self.api.destroy_volume(volume.blockdevice_id)
         self.assertEqual([unrelated], self.api.list_volumes())
 
-    # Test deleting a deleted volume (fail)
-    # Test deleting an attached volume (fail)
+    def _destroyed_volume(self):
+        """
+        :return: A ``BlockDeviceVolume`` representing a volume which has been
+            destroyed.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        self.api.destroy_volume(volume.blockdevice_id)
+        return volume
+
+    def test_destroy_destroyed_volume(self):
+        """
+        ``destroy_volume`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` was associated with a volume but that volume has
+        been destroyed.
+        """
+        volume = self._destroyed_volume()
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.destroy_volume, blockdevice_id=volume.blockdevice_id
+        )
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
 
     def test_detach_unknown_volume(self):
         """
@@ -957,8 +978,6 @@ class IBlockDeviceAPITestsMixin(object):
             self.api.detach_volume, volume.blockdevice_id
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
-
-    # Test detaching a volume with a mounted filesystem (fail) XXX
 
     def test_detach_volume(self):
         """
@@ -1030,13 +1049,30 @@ class IBlockDeviceAPITestsMixin(object):
         volume = self.api.create_volume(
             dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        volume = self.api.attach_volume(
+        attached_volume = self.api.attach_volume(
             volume.blockdevice_id, node
         )
+        volume = self.api.detach_volume(volume.blockdevice_id)
+        reattached_volume = self.api.attach_volume(
+            volume.blockdevice_id, node
+        )
+        self.assertEqual(
+            (attached_volume, [attached_volume]),
+            (reattached_volume, self.api.list_volumes())
+        )
 
-    # Test attaching a volume that has been deleted (fail)
-    # Test attaching a volume that has been through the attach/detach cycle
-    # (succeed)
+    def test_attach_destroyed_volume(self):
+        """
+        ``attach_volume`` raises ``UnknownVolume`` when called with the
+        ``blockdevice_id`` of a volume which has been destroyed.
+        """
+        node = u"192.0.2.5"
+        volume = self._destroyed_volume()
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.attach_volume, volume.blockdevice_id, node
+        )
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
 
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
