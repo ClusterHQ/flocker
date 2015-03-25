@@ -115,6 +115,13 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
     u"A block-device-backed dataset is being created.",
 )
 
+DESTROY_BLOCK_DEVICE_DATASET = ActionType(
+    u"agent:blockdevice:destroy",
+    [BLOCK_DEVICE_ID],
+    [],
+    u"A block-device-backed dataset is being destroyed.",
+)
+
 
 class BlockDeviceVolume(PRecord):
     """
@@ -140,16 +147,28 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
 
     :ivar IStateChange change: The real implementation of this state change.
     """
+    logger = Logger()
+
     def __init__(self, volume):
         """
         :param BlockDeviceVolume volume: The volume which will be destroyed.
         """
+        self.volume = volume
+
         sequence = Sequentially(changes=[
             UnmountBlockDevice(volume=volume),
             DetachVolume(volume=volume),
             DestroyVolume(volume=volume),
         ])
         super(DestroyBlockDeviceDataset, self).__init__(sequence)
+
+    def run(self, deployer):
+        with DESTROY_BLOCK_DEVICE_DATASET(
+                self.logger,
+                block_device_id=self.volume.blockdevice_id
+        ):
+            result = self.change.run(deployer)
+            return result
 
 
 def _volume():

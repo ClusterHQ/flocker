@@ -16,6 +16,8 @@ from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
+from eliot.testing import validate_logging, LoggedAction, assertHasAction
+
 from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -23,7 +25,8 @@ from ..blockdevice import (
     CreateBlockDeviceDataset, UnattachedVolume,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     DestroyVolume,
-    _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id
+    _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
+    DESTROY_BLOCK_DEVICE_DATASET
 )
 
 from ... import InParallel, IStateChange
@@ -1416,7 +1419,14 @@ class DestroyBlockDeviceDatasetTests(
         ))
         self.assertTrue(a != b)
 
-    def test_run(self):
+    def verify_run_log(self, logger):
+        # One action is logged
+        action = assertHasAction(self, logger, DESTROY_BLOCK_DEVICE_DATASET, succeeded=True)
+        all_such_actions= LoggedAction.of_type(logger.messages, DESTROY_BLOCK_DEVICE_DATASET)
+        self.assertEqual([action], all_such_actions)
+
+    @validate_logging(verify_run_log)
+    def test_run(self, logger):
         """
         After running ``DestroyBlockDeviceDataset``, its volume has been unmounted,
         detached, and destroyed.
@@ -1441,6 +1451,7 @@ class DestroyBlockDeviceDatasetTests(
             mountroot=mountroot,
         )
         change = DestroyBlockDeviceDataset(volume=volume)
+        change.logger = logger
         self.successResultOf(change.run(deployer))
 
         # It's only possible to destroy a volume that's been detached.  It's
