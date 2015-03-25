@@ -19,7 +19,7 @@ from characteristic import attributes
 from twisted.python.filepath import FilePath
 
 from pyrsistent import (
-    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap,
+    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
     optional as optional_type
     )
 
@@ -388,6 +388,51 @@ class Deployment(PRecord):
         return Deployment(nodes=frozenset(
             list(n for n in self.nodes if n.hostname != node.hostname) +
             [node]))
+
+    def move_application(self, application, target_node):
+        """
+        Move an ``Application`` to a specified ``Node``, also moving any
+        attached datasets.
+
+        :param Application application: The ``Application`` to relocate.
+
+        :param Node target_node: The desired ``Node`` to which the application
+            should be moved.
+
+        :return Deployment: Updated to reflect the new desired state.
+        """
+        deployment = self
+        for node in deployment.nodes:
+            for container in node.applications:
+                if container.name == application.name:
+                    # We only need to perform a move if the node currently
+                    # hosting the container is not the node it's moving to.
+                    if node.hostname != target_node.hostname:
+                        # If the container has a volume, we need to add the
+                        # manifestation to the new host first.
+                        if application.volume is not None:
+                            dataset_id = application.volume.dataset.dataset_id
+                            target_node = target_node.transform(
+                                ("manifestations", dataset_id),
+                                application.volume.manifestation
+                            )
+                        # Now we can add the application to the new host.
+                        target_node = target_node.transform(
+                            ["applications"], lambda s: s.add(application))
+                        # And remove it from the current host.
+                        node = node.transform(
+                            ["applications"], lambda s: s.remove(application))
+                        # Finally we can now remove the manifestation from the
+                        # current host too.
+                        if application.volume is not None:
+                            dataset_id = application.volume.dataset.dataset_id
+                            node = node.transform(
+                                ("manifestations", dataset_id), discard
+                            )
+                        # Before updating the deployment instance.
+                        deployment = deployment.update_node(node)
+                        deployment = deployment.update_node(target_node)
+        return deployment
 
 
 @attributes(["dataset", "hostname"])
