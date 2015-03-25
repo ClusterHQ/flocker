@@ -335,7 +335,7 @@ class Node(PRecord):
     :ivar PMap manifestations: Mapping between dataset IDs and
         corresponding ``Manifestation`` instances that are present on the
         node. Includes both those attached as volumes to any applications,
-        and those that are unattached.w ``None`` if this information is
+        and those that are unattached. ``None`` if this information is
         unknown.
     """
     def __invariant__(self):
