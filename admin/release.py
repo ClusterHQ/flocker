@@ -389,7 +389,11 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
         distro_version=distro_version,
         ))
 
-    new_metadata = yield Effect(CreateRepo(repository_path=rpm_directory))
+    new_metadata = yield Effect(CreateRepo(
+        repository_path=rpm_directory,
+        distro_name=distro_name,
+        distro_version=distro_version,
+        ))
 
     yield Effect(UploadToS3Recursively(
         source_path=rpm_directory,
@@ -422,10 +426,10 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     elif is_weekly_release(version):
         target_distro_suffix = "-testing"
 
-
     operating_systems = [
         {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
         {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
+        {'distro': 'ubuntu', 'version': '14.04', 'arch': 'x86_64'},
     ]
 
     for operating_system in operating_systems:

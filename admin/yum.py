@@ -8,8 +8,9 @@ import requests
 from requests_file import FileAdapter
 from characteristic import attributes
 from effect import sync_performer, TypeDispatcher
-from subprocess import check_call
+from subprocess import check_call, check_output
 from hashlib import md5
+from gzip import GzipFile
 
 
 @attributes([
@@ -78,6 +79,8 @@ def perform_download_packages_from_repository(dispatcher, intent):
 
 @attributes([
     "repository_path",
+    "distro_name",
+    "distro_version",
 ])
 class CreateRepo(object):
     """
@@ -86,6 +89,11 @@ class CreateRepo(object):
 
     :ivar FilePath repository_path: Location of rpm files to create a
         repository from.
+    :param distro_name: The name of the distribution to download packages for.
+    :param distro_version: The distro_version of the distribution to download
+        packages for.
+
+    :return: List of new and modified rpm metadata filenames.
     """
 
 
@@ -93,18 +101,39 @@ class CreateRepo(object):
 def perform_create_repository(dispatcher, intent):
     """
     See :class:`CreateRepo`.
-
-    :return: List of new and modified rpm metadata filenames.
     """
-    # The update option means that this is faster when there is existing
-    # metadata but has output starting "Could not find valid repo at:" when
-    # there is not existing valid metadata.
-    check_call([
-        b'createrepo',
-        b'--update',
-        b'--quiet',
-        intent.repository_path.path])
-    return _list_new_metadata(repository_path=intent.repository_path)
+    from .packaging import PackageTypes, Distribution
+
+    distribution = Distribution(
+        name=intent.distro_name,
+        version=intent.distro_version,
+    )
+    package_type = distribution.package_type()
+
+    if package_type == PackageTypes.RPM:
+        # The update option means that this is faster when there is existing
+        # metadata but has output starting "Could not find valid repo at:" when
+        # there is not existing valid metadata.
+        check_call([
+            b'createrepo',
+            b'--update',
+            b'--quiet',
+            intent.repository_path.path])
+        return _list_new_metadata(repository_path=intent.repository_path)
+    elif package_type == PackageTypes.DEB:
+        metadata = check_output([
+            b'dpkg-scanpackages',
+            b'--multiversion',
+            intent.repository_path.path])
+
+        with intent.repository_path.child(
+                'Packages.gz').open(b"w") as raw_file:
+            with GzipFile(b'Packages.gz', fileobj=raw_file) as gzip_file:
+                gzip_file.write(metadata)
+        return {'Pacakges.gz'}
+    else:
+        raise NotImplementedError("Unknwon package type: %s"
+                                  % (package_type,))
 
 
 def _list_new_metadata(repository_path):
