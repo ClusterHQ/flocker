@@ -210,6 +210,7 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
     where this state change runs.
 
     :ivar IStateChange change: The real implementation of this state change.
+    :ivar volume: See ``__init__``.
     """
     def __init__(self, volume):
         """
@@ -231,7 +232,8 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
 
 def _volume():
     """
-    Create a ``PRecord`` ``field`` for to hold a ``BlockDeviceVolume`.
+    Create and return a ``PRecord`` ``field`` for to hold a
+    ``BlockDeviceVolume``.
     """
     return field(
         type=BlockDeviceVolume, mandatory=True,
