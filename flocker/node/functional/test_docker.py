@@ -430,7 +430,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         environment = frozenset(environment.items())
         d = self.start_container(
             name,
-            image_name=u"openshift/busybox-http",
             environment=Environment(variables=environment)
         )
 
