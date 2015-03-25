@@ -547,12 +547,14 @@ class BlockDeviceDeployer(PRecord):
         """
         volumes = self.block_device_api.list_volumes()
 
-        manifestations = [_manifestation_from_volume(v)
-                          for v in volumes
-                          if v.host == self.hostname]
+        manifestations = {
+            m.dataset_id: m for m in (
+                _manifestation_from_volume(v) for v in volumes
+                if v.host == self.hostname)
+        }
 
         paths = {}
-        for manifestation in manifestations:
+        for manifestation in manifestations.values():
             dataset_id = manifestation.dataset.dataset_id
             mountpath = self._mountpath_for_manifestation(manifestation)
             paths[dataset_id] = mountpath

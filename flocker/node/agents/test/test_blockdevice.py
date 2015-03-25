@@ -86,7 +86,8 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
         self.assertEqual(
             NodeState(
                 hostname=deployer.hostname,
-                manifestations=expected_manifestations,
+                manifestations={
+                    m.dataset_id: m for m in expected_manifestations},
                 paths=expected_paths,
             ),
             state
