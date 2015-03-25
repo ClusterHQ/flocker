@@ -35,13 +35,12 @@ class ClusterStateServiceTests(SynchronousTestCase):
 
     def test_running_and_not_running_applications(self):
         """
-        ``ClusterStateService.as_deployment`` combines both running and not
-        running applications from the given node state.
+        ``ClusterStateService.as_deployment`` copies applications from the
+        given node state.
         """
         service = self.service()
         service.update_node_state(NodeState(hostname=u"host1",
-                                            running=[APP1],
-                                            not_running=[APP2]))
+                                            applications=[APP1, APP2]))
         self.assertEqual(service.as_deployment(),
                          Deployment(nodes=frozenset([Node(
                              hostname=u"host1",
@@ -54,7 +53,7 @@ class ClusterStateServiceTests(SynchronousTestCase):
         """
         service = self.service()
         service.update_node_state(
-            NodeState(hostname=u"host2", running=[], not_running=[],
+            NodeState(hostname=u"host2",
                       manifestations=frozenset([MANIFESTATION])))
         self.assertEqual(service.as_deployment(),
                          Deployment(nodes=frozenset([Node(
@@ -71,9 +70,9 @@ class ClusterStateServiceTests(SynchronousTestCase):
         """
         service = self.service()
         service.update_node_state(NodeState(hostname=u"host1",
-                                            running=[APP1], not_running=[]))
+                                            applications=[APP1]))
         service.update_node_state(NodeState(hostname=u"host1",
-                                            running=[APP2], not_running=[]))
+                                            applications=[APP2]))
         self.assertEqual(service.as_deployment(),
                          Deployment(nodes=frozenset([Node(
                              hostname=u"host1",
@@ -86,9 +85,9 @@ class ClusterStateServiceTests(SynchronousTestCase):
         """
         service = self.service()
         service.update_node_state(NodeState(hostname=u"host1",
-                                            running=[APP1], not_running=[]))
+                                            applications=[APP1]))
         service.update_node_state(NodeState(hostname=u"host2",
-                                            running=[APP2], not_running=[]))
+                                            applications=[APP2]))
         self.assertEqual(service.as_deployment(),
                          Deployment(nodes=frozenset([
                              Node(

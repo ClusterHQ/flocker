@@ -171,7 +171,7 @@ class GenericDockerClientTests(TestCase):
         client.exists = lambda _: succeed(False)
         # Illegal container name should make Docker complain when we try to
         # install the container:
-        d = client.add(u"!!!###!!!", u"busybox")
+        d = client.add(u"!!!###!!!", u"busybox:latest")
         return self.assertFailure(d, self.clientException)
 
     def test_dead_is_listed(self):
@@ -186,7 +186,7 @@ class GenericDockerClientTests(TestCase):
         unit never reaches that state.
         """
         name = random_name()
-        d = self.start_container(unit_name=name, image_name="busybox",
+        d = self.start_container(unit_name=name, image_name="busybox:latest",
                                  expected_states=(u'inactive',))
         return d
 
@@ -198,7 +198,7 @@ class GenericDockerClientTests(TestCase):
         reach an `inactive` substate of `dead`.
         """
         name = random_name()
-        d = self.start_container(unit_name=name, image_name="busybox",
+        d = self.start_container(unit_name=name, image_name="busybox:latest",
                                  expected_states=(u'inactive',))
 
         def remove_container(client):
@@ -334,7 +334,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        image = u"busybox"
+        image = u"busybox:latest"
         # Make sure image is gone:
         docker = Client()
         try:
@@ -359,7 +359,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         name = random_name()
         client = self.make_client()
         self.addCleanup(client.remove, name)
-        d = client.add(name, u"busybox")
+        d = client.add(name, u"busybox:latest")
 
         def added(_):
             self.assertTrue(
@@ -375,7 +375,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         client = self.make_client()
         name = random_name()
         self.addCleanup(client.remove, name)
-        d = client.add(name, u"busybox")
+        d = client.add(name, u"busybox:latest")
         d.addCallback(lambda _: client.list())
 
         def got_list(units):
@@ -567,7 +567,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
 
     def test_restart_policy_on_failure_maximum_count(self):
         """
-        An container with a restart policy of on-failure and a maximum
+        A container with a restart policy of on-failure and a maximum
         retry count is not restarted if it fails as many times than the
         specified maximum.
         """
@@ -575,7 +575,9 @@ CMD sh -c "trap \"\" 2; sleep 3"
             mode=u"failure",
             restart_policy=RestartOnFailure(maximum_retry_count=5))
 
-        d.addCallback(self.assertEqual, "5")
+        # A Docker change e721ed9b5319e8e7c1daf87c34690f8a4e62c9e3 means that
+        # this value depends on the version of Docker.
+        d.addCallback(self.assertIn, ("5", "6"))
         return d
 
 
@@ -595,7 +597,7 @@ class DockerClientTests(TestCase):
         name = random_name()
         client = DockerClient()
         self.addCleanup(client.remove, name)
-        d = client.add(name, u"busybox")
+        d = client.add(name, u"busybox:latest")
         d.addCallback(lambda _: self.assertTrue(
             docker.inspect_container(u"flocker--" + name)))
         return d
@@ -676,7 +678,7 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         client2 = NamespacedDockerClient(random_name())
         name = random_name()
 
-        d = client.add(name, u"busybox")
+        d = client.add(name, u"busybox:latest")
         self.addCleanup(client.remove, name)
         d.addCallback(lambda _: client2.list())
         d.addCallback(self.assertEqual, set())

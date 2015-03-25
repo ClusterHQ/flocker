@@ -13,6 +13,8 @@ from subprocess import check_output, check_call, CalledProcessError, call
 from tempfile import mkdtemp
 from textwrap import dedent, fill
 
+from eliot import Logger, start_action, to_file
+
 from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
 from twisted.python import usage, log
@@ -117,9 +119,13 @@ class BuildSequence(object):
 
     :ivar tuple steps: A sequence of steps.
     """
+    logger = Logger()
+    _system = u"packaging:buildsequence:run"
+
     def run(self):
         for step in self.steps:
-            step.run()
+            with start_action(self.logger, self._system, step=repr(step)):
+                step.run()
 
 
 def run_command(args, added_env=None, cwd=None):
@@ -888,6 +894,13 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
                      flocker_node_path),
+                    # When the ZFS convergence agent is separated from the
+                    # container convergence agent, we'll be able to get rid of
+                    # flocker-zfs-agent and make that functionality part of
+                    # flocker-dataset-agent, controlled by a command line
+                    # argument or some such.  FLOC-1443
+                    (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
+                     flocker_node_path),
                 ]
             ),
             BuildPackage(
@@ -1075,6 +1088,8 @@ class DockerBuildScript(object):
         :param FilePath top_level: The top-level of the flocker repository.
         :param base_path: ignored.
         """
+        to_file(self.sys_module.stderr)
+
         options = DockerBuildOptions()
 
         try:
@@ -1160,6 +1175,8 @@ class BuildScript(object):
             directory.
         :param base_path: ignored.
         """
+        to_file(self.sys_module.stderr)
+
         options = BuildOptions()
 
         try:

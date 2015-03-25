@@ -17,15 +17,17 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import P2PNodeDeployer, change_node_state
-from ..testtools import ControllableDeployer, ControllableAction
+from ..testtools import (
+    ControllableDeployer, ControllableAction, ideployer_tests_factory, EMPTY,
+)
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name, IDeployer,
-    DeleteDataset,
+    ResizeDataset, _link_environment, _to_volume_name,
+    DeleteDataset, OpenPorts
 )
 from ...testtools import CustomException
 from .. import _deploy
@@ -33,7 +35,7 @@ from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)
-from ...route import Proxy, make_memory_network
+from ...route import Proxy, OpenPort, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume, VolumeName
 from ...volume._model import VolumeSize
@@ -723,8 +725,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(NodeState(hostname=u'example.com',
-                                   running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'example.com'),
                          self.successResultOf(d))
 
     def test_discover_one(self):
@@ -751,7 +752,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(NodeState(hostname=u'example.com',
-                                   running=[application], not_running=[]),
+                                   applications=[application]),
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
@@ -785,7 +786,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).running)
+                              self.successResultOf(d).applications)
 
     def test_discover_application_with_links(self):
         """
@@ -815,7 +816,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_discover_application_with_ports(self):
         """
@@ -849,7 +850,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_discover_locally_owned_volume(self):
         """
@@ -911,7 +912,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).running)
+                              self.successResultOf(d).applications)
 
     def test_discover_locally_owned_volume_with_size(self):
         """
@@ -991,7 +992,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).running)
+                              self.successResultOf(d).applications)
 
     def test_discover_remotely_owned_volumes_ignored(self):
         """
@@ -1021,7 +1022,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_ignore_unknown_volumes(self):
         """
@@ -1056,7 +1057,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     def test_not_running_units(self):
         """
@@ -1078,7 +1079,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             Application(name=unit.name,
                         image=DockerImage.from_string(
                             unit.container_image
-                        )) for unit in units.values()
+                        ),
+                        running=False) for unit in units.values()
         ]
         applications.sort()
         api = P2PNodeDeployer(
@@ -1091,7 +1093,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         result = self.successResultOf(d)
 
         self.assertEqual(NodeState(hostname=u'example.com',
-                                   running=[], not_running=applications),
+                                   applications=applications),
                          result)
 
     def test_discover_used_ports(self):
@@ -1112,8 +1114,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         state = self.successResultOf(discovering)
 
         self.assertEqual(
-            NodeState(hostname=u'example.com',
-                      running=[], not_running=[], used_ports=used_ports),
+            NodeState(hostname=u'example.com', used_ports=used_ports),
             state
         )
 
@@ -1147,7 +1148,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).running))
+                         sorted(self.successResultOf(d).applications))
 
     DATASET_ID = u"uuid123"
     DATASET_ID2 = u"uuid456"
@@ -1219,10 +1220,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
              self.volume_service.get(_to_volume_name(
                  self.DATASET_ID2)).get_filesystem().get_path()},
             self.successResultOf(d).paths)
-
-
-# A deployment with no information:
-EMPTY = Deployment(nodes=frozenset())
 
 
 class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
@@ -1306,6 +1303,75 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             self.successResultOf(api.discover_local_state()),
             desired_configuration=desired, current_cluster_state=EMPTY)
         expected = Sequentially(changes=[SetProxies(ports=frozenset())])
+        self.assertEqual(expected, result)
+
+    def test_open_port_needs_creating(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``IStateChange``, specifically a ``OpenPorts`` with a list of
+        ports to open. One for each port exposed by ``Application``\ s
+        hosted on this node.
+        """
+        fake_docker = FakeDockerClient(units={})
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    container_image=u'clusterhq/mysql:release-14.0',
+                    activation_state=u'active',
+                    ports=frozenset([PortMap(
+                        external_port=1001,
+                        internal_port=3306,
+                        )]),
+                    )
+
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+
+        api = P2PNodeDeployer(u'node2.example.com',
+                              create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
+        expected_destination_port = 1001
+        port = Port(internal_port=3306,
+                    external_port=expected_destination_port)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'release-14.0'),
+            ports=[port],
+        )
+
+        nodes = [
+            Node(
+                hostname=api.hostname,
+                applications=[application]
+            )
+        ]
+
+        desired = Deployment(nodes=nodes)
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired, current_cluster_state=EMPTY)
+        expected = Sequentially(changes=[
+            OpenPorts(ports=[OpenPort(port=expected_destination_port)])])
+        self.assertEqual(expected, result)
+
+    def test_open_ports_empty(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``OpenPorts`` instance containing an empty `ports`
+        list if there are no local applications that need open_ports.
+        """
+        network = make_memory_network()
+        network.open_port(port=3306)
+
+        api = P2PNodeDeployer(u'node2.example.com',
+                              create_volume_service(self),
+                              docker_client=FakeDockerClient(),
+                              network=network)
+        desired = Deployment(nodes=[])
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state()),
+            desired_configuration=desired, current_cluster_state=EMPTY)
+        expected = Sequentially(changes=[OpenPorts(ports=[])])
         self.assertEqual(expected, result)
 
     def test_application_needs_stopping(self):
@@ -1406,7 +1472,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name=u'mysql-hybridcluster',
                     container_image=u'clusterhq/mysql:latest',
-                    activation_state=u'active')
+                    activation_state=u'active',
+                    )
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
@@ -2075,7 +2142,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             current_cluster_state=EMPTY)
         to_stop = Application(
             name=unit.name,
-            image=DockerImage.from_string(unit.container_image)
+            image=DockerImage.from_string(unit.container_image),
+            running=False,
         )
         expected = Sequentially(changes=[InParallel(changes=[
             StopApplication(application=to_stop)])])
@@ -2320,11 +2388,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
+        network = make_memory_network()
+        network.open_port(50432)
 
         api = P2PNodeDeployer(
             u'node1.example.com',
             create_volume_service(self), docker_client=docker,
-            network=make_memory_network()
+            network=network,
         )
 
         old_postgres_app = Application(
@@ -2362,13 +2432,16 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             current_cluster_state=EMPTY,
         )
 
-        expected = Sequentially(changes=[InParallel(changes=[
-            Sequentially(changes=[
-                StopApplication(application=old_postgres_app),
-                StartApplication(application=new_postgres_app,
-                                 hostname="node1.example.com")
+        expected = Sequentially(changes=[
+            OpenPorts(ports=[OpenPort(port=50433)]),
+            InParallel(changes=[
+                Sequentially(changes=[
+                    StopApplication(application=old_postgres_app),
+                    StartApplication(application=new_postgres_app,
+                                     hostname="node1.example.com")
                 ]),
-        ])])
+            ]),
+        ])
 
         self.assertEqual(expected, result)
 
@@ -2917,6 +2990,141 @@ class SetProxiesTests(SynchronousTestCase):
         self.assertEqual(3, len(failures))
 
 
+class OpenPortsTests(SynchronousTestCase):
+    """
+    Tests for ``OpenPorts``.
+    """
+    def test_open_ports_added(self):
+        """
+        Porst which are required are opened.
+        """
+        fake_network = make_memory_network()
+        api = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self), docker_client=FakeDockerClient(),
+            network=fake_network)
+
+        expected_open_port = OpenPort(port=3306)
+        d = OpenPorts(ports=[expected_open_port]).run(api)
+        self.successResultOf(d)
+        self.assertEqual(
+            [expected_open_port],
+            fake_network.enumerate_open_ports()
+        )
+
+    def test_open_ports_removed(self):
+        """
+        Open ports which are no longer required on the node are closed.
+        """
+        fake_network = make_memory_network()
+        fake_network.open_port(port=3306)
+        api = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self), docker_client=FakeDockerClient(),
+            network=fake_network)
+
+        d = OpenPorts(ports=[]).run(api)
+        self.successResultOf(d)
+        self.assertEqual(
+            [],
+            fake_network.enumerate_proxies()
+        )
+
+    def test_desired_open_ports_remain(self):
+        """
+        Open ports which exist on the node and which are still required are not
+        removed.
+        """
+        fake_network = make_memory_network()
+
+        # A open_port which will be removed
+        fake_network.open_port(port=3305)
+        # And some open ports which are still required
+        required_open_port_1 = fake_network.open_port(port=3306)
+        required_open_port_2 = fake_network.open_port(port=8080)
+
+        api = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self), docker_client=FakeDockerClient(),
+            network=fake_network)
+
+        state_change = OpenPorts(
+            ports=[required_open_port_1, required_open_port_2])
+        d = state_change.run(api)
+
+        self.successResultOf(d)
+        self.assertEqual(
+            set([required_open_port_1, required_open_port_2]),
+            set(fake_network.enumerate_open_ports())
+        )
+
+    def test_delete_open_port_errors_as_errbacks(self):
+        """
+        Exceptions raised in `delete_open_port` operations are reported as
+        failures in the returned deferred.
+        """
+        fake_network = make_memory_network()
+        fake_network.open_port(port=3306)
+        fake_network.delete_open_port = lambda open_port: 1/0
+
+        api = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self), docker_client=FakeDockerClient(),
+            network=fake_network)
+
+        d = OpenPorts(ports=[]).run(api)
+        exception = self.failureResultOf(d, FirstError)
+        self.assertIsInstance(
+            exception.value.subFailure.value,
+            ZeroDivisionError
+        )
+        self.flushLoggedErrors(ZeroDivisionError)
+
+    def test_open_port_errors_as_errbacks(self):
+        """
+        Exceptions raised in `open_port` operations are reported as
+        failures in the returned deferred.
+        """
+        fake_network = make_memory_network()
+        fake_network.open_port = lambda port: 1/0
+
+        api = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self), docker_client=FakeDockerClient(),
+            network=fake_network)
+
+        d = OpenPorts(ports=[OpenPort(port=3306)]).run(api)
+        exception = self.failureResultOf(d, FirstError)
+        self.assertIsInstance(
+            exception.value.subFailure.value,
+            ZeroDivisionError
+        )
+        self.flushLoggedErrors(ZeroDivisionError)
+
+    def test_open_ports_errors_all_logged(self):
+        """
+        Exceptions raised in `OpenPorts` operations are all logged.
+        """
+        fake_network = make_memory_network()
+        fake_network.open_port = lambda port: 1/0
+
+        api = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self), docker_client=FakeDockerClient(),
+            network=fake_network)
+
+        d = OpenPorts(
+            ports=[OpenPort(port=3306),
+                   OpenPort(port=3307),
+                   OpenPort(port=3308)]
+        ).run(api)
+
+        self.failureResultOf(d, FirstError)
+
+        failures = self.flushLoggedErrors(ZeroDivisionError)
+        self.assertEqual(3, len(failures))
+
+
 class ChangeNodeStateTests(SynchronousTestCase):
     """
     Tests for ``change_node_state``.
@@ -2946,8 +3154,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
                               current_cluster_state=EMPTY)
         d.addCallback(lambda _: api.discover_local_state())
 
-        self.assertEqual(NodeState(hostname=u'node.example.com',
-                                   running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'node.example.com'),
                          self.successResultOf(d))
 
     def test_applications_started(self):
@@ -2985,7 +3192,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
                                                tag=u'release-14.0'),)
         self.assertEqual(
             NodeState(hostname=u'node.example.com',
-                      running=[expected_application], not_running=[]),
+                      applications=[expected_application]),
             self.successResultOf(d))
 
     def test_result(self):
@@ -3352,42 +3559,6 @@ class PushVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)
-
-
-def ideployer_tests_factory(fixture):
-    """
-    Create test case for IDeployer implementation.
-
-    :param fixture: Callable that takes ``TestCase`` instance and returns
-         a ``IDeployer`` provider.
-
-    :return: ``TestCase`` subclass that will test the given fixture.
-    """
-    class IDeployerTests(TestCase):
-        """
-        Tests for ``IDeployer``.
-        """
-        def test_interface(self):
-            """
-            The object claims to provide the interface.
-            """
-            self.assertTrue(verifyObject(IDeployer, fixture(self)))
-
-        def test_calculate_necessary_state_changes(self):
-            """
-            The object's ``calculate_necessary_state_changes`` method returns a
-            ``IStateChange`` provider.
-            """
-            deployer = fixture(self)
-            d = deployer.discover_local_state()
-            d.addCallback(
-                lambda local: deployer.calculate_necessary_state_changes(
-                    local, EMPTY, EMPTY))
-            d.addCallback(
-                lambda result: self.assertTrue(verifyObject(IStateChange,
-                                                            result)))
-            return d
-    return IDeployerTests
 
 
 class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(

@@ -35,7 +35,7 @@ from .. import (
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
-    api_dataset_from_dataset_and_node
+    api_dataset_from_dataset_and_node, container_configuration_response
 )
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
@@ -921,9 +921,631 @@ class CreateContainerTestsMixin(APITestsMixin):
             container_json, CREATED, container_json_result
         )
 
+    def test_unknown_dataset(self):
+        """
+        If a volume is specified with an unknown dataset ID, a 404 error is
+        returned.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': unicode(uuid4()), u'mountpoint': u'/db'}]
+            }, NOT_FOUND,
+            {u"description": u"Dataset not found."},
+        )
+
+    def test_deleted_dataset(self):
+        """
+        If a volume is specified with a deleted dataset, a 404 error is
+        returned.
+        """
+        dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"DELETE",
+            b"/configuration/datasets/%s" % (
+                dataset_id.encode('ascii'),),
+            None, OK
+        ))
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, NOT_FOUND,
+            {u"description": u"Dataset not found."},
+        ))
+        return d
+
+    def test_wrong_node_dataset(self):
+        """
+        If a volume is specified with a dataset that is on another node, a
+        conflict error is returned.
+        """
+        dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_B, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, CONFLICT,
+            {u"description": u"The dataset is on another node."},
+        ))
+        return d
+
+    def test_in_use_dataset(self):
+        """
+        If a volume is specified with a dataset that is being used by another
+        application, a conflict error is returned.
+        """
+        dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, CREATED,
+        ))
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres2",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, CONFLICT,
+            {u"description":
+             u"The dataset is being used by another container."},
+        ))
+        return d
+
+    def test_dataset_updates_configuration(self):
+        """
+        If a volume is specified with a valid dataset, the cluster
+        configuration is updated.
+        """
+        dataset_id = unicode(uuid4())
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A, u"name": u"postgres",
+                u"image": u"postgres",
+                u"volumes": [
+                    {u'dataset_id': dataset_id,
+                     u'mountpoint': u'/db'}]
+            }, CREATED,
+        ))
+
+        def check_config(_):
+            config = self.persistence_service.get()
+            self.assertEqual(
+                list(config.applications())[0].volume,
+                AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=dataset_id),
+                        primary=True),
+                    mountpoint=FilePath(b"/db")))
+        d.addCallback(check_config)
+        return d
+
+    def test_dataset_result(self):
+        """
+        If a volume is specified with a valid dataset, the relevant
+        information is returned in the JSON response.
+        """
+        dataset_id = unicode(uuid4())
+        json = {
+            u"host": self.NODE_A, u"name": u"postgres",
+            u"image": u"postgres:latest",
+            u"volumes": [
+                {u'dataset_id': dataset_id,
+                 u'mountpoint': u'/db'}],
+            u"restart_policy": {u"name": u"never"},
+        }
+        d = self.assertResponseCode(
+            b"POST", b"/configuration/datasets",
+            {u"dataset_id": dataset_id,
+             u"primary": self.NODE_A}, CREATED)
+        d.addCallback(lambda _: self.assertResult(
+            b"POST", b"/configuration/containers",
+            json, CREATED, json
+        ))
+        return d
+
 
 RealTestsCreateContainer, MemoryTestsCreateContainer = buildIntegrationTests(
     CreateContainerTestsMixin, "CreateContainer", _build_app)
+
+
+class GetContainerConfigurationTestsMixin(APITestsMixin):
+    """
+    Tests for the container configuration retrieval endpoint at
+    ``/containers``.
+    """
+    def test_empty(self):
+        """
+        When the cluster configuration includes no datasets, the
+        endpoint returns an empty list.
+        """
+        return self.assertResult(
+            b"GET", b"/configuration/containers", None, OK, []
+        )
+
+    def _containers_test(self, deployment, expected):
+        """
+        Verify that when the control service has ``deployment``
+        persisted as its configuration, the response from the
+        configuration listing endpoint includes the items in
+        ``expected``.
+
+        :param Deployment deployment: The deployment configuration to
+            use.
+
+        :param list expected: The objects expected to be returned by
+            the endpoint, disregarding order.
+
+        :return: A ``Deferred`` that fires successfully if the
+            expected results are received or which fires with a
+            failure if there is a problem.
+        """
+        saving = self.persistence_service.save(deployment)
+
+        def saved(ignored):
+            return self.assertResultItems(
+                b"GET", b"/configuration/containers", None, OK, expected
+            )
+        saving.addCallback(saved)
+        return saving
+
+    def test_single_container_single_node(self):
+        """
+        When the cluster configuration includes a single container, the
+        endpoint returns a single-element list containing the container
+        data.
+        """
+        application = Application(
+            name='postgres',
+            image=DockerImage.from_string('postgres')
+        )
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        application
+                    ]
+                ),
+            },
+        )
+        expected = [
+            container_configuration_response(
+                application, self.NODE_A
+            )
+        ]
+        return self._containers_test(deployment, expected)
+
+    def test_single_container_multi_node_cluster(self):
+        """
+        When the cluster configuration includes a single container on a
+        multi-node cluster, the endpoint returns a single-element list
+        containing only the data about the single container, returning
+        no information about the empty node.
+        """
+        application = Application(
+            name='postgres',
+            image=DockerImage.from_string('postgres')
+        )
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        application
+                    ]
+                ),
+                Node(hostname=self.NODE_B)
+            },
+        )
+        expected = [
+            container_configuration_response(
+                application, self.NODE_A
+            )
+        ]
+        return self._containers_test(deployment, expected)
+
+    def test_multi_containers_single_node(self):
+        """
+        When the cluster configuration includes several containers, the
+        endpoint returns a list containing the container data.
+        """
+        application_ports = [Port(internal_port=5432, external_port=54320)]
+        applications = [
+            Application(
+                name='postgres',
+                image=DockerImage.from_string('postgres'),
+                ports=application_ports
+            ),
+            Application(
+                name='webserver',
+                image=DockerImage.from_string('nginx:latest'),
+            ),
+        ]
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=applications
+                ),
+            },
+        )
+        expected = [
+            container_configuration_response(
+                application, self.NODE_A
+            ) for application in applications
+        ]
+        return self._containers_test(deployment, expected)
+
+    def test_multi_containers_multi_nodes(self):
+        """
+        When the cluster configuration includes containers on more than one
+        node, the endpoint returns a list containing the container data for
+        all nodes.
+        """
+        postgres_ports = [Port(internal_port=5432, external_port=54320)]
+        mysql_ports = [Port(internal_port=3306, external_port=33060)]
+        applications = {
+            self.NODE_A: [
+                Application(
+                    name='postgres',
+                    image=DockerImage.from_string('postgres'),
+                    ports=postgres_ports
+                ),
+                Application(
+                    name='webserver',
+                    image=DockerImage.from_string('nginx:latest'),
+                ),
+            ],
+            self.NODE_B: [
+                Application(
+                    name='mysql',
+                    image=DockerImage.from_string('mysql:5.6.17'),
+                    ports=mysql_ports,
+                    cpu_shares=512,
+                    memory_limit=524288000
+                ),
+            ]
+        }
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=applications[self.NODE_A]
+                ),
+                Node(
+                    hostname=self.NODE_B,
+                    applications=applications[self.NODE_B]
+                ),
+            },
+        )
+        expected_a = [
+            container_configuration_response(
+                application, self.NODE_A
+            ) for application in applications[self.NODE_A]
+        ]
+        expected_b = [
+            container_configuration_response(
+                application, self.NODE_B
+            ) for application in applications[self.NODE_B]
+        ]
+        return self._containers_test(deployment, expected_a + expected_b)
+
+    def test_container_with_volume(self):
+        """
+        When the cluster configuration includes a container with an attached
+        volume, the endpoint returns the volume information in the container
+        data suppled in the response.
+        """
+        manifestation = _manifestation()
+        application = Application(
+            name='postgres',
+            image=DockerImage.from_string('postgres'),
+            volume=AttachedVolume(
+                manifestation=manifestation,
+                mountpoint=FilePath(b"/var/lib/postgresql/9.4/data/base")
+            )
+        )
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    manifestations={manifestation.dataset_id:
+                                    manifestation},
+                    applications=[application]
+                ),
+                Node(hostname=self.NODE_B),
+            },
+        )
+        expected = [
+            container_configuration_response(
+                application, self.NODE_A
+            )
+        ]
+        return self._containers_test(deployment, expected)
+
+
+RealTestsGetContainerConfiguration, MemoryTestsGetContainerConfiguration = (
+    buildIntegrationTests(
+        GetContainerConfigurationTestsMixin, "GetContainerConfiguration",
+        _build_app
+    )
+)
+
+
+class UpdateContainerConfigurationTestsMixin(APITestsMixin):
+    """
+    Tests for the container configuration update endpoint at
+    ``/containers/<containername>``.
+    """
+    def _create_container(self):
+        """
+        Utility function to create a container configuration via the API.
+        Also creates a second container not manipulated in the tests, to
+        ensure that unrelated applications do not get modified, moved or
+        wiped out.
+        """
+        saving = self.persistence_service.save(Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    applications=[
+                        Application(
+                            name=u'leavemealone',
+                            image=DockerImage.from_string(u'busybox'),
+                        ),
+                    ]
+                ),
+                Node(hostname=self.NODE_B),
+            }
+        ))
+
+        saving.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers",
+            {
+                u"host": self.NODE_A,
+                u"name": u"mycontainer",
+                u"image": u"busybox"
+            }, CREATED
+        ))
+
+        return saving
+
+    def test_update_same_host(self):
+        """
+        An API request to update a named container's host to the same host
+        on which it is already running results in an unchanged configuration.
+        """
+        d = self._create_container()
+
+        d.addCallback(lambda _: self.persistence_service.get())
+
+        def handle_expected(expected):
+            dr = self.assertResponseCode(
+                b"POST", b"/configuration/containers/mycontainer",
+                {u"host": self.NODE_A}, OK
+            )
+
+            def updated(_):
+                deployment = self.persistence_service.get()
+                self.assertEqual(deployment, expected)
+
+            dr.addCallback(updated)
+            return dr
+
+        d.addCallback(handle_expected)
+        return d
+
+    def test_update_new_host(self):
+        """
+        An API request to update a named container's host to a different host
+        results in an updated configuration.
+        """
+        d = self._create_container()
+
+        d.addCallback(lambda _: self.persistence_service.get())
+
+        def handle_expected(expected):
+            dr = self.assertResponseCode(
+                b"POST", b"/configuration/containers/mycontainer",
+                {u"host": self.NODE_B}, OK
+            )
+
+            def updated(_):
+                deployment = self.persistence_service.get()
+                application = Application(
+                    name=u"mycontainer",
+                    image=DockerImage.from_string(u"busybox"),
+                )
+                real_expected = expected
+                for node in expected.nodes:
+                    if node.hostname == self.NODE_B:
+                        node = node.transform(
+                            ["applications"], lambda s: s.add(application)
+                        )
+                    else:
+                        node = node.transform(
+                            ["applications"], lambda s: s.remove(application)
+                        )
+                    real_expected = real_expected.update_node(node)
+                self.assertEqual(deployment, real_expected)
+
+            dr.addCallback(updated)
+            return dr
+
+        d.addCallback(handle_expected)
+        return d
+
+    def test_update_moves_dataset(self):
+        """
+        An API request to update a named container's host to a different host
+        where the container has an attached dataset results in an updated
+        configuration, with the dataset's primary host also moved to the new
+        container host.
+        """
+        manifestation = _manifestation()
+        application = Application(
+            name=u'postgres',
+            image=DockerImage.from_string(u'postgres'),
+            volume=AttachedVolume(
+                manifestation=manifestation,
+                mountpoint=FilePath(b"/var/lib/postgresql/9.4/data/base")
+            )
+        )
+
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    manifestations={manifestation.dataset_id:
+                                    manifestation},
+                    applications=[application]
+                ),
+                Node(hostname=self.NODE_B),
+            },
+        )
+
+        d = self.persistence_service.save(deployment)
+
+        d.addCallback(lambda _: self.assertResponseCode(
+            b"POST", b"/configuration/containers/postgres",
+            {u"host": self.NODE_B}, OK
+        ))
+
+        def updated(_):
+            deployment = self.persistence_service.get()
+            expected = Deployment(
+                nodes={
+                    Node(hostname=self.NODE_A),
+                    Node(
+                        hostname=self.NODE_B,
+                        manifestations={manifestation.dataset_id:
+                                        manifestation},
+                        applications=[application]
+                    ),
+                }
+            )
+            self.assertEqual(deployment, expected)
+
+        d.addCallback(updated)
+        return d
+
+    def test_update_nonexistent_host(self):
+        """
+        An API request to update a named container's host to a previously
+        unknown host results in an updated configuration, with the new Node
+        added to the deployment configuration.
+        """
+        d = self._create_container()
+
+        d.addCallback(lambda _: self.persistence_service.get())
+
+        def handle_expected(expected):
+            dr = self.assertResponseCode(
+                b"POST", b"/configuration/containers/mycontainer",
+                {u"host": u"192.0.2.3"}, OK
+            )
+
+            def updated(_):
+                deployment = self.persistence_service.get()
+                application = Application(
+                    name=u'mycontainer',
+                    image=DockerImage.from_string(u'busybox')
+                )
+                node = Node(hostname=u"192.0.2.3", applications=[application])
+                real_expected = expected.update_node(node)
+                for node in expected.nodes:
+                    if node.hostname == self.NODE_A:
+                        node = node.transform(
+                            ["applications"], lambda s: s.remove(application)
+                        )
+                    real_expected = real_expected.update_node(node)
+                self.assertEqual(deployment, real_expected)
+
+            dr.addCallback(updated)
+            return dr
+
+        d.addCallback(handle_expected)
+        return d
+
+    def test_update_invalid_container_name(self):
+        """
+        An API request to update a named container's host to a different host
+        results in an error if the named container does not exist.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/containers/somecontainer",
+            {u"host": self.NODE_A}, NOT_FOUND,
+            {u"description": u"Container not found."},
+        )
+
+    def test_response(self):
+        """
+        An API request to move a container to a new host returns the
+        expected JSON response.
+        """
+        d = self._create_container()
+
+        def update_container(_):
+            request = {u"host": self.NODE_B}
+            result = {
+                u"host": self.NODE_B,
+                u"name": u"mycontainer",
+                u"image": u"busybox:latest",
+                u"restart_policy": {u"name": u"never"}
+            }
+            return self.assertResult(
+                b"POST", b"/configuration/containers/mycontainer",
+                request, OK, result
+            )
+
+        d.addCallback(update_container)
+        return d
+
+
+(RealTestsUpdateContainerConfiguration,
+    MemoryTestsUpdateContainerConfiguration) = (
+    buildIntegrationTests(
+        UpdateContainerConfigurationTestsMixin, "UpdateContainerConfiguration",
+        _build_app
+    )
+)
 
 
 class DeleteContainerTestsMixin(APITestsMixin):
@@ -1978,8 +2600,6 @@ class DatasetsStateTestsMixin(APITestsMixin):
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname,
-                running=[],
-                not_running=[],
                 manifestations={expected_manifestation},
                 paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
             )
@@ -2010,8 +2630,6 @@ class DatasetsStateTestsMixin(APITestsMixin):
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname1,
-                running=[],
-                not_running=[],
                 manifestations={expected_manifestation1},
                 paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
             )
@@ -2019,8 +2637,6 @@ class DatasetsStateTestsMixin(APITestsMixin):
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname2,
-                running=[],
-                not_running=[],
                 manifestations={expected_manifestation2},
                 paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
             )
@@ -2289,3 +2905,136 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             expected,
             api_dataset_from_dataset_and_node(dataset, expected_hostname)
         )
+
+
+class ContainerStateTestsMixin(APITestsMixin):
+    """
+    Tests for the containers state endpoint at ``/state/containers``.
+    """
+    def test_empty(self):
+        """
+        When the cluster state includes no containers, the endpoint
+        returns an empty list.
+        """
+        response = []
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_one_container(self):
+        """
+        When the cluster state includes one container, the endpoint
+        returns a single-element list containing the container.
+        """
+        manifestation = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=False
+        )
+        expected_application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox:1.2"),
+            ports=[Port(internal_port=80, external_port=8080)],
+            links=[Link(alias=u"db", local_port=1234, remote_port=5678)],
+            cpu_shares=512, memory_limit=1024*1024*100,
+            volume=AttachedVolume(manifestation=manifestation,
+                                  mountpoint=FilePath(b"/xxx/yyy")),
+            restart_policy=RestartAlways(),
+        )
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname,
+                applications={expected_application},
+                manifestations={manifestation},
+            )
+        )
+        expected_dict = dict(
+            name=u"myapp",
+            host=expected_hostname,
+            image=u"busybox:1.2",
+            running=True,
+            restart_policy={u"name": u"always"},
+            ports=[{u"internal": 80, u"external": 8080}],
+            links=[{"alias": u"db", u"local_port": 1234,
+                    u"remote_port": 5678}],
+            cpu_shares=512, memory_limit=1024*1024*100,
+            volumes=[{"dataset_id": manifestation.dataset_id,
+                      "mountpoint": u"/xxx/yyy"}],
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_one_container_not_running(self):
+        """
+        When the cluster state includes one container that is not running, the
+        endpoint returns a single-element list containing the container
+        indicating it is not running.
+        """
+        expected_application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox"),
+            running=False)
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname,
+                applications={expected_application},
+            )
+        )
+        expected_dict = dict(
+            name=u"myapp",
+            host=expected_hostname,
+            image=u"busybox:latest",
+            running=False,
+            restart_policy={u"name": u"never"},
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_two_containers(self):
+        """
+        When the cluster state includes more than one container, the endpoint
+        returns a list containing the containers in arbitrary order.
+        """
+        expected_application1 = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox"))
+        expected_hostname1 = u"192.0.2.101"
+        expected_application2 = Application(
+            name=u"myapp2", image=DockerImage.from_string(u"busybox2"))
+        expected_hostname2 = u"192.0.2.102"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname1,
+                applications={expected_application1},
+            )
+        )
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname2,
+                applications={expected_application2},
+            )
+        )
+        expected_dict1 = dict(
+            name=u"myapp",
+            host=expected_hostname1,
+            image=u"busybox:latest",
+            running=True,
+            restart_policy={u"name": u"never"},
+        )
+        expected_dict2 = dict(
+            name=u"myapp2",
+            host=expected_hostname2,
+            image=u"busybox2:latest",
+            running=True,
+            restart_policy={u"name": u"never"},
+        )
+        response = [expected_dict1, expected_dict2]
+        return self.assertResultItems(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+RealTestsContainerStateAPI, MemoryTestsContainerStateAPI = (
+    buildIntegrationTests(ContainerStateTestsMixin, "ContainerStateAPI",
+                          _build_app))

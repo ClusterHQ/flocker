@@ -1356,7 +1356,7 @@ def marshal_configuration(state):
         ``int``, ``unicode``, etc.
     """
     result = {}
-    for application in state.running | state.not_running:
+    for application in state.applications:
         converter = ApplicationMarshaller(application)
 
         result[application.name] = converter.convert()

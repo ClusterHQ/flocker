@@ -28,6 +28,16 @@ definitions:
         '$ref': 'types.json#/definitions/environment'
       restart_policy:
         '$ref': 'types.json#/definitions/restart_policy'
+      volumes:
+        title: Volumes to attach to the container
+        description: |
+          Volumes to attach to the container. Required keys are "dataset_id" and
+          "mountpoint". For now only one volume per container is supported.
+        type: array
+        items:
+          '$ref': 'types.json#/definitions/volume'
+        minItems: 0
+        maxItems: 1
       cpu_shares:
         '$ref': 'types.json#/definitions/cpu_shares'
       memory_limit:
@@ -39,6 +49,66 @@ definitions:
       - name
       - image
     additionalProperties: false
+
+  configuration_containers_array:
+    description: "An array of configuration containers."
+    type: array
+    items: {"$ref": "#/definitions/configuration_container" }
+
+  configuration_container_update:
+    description: "The configuration for a named container."
+    type: object
+    properties:
+      host:
+        '$ref': 'types.json#/definitions/host'
+    required:
+      - host
+    additionalProperties: false
+
+  state_container:
+    type: object
+    properties:
+      host:
+        '$ref': 'types.json#/definitions/host'
+      name:
+        '$ref': 'types.json#/definitions/container_name'
+      image:
+        '$ref': 'types.json#/definitions/container_image'
+      ports:
+        '$ref': 'types.json#/definitions/ports'
+      environment:
+        '$ref': 'types.json#/definitions/environment'
+      restart_policy:
+        '$ref': 'types.json#/definitions/restart_policy'
+      volumes:
+        title: Volumes to attach to the container
+        description: |
+          Volumes to attach to the container. Required keys are "dataset_id" and
+          "mountpoint". For now only one volume per container is supported.
+        type: array
+        items:
+          '$ref': 'types.json#/definitions/volume'
+        minItems: 0
+        maxItems: 1
+      cpu_shares:
+        '$ref': 'types.json#/definitions/cpu_shares'
+      memory_limit:
+        '$ref': 'types.json#/definitions/memory_limit'
+      links:
+        '$ref': 'types.json#/definitions/container_links'
+      running:
+        '$ref': 'types.json#/definitions/running'
+    required:
+      - host
+      - name
+      - image
+      - running
+    additionalProperties: false
+
+  state_containers_array:
+    description: "An array of containers actually present on the cluster."
+    type: array
+    items: {"$ref": "#/definitions/state_container" }
 
   configuration_dataset:
     description: "The configuration for a particular dataset."
@@ -80,7 +150,7 @@ definitions:
         maximum_size:
           '$ref': 'types.json#/definitions/maximum_size'
         path:
-          '$ref': 'types.json#/definitions/path'
+          '$ref': 'types.json#/definitions/node_path'
       required:
         - primary
         - dataset_id

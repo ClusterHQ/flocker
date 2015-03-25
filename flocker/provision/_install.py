@@ -12,7 +12,7 @@ from urlparse import urljoin
 from characteristic import attributes
 from effect import Effect, parallel
 
-from ._common import PackageSource, Variants
+from ._common import PackageSource, Variants, Kernel
 from ._ssh import run_with_crochet
 from ._effect import sequence
 
@@ -133,6 +133,51 @@ def task_upgrade_kernel():
     ])
 
 
+KOJI_URL_TEMPLATE = (
+    'https://kojipkgs.fedoraproject.org/packages/kernel'
+    '/{version}/{release}.{distribution}/{architecture}'
+    '/kernel-{version}-{release}.{distribution}.{architecture}.rpm'
+)
+
+
+def koji_kernel_url(kernel):
+    """
+    Return the koji URL for the given kernel version.
+    """
+    url = KOJI_URL_TEMPLATE.format(
+        version=kernel.version,
+        release=kernel.release,
+        distribution=kernel.distribution,
+        architecture=kernel.architecture
+    )
+    return url
+
+
+DIGITALOCEAN_KERNEL = Kernel(
+    version="3.17.8",
+    release="200",
+    distribution="fc20",
+    architecture="x86_64"
+)
+
+
+DIGITALOCEAN_KERNEL_TITLE = (
+    "Fedora 20 x64 "
+    "vmlinuz-{kernel.version}-{kernel.release}"
+    ".{kernel.distribution}.{kernel.architecture}"
+).format(kernel=DIGITALOCEAN_KERNEL)
+
+
+def task_install_digitalocean_kernel():
+    """
+    Install a specific Fedora kernel version for DigitalOcean.
+    """
+    url = koji_kernel_url(DIGITALOCEAN_KERNEL)
+    return sequence([
+        Run.from_args(['yum', 'update', '-y', url]),
+    ])
+
+
 def task_upgrade_kernel_centos():
     return sequence([
         run_from_args([
@@ -181,15 +226,6 @@ def configure_firewalld(rule):
         run_from_args(command + rule)
         for command in [['firewall-cmd', '--permanent'],
                         ['firewall-cmd']]])
-
-
-def task_disable_firewall():
-    """
-    Disable the firewall.
-    """
-    return configure_firewalld(
-        ['--direct', '--add-rule', 'ipv4', 'filter',
-         'FORWARD', '0', '-j', 'ACCEPT'])
 
 
 def task_enable_flocker_control():
@@ -385,6 +421,9 @@ def task_enable_zfs_testing(distribution):
 def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
+
+    This drives all the common Fedora20 installation steps in:
+     * http://doc-dev.clusterhq.com/gettingstarted/installation.html#installing-on-fedora-20 # noqa
 
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.

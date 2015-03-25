@@ -17,7 +17,7 @@ from treq import get, post, content, delete, json_content
 from pyrsistent import PRecord, field, CheckedPVector
 
 from ..testtools import loop_until
-
+from ..node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 from ..control.httpapi import REST_API_PORT
 
 
@@ -347,7 +347,8 @@ class DatasetAPITests(TestCase):
             requested_dataset = {
                 u"primary": cluster.nodes[0].address,
                 u"dataset_id": unicode(uuid4()),
-                u"metadata": {u"name": u"my_volume"}
+                u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
+                u"metadata": {u"name": u"my_volume"},
             }
 
             return cluster.create_dataset(requested_dataset)

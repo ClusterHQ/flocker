@@ -23,3 +23,9 @@ class FlockerZFSAgentTests(make_script_tests(b"flocker-zfs-agent")):
     """
     Tests for ``flocker-zfs-agent``.
     """
+
+
+class FlockerDatasetAgentTests(make_script_tests(b"flocker-dataset-agent")):
+    """
+    Tests for ``flocker-dataset-agent``.
+    """

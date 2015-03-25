@@ -71,6 +71,7 @@ dev_requirements = [
     # The cloud acceptance test runner needs these
     "fabric==1.10.0",
     "apache-libcloud==0.16.0",
+    "digitalocean-python==0.1.5",
     "crochet==1.3.0",
 
     # Packages are downloaded from Buildbot
@@ -133,6 +134,7 @@ setup(
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
             'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
+            'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
             'flocker = flocker.cli.script:flocker_cli_main',
         ],

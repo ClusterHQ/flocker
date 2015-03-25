@@ -28,6 +28,30 @@ VersionsTests = build_schema_test(
     ],
 )
 
+
+ConfigurationContainersSchemaTests = build_schema_test(
+    name="ConfigurationContainersUpdateSchemaTests",
+    schema={
+        '$ref':
+            '/v1/endpoints.json#/definitions/configuration_container_update'
+    },
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Host missing
+        {},
+        # Host wrong type
+        {u'host': 1},
+        # Host not a host
+        {u'host': u'idonotexist'},
+        # Extra properties
+        {u'host': u'192.168.0.3', u'image': u'nginx:latest'},
+    ],
+    passing_instances=[
+        {u'host': u'192.168.0.3'},
+    ],
+)
+
+
 ConfigurationContainersSchemaTests = build_schema_test(
     name="ConfigurationContainersSchemaTests",
     schema={'$ref': '/v1/endpoints.json#/definitions/configuration_container'},
@@ -289,6 +313,63 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'remote_port': 65536
             }]
         },
+        # Volume with dataset_id of wrong type
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': 123,
+                         'mountpoint': '/var/db'}],
+        },
+        # Volume with mountpoint of wrong type
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': 123}],
+        },
+        # Volume missing dataset_id
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'mountpoint': '/var/db'}],
+        },
+        # Volume missing mountpoint
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36}],
+        },
+        # Volume with extra field
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': '/var/db',
+                         'extra': 'value'}],
+        },
+        # More than one volume (this will eventually work - see FLOC-49)
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': '/var/db'},
+                        {'dataset_id': "y" * 36,
+                         'mountpoint': '/var/db2'}],
+        },
+        # Path doesn't start with /
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "y" * 36,
+                         'mountpoint': 'var/db2'}],
+        },
     ],
     passing_instances=[
         {
@@ -377,6 +458,19 @@ ConfigurationContainersSchemaTests = build_schema_test(
                 'local_port': 5432,
                 'remote_port': 54320
             }]
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [{'dataset_id': "x" * 36,
+                         'mountpoint': '/var/db'}],
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'volumes': [],
         },
     ],
 )
@@ -541,5 +635,36 @@ ConfigurationDatasetsArrayTests = build_schema_test(
         [],
         [{u"primary": u"10.0.0.1"}],
         [{u"primary": u"10.0.0.1"}, {u"primary": u"10.0.0.2"}]
+    ],
+)
+
+StateContainersArrayTests = build_schema_test(
+    name="StateContainersArrayTests",
+    schema={'$ref':
+            '/v1/endpoints.json#/definitions/state_containers_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Incorrect type
+        {},
+        # Wrong item type
+        ["string"],
+        # Failing dataset type (missing running)
+        [{u"host": u"10.0.0.1", u"name": u"lalala",
+          u"image": u"busybox:latest"}]
+    ],
+    passing_instances=[
+        [],
+        [{u"host": u"10.0.0.1", u"name": u"lalala",
+          u"image": u"busybox:latest", u'running': True}],
+        [{
+            u'host': u'192.168.0.3',
+            u'image': u'nginx:latest',
+            u'name': u'webserver2',
+            u'running': True},
+         {
+             u'host': u'192.168.0.3',
+             u'image': u'nginx:latest',
+             u'name': u'webserver',
+             u'running': False}],
     ],
 )
