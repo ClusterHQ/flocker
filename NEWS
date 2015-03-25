@@ -11,7 +11,7 @@ Flocker 0.4.0pre1 (2015-03-24)
 - Added instructions for reporting security issues. (FLOC-1183)
 - Added a Volume REST API for version, containers and dataset management. (FLOC-1152, FLOC-1162, FLOC-1271)
 - Flocker no longer conflicts with Homebrew's Python. (FLOC-660)
-- Flocker is now supported on Fedora 20 on Rackspace Cloud Servers and AWS. (FLOC-965)
+- Flocker is now supported on Fedora 20 on Rackspace Cloud Servers, AWS and DigitalOcean. (FLOC-965, FLOC-958)
 - Flocker development machine now uses CentOS 7. (FLOC-1497)
 - Flocker documentation is now hosted on Amazon S3. (FLOC-561)
 
