@@ -16,7 +16,7 @@ from unittest import SkipTest
 from treq import get, post, content, delete, json_content
 from pyrsistent import PRecord, field, CheckedPVector
 
-from ..testtools import loop_until
+from ..testtools import loop_until, random_name
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
 )
@@ -36,7 +36,6 @@ def verify_socket(host, port):
     def can_connect():
         s = socket.socket()
         conn = s.connect_ex((host, port))
-        print "Connection status", conn
         return False if conn else True
 
     dl = loop_until(can_connect)
@@ -233,6 +232,22 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    def current_containers(self):
+        """
+        Get current containers.
+
+        :return: A ``Deferred`` firing with a tuple (cluster instance, API
+            response).
+        """
+        request = get(
+            self.base_url + b"/state/containers",
+            persistent=False
+        )
+
+        request.addCallback(json_content)
+        request.addCallback(lambda response: (self, response))
+        return request
+
 
 def get_test_cluster(test_case, node_count):
     """
@@ -275,12 +290,15 @@ class ContainerAPITests(TestCase):
     """
     Tests for the container API.
     """
-    def test_create_container_with_ports(self):
+    def _create_container(self):
         """
-        Create a container including port mappings on a single-node cluster.
+        Create a container listening on port 8080.
+
+        :return: ``Deferred`` firing with a tuple of ``Cluster`` instance
+        and container dictionary once the container is up and running.
         """
         data = {
-            u"name": "my_container",
+            u"name": random_name(),
             u"host": None,
             u"image": "clusterhq/flask:latest",
             u"ports": [{u"internal": 80, u"external": 8080}],
@@ -295,19 +313,28 @@ class ContainerAPITests(TestCase):
         d = waiting_for_cluster.addCallback(create_container, data)
 
         def check_result(result):
-            response = result[1]
+            cluster, response = result
+            self.addCleanup(cluster.remove_container, data[u"name"])
+
+            self.assertEqual(response, data)
 
             def can_connect():
                 s = socket.socket()
                 conn = s.connect_ex((data[u"host"], 8080))
                 return False if conn else True
 
-            dl = loop_until(can_connect)
-            self.assertEqual(response, data)
+            dl = verify_socket(data[u"host"], 8080)
+            dl.addCallback(lambda _: (cluster, response))
             return dl
 
         d.addCallback(check_result)
         return d
+
+    def test_create_container_with_ports(self):
+        """
+        Create a container including port mappings on a single-node cluster.
+        """
+        return self._create_container()
 
     def test_create_container_with_environment(self):
         """
@@ -403,6 +430,24 @@ class ContainerAPITests(TestCase):
             return created
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
+
+    def test_current(self):
+        """
+        The current container endpoint includes a currently running container.
+        """
+        creating = self._create_container()
+
+        def created(result):
+            cluster, data = result
+            data[u"running"] = True
+
+            def in_current():
+                current = cluster.current_containers()
+                current.addCallback(lambda result: data in result[1])
+                return current
+            return loop_until(in_current)
+        creating.addCallback(created)
+        return creating
 
 
 def create_dataset(test_case):
