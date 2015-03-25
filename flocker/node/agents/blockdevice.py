@@ -122,6 +122,13 @@ DESTROY_BLOCK_DEVICE_DATASET = ActionType(
     u"A block-device-backed dataset is being destroyed.",
 )
 
+UNMOUNT_BLOCK_DEVICE = ActionType(
+    u"agent:blockdevice:unmount",
+    [BLOCK_DEVICE_ID],
+    [],
+    u"A block-device-backed dataset is being unmounted.",
+)
+
 
 class BlockDeviceVolume(PRecord):
     """
@@ -160,6 +167,12 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
             DetachVolume(volume=volume),
             DestroyVolume(volume=volume),
         ])
+
+        # XXX this doesn't work because when the logger is assigned to a
+        # PRecord, it becomes read-only.
+        for change in sequence.changes:
+            change.logger = self.logger
+
         super(DestroyBlockDeviceDataset, self).__init__(sequence)
 
     def run(self, deployer):
@@ -168,6 +181,7 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
                 block_device_id=self.volume.blockdevice_id
         ):
             result = self.change.run(deployer)
+            # XXX Ideas for success fields? Maybe not necessary.
             return result
 
 
@@ -191,6 +205,7 @@ class UnmountBlockDevice(PRecord):
     volume.
     """
     volume = _volume()
+    logger = Logger()
 
     def run(self, deployer):
         """
@@ -198,11 +213,12 @@ class UnmountBlockDevice(PRecord):
         device.  The volume must be attached to this node and the corresponding
         block device mounted.
         """
-        device = deployer.block_device_api.get_device_path(
-            self.volume.blockdevice_id
-        )
-        check_output([b"umount", device.path])
-        return succeed(None)
+        with UNMOUNT_BLOCK_DEVICE(self.logger, block_device_id=self.volume.blockdevice_id):
+            device = deployer.block_device_api.get_device_path(
+                self.volume.blockdevice_id
+            )
+            check_output([b"umount", device.path])
+            return succeed(None)
 
 
 @implementer(IStateChange)

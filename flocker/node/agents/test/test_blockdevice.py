@@ -26,7 +26,7 @@ from ..blockdevice import (
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     DestroyVolume,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
-    DESTROY_BLOCK_DEVICE_DATASET
+    DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE,
 )
 
 from ... import InParallel, IStateChange
@@ -1424,6 +1424,9 @@ class DestroyBlockDeviceDatasetTests(
         action = assertHasAction(self, logger, DESTROY_BLOCK_DEVICE_DATASET, succeeded=True)
         all_such_actions= LoggedAction.of_type(logger.messages, DESTROY_BLOCK_DEVICE_DATASET)
         self.assertEqual([action], all_such_actions)
+        # Child actions are logged
+        [unmount] = LoggedAction.of_type(logger.messages, UNMOUNT_BLOCK_DEVICE)
+        self.assertEqualItems([unmount], action.children)
 
     @validate_logging(verify_run_log)
     def test_run(self, logger):
