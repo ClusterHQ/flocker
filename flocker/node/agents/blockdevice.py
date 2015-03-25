@@ -250,6 +250,9 @@ class UnmountBlockDevice(PRecord):
     """
     Unmount the filesystem mounted from the block device backed by a particular
     volume.
+
+    :ivar BlockDeviceVolume volume: The volume associated with the dataset
+        which will be unmounted.
     """
     volume = _volume()
 
@@ -277,6 +280,8 @@ class UnmountBlockDevice(PRecord):
 class DetachVolume(PRecord):
     """
     Detach a volume from the node it is currently attached to.
+
+    :ivar BlockDeviceVolume volume: The volume to destroy.
     """
     volume = _volume()
 
@@ -299,6 +304,8 @@ class DetachVolume(PRecord):
 class DestroyVolume(PRecord):
     """
     Destroy the storage (and therefore contents) of a volume.
+
+    :ivar BlockDeviceVolume volume: The volume to destroy.
     """
     volume = _volume()
 
