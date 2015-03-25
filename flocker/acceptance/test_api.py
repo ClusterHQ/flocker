@@ -355,6 +355,15 @@ class ContainerAPITests(TestCase):
         return d
 
     @require_mongo
+    def test_move_container_with_dataset(self):
+        """
+        Create a mongodb container with an attached dataset, issue API call
+        to move the container. Wait until we can connect to the running
+        container on the new host and verify the data has moved with it.
+        """
+        self.fail("not implemented yet")
+
+    @require_mongo
     def test_create_container_with_dataset(self):
         """
         Create a mongodb container with an attached dataset, insert some data,
