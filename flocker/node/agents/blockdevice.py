@@ -878,9 +878,13 @@ class BlockDeviceDeployer(PRecord):
 
     def _calculate_deletes(self, configured_manifestations):
         """
+        :param dict configured_manifestations: The manifestations configured
+            for this node (like ``Node.manifestations``).
+
         :return: A ``list`` of ``DestroyBlockDeviceDataset`` instances for each
-            volume that needs to be destroyed based on the given configuration
-            and the actual state of volumes (ie which exist and which don't).
+            volume that needs to be destroyed based on the given
+            configuration and the actual state of volumes (ie which exist
+            and which don't).
         """
         volumes = self.block_device_api.list_volumes()
 
