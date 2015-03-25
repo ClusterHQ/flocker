@@ -407,8 +407,9 @@ Flocker requires the latest available kernel.
    wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
    wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb
    wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
-   # XXX This brings up a prompt about upgrading grub, somehow work around that, see http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
-   # (maybe use export DEBIAN_FRONTEND=noninteractivesa)
+   # XXX This brings up a prompt about upgrading grub,
+   # somehow work around that, see
+   # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
    sudo dpkg -i linux-headers-3.18.0-*.deb linux-image-3.18.0-*.deb
    sync
 
@@ -427,14 +428,13 @@ Install newish versions of ZFS and Docker.
    add-apt-repository -y ppa:zfs-native/stable
    add-apt-repository -y ppa:james-page/docker
 
+   # XXX This brings up a prompt about upgrading grub,
+   # somehow work around that, see
+   # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
    apt-get update
    apt-get -y upgrade
    apt-get -y install spl-dkms
-   # TODO does docker.io need to be installed here?
-   # Take it out and check that a late-enough docker version is available
    apt-get -y install zfs-dkms zfsutils docker.io
-
-   #TODO does this have to be done?
    sync
    shutdown -r now
 
@@ -442,8 +442,7 @@ Now install the ``clusterhq-flocker-node`` package.
 
 .. prompt:: bash [root@node]#
 
-.. TODO is clusterhq-python-flocker necessary?
-.. This is a stopgap - there will be a proper repository on S3 to apt-get install from
+.. This is a stopgap - there will be a proper repository on S3 to apt-get install from. When this is the case then I think some dependencies won't need to be installed separately to clusterhq-flocker-node
 
    wget -O clusterhq-python-flocker http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb
    wget -O clusterhq-flocker-node http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.8.661.g5c313b5_all.deb
