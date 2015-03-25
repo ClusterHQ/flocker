@@ -2947,7 +2947,7 @@ class ContainerStateTestsMixin(APITestsMixin):
             NodeState(
                 hostname=expected_hostname,
                 applications={expected_application},
-                manifestations={manifestation},
+                manifestations={manifestation.dataset_id: manifestation},
             )
         )
         expected_dict = dict(
