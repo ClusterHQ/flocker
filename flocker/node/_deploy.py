@@ -80,10 +80,16 @@ class IDeployer(Interface):
     changes to bring local state and desired cluster configuration into
     alignment.
     """
-    def discover_local_state():
+    def discover_local_state(local_state):
         """
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.
+
+        :param NodeState local_state: The previously known state of this
+            node. This may include information that this deployer cannot
+            discover on its own. Information here should NOT be copied
+            into the result; the return result should include only
+            information discovered by this particular deployer.
 
         :return: A ``Deferred`` which fires with an object describing
              local state. This object will be passed to the control
@@ -102,10 +108,9 @@ class IDeployer(Interface):
         :param local_state: The recent output of ``discover_local_state``.
         :param Deployment desired_configuration: The intended
             configuration of all nodes.
-        :param Deployment current_cluster_state: The current state of all
-            nodes. While technically this may also includes the local
-            state, that information is likely out of date so should be
-            overriden by ``local_state``.
+        :param DeploymentState current_cluster_state: The current state of
+            all nodes. It is the caller's responsibility to ensure this is
+            up-to-date with the given local state.
 
         :return: A ``IStateChange`` provider.
         """
@@ -410,9 +415,30 @@ class OpenPorts(PRecord):
 
 
 @implementer(IDeployer)
-class P2PNodeDeployer(object):
+class P2PManifestationDeployer(object):
     """
-    Start and stop applications.
+    Discover and calculate changes for peer-to-peer manifestations
+    (e.g. ZFS) on a node.
+
+    :ivar unicode hostname: The hostname of the node that this is running
+            on.
+    :ivar VolumeService volume_service: The volume manager for this node.
+    """
+    def discover_local_state(self, local_state):
+        # XXX Move manifestation discovery code out of ApplicationNodeDeployer,
+        # Return a NodeState instance with applications=None.
+        pass
+
+    def calculate_necessary_state_changes(self, *args, **kwargs):
+        # Does nothing in this branch. Follow up will move
+        # calculate_necessary_state_changes code here.
+        return Sequentially(changes=[])
+
+
+@implementer(IDeployer)
+class ApplicationNodeDeployer(object):
+    """
+    Discover and calculate changes for applications running on a node.
 
     :ivar unicode hostname: The hostname of the node that this is running
             on.
@@ -433,13 +459,21 @@ class P2PNodeDeployer(object):
         self.network = network
         self.volume_service = volume_service
 
-    def discover_local_state(self):
+    def discover_local_state(self, local_state):
         """
         List all the ``Application``\ s running on this node.
 
-        :returns: A ``Deferred`` which fires with a ``NodeState``
-            instance.
+        The given local state is used to figure out if applications have
+        attached volumes that are specific manifestations.
+
+        :return: A ``Deferred`` which fires with a ``NodeState`` instance
+            with information only about
+            ``Application``. ``NodeState.manifestations`` and
+            ``NodeState.paths`` will not be filled in.
         """
+        # XXX manifestations lookup will be moved away, will return
+        # NodeState with manifestations=None.
+
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
         # strip the namespace since there will only ever be one.
@@ -816,3 +850,30 @@ def find_dataset_changes(hostname, current_state, desired_state):
                    if dataset.deleted)
     return DatasetChanges(going=going, coming=coming, deleting=deleting,
                           creating=creating, resizing=resizing)
+
+
+@implementer(IDeployer)
+class P2PNodeDeployer(object):
+    """
+    Combination of ZFS and container deployer.
+
+    Temporary expedient, to be removed in FLOC-1553 or perhaps another
+    sub-task of FLOC-1443.
+    """
+    def __init__(self, hostname, volume_service, docker_client=None,
+                 network=None):
+        self.manifestations_deployer = ...
+        self.applications_deployer = ...
+
+    def discover_local_state(self, cluster_state):
+        # 1. Lookup local state via self.manifestations_deployer
+        # 2. Update cluster_state
+        # 3. pass that to applications_deployer.discover_local_state
+        # 3. Combine the two results
+        # Result is NodeState that looks like existing code.
+        pass
+
+    def calculate_necessary_state_changes(self, *args, **kwargs):
+        # Calculation will be split up in FLOC-1553.
+        return self.application_deployer.calculate_necessary_state_changes(
+            *args, **kwargs)
