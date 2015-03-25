@@ -9,6 +9,7 @@ devices.
 
 from uuid import UUID
 from subprocess import check_output
+from functools import wraps
 
 from eliot import ActionType, Field, Logger
 from eliot.serializers import identity
@@ -148,6 +149,34 @@ DESTROY_VOLUME = ActionType(
 )
 
 
+def _logged_statechange(cls):
+    """
+    Decorate an ``IStateChange.run`` implementation with partially automatic
+    logging.
+
+    :param cls: An ``IStateChange`` implementation which also has an
+        ``_action`` attribute giving an Eliot action that should be used to log
+        its ``run`` method.
+
+    :return: ``cls``, mutated so that its ``run`` method is automatically run
+        in the context of its ``_action``.
+    """
+    original_run = cls.run
+    # Work-around https://twistedmatrix.com/trac/ticket/7832
+    try:
+        original_run.__name__ = original_run.methodName
+    except AttributeError:
+        pass
+
+    @wraps(original_run)
+    def run(self, deployer):
+        with self._action:
+            return original_run(self, deployer)
+
+    cls.run = run
+    return cls
+
+
 class BlockDeviceVolume(PRecord):
     """
     A block device that may be attached to a host.
@@ -164,6 +193,7 @@ class BlockDeviceVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
 
 
+@_logged_statechange
 @with_cmp(["change"])
 class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
     """
@@ -177,7 +207,6 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
         :param BlockDeviceVolume volume: The volume which will be destroyed.
         """
         self.volume = volume
-
         sequence = Sequentially(changes=[
             UnmountBlockDevice(volume=volume),
             DetachVolume(volume=volume),
@@ -186,14 +215,12 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
 
         super(DestroyBlockDeviceDataset, self).__init__(sequence)
 
-    def run(self, deployer):
-        with DESTROY_BLOCK_DEVICE_DATASET(
-                _logger,
-                block_device_id=self.volume.blockdevice_id
-        ):
-            result = self.change.run(deployer)
-            # XXX Ideas for success fields? Maybe not necessary.
-            return result
+    @property
+    def _action(self):
+        return DESTROY_BLOCK_DEVICE_DATASET(
+            _logger,
+            block_device_id=self.volume.blockdevice_id
+        )
 
 
 def _volume():
@@ -209,6 +236,7 @@ def _volume():
     )
 
 
+@_logged_statechange
 @implementer(IStateChange)
 class UnmountBlockDevice(PRecord):
     """
@@ -217,20 +245,26 @@ class UnmountBlockDevice(PRecord):
     """
     volume = _volume()
 
+    @property
+    def _action(self):
+        return UNMOUNT_BLOCK_DEVICE(
+            _logger, block_device_id=self.volume.blockdevice_id
+        )
+
     def run(self, deployer):
         """
         Run the system ``unmount`` tool to unmount this change's volume's block
         device.  The volume must be attached to this node and the corresponding
         block device mounted.
         """
-        with UNMOUNT_BLOCK_DEVICE(_logger, block_device_id=self.volume.blockdevice_id):
-            device = deployer.block_device_api.get_device_path(
-                self.volume.blockdevice_id
-            )
-            check_output([b"umount", device.path])
-            return succeed(None)
+        device = deployer.block_device_api.get_device_path(
+            self.volume.blockdevice_id
+        )
+        check_output([b"umount", device.path])
+        return succeed(None)
 
 
+@_logged_statechange
 @implementer(IStateChange)
 class DetachVolume(PRecord):
     """
@@ -238,15 +272,21 @@ class DetachVolume(PRecord):
     """
     volume = _volume()
 
+    @property
+    def _action(self):
+        return DETACH_VOLUME(
+            _logger, block_device_id=self.volume.blockdevice_id
+        )
+
     def run(self, deployer):
         """
         Use the deployer's ``IBlockDeviceAPI`` to detach the volume.
         """
-        with DETACH_VOLUME(_logger, block_device_id=self.volume.blockdevice_id):
-            deployer.block_device_api.detach_volume(self.volume.blockdevice_id)
-            return succeed(None)
+        deployer.block_device_api.detach_volume(self.volume.blockdevice_id)
+        return succeed(None)
 
 
+@_logged_statechange
 @implementer(IStateChange)
 class DestroyVolume(PRecord):
     """
@@ -254,13 +294,18 @@ class DestroyVolume(PRecord):
     """
     volume = _volume()
 
+    @property
+    def _action(self):
+        return DESTROY_VOLUME(
+            _logger, block_device_id=self.volume.blockdevice_id
+        )
+
     def run(self, deployer):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
-        with DESTROY_VOLUME(_logger, block_device_id=self.volume.blockdevice_id):
-            deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
-            return succeed(None)
+        deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
+        return succeed(None)
 
 
 @implementer(IStateChange)
