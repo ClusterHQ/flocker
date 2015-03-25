@@ -32,6 +32,7 @@ from ...control import NodeState, Manifestation, Dataset
 # we have a lot of.  So just use this global logger for now.
 _logger = Logger()
 
+
 class VolumeException(Exception):
     """
     A base class for exceptions raised by  ``IBlockDeviceAPI`` operations.
@@ -736,7 +737,8 @@ class LoopbackBlockDeviceAPI(object):
             raise UnattachedVolume(blockdevice_id)
 
         volume_path = self._attached_directory.descendant(
-            [volume.host.encode("ascii"), volume.blockdevice_id.encode("ascii")]
+            [volume.host.encode("ascii"),
+             volume.blockdevice_id.encode("ascii")]
         )
         # May be None if the file hasn't been used for a loop device.
         return _device_for_path(volume_path)
