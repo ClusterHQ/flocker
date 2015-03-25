@@ -74,6 +74,12 @@ DATASET = Field(
     u"The unique identifier of a dataset."
 )
 
+VOLUME = Field(
+    u"volume",
+    lambda volume: volume.blockdevice_id,
+    u"The unique identifier of a volume."
+)
+
 DATASET_ID = Field(
     u"dataset_id",
     lambda dataset_id: unicode(dataset_id),
@@ -122,28 +128,28 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
 
 DESTROY_BLOCK_DEVICE_DATASET = ActionType(
     u"agent:blockdevice:destroy",
-    [BLOCK_DEVICE_ID],
+    [VOLUME],
     [],
     u"A block-device-backed dataset is being destroyed.",
 )
 
 UNMOUNT_BLOCK_DEVICE = ActionType(
     u"agent:blockdevice:unmount",
-    [BLOCK_DEVICE_ID],
+    [VOLUME],
     [],
     u"A block-device-backed dataset is being unmounted.",
 )
 
 DETACH_VOLUME = ActionType(
     u"agent:blockdevice:detach_volume",
-    [BLOCK_DEVICE_ID],
+    [VOLUME],
     [],
     u"The volume for a block-device-backed dataset is being detached."
 )
 
 DESTROY_VOLUME = ActionType(
     u"agent:blockdevice:destroy_volume",
-    [BLOCK_DEVICE_ID],
+    [VOLUME],
     [],
     u"The volume for a block-device-backed dataset is being destroyed."
 )
@@ -217,10 +223,7 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
 
     @property
     def _action(self):
-        return DESTROY_BLOCK_DEVICE_DATASET(
-            _logger,
-            block_device_id=self.volume.blockdevice_id
-        )
+        return DESTROY_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
 
 
 def _volume():
@@ -247,9 +250,7 @@ class UnmountBlockDevice(PRecord):
 
     @property
     def _action(self):
-        return UNMOUNT_BLOCK_DEVICE(
-            _logger, block_device_id=self.volume.blockdevice_id
-        )
+        return UNMOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
 
     def run(self, deployer):
         """
@@ -274,9 +275,7 @@ class DetachVolume(PRecord):
 
     @property
     def _action(self):
-        return DETACH_VOLUME(
-            _logger, block_device_id=self.volume.blockdevice_id
-        )
+        return DETACH_VOLUME(_logger, volume=self.volume)
 
     def run(self, deployer):
         """
@@ -296,9 +295,7 @@ class DestroyVolume(PRecord):
 
     @property
     def _action(self):
-        return DESTROY_VOLUME(
-            _logger, block_device_id=self.volume.blockdevice_id
-        )
+        return DESTROY_VOLUME(_logger, volume=self.volume)
 
     def run(self, deployer):
         """
