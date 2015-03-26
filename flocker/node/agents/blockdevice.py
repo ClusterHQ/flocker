@@ -286,6 +286,38 @@ def _volume():
 
 @_logged_statechange
 @implementer(IStateChange)
+class MountBlockDevice(PRecord):
+    """
+    Mount the filesystem mounted from the block device backed by a particular
+    volume.
+
+    :ivar BlockDeviceVolume volume: The volume associated with the dataset
+        which will be unmounted.
+    """
+    volume = _volume()
+
+    @property
+    def _action(self):
+        # return MOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
+        pass
+
+    def run(self, deployer):
+        """
+        Run the system ``mount`` tool to mount this change's volume's block
+        device.  The volume must be attached to this node.
+        """
+        # device = deployer.block_device_api.get_device_path(
+        #     self.volume.blockdevice_id
+        # )
+        # # This should be asynchronous.  Do it as part of FLOC-1499.  Make sure
+        # # to fix _logged_statechange to handle Deferreds too.
+        # check_output([b"mount", device.path])
+        # return succeed(None)
+        pass
+
+
+@_logged_statechange
+@implementer(IStateChange)
 class UnmountBlockDevice(PRecord):
     """
     Unmount the filesystem mounted from the block device backed by a particular
