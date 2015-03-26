@@ -1893,3 +1893,171 @@ def get_mounts():
         for mount in mounts:
             device_path, mountpoint, filesystem_type = mount.split()[:3]
             yield FilePath(device_path), FilePath(mountpoint), filesystem_type
+
+
+# def _make_resize_dataset():
+#     """
+#     Make a ``ResizeBlockDeviceDataset`` instance for
+#     ``make_state_change_tests``.
+#     """
+#     return ResizeBlockDeviceDataset(
+#         volume=_ARBITRARY_VOLUME,
+#     )
+
+
+class ResizeBlockDeviceDatasetTests(
+        make_state_change_tests(_make_resize_dataset)
+):
+    """
+    Tests for ``ResizeBlockDeviceDataset``.
+    """
+    # Lots of tests that are very similar to those for DestroyBlockDeviceDataset tests.
+    # We should probably refactor these in to a test mixin class.
+
+    def test_volume_required(self):
+        """
+        If ``volume`` is not supplied when initializing
+        ``ResizeBlockDeviceDataset``, ``TypeError`` is raised.
+        """
+        # self.assertRaises(TypeError, ResizeBlockDeviceDataset)
+        1/0
+
+    def test_volume_must_be_volume(self):
+        """
+        If the value given for ``volume`` is not an instance of
+        ``BlockDeviceVolume`` when initializing ``ResizeBlockDeviceDataset``,
+        ``TypeError`` is raised. (XXX wth pyrsistent, pick an exception type)
+        """
+        # self.assertRaises(
+        #     TypeError, ResizeBlockDeviceDataset, volume=object()
+        # )
+        1/0
+
+    def test_equal(self):
+        """
+        Two ``ResizeBlockDeviceDataset`` instances compare as equal if they
+        are initialized with the same volume.
+        """
+        # dataset_id = uuid4()
+
+        # def volume():
+        #     # Avoid using the same instance, just provide the same data.
+        #     return BlockDeviceVolume(
+        #         blockdevice_id=u"abcd",
+        #         size=REALISTIC_BLOCKDEVICE_SIZE,
+        #         dataset_id=dataset_id,
+        #     )
+        # a = ResizeBlockDeviceDataset(volume=volume())
+        # b = ResizeBlockDeviceDataset(volume=volume())
+        # self.assertTrue(a == b)
+        1/0
+
+    def test_not_equal(self):
+        """
+        Two ``ResizeBlockDeviceDataset`` instances compare as not equal if
+        they are initialized with different volumes.
+        """
+        # a = ResizeBlockDeviceDataset(volume=BlockDeviceVolume(
+        #     blockdevice_id=u"abcd",
+        #     size=REALISTIC_BLOCKDEVICE_SIZE,
+        #     dataset_id=uuid4(),
+        # ))
+        # b = ResizeBlockDeviceDataset(volume=BlockDeviceVolume(
+        #     blockdevice_id=u"dcba",
+        #     size=REALISTIC_BLOCKDEVICE_SIZE,
+        #     dataset_id=uuid4(),
+        # ))
+        # self.assertTrue(a != b)
+        1/0
+
+    def verify_run_log(self, logger):
+        """
+        Verify that ``ResizeBlockDeviceDataset`` logs a top level action and
+        all the expected sub actions.
+
+        XXX: this can probably be shared with the similar test for
+        ``DestroyBlockDeviceDataset``.
+        """
+        # action = assertHasAction(
+        #     self, logger, RESIZE_BLOCK_DEVICE_DATASET, succeeded=True)
+        # all_such_actions = LoggedAction.of_type(
+        #     logger.messages, RESIZE_BLOCK_DEVICE_DATASET)
+        # self.assertEqual([action], all_such_actions)
+        # # Child actions are logged
+        # [unmount] = LoggedAction.of_type(logger.messages, UNMOUNT_BLOCK_DEVICE)
+        # [detach] = LoggedAction.of_type(logger.messages, DETACH_VOLUME)
+        # [resize] = LoggedAction.of_type(logger.messages, RESIZE_VOLUME)
+        # [attach] = LoggedAction.of_type(logger.messages, ATTACH_VOLUME)
+        # [mount] = LoggedAction.of_type(logger.messages, MOUNT_VOLUME)
+        # self.assertEqual([unmount, detach, resize], action.children)
+        1/0
+
+    @validate_logging(verify_run_log)
+    def test_run(self, logger):
+        """
+        After running ``ResizeBlockDeviceDataset``, its volume has been
+        resized.
+
+        XXX: We manually format and mount the created volume to avoid also
+        exercising the ``CreateBlockDeviceDataset`` state change in the same
+        unit test.
+        """
+        # self.patch(blockdevice, "_logger", logger)
+
+        # node = u"192.0.2.3"
+        # dataset_id = uuid4()
+        # api = loopbackblockdeviceapi_for_test(self)
+        # volume = api.create_volume(
+        #     dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        # )
+        # volume = api.attach_volume(volume.blockdevice_id, node)
+        # device = api.get_device_path(volume.blockdevice_id)
+        # mountroot = mountroot_for_test(self)
+        # mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
+        # mountpoint.makedirs()
+        # check_output([b"mkfs", b"-t", b"ext4", device.path])
+        # check_output([b"mount", device.path, mountpoint.path])
+
+        # deployer = BlockDeviceDeployer(
+        #     hostname=node,
+        #     block_device_api=api,
+        #     mountroot=mountroot,
+        # )
+        # change = ResizeBlockDeviceDataset(volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2)
+        # self.successResultOf(change.run(deployer))
+
+        # expected_volume = volume.set(size=REALISTIC_BLOCKDEVICE_SIZE * 2)
+
+        # self.assertEqual([expected_volume], api.list_volumes())
+        1/0
+
+    def test_resize_unmounted_volume(self):
+        """
+        ``ResizeBlockDeviceDataset`` can resize an attached but unmounted volume.
+
+        The result is a larger block device with an expanded filesystem
+        containing the data that was their before the resize.
+        """
+        # XXX This situation shouldn't be possible, right?
+        1/0
+
+    def test_resize_unformatted_volume(self):
+        """
+        ``ResizeBlockDeviceDataset`` can resize an unformatted volume.
+
+        The result is a larger block device which is attached to the host but
+        which does not yet have a filesystem.
+        """
+        # XXX This situation shouldn't be possible, right?
+        1/0
+
+    def test_resize_unattached_volume(self):
+        """
+        ``ResizeBlockDeviceDataset`` can resize an unattached, unformatted volume.
+
+        The result is a larger block device which is unattached and without filesystem.
+        """
+        # XXX This situation shouldn't be possible, right?
+        1/0
+
+    # XXX More combinations of the situations above??? This sounds tricky.
