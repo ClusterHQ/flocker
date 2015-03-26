@@ -3,8 +3,8 @@
 
 """
 Script to instantiate an OS X Virtual Machine to a snapshot with a clean
-homebrew install, then executes via SSH the brew update, install and test
-commands to verify a successful installation of a homebrew recipe.
+Homebrew install, then executes via SSH the brew update, install and test
+commands to verify a successful installation of a Homebrew recipe.
 
 The host machine must have:
         * A VMWare OS X VM available at a particular location
@@ -26,6 +26,8 @@ from flocker.provision._install import run_with_fabric, task_test_homebrew
 from flocker import __version__
 
 
+VMWARE_HOME = '/Applications/VMware Fusion.app/Contents/Library'
+
 YOSEMITE_VMX_PATH = os.path.expanduser((
     "~/Documents/Virtual Machines.localized/"
     "OS X 10.10.vmwarevm/OS X 10.10.vmx"
@@ -38,11 +40,12 @@ VM_USERNAME = "ClusterHQVM"
 VM_HOST = "10.0.126.88"
 
 
-class TestBrewOptions(Options):
-    description = ("Start a VMWare OS X VM and test a brew recipe "
+class TestHomebrewOptions(Options):
+    description = ("Start a VMWare OS X VM and test a Homebrew recipe "
                    "installation.")
 
     optParameters = [
+        ['vmware', 'v', VMWARE_HOME, 'Location of VMWare commands'],
         ['vmhost', 'h', VM_HOST,
          'IP address or hostname of the Virtual Machine'],
         ['vmuser', 'u', VM_USERNAME,
@@ -58,7 +61,7 @@ class TestBrewOptions(Options):
     def parseArgs(self, *args):
         if len(args) < 1:
             raise UsageError((
-                "URL of homebrew recipe not specified. "
+                "URL of Homebrew recipe not specified. "
                 "Run with --help for usage"
             ))
         else:
@@ -72,29 +75,30 @@ class TestBrewOptions(Options):
 
 def main(args):
     try:
-        options = TestBrewOptions()
+        options = TestHomebrewOptions()
         try:
             options.parseOptions(args)
         except UsageError as e:
             sys.stderr.write("Error: {error}.\n".format(error=str(e)))
             sys.exit(1)
         recipe_url = options['recipe_url']
+        vmrun = FilePath(options['vmware']).child('vmrun')
         options['vmpath'] = FilePath(options['vmpath'])
         # Open the recipe URL just to validate and verify that it exists.
         # We do not need to read its content.
         urllib2.urlopen(recipe_url)
         check_output([
-            "vmrun", "revertToSnapshot",
+            vmrun, "revertToSnapshot",
             options['vmpath'].path, options['vmsnapshot'],
         ])
         check_output([
-            "vmrun", "start", options['vmpath'].path, "nogui",
+            vmrun, "start", options['vmpath'].path, "nogui",
         ])
         commands = task_test_homebrew(recipe_url)
         run_with_fabric(options['vmuser'], options['vmhost'],
                         commands=commands)
         check_output([
-            "vmrun", "stop", options['vmpath'].path, "hard",
+            vmrun, "stop", options['vmpath'].path, "hard",
         ])
         print "Done."
     except CalledProcessError as e:
