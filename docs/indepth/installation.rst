@@ -392,26 +392,11 @@ Installing on Ubuntu 14.04
    * ssh root@... for each of the node IPs
    * This is similar to following the AWS instructions above but ignoring the "Upgrade the Kernel" step which is different on Ubuntu and SELinux can be ignored I think
 
-.. TODO Say that it needs at least X instead of "latest available"
+.. XXX Maybe say that it needs at least 3.16.4 instead of "latest available", but maybe not, if this is best consistent with CentOS (or change that too?)
 
 Flocker requires the latest available kernel.
 
-.. When 15.04 is available then the kernel can be backported from that, similar to `apt-get install linux-image-generic-lts-utopic`.
-
-.. prompt:: bash [root@node]#
-
-   # TODO instead of below, have .. task:: upgrade_kernel_ubuntu
-   cd /tmp/
-   mkdir kernel-packages
-   cd kernel-packages
-   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
-   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb
-   wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb
-   # XXX This brings up a prompt about upgrading grub,
-   # somehow work around that, see
-   # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
-   sudo dpkg -i linux-headers-3.18.0-*.deb linux-image-3.18.0-*.deb
-   sync
+.. task:: upgrade_kernel_ubuntu
 
 Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
 Thus we need to reboot into the new kernel.
@@ -440,9 +425,9 @@ Install newish versions of ZFS and Docker.
 
 Now install the ``clusterhq-flocker-node`` package.
 
-.. prompt:: bash [root@node]#
-
 .. This is a stopgap - there will be a proper repository on S3 to apt-get install from. When this is the case then I think some dependencies won't need to be installed separately to clusterhq-flocker-node
+
+.. prompt:: bash [root@node]#
 
    wget -O clusterhq-python-flocker http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb
    wget -O clusterhq-flocker-node http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.8.661.g5c313b5_all.deb

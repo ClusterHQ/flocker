@@ -195,6 +195,36 @@ def task_upgrade_kernel_centos():
     ]
 
 
+def task_upgrade_kernel_ubuntu():
+    # When 15.04 is available then the kernel can be backported from that,
+    # similar to `apt-get install linux-image-generic-lts-utopic`.
+    packages_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/"
+    packages = [
+        "linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
+        "linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb",  # noqa
+        "linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
+    ]
+
+    package_install_commands = [Run.from_args(["wget", packages_url + package])
+        for package in packages
+    ]
+
+    return [
+        Run.from_args([
+            "mkdir", "-p", "/tmp/kernel-packages"]),
+        Run.from_args([
+            "cd", "/tmp/kernel-packages"]),
+    ] + package_install_commands + [
+        # XXX This brings up a prompt about upgrading grub,
+        # somehow work around that, see
+        # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade  # noqa
+        Run.from_args([
+            "sudo", "dpkg", "-i", "linux-headers-3.18.0-*.deb",
+            "linux-image-3.18.0-*.deb"]),
+        Run.from_args(['sync']),
+    ]
+
+
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
