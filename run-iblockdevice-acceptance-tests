@@ -55,10 +55,10 @@ if [ ! -e clusterhq-python-flocker-${VERSION}.x86_64.rpm ]; then
     if [ ! -d /tmp/build-flocker-package ]; then
         virtualenv /tmp/build-flocker-package
     fi
-    
+
     /tmp/build-flocker-package/bin/pip install --quiet --upgrade pip
     /tmp/build-flocker-package/bin/pip install -e .[release]
-    
+
     . /tmp/build-flocker-package/bin/activate
     python ./admin/build-package --distribution fedora-20 /flocker
 fi
@@ -96,7 +96,7 @@ EOF
 
 # Transfer and run the remote provisioning script
 scp "${REMOTE_PROVISIONING_SCRIPT_PATH}" "root@${FLOCKER_ACCEPTANCE_NODE}:${REMOTE_PROVISIONING_SCRIPT_PATH}"
-ssh "root@${FLOCKER_ACCEPTANCE_NODE}" -- "sh ${REMOTE_PROVISIONING_SCRIPT_PATH}" 
+ssh "root@${FLOCKER_ACCEPTANCE_NODE}" -- "sh ${REMOTE_PROVISIONING_SCRIPT_PATH}"
 
 # Start the dataset agent
 ssh "root@${FLOCKER_ACCEPTANCE_NODE}" -- flocker-dataset-agent \
@@ -108,6 +108,7 @@ REMOTE_AGENT_PID="${!}"
 
 FLOCKER_ACCEPTANCE_CONTROL_NODE="${FLOCKER_ACCEPTANCE_CONTROL_NODE}" \
 FLOCKER_ACCEPTANCE_AGENT_NODES="${FLOCKER_ACCEPTANCE_AGENT_NODE}" \
+# Run the dataset grow acceptance test
 trial flocker.acceptance.test_api.DatasetAPITests.test_dataset_deletion || echo "TEST FAILURE"
 
 # Kill agent and wait for it to exit
