@@ -759,38 +759,29 @@ class DeploymentStateTests(SynchronousTestCase):
         in existing ``DeploymentState`` node then update all non-``None``
         attributes that ``NodeState`` in the new ``Deployment``.
         """
-        node = NodeState(
-            hostname=u"node1.example.com",
-            applications=[])
-
-        update_applications = NodeState(
+        dataset_id = unicode(uuid4())
+        manifestation = Manifestation(dataset=Dataset(dataset_id=dataset_id),
+                                      primary=True)
+        end_node = NodeState(
             hostname=u"node1.example.com",
             applications=frozenset({Application(
                 name=u'site-clusterhq.com',
                 image=DockerImage.from_string(u"image"))}),
             used_ports=[1, 2],
-            manifestations=None,
-            paths=None,
-        )
-        dataset_id = unicode(uuid4())
-        manifestation = Manifestation(dataset=Dataset(dataset_id=dataset_id),
-                                      primary=True)
-        update_manifestations = NodeState(
-            hostname=u"node1.example.com",
-            applications=None,
-            used_ports=None,
             paths={dataset_id: FilePath(b"/xxx")},
             manifestations={dataset_id: manifestation})
 
-        original = DeploymentState(nodes=[node])
+        update_applications = end_node.update(dict(
+            manifestations=None,
+            paths=None,
+        ))
+        update_manifestations = end_node.update(dict(
+            applications=None,
+            used_ports=None,
+        ))
+
+        original = DeploymentState(
+            nodes=[NodeState(hostname=u"node1.example.com")])
         updated = original.update_node(update_applications).update_node(
             update_manifestations)
-        self.assertEqual(updated,
-                         DeploymentState(nodes=[NodeState(
-                             hostname=u"node1.example.com",
-                             applications=frozenset({Application(
-                                 name=u'site-clusterhq.com',
-                                 image=DockerImage.from_string(u"image"))}),
-                             used_ports=[1, 2],
-                             paths={dataset_id: FilePath(b"/xxx")},
-                             manifestations={dataset_id: manifestation})]))
+        self.assertEqual(updated, DeploymentState(nodes=[end_node]))

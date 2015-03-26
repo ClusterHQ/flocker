@@ -535,13 +535,13 @@ class DeploymentState(PRecord):
         nodes = {n for n in self.nodes if n.hostname == node_state.hostname}
         if not nodes:
             return self.transform(["nodes"], lambda s: s.add(node_state))
-        updated_node, = nodes
+        [original_node] = nodes
+        updated_node = original_node
         for key, value in node_state.items():
             if value is not None:
                 updated_node = updated_node.set(key, value)
-        return DeploymentState(nodes=frozenset(
-            list(n for n in self.nodes if n.hostname != node_state.hostname) +
-            [updated_node]))
+        return self.set(
+            "nodes", self.nodes.discard(original_node).add(updated_node))
 
 
 # Classes that can be serialized to disk or sent over the network:
