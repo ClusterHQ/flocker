@@ -76,6 +76,9 @@ def _logging(original):
     def logger(self, request, **routeArguments):
         logger = _get_logger(self)
 
+        # If this is ever more than ASCII we might have issues? or maybe
+        # this is pre-url decoding?
+        # https://clusterhq.atlassian.net/browse/FLOC-1602
         action = REQUEST(logger, request_path=request.path,
                          method=request.method)
 
