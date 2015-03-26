@@ -38,6 +38,7 @@ MYSQL_VOLUME_MOUNTPOINT = u'/var/lib/mysql'
 MYSQL_APPLICATION = Application(
     name=MYSQL_APPLICATION_NAME,
     image=DockerImage.from_string(MYSQL_IMAGE),
+    environment=MYSQL_ENVIRONMENT,
     ports=frozenset([
         Port(internal_port=MYSQL_INTERNAL_PORT,
              external_port=MYSQL_EXTERNAL_PORT),

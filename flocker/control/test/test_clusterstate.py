@@ -11,7 +11,7 @@ from twisted.python.filepath import FilePath
 
 from .._clusterstate import ClusterStateService
 from .._model import (
-    Application, DockerImage, NodeState, Node, Deployment, Manifestation,
+    Application, DockerImage, NodeState, DeploymentState, Manifestation,
     Dataset,
 )
 
@@ -33,7 +33,7 @@ class ClusterStateServiceTests(SynchronousTestCase):
         self.addCleanup(service.stopService)
         return service
 
-    def test_running_and_not_running_applications(self):
+    def test_applications(self):
         """
         ``ClusterStateService.as_deployment`` copies applications from the
         given node state.
@@ -42,9 +42,9 @@ class ClusterStateServiceTests(SynchronousTestCase):
         service.update_node_state(NodeState(hostname=u"host1",
                                             applications=[APP1, APP2]))
         self.assertEqual(service.as_deployment(),
-                         Deployment(nodes=frozenset([Node(
+                         DeploymentState(nodes=[NodeState(
                              hostname=u"host1",
-                             applications=frozenset([APP1, APP2]))])))
+                             applications=frozenset([APP1, APP2]))]))
 
     def test_other_manifestations(self):
         """
@@ -54,14 +54,15 @@ class ClusterStateServiceTests(SynchronousTestCase):
         service = self.service()
         service.update_node_state(
             NodeState(hostname=u"host2",
-                      manifestations=frozenset([MANIFESTATION])))
+                      manifestations={MANIFESTATION.dataset_id:
+                                      MANIFESTATION}))
         self.assertEqual(service.as_deployment(),
-                         Deployment(nodes=frozenset([Node(
+                         DeploymentState(nodes=[NodeState(
                              hostname=u"host2",
                              applications=frozenset(),
                              manifestations={
                                  MANIFESTATION.dataset_id: MANIFESTATION},
-                         )])))
+                         )]))
 
     def test_update(self):
         """
@@ -74,9 +75,9 @@ class ClusterStateServiceTests(SynchronousTestCase):
         service.update_node_state(NodeState(hostname=u"host1",
                                             applications=[APP2]))
         self.assertEqual(service.as_deployment(),
-                         Deployment(nodes=frozenset([Node(
+                         DeploymentState(nodes=[NodeState(
                              hostname=u"host1",
-                             applications=frozenset([APP2]))])))
+                             applications=frozenset([APP2]))]))
 
     def test_multiple_hosts(self):
         """
@@ -89,14 +90,14 @@ class ClusterStateServiceTests(SynchronousTestCase):
         service.update_node_state(NodeState(hostname=u"host2",
                                             applications=[APP2]))
         self.assertEqual(service.as_deployment(),
-                         Deployment(nodes=frozenset([
-                             Node(
+                         DeploymentState(nodes=[
+                             NodeState(
                                  hostname=u"host1",
                                  applications=frozenset([APP1])),
-                             Node(
+                             NodeState(
                                  hostname=u"host2",
                                  applications=frozenset([APP2])),
-                         ])))
+                         ]))
 
     def test_manifestation_path(self):
         """
@@ -105,7 +106,9 @@ class ClusterStateServiceTests(SynchronousTestCase):
         """
         service = self.service()
         service.update_node_state(NodeState(hostname=u"host1",
-                                            manifestations=[MANIFESTATION],
+                                            manifestations={
+                                                MANIFESTATION.dataset_id:
+                                                MANIFESTATION},
                                             paths={MANIFESTATION.dataset_id:
                                                    FilePath(b"/xxx/yyy")}))
         self.assertEqual(
