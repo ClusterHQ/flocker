@@ -82,11 +82,11 @@ def main(args):
             sys.stderr.write("Error: {error}.\n".format(error=str(e)))
             sys.exit(1)
         recipe_url = options['recipe_url']
-        vmrun = FilePath(options['vmware']).child('vmrun')
         options['vmpath'] = FilePath(options['vmpath'])
         # Open the recipe URL just to validate and verify that it exists.
         # We do not need to read its content.
         urllib2.urlopen(recipe_url)
+        vmrun = FilePath(options['vmware']).child('vmrun').path
         check_output([
             vmrun, "revertToSnapshot",
             options['vmpath'].path, options['vmsnapshot'],
