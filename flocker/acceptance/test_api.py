@@ -432,3 +432,15 @@ class DatasetAPITests(TestCase):
             return deleted
         created.addCallback(delete_dataset)
         return created
+
+
+    def test_dataset_grow(self):
+        """
+        The size of a dataset can be increased.
+        """
+        # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE
+        # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE * 2
+        # Check for 200 response code
+        # http://doc-dev.clusterhq.com/advanced/api.html#post--v1-configuration-datasets-%28dataset_id%29
+        # Wait for the state of that dataset to show the updated size.
+        1/0
