@@ -199,9 +199,6 @@ def publish_docs(flocker_version, doc_version, environment):
     dev_prefix = '%s/' % (flocker_version,)
     version_prefix = 'en/%s/' % (doc_version,)
 
-    # This might be clearer as ``is_weekly_release(doc_version)``,
-    # but it is more important to never publish a non-marketing release as
-    # /latest/, so we key off being a marketing release.
     is_dev = not is_release(doc_version)
     if is_dev:
         stable_prefix = "en/devel/"
