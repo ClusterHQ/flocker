@@ -185,6 +185,8 @@ class ControlTestCase(SynchronousTestCase):
             capture.append((args, kwargs))
             return succeed(None)
 
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(
             protocol,
             "callRemote",
@@ -238,6 +240,8 @@ class ControlAMPTests(ControlTestCase):
         """
         marker = object()
         self.control_amp_service.connections.add(marker)
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(self.protocol, "callRemote",
                    lambda *args, **kwargs: succeed(None))
         self.protocol.makeConnection(StringTransport())
@@ -628,6 +632,8 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         self.patch(control_amp_service, 'logger', logger)
 
         connection_protocol = ControlAMP(control_amp_service)
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
         connection_protocol.callRemote = lambda *args, **kwargs: succeed({})
 
         control_amp_service._send_state_to_connections(
@@ -666,11 +672,15 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         self.patch(control_amp_service, 'logger', logger)
 
         connected_protocol = ControlAMP(control_amp_service)
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
         connected_protocol.callRemote = lambda *args, **kwargs: succeed({})
 
         error = ConnectionLost()
         disconnected_protocol = ControlAMP(control_amp_service)
         results = [succeed({}), fail(error)]
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
         disconnected_protocol.callRemote = (
             lambda *args, **kwargs: results.pop(0))
 
