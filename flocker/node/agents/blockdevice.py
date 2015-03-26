@@ -735,6 +735,18 @@ class LoopbackBlockDeviceAPI(object):
         volume_path.moveTo(new_path)
         return volume.set(host=None)
 
+    # def resize_volume(self, blockdevice_id, size):
+    #     """
+    #     Increase the size of the loopback backing file whilst maintaining its
+    #     sparseness.
+
+    #     Is that possible?
+
+    #     It should already have been detached, so no need to worry about loop
+    #     devices / losetup operations etc.
+    #     """
+
+
     def list_volumes(self):
         """
         Return ``BlockDeviceVolume`` instances for all the files in the
