@@ -1685,6 +1685,9 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     """
     Tests for the dataset modification endpoint at
     ``/configuration/datasets/<dataset_id>``.
+
+    XXX: Make it clear that these tests are only for changes to the ``primary``
+    attribute of a dataset.
     """
     def test_unknown_dataset(self):
         """
@@ -1963,9 +1966,49 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         # Consider fixing this issue before implementing the resize API changes.
     )
 
+    def test_no_primary(self):
+        """
+        An update request without a primary address is allowed.
+        """
+
+
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
     buildIntegrationTests(
         UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
+)
+
+class UpdateSizeDatasetTestsMixin(object):
+    """
+    Tests for the behaviour of the dataset modification endpoint at
+    ``/configuration/datasets/<dataset_id>`` when supplied with a maximum_size
+    value.
+    """
+    def test_grow(self):
+        """
+        A dataset maximum_size can be increased.
+        """
+        1/0
+
+    def test_shrink(self):
+        """
+        A dataset maximum_size can be decreased.
+        """
+        1/0
+
+    def test_too_small(self):
+        """
+        A dataset must be at least 67108864 bytes.
+        """
+        # What is the general HTTP code when input is invalid?
+        # Maybe create another issue to document the input validation and the expected failure response.
+        # But should we return something more specific in this case?
+        # I looked for some precedent in :
+        # * http://doc-dev.clusterhq.com/advanced/api.html#post--v1-configuration-datasets
+        1/0
+
+RealTestsUpdateSizeDataset, MemoryTestsUpdateSizeDataset = (
+    buildIntegrationTests(
+        UpdateSizeDatasetTestsMixin, "UpdateSizeDataset", _build_app)
 )
 
 
