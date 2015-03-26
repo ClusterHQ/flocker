@@ -88,6 +88,10 @@ def main(args):
         urllib2.urlopen(recipe_url)
         vmrun = FilePath(options['vmware']).child('vmrun').path
         check_output([
+            'ls', "-l",
+            options['vmpath'].parent().path,
+        ])
+        check_output([
             vmrun, "revertToSnapshot",
             options['vmpath'].path, options['vmsnapshot'],
         ])
