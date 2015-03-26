@@ -1672,6 +1672,36 @@ class DestroyBlockDeviceDatasetTests(
         self.assertEqual([], api.list_volumes())
 
 
+def _make_mount():
+    """
+    Make an ``MountBlockDevice`` instance for ``make_state_change_tests``.
+
+    # A state change to check for interface adherence etc.
+    """
+    # return MountBlockDevice(
+    #     volume=_ARBITRARY_VOLUME,
+    # )
+    pass
+
+
+class MountBlockDeviceTests(make_state_change_tests(_make_mount)):
+    """
+    Tests for ``MountBlockDevice``.
+    """
+    def test_run(self):
+        """
+        ``MountBlockDevice.run`` mounts the filesystem / block device
+        associated with the volume passed to it (association as determined by
+        the deployer's ``IBlockDeviceAPI`` provider).
+        """
+        # Create volume
+        # Attach volume
+        # Manually format the volume
+        # Attempt to mount it
+        # Assert that the volume device path is listed by get_mounts
+        pass
+
+
 def _make_unmount():
     """
     Make an ``UnmountBlockDevice`` instance for ``make_state_change_tests``.

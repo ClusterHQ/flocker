@@ -230,6 +230,14 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
         return DESTROY_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
 
 
+# Implement:
+#     AttachVolume(volume=volume),
+#     MountVolume(volume=volume),
+# in order to carry out the sequence below.
+# Maybe use those in the CreateBlockDeviceDataset state change or paste in some
+# followup issues, or maybe do those issues first??
+
+
 @_logged_statechange
 @with_cmp(["change"])
 class ResizeBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
