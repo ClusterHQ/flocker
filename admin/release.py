@@ -24,7 +24,12 @@ from twisted.python.constants import Names, NamedConstant
 
 import flocker
 
-from flocker.docs import get_doc_version, is_release, is_weekly_release
+from flocker.docs import (
+    get_doc_version,
+    is_pre_release,
+    is_release,
+    is_weekly_release,
+)
 from flocker.provision._install import ARCHIVE_BUCKET
 
 from .aws import (
@@ -182,7 +187,8 @@ def publish_docs(flocker_version, doc_version, environment):
         published version isn't tagged.
     """
     if not (is_release(doc_version)
-            or is_weekly_release(doc_version)):
+            or is_weekly_release(doc_version)
+            or is_pre_release(doc_version)):
         raise NotARelease()
 
     if environment == Environments.PRODUCTION:
