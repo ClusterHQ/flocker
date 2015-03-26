@@ -455,6 +455,23 @@ class IBlockDeviceAPI(Interface):
             ``None``.
         """
 
+    # def resize_volume(blockdevice_id, size):
+    #     """
+    #     Resize an unattached ``blockdevice_id``.
+
+    #     :param unicode blockdevice_id: The unique identifier for the block
+    #         device being detached.
+
+    #     :param int size: The required size, in bytes, of the volume.
+
+    #     :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+    #         exist.
+    #     :raises AlreadyAttached: If the supplied ``blockdevice_id`` is
+    #         already attached.
+    #     :returns: A ``BlockDeviceVolume`` with a ``size`` attribute equal to
+    #         the supplied ``size`` when the volume has been resized.
+    #     """
+
     def list_volumes():
         """
         List all the block devices available via the back end API.
