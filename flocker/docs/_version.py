@@ -123,8 +123,10 @@ def get_installable_version(version):
 
 def is_release(version):
     """
-    :param bytes version: A version of flocker.
+    Return whether the version corresponds to a marketing or documentation
+    release.
 
+    :param bytes version: A version of flocker.
     :return bool: Whether the version corresponds to a marketing or
         documentation release.
     """
@@ -137,6 +139,8 @@ def is_release(version):
 
 def is_weekly_release(version):
     """
+    Return whether the version corresponds to a weekly release.
+
     :param bytes version: A version of flocker.
     :return bool: Whether the version is a weekly release.
     """
@@ -149,6 +153,8 @@ def is_weekly_release(version):
 
 def is_pre_release(version):
     """
+    Return whether the version corresponds to a pre-release.
+
     :param bytes version: A version of flocker.
     :return bool: Whether the version is a pre-release.
     """
