@@ -432,3 +432,26 @@ class DatasetAPITests(TestCase):
             return deleted
         created.addCallback(delete_dataset)
         return created
+
+    def test_dataset_grow_(self):
+        """
+        The maximum size of a dataset can be increased.
+
+        A not quite end-to-end test that the size of a dataset can be increased.
+
+        We can't issue the resize request from the API until
+        https://clusterhq.atlassian.net/browse/FLOC-1599 is resolved.
+
+        So manipulate the control service configuration file directly and
+        restart it....or something.
+        """
+        # Create a dataset of REALISTIC_BLOCKDEVICE_SIZE
+        # Wait for it to be created.
+        # Add some data to it somehow.
+        # Stop the dataset agent
+        # Stop the control service
+        # Wipe the configuration file
+        # Start the control service
+        # Create a dataset with the same dataset_id but with maximum_size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        # Wait for the dataset to be resized.
+        # Check that the data (written earlier) is still intact and that the dataset state reports the correct new size.
