@@ -284,9 +284,6 @@ class ConvergenceLoop(object):
         def got_local_state(local_state):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
-            # XXX FLOC-1542 will need to deal with partial updates, and
-            # make sure there is no duplication with code in
-            # flocker.control._clusterstate.
             self.cluster_state = self.cluster_state.set(
                 "nodes", list(n for n in self.cluster_state.nodes
                               if n.hostname != local_state.hostname)
