@@ -444,3 +444,13 @@ class DatasetAPITests(TestCase):
         # http://doc-dev.clusterhq.com/advanced/api.html#post--v1-configuration-datasets-%28dataset_id%29
         # Wait for the state of that dataset to show the updated size.
         1/0
+
+    def test_dataset_shrink(self):
+        """
+        The size of a dataset can be decreased.
+        """
+        # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE * 2
+        # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE
+        # Check for 200 response code
+        # Wait for the state of that dataset to show the updated size.
+        1/0
