@@ -33,7 +33,7 @@ from .._protocol import (
 from .._clusterstate import ClusterStateService
 from .._model import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
-    Dataset,
+    Dataset, DeploymentState,
 )
 from .._persistence import ConfigurationPersistenceService
 
@@ -96,7 +96,8 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
 NODE_STATE = NodeState(hostname=u'node1.example.com',
                        applications=[APP1, APP2],
                        used_ports=[1, 2],
-                       manifestations=frozenset([MANIFESTATION]))
+                       manifestations={MANIFESTATION.dataset_id:
+                                       MANIFESTATION})
 
 
 class SerializationTests(SynchronousTestCase):
@@ -263,12 +264,7 @@ class ControlAMPTests(ControlTestCase):
                                    eliot_context=TEST_ACTION))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
-            Deployment(
-                nodes=frozenset([
-                    Node(hostname=u'node1.example.com',
-                         applications=frozenset([APP1, APP2]),
-                         manifestations={MANIFESTATION.dataset_id:
-                                         MANIFESTATION})])))
+            DeploymentState(nodes={NODE_STATE}))
 
     def test_nodestate_notifies_all_connected(self):
         """
@@ -457,7 +453,7 @@ class AgentClientTests(SynchronousTestCase):
         having cluster state updated.
         """
         self.client.makeConnection(StringTransport())
-        actual = Deployment(nodes=frozenset())
+        actual = DeploymentState(nodes=[])
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=TEST_DEPLOYMENT,

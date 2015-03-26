@@ -1194,14 +1194,14 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_local_state()
 
         self.assertEqual(
-            pset(
-                {Manifestation(
-                    dataset=Dataset(
-                        dataset_id=self.DATASET_ID,
-                        metadata=pmap({u"name": u"site-example.com"})),
-                    primary=True),
-                 Manifestation(dataset=Dataset(dataset_id=self.DATASET_ID2),
-                               primary=True)}),
+            {self.DATASET_ID: Manifestation(
+                dataset=Dataset(
+                    dataset_id=self.DATASET_ID,
+                    metadata=pmap({u"name": u"site-example.com"})),
+                primary=True),
+             self.DATASET_ID2: Manifestation(
+                 dataset=Dataset(dataset_id=self.DATASET_ID2),
+                 primary=True)},
             self.successResultOf(d).manifestations)
 
     def test_discover_manifestation_paths(self):
