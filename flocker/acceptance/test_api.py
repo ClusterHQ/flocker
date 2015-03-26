@@ -454,3 +454,22 @@ class DatasetAPITests(TestCase):
         # Check for 200 response code
         # Wait for the state of that dataset to show the updated size.
         1/0
+
+    def test_dataset_shrink_not_possible(self):
+        """
+        If the dataset has too much data to allow shrinking to the requested size...then what??
+        """
+        # Create a dataset with SMALL_DATASET_SIZE
+        # Somehow add data to the dataset
+        # Request a resize.
+        # ???
+        1/0
+
+    def test_dataset_shrink_not_valid(self):
+        """
+        If the requested maximum_size is smaller than the allowed minimum, then what??
+        """
+        # Create a dataset REALISTIC_BLOCKDEVICE_SIZE
+        # Request a new maximum_size < minimum defined in schema.
+        # Check response code.
+        1/0
