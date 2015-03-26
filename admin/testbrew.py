@@ -88,7 +88,11 @@ def main(args):
         urllib2.urlopen(recipe_url)
         vmrun = FilePath(options['vmware']).child('vmrun').path
         check_output([
-            'ls', "-l",
+            'mkdir', "-p",
+            options['vmpath'].parent().path,
+        ])
+        check_output([
+            'cp', "/Users/ClusterHQ/OS X 10.10.vmwarevm/*",
             options['vmpath'].parent().path,
         ])
         check_output([
