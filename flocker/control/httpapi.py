@@ -336,10 +336,7 @@ class ConfigurationAPIUserV1(object):
 
         * Move a dataset from one node to another by changing the
           ``primary`` attribute.
-        # XXX: Consider implementing the API changes in a separate branch
-        # against a new sub issue of story:
-        # * https://clusterhq.atlassian.net/browse/FLOC-1421
-        # ...then update this comment.
+        # XXX: Update this comment.
         * In the future, update metadata and maximum size.
 
         """,
