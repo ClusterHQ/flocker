@@ -414,16 +414,18 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     :param bytes build_server: Server to download new RPMs from.
     """
     if not (is_release(version)
-            or is_weekly_release(version)):
+            or is_weekly_release(version)
+            or is_pre_release(version)):
         raise NotARelease()
 
     if get_doc_version(version) != version:
         raise DocumentationRelease()
 
-    if is_release(version):
-        target_distro_suffix = ""
-    elif is_weekly_release(version):
+    is_dev = not is_release(version)
+    if is_dev:
         target_distro_suffix = "-testing"
+    else:
+        target_distro_suffix = ""
 
 
     operating_systems = [
