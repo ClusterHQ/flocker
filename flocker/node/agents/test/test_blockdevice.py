@@ -2004,7 +2004,7 @@ class ResizeBlockDeviceDatasetTests(
         1/0
 
     @validate_logging(verify_run_log)
-    def test_run(self, logger):
+    def test_run_grow(self, logger):
         """
         After running ``ResizeBlockDeviceDataset``, its volume has been
         resized.
@@ -2040,6 +2040,15 @@ class ResizeBlockDeviceDatasetTests(
         # expected_volume = volume.set(size=REALISTIC_BLOCKDEVICE_SIZE * 2)
 
         # self.assertEqual([expected_volume], api.list_volumes())
+        1/0
+
+    def test_run_shrink(self, logger):
+        """
+        After running ``ResizeBlockDeviceDataset``, its volume has been
+        shrunk.
+
+        XXX: This can be marked TODO and implemented later in FLOC-1503.
+        """
         1/0
 
     def test_resize_unmounted_volume(self):
