@@ -3,9 +3,6 @@
 """
 Communication protocol between control service and convergence agent.
 
-THIS CODE IS INSECURE AND SHOULD NOT BE DEPLOYED IN ANY FORM UNTIL
-https://clusterhq.atlassian.net/browse/FLOC-1241 IS FIXED.
-
 The cluster is composed of a control service server, and convergence
 agents. The code below implicitly assumes convergence agents are
 node-specific, but that will likely change and involve additinal commands.
