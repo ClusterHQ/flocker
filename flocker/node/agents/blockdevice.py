@@ -155,6 +155,11 @@ DESTROY_VOLUME = ActionType(
     u"The volume for a block-device-backed dataset is being destroyed."
 )
 
+# Add new Eliot actions for:
+# RESIZE_BLOCK_DEVICE_DATASET
+# MOUNT_VOLUME
+# ATTACH_VOLUME
+
 
 def _logged_statechange(cls):
     """
