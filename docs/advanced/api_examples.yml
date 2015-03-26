@@ -207,6 +207,9 @@
 
     {"description": "Dataset not found."}
 
+# XXX: Add a "grow dataset" example here.
+# XXX: Add a "shrink dataset" example here.
+
 -
   id:
     "delete dataset"
@@ -337,7 +340,7 @@
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "never"},
-     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}     
+     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}
 
 -
   id:
@@ -467,7 +470,7 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},    
+     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},
      "restart_policy": {"name": "never"}}
 
 -
@@ -549,4 +552,3 @@
     HTTP/1.1 404 Not Found
 
     {"description": "Container not found."}
-
