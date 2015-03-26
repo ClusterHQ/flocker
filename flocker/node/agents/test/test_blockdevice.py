@@ -1563,6 +1563,8 @@ class DestroyBlockDeviceDatasetTests(
         """
         If ``volume`` is not supplied when initializing
         ``DestroyBlockDeviceDataset``, ``TypeError`` is raised.
+
+        XXX: Move to shared mixin.
         """
         self.assertRaises(TypeError, DestroyBlockDeviceDataset)
 
@@ -1571,6 +1573,8 @@ class DestroyBlockDeviceDatasetTests(
         If the value given for ``volume`` is not an instance of
         ``BlockDeviceVolume`` when initializing ``DestroyBlockDeviceDataset``,
         ``TypeError`` is raised. (XXX wth pyrsistent, pick an exception type)
+
+        XXX: Move to shared mixin.
         """
         self.assertRaises(
             TypeError, DestroyBlockDeviceDataset, volume=object()
@@ -1580,6 +1584,8 @@ class DestroyBlockDeviceDatasetTests(
         """
         Two ``DestroyBlockDeviceDataset`` instances compare as equal if they
         are initialized with the same volume.
+
+        XXX: Move to shared mixin.
         """
         dataset_id = uuid4()
 
@@ -1598,6 +1604,8 @@ class DestroyBlockDeviceDatasetTests(
         """
         Two ``DestroyBlockDeviceDataset`` instances compare as not equal if
         they are initialized with different volumes.
+
+        XXX: Move to shared mixin.
         """
         a = DestroyBlockDeviceDataset(volume=BlockDeviceVolume(
             blockdevice_id=u"abcd",
@@ -1612,6 +1620,9 @@ class DestroyBlockDeviceDatasetTests(
         self.assertTrue(a != b)
 
     def verify_run_log(self, logger):
+        # XXX: This should probably be refactored and shared with the tests for
+        # parent and child actions logged by ``ResizeBlockDeviceDataset``.
+
         # One action is logged
         action = assertHasAction(
             self, logger, DESTROY_BLOCK_DEVICE_DATASET, succeeded=True)
