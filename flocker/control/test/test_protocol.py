@@ -689,8 +689,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         control_amp_service.node_changed(NodeState(hostname=u"1.2.3.4"))
 
         actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
-        print actions
         self.assertEqual(
-            (actions[3].succeeded, actions[2].succeeded,
-             actions[2].end_message["exception"]),
-            (True, False, u"twisted.internet.error.ConnectionLost"))
+            [action.end_message["exception"] for action in actions
+             if not action.succeeded],
+            [u"twisted.internet.error.ConnectionLost"])
