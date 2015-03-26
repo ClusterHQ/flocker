@@ -91,10 +91,10 @@ def main(args):
             'mkdir', "-p",
             options['vmpath'].parent().path,
         ])
-        check_output([
-            'cp', "/Users/ClusterHQ/OS X 10.10.vmwarevm/*",
-            options['vmpath'].parent().path,
-        ])
+        check_output(
+            'cp "/Users/ClusterHQ/OS X 10.10.vmwarevm"/* "' +
+            options['vmpath'].parent().path + '"',
+            shell=True)
         check_output([
             vmrun, "revertToSnapshot",
             options['vmpath'].path, options['vmsnapshot'],
