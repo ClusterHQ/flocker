@@ -349,6 +349,33 @@ class UnmountBlockDevice(PRecord):
 
 @_logged_statechange
 @implementer(IStateChange)
+class AttachVolume(PRecord):
+    """
+    Attach an unattached volume to a node.
+
+    :ivar BlockDeviceVolume volume: The volume to attach.
+    """
+    volume = _volume()
+    hostname = field(type=unicode)
+
+    @property
+    def _action(self):
+        # return ATTACH_VOLUME(_logger, volume=self.volume)
+        pass
+
+    def run(self, deployer):
+        """
+        Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
+        """
+        # Make this asynchronous after FLOC-1549, probably as part of
+        # FLOC-1593.
+        # deployer.block_device_api.attach_volume(self.volume.blockdevice_id, self.hostname)
+        # return succeed(None)
+        pass
+
+
+@_logged_statechange
+@implementer(IStateChange)
 class DetachVolume(PRecord):
     """
     Detach a volume from the node it is currently attached to.
