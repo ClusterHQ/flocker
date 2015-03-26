@@ -715,6 +715,9 @@ class IBlockDeviceAPITestsMixin(object):
     def test_listed_volume_attributes(self):
         """
         ``list_volumes`` returns ``BlockVolume`` s that have a dataset_id.
+
+        XXX: Update this test to also check that the listed volume has the same
+        size as was supplied when it was created.
         """
         expected_dataset_id = uuid4()
         self.api.create_volume(
