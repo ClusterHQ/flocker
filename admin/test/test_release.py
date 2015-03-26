@@ -659,6 +659,25 @@ class PublishDocsTests(TestCase):
         self.publish_docs(
             aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
 
+    def test_production_can_publish_prerelease(self):
+        """
+        Publishing a pre-release succeeds.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-docs': {
+                    'en/latest/': 'en/0.3.0/',
+                    'en/devel/': 'en/0.3.1.dev4/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-docs': {},
+                'clusterhq-dev-docs': {},
+            })
+        # Does not raise:
+        self.publish_docs(
+            aws, '0.3.2pre1', '0.3.2pre1', environment=Environments.PRODUCTION)
+
     def test_publish_non_release_fails(self):
         """
         Trying to publish to version that isn't a release fails.
