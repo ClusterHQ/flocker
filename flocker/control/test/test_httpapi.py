@@ -1960,6 +1960,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         'primary address, but the input schema currently requires the primary '
         'attribute. This will need to be addressed before or as part of '
         'https://clusterhq.atlassian.net/browse/FLOC-1404'
+        # Consider fixing this issue before implementing the resize API changes.
     )
 
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
