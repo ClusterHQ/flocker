@@ -155,6 +155,11 @@ DESTROY_VOLUME = ActionType(
     u"The volume for a block-device-backed dataset is being destroyed."
 )
 
+# Add new Eliot actions for:
+# RESIZE_BLOCK_DEVICE_DATASET
+# MOUNT_VOLUME
+# ATTACH_VOLUME
+
 
 def _logged_statechange(cls):
     """
@@ -230,6 +235,46 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
         return DESTROY_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
 
 
+# Implement:
+#     AttachVolume(volume=volume),
+#     MountVolume(volume=volume),
+# in order to carry out the sequence below.
+# Maybe use those in the CreateBlockDeviceDataset state change or paste in some
+# followup issues, or maybe do those issues first??
+
+
+@_logged_statechange
+@with_cmp(["change"])
+class ResizeBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
+    """
+    Resize the volume for a dataset with a primary manifestation on the node
+    where this state change runs.
+
+    :ivar IStateChange change: The real implementation of this state change.
+    :ivar volume: See ``__init__``.
+    """
+    def __init__(self, volume, size):
+        """
+        :param BlockDeviceVolume volume: The volume which will be resized.
+        :param int size: The required size of the volume
+        """
+        # self.volume = volume
+        # sequence = Sequentially(changes=[
+        #     UnmountBlockDevice(volume=volume),
+        #     DetachVolume(volume=volume),
+        #     ResizeVolume(volume=volume, size=size),
+        #     AttachVolume(volume=volume),
+        #     MountVolume(volume=volume),
+        # ])
+        # super(ResizeBlockDeviceDataset, self).__init__(sequence)
+        pass
+
+
+    @property
+    def _action(self):
+        # return RESIZE_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
+        pass
+
 def _volume():
     """
     Create and return a ``PRecord`` ``field`` for to hold a
@@ -242,6 +287,38 @@ def _volume():
         # supplied by default.
         factory=lambda x: x
     )
+
+
+@_logged_statechange
+@implementer(IStateChange)
+class MountBlockDevice(PRecord):
+    """
+    Mount the filesystem mounted from the block device backed by a particular
+    volume.
+
+    :ivar BlockDeviceVolume volume: The volume associated with the dataset
+        which will be unmounted.
+    """
+    volume = _volume()
+
+    @property
+    def _action(self):
+        # return MOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
+        pass
+
+    def run(self, deployer):
+        """
+        Run the system ``mount`` tool to mount this change's volume's block
+        device.  The volume must be attached to this node.
+        """
+        # device = deployer.block_device_api.get_device_path(
+        #     self.volume.blockdevice_id
+        # )
+        # # This should be asynchronous.  Do it as part of FLOC-1499.  Make sure
+        # # to fix _logged_statechange to handle Deferreds too.
+        # check_output([b"mount", device.path])
+        # return succeed(None)
+        pass
 
 
 @_logged_statechange
@@ -273,6 +350,33 @@ class UnmountBlockDevice(PRecord):
         # to fix _logged_statechange to handle Deferreds too.
         check_output([b"umount", device.path])
         return succeed(None)
+
+
+@_logged_statechange
+@implementer(IStateChange)
+class AttachVolume(PRecord):
+    """
+    Attach an unattached volume to a node.
+
+    :ivar BlockDeviceVolume volume: The volume to attach.
+    """
+    volume = _volume()
+    hostname = field(type=unicode)
+
+    @property
+    def _action(self):
+        # return ATTACH_VOLUME(_logger, volume=self.volume)
+        pass
+
+    def run(self, deployer):
+        """
+        Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
+        """
+        # Make this asynchronous after FLOC-1549, probably as part of
+        # FLOC-1593.
+        # deployer.block_device_api.attach_volume(self.volume.blockdevice_id, self.hostname)
+        # return succeed(None)
+        pass
 
 
 @_logged_statechange
@@ -454,6 +558,23 @@ class IBlockDeviceAPI(Interface):
         :returns: A ``BlockDeviceVolume`` with a ``host`` attribute set to
             ``None``.
         """
+
+    # def resize_volume(blockdevice_id, size):
+    #     """
+    #     Resize an unattached ``blockdevice_id``.
+
+    #     :param unicode blockdevice_id: The unique identifier for the block
+    #         device being detached.
+
+    #     :param int size: The required size, in bytes, of the volume.
+
+    #     :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+    #         exist.
+    #     :raises AlreadyAttached: If the supplied ``blockdevice_id`` is
+    #         already attached.
+    #     :returns: A ``BlockDeviceVolume`` with a ``size`` attribute equal to
+    #         the supplied ``size`` when the volume has been resized.
+    #     """
 
     def list_volumes():
         """
@@ -718,6 +839,17 @@ class LoopbackBlockDeviceAPI(object):
         volume_path.moveTo(new_path)
         return volume.set(host=None)
 
+    # def resize_volume(self, blockdevice_id, size):
+    #     """
+    #     Increase the size of the loopback backing file whilst maintaining its
+    #     sparseness.
+
+    #     Is that possible?
+
+    #     It should already have been detached, so no need to worry about loop
+    #     devices / losetup operations etc.
+    #     """
+
     def list_volumes(self):
         """
         Return ``BlockDeviceVolume`` instances for all the files in the
@@ -871,10 +1003,11 @@ class BlockDeviceDeployer(PRecord):
             for manifestation
             in manifestations_to_create
         )
+        # XXX: Maybe list volumes here and pass the list to each helper below.
+        deletes = self._calculate_deletes(configured_manifestations) # volumes=volumes)
+#        resizes = self._calculate_resizes(configured_manifestations, volumes=volumes)
 
-        deletes = self._calculate_deletes(configured_manifestations)
-
-        return InParallel(changes=creates + deletes)
+        return InParallel(changes=creates + deletes) # + resizes)
 
     def _calculate_deletes(self, configured_manifestations):
         """
@@ -886,6 +1019,8 @@ class BlockDeviceDeployer(PRecord):
             configuration and the actual state of volumes (ie which exist
             and which don't).
         """
+        # XXX: maybe issue this API call once and supply the list of volumes to
+        # each of the _calculate_* private helper methods.
         volumes = self.block_device_api.list_volumes()
 
         delete_dataset_ids = set(
@@ -900,3 +1035,18 @@ class BlockDeviceDeployer(PRecord):
             # Only destroy volumes belonging to deleted datasets.
             if unicode(volume.dataset_id) in delete_dataset_ids
         ]
+
+    # def _calculate_resizes(self, configured_manifestations):
+    #     """
+    #     :param dict configured_manifestations: The manifestations configured
+    #         for this node (like ``Node.manifestations``).
+
+    #     :return: A ``list`` of ``ResizeBlockDeviceDataset`` instances for each
+    #         volume that needs to be resized based on the given
+    #         configuration and the actual state of volumes (ie which have a size
+    #         that is different to the configuration)
+    #     """
+    #     # List volumes using self.api
+    #     # Loop through each comparing actual size with the configured size of
+    #     # the corresponding manifestation.
+    #     # Return ``ResizeBlockDeviceDataset`` for each resize.
