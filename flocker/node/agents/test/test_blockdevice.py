@@ -1129,6 +1129,78 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
+    def test_resize_unknown_volume(self):
+        """
+        ``resize_volume`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` does not exist.
+        """
+        # blockdevice_id = unicode(uuid4)
+        # exception = self.assertRaises(
+        #     UnknownVolume,
+        #     self.api.resize_volume, blockdevice_id=blockdevice_id
+        # )
+        # self.assertEqual(exception.args, (blockdevice_id,))
+        1/0
+
+    def test_resize_attached_volume(self):
+        """
+        ``resize_volume`` raises ``AlreadyAttached`` if the supplied
+        ``blockdevice_id`` is for a ``BlockDeviceVolume`` that is attached to a
+        host.
+
+        XXX: Should there be a similar test for an attempt to destroy an attached volume?
+        """
+        1/0
+
+    def test_resize_volume_returns_updated_volume(self):
+        """
+        ``resize_volume`` returns a ``BlockDeviceVolume`` with an updated
+        ``size`` attribute when supplied with the ``blockdevice_id`` of an
+        unattached ``BlockDeviceVolume``.
+        """
+        # original_volume = self.api.create_volume(
+        #     dataset_id=uuid4(),
+        #     size=REALISTIC_BLOCKDEVICE_SIZE,
+        # )
+        # expected_size = REALISTIC_BLOCKDEVICE_SIZE ** 2
+        # larger_volume = self.api.resize_volume(volume.blockdevice_id, expected_size)
+        # self.assertEqual(expected_size, larger_volume)
+        1/0
+
+    def test_resize_volume_listed(self):
+        """
+        ``resize_volume`` returns when the ``BlockDeviceVolume`` has been
+        resized and ``list_volumes`` then reports the ``BlockDeviceVolume``
+        with the new size.
+        """
+        # unrelated_volume = self.api.create_volume(
+        #     dataset_id=uuid4(),
+        #     size=REALISTIC_BLOCKDEVICE_SIZE,
+        # )
+
+        # original_volume = self.api.create_volume(
+        #     dataset_id=uuid4(),
+        #     size=REALISTIC_BLOCKDEVICE_SIZE,
+        # )
+        # larger_volume = self.api.resize_volume(original_volume.blockdevice_id, REALISTIC_BLOCKDEVICE_SIZE ** 2)
+
+        # self.assertEqual([unrelated_volume, larger_volume], self.api.list_volumes())
+        1/0
+
+    def test_resize_destroyed_volume(self):
+        """
+        ``resize_volume`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` was associated with a volume but that volume has
+        been destroyed.
+        """
+        # volume = self._destroyed_volume()
+        # exception = self.assertRaises(
+        #     UnknownVolume,
+        #     self.api.resize_volume, blockdevice_id=volume.blockdevice_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+        # )
+        # self.assertEqual(exception.args, (volume.blockdevice_id,))
+        1/0
+
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
     """
