@@ -429,7 +429,7 @@ class ContainerAPITests(TestCase):
             created.addCallback(got_mongo_client)
 
             def inserted(record):
-                removed = cluster.remove_container(u"container")
+                removed = cluster.remove_container(mongodb[u"name"])
                 mongodb2 = mongodb.copy()
                 mongodb2[u"ports"] = [{u"internal": 27017, u"external": 27018}]
                 removed.addCallback(
