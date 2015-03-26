@@ -336,12 +336,14 @@ class ConfigurationAPIUserV1(object):
 
         * Move a dataset from one node to another by changing the
           ``primary`` attribute.
+        # XXX: Update this comment
         * In the future, update metadata and maximum size.
 
         """,
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
+            # XXX: Add a grow dataset example here
         ]
     )
     @structured(
@@ -351,7 +353,7 @@ class ConfigurationAPIUserV1(object):
                       '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
     )
-    def update_dataset(self, dataset_id, primary=None):
+    def update_dataset(self, dataset_id, primary=None, maximum_size=None):
         """
         Update an existing dataset in the cluster configuration.
 
@@ -360,6 +362,10 @@ class ConfigurationAPIUserV1(object):
 
         :param unicode primary: The address of the node to which the dataset
             will be moved.
+
+        :param int maximum_size: The maximum number of bytes the dataset will
+            be capable of storing.  This may be optional or required depending
+            on the dataset backend.
 
         :return: A ``dict`` describing the dataset which has been added to the
             cluster configuration or giving error information if this is not
@@ -373,6 +379,12 @@ class ConfigurationAPIUserV1(object):
 
         if primary_manifestation.dataset.deleted:
             raise DATASET_DELETED
+
+        # XXX: Might need to break this method up into a series of private
+        # methods for performing different dataset configuration changes. eg
+        # * _update_dataset_primary
+        # * _update_dataset_maximum_size
+        # ...each returning a (possibly) modified ``Deployment``.
 
         # Now construct a new_deployment where the primary manifestation of the
         # dataset is on the requested primary node.
@@ -413,6 +425,23 @@ class ConfigurationAPIUserV1(object):
             return EndpointResponse(OK, result)
         saving.addCallback(saved)
         return saving
+
+    def _update_dataset_primary(self, dataset_id, primary):
+        """
+        :returns: A ``Deployment`` where the ``Manifestation`` of the
+            ``Dataset`` with the supplied ``dataset_id`` is on a new ``Node``.
+        """
+
+    def _update_dataset_maximum_size(self, dataset_id, maximum_size):
+        """
+        XXX: Is there any error checking to be done here? We say different
+        backends may or may not support resizing, so can we report that to the
+        API user up front?
+
+        :returns: A ``Deployment`` where the ``Manifestation`` of the
+            ``Dataset`` with the supplied ``dataset_id`` has an updated
+            ``maximum_size``.
+        """
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
