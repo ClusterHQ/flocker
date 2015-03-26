@@ -746,7 +746,6 @@ class LoopbackBlockDeviceAPI(object):
     #     devices / losetup operations etc.
     #     """
 
-
     def list_volumes(self):
         """
         Return ``BlockDeviceVolume`` instances for all the files in the

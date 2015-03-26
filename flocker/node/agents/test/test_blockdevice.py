@@ -1342,6 +1342,24 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             (actual_size, reported_size)
         )
 
+    def test_resize_sparse(self):
+        """
+        ``resize_volume`` extends backing files sparsely.
+        """
+        # Create a volume
+        # Call resize_volume to double the size.
+        # Assert that the *actual* size of the file hasn't changed.
+
+    def test_resize_data_preserved(self):
+        """
+        ``resize_volume`` does not modify the data contained inside the backing
+        file.
+        """
+        # Create a volume
+        # md5sum the backing file
+        # Call resize_volume to double the size.
+        # Assert that md5sum hasn't changed.
+
     def test_list_unattached_volumes(self):
         """
         ``list_volumes`` returns a ``BlockVolume`` for each unattached volume
