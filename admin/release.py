@@ -327,8 +327,9 @@ def publish_docs_main(args, base_path, top_level):
                          % (base_path.basename(),))
         raise SystemExit(1)
     except NotTagged:
-        sys.stderr.write("%s: Can't publish non-tagged version to production.\n"
-                         % (base_path.basename(),))
+        sys.stderr.write(
+            "%s: Can't publish non-tagged version to production.\n"
+            % (base_path.basename(),))
         raise SystemExit(1)
 
 
