@@ -43,6 +43,8 @@ When you use the API to change the configuration, e.g. creating a new dataset:
 #. The actual cluster state will then reflect the requested change.
    E.g. cluster datasets state can be accessed via :http:get:`/v1/state/datasets`.
 
+.. Document the response when input validation fails or link to an issue to document that.
+
 For more information read the :ref:`cluster architecture<architecture>` documentation.
 
 .. autoklein:: flocker.control.httpapi.ConfigurationAPIUserV1

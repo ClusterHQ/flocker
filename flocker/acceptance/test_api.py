@@ -432,3 +432,44 @@ class DatasetAPITests(TestCase):
             return deleted
         created.addCallback(delete_dataset)
         return created
+
+
+    def test_dataset_grow(self):
+        """
+        The size of a dataset can be increased.
+        """
+        # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE
+        # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE * 2
+        # Check for 200 response code
+        # http://doc-dev.clusterhq.com/advanced/api.html#post--v1-configuration-datasets-%28dataset_id%29
+        # Wait for the state of that dataset to show the updated size.
+        1/0
+
+    def test_dataset_shrink(self):
+        """
+        The size of a dataset can be decreased.
+        """
+        # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE * 2
+        # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE
+        # Check for 200 response code
+        # Wait for the state of that dataset to show the updated size.
+        1/0
+
+    def test_dataset_shrink_not_possible(self):
+        """
+        If the dataset has too much data to allow shrinking to the requested size...then what??
+        """
+        # Create a dataset with SMALL_DATASET_SIZE
+        # Somehow add data to the dataset
+        # Request a resize.
+        # ???
+        1/0
+
+    def test_dataset_shrink_not_valid(self):
+        """
+        If the requested maximum_size is smaller than the allowed minimum, then what??
+        """
+        # Create a dataset REALISTIC_BLOCKDEVICE_SIZE
+        # Request a new maximum_size < minimum defined in schema.
+        # Check response code.
+        1/0
