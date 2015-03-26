@@ -230,6 +230,38 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
         return DESTROY_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
 
 
+@_logged_statechange
+@with_cmp(["change"])
+class ResizeBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
+    """
+    Resize the volume for a dataset with a primary manifestation on the node
+    where this state change runs.
+
+    :ivar IStateChange change: The real implementation of this state change.
+    :ivar volume: See ``__init__``.
+    """
+    def __init__(self, volume, size):
+        """
+        :param BlockDeviceVolume volume: The volume which will be resized.
+        :param int size: The required size of the volume
+        """
+        # self.volume = volume
+        # sequence = Sequentially(changes=[
+        #     UnmountBlockDevice(volume=volume),
+        #     DetachVolume(volume=volume),
+        #     ResizeVolume(volume=volume, size=size),
+        #     AttachVolume(volume=volume),
+        #     MountVolume(volume=volume),
+        # ])
+        # super(ResizeBlockDeviceDataset, self).__init__(sequence)
+        pass
+
+
+    @property
+    def _action(self):
+        # return RESIZE_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
+        pass
+
 def _volume():
     """
     Create and return a ``PRecord`` ``field`` for to hold a
