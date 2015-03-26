@@ -330,13 +330,7 @@ class ContainerAPITests(TestCase):
             cluster, response = result
             self.addCleanup(cluster.remove_container, data[u"name"])
 
-            self.assertEqual(response, data)
-
-            def can_connect():
-                s = socket.socket()
-                conn = s.connect_ex((data[u"host"], 8080))
-                return False if conn else True
-
+            self.assertEqual(response, data)x
             dl = verify_socket(data[u"host"], 8080)
             dl.addCallback(lambda _: (cluster, response))
             return dl
