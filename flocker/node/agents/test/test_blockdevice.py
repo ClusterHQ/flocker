@@ -382,6 +382,13 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
             changes
         )
 
+    def test_delete_before_resize(self):
+        """
+        If a dataset has been marked as deleted *and* its maximum_size has
+        changed, only a ``DestroyBlockDeviceDataset`` state change is returned.
+        """
+        1/0
+
 
 class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         SynchronousTestCase
@@ -631,6 +638,48 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         expected_changes = InParallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
+
+
+class BlockDeviceDeployerResizeCalculateNecessaryStateChangesTests(
+        SynchronousTestCase
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_necessary_state_changes``
+    in the cases relating to resizing a dataset.
+    """
+    def test_maximum_size_unchanged(self):
+        """
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
+        calculate a change to shrink or grow datasets if the maximum_size of
+        the dataset has not changed.
+        """
+
+    def test_maximum_size_increased(self):
+        """
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` returns a
+        ``ResizeBlockDeviceDataset`` state change operation if the
+        ``maximum_size`` of the configured ``Dataset`` is larger than the size
+        reported in the local node state.
+        """
+        1/0
+
+    def test_maximum_size_decreased(self):
+        """
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` returns a
+        ``ResizeBlockDeviceDataset`` state change operation if the
+        ``maximum_size`` of the configured ``Dataset`` is smalled than the size
+        reported in the local node state.
+        """
+        1/0
+
+    def test_multiple_resize(self):
+        """
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` returns a
+        ``ResizeBlockDeviceDataset`` state change operation for each configured
+        dataset which has a different maximum_size in the local state.
+        ``maximum_size`` of the configured ``Dataset`` is larger than the size
+        """
+        1/0
 
 
 class IBlockDeviceAPITestsMixin(object):
