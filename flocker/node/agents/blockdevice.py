@@ -899,10 +899,11 @@ class BlockDeviceDeployer(PRecord):
             for manifestation
             in manifestations_to_create
         )
+        # XXX: Maybe list volumes here and pass the list to each helper below.
+        deletes = self._calculate_deletes(configured_manifestations) # volumes=volumes)
+#        resizes = self._calculate_resizes(configured_manifestations, volumes=volumes)
 
-        deletes = self._calculate_deletes(configured_manifestations)
-
-        return InParallel(changes=creates + deletes)
+        return InParallel(changes=creates + deletes) # + resizes)
 
     def _calculate_deletes(self, configured_manifestations):
         """
@@ -914,6 +915,8 @@ class BlockDeviceDeployer(PRecord):
             configuration and the actual state of volumes (ie which exist
             and which don't).
         """
+        # XXX: maybe issue this API call once and supply the list of volumes to
+        # each of the _calculate_* private helper methods.
         volumes = self.block_device_api.list_volumes()
 
         delete_dataset_ids = set(
@@ -928,3 +931,18 @@ class BlockDeviceDeployer(PRecord):
             # Only destroy volumes belonging to deleted datasets.
             if unicode(volume.dataset_id) in delete_dataset_ids
         ]
+
+    # def _calculate_resizes(self, configured_manifestations):
+    #     """
+    #     :param dict configured_manifestations: The manifestations configured
+    #         for this node (like ``Node.manifestations``).
+
+    #     :return: A ``list`` of ``ResizeBlockDeviceDataset`` instances for each
+    #         volume that needs to be resized based on the given
+    #         configuration and the actual state of volumes (ie which have a size
+    #         that is different to the configuration)
+    #     """
+    #     # List volumes using self.api
+    #     # Loop through each comparing actual size with the configured size of
+    #     # the corresponding manifestation.
+    #     # Return ``ResizeBlockDeviceDataset`` for each resize.
