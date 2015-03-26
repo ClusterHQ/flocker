@@ -425,8 +425,9 @@ class P2PManifestationDeployer(object):
     :ivar VolumeService volume_service: The volume manager for this node.
     """
     def discover_local_state(self, local_state):
-        # XXX Move manifestation discovery code out of ApplicationNodeDeployer,
-        # Return a NodeState instance with applications=None.
+        # XXX Move manifestation and path discovery code out of
+        # ApplicationNodeDeployer, Return a NodeState instance with
+        # applications=None and ports=None.
         pass
 
     def calculate_necessary_state_changes(self, *args, **kwargs):
@@ -471,8 +472,8 @@ class ApplicationNodeDeployer(object):
             ``Application``. ``NodeState.manifestations`` and
             ``NodeState.paths`` will not be filled in.
         """
-        # XXX manifestations lookup will be moved away, will return
-        # NodeState with manifestations=None.
+        # XXX manifestations and path lookup will be moved away, will return
+        # NodeState with manifestations=None and paths=None.
 
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
@@ -865,7 +866,7 @@ class P2PNodeDeployer(object):
         self.manifestations_deployer = ...
         self.applications_deployer = ...
 
-    def discover_local_state(self, cluster_state):
+    def discover_local_state(self, local_state):
         # 1. Lookup local state via self.manifestations_deployer
         # 2. Update cluster_state
         # 3. pass that to applications_deployer.discover_local_state

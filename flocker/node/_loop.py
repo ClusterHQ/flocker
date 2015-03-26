@@ -275,7 +275,11 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        d = DeferredContext(self.deployer.discover_local_state())
+        # XXX known_local_state = lookup NodeState for this node. If it
+        # doesn't exist, create NodeState with all values set to None
+        # (i.e. we know nothing).
+        d = DeferredContext(self.deployer.discover_local_state(
+            known_local_state))
 
         def got_local_state(local_state):
             # Current cluster state is likely out of date as regards the local
