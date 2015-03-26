@@ -83,8 +83,8 @@ class ConfigurationPersistenceServiceTests(TestCase):
         self.service(path)
         self.assertTrue(path.child(b"current_configuration.v1.json").exists())
 
-    @validate_logging(assertHasAction, _LOG_SAVE, True,
-                      dict(configuration=TEST_DEPLOYMENT))
+    @validate_logging(assertHasAction, _LOG_SAVE, succeeded=True,
+                      startFields=dict(configuration=TEST_DEPLOYMENT))
     def test_save_then_get(self, logger):
         """
         A configuration that was saved can subsequently retrieved.
@@ -96,7 +96,7 @@ class ConfigurationPersistenceServiceTests(TestCase):
         return d
 
     @validate_logging(assertHasMessage, _LOG_STARTUP,
-                      dict(configuration=TEST_DEPLOYMENT))
+                      fields=dict(configuration=TEST_DEPLOYMENT))
     def test_persist_across_restarts(self, logger):
         """
         A configuration that was saved can be loaded from a new service.
