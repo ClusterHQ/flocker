@@ -159,8 +159,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(content)
-        request.addCallback(loads)
+        request.addCallback(self._json_content, CREATED)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -183,8 +182,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(content)
-        request.addCallback(loads)
+        request.addCallback(self._json_content, OK)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -358,7 +356,7 @@ class ContainerAPITests(TestCase):
         cluster.
         """
         data = {
-            u"name": "my_env_container",
+            u"name": random_name(),
             u"host": None,
             u"image": "clusterhq/flaskenv:latest",
             u"ports": [{u"internal": 8080, u"external": 8081}],
@@ -374,6 +372,7 @@ class ContainerAPITests(TestCase):
         d = waiting_for_cluster.addCallback(create_container, data)
 
         def check_result((cluster, response)):
+            self.addCleanup(cluster.remove_container, data[u"name"])
             self.assertEqual(response, data)
 
         def query_environment(host, port):
@@ -409,7 +408,7 @@ class ContainerAPITests(TestCase):
         def created_dataset(result):
             cluster, dataset = result
             mongodb = {
-                u"name": "container",
+                u"name": random_name(),
                 u"host": cluster.nodes[0].address,
                 u"image": MONGO_IMAGE,
                 u"ports": [{u"internal": 27017, u"external": 27017}],
@@ -418,6 +417,8 @@ class ContainerAPITests(TestCase):
                               u"mountpoint": u"/data/db"}],
             }
             created = cluster.create_container(mongodb)
+            created.addCallback(lambda _: self.addCleanup(
+                cluster.remove_container, mongodb[u"name"]))
             created.addCallback(
                 lambda _: get_mongo_client(cluster.nodes[0].address))
 
@@ -491,7 +492,15 @@ def create_dataset(test_case):
             u"metadata": {u"name": u"my_volume"},
         }
 
-        return cluster.create_dataset(requested_dataset)
+        d = cluster.create_dataset(requested_dataset)
+
+        def got_result(result):
+            test_case.addCleanup(
+                cluster.delete_dataset, requested_dataset[u"dataset_id"])
+            return result
+        d.addCallback(got_result)
+        return d
+
     configuring_dataset = waiting_for_cluster.addCallback(
         configure_dataset
     )
