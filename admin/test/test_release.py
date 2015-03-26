@@ -666,7 +666,7 @@ class PublishDocsTests(TestCase):
         aws = FakeAWS(
             routing_rules={
                 'clusterhq-docs': {
-                    'en/latest/': 'en/0.3.0/',
+                    'en/devel/': 'en/0.3.1.dev4/',
                 },
             },
             s3_buckets={
