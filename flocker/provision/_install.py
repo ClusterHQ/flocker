@@ -219,7 +219,7 @@ def task_upgrade_kernel_ubuntu():
         # somehow work around that, see
         # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade  # noqa
         Run.from_args([
-            "sudo", "dpkg", "-i", "linux-headers-3.18.0-*.deb",
+            "dpkg", "-i", "linux-headers-3.18.0-*.deb",
             "linux-image-3.18.0-*.deb"]),
         Run.from_args(['sync']),
     ]
