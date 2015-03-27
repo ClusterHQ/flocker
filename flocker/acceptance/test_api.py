@@ -12,6 +12,7 @@ from json import dumps, loads
 
 from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
+from twisted.web.http import OK
 from unittest import SkipTest
 from treq import get, post, content, delete, json_content
 from pyrsistent import PRecord, field, CheckedPVector
@@ -215,6 +216,34 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    def move_container(self, name, host):
+        """
+        Move a container.
+
+        :param unicode name: The name of the container to move.
+
+        :param unicode host: The host to which the container should be moved.
+
+        :returns: A tuple of (cluster, api_response)
+        """
+        request = post(
+            self.base_url + b"/configuration/containers/" +
+            name.encode("ascii"),
+            data=dumps({u"host": host}),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        def check_response_code(response):
+            if response.code != OK:
+                raise ValueError("Unexpected response code:", response.code)
+            return response
+
+        request.addCallback(check_response_code)
+        request.addCallback(json_content)
+        request.addCallback(lambda response: (self, response))
+        return request
+
     def remove_container(self, name):
         """
         Remove a container.
@@ -361,7 +390,47 @@ class ContainerAPITests(TestCase):
         to move the container. Wait until we can connect to the running
         container on the new host and verify the data has moved with it.
         """
-        self.fail("not implemented yet")
+        creating_dataset = create_dataset(self, nodes=2)
+
+        def created_dataset(result):
+            cluster, dataset = result
+            mongodb = {
+                u"name": "container",
+                u"host": cluster.nodes[0].address,
+                u"image": MONGO_IMAGE,
+                u"ports": [{u"internal": 27017, u"external": 27017}],
+                u'restart_policy': {u'name': u'never'},
+                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                              u"mountpoint": u"/data/db"}],
+            }
+            created = cluster.create_container(mongodb)
+            created.addCallback(
+                lambda _: get_mongo_client(cluster.nodes[0].address))
+
+            def got_mongo_client(client):
+                database = client.example
+                database.posts.insert({u"the data": u"it moves"})
+                return database.posts.find_one()
+            created.addCallback(got_mongo_client)
+
+            def inserted(record):
+                moved = cluster.move_container(
+                    u"container", cluster.nodes[1].address
+                )
+                moved.addCallback(lambda _: record)
+                return moved
+            created.addCallback(inserted)
+
+            def moved(record):
+                d = get_mongo_client(cluster.nodes[1].address, 27017)
+                d.addCallback(lambda client: client.example.posts.find_one())
+                d.addCallback(self.assertEqual, record)
+                return d
+
+            created.addCallback(moved)
+            return created
+        creating_dataset.addCallback(created_dataset)
+        return creating_dataset
 
     @require_mongo
     def test_create_container_with_dataset(self):
@@ -414,18 +483,22 @@ class ContainerAPITests(TestCase):
         return creating_dataset
 
 
-def create_dataset(test_case):
+def create_dataset(test_case, nodes=1):
     """
-    Create a dataset on a single-node cluster.
+    Create a dataset on a cluster.
 
     :param TestCase test_case: The test the API is running on.
+
+    :param int nodes: The number of nodes to create. Defaults to 1.
 
     :return: ``Deferred`` firing with a tuple of (``Cluster``
         instance, dataset dictionary) once the dataset is present in
         actual cluster state.
     """
-    # Create a 1 node cluster
-    waiting_for_cluster = get_test_cluster(test_case=test_case, node_count=1)
+    # Create a cluster
+    waiting_for_cluster = get_test_cluster(
+        test_case=test_case, node_count=nodes
+    )
 
     # Configure a dataset on node1
     def configure_dataset(cluster):
