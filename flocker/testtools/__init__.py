@@ -827,7 +827,7 @@ def run_process(command, *args, **kwargs):
     """
     Run a child process, capturing its stdout and stderr.
 
-    :param list command: An ``argv`` to use to launch the child process.
+    :param list command: An argument list to use to launch the child process.
 
     :raise CalledProcessError: If the child process has a non-zero exit status.
 
