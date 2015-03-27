@@ -17,25 +17,70 @@ There are different categories of classes:
 from characteristic import attributes
 
 from twisted.python.filepath import FilePath
+
 from pyrsistent import (
-    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard
+    pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
+    optional as optional_type
     )
 
 from zope.interface import Interface, implementer
 
 
-def pset_field(klass):
+def pset_field(item_type, optional=False):
     """
-    Create checked ``PSet`` field that can serialize recursively.
+    Create checked ``PSet`` field.
+
+    :param item_type: The required type for the items in the set.
+    :param bool optional: If true, ``None`` can be used as a value for
+        this field.
 
     :return: A ``field`` containing a ``CheckedPSet`` of the given type.
     """
     class TheSet(CheckedPSet):
-        __type__ = klass
-    TheSet.__name__ = klass.__name__ + "PSet"
+        __type__ = item_type
+    TheSet.__name__ = item_type.__name__.capitalize() + "PSet"
 
-    return field(type=TheSet, factory=TheSet.create, mandatory=True,
+    if optional:
+        def factory(argument):
+            if argument is None:
+                return None
+            else:
+                return TheSet(argument)
+    else:
+        factory = TheSet
+    return field(type=optional_type(TheSet) if optional else TheSet,
+                 factory=factory, mandatory=True,
                  initial=TheSet())
+
+
+def pmap_field(key_type, value_type, optional=False):
+    """
+    Create a checked ``PMap`` field.
+
+    :param key: The required type for the keys of the map.
+    :param value: The required type for the values of the map.
+    :param bool optional: If true, ``None`` can be used as a value for
+        this field.
+
+    :return: A ``field`` containing a ``CheckedPMap``.
+    """
+    class TheMap(CheckedPMap):
+        __key_type__ = key_type
+        __value_type__ = value_type
+    TheMap.__name__ = (key_type.__name__.capitalize() +
+                       value_type.__name__.capitalize() + "PMap")
+
+    if optional:
+        def factory(argument):
+            if argument is None:
+                return None
+            else:
+                return TheMap(argument)
+    else:
+        factory = TheMap
+    return field(mandatory=True, initial=TheMap(),
+                 type=optional_type(TheMap) if optional else TheMap,
+                 factory=factory)
 
 
 class DockerImage(PRecord):
@@ -274,8 +319,8 @@ class AttachedVolume(PRecord):
 
 class Node(PRecord):
     """
-    A single node on which applications will be managed (deployed,
-    reconfigured, destroyed, etc).
+    Configuration for a single node on which applications will be managed
+    (deployed, reconfigured, destroyed, etc).
 
     Manifestations attached to applications must also be present in the
     ``manifestations`` attribute.
@@ -284,13 +329,14 @@ class Node(PRecord):
         resolveable name so that Flocker can connect to the node.  This may be
         a literal IP address instead of a proper hostname.
 
-    :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
-        describing the applications which are to run on this ``Node``.
+    :ivar applications: A ``PSet`` of ``Application`` instances describing
+        the applications which are to run on this ``Node``.
 
     :ivar PMap manifestations: Mapping between dataset IDs and
         corresponding ``Manifestation`` instances that are present on the
         node. Includes both those attached as volumes to any applications,
-        and those that are unattached.
+        and those that are unattached. ``None`` if this information is
+        unknown.
     """
     def __invariant__(self):
         manifestations = self.manifestations.values()
@@ -305,15 +351,13 @@ class Node(PRecord):
 
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     applications = pset_field(Application)
-    manifestations = field(type=PMap, initial=pmap(), factory=pmap,
-                           mandatory=True)
+    manifestations = pmap_field(unicode, Manifestation)
 
 
 class Deployment(PRecord):
     """
     A ``Deployment`` describes the configuration of a number of applications on
-    a number of cooperating nodes.  This might describe the real state of an
-    existing deployment or be used to represent a desired future state.
+    a number of cooperating nodes.
 
     :ivar PSet nodes: A set containing ``Node`` instances
         describing the configuration of each cooperating node.
@@ -432,58 +476,51 @@ class DatasetChanges(object):
     """
 
 
-class _PathMap(CheckedPMap):
-    """
-    A mapping between dataset IDs and the paths where they are mounted.
-
-    See https://github.com/tobgu/pyrsistent/issues/26 for more succinct
-    idiom combining this with ``field()``.
-    """
-    __key_type__ = unicode
-    __value_type__ = FilePath
-
-
 class NodeState(PRecord):
     """
     The current state of a node.
 
-    This includes information that is state-specific and thus does not
-    belong in ``Node``, the latter being shared between both state and
-    configuration models.
-
     :ivar unicode hostname: The hostname of the node.
-    :ivar applications: A ``PSet`` of ``Application`` instances on this node.
-    :ivar not_running: A ``PSet`` of ``Application`` instances on this
-        node that are currently shutting down or stopped.
+    :ivar applications: A ``PSet`` of ``Application`` instances on this
+        node, or ``None`` if the information is not known.
     :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
-    :ivar PSet manifestations: All ``Manifestation`` instances that
-        are present on the node.
+    :ivar PMap manifestations: Mapping between dataset IDs and
+        corresponding ``Manifestation`` instances that are present on the
+        node. Includes both those attached as volumes to any applications,
+        and those that are unattached. ``None`` if this information is
+        unknown.
     :ivar PMap paths: The filesystem paths of the manifestations on this
         node. Maps ``dataset_id`` to a ``FilePath``.
     """
+    def __invariant__(self):
+        if self.manifestations is None:
+            return (True, "")
+        for key, value in self.manifestations.items():
+            if key != value.dataset_id:
+                return (False, '%r is not correct key for %r' % (key, value))
+        return (True, "")
+
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = pset_field(int)
-    applications = pset_field(Application)
-    manifestations = pset_field(Manifestation)
-    paths = field(type=_PathMap, initial=_PathMap(), factory=_PathMap.create,
-                  mandatory=True)
+    applications = pset_field(Application, optional=True)
+    manifestations = pmap_field(unicode, Manifestation, optional=True)
+    paths = pmap_field(unicode, FilePath)
 
-    def to_node(self):
-        """
-        Convert into a ``Node`` instance.
 
-        :return Node: Equivalent ``Node`` object.
-        """
-        return Node(hostname=self.hostname,
-                    manifestations={m.dataset_id: m
-                                    for m in self.manifestations},
-                    applications=self.applications)
+class DeploymentState(PRecord):
+    """
+    A ``DeploymentState`` describes the state of the nodes in the cluster.
+
+    :ivar PSet nodes: A set containing ``NodeState`` instances describing
+        the state of each cooperating node.
+    """
+    nodes = pset_field(NodeState)
 
 
 # Classes that can be serialized to disk or sent over the network:
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState,
+    NodeState, DeploymentState,
 ]
