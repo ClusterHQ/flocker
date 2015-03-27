@@ -502,6 +502,21 @@ class ApplicationNodeDeployer(object):
             ``Application``. ``NodeState.manifestations`` and
             ``NodeState.paths`` will not be filled in.
         """
+        if local_state.manifestations is None:
+            # Without manifestations we don't know if local applications'
+            # volumes are manifestations or not. Rather than return
+            # incorrect information leading to possibly erroneous
+            # convergence actions, just declare ignorance. Eventually the
+            # convergence agent for datasets will discover the information
+            # and then we can proceed.
+            return succeed(NodeState(
+                hostname=self.hostname,
+                applications=None,
+                used_ports=None,
+                manifestations=None,
+                paths=None,
+            ))
+
         path_to_manifestations = {path: local_state.manifestations[dataset_id]
                                   for (dataset_id, path)
                                   in local_state.paths.items()}

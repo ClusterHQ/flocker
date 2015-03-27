@@ -1749,6 +1749,31 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         XXX file issue for "it's not possible to run the container agent
         without any dataset agents".
         """
+        expected_application_name = u'site-example.com'
+        unit = Unit(name=expected_application_name,
+                    container_name=expected_application_name,
+                    container_image=u"flocker/wordpress:latest",
+                    activation_state=u'active')
+        fake_docker = FakeDockerClient(units={expected_application_name: unit})
+        api = ApplicationNodeDeployer(
+            u'example.com',
+            docker_client=fake_docker,
+            network=self.network
+        )
+        # Apparently we know nothing about manifestations one way or the
+        # other:
+        d = api.discover_local_state(NodeState(
+            hostname=u'example.com',
+            manifestations=None, paths=None))
+
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   # Can't do app discovery if don't know
+                                   # about manifestations:
+                                   applications=None,
+                                   used_ports=None,
+                                   manifestations=None,
+                                   paths=None),
+                         self.successResultOf(d))
 
 
 class P2PManifestationDeployerTests(SynchronousTestCase):
