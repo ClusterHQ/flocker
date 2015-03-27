@@ -13,7 +13,7 @@ class RunRemotely(PRecord):
     """
     username = field(type=bytes)
     address = field(type=bytes)
-    commands = field(commands=Effect)
+    commands = field(type=Effect)
 
 
 def run_remotely(username, address, commands):
