@@ -401,6 +401,8 @@ Installing on Ubuntu 14.04
 
 Flocker requires the latest available kernel.
 
+.. TODO get rid of the quotes in this task
+
 .. task:: upgrade_kernel_ubuntu
 
 Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
@@ -413,31 +415,27 @@ Thus we need to reboot into the new kernel.
 
 Flocker requires recent versions of ZFS and Docker.
 
-.. task:: install_requirements_ubuntu
+.. .. task:: install_requirements_ubuntu
 
 .. prompt:: bash [root@node]#
 
    add-apt-repository -y ppa:zfs-native/stable
    add-apt-repository -y ppa:james-page/docker
 
+   apt-get update
    # XXX This brings up a prompt about upgrading grub,
    # somehow work around that, see
    # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
-   apt-get update
    apt-get -y upgrade
    apt-get -y install spl-dkms
    apt-get -y install zfs-dkms zfsutils docker.io
-   # XXX do we have to sync?
-   # XXX do we have to shutdown?
-   sync
-   shutdown -r now
 
 Now install the ``clusterhq-flocker-node`` package.
 
 .. This is a stopgap - there will be a proper repository on S3 to apt-get install from. When this is the case then I think some dependencies won't need to be installed separately to clusterhq-flocker-node
    XXX Replace this in FLOC-1065
 
-.. task:: install_flocker_ubuntu
+.. .. task:: install_flocker_ubuntu
 
 .. prompt:: bash [root@node]#
 
