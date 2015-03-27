@@ -439,11 +439,28 @@ class DatasetAPITests(TestCase):
         The size of a dataset can be increased.
         """
         # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE
-        # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE * 2
-        # Check for 200 response code
-        # http://doc-dev.clusterhq.com/advanced/api.html#post--v1-configuration-datasets-%28dataset_id%29
-        # Wait for the state of that dataset to show the updated size.
-        1/0
+        creating = self._create_test()
+        new_size = REALISTIC_BLOCKDEVICE_SIZE * 2
+        def resize_dataset(result):
+            cluster, dataset = result
+
+            # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE * 2
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            # Check that the configuration response has the expected size.
+            self.assertEqual(new_size, dataset.maximum_size)
+            # Wait for the dataset to have the expected size.
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
 
     def test_dataset_shrink(self):
         """
