@@ -321,11 +321,11 @@ def task_create_flocker_pool_file():
     ]
 
 
-def task_install_flocker(
+def task_install_flocker_yum(
         distribution=None,
         package_source=PackageSource()):
     """
-    Install flocker.
+    Install flocker on a distribution which uses yum.
 
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
@@ -393,7 +393,7 @@ def task_enable_updates_testing(distribution):
     """
     Enable the distribution's proposed updates repository.
 
-    :param bytes distribution: See func:`task_install_flocker`
+    :param bytes distribution: See func:`task_install_flocker_yum`
     """
     if distribution == 'fedora-20':
         return [
@@ -410,7 +410,7 @@ def task_enable_docker_head_repository(distribution):
     Enable the distribution's repository containing in-development docker
     builds.
 
-    :param bytes distribution: See func:`task_install_flocker`
+    :param bytes distribution: See func:`task_install_flocker_yum`
     """
     if distribution == 'fedora-20':
         return [
@@ -440,7 +440,7 @@ def task_enable_zfs_testing(distribution):
     """
     Enable the zfs-testing repository.
 
-    :param bytes distribution: See func:`task_install_flocker`
+    :param bytes distribution: See func:`task_install_flocker_yum`
     """
     if distribution in ('fedora-20', 'centos-7'):
         return [
@@ -461,8 +461,8 @@ def provision(distribution, package_source, variants):
 
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.
-    :param bytes distribution: See func:`task_install_flocker`
-    :param PackageSource package_source: See func:`task_install_flocker`
+    :param bytes distribution: See func:`task_install_flocker_yum`
+    :param PackageSource package_source: See func:`task_install_flocker_yum`
     :param set variants: The set of variant configurations to use when
         provisioning
     """
@@ -478,7 +478,7 @@ def provision(distribution, package_source, variants):
     if distribution in ('fedora-20',):
         commands += task_install_kernel_devel()
 
-    commands += task_install_flocker(package_source=package_source,
+    commands += task_install_flocker_yum(package_source=package_source,
                                      distribution=distribution)
     commands += task_enable_docker()
     commands += task_create_flocker_pool_file()

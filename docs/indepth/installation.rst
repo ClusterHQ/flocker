@@ -343,7 +343,7 @@ You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
 Paste them into a root console on the target node:
 
-.. task:: install_flocker fedora-20
+.. task:: install_flocker_yum fedora-20
    :prompt: [root@node]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
@@ -375,7 +375,7 @@ You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``flocker-node`` package.
 Paste them into a root console on the target node:
 
-.. task:: install_flocker centos-7
+.. task:: install_flocker_yum centos-7
    :prompt: [root@node]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
@@ -411,7 +411,9 @@ Thus we need to reboot into the new kernel.
    shutdown -r now
 
 
-Install newish versions of ZFS and Docker.
+Flocker requires recent versions of ZFS and Docker.
+
+.. task:: install_requirements_ubuntu
 
 .. prompt:: bash [root@node]#
 
@@ -425,12 +427,17 @@ Install newish versions of ZFS and Docker.
    apt-get -y upgrade
    apt-get -y install spl-dkms
    apt-get -y install zfs-dkms zfsutils docker.io
+   # XXX do we have to sync?
+   # XXX do we have to shutdown?
    sync
    shutdown -r now
 
 Now install the ``clusterhq-flocker-node`` package.
 
 .. This is a stopgap - there will be a proper repository on S3 to apt-get install from. When this is the case then I think some dependencies won't need to be installed separately to clusterhq-flocker-node
+   XXX Replace this in FLOC-1065
+
+.. task:: install_flocker_ubuntu
 
 .. prompt:: bash [root@node]#
 
