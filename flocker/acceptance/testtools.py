@@ -222,8 +222,6 @@ def _stop_acceptance_cluster():
     This also removes the environment variables associated with the cluster, so
     that tests attempting to use it will be skipped.
     """
-    # FIXME
-    raise SkipTest
     control_node = environ.pop("FLOCKER_ACCEPTANCE_CONTROL_NODE", None)
     agent_nodes_env_var = environ.pop("FLOCKER_ACCEPTANCE_AGENT_NODES", "")
     agent_nodes = filter(None, agent_nodes_env_var.split(':'))
