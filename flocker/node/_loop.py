@@ -284,10 +284,7 @@ class ConvergenceLoop(object):
         def got_local_state(local_state):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
-            self.cluster_state = self.cluster_state.set(
-                "nodes", list(n for n in self.cluster_state.nodes
-                              if n.hostname != local_state.hostname)
-                + [local_state])
+            self.cluster_state = self.cluster_state.update_node(local_state)
             with LOG_SEND_TO_CONTROL_SERVICE(
                     self.fsm.logger, connection=self.client) as context:
                 self.client.callRemote(NodeStateCommand,
