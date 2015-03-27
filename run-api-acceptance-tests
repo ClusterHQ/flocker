@@ -92,7 +92,7 @@ EOF
 
 if [[ ! -e "clusterhq-python-flocker-${VERSION}.x86_64.rpm" ]]; then
     # Build packages on local machine
-    ./admin/build-package --distribution fedora-20 /flocker
+    ./admin/build-package --distribution fedora-20 $PWD
 fi
 
 # Transfer and run the remote provisioning script
