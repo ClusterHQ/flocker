@@ -20,6 +20,8 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python.filepath import FilePath
 import os
 
+from flocker.testtools import loop_until
+
 from ._model import Run, Sudo, Put, Comment
 
 
@@ -29,6 +31,15 @@ from ._model import Run, Sudo, Put, Comment
     "username",
 ])
 class CommandProtocol(LineOnlyReceiver, object):
+    """
+    Protocol that logs the lines of a remote command.
+
+    :ivar Deferred deferred: Deferred to fire when the command finishes
+        If the command finished succesfuly, will fire with ``None``.
+        Otherwise, errbacks with the reason.
+    :ivar bytes username: For logging.
+    :ivar bytes address: For logging.
+    """
     delimiter = b'\n'
 
     def connectionMade(self):
@@ -46,10 +57,69 @@ class CommandProtocol(LineOnlyReceiver, object):
                 username=self.username, address=self.address, line=line)
 
 
-@inlineCallbacks
-def run_with_crochet(base_dispatcher, username, address, commands):
+@sync_performer
+def perform_sudo(self, dispatcher, intent):
+    """
+    See :py:class:`Sudo`.
+    """
+    return Effect(Run(command='sudo ' + intent.command))
 
-    from flocker.testtools import loop_until
+
+@sync_performer
+def perform_put(self, dispatcher, intent):
+    """
+    See :py:class:`Put`.
+    """
+    return Effect(Run(command='echo -n %s > %s'
+                              % (shell_quote(intent.content),
+                                 shell_quote(intent.path))))
+
+
+@sync_performer
+def perform_comment(self, dispatcher, intent):
+    """
+    See :py:class:`Comment`.
+    """
+
+
+def get_ssh_dispatcher(connection, username, address):
+    """
+    :ivar bytes username: For logging.
+    :ivar bytes address: For logging.
+    :ivar connection: The SSH connection run commands on.
+    """
+
+    @deferred_performer
+    def perform_run(dispatcher, intent):
+        log.msg(format="%(command)s",
+                system="SSH[%s@%s]" % (username, address),
+                username=username, address=address,
+                command=intent.command)
+        endpoint = SSHCommandClientEndpoint.existingConnection(
+            connection, intent.command)
+        d = Deferred()
+        connectProtocol(endpoint, CommandProtocol(
+            deferred=d, username=username, address=address))
+        return d
+
+    return TypeDispatcher({
+        Run: perform_run,
+        Sudo: perform_sudo,
+        Put: perform_put,
+        Comment: perform_comment,
+    })
+
+
+def get_connection_helper(address, username):
+    """
+    Get a :class:`twisted.conch.endpoints._ISSHConnectionCreator` to connect to
+    the given remote.
+
+    :param bytes address: The address of the remote host to connect to.
+    :param bytes username: The user to connect as.
+
+    :return _ISSHConnectionCreator:
+    """
     key_path = FilePath(os.path.expanduser('~/.ssh/id_rsa'))
     if key_path.exists():
         keys = [Key.fromString(key_path.getContent())]
@@ -60,12 +130,20 @@ def run_with_crochet(base_dispatcher, username, address, commands):
             reactor, os.environ["SSH_AUTH_SOCK"])
     except KeyError:
         agentEndpoint = None
-    connection_helper = _NewConnectionHelper(
+
+    return _NewConnectionHelper(
         reactor, address, 22, None, username,
         keys=keys,
         password=None,
         agentEndpoint=agentEndpoint,
         knownHosts=None, ui=ConsoleUI(lambda: _ReadFile(b"yes")))
+
+
+@deferred_performer
+@inlineCallbacks
+def perform_run_remotely(base_dispatcher, intent):
+    connection_helper = get_connection_helper(
+        username=intent.username, address=intent.address)
 
     def connect():
         connection = connection_helper.secureConnection()
@@ -74,54 +152,15 @@ def run_with_crochet(base_dispatcher, username, address, commands):
 
     connection = yield loop_until(connect)
 
-    def do_remote(endpoint):
-        d = Deferred()
-        return connectProtocol(
-            endpoint, CommandProtocol(
-                deferred=d, username=username, address=address)
-            ).addCallback(lambda _: d)
-
-    @deferred_performer
-    def run(_, intent):
-        log.msg(format="%(command)s",
-                system="SSH[%s@%s]" % (username, address),
-                username=username, address=address,
-                command=intent.command)
-        endpoint = SSHCommandClientEndpoint.existingConnection(
-            connection, intent.command)
-        return do_remote(endpoint)
-
-    @sync_performer
-    def sudo(_, intent):
-        return Effect(Run(command='sudo ' + intent.command))
-
-    @sync_performer
-    def put(_, intent):
-        return Effect(Run(command='echo -n %s > %s'
-                                  % (shell_quote(intent.content),
-                                     shell_quote(intent.path))))
-
-    @sync_performer
-    def comment(_, intent):
-        pass
-
     dispatcher = ComposedDispatcher([
-        TypeDispatcher({
-            Run: run,
-            Sudo: sudo,
-            Put: put,
-            Comment: comment,
-        }),
+        get_ssh_dispatcher(
+            connection=connection,
+            username=intent.username, address=intent.address,
+        ),
         base_dispatcher,
     ])
 
-    yield perform(dispatcher, commands)
+    yield perform(dispatcher, intent.commands)
 
     yield connection_helper.cleanupConnection(
         connection, False)
-
-
-@deferred_performer
-def perform_ssh(dispatcher, intent):
-    return run_with_crochet(
-        dispatcher, intent.username, intent.address, intent.commands)

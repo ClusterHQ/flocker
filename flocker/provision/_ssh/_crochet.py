@@ -3,7 +3,7 @@ from effect import (
     ComposedDispatcher, TypeDispatcher, base_dispatcher)
 
 from .._effect import Sequence, perform_sequence
-from ._conch import perform_ssh
+from ._conch import perform_run_remotely
 from effect.twisted import (
     make_twisted_dispatcher,
     perform as perform_with_twisted
@@ -27,7 +27,7 @@ def perform(dispatcher, effect):
 dispatcher = ComposedDispatcher([
     TypeDispatcher({
         Sequence: perform_sequence,
-        RunRemotely: perform_ssh,
+        RunRemotely: perform_run_remotely,
     }),
     make_twisted_dispatcher(reactor),
     base_dispatcher,

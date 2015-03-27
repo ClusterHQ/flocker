@@ -4,6 +4,9 @@ from effect import sync_performer, Effect
 from effect.do import do, do_return
 
 
+# This should be upstream.
+
+
 @attributes(['results', 'error'])
 class SequenceFailed(Exception, object):
     """

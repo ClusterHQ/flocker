@@ -4,7 +4,6 @@ from effect import Effect
 
 
 class RunRemotely(PRecord):
-    pass
     username = field(type=bytes)
     address = field(type=bytes)
     commands = field()
