@@ -502,6 +502,9 @@ class ApplicationNodeDeployer(object):
             ``Application``. ``NodeState.manifestations`` and
             ``NodeState.paths`` will not be filled in.
         """
+        path_to_manifestations = {path: local_state.manifestations[dataset_id]
+                                  for (dataset_id, path)
+                                  in local_state.paths.items()}
         d = self.docker_client.list()
 
         def applications_from_units(units):
@@ -516,21 +519,15 @@ class ApplicationNodeDeployer(object):
                     # we assume all volumes are datasets
                     docker_volume = list(unit.volumes)[0]
                     try:
-                        dataset_id, max_size = available_manifestations.pop(
+                        manifestation = path_to_manifestations.get(
                             docker_volume.node_path)
                     except KeyError:
                         # Apparently not a dataset we're managing, give up.
                         volume = None
                     else:
                         volume = AttachedVolume(
-                            manifestation=Manifestation(
-                                dataset=Dataset(
-                                    dataset_id=dataset_id,
-                                    metadata=pmap({u"name": unit.name}),
-                                    maximum_size=max_size),
-                                primary=True),
+                            manifestation=manifestation,
                             mountpoint=docker_volume.container_path)
-                        manifestations.append(volume.manifestation)
                 else:
                     volume = None
                 ports = []

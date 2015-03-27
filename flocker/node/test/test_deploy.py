@@ -1555,21 +1555,28 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         volume are added to ``Application`` with same name as an
         ``AttachedVolume``.
         """
-        DATASET_ID = u"uuid123"
-        DATASET_ID2 = u"uuid456"
-        volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID))
-        ))
-        volume2 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID2))
-        ))
+        DATASET_ID = unicode(uuid4())
+        DATASET_ID2 = unicode(uuid4())
+
+        path1 = FilePath(b"/flocker").child(DATASET_ID.encode("ascii"))
+        path2 = FilePath(b"/flocker").child(DATASET_ID2.encode("ascii"))
+        manifestations = {dataset_id:
+                          Manifestation(
+                              dataset=Dataset(dataset_id=dataset_id),
+                              primary=True,
+                          )
+                          for dataset_id in (DATASET_ID, DATASET_ID2)}
+        current_known_state = NodeState(hostname=u'example.com',
+                                        manifestations=manifestations,
+                                        paths={DATASET_ID: path1,
+                                               DATASET_ID2: path2})
 
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=volume1.get_filesystem().get_path(),
+                             node_path=path1,
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
@@ -1579,7 +1586,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=volume2.get_filesystem().get_path(),
+                             node_path=path2,
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
@@ -1592,22 +1599,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 name=unit.name,
                 image=DockerImage.from_string(unit.container_image),
                 volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=respective_id,
-                                        metadata=pmap({u"name": unit.name})),
-                        primary=True,
-                    ),
+                    manifestation=manifestations[respective_id],
                     mountpoint=FilePath(b'/var/lib/data')
                     )
             ) for (unit, respective_id) in [(unit1, DATASET_ID),
                                             (unit2, DATASET_ID2)]]
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(current_known_state)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d).applications)
