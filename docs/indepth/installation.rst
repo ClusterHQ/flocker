@@ -404,6 +404,7 @@ Flocker requires the latest available kernel.
 .. TODO get rid of the quotes in this task
 
 .. task:: upgrade_kernel_ubuntu
+   :prompt: [root@node]#
 
 Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
 Thus we need to reboot into the new kernel.
@@ -415,10 +416,12 @@ Thus we need to reboot into the new kernel.
 Flocker requires recent versions of ZFS and Docker.
 
 .. task:: install_requirements_ubuntu
+   :prompt: [root@node]#
 
 Now install the ``clusterhq-flocker-node`` package.
 
 .. task:: install_flocker_ubuntu
+   :prompt: [root@node]#
 
 Post installation configuration
 -------------------------------
