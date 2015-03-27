@@ -21,7 +21,7 @@ from unittest import skipIf, skipUnless
 
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
-from pyrsistent import PRecord, field, optional
+from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
