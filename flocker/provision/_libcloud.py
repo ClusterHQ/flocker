@@ -179,7 +179,7 @@ class LibcloudNode(object):
             package_source=package_source,
             distribution=self.distribution,
             variants=variants,
-        )
+        ).on(success=lambda _: self.address)
 
     @property
     def name(self):

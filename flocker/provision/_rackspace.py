@@ -10,20 +10,19 @@ from ._install import (
     task_open_control_firewall,
     task_upgrade_kernel_centos,
 )
-from ._ssh import RunRemotely
+from ._ssh import run_remotely
 
 from ._effect import sequence
 from effect import Func, Effect
-from effect.do import do_return, do
 
 
-@do
 def provision_rackspace(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
     """
+    commands = []
     if distribution in ('centos-7',):
-        yield Effect(RunRemotely(
+        commands.append(run_remotely(
             username='root',
             address=node.address,
             commands=sequence([
@@ -32,23 +31,22 @@ def provision_rackspace(node, package_source, distribution, variants):
             ]),
         ))
 
-    commands = sequence([
-        provision(
-            package_source=package_source,
-            distribution=node.distribution,
-            variants=variants,
-        ),
-        # https://clusterhq.atlassian.net/browse/FLOC-1550
-        # This should be part of ._install.configure_cluster
-        task_open_control_firewall(),
-    ])
-    yield Effect(RunRemotely(
+    commands.append(run_remotely(
         username='root',
         address=node.address,
-        commands=commands,
+        commands=sequence([
+            provision(
+                package_source=package_source,
+                distribution=node.distribution,
+                variants=variants,
+            ),
+            # https://clusterhq.atlassian.net/browse/FLOC-1550
+            # This should be part of ._install.configure_cluster
+            task_open_control_firewall(),
+        ]),
     ))
 
-    yield do_return(node.address)
+    return sequence(commands)
 
 
 IMAGE_NAMES = {
