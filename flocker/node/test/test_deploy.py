@@ -1776,126 +1776,46 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                          self.successResultOf(d))
 
 
-class P2PManifestationDeployerTests(SynchronousTestCase):
+class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
     """
-    Tests for ``P2PManifestationDeployer``.
+    Tests for ``P2PManifestationDeployer`` discovery.
     """
     def setUp(self):
         self.volume_service = create_volume_service(self)
 
-    def test_discover_manifestation_with_size(self):
+    DATASET_ID = unicode(uuid4())
+    DATASET_ID2 = unicode(uuid4())
+
+    def test_unknown_applications_and_ports(self):
         """
-        Manifestation with with a locally configured size have their
-        ``maximum_size`` attribute set.
+        Applications and ports are left as ``None`` in discovery results.
         """
-        DATASET_ID = u"uuid123"
-        DATASET_ID2 = u"uuid456"
-        volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(
-                _to_volume_name(DATASET_ID),
-                size=VolumeSize(maximum_size=1024 * 1024 * 100)
-            )
-        ))
-        volume2 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID2))
-        ))
-
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=volume1.get_filesystem().get_path(),
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net',
-                     container_name=u'site-example.net',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=volume2.get_filesystem().get_path(),
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
-        units = {unit1.name: unit1, unit2.name: unit2}
-
-        fake_docker = FakeDockerClient(units=units)
-
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=Dataset(
-                            dataset_id=DATASET_ID,
-                            metadata=pmap({"name": unit1.name}),
-                            maximum_size=1024 * 1024 * 100),
-                        primary=True,
-                    ),
-                    mountpoint=FilePath(b'/var/lib/data'),
-                    )
-            ),
-            Application(
-                name=unit2.name,
-                image=DockerImage.from_string(unit2.container_image),
-                volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=DATASET_ID2,
-                                        metadata=pmap({"name": unit2.name})),
-                        primary=True,
-                    ),
-                    mountpoint=FilePath(b'/var/lib/data'),
-                    )
-            )]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state()
-
-        self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).applications)
-
-    DATASET_ID = u"uuid123"
-    DATASET_ID2 = u"uuid456"
+        deployer = P2PManifestationDeployer(
+            u'example.com', self.volume_service)
+        self.assertEqual(
+            self.successResultOf(deployer.discover_local_state(
+                NodeState(hostname=u"example.com"))),
+            NodeState(hostname=u"example.com",
+                      manifestations={}, paths={},
+                      applications=None, used_ports=None))
 
     def _setup_datasets(self):
         """
-        Setup a ``P2PNodeDeployer`` that will discover two manifestations.
+        Setup a ``P2PManifestationDeployer`` that will discover two
+        manifestations.
 
-        :return: Suitably configured ``P2PNodeDeployer``.
+        :return: Suitably configured ``P2PManifestationDeployer``.
         """
-        volume1 = self.successResultOf(self.volume_service.create(
+        self.successResultOf(self.volume_service.create(
             self.volume_service.get(_to_volume_name(self.DATASET_ID))
         ))
         self.successResultOf(self.volume_service.create(
             self.volume_service.get(_to_volume_name(self.DATASET_ID2))
         ))
 
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=volume1.get_filesystem().get_path(),
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
-        units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
-        return P2PNodeDeployer(
+        return P2PManifestationDeployer(
             u'example.com',
             self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
         )
 
     def test_discover_datasets(self):
@@ -1903,13 +1823,11 @@ class P2PManifestationDeployerTests(SynchronousTestCase):
         All datasets on the node are added to ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u"example.com"))
 
         self.assertEqual(
             {self.DATASET_ID: Manifestation(
-                dataset=Dataset(
-                    dataset_id=self.DATASET_ID,
-                    metadata=pmap({u"name": u"site-example.com"})),
+                dataset=Dataset(dataset_id=self.DATASET_ID),
                 primary=True),
              self.DATASET_ID2: Manifestation(
                  dataset=Dataset(dataset_id=self.DATASET_ID2),
@@ -1922,7 +1840,7 @@ class P2PManifestationDeployerTests(SynchronousTestCase):
         ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u"example.com"))
 
         self.assertEqual(
             {self.DATASET_ID:
@@ -1932,6 +1850,35 @@ class P2PManifestationDeployerTests(SynchronousTestCase):
              self.volume_service.get(_to_volume_name(
                  self.DATASET_ID2)).get_filesystem().get_path()},
             self.successResultOf(d).paths)
+
+    def test_discover_manifestation_with_size(self):
+        """
+        Manifestation with a locally configured size have their
+        ``maximum_size`` attribute set.
+        """
+        self.successResultOf(self.volume_service.create(
+            self.volume_service.get(
+                _to_volume_name(self.DATASET_ID),
+                size=VolumeSize(maximum_size=1024 * 1024 * 100)
+            )
+        ))
+
+        manifestation = Manifestation(
+            dataset=Dataset(
+                dataset_id=DATASET_ID,
+                maximum_size=1024 * 1024 * 100),
+            primary=True,
+        )
+
+        api = P2PManifestationDeployer(
+            u'example.com',
+            self.volume_service,
+        )
+        d = api.discover_local_state(NodeState(hostname=u"example.com"))
+
+        self.assertItemsEqual(
+            self.successResultOf(d).manifestations[self.DATASET_ID],
+            manifestation)
 
 
 class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):

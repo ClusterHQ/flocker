@@ -424,6 +424,10 @@ class P2PManifestationDeployer(object):
             on.
     :ivar VolumeService volume_service: The volume manager for this node.
     """
+    def __init__(self, hostname, volume_service):
+        self.hostname = hostname
+        self.volume_service = volume_service
+
     def discover_local_state(self, local_state):
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
@@ -455,12 +459,14 @@ class P2PManifestationDeployer(object):
 
             return NodeState(
                 hostname=self.hostname,
-                applications=applications,
-                used_ports=self.network.enumerate_used_ports(),
+                applications=None,
+                used_ports=None,
                 manifestations={manifestation.dataset_id: manifestation
                                 for manifestation in manifestations},
                 paths=manifestation_paths,
             )
+        volumes.addCallback(got_volumes)
+        return volumes
 
     def calculate_necessary_state_changes(self, *args, **kwargs):
         # Does nothing in this branch. Follow up will move
