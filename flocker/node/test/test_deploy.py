@@ -1672,17 +1672,18 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                         running=False) for unit in units.values()
         ]
         applications.sort()
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u"example.com"))
         result = self.successResultOf(d)
 
         self.assertEqual(NodeState(hostname=u'example.com',
-                                   applications=applications),
+                                   applications=applications,
+                                   manifestations=None,
+                                   paths=None),
                          result)
 
     def test_discover_used_ports(self):
@@ -1692,18 +1693,19 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         returned by ``discover_local_state``.
         """
         used_ports = frozenset([1, 3, 5, 1000])
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            create_volume_service(self),
             docker_client=FakeDockerClient(),
             network=make_memory_network(used_ports=used_ports)
         )
 
-        discovering = api.discover_local_state()
+        discovering = api.discover_local_state(
+            NodeState(hostname=u"example.com"))
         state = self.successResultOf(discovering)
 
         self.assertEqual(
-            NodeState(hostname=u'example.com', used_ports=used_ports),
+            NodeState(hostname=u'example.com', used_ports=used_ports,
+                      manifestations=None, paths=None),
             state
         )
 
@@ -1728,13 +1730,12 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 restart_policy=policy,
             )
         ]
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u"example.com"))
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
