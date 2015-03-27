@@ -706,6 +706,10 @@ DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
     Tests for ``P2PNodeDeployer.discover_local_state``.
+
+    These tests should be deleted when ``P2PNodeDeployer`` is removed as
+    part of FLOC-1443; they're just here to ensure initial refactoring
+    didn't break anything.
     """
     def setUp(self):
         self.volume_service = create_volume_service(self)
@@ -1235,6 +1239,589 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
+
+    DATASET_ID = u"uuid123"
+    DATASET_ID2 = u"uuid456"
+
+    def _setup_datasets(self):
+        """
+        Setup a ``P2PNodeDeployer`` that will discover two manifestations.
+
+        :return: Suitably configured ``P2PNodeDeployer``.
+        """
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(self.DATASET_ID))
+        ))
+        self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(self.DATASET_ID2))
+        ))
+
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=volume1.get_filesystem().get_path(),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        return P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+
+    def test_discover_datasets(self):
+        """
+        All datasets on the node are added to ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
+        d = api.discover_local_state()
+
+        self.assertEqual(
+            {self.DATASET_ID: Manifestation(
+                dataset=Dataset(
+                    dataset_id=self.DATASET_ID,
+                    metadata=pmap({u"name": u"site-example.com"})),
+                primary=True),
+             self.DATASET_ID2: Manifestation(
+                 dataset=Dataset(dataset_id=self.DATASET_ID2),
+                 primary=True)},
+            self.successResultOf(d).manifestations)
+
+    def test_discover_manifestation_paths(self):
+        """
+        All datasets on the node have their paths added to
+        ``NodeState.manifestations``.
+        """
+        api = self._setup_datasets()
+        d = api.discover_local_state()
+
+        self.assertEqual(
+            {self.DATASET_ID:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID)).get_filesystem().get_path(),
+             self.DATASET_ID2:
+             self.volume_service.get(_to_volume_name(
+                 self.DATASET_ID2)).get_filesystem().get_path()},
+            self.successResultOf(d).paths)
+
+
+class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
+        SynchronousTestCase):
+    """
+    Tests for ``ApplicationNodeDeployer.discover_local_state``.
+    """
+    def setUp(self):
+        self.network = make_memory_network()
+
+    def test_discover_none(self):
+        """
+        ``P2PNodeDeployer.discover_local_state`` returns an empty
+        ``NodeState`` if there are no Docker containers on the host.
+        """
+        fake_docker = FakeDockerClient(units={})
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertEqual(NodeState(hostname=u'example.com'),
+                         self.successResultOf(d))
+
+    def test_discover_one(self):
+        """
+        ``P2PNodeDeployer.discover_local_state`` returns ``NodeState`` with a
+        a list of running ``Application``\ s; one for each active container.
+        """
+        expected_application_name = u'site-example.com'
+        unit = Unit(name=expected_application_name,
+                    container_name=expected_application_name,
+                    container_image=u"flocker/wordpress:latest",
+                    activation_state=u'active')
+        fake_docker = FakeDockerClient(units={expected_application_name: unit})
+        application = Application(
+            name=unit.name,
+            image=DockerImage.from_string(unit.container_image)
+        )
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   applications=[application]),
+                         self.successResultOf(d))
+
+    def test_discover_multiple(self):
+        """
+        ``P2PNodeDeployer.discover_local_state`` returns a ``NodeState`` with
+        a running ``Application`` for every active container on the host.
+        """
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     container_image=u'clusterhq/wordpress:latest',
+                     activation_state=u'active')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [
+            Application(
+                name=unit.name,
+                image=DockerImage.from_string(unit.container_image)
+            ) for unit in units.values()
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).applications)
+
+    def test_discover_application_with_environment(self):
+        """
+        An ``Application`` with ``Environment`` objects is discovered from a
+        ``Unit`` with ``Environment`` objects.
+        """
+        environment_variables = (
+            ('CUSTOM_ENV_A', 'a value'),
+            ('CUSTOM_ENV_B', 'something else'),
+        )
+        environment = Environment(variables=environment_variables)
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
+                     environment=environment,
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                environment=environment_variables
+            )
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertItemsEqual(pset(applications),
+                              sorted(self.successResultOf(d).applications))
+
+    def test_discover_application_with_environment_and_links(self):
+        """
+        An ``Application`` with ``Environment`` and ``Link`` objects is
+        discovered from a ``Unit`` with both custom environment variables and
+        environment variables representing container links. The environment
+        variables taking the format <ALIAS>_PORT_<PORT>_TCP are separated in
+        to ``Link`` representations in the ``Application``.
+        """
+        environment_variables = (
+            ('CUSTOM_ENV_A', 'a value'),
+            ('CUSTOM_ENV_B', 'something else'),
+        )
+        link_environment_variables = (
+            ('APACHE_PORT_80_TCP', 'tcp://example.com:8080'),
+            ('APACHE_PORT_80_TCP_PROTO', 'tcp'),
+            ('APACHE_PORT_80_TCP_ADDR', 'example.com'),
+            ('APACHE_PORT_80_TCP_PORT', '8080'),
+        )
+        unit_environment = environment_variables + link_environment_variables
+        environment = Environment(variables=frozenset(unit_environment))
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
+                     environment=environment,
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        links = [
+            Link(local_port=80, remote_port=8080, alias="APACHE")
+        ]
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                environment=environment_variables,
+                links=frozenset(links)
+            )
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertItemsEqual(pset(applications),
+                              sorted(self.successResultOf(d).applications))
+
+    def test_discover_application_with_links(self):
+        """
+        An ``Application`` with ``Link`` objects is discovered from a ``Unit``
+        with environment variables that correspond to an exposed link.
+        """
+        fake_docker = FakeDockerClient()
+        applications = [
+            Application(
+                name=u'site-example.com',
+                image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
+                links=frozenset([
+                    Link(local_port=80, remote_port=8080, alias='APACHE')
+                ])
+            )
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        for app in applications:
+            StartApplication(
+                hostname='node1.example.com', application=app
+            ).run(api)
+        d = api.discover_local_state()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).applications))
+
+    def test_discover_application_with_ports(self):
+        """
+        An ``Application`` with ``Port`` objects is discovered from a ``Unit``
+        with exposed ``Portmap`` objects.
+        """
+        ports = [PortMap(internal_port=80, external_port=8080)]
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
+                     ports=frozenset(ports),
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                ports=frozenset([
+                    Port(internal_port=80, external_port=8080)
+                ])
+            )
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).applications))
+
+    def test_discover_attached_volume(self):
+        """
+        Datasets that are mounted at a path that matches the container's
+        volume are added to ``Application`` with same name as an
+        ``AttachedVolume``.
+        """
+        DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID))
+        ))
+        volume2 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
+        ))
+
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=volume1.get_filesystem().get_path(),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=volume2.get_filesystem().get_path(),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [
+            Application(
+                name=unit.name,
+                image=DockerImage.from_string(unit.container_image),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=respective_id,
+                                        metadata=pmap({u"name": unit.name})),
+                        primary=True,
+                    ),
+                    mountpoint=FilePath(b'/var/lib/data')
+                    )
+            ) for (unit, respective_id) in [(unit1, DATASET_ID),
+                                            (unit2, DATASET_ID2)]]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).applications)
+
+    def test_ignore_unknown_volumes(self):
+        """
+        Docker volumes that cannot be matched to a dataset are ignored.
+        """
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    container_image=u"clusterhq/wordpress:latest",
+                    volumes=frozenset(
+                        [DockerVolume(
+                            node_path=FilePath(b"/some/random/path"),
+                            container_path=FilePath(b'/var/lib/data')
+                        )],
+                    ),
+                    activation_state=u'active')
+        units = {unit.name: unit}
+
+        fake_docker = FakeDockerClient(units=units)
+
+        applications = [
+            Application(
+                name=unit.name,
+                image=DockerImage.from_string(unit.container_image),
+            ),
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).applications))
+
+    def test_not_running_units(self):
+        """
+        Units that are not active are considered to be not running by
+        ``discover_local_state()``.
+        """
+        unit1 = Unit(name=u'site-example3.net',
+                     container_name=u'site-example3.net',
+                     container_image=u'clusterhq/wordpress:latest',
+                     activation_state=u'inactive')
+        unit2 = Unit(name=u'site-example4.net',
+                     container_name=u'site-example4.net',
+                     container_image=u'clusterhq/wordpress:latest',
+                     activation_state=u'madeup')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [
+            Application(name=unit.name,
+                        image=DockerImage.from_string(
+                            unit.container_image
+                        ),
+                        running=False) for unit in units.values()
+        ]
+        applications.sort()
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+        result = self.successResultOf(d)
+
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   applications=applications),
+                         result)
+
+    def test_discover_used_ports(self):
+        """
+        Any ports in use, as reported by the deployer's ``INetwork`` provider,
+        are reported in the ``used_ports`` attribute of the ``NodeState``
+        returned by ``discover_local_state``.
+        """
+        used_ports = frozenset([1, 3, 5, 1000])
+        api = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self),
+            docker_client=FakeDockerClient(),
+            network=make_memory_network(used_ports=used_ports)
+        )
+
+        discovering = api.discover_local_state()
+        state = self.successResultOf(discovering)
+
+        self.assertEqual(
+            NodeState(hostname=u'example.com', used_ports=used_ports),
+            state
+        )
+
+    def test_discover_application_restart_policy(self):
+        """
+        An ``Application`` with the appropriate ``IRestartPolicy`` is
+        discovered from the corresponding restart policy of the ``Unit``.
+        """
+        policy = object()
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
+                     restart_policy=policy,
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                restart_policy=policy,
+            )
+        ]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).applications))
+
+
+class P2PManifestationDeployerTests(SynchronousTestCase):
+    """
+    Tests for ``P2PManifestationDeployer``.
+    """
+    def setUp(self):
+        self.volume_service = create_volume_service(self)
+
+    def test_discover_manifestation_with_size(self):
+        """
+        Manifestation with with a locally configured size have their
+        ``maximum_size`` attribute set.
+        """
+        DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(
+                _to_volume_name(DATASET_ID),
+                size=VolumeSize(maximum_size=1024 * 1024 * 100)
+            )
+        ))
+        volume2 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
+        ))
+
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=volume1.get_filesystem().get_path(),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=volume2.get_filesystem().get_path(),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_docker = FakeDockerClient(units=units)
+
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=DATASET_ID,
+                            metadata=pmap({"name": unit1.name}),
+                            maximum_size=1024 * 1024 * 100),
+                        primary=True,
+                    ),
+                    mountpoint=FilePath(b'/var/lib/data'),
+                    )
+            ),
+            Application(
+                name=unit2.name,
+                image=DockerImage.from_string(unit2.container_image),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=DATASET_ID2,
+                                        metadata=pmap({"name": unit2.name})),
+                        primary=True,
+                    ),
+                    mountpoint=FilePath(b'/var/lib/data'),
+                    )
+            )]
+        api = P2PNodeDeployer(
+            u'example.com',
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_local_state()
+
+        self.assertItemsEqual(pset(applications),
+                              self.successResultOf(d).applications)
 
     DATASET_ID = u"uuid123"
     DATASET_ID2 = u"uuid456"
