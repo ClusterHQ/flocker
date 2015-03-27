@@ -5,7 +5,7 @@ from ._model import (
     Sudo, sudo, sudo_from_args,
     Put, put,
     Comment, comment,
-    RunRemotely,
+    RunRemotely, run_remotely,
 )
 
 __all__ = [
@@ -13,5 +13,5 @@ __all__ = [
     "Sudo", "sudo", "sudo_from_args",
     "Put", "put",
     "Comment", "comment",
-    "RunRemotely",
+    "RunRemotely", "run_remotely",
 ]
