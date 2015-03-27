@@ -1,6 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Various utilities to help with unit and functional testing."""
+"""
+Various utilities to help with unit and functional testing.
+"""
 
 from __future__ import absolute_import
 
@@ -14,17 +16,19 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import random
 import shutil
-from subprocess import check_call, check_output
 from functools import wraps
-from unittest import skipIf
-from unittest import skipUnless
+from unittest import skipIf, skipUnless
+
+from subprocess import PIPE, STDOUT, CalledProcessError, Popen
+
+from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
 
 from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
-    )
+)
 from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
@@ -592,11 +596,8 @@ class DockerImageBuilder(object):
             b'--tag=%s' % (tag,),
             docker_dir.path
         ]
-        check_call(command)
-        # XXX until https://clusterhq.atlassian.net/browse/FLOC-409 is
-        # fixed we will often have a container lying around which is still
-        # using the new image, so removing the image will fail.
-        # self.test.addCleanup(check_call, [b"docker", b"rmi", tag])
+        run_process(command)
+        self.test.addCleanup(run_process, [b"docker", b"rmi", tag])
         return tag
 
 
@@ -725,16 +726,16 @@ def make_script_tests(executable):
             """
             The script is a command available on the system path.
             """
-            result = check_output([executable] + [b"--version"])
-            self.assertEqual(result, b"%s\n" % (__version__,))
+            result = run_process([executable] + [b"--version"])
+            self.assertEqual(result.output, b"%s\n" % (__version__,))
 
         @skipUnless(which(executable), executable + " not installed")
         def test_identification(self):
             """
             The script identifies itself as what it is.
             """
-            result = check_output([executable] + [b"--help"])
-            self.assertIn(executable, result)
+            result = run_process([executable] + [b"--help"])
+            self.assertIn(executable, result.output)
     return ScriptTests
 
 
@@ -807,3 +808,35 @@ class CustomException(Exception):
     An exception that will never be raised by real code, useful for
     testing.
     """
+
+
+class _ProcessResult(PRecord):
+    """
+    The return type for ``run_process`` representing the outcome of the process
+    that was run.
+    """
+    command = field(type=list, mandatory=True)
+    output = field(type=bytes, mandatory=True)
+    status = field(type=int, mandatory=True)
+
+
+def run_process(command, *args, **kwargs):
+    """
+    Run a child process, capturing its stdout and stderr.
+
+    :param list command: An argument list to use to launch the child process.
+
+    :raise CalledProcessError: If the child process has a non-zero exit status.
+
+    :return: A ``_ProcessResult`` instance describing the result of the child
+         process.
+    """
+    kwargs["stdout"] = PIPE
+    kwargs["stderr"] = STDOUT
+    process = Popen(command, *args, **kwargs)
+    output = process.stdout.read()
+    status = process.wait()
+    result = _ProcessResult(command=command, output=output, status=status)
+    if result.status:
+        raise CalledProcessError(command=command, status=status, output=output)
+    return result
