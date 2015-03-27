@@ -225,6 +225,26 @@ def task_upgrade_kernel_ubuntu():
     ]
 
 
+def task_install_requirements_ubuntu():
+    return [
+        Run.from_args([
+            "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
+        Run.from_args([
+            "add-apt-repository", "-y", "ppa:james-page/docker"]),
+        Run.from_args([
+            "apt-get", "update"]),
+        # XXX This brings up a prompt about upgrading grub,
+        # somehow work around that, see
+        # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
+        Run.from_args([
+            "add-get", "-y", "upgrade"]),
+        Run.from_args([
+            "add-get", "-y", "install", "spl-dkms"]),
+        Run.from_args([
+            "add-get", "-y", "install", "zfs-dkms", "zfsutils", "docker.io"]),
+    ]
+
+
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.

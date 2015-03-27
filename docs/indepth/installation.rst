@@ -415,20 +415,7 @@ Thus we need to reboot into the new kernel.
 
 Flocker requires recent versions of ZFS and Docker.
 
-.. .. task:: install_requirements_ubuntu
-
-.. prompt:: bash [root@node]#
-
-   add-apt-repository -y ppa:zfs-native/stable
-   add-apt-repository -y ppa:james-page/docker
-
-   apt-get update
-   # XXX This brings up a prompt about upgrading grub,
-   # somehow work around that, see
-   # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
-   apt-get -y upgrade
-   apt-get -y install spl-dkms
-   apt-get -y install zfs-dkms zfsutils docker.io
+.. task:: install_requirements_ubuntu
 
 Now install the ``clusterhq-flocker-node`` package.
 
