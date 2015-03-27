@@ -22,7 +22,7 @@ class SequenceFailed(Exception, object):
 @attributes(["effects"])
 class Sequence(object):
     """
-    Runs a sequence of events serially.
+    Runs a sequence of effects serially.
 
     :returns list: The list of results of the effects.
     :raises SequenceFailed: If one of the ffects fails.
@@ -44,8 +44,8 @@ def perform_sequence(dispatcher, intent):
     yield do_return(results)
 
 
-def sequence(_):
-    return Effect(Sequence(effects=_))
+def sequence(effects):
+    return Effect(Sequence(effects=effects))
 
 
 dispatcher = ComposedDispatcher([
