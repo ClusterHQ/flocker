@@ -597,10 +597,7 @@ class DockerImageBuilder(object):
             docker_dir.path
         ]
         run_process(command)
-        # XXX until https://clusterhq.atlassian.net/browse/FLOC-409 is
-        # fixed we will often have a container lying around which is still
-        # using the new image, so removing the image will fail.
-        # self.test.addCleanup(run_process, [b"docker", b"rmi", tag])
+        self.test.addCleanup(run_process, [b"docker", b"rmi", tag])
         return tag
 
 
