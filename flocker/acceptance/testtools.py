@@ -17,6 +17,10 @@ from twisted.python.procutils import which
 
 from pyrsistent import pmap
 
+from effect.twisted import (
+    perform as perform_with_twisted
+)
+
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
     FlockerConfiguration
@@ -24,6 +28,7 @@ from ..control import (
 from flocker.testtools import loop_until
 
 from flocker.provision._install import stop_cluster
+from flokcer.provision._ssh._crochet import dispatcher
 
 try:
     from pymongo import MongoClient
@@ -224,7 +229,12 @@ def _stop_acceptance_cluster():
     agent_nodes = filter(None, agent_nodes_env_var.split(':'))
 
     if control_node and agent_nodes:
-        stop_cluster(control_node, agent_nodes)
+        return perform_with_twisted(
+            dispatcher,
+            stop_cluster(control_node, agent_nodes)
+        )
+    else:
+        return succeed(None)
 
 
 def get_nodes(test_case, num_nodes):
@@ -291,14 +301,14 @@ def get_nodes(test_case, num_nodes):
 
     # Stop flocker-control and flocker-agent here, as by this point, we know
     # that we aren't skipping this test.
-    _stop_acceptance_cluster()
+    d = _stop_acceptance_cluster()
 
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
     for node in reachable_nodes:
         _clean_node(test_case, node)
-    return succeed(reachable_nodes)
+    return d.addCallback(lambda _: reachable_nodes)
 
 
 def flocker_deploy(test_case, deployment_config, application_config):
