@@ -37,6 +37,7 @@ from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
     api_dataset_from_dataset_and_node, container_configuration_response
 )
+from ...node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
 from ... import __version__
@@ -1984,11 +1985,45 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
     ``/configuration/datasets/<dataset_id>`` when supplied with a maximum_size
     value.
     """
+    def test_unknown_dataset(self):
+        """
+        NOT_FOUND is returned if the requested dataset_id doesn't exist.
+        The error includes the requested dataset_id.
+        """
+        unknown_dataset_id = unicode(uuid4())
+        return self.assertResult(
+            b"POST",
+            b"/configuration/datasets/%s" % (
+                unknown_dataset_id.encode('ascii'),),
+            {u'primary': self.NODE_A},
+            NOT_FOUND,
+            {u"description": u'Dataset not found.'})
+
+
     def test_grow(self):
         """
         A dataset maximum_size can be increased.
         """
-        1/0
+        expected_manifestation = _manifestation(
+            maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        current_primary_node = Node(
+            hostname=self.NODE_A,
+            applications=[],
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        deployment = Deployment(nodes=[current_primary_node])
+        saving = self.persistence_service.save(deployment)
+        def resize(result):
+            return self.assertResult(
+                b"POST",
+                b"/configuration/datasets/%s" % (bytes(expected_manifestation.dataset_id),),
+                {u'primary': self.NODE_A, u'maximum_size': REALISTIC_BLOCKDEVICE_SIZE * 2},
+                OK,
+                {u''}
+            )
+        return saving.addCallback(resize)
 
     def test_shrink(self):
         """
