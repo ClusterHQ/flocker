@@ -28,7 +28,7 @@ from ..control import (
 from flocker.testtools import loop_until
 
 from flocker.provision._install import stop_cluster
-from flokcer.provision._ssh._crochet import dispatcher
+from flocker.provision._ssh._crochet import dispatcher
 
 try:
     from pymongo import MongoClient
