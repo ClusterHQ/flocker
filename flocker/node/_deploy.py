@@ -892,16 +892,28 @@ class P2PNodeDeployer(object):
     """
     def __init__(self, hostname, volume_service, docker_client=None,
                  network=None):
-        self.manifestations_deployer = None
-        self.applications_deployer = None
+        self.manifestations_deployer = P2PManifestationDeployer(
+            hostname, volume_service)
+        self.applications_deployer = ApplicationNodeDeployer(
+            hostname, docker_client, network)
+        self.hostname = hostname
+        self.volume_service = self.manifestations_deployer.volume_service
+        self.docker_client = self.applications_deployer.docker_client
+        self.network = self.applications_deployer.network
 
     def discover_local_state(self, local_state):
-        # 1. Lookup local state via self.manifestations_deployer
-        # 2. Update cluster_state
-        # 3. pass that to applications_deployer.discover_local_state
-        # 3. Combine the two results
-        # Result is NodeState that looks like existing code.
-        pass
+        d = self.manifestations_deployer.discover_local_state(local_state)
+
+        def got_manifestations_state(manifestations_state):
+            app_discovery = self.applications_deployer.discover_local_state(
+                manifestations_state)
+            app_discovery.addCallback(
+                lambda app_state: app_state.set(
+                    "manifestations", manifestations_state.manifestations).set(
+                    "paths", manifestations_state.paths))
+            return app_discovery
+        d.addCallback(got_manifestations_state)
+        return d
 
     def calculate_necessary_state_changes(self, *args, **kwargs):
         # Calculation will be split up in FLOC-1553.
