@@ -412,24 +412,13 @@ Thus we need to reboot into the new kernel.
 
    shutdown -r now
 
-
 Flocker requires recent versions of ZFS and Docker.
 
 .. task:: install_requirements_ubuntu
 
 Now install the ``clusterhq-flocker-node`` package.
 
-.. This is a stopgap - there will be a proper repository on S3 to apt-get install from. When this is the case then I think some dependencies won't need to be installed separately to clusterhq-flocker-node
-   XXX Replace this in FLOC-1065
-
-.. .. task:: install_flocker_ubuntu
-
-.. prompt:: bash [root@node]#
-
-   wget -O clusterhq-python-flocker http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb
-   wget -O clusterhq-flocker-node http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.8.661.g5c313b5_all.deb
-   dpkg -i clusterhq-python-flocker clusterhq-flocker-node
-
+.. task:: install_flocker_ubuntu
 
 Post installation configuration
 -------------------------------
