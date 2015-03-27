@@ -1977,7 +1977,8 @@ RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
         UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
 )
 
-class UpdateSizeDatasetTestsMixin(object):
+
+class UpdateSizeDatasetTestsMixin(APITestsMixin):
     """
     Tests for the behaviour of the dataset modification endpoint at
     ``/configuration/datasets/<dataset_id>`` when supplied with a maximum_size
