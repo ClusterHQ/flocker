@@ -532,6 +532,7 @@ class ApplicationNodeDeployer(object):
                         external_port=portmap.external_port
                     ))
                 links = []
+                environment = []
                 if unit.environment:
                     environment_dict = unit.environment.to_dict()
                     for label, value in environment_dict.items():
@@ -541,6 +542,15 @@ class ApplicationNodeDeployer(object):
                             alias, pad_a, port, pad_b, pad_c = parts
                             local_port = int(port)
                         except ValueError:
+                            # <ALIAS>_PORT_<PORT>_TCP
+                            parts = label.rsplit(b"_", 3)
+                            try:
+                                alias, pad_a, port, pad_b = parts
+                            except ValueError:
+                                environment.append((label, value))
+                                continue
+                            if not (pad_a, pad_b) == (b"PORT", b"TCP"):
+                                environment.append((label, value))
                             continue
                         if (pad_a, pad_b, pad_c) == (b"PORT", b"TCP", b"PORT"):
                             links.append(Link(
@@ -553,6 +563,7 @@ class ApplicationNodeDeployer(object):
                     image=image,
                     ports=frozenset(ports),
                     volume=volume,
+                    environment=environment if environment else None,
                     links=frozenset(links),
                     restart_policy=unit.restart_policy,
                     running=(unit.activation_state == u"active"),
