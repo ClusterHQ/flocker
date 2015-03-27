@@ -425,56 +425,6 @@ class P2PManifestationDeployer(object):
     :ivar VolumeService volume_service: The volume manager for this node.
     """
     def discover_local_state(self, local_state):
-        # XXX Move manifestation and path discovery code out of
-        # ApplicationNodeDeployer, Return a NodeState instance with
-        # applications=None and ports=None.
-        pass
-
-    def calculate_necessary_state_changes(self, *args, **kwargs):
-        # Does nothing in this branch. Follow up will move
-        # calculate_necessary_state_changes code here.
-        return Sequentially(changes=[])
-
-
-@implementer(IDeployer)
-class ApplicationNodeDeployer(object):
-    """
-    Discover and calculate changes for applications running on a node.
-
-    :ivar unicode hostname: The hostname of the node that this is running
-            on.
-    :ivar VolumeService volume_service: The volume manager for this node.
-    :ivar IDockerClient docker_client: The Docker client API to use in
-        deployment operations. Default ``DockerClient``.
-    :ivar INetwork network: The network routing API to use in
-        deployment operations. Default is iptables-based implementation.
-    """
-    def __init__(self, hostname, volume_service, docker_client=None,
-                 network=None):
-        self.hostname = hostname
-        if docker_client is None:
-            docker_client = DockerClient()
-        self.docker_client = docker_client
-        if network is None:
-            network = make_host_network()
-        self.network = network
-        self.volume_service = volume_service
-
-    def discover_local_state(self, local_state):
-        """
-        List all the ``Application``\ s running on this node.
-
-        The given local state is used to figure out if applications have
-        attached volumes that are specific manifestations.
-
-        :return: A ``Deferred`` which fires with a ``NodeState`` instance
-            with information only about
-            ``Application``. ``NodeState.manifestations`` and
-            ``NodeState.paths`` will not be filled in.
-        """
-        # XXX manifestations and path lookup will be moved away, will return
-        # NodeState with manifestations=None and paths=None.
-
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
         # strip the namespace since there will only ever be one.
@@ -490,14 +440,72 @@ class ApplicationNodeDeployer(object):
                         volume.name.dataset_id, volume.size.maximum_size)
             return primary_manifestations
         volumes.addCallback(map_volumes_to_size)
-        d = gatherResults([self.docker_client.list(), volumes])
 
-        def applications_from_units(result):
-            units, available_manifestations = result
-            applications = []
+        def got_volumes(available_manifestations):
             manifestations = []  # Manifestation objects we're constructing
             manifestation_paths = {dataset_id: path for (path, (dataset_id, _))
                                    in available_manifestations.items()}
+
+            manifestations += list(
+                Manifestation(dataset=Dataset(dataset_id=dataset_id,
+                                              maximum_size=maximum_size),
+                              primary=True)
+                for (dataset_id, maximum_size) in
+                available_manifestations.values())
+
+            return NodeState(
+                hostname=self.hostname,
+                applications=applications,
+                used_ports=self.network.enumerate_used_ports(),
+                manifestations={manifestation.dataset_id: manifestation
+                                for manifestation in manifestations},
+                paths=manifestation_paths,
+            )
+
+    def calculate_necessary_state_changes(self, *args, **kwargs):
+        # Does nothing in this branch. Follow up will move
+        # calculate_necessary_state_changes code here.
+        return Sequentially(changes=[])
+
+
+@implementer(IDeployer)
+class ApplicationNodeDeployer(object):
+    """
+    Discover and calculate changes for applications running on a node.
+
+    :ivar unicode hostname: The hostname of the node that this is running
+            on.
+    :ivar IDockerClient docker_client: The Docker client API to use in
+        deployment operations. Default ``DockerClient``.
+    :ivar INetwork network: The network routing API to use in
+        deployment operations. Default is iptables-based implementation.
+    """
+    def __init__(self, hostname, docker_client=None,
+                 network=None):
+        self.hostname = hostname
+        if docker_client is None:
+            docker_client = DockerClient()
+        self.docker_client = docker_client
+        if network is None:
+            network = make_host_network()
+        self.network = network
+
+    def discover_local_state(self, local_state):
+        """
+        List all the ``Application``\ s running on this node.
+
+        The given local state is used to figure out if applications have
+        attached volumes that are specific manifestations.
+
+        :return: A ``Deferred`` which fires with a ``NodeState`` instance
+            with information only about
+            ``Application``. ``NodeState.manifestations`` and
+            ``NodeState.paths`` will not be filled in.
+        """
+        d = self.docker_client.list()
+
+        def applications_from_units(units):
+            applications = []
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.volumes:
@@ -569,20 +577,12 @@ class ApplicationNodeDeployer(object):
                     running=(unit.activation_state == u"active"),
                 ))
 
-            manifestations += list(
-                Manifestation(dataset=Dataset(dataset_id=dataset_id,
-                                              maximum_size=maximum_size),
-                              primary=True)
-                for (dataset_id, maximum_size) in
-                available_manifestations.values())
-
             return NodeState(
                 hostname=self.hostname,
                 applications=applications,
                 used_ports=self.network.enumerate_used_ports(),
-                manifestations={manifestation.dataset_id: manifestation
-                                for manifestation in manifestations},
-                paths=manifestation_paths,
+                manifestations=None,
+                paths=None,
             )
         d.addCallback(applications_from_units)
         return d
@@ -874,8 +874,8 @@ class P2PNodeDeployer(object):
     """
     def __init__(self, hostname, volume_service, docker_client=None,
                  network=None):
-        self.manifestations_deployer = ...
-        self.applications_deployer = ...
+        self.manifestations_deployer = None
+        self.applications_deployer = None
 
     def discover_local_state(self, local_state):
         # 1. Lookup local state via self.manifestations_deployer

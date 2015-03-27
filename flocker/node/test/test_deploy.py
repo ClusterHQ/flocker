@@ -16,7 +16,10 @@ from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
-from .. import P2PNodeDeployer, change_node_state
+from .. import (
+    P2PNodeDeployer, change_node_state, ApplicationNodeDeployer,
+    P2PManifestationDeployer,
+)
 from ..testtools import (
     ControllableDeployer, ControllableAction, ideployer_tests_factory, EMPTY,
 )
@@ -1326,15 +1329,16 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         ``NodeState`` if there are no Docker containers on the host.
         """
         fake_docker = FakeDockerClient(units={})
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u'example.com'))
 
-        self.assertEqual(NodeState(hostname=u'example.com'),
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   manifestations=None,
+                                   paths=None),
                          self.successResultOf(d))
 
     def test_discover_one(self):
@@ -1735,6 +1739,16 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
+
+    def test_unknown_manifestations(self):
+        """
+        If the given ``NodeState`` indicates ignorance of manifestations, the
+        ``ApplicationNodeDeployer`` doesn't bother doing any discovery and
+        just indicates ignorance of applications.
+
+        XXX file issue for "it's not possible to run the container agent
+        without any dataset agents".
+        """
 
 
 class P2PManifestationDeployerTests(SynchronousTestCase):
