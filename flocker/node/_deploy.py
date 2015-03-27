@@ -519,8 +519,8 @@ class ApplicationNodeDeployer(object):
                     # we assume all volumes are datasets
                     docker_volume = list(unit.volumes)[0]
                     try:
-                        manifestation = path_to_manifestations.get(
-                            docker_volume.node_path)
+                        manifestation = path_to_manifestations[
+                            docker_volume.node_path]
                     except KeyError:
                         # Apparently not a dataset we're managing, give up.
                         volume = None

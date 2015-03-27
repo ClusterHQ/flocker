@@ -1638,13 +1638,12 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 image=DockerImage.from_string(unit.container_image),
             ),
         ]
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u"example.com"))
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
