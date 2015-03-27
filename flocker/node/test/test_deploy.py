@@ -1325,7 +1325,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
     def test_discover_none(self):
         """
-        ``P2PNodeDeployer.discover_local_state`` returns an empty
+        ``ApplicationNodeDeployer.discover_local_state`` returns an empty
         ``NodeState`` if there are no Docker containers on the host.
         """
         fake_docker = FakeDockerClient(units={})
@@ -1343,8 +1343,9 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
     def test_discover_one(self):
         """
-        ``P2PNodeDeployer.discover_local_state`` returns ``NodeState`` with a
-        a list of running ``Application``\ s; one for each active container.
+        ``ApplicationNodeDeployer.discover_local_state`` returns ``NodeState``
+        with a a list of running ``Application``\ s; one for each active
+        container.
         """
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name,
@@ -1356,22 +1357,24 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             name=unit.name,
             image=DockerImage.from_string(unit.container_image)
         )
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u'example.com'))
 
         self.assertEqual(NodeState(hostname=u'example.com',
-                                   applications=[application]),
+                                   applications=[application],
+                                   manifestations=None,
+                                   paths=None),
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
         """
-        ``P2PNodeDeployer.discover_local_state`` returns a ``NodeState`` with
-        a running ``Application`` for every active container on the host.
+        ``ApplicationNodeDeployer.discover_local_state`` returns a
+        ``NodeState`` with a running ``Application`` for every active
+        container on the host.
         """
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
@@ -1390,13 +1393,12 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 image=DockerImage.from_string(unit.container_image)
             ) for unit in units.values()
         ]
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u'example.com'))
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d).applications)
@@ -1426,13 +1428,12 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 environment=environment_variables
             )
         ]
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u'example.com'))
 
         self.assertItemsEqual(pset(applications),
                               sorted(self.successResultOf(d).applications))
@@ -1476,13 +1477,12 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 links=frozenset(links)
             )
         ]
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u'example.com'))
 
         self.assertItemsEqual(pset(applications),
                               sorted(self.successResultOf(d).applications))
@@ -1502,9 +1502,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 ])
             )
         ]
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
@@ -1512,7 +1511,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             StartApplication(
                 hostname='node1.example.com', application=app
             ).run(api)
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u'example.com'))
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
@@ -1540,13 +1539,12 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                 ])
             )
         ]
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            self.volume_service,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state()
+        d = api.discover_local_state(NodeState(hostname=u'example.com'))
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
