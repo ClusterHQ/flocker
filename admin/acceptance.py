@@ -19,8 +19,9 @@ from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
+from flocker.provision._ssh import (
+    RunRemotely)
 from flocker.provision._install import (
-    run_with_crochet as run_tasks_on_node,
     task_pull_docker_images,
     configure_cluster,
 )
@@ -171,10 +172,13 @@ class VagrantRunner(object):
 
         for node in self.NODE_ADDRESSES:
             remove_known_host(node)
-            run_tasks_on_node(
-                username='root',
-                address=node,
-                commands=task_pull_docker_images()
+            perform(
+                dispatcher,
+                RunRemotely(
+                    username='root',
+                    address=node,
+                    commands=task_pull_docker_images()
+                ),
             )
         return self.NODE_ADDRESSES
 

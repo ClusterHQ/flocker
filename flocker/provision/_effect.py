@@ -1,6 +1,8 @@
 import sys
 from characteristic import attributes
-from effect import sync_performer, Effect
+from effect import (
+    sync_performer, Effect,
+    ComposedDispatcher, TypeDispatcher, base_dispatcher)
 from effect.do import do, do_return
 
 
@@ -44,3 +46,11 @@ def perform_sequence(dispatcher, intent):
 
 def sequence(_):
     return Effect(Sequence(effects=_))
+
+
+dispatcher = ComposedDispatcher([
+    TypeDispatcher({
+        Sequence: perform_sequence,
+    }),
+    base_dispatcher,
+])

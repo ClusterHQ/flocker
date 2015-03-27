@@ -22,7 +22,7 @@ import os
 
 from flocker.testtools import loop_until
 
-from ._model import Run, Sudo, Put, Comment
+from ._model import Run, Sudo, Put, Comment, RunRemotely
 
 
 @attributes([
@@ -164,3 +164,8 @@ def perform_run_remotely(base_dispatcher, intent):
 
     yield connection_helper.cleanupConnection(
         connection, False)
+
+
+dispatcher = TypeDispatcher({
+    RunRemotely: perform_run_remotely,
+})

@@ -1,15 +1,12 @@
 from crochet import setup, run_in_reactor
-from effect import (
-    ComposedDispatcher, TypeDispatcher, base_dispatcher)
+from effect import ComposedDispatcher
 
-from .._effect import Sequence, perform_sequence
-from ._conch import perform_run_remotely
+from .._effect import dispatcher
+from ._conch import dispatcher as conch_dispatcher
 from effect.twisted import (
     make_twisted_dispatcher,
     perform as perform_with_twisted
 )
-from _model import RunRemotely
-
 from twisted.internet import reactor
 
 
@@ -25,10 +22,7 @@ def perform(dispatcher, effect):
 
 
 dispatcher = ComposedDispatcher([
-    TypeDispatcher({
-        Sequence: perform_sequence,
-        RunRemotely: perform_run_remotely,
-    }),
+    conch_dispatcher,
     make_twisted_dispatcher(reactor),
-    base_dispatcher,
+    dispatcher,
 ]),

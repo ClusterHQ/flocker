@@ -15,13 +15,11 @@ from ._ssh import (
     run, run_from_args,
     sudo_from_args,
     put, comment,
-    run_with_crochet,
-    RunRemotely
+    run_remotely
 )
 from ._effect import sequence
 
 from flocker.cli import configure_ssh
-__all__ = ['run_with_crochet']
 
 ZFS_REPO = {
     'fedora-20': "https://s3.amazonaws.com/archive.zfsonlinux.org/"
@@ -399,7 +397,7 @@ def configure_cluster(control_node, agent_nodes):
     :param list agent_nodes: List of addresses of agent nodes.
     """
     return sequence([
-        RunRemotely(
+        run_remotely(
             username='root',
             address=control_node,
             commands=task_enable_flocker_control(),
@@ -407,7 +405,7 @@ def configure_cluster(control_node, agent_nodes):
         sequence([
             sequence([
                 Effect(Func(lambda node=node: configure_ssh(node, 22))),
-                RunRemotely(
+                run_remotely(
                     username='root',
                     address=node,
                     commands=task_enable_flocker_agent(
@@ -428,13 +426,13 @@ def stop_cluster(control_node, agent_nodes):
     :param list agent_nodes: List of addresses of agent nodes.
     """
     return sequence([
-        RunRemotely(
+        run_remotely(
             username='root',
             address=control_node,
             commands=run_from_args(['systemctl', 'stop', 'flocker-control']),
         ),
         sequence([
-            RunRemotely(
+            run_remotely(
                 username='root',
                 address=node,
                 commands=run_from_args(['systemctl', 'stop', 'flocker-agent']),

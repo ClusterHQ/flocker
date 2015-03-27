@@ -4,9 +4,21 @@ from effect import Effect
 
 
 class RunRemotely(PRecord):
+    """
+    Run a some commands on a remote host.
+
+    :param bytes address: The address of the remote host to connect to.
+    :param bytes username: The user to connect as.
+    :param Effect commands: The commands to run.
+    """
     username = field(type=bytes)
     address = field(type=bytes)
-    commands = field()
+    commands = field(commands=Effect)
+
+
+def run_remotely(username, address, commands):
+    return Effect(RunRemotely(
+        username=username, address=address, commands=commands))
 
 
 class Run(PRecord):
