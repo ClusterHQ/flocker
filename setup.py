@@ -69,7 +69,6 @@ dev_requirements = [
     "selenium==2.44.0",
 
     # The cloud acceptance test runner needs these
-    "fabric==1.10.0",
     "apache-libcloud==0.16.0",
     "digitalocean-python==0.1.5",
     "crochet==1.3.0",
