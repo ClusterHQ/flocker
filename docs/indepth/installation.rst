@@ -126,10 +126,11 @@ It is also possible to deploy Flocker in the cloud, on a number of different pro
 - :ref:`Using DigitalOcean <digitalocean-install>`
 - :ref:`Using Rackspace <rackspace-install>`
 
-It is also possible to install Flocker on any Fedora 20 or CentOS 7 machine.
+It is also possible to install Flocker on any Fedora 20, CentOS 7, or Ubuntu 14.04 machine.
 
 - :ref:`Installing on Fedora 20 <fedora-20-install>`
 - :ref:`Installing on CentOS 7 <centos-7-install>`
+- :ref:`Installing on Ubuntu 14.04 <ubuntu-14.04-install>`
 
 
 .. _vagrant-install:
@@ -352,6 +353,8 @@ To enable and start Docker, run the following commands in a root console:
    :prompt: [root@node]#
 
 
+.. _centos-7-install:
+
 Installing on CentOS 7
 ----------------------
 
@@ -381,6 +384,8 @@ To enable and start Docker, run the following commands in a root console:
 .. task:: enable_docker
    :prompt: [root@node]#
 
+
+.. _ubuntu-14.04-install:
 
 Installing on Ubuntu 14.04
 --------------------------
@@ -433,9 +438,6 @@ Now install the ``clusterhq-flocker-node`` package.
    wget -O clusterhq-flocker-node http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.8.661.g5c313b5_all.deb
    dpkg -i clusterhq-python-flocker clusterhq-flocker-node
 
-.. TODO is this the wrong anchor?
-
-.. _centos-7-install:
 
 Post installation configuration
 -------------------------------
