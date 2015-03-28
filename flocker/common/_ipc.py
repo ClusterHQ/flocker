@@ -143,6 +143,7 @@ class ProcessNode(object):
             b"-o", b"PreferredAuthentications=publickey",
             b"-p", b"%d" % (port,), host,
             # Run the remote command inside a container on the remote host.
+            "PATH=$PATH:/home/core/gentoo/sbin",
             "DOCKER_HOST=unix:///var/run/docker.real.sock",
             "docker", "run", "[[-i]]", "--privileged",
             "-v", "/etc/flocker:/etc/flocker",
