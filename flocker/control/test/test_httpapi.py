@@ -2059,7 +2059,7 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         """
         A dataset maximum_size can be increased.
         """
-        self.assert_dataset_resize(
+        return self.assert_dataset_resize(
             original_size=REALISTIC_BLOCKDEVICE_SIZE,
             new_size=REALISTIC_BLOCKDEVICE_SIZE * 2
         )
@@ -2068,7 +2068,7 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         """
         A dataset maximum_size can be decreased.
         """
-        self.assert_dataset_resize(
+        return self.assert_dataset_resize(
             original_size=REALISTIC_BLOCKDEVICE_SIZE * 2,
             new_size=REALISTIC_BLOCKDEVICE_SIZE
         )
@@ -2077,7 +2077,7 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         """
         A dataset must be at least 67108864 bytes.
         """
-        self.assert_dataset_resize(
+        return self.assert_dataset_resize(
             original_size=67108864,
             new_size=67108864-1,
             expected_code=BAD_REQUEST,
