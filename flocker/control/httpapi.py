@@ -868,6 +868,7 @@ def container_configuration_response(application, node):
     result.update(ApplicationMarshaller(application).convert())
     # Configuration format isn't quite the same as JSON format:
     if u"volume" in result:
+        # Config format includes maximum_size, which we don't want:
         volume = result.pop(u"volume")
         result[u"volumes"] = [{u"dataset_id": volume[u"dataset_id"],
                                u"mountpoint": volume[u"mountpoint"]}]
