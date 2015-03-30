@@ -24,7 +24,7 @@ from .._loop import (
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
-    NodeState, Deployment, Node, Manifestation, Dataset, DeploymentState,
+    NodeState, Deployment, Manifestation, Dataset, DeploymentState,
 )
 from ...control._protocol import NodeStateCommand, _AgentLocator, AgentAMP
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
