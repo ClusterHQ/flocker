@@ -2064,6 +2064,7 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         )
         deployment = Deployment(nodes=[current_primary_node])
         saving = self.persistence_service.save(deployment)
+
         def resize(result):
             return self.assertResult(
                 method=b"POST",
@@ -2103,8 +2104,10 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
             new_size=67108864-1,
             expected_code=BAD_REQUEST,
             expected_result={
-                u'description': u"The provided JSON doesn't match the required schema.",
-                u'errors': [u'67108863 is less than the minimum of 67108864']
+                u'description':
+                u"The provided JSON doesn't match the required schema.",
+                u'errors':
+                [u'67108863 is less than the minimum of 67108864']
             }
         )
 

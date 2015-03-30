@@ -166,8 +166,10 @@ class ConfigurationAPIUserV1(object):
         ]
     )
     @structured(
-        inputSchema={'$ref':
-                     '/v1/endpoints.json#/definitions/configuration_dataset_primary'},
+        inputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_dataset_primary'
+        },
         outputSchema={'$ref':
                       '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
@@ -238,7 +240,6 @@ class ConfigurationAPIUserV1(object):
             return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
-
 
     @app.route("/configuration/datasets/<dataset_id>", methods=['DELETE'])
     @user_documentation(
@@ -374,7 +375,6 @@ class ConfigurationAPIUserV1(object):
             return EndpointResponse(OK, result)
         saving.addCallback(saved)
         return saving
-
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
