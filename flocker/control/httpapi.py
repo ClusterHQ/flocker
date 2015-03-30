@@ -353,6 +353,11 @@ class ConfigurationAPIUserV1(object):
                 primary, deployment, primary_manifestation, current_node
             )
 
+        if maximum_size is not None:
+            deployment = _update_dataset_maximum_size(
+                deployment, dataset_id, maximum_size
+            )
+
         saving = self.persistence_service.save(deployment)
 
         primary_manifestation, current_node = _find_manifestation_and_node(
@@ -370,17 +375,6 @@ class ConfigurationAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
-
-    def _update_dataset_maximum_size(self, dataset_id, maximum_size):
-        """
-        XXX: Is there any error checking to be done here? We say different
-        backends may or may not support resizing, so can we report that to the
-        API user up front?
-
-        :returns: A ``Deployment`` where the ``Manifestation`` of the
-            ``Dataset`` with the supplied ``dataset_id`` has an updated
-            ``maximum_size``.
-        """
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
@@ -740,6 +734,25 @@ def _update_dataset_primary(primary, deployment, primary_manifestation, origin_n
 
     deployment = deployment.update_node(new_target_node)
     return deployment
+
+
+def _update_dataset_maximum_size(deployment, dataset_id, maximum_size):
+    """
+    XXX: Is there any error checking to be done here? We say different
+    backends may or may not support resizing, so can we report that to the
+    API user up front?
+
+    :returns: A ``Deployment`` where the ``Manifestation`` of the
+        ``Dataset`` with the supplied ``dataset_id`` has an updated
+        ``maximum_size``.
+    """
+    manifestation, node = _find_manifestation_and_node(deployment, dataset_id)
+    deployment = deployment.transform(['nodes'], lambda s: s.remove(node))
+    node = node.transform(
+        ['manifestations', dataset_id, 'dataset', 'maximum_size'],
+        maximum_size
+    )
+    return deployment.transform(['nodes'], lambda s: s.add(node))
 
 
 def manifestations_from_deployment(deployment, dataset_id):
