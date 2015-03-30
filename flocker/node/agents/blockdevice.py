@@ -891,7 +891,7 @@ class BlockDeviceDeployer(PRecord):
             configuration.  A ``DestroyBlockDeviceDataset`` is returned
             even for volumes that don't exist (this is verify inefficient
             but it can be fixed later when extant volumes are included in
-            cluster state).
+            cluster state - see FLOC-1616).
         """
         delete_dataset_ids = set(
             manifestation.dataset.dataset_id
