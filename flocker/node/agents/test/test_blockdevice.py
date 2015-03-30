@@ -269,45 +269,6 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
             changes
         )
 
-    def test_deleted_dataset_volume_does_not_exist(self):
-        """
-        If the configuration indicates that a dataset with a primary
-        manifestation on the node has been deleted but the volume associated
-        with that dataset no longer exists,
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
-        return a ``DestroyBlockDeviceDataset`` for that dataset.
-        """
-        local_config = self.ONE_DATASET_STATE.to_node().transform(
-            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
-            True
-        )
-        cluster_configuration = Deployment(
-            nodes={local_config}
-        )
-
-        local_state = Node(hostname=self.NODE)
-        cluster_state = Deployment(
-            nodes={local_state},
-        )
-
-        api = loopbackblockdeviceapi_for_test(self)
-
-        deployer = BlockDeviceDeployer(
-            hostname=self.NODE,
-            block_device_api=api,
-        )
-
-        changes = deployer.calculate_necessary_state_changes(
-            local_state=local_state,
-            desired_configuration=cluster_configuration,
-            current_cluster_state=cluster_state,
-        )
-
-        self.assertEqual(
-            InParallel(changes=[]),
-            changes
-        )
-
     def test_deleted_dataset_belongs_to_other_node(self):
         """
         If a dataset with a primary manifestation on one node is marked as
@@ -556,48 +517,6 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             desired_configuration
         )
 
-        expected_changes = InParallel(changes=[])
-
-        self.assertEqual(expected_changes, actual_changes)
-
-    def test_ignore_deleted_datasets(self):
-        """
-        Deleted datasets in the supplied configuration do not result in
-        ``CreateBlockDeviceDataset`` changes.
-        """
-        expected_hostname = u'192.0.2.123'
-        expected_dataset_id = unicode(uuid4())
-        local_state = NodeState(
-            hostname=expected_hostname,
-            paths={},
-            manifestations=[]
-        )
-
-        desired_configuration = Deployment(
-            nodes=[
-                Node(
-                    hostname=expected_hostname,
-                    manifestations={
-                        expected_dataset_id: Manifestation(
-                            primary=True,
-                            dataset=Dataset(
-                                dataset_id=expected_dataset_id,
-                                maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
-                                # There's a dataset in the configuration but
-                                # it's deleted and should not be recreated.
-                                deleted=True,
-                            )
-                        )
-                    }
-                )
-            ]
-        )
-
-        actual_changes = self._calculate_changes(
-            expected_hostname,
-            local_state,
-            desired_configuration
-        )
         expected_changes = InParallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
