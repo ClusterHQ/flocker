@@ -20,7 +20,7 @@ from admin.release import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
 from flocker.provision._ssh import (
-    RunRemotely)
+    run_remotely)
 from flocker.provision._install import (
     task_pull_docker_images,
     configure_cluster,
@@ -174,7 +174,7 @@ class VagrantRunner(object):
             remove_known_host(node)
             perform(
                 dispatcher,
-                RunRemotely(
+                run_remotely(
                     username='root',
                     address=node,
                     commands=task_pull_docker_images()
