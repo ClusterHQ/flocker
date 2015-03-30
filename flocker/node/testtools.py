@@ -21,7 +21,7 @@ from zope.interface.verify import verifyObject
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
 from ..testtools import loop_until
-from ..control import Deployment
+from ..control import Node, Deployment
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -153,3 +153,15 @@ def ideployer_tests_factory(fixture):
                                                             result)))
             return d
     return IDeployerTests
+
+
+def to_node(node_state):
+    """
+    Convert a ``NodeState`` to a corresponding ``Node``.
+
+    :param NodeState node_state: Object to convert.
+    :return Node: Equivalent node.
+    """
+    return Node(hostname=node_state.hostname,
+                applications=node_state.applications,
+                manifestations=node_state.manifestations)

@@ -803,12 +803,14 @@ class BlockDeviceDeployer(PRecord):
         """
         volumes = self.block_device_api.list_volumes()
 
-        manifestations = [_manifestation_from_volume(v)
-                          for v in volumes
-                          if v.host == self.hostname]
+        manifestations = {
+            m.dataset_id: m for m in (
+                _manifestation_from_volume(v) for v in volumes
+                if v.host == self.hostname)
+        }
 
         paths = {}
-        for manifestation in manifestations:
+        for manifestation in manifestations.values():
             dataset_id = manifestation.dataset.dataset_id
             # TODO This assumes things are actually mounted.  Maybe they
             # aren't.  FLOC-1498 and FLOC-1499 need correct information here.
@@ -855,10 +857,7 @@ class BlockDeviceDeployer(PRecord):
             if not manifestation.dataset.deleted
         )
 
-        local_dataset_ids = set(
-            manifestation.dataset.dataset_id for manifestation in
-            local_state.manifestations
-        )
+        local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set(
             configured_manifestations[dataset_id]

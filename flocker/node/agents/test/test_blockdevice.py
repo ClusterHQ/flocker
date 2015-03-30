@@ -32,8 +32,10 @@ from ..blockdevice import (
 )
 
 from ... import InParallel, IStateChange
-from ...testtools import ideployer_tests_factory
-from ....control import Dataset, Manifestation, Node, NodeState, Deployment
+from ...testtools import ideployer_tests_factory, to_node
+from ....control import (
+    Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
+)
 
 GIBIBYTE = 2 ** 30
 REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
@@ -94,7 +96,8 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
         self.assertEqual(
             NodeState(
                 hostname=deployer.hostname,
-                manifestations=expected_manifestations,
+                manifestations={
+                    m.dataset_id: m for m in expected_manifestations},
                 paths=expected_paths,
             ),
             state
@@ -171,7 +174,7 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
     ONE_DATASET_STATE = NodeState(
         hostname=NODE,
         manifestations={
-            Manifestation(
+            unicode(DATASET_ID): Manifestation(
                 dataset=Dataset(
                     dataset_id=unicode(DATASET_ID),
                 ),
@@ -191,7 +194,7 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         in the configuration.
         """
         local_state = self.ONE_DATASET_STATE
-        local_config = local_state.to_node()
+        local_config = to_node(local_state)
 
         cluster_state = Deployment(
             nodes={local_config}
@@ -234,10 +237,10 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         """
         local_state = self.ONE_DATASET_STATE
         cluster_state = Deployment(
-            nodes={local_state.to_node()}
+            nodes={to_node(local_state)}
         )
 
-        local_config = local_state.to_node().transform(
+        local_config = to_node(local_state).transform(
             ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
             True
         )
@@ -279,10 +282,10 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         other_node = u"192.0.2.2"
         local_state = self.ONE_DATASET_STATE
         cluster_state = Deployment(
-            nodes={local_state.to_node()}
+            nodes={to_node(local_state)}
         )
 
-        local_config = local_state.to_node().transform(
+        local_config = to_node(local_state).transform(
             ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
             True
         )
@@ -340,7 +343,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
                 )
             }
         )
-        state = Deployment(nodes=[])
+        state = DeploymentState(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
             hostname=node,
@@ -372,7 +375,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
                 )
             }
         )
-        state = Deployment(nodes=[])
+        state = DeploymentState(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
             hostname=node,
@@ -412,8 +415,8 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             ``BlockDeviceDeployer.calculate_necessary_state_changes``.
         """
         # Control service still reports that this node has no manifestations.
-        current_cluster_state = Deployment(
-            nodes={Node(hostname=local_hostname)}
+        current_cluster_state = DeploymentState(
+            nodes={NodeState(hostname=local_hostname)}
         )
 
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
@@ -448,7 +451,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         # already on this node.
         local_state = NodeState(
             hostname=local_hostname,
-            manifestations=[manifestation],
+            manifestations={dataset_id: manifestation},
             paths={dataset_id: FilePath('/foo/bar')}
         )
 
@@ -489,6 +492,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
                 )
             },
             manifestations={
+                expected_dataset_id:
                 Manifestation(
                     primary=True,
                     dataset=Dataset(
@@ -505,12 +509,12 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
 
         # Give the dataset some metadata in the configuration, thus diverging
         # it from the representation in local_state.
-        desired_node_configuration = local_state.to_node().transform(
-            ("manifestations", expected_dataset_id, "dataset", "metadata"),
-            {u"name": u"my_volume"}
-        )
-        desired_configuration = Deployment(nodes=[desired_node_configuration])
-
+        desired_configuration = Deployment(nodes=[Node(
+            hostname=expected_hostname,
+            manifestations=local_state.manifestations.transform(
+                (expected_dataset_id, "dataset", "metadata"),
+                {u"name": u"my_volume"}
+            ))])
         actual_changes = self._calculate_changes(
             expected_hostname,
             local_state,
