@@ -317,8 +317,7 @@ class DestroyVolume(PRecord):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
-        # Make this asynchronous after FLOC-1549, probably as part of
-        # FLOC-1582.
+        # Make this asynchronous as part of FLOC-1549.
         deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
         return succeed(None)
 
