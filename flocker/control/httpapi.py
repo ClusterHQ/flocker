@@ -239,41 +239,6 @@ class ConfigurationAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
-    def _find_manifestation_and_node(self, dataset_id):
-        """
-        Given the ID of a dataset, find its primary manifestation and the node
-        it's on.
-
-        :param unicode dataset_id: The unique identifier of the dataset.  This
-            is a string giving a UUID (per RFC 4122).
-
-        :return: Tuple containing the primary ``Manifestation`` and the
-            ``Node`` it is on.
-        """
-        # Get the current configuration.
-        deployment = self.persistence_service.get()
-
-        manifestations_and_nodes = manifestations_from_deployment(
-            deployment, dataset_id)
-        index = 0
-        for index, (manifestation, node) in enumerate(
-                manifestations_and_nodes):
-            if manifestation.primary:
-                primary_manifestation, origin_node = manifestation, node
-                break
-        else:
-            # There are no manifestations containing the requested dataset.
-            if index == 0:
-                raise DATASET_NOT_FOUND
-            else:
-                # There were no primary manifestations
-                raise IndexError(
-                    'No primary manifestations for dataset: {!r}. See '
-                    'https://clusterhq.atlassian.net/browse/FLOC-1403'.format(
-                        dataset_id)
-                )
-
-        return primary_manifestation, origin_node
 
     @app.route("/configuration/datasets/<dataset_id>", methods=['DELETE'])
     @user_documentation(
@@ -310,8 +275,8 @@ class ConfigurationAPIUserV1(object):
 
         # XXX this doesn't handle replicas
         # https://clusterhq.atlassian.net/browse/FLOC-1240
-        old_manifestation, origin_node = self._find_manifestation_and_node(
-            dataset_id)
+        old_manifestation, origin_node = _find_manifestation_and_node(
+            deployment, dataset_id)
 
         new_node = origin_node.transform(
             ("manifestations", dataset_id, "dataset", "deleted"), True)
@@ -376,45 +341,16 @@ class ConfigurationAPIUserV1(object):
         deployment = self.persistence_service.get()
 
         # Raises DATASET_NOT_FOUND if the ``dataset_id`` is not found.
-        primary_manifestation, origin_node = self._find_manifestation_and_node(
-            dataset_id
+        primary_manifestation, origin_node = _find_manifestation_and_node(
+            deployment, dataset_id
         )
 
         if primary_manifestation.dataset.deleted:
             raise DATASET_DELETED
 
-        # XXX: Might need to break this method up into a series of private
-        # methods for performing different dataset configuration changes. eg
-        # * _update_dataset_primary
-        # * _update_dataset_maximum_size
-        # ...each returning a (possibly) modified ``Deployment``.
-
-        # Now construct a new_deployment where the primary manifestation of the
-        # dataset is on the requested primary node.
-        new_origin_node = origin_node.transform(
-            ("manifestations", dataset_id), discard)
-        deployment = deployment.update_node(new_origin_node)
-
-        primary_nodes = list(
-            node for node in deployment.nodes if primary == node.hostname
+        deployment = _update_dataset_primary(
+            primary, deployment, primary_manifestation, origin_node
         )
-        if len(primary_nodes) == 0:
-            # `primary` is not in cluster. Add it.
-            # XXX Check cluster state to determine if the given primary node
-            # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
-            # See FLOC-1278
-            new_target_node = Node(
-                hostname=primary,
-                manifestations={dataset_id: primary_manifestation},
-            )
-        else:
-            # There should only be one node with the requested primary
-            # hostname. ``ValueError`` here if that's not the case.
-            (target_node,) = primary_nodes
-            new_target_node = target_node.transform(
-                ("manifestations", dataset_id), primary_manifestation)
-
-        deployment = deployment.update_node(new_target_node)
 
         saving = self.persistence_service.save(deployment)
 
@@ -423,17 +359,12 @@ class ConfigurationAPIUserV1(object):
         def saved(ignored):
             result = api_dataset_from_dataset_and_node(
                 primary_manifestation.dataset,
-                new_target_node.hostname
+                primary
             )
             return EndpointResponse(OK, result)
         saving.addCallback(saved)
         return saving
 
-    def _update_dataset_primary(self, dataset_id, primary):
-        """
-        :returns: A ``Deployment`` where the ``Manifestation`` of the
-            ``Dataset`` with the supplied ``dataset_id`` is on a new ``Node``.
-        """
 
     def _update_dataset_maximum_size(self, dataset_id, maximum_size):
         """
@@ -737,6 +668,73 @@ class ConfigurationAPIUserV1(object):
 
         # Didn't find the application:
         raise CONTAINER_NOT_FOUND
+
+
+def _find_manifestation_and_node(deployment, dataset_id):
+    """
+    Given the ID of a dataset, find its primary manifestation and the node
+    it's on.
+
+    :param unicode dataset_id: The unique identifier of the dataset.  This
+        is a string giving a UUID (per RFC 4122).
+
+    :return: Tuple containing the primary ``Manifestation`` and the
+        ``Node`` it is on.
+    """
+    manifestations_and_nodes = manifestations_from_deployment(
+        deployment, dataset_id)
+    index = 0
+    for index, (manifestation, node) in enumerate(
+            manifestations_and_nodes):
+        if manifestation.primary:
+            primary_manifestation, origin_node = manifestation, node
+            break
+    else:
+        # There are no manifestations containing the requested dataset.
+        if index == 0:
+            raise DATASET_NOT_FOUND
+        else:
+            # There were no primary manifestations
+            raise IndexError(
+                'No primary manifestations for dataset: {!r}. See '
+                'https://clusterhq.atlassian.net/browse/FLOC-1403'.format(
+                    dataset_id)
+            )
+
+    return primary_manifestation, origin_node
+
+
+def _update_dataset_primary(primary, deployment, primary_manifestation, origin_node):
+    """
+    """
+    dataset_id = primary_manifestation.dataset_id
+    # Now construct a new_deployment where the primary manifestation of the
+    # dataset is on the requested primary node.
+    new_origin_node = origin_node.transform(
+        ("manifestations", dataset_id), discard)
+    deployment = deployment.update_node(new_origin_node)
+
+    primary_nodes = list(
+        node for node in deployment.nodes if primary == node.hostname
+    )
+    if len(primary_nodes) == 0:
+        # `primary` is not in cluster. Add it.
+        # XXX Check cluster state to determine if the given primary node
+        # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
+        # See FLOC-1278
+        new_target_node = Node(
+            hostname=primary,
+            manifestations={dataset_id: primary_manifestation},
+        )
+    else:
+        # There should only be one node with the requested primary
+        # hostname. ``ValueError`` here if that's not the case.
+        (target_node,) = primary_nodes
+        new_target_node = target_node.transform(
+            ("manifestations", dataset_id), primary_manifestation)
+
+    deployment = deployment.update_node(new_target_node)
+    return deployment
 
 
 def manifestations_from_deployment(deployment, dataset_id):
