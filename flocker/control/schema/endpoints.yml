@@ -69,11 +69,13 @@ definitions:
         '$ref': 'types.json#/definitions/metadata'
       maximum_size:
         '$ref': 'types.json#/definitions/maximum_size'
-    required:
-      # Temporarily required until volume backends settle down and we know
-      # more about what it means to not have a primary manifestation.
-      - primary
     additionalProperties: false
+
+  configuration_dataset_primary:
+    description: "The configuration for a new dataset with a primary address"
+    allOf:
+      - "$ref": "#/definitions/configuration_dataset"
+      - "required": ["primary"]
 
   # A sequence of datasets
   configuration_datasets_array:
