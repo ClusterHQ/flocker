@@ -309,8 +309,7 @@ class ConfigurationAPIUserV1(object):
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
-            # XXX: Add a grow dataset example here
-            # XXX: Add a shrink dataset example here
+            u"update dataset size"
         ]
     )
     @structured(

@@ -207,8 +207,29 @@
 
     {"description": "Dataset not found."}
 
-# XXX: Add a "grow dataset" example here.
-# XXX: Add a "shrink dataset" example here.
+-
+  id:
+    "update dataset size"
+
+  doc: |
+    Update a dataset with a new maximum_size. This will grow or shrink
+    the dataset.
+
+  requires:
+    - "create dataset with dataset_id"
+
+  request: |
+    POST /v1/configuration/datasets/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
+
+    {"maximum_size": 1073741824}
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+     "maximum_size": 1073741824,
+     "primary": "%(NODE_1)s",
+     "deleted": false}
 
 -
   id:
