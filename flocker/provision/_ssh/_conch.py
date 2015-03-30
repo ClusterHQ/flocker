@@ -58,7 +58,7 @@ class CommandProtocol(LineOnlyReceiver, object):
 
 
 @sync_performer
-def perform_sudo(self, dispatcher, intent):
+def perform_sudo(dispatcher, intent):
     """
     See :py:class:`Sudo`.
     """
@@ -66,7 +66,7 @@ def perform_sudo(self, dispatcher, intent):
 
 
 @sync_performer
-def perform_put(self, dispatcher, intent):
+def perform_put(dispatcher, intent):
     """
     See :py:class:`Put`.
     """
@@ -76,7 +76,7 @@ def perform_put(self, dispatcher, intent):
 
 
 @sync_performer
-def perform_comment(self, dispatcher, intent):
+def perform_comment(dispatcher, intent):
     """
     See :py:class:`Comment`.
     """
