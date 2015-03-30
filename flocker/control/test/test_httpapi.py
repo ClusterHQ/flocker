@@ -2013,7 +2013,7 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
             method=b"POST",
             path=b"/configuration/datasets/%s" % (
                 unknown_dataset_id.encode('ascii'),),
-            request_body={u'primary': self.NODE_A},
+            request_body={},
             expected_code=NOT_FOUND,
             expected_result={u"description": u'Dataset not found.'}
         )

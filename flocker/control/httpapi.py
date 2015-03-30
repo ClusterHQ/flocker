@@ -375,8 +375,10 @@ class ConfigurationAPIUserV1(object):
         # Get the current configuration.
         deployment = self.persistence_service.get()
 
+        # Raises DATASET_NOT_FOUND if the ``dataset_id`` is not found.
         primary_manifestation, origin_node = self._find_manifestation_and_node(
-            dataset_id)
+            dataset_id
+        )
 
         if primary_manifestation.dataset.deleted:
             raise DATASET_DELETED
