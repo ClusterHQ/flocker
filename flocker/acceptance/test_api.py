@@ -63,6 +63,21 @@ class _NodeList(CheckedPVector):
     __type__ = Node
 
 
+def check_and_decode_json(result, response_code):
+    """
+    Given ``treq`` response object, extract JSON and ensure response code
+    is the expected one.
+
+    :param result: ``treq`` response.
+    :param int response_code: Expected response code.
+
+    :return: ``Deferred`` firing with decoded JSON.
+    """
+    if result.code != response_code:
+        raise ValueError("Unexpected response code:", result.code)
+    return json_content(result)
+
+
 class Cluster(PRecord):
     """
     A record of the control service and the nodes in a cluster for acceptance
@@ -85,20 +100,6 @@ class Cluster(PRecord):
             self.control_node.address, REST_API_PORT
         )
 
-    def _json_content(self, result, response_code):
-        """
-        Given ``treq`` response object, extract JSON and ensure response code
-        is the expected one.
-
-        :param result: ``treq`` response.
-        :param int response_code: Expected response code.
-
-        :return: ``Deferred`` firing with decoded JSON.
-        """
-        if result.code != response_code:
-            raise ValueError("Unexpected response code:", result.code)
-        return json_content(result)
-
     def datasets_state(self):
         """
         Return the actual dataset state of the cluster.
@@ -107,7 +108,7 @@ class Cluster(PRecord):
             the state of the cluster.
         """
         request = get(self.base_url + b"/state/datasets", persistent=False)
-        request.addCallback(self._json_content, OK)
+        request.addCallback(check_and_decode_json, OK)
         return request
 
     def wait_for_dataset(self, dataset_properties):
@@ -159,7 +160,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(self._json_content, CREATED)
+        request.addCallback(check_and_decode_json, CREATED)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -182,7 +183,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(self._json_content, OK)
+        request.addCallback(check_and_decode_json, OK)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -203,7 +204,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(self._json_content, OK)
+        request.addCallback(check_and_decode_json, OK)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -224,7 +225,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(self._json_content, CREATED)
+        request.addCallback(check_and_decode_json, CREATED)
         request.addCallback(lambda response: (self, response))
         return request
 
@@ -242,7 +243,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(self._json_content, OK)
+        request.addCallback(check_and_decode_json, OK)
         request.addCallback(lambda response: (self, response))
         return request
 
@@ -258,7 +259,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(self._json_content, OK)
+        request.addCallback(check_and_decode_json, OK)
         request.addCallback(lambda response: (self, response))
         return request
 
