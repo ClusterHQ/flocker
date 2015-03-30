@@ -1702,11 +1702,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
 class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     """
-    Tests for the dataset modification endpoint at
-    ``/configuration/datasets/<dataset_id>``.
-
-    XXX: Make it clear that these tests are only for changes to the ``primary``
-    attribute of a dataset.
+    Tests for the behaviour of the dataset modification endpoint at
+    ``/configuration/datasets/<dataset_id>`` when supplied with a ``primary``
+    value.
     """
     def test_unknown_dataset(self):
         """
