@@ -350,7 +350,7 @@ class ConfigurationAPIUserV1(object):
 
         if primary is not None:
             deployment = _update_dataset_primary(
-                primary, deployment, primary_manifestation, current_node
+                deployment, dataset_id, primary
             )
 
         if maximum_size is not None:
@@ -703,36 +703,40 @@ def _find_manifestation_and_node(deployment, dataset_id):
     return primary_manifestation, origin_node
 
 
-def _update_dataset_primary(primary, deployment, primary_manifestation, origin_node):
+def _update_dataset_primary(deployment, dataset_id, primary):
     """
     """
-    dataset_id = primary_manifestation.dataset_id
+    primary_manifestation, old_primary_node = _find_manifestation_and_node(
+        deployment, dataset_id
+    )
     # Now construct a new_deployment where the primary manifestation of the
     # dataset is on the requested primary node.
-    new_origin_node = origin_node.transform(
-        ("manifestations", dataset_id), discard)
-    deployment = deployment.update_node(new_origin_node)
+    old_primary_node = old_primary_node.transform(
+        ("manifestations", primary_manifestation.dataset_id), discard
+    )
+    deployment = deployment.update_node(old_primary_node)
 
-    primary_nodes = list(
+    primary_node_candidates = list(
         node for node in deployment.nodes if primary == node.hostname
     )
-    if len(primary_nodes) == 0:
+    if len(primary_node_candidates) == 0:
         # `primary` is not in cluster. Add it.
         # XXX Check cluster state to determine if the given primary node
         # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
         # See FLOC-1278
-        new_target_node = Node(
+        new_primary_node = Node(
             hostname=primary,
             manifestations={dataset_id: primary_manifestation},
         )
     else:
         # There should only be one node with the requested primary
         # hostname. ``ValueError`` here if that's not the case.
-        (target_node,) = primary_nodes
-        new_target_node = target_node.transform(
-            ("manifestations", dataset_id), primary_manifestation)
+        [new_primary_node] = primary_node_candidates
+        new_primary_node = new_primary_node.transform(
+            ("manifestations", dataset_id), primary_manifestation
+        )
 
-    deployment = deployment.update_node(new_target_node)
+    deployment = deployment.update_node(new_primary_node)
     return deployment
 
 
