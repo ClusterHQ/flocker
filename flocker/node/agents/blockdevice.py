@@ -232,8 +232,7 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
 
 def _volume():
     """
-    Create and return a ``PRecord`` ``field`` for to hold a
-    ``BlockDeviceVolume``.
+    Create and return a ``PRecord`` ``field`` to hold a ``BlockDeviceVolume``.
     """
     return field(
         type=BlockDeviceVolume, mandatory=True,
