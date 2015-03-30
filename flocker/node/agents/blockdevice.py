@@ -190,7 +190,10 @@ class BlockDeviceVolume(PRecord):
     """
     A block device that may be attached to a host.
 
-    :ivar unicode blockdevice_id: The unique identifier of the block device.
+    :ivar unicode blockdevice_id: An identifier for the block device which is
+        unique across the entire cluster.  For example, an EBS volume
+        identifier (``vol-4282672b``).  This is used to address the block
+        device for operations like attach and detach.
     :ivar int size: The size, in bytes, of the block device.
     :ivar unicode host: The IP address of the host to which the block device is
         attached or ``None`` if it is currently unattached.
