@@ -302,8 +302,8 @@ class ConfigurationAPIUserV1(object):
 
         * Move a dataset from one node to another by changing the
           ``primary`` attribute.
-        # XXX: Update this comment.
-        * In the future, update metadata and maximum size.
+        * Resize the dataset by modifying the maximum_size attribute.
+        * In the future update metadata.
 
         """,
         examples=[
