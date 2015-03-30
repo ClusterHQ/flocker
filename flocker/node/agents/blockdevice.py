@@ -202,6 +202,12 @@ class BlockDeviceVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
 
 
+# Replace this with a simpler factory-function based API like:
+#
+#     change = destroy_blockdevice_dataset(volme)
+#
+# after FLOC-1591 makes it possible to have reasonable logging with such a
+# solution.
 @_logged_statechange
 @with_cmp(["change"])
 class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
