@@ -1,7 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Effectful interface to RPM tools.
+Effectful interface to packaging tools.
 """
 
 import requests
@@ -23,7 +23,7 @@ from gzip import GzipFile
 ])
 class DownloadPackagesFromRepository(object):
     """
-    Download a given set of RPMs from a repository.
+    Download a given set of packages from a repository.
 
     :ivar bytes source_repo: Location of repository.
     :ivar FilePath target_path: Directory to download packages to.
@@ -69,7 +69,11 @@ def perform_download_packages_from_repository(dispatcher, intent):
         url = intent.source_repo + '/' + package_name
         local_path = intent.target_path.child(package_name).path
         download = s.get(url)
-        download.raise_for_status()
+        try:
+         download.raise_for_status()
+        except Exception:
+            print url
+            raise
         content = download.content
         with open(local_path, "wb") as local_file:
             local_file.write(content)
@@ -88,7 +92,7 @@ class CreateRepo(object):
     Create repository metadata, and return filenames of new and changed
     metadata files.
 
-    :ivar FilePath repository_path: Location of rpm files to create a
+    :ivar FilePath repository_path: Location of package files to create a
         repository from.
     :param distro_name: The name of the distribution to download packages for.
     :param distro_version: The distro_version of the distribution to download
@@ -131,7 +135,7 @@ def perform_create_repository(dispatcher, intent):
                 'Packages.gz').open(b"w") as raw_file:
             with GzipFile(b'Packages.gz', fileobj=raw_file) as gzip_file:
                 gzip_file.write(metadata)
-        return {'Pacakges.gz'}
+        return {'Packages.gz'}
     else:
         raise NotImplementedError("Unknwon package type: %s"
                                   % (package_type,))
@@ -165,23 +169,44 @@ class FakeYum(object):
         """
         See :class:`CreateRepo`.
         """
-        metadata_directory = intent.repository_path.child('repodata')
-        metadata_directory.createDirectory()
+        from .packaging import PackageTypes, Distribution
+
+        distribution = Distribution(
+            name=intent.distro_name,
+            version=intent.distro_version,
+        )
+        package_type = distribution.package_type()
+
         packages = set([
             file for file in
-            intent.repository_path.listdir() if file.endswith('rpm')])
+            intent.repository_path.listdir()
+            if file.endswith(package_type.value)])
 
-        index_filename = 'repomd.xml'
-        for filename in [index_filename, 'filelists.xml.gz', 'other.xml.gz',
-                         'primary.xml.gz']:
-            content = 'metadata content for: ' + ','.join(packages)
+        if package_type == PackageTypes.RPM:
+            metadata_directory = intent.repository_path.child('repodata')
+            metadata_directory.createDirectory()
+            packages = set([
+                file for file in
+                intent.repository_path.listdir() if file.endswith('rpm')])
 
-            if filename != index_filename:
-                # The index filename is always the same
-                filename = md5(filename).hexdigest() + '-' + filename
-            metadata_directory.child(filename).setContent(content)
+            index_filename = 'repomd.xml'
+            for filename in [index_filename, 'filelists.xml.gz',
+                             'other.xml.gz', 'primary.xml.gz']:
+                content = 'metadata content for: ' + ','.join(packages)
 
-        return _list_new_metadata(repository_path=intent.repository_path)
+                if filename != index_filename:
+                    # The index filename is always the same
+                    filename = md5(filename).hexdigest() + '-' + filename
+                metadata_directory.child(filename).setContent(content)
+
+            return _list_new_metadata(repository_path=intent.repository_path)
+        elif package_type == PackageTypes.DEB:
+            index = intent.repository_path.child('Packages.gz')
+            index.setContent("Packages.gz for: " + ",".join(packages))
+            return {'Packages.gz'}
+        else:
+            raise NotImplementedError("Unknwon package type: %s"
+                                      % (package_type,))
 
     def get_dispatcher(self):
         """

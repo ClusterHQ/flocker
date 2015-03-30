@@ -5,8 +5,8 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipUnless, TestCase
-import tempfile
+from twisted.trial.unittest import SynchronousTestCase as TestCase
+from unittest import skipUnless
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
 from requests.exceptions import HTTPError
@@ -14,6 +14,7 @@ from requests.exceptions import HTTPError
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
+from ..packaging import Distribution, PackageTypes, ARCH, package_filename
 from ..release import (
     rpm_version, make_rpm_version, upload_rpms, update_repo,
     publish_docs, Environments,
@@ -671,35 +672,29 @@ class PublishDocsTests(TestCase):
             environment=Environments.STAGING)
 
 
-class UploadRPMsTests(TestCase):
+class UpdateRepoTests(TestCase):
     """
-    Tests for :func:``upload_rpms``.
+    Tests for :func:``update_repo``.
     """
-    def upload_rpms(self, aws, yum,
-                    scratch_directory, target_bucket, version, build_server):
-        """
-        Call :func:``upload_rpms``, interacting with a fake AWS and yum
-        utilities.
+    def setUp(self):
+        pass
+        self.target_bucket = 'test-target-bucket'
+        self.target_key = 'test/target/key'
+        self.package_directory = FilePath(self.mktemp())
+        self.package_directory.createDirectory()
 
-        :param FakeAWS aws: Fake AWS to interact with.
-        :param FakeYum yum: Fake yum utilities to interact with.
+        self.repo_contents = {
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
+        }
 
-        See :py:func:`upload_rpms` for other parameter documentation.
-        """
-        dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
-                       base_dispatcher]
-        sync_perform(
-            ComposedDispatcher(dispatchers),
-            upload_rpms(
-                scratch_directory=scratch_directory,
-                target_bucket=target_bucket,
-                version=version,
-                build_server=build_server,
-            ),
-        )
+        self.dev_version = '0.3.3dev7'
+        # clusterhq-python-flocker is not here because for the tests which use
+        # real RPMs, it would be bad to have to have that large package.
+        self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
 
     def update_repo(self, aws, yum,
-                    rpm_directory, target_bucket, target_key, source_repo,
+                    package_directory, target_bucket, target_key, source_repo,
                     packages, flocker_version, distro_name, distro_version):
         """
         Call :func:``update_repo``, interacting with a fake AWS and yum
@@ -715,7 +710,7 @@ class UploadRPMsTests(TestCase):
         sync_perform(
             ComposedDispatcher(dispatchers),
             update_repo(
-                rpm_directory=rpm_directory,
+                package_directory=package_directory,
                 target_bucket=target_bucket,
                 target_key=target_key,
                 source_repo=source_repo,
@@ -725,80 +720,6 @@ class UploadRPMsTests(TestCase):
                 distro_version=distro_version,
             )
         )
-
-    def create_fake_repository(self, files):
-        """
-        Create files in a directory to mimic a repository of packages.
-
-        :param dict source_repo: Dictionary mapping names of files to create to
-            contents.
-        :return: FilePath of directory containing fake package files.
-        """
-        source_repo = FilePath(tempfile.mkdtemp())
-        for key in files:
-            new_file = source_repo.preauthChild(key)
-            if not new_file.parent().exists():
-                new_file.parent().makedirs()
-            new_file.setContent(files[key])
-        return 'file://' + source_repo.path
-
-    def setUp(self):
-        self.scratch_directory = FilePath(tempfile.mkdtemp())
-        self.addCleanup(self.scratch_directory.remove)
-        self.rpm_directory = self.scratch_directory.child(
-            b'distro-version-arch')
-        self.target_key = 'test/target/key'
-        self.target_bucket = 'test-target-bucket'
-        self.build_server = 'http://test-build-server.example'
-        # clusterhq-python-flocker is not here because for the tests which use
-        # real RPMs, it would be bad to have to have that large package.
-        self.packages = ['clusterhq-flocker-cli', 'clusterhq-flocker-node']
-        self.alternative_bucket = 'bucket-with-existing-package'
-        alt_scratch_directory = FilePath(tempfile.mkdtemp())
-        self.addCleanup(alt_scratch_directory.remove)
-        self.alternative_package_directory = alt_scratch_directory.child(
-            b'distro-version-arch')
-        self.operating_systems = [
-            {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
-            {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
-        ]
-        self.dev_version = '0.3.3dev7'
-        self.repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
-        }
-
-    def test_upload_non_release_fails(self):
-        """
-        Calling :func:`upload_rpms` with a version that isn't a release fails.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={},
-        )
-        yum = FakeYum()
-
-        self.assertRaises(
-            NotARelease,
-            self.upload_rpms, aws, yum,
-            self.rpm_directory, self.target_bucket, '0.3.0-444-gf05215b',
-            self.build_server)
-
-    def test_upload_doc_release_fails(self):
-        """
-        Calling :func:`upload_rpms` with a documentation release version fails.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={},
-        )
-        yum = FakeYum()
-
-        self.assertRaises(
-            DocumentationRelease,
-            self.upload_rpms, aws, yum,
-            self.rpm_directory, self.target_bucket, '0.3.0+doc1',
-            self.build_server)
 
     def test_packages_uploaded(self):
         """
@@ -815,10 +736,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
+            package_directory=self.package_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -846,10 +767,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
+            package_directory=self.package_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -881,10 +802,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
+            package_directory=self.package_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -924,10 +845,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
+            package_directory=self.package_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -962,10 +883,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
+            package_directory=self.package_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -996,10 +917,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
+            package_directory=self.package_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1043,10 +964,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
+            package_directory=self.package_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=[],
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1056,10 +977,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.alternative_package_directory,
+            package_directory=self.alternative_package_directory,
             target_bucket=self.alternative_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files={}),
+            source_repo=create_fake_repository(self, files={}),
             packages=[],
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1091,10 +1012,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
+            package_directory=self.package_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=[],
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1104,10 +1025,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.alternative_package_directory,
+            package_directory=self.alternative_package_directory,
             target_bucket=self.alternative_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1140,10 +1061,10 @@ class UploadRPMsTests(TestCase):
         self.update_repo(
             aws=aws,
             yum=FakeYum(),
-            rpm_directory=self.rpm_directory,
+            package_directory=self.package_directory,
             target_bucket=self.target_bucket,
             target_key=self.target_key,
-            source_repo=self.create_fake_repository(files=self.repo_contents),
+            source_repo=create_fake_repository(self, files=self.repo_contents),
             packages=self.packages,
             flocker_version=self.dev_version,
             distro_name=self.operating_systems[0]['distro'],
@@ -1173,11 +1094,11 @@ class UploadRPMsTests(TestCase):
             self.update_repo(
                 aws=aws,
                 yum=FakeYum(),
-                rpm_directory=self.rpm_directory,
+                package_directory=self.package_directory,
                 target_bucket=self.target_bucket,
                 target_key=self.target_key,
-                source_repo=self.create_fake_repository(
-                    files=self.repo_contents),
+                source_repo=create_fake_repository(
+                    self, files=self.repo_contents),
                 packages=self.packages,
                 flocker_version=self.dev_version,
                 distro_name=self.operating_systems[0]['distro'],
@@ -1185,6 +1106,141 @@ class UploadRPMsTests(TestCase):
             )
 
         self.assertEqual(404, exception.exception.response.status_code)
+
+    @skipUnless(which('createrepo'),
+                "Tests require the ``createrepo`` command.")
+    def test_real_yum_utils(self):
+        """
+        Calling :func:`update_repo` with real yum utilities creates a
+        repository in S3.
+        """
+        source_repo = FilePath(self.mktemp())
+        source_repo.createDirectory()
+
+        FilePath(__file__).sibling('test-repo').copyTo(source_repo)
+        repo_uri = 'file://' + source_repo.path
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        class RealYum(object):
+            def get_dispatcher(self):
+                return yum_dispatcher
+
+        self.update_repo(
+            aws=aws,
+            yum=RealYum(),
+            package_directory=self.package_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=repo_uri,
+            packages=self.packages,
+            flocker_version=self.dev_version,
+            distro_name=self.operating_systems[0]['distro'],
+            distro_version=self.operating_systems[0]['version'],
+        )
+
+        files = [
+            'repodata/e8671396d8181102616d45d4916fe74fb886c6f9dfcb62df546e258e830cb11c-other.xml.gz',  # noqa
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
+            'repodata/repomd.xml',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
+            'repodata/9bd2f440089b24817e38898e81adba7739b1a904533528819574528698828750-filelists.xml.gz',  # noqa
+            'repodata/9bfa6161e98d5b438cf360853cc0366e4909909b4e7897ced63443611befbbe5-filelists.sqlite.bz2',  # noqa
+            'repodata/f497f27e365c8be8f3ca0689b15030a5f5be94ec61caad1f55b7bd1cc8707355-other.sqlite.bz2'  # noqa
+        ]
+        expected_files = set([os.path.join(self.target_key, file) for file in
+                              files])
+
+        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
+        # The original source repository contains no metadata.
+        # This tests that CreateRepo creates the expected metadata files from
+        # given RPMs, not that any metadata files are copied.
+        self.assertLess(expected_files, set(files_on_s3))
+
+
+class UploadRPMsTests(TestCase):
+    """
+    Tests for :func:``upload_rpms``.
+    """
+    def upload_rpms(self, aws, yum,
+                    scratch_directory, target_bucket, version, build_server):
+        """
+        Call :func:``upload_rpms``, interacting with a fake AWS and yum
+        utilities.
+
+        :param FakeAWS aws: Fake AWS to interact with.
+        :param FakeYum yum: Fake yum utilities to interact with.
+
+        See :py:func:`upload_rpms` for other parameter documentation.
+        """
+        dispatchers = [aws.get_dispatcher(), yum.get_dispatcher(),
+                       base_dispatcher]
+        sync_perform(
+            ComposedDispatcher(dispatchers),
+            upload_rpms(
+                scratch_directory=scratch_directory,
+                target_bucket=target_bucket,
+                version=version,
+                build_server=build_server,
+            ),
+        )
+
+    def setUp(self):
+        self.scratch_directory = FilePath(self.mktemp())
+        self.scratch_directory.createDirectory()
+        self.target_bucket = 'test-target-bucket'
+        self.build_server = 'http://test-build-server.example'
+        self.alternative_bucket = 'bucket-with-existing-package'
+        alt_scratch_directory = FilePath(self.mktemp())
+        alt_scratch_directory.createDirectory()
+        self.alternative_package_directory = alt_scratch_directory.child(
+            b'distro-version-arch')
+        self.operating_systems = [
+            Distribution(name='fedora', version='20'),
+            Distribution(name='centos', version='7'),
+            Distribution(name='ubuntu', version='14.04'),
+        ]
+        self.repo_contents = {
+            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
+            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
+        }
+
+    def test_upload_non_release_fails(self):
+        """
+        Calling :func:`upload_rpms` with a version that isn't a release fails.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={},
+        )
+        yum = FakeYum()
+
+        self.assertRaises(
+            NotARelease,
+            self.upload_rpms, aws, yum,
+            self.scratch_directory, self.target_bucket, '0.3.0-444-gf05215b',
+            self.build_server)
+
+    def test_upload_doc_release_fails(self):
+        """
+        Calling :func:`upload_rpms` with a documentation release version fails.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={},
+        )
+        yum = FakeYum()
+
+        self.assertRaises(
+            DocumentationRelease,
+            self.upload_rpms, aws, yum,
+            self.scratch_directory, self.target_bucket, '0.3.0+doc1',
+            self.build_server)
 
     def test_development_repositories_created(self):
         """
@@ -1205,6 +1261,9 @@ class UploadRPMsTests(TestCase):
             'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3dev7/centos-7/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3dev7/centos-7/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb': '',  # noqa
+            'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb': '',  # noqa
+            'results/omnibus/0.3.3dev7/ubuntu-14.04/clusterhq-python-flocker_0.3.3-0.dev.7_amd64.deb': '',  # noqa
         }
 
         self.upload_rpms(
@@ -1212,27 +1271,39 @@ class UploadRPMsTests(TestCase):
             yum=FakeYum(),
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
-            version=self.dev_version,
-            build_server=self.create_fake_repository(files=repo_contents),
+            version='0.3.3dev7',
+            build_server=create_fake_repository(self, files=repo_contents),
         )
 
         expected_files = set()
         for operating_system in self.operating_systems:
             for file in [
-                'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
-                'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
-                'repodata/repomd.xml',
+                package_filename(
+                    operating_system.package_type(),
+                    'clusterhq-flocker-cli',
+                    'all',
+                    rpm_version('0.3.3', '1.dev.7'),
+                ),
+                package_filename(
+                    operating_system.package_type(),
+                    'clusterhq-flocker-node',
+                    'all',
+                    rpm_version('0.3.3', '1.dev.7'),
+                ),
+                'repodata/repomd.xml' if
+                operating_system.package_type() == PackageTypes.RPM
+                else 'Packages.gz',
             ]:
                 path = os.path.join(
-                    operating_system['distro'] + '-testing',
-                    operating_system['version'],
-                    operating_system['arch'],
+                    operating_system.name + '-testing',
+                    operating_system.version,
+                    ARCH['native'][operating_system.package_type()],
                     file,
                 )
                 expected_files.add(path)
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+        self.assertLess(expected_files, set(files_on_s3))
 
     def test_marketing_repositories_created(self):
         """
@@ -1253,6 +1324,9 @@ class UploadRPMsTests(TestCase):
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-cli-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-flocker-node-0.3.3-1.noarch.rpm': '',  # noqa
             'results/omnibus/0.3.3/centos-7/clusterhq-python-flocker-0.3.3-1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-cli_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-flocker-node_0.3.3-1_all.deb': '',  # noqa
+            'results/omnibus/0.3.3/ubuntu-14.04/clusterhq-python-flocker_0.3.3-1_amd64.deb': '',  # noqa
         }
 
         self.upload_rpms(
@@ -1261,78 +1335,52 @@ class UploadRPMsTests(TestCase):
             scratch_directory=self.scratch_directory,
             target_bucket=self.target_bucket,
             version='0.3.3',
-            build_server=self.create_fake_repository(files=repo_contents),
+            build_server=create_fake_repository(self, files=repo_contents),
         )
 
         expected_files = set()
         for operating_system in self.operating_systems:
             for file in [
-                'clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
-                'clusterhq-flocker-node-0.3.3-1.noarch.rpm',
-                'repodata/repomd.xml',
+                package_filename(
+                    operating_system.package_type(),
+                    'clusterhq-flocker-cli',
+                    'all',
+                    rpm_version('0.3.3', '1'),
+                ),
+                package_filename(
+                    operating_system.package_type(),
+                    'clusterhq-flocker-node',
+                    'all',
+                    rpm_version('0.3.3', '1'),
+                ),
+                'repodata/repomd.xml' if operating_system.package_type()
+                == PackageTypes.RPM else 'Packages.gz',
             ]:
                 path = os.path.join(
-                    operating_system['distro'],
-                    operating_system['version'],
-                    operating_system['arch'],
+                    operating_system.name,
+                    operating_system.version,
+                    ARCH['native'][operating_system.package_type()],
                     file,
                 )
                 expected_files.add(path)
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+        self.assertLess(expected_files, set(files_on_s3))
 
-    @skipUnless(which('createrepo'),
-        "Tests require the ``createrepo`` command.")
-    def test_real_yum_utils(self):
-        """
-        Calling :func:`update_repo` with real yum utilities creates a
-        repository in S3.
-        """
-        source_repo = FilePath(tempfile.mkdtemp())
-        self.addCleanup(source_repo.remove)
 
-        FilePath(__file__).sibling('test-repo').copyTo(source_repo)
-        repo_uri = 'file://' + source_repo.path
+def create_fake_repository(test_case, files):
+    """
+    Create files in a directory to mimic a repository of packages.
 
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            },
-        )
-
-        class RealYum(object):
-            def get_dispatcher(self):
-                return yum_dispatcher
-
-        self.update_repo(
-            aws=aws,
-            yum=RealYum(),
-            rpm_directory=self.rpm_directory,
-            target_bucket=self.target_bucket,
-            target_key=self.target_key,
-            source_repo=repo_uri,
-            packages=self.packages,
-            flocker_version=self.dev_version,
-            distro_name=self.operating_systems[0]['distro'],
-            distro_version=self.operating_systems[0]['version'],
-        )
-
-        files = [
-            'repodata/e8671396d8181102616d45d4916fe74fb886c6f9dfcb62df546e258e830cb11c-other.xml.gz', # noqa
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
-            'repodata/repomd.xml',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
-            'repodata/9bd2f440089b24817e38898e81adba7739b1a904533528819574528698828750-filelists.xml.gz',  # noqa
-            'repodata/9bfa6161e98d5b438cf360853cc0366e4909909b4e7897ced63443611befbbe5-filelists.sqlite.bz2',  # noqa
-            'repodata/f497f27e365c8be8f3ca0689b15030a5f5be94ec61caad1f55b7bd1cc8707355-other.sqlite.bz2'  # noqa
-        ]
-        expected_files = set([os.path.join(self.target_key, file) for file in
-                              files])
-
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        # The original source repository contains no metadata.
-        # This tests that CreateRepo creates the expected metadata files from
-        # given RPMs, not that any metadata files are copied.
-        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+    :param dict source_repo: Dictionary mapping names of files to create to
+        contents.
+    :return: FilePath of directory containing fake package files.
+    """
+    source_repo = FilePath(test_case.mktemp())
+    source_repo.createDirectory
+    for key in files:
+        new_file = source_repo.preauthChild(key)
+        if not new_file.parent().exists():
+            new_file.parent().makedirs()
+        new_file.setContent(files[key])
+    return 'file://' + source_repo.path
