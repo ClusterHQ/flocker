@@ -1609,6 +1609,9 @@ class CreateBlockDeviceDatasetTests(make_state_change_tests(_make_create)):
         )
 
 
+# FLOC-1617
+#
+# Move this to ``blockdevice.py``.  Write integration tests for it.
 def get_mounts():
     """
     :returns: A generator 3-tuple(device_path, mountpoint, filesystem_type) for

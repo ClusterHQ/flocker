@@ -809,13 +809,31 @@ class BlockDeviceDeployer(PRecord):
                 if v.host == self.hostname)
         }
 
+        # FLOC-1617
+        #
+        # Interrogate the platform for its mount state.  Get the ``get_mounts``
+        # helper from ``test_blockdevice.py``.
+
         paths = {}
         for manifestation in manifestations.values():
             dataset_id = manifestation.dataset.dataset_id
-            # TODO This assumes things are actually mounted.  Maybe they
-            # aren't.  FLOC-1498 and FLOC-1499 need correct information here.
-            # Probably other folks won't mind it either.
             mountpath = self._mountpath_for_manifestation(manifestation)
+            # FLOC-1617
+            #
+            # Compare mountpath with the mount state discovered above.  If the
+            # path is not actually mounted on the system, do not add a new item
+            # to ``paths`` and remove the corresponding dataset_id from
+            # ``manifestations`` (to avoid having a supposed manifestation with
+            # no actual mountpoint - useless).
+            #
+            # In the future it would be nice to be able to represent
+            # intermediate states (at least internally, if not exposed via the
+            # API).  This makes certain IStateChange implementations easier
+            # (for example, we could know something is attached and has a
+            # filesystem, so we can just mount it - instead of doing something
+            # about those first two state changes like trying them and handling
+            # failure or doing more system inspection to try to see what's up).
+            # But ... the future.
             paths[dataset_id] = mountpath
 
         state = NodeState(
