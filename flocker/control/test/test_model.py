@@ -15,7 +15,7 @@ from ...testtools import make_with_init_tests
 from .._model import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
-    NodeState, pset_field, pmap_field,
+    NodeState, pset_field, pmap_field, DeploymentState
 )
 
 
@@ -224,6 +224,24 @@ class NodeStateTests(SynchronousTestCase):
         """
         self.assertEqual(
             NodeState(hostname=u"1.2.3.4", applications=None).applications,
+            None)
+
+    def test_no_paths(self):
+        """
+        A ``NodeState`` may have ``paths`` set to ``None``, indicating
+        ignorance of the correct value.
+        """
+        self.assertEqual(
+            NodeState(hostname=u"1.2.3.4", paths=None).paths,
+            None)
+
+    def test_no_used_ports(self):
+        """
+        A ``NodeState`` may have ``used_ports`` set to ``None``, indicating
+        ignorance of the correct value.
+        """
+        self.assertEqual(
+            NodeState(hostname=u"1.2.3.4", used_ports=None).used_ports,
             None)
 
 
@@ -702,3 +720,68 @@ class PMapFieldTests(SynchronousTestCase):
         assert ((Record().value.__class__.__name__,
                  Record().value2.__class__.__name__) ==
                 ("SomethingAnotherPMap", "IntFloatPMap"))
+
+
+class DeploymentStateTests(SynchronousTestCase):
+    """
+    Tests for ``DeploymentState``.
+    """
+    def test_update_node_new(self):
+        """
+        When doing ``update_node()``, if the given ``NodeState`` has hostname
+        not in the existing ``DeploymentState`` then just add new
+        ``NodeState`` to new ``DeploymentState``.
+        """
+        dataset_id = unicode(uuid4())
+        manifestation = Manifestation(dataset=Dataset(dataset_id=dataset_id),
+                                      primary=True)
+        node = NodeState(
+            hostname=u"node1.example.com",
+            applications={Application(
+                name=u'postgresql-clusterhq',
+                image=DockerImage.from_string(u"image"))},
+            manifestations={dataset_id: manifestation})
+        another_node = NodeState(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
+        )
+        original = DeploymentState(nodes=[node])
+        updated = original.update_node(another_node)
+        self.assertEqual((original, updated),
+                         (DeploymentState(nodes=[node]),
+                          DeploymentState(nodes=[node, another_node])))
+
+    def test_update_node_replace(self):
+        """
+        When doing ``update_node()``, if the given ``NodeState`` has hostname
+        in existing ``DeploymentState`` node then update all non-``None``
+        attributes that ``NodeState`` in the new ``Deployment``.
+        """
+        dataset_id = unicode(uuid4())
+        manifestation = Manifestation(dataset=Dataset(dataset_id=dataset_id),
+                                      primary=True)
+        end_node = NodeState(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(
+                name=u'site-clusterhq.com',
+                image=DockerImage.from_string(u"image"))}),
+            used_ports=[1, 2],
+            paths={dataset_id: FilePath(b"/xxx")},
+            manifestations={dataset_id: manifestation})
+
+        update_applications = end_node.update(dict(
+            manifestations=None,
+            paths=None,
+        ))
+        update_manifestations = end_node.update(dict(
+            applications=None,
+            used_ports=None,
+        ))
+
+        original = DeploymentState(
+            nodes=[NodeState(hostname=u"node1.example.com")])
+        updated = original.update_node(update_applications).update_node(
+            update_manifestations)
+        self.assertEqual(updated, DeploymentState(nodes=[end_node]))
