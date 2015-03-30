@@ -1336,11 +1336,9 @@ class DestroyBlockDeviceDatasetTests(
 
     def verify_run_log(self, logger):
         # One action is logged
-        action = assertHasAction(
-            self, logger, DESTROY_BLOCK_DEVICE_DATASET, succeeded=True)
-        all_such_actions = LoggedAction.of_type(
-            logger.messages, DESTROY_BLOCK_DEVICE_DATASET)
-        self.assertEqual([action], all_such_actions)
+        [action] = LoggedAction.of_type(
+            logger.messages, DESTROY_BLOCK_DEVICE_DATASET
+        )
         # Child actions are logged
         [unmount] = LoggedAction.of_type(logger.messages, UNMOUNT_BLOCK_DEVICE)
         [detach] = LoggedAction.of_type(logger.messages, DETACH_VOLUME)
