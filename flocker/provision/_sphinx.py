@@ -71,6 +71,8 @@ class TaskDirective(Directive):
         task = getattr(tasks, 'task_%s' % (self.arguments[0],))
         prompt = self.options.get('prompt', '$')
         if len(self.arguments) > 1:
+            # Some tasks can include the latest installable version as (part
+            # of) an argument. This replaces a placeholder with that version.
             latest = get_installable_version(version)
             task_arguments = [item.replace(PLACEHOLDER, latest) for
                               item in self.arguments[1].split()]
