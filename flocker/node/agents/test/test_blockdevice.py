@@ -5,10 +5,12 @@ Tests for ``flocker.node.agents.blockdevice``.
 """
 
 import os
-from uuid import uuid4
+from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
 from zope.interface.verify import verifyObject
+
+from pyrsistent import InvariantException
 
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
@@ -261,7 +263,9 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[DestroyBlockDeviceDataset(volume=volume)]),
+            InParallel(changes=[
+                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
+            ]),
             changes
         )
 
@@ -1364,7 +1368,7 @@ def _make_destroy_dataset():
     ``make_state_change_tests``.
     """
     return DestroyBlockDeviceDataset(
-        volume=_ARBITRARY_VOLUME,
+        dataset_id=_ARBITRARY_VOLUME.dataset_id,
     )
 
 
@@ -1374,56 +1378,41 @@ class DestroyBlockDeviceDatasetTests(
     """
     Tests for ``DestroyBlockDeviceDataset``.
     """
-    def test_volume_required(self):
+    def test_dataset_id_required(self):
         """
-        If ``volume`` is not supplied when initializing
-        ``DestroyBlockDeviceDataset``, ``TypeError`` is raised.
+        If ``dataset_id`` is not supplied when initializing
+        ``DestroyBlockDeviceDataset``, ``InvariantException`` is raised.
         """
-        self.assertRaises(TypeError, DestroyBlockDeviceDataset)
+        self.assertRaises(InvariantException, DestroyBlockDeviceDataset)
 
-    def test_volume_must_be_volume(self):
+    def test_dataset_id_must_be_uuid(self):
         """
-        If the value given for ``volume`` is not an instance of
-        ``BlockDeviceVolume`` when initializing ``DestroyBlockDeviceDataset``,
-        ``TypeError`` is raised. (XXX wth pyrsistent, pick an exception type)
+        If the value given for ``dataset_id`` is not an instance of ``UUID``
+        when initializing ``DestroyBlockDeviceDataset``, ``TypeError`` is
+        raised.
         """
         self.assertRaises(
-            TypeError, DestroyBlockDeviceDataset, volume=object()
+            TypeError, DestroyBlockDeviceDataset, dataset_id=object()
         )
 
     def test_equal(self):
         """
         Two ``DestroyBlockDeviceDataset`` instances compare as equal if they
-        are initialized with the same volume.
+        are initialized with the same dataset identifier.
         """
-        dataset_id = uuid4()
-
-        def volume():
-            # Avoid using the same instance, just provide the same data.
-            return BlockDeviceVolume(
-                blockdevice_id=u"abcd",
-                size=REALISTIC_BLOCKDEVICE_SIZE,
-                dataset_id=dataset_id,
-            )
-        a = DestroyBlockDeviceDataset(volume=volume())
-        b = DestroyBlockDeviceDataset(volume=volume())
+        dataset_id = unicode(uuid4())
+        # Avoid using the same instance, just provide the same value.
+        a = DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
+        b = DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
         self.assertTrue(a == b)
 
     def test_not_equal(self):
         """
         Two ``DestroyBlockDeviceDataset`` instances compare as not equal if
-        they are initialized with different volumes.
+        they are initialized with different dataset identifiers.
         """
-        a = DestroyBlockDeviceDataset(volume=BlockDeviceVolume(
-            blockdevice_id=u"abcd",
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-            dataset_id=uuid4(),
-        ))
-        b = DestroyBlockDeviceDataset(volume=BlockDeviceVolume(
-            blockdevice_id=u"dcba",
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-            dataset_id=uuid4(),
-        ))
+        a = DestroyBlockDeviceDataset(dataset_id=uuid4())
+        b = DestroyBlockDeviceDataset(dataset_id=uuid4())
         self.assertTrue(a != b)
 
     def verify_run_log(self, logger):
@@ -1466,7 +1455,7 @@ class DestroyBlockDeviceDatasetTests(
             block_device_api=api,
             mountroot=mountroot,
         )
-        change = DestroyBlockDeviceDataset(volume=volume)
+        change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
         self.successResultOf(change.run(deployer))
 
         # It's only possible to destroy a volume that's been detached.  It's

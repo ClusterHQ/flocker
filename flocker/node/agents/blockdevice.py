@@ -14,13 +14,10 @@ from functools import wraps
 from eliot import ActionType, Field, Logger
 from eliot.serializers import identity
 
-from characteristic import with_cmp
-
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
 
-from twisted.python.components import proxyForInterface
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
@@ -129,7 +126,7 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
 
 DESTROY_BLOCK_DEVICE_DATASET = ActionType(
     u"agent:blockdevice:destroy",
-    [VOLUME],
+    [DATASET_ID],
     [],
     u"A block-device-backed dataset is being destroyed.",
 )
@@ -212,31 +209,34 @@ class BlockDeviceVolume(PRecord):
 # after FLOC-1591 makes it possible to have reasonable logging with such a
 # solution.
 @_logged_statechange
-@with_cmp(["change"])
-class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
+@implementer(IStateChange)
+class DestroyBlockDeviceDataset(PRecord):
     """
     Destroy the volume for a dataset with a primary manifestation on the node
     where this state change runs.
 
-    :ivar IStateChange change: The real implementation of this state change.
-    :ivar volume: See ``__init__``.
+    :ivar UUID dataset_id: The unique identifier of the dataset to which the
+        volume to be destroyed belongs.
     """
-    def __init__(self, volume):
-        """
-        :param BlockDeviceVolume volume: The volume which will be destroyed.
-        """
-        self.volume = volume
-        sequence = Sequentially(changes=[
-            UnmountBlockDevice(volume=volume),
-            DetachVolume(volume=volume),
-            DestroyVolume(volume=volume),
-        ])
-
-        super(DestroyBlockDeviceDataset, self).__init__(sequence)
+    dataset_id = field(type=UUID, mandatory=True)
 
     @property
     def _eliot_action(self):
-        return DESTROY_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
+        return DESTROY_BLOCK_DEVICE_DATASET(
+            _logger, dataset_id=self.dataset_id
+        )
+
+    def run(self, deployer):
+        for volume in deployer.block_device_api.list_volumes():
+            if volume.dataset_id == self.dataset_id:
+                return Sequentially(
+                    changes=[
+                        UnmountBlockDevice(volume=volume),
+                        DetachVolume(volume=volume),
+                        DestroyVolume(volume=volume),
+                    ]
+                ).run(deployer)
+        return succeed(None)
 
 
 def _volume():
@@ -887,12 +887,12 @@ class BlockDeviceDeployer(PRecord):
             for this node (like ``Node.manifestations``).
 
         :return: A ``list`` of ``DestroyBlockDeviceDataset`` instances for each
-            volume that needs to be destroyed based on the given
-            configuration and the actual state of volumes (ie which exist
-            and which don't).
+            volume that may need to be destroyed based on the given
+            configuration.  A ``DestroyBlockDeviceDataset`` is returned
+            even for volumes that don't exist (this is verify inefficient
+            but it can be fixed later when extant volumes are included in
+            cluster state).
         """
-        volumes = self.block_device_api.list_volumes()
-
         delete_dataset_ids = set(
             manifestation.dataset.dataset_id
             for manifestation in configured_manifestations.values()
@@ -900,8 +900,7 @@ class BlockDeviceDeployer(PRecord):
         )
 
         return [
-            DestroyBlockDeviceDataset(volume=volume)
-            for volume in volumes
-            # Only destroy volumes belonging to deleted datasets.
-            if unicode(volume.dataset_id) in delete_dataset_ids
+            DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
+            for dataset_id
+            in delete_dataset_ids
         ]
