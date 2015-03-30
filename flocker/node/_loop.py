@@ -283,9 +283,18 @@ class ConvergenceLoop(object):
             # XXX FLOC-1542 will need to deal with partial updates, and
             # make sure there is no duplication with code in
             # flocker.control._clusterstate.
+
+            # FLOC-1513
+            #
+            # Change this to call
+            # local_state.update_cluster_state(self.cluster_state) instead.
+            # This allows ``NodeState`` and ``VisibleClusterState`` to work.
             self.cluster_state = self.cluster_state.update_node(local_state)
             with LOG_SEND_TO_CONTROL_SERVICE(
                     self.fsm.logger, connection=self.client) as context:
+                # FLOC-1513
+                #
+                # Add the nonmanifest dataset_ids to this call.
                 self.client.callRemote(NodeStateCommand,
                                        node_state=local_state,
                                        eliot_context=context)
