@@ -8,14 +8,14 @@ from os import environ
 import socket
 
 from uuid import uuid4
-from json import dumps, loads
+from json import dumps
 
 from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
 from twisted.web.http import OK, CREATED
 
 from unittest import SkipTest
-from treq import get, post, content, delete, json_content
+from treq import get, post, delete, json_content
 from pyrsistent import PRecord, field, CheckedPVector
 
 from ..testtools import loop_until, random_name
