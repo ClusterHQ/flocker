@@ -3,9 +3,6 @@
 """
 Communication protocol between control service and convergence agent.
 
-THIS CODE IS INSECURE AND SHOULD NOT BE DEPLOYED IN ANY FORM UNTIL
-https://clusterhq.atlassian.net/browse/FLOC-1241 IS FIXED.
-
 The cluster is composed of a control service server, and convergence
 agents. The code below implicitly assumes convergence agents are
 node-specific, but that will likely change and involve additinal commands.
@@ -29,6 +26,7 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
 """
 
 from eliot import Logger, ActionType, Action, Field
+from eliot.twisted import DeferredContext
 
 from characteristic import with_cmp
 
@@ -229,16 +227,16 @@ class ControlAMPService(Service):
                                     configuration=configuration,
                                     state=state):
             for connection in connections:
-                with LOG_SEND_TO_AGENT(
-                        self.logger, agent=connection) as action:
-                    connection.callRemote(
+                action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
+                with action.context():
+                    d = DeferredContext(connection.callRemote(
                         ClusterStatusCommand,
                         configuration=configuration,
                         state=state,
                         eliot_context=action
-                    )
-                # Handle errors from callRemote by logging them
-                # https://clusterhq.atlassian.net/browse/FLOC-1311
+                    ))
+                    d.addActionFinish()
+                    d.result.addErrback(lambda _: None)
 
     def connected(self, connection):
         """

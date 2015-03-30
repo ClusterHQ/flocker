@@ -64,6 +64,26 @@ class ClusterStateServiceTests(SynchronousTestCase):
                                  MANIFESTATION.dataset_id: MANIFESTATION},
                          )]))
 
+    def test_partial_update(self):
+        """
+        An update that is ignorant about certain parts of a node's state only
+        updates the information it knows about.
+        """
+        service = self.service()
+        service.update_node_state(NodeState(hostname=u"host1",
+                                            applications=[APP1]))
+        service.update_node_state(NodeState(hostname=u"host1",
+                                            applications=None,
+                                            manifestations={
+                                                MANIFESTATION.dataset_id:
+                                                MANIFESTATION}))
+        self.assertEqual(service.as_deployment(),
+                         DeploymentState(nodes=[NodeState(
+                             hostname=u"host1",
+                             manifestations={
+                                 MANIFESTATION.dataset_id: MANIFESTATION},
+                             applications=[APP1])]))
+
     def test_update(self):
         """
         An update for previously given hostname overrides the previous state

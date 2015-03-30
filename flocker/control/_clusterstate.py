@@ -18,12 +18,11 @@ class ClusterStateService(Service):
     semantics of expiring data, which should happen so stale information
     isn't treated as correct.
 
-    https://clusterhq.atlassian.net/browse/FLOC-1542 will deal with
-    NodeState that has manifestations or application set to ``None``; for
-    now we assume all data is present in any given update.
+    :ivar DeploymentState _deployment_state: The current known cluster
+        state.
     """
     def __init__(self):
-        self._nodes = {}
+        self._deployment_state = DeploymentState()
 
     def update_node_state(self, node_state):
         """
@@ -34,7 +33,7 @@ class ClusterStateService(Service):
 
         :param NodeState node_state: The state of the node.
         """
-        self._nodes[node_state.hostname] = node_state
+        self._deployment_state = self._deployment_state.update_node(node_state)
 
     def manifestation_path(self, hostname, dataset_id):
         """
@@ -45,7 +44,9 @@ class ClusterStateService(Service):
 
         :return FilePath: The path where the manifestation exists.
         """
-        return self._nodes[hostname].paths[dataset_id]
+        [node] = (node for node in self._deployment_state.nodes
+                  if node.hostname == hostname)
+        return node.paths[dataset_id]
 
     def as_deployment(self):
         """
@@ -53,4 +54,4 @@ class ClusterStateService(Service):
 
         :return DeploymentState: Current state of the cluster.
         """
-        return DeploymentState(nodes=self._nodes.values())
+        return self._deployment_state
