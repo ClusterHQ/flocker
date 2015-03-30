@@ -341,25 +341,30 @@ class ConfigurationAPIUserV1(object):
         deployment = self.persistence_service.get()
 
         # Raises DATASET_NOT_FOUND if the ``dataset_id`` is not found.
-        primary_manifestation, origin_node = _find_manifestation_and_node(
+        primary_manifestation, current_node = _find_manifestation_and_node(
             deployment, dataset_id
         )
 
         if primary_manifestation.dataset.deleted:
             raise DATASET_DELETED
 
-        deployment = _update_dataset_primary(
-            primary, deployment, primary_manifestation, origin_node
-        )
+        if primary is not None:
+            deployment = _update_dataset_primary(
+                primary, deployment, primary_manifestation, current_node
+            )
 
         saving = self.persistence_service.save(deployment)
+
+        primary_manifestation, current_node = _find_manifestation_and_node(
+            deployment, dataset_id
+        )
 
         # Return an API response dictionary containing the dataset with updated
         # primary address.
         def saved(ignored):
             result = api_dataset_from_dataset_and_node(
                 primary_manifestation.dataset,
-                primary
+                current_node.hostname,
             )
             return EndpointResponse(OK, result)
         saving.addCallback(saved)
