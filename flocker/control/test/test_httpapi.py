@@ -1992,20 +1992,25 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         """
         unknown_dataset_id = unicode(uuid4())
         return self.assertResult(
-            b"POST",
-            b"/configuration/datasets/%s" % (
+            method=b"POST",
+            path=b"/configuration/datasets/%s" % (
                 unknown_dataset_id.encode('ascii'),),
-            {u'primary': self.NODE_A},
-            NOT_FOUND,
-            {u"description": u'Dataset not found.'})
+            request_body={u'primary': self.NODE_A},
+            expected_code=NOT_FOUND,
+            expected_result={u"description": u'Dataset not found.'}
+        )
 
-
-    def test_grow(self):
+    def assert_dataset_resize(self, original_size, new_size,
+                              expected_code=OK, expected_result=None):
         """
-        A dataset maximum_size can be increased.
         """
+        if expected_result is None:
+            expected_result = {
+                u'primary': self.NODE_A,
+                u'maximum_size': new_size
+            }
         expected_manifestation = _manifestation(
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+            maximum_size=original_size
         )
         current_primary_node = Node(
             hostname=self.NODE_A,
@@ -2017,30 +2022,45 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(deployment)
         def resize(result):
             return self.assertResult(
-                b"POST",
-                b"/configuration/datasets/%s" % (bytes(expected_manifestation.dataset_id),),
-                {u'primary': self.NODE_A, u'maximum_size': REALISTIC_BLOCKDEVICE_SIZE * 2},
-                OK,
-                {u''}
+                method=b"POST",
+                path=b"/configuration/datasets/%s" % (
+                    bytes(expected_manifestation.dataset_id),
+                ),
+                request_body={u'maximum_size': new_size},
+                expected_code=OK,
+                expected_result=expected_result,
             )
         return saving.addCallback(resize)
+
+    def test_grow(self):
+        """
+        A dataset maximum_size can be increased.
+        """
+        self.assert_dataset_resize(
+            original_size=REALISTIC_BLOCKDEVICE_SIZE,
+            new_size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
 
     def test_shrink(self):
         """
         A dataset maximum_size can be decreased.
         """
-        1/0
+        self.assert_dataset_resize(
+            original_size=REALISTIC_BLOCKDEVICE_SIZE * 2,
+            new_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
 
     def test_too_small(self):
         """
         A dataset must be at least 67108864 bytes.
         """
-        # What is the general HTTP code when input is invalid?
-        # Maybe create another issue to document the input validation and the expected failure response.
-        # But should we return something more specific in this case?
-        # I looked for some precedent in :
-        # * http://doc-dev.clusterhq.com/advanced/api.html#post--v1-configuration-datasets
-        1/0
+        self.assert_dataset_resize(
+            original_size=67108864,
+            new_size=67108864-1,
+            expected_code=NOT_FOUND,
+            expected_result={}
+        )
+
 
 RealTestsUpdateSizeDataset, MemoryTestsUpdateSizeDataset = (
     buildIntegrationTests(
