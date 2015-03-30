@@ -167,7 +167,7 @@ class ConfigurationAPIUserV1(object):
     )
     @structured(
         inputSchema={'$ref':
-                     '/v1/endpoints.json#/definitions/configuration_dataset'},
+                     '/v1/endpoints.json#/definitions/configuration_dataset_primary'},
         outputSchema={'$ref':
                       '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
