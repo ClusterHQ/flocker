@@ -2973,6 +2973,9 @@ class ContainerStateTestsMixin(APITestsMixin):
         When the cluster state includes one container that has a dataset with
         a maximum size, the endpoint returns a single-element list
         containing the container.
+
+        This is a regression test for a bug involving incorrect output in
+        this case that violated the JSON schema.
         """
         manifestation = Manifestation(
             dataset=Dataset(dataset_id=unicode(uuid4()),
