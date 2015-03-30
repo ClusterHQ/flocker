@@ -161,51 +161,57 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
     Tests for ``BlockDeviceDeployer.calculate_necessary_state_changes``
     in the cases relating to dataset destruction.
     """
+    DATASET_ID = uuid4()
+    NODE = u"192.0.2.1"
+
+    # The state of a single node which has a single primary manifestation for a
+    # dataset.  Common starting point for several of the test scenarios.
+    ONE_DATASET_STATE = NodeState(
+        hostname=NODE,
+        manifestations={
+            Manifestation(
+                dataset=Dataset(
+                    dataset_id=unicode(DATASET_ID),
+                ),
+                primary=True,
+            ),
+        },
+        paths={
+            unicode(DATASET_ID):
+            FilePath(b"/flocker/").child(bytes(DATASET_ID)),
+        },
+    )
+
     def test_undeleted_dataset_not_deleted(self):
         """
         ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
         calculate a change to destroy datasets that are not marked as deleted
         in the configuration.
         """
-        dataset_id = uuid4()
-        node = u"192.0.2.1"
-        local_state = NodeState(
-            hostname=node,
-            manifestations={
-                Manifestation(
-                    dataset=Dataset(
-                        dataset_id=unicode(dataset_id),
-                    ),
-                    primary=True,
-                ),
-            },
-            paths={
-                unicode(dataset_id):
-                FilePath(b"/flocker/").child(bytes(dataset_id)),
-            },
-        )
+        local_state = self.ONE_DATASET_STATE
+        local_config = local_state.to_node()
+
         cluster_state = Deployment(
-            nodes={local_state.to_node()}
+            nodes={local_config}
         )
 
-        local_config = local_state.to_node()
         cluster_configuration = Deployment(
             nodes={local_config}
         )
 
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=self.DATASET_ID, size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        api.attach_volume(volume.blockdevice_id, node)
+        api.attach_volume(volume.blockdevice_id, self.NODE)
 
         deployer = BlockDeviceDeployer(
-            hostname=node,
+            hostname=self.NODE,
             block_device_api=api,
         )
 
         changes = deployer.calculate_necessary_state_changes(
-            local_state=local_state,
+            local_state=self.ONE_DATASET_STATE,
             desired_configuration=cluster_configuration,
             current_cluster_state=cluster_state,
         )
@@ -224,29 +230,14 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         returns a ``DestroyBlockDeviceDataset`` state change
         operation.
         """
-        dataset_id = uuid4()
-        node = u"192.0.2.1"
-        local_state = NodeState(
-            hostname=node,
-            manifestations={
-                Manifestation(
-                    dataset=Dataset(
-                        dataset_id=unicode(dataset_id),
-                    ),
-                    primary=True,
-                ),
-            },
-            paths={
-                unicode(dataset_id):
-                FilePath(b"/flocker/").child(bytes(dataset_id)),
-            },
-        )
+        local_state = self.ONE_DATASET_STATE
         cluster_state = Deployment(
             nodes={local_state.to_node()}
         )
 
         local_config = local_state.to_node().transform(
-            ["manifestations", unicode(dataset_id), "dataset", "deleted"], True
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
         )
         cluster_configuration = Deployment(
             nodes={local_config}
@@ -254,12 +245,12 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
 
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=self.DATASET_ID, size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        volume = api.attach_volume(volume.blockdevice_id, node)
+        volume = api.attach_volume(volume.blockdevice_id, self.NODE)
 
         deployer = BlockDeviceDeployer(
-            hostname=node,
+            hostname=self.NODE,
             block_device_api=api,
         )
 
@@ -282,25 +273,15 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
         return a ``DestroyBlockDeviceDataset`` for that dataset.
         """
-        dataset_id = uuid4()
-        node = u"192.0.2.1"
-        local_config = Node(
-            hostname=node,
-            manifestations={
-                unicode(dataset_id): Manifestation(
-                    dataset=Dataset(
-                        dataset_id=unicode(dataset_id),
-                        deleted=True,
-                    ),
-                    primary=True,
-                ),
-            },
+        local_config = self.ONE_DATASET_STATE.to_node().transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
         )
         cluster_configuration = Deployment(
             nodes={local_config}
         )
 
-        local_state = Node(hostname=node)
+        local_state = Node(hostname=self.NODE)
         cluster_state = Deployment(
             nodes={local_state},
         )
@@ -308,7 +289,7 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         api = loopbackblockdeviceapi_for_test(self)
 
         deployer = BlockDeviceDeployer(
-            hostname=node,
+            hostname=self.NODE,
             block_device_api=api,
         )
 
@@ -330,30 +311,15 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
         different node does not return a ``DestroyBlockDeviceDataset`` from its
         ``calculate_necessary_state_changes`` for that dataset.
         """
-        dataset_id = uuid4()
-        node = u"192.0.2.1"
         other_node = u"192.0.2.2"
-        local_state = NodeState(
-            hostname=node,
-            manifestations={
-                Manifestation(
-                    dataset=Dataset(
-                        dataset_id=unicode(dataset_id),
-                    ),
-                    primary=True,
-                ),
-            },
-            paths={
-                unicode(dataset_id):
-                FilePath(b"/flocker/").child(bytes(dataset_id)),
-            },
-        )
+        local_state = self.ONE_DATASET_STATE
         cluster_state = Deployment(
             nodes={local_state.to_node()}
         )
 
         local_config = local_state.to_node().transform(
-            ["manifestations", unicode(dataset_id), "dataset", "deleted"], True
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
         )
         cluster_configuration = Deployment(
             nodes={local_config}
@@ -361,9 +327,9 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
 
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=self.DATASET_ID, size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        api.attach_volume(volume.blockdevice_id, node)
+        api.attach_volume(volume.blockdevice_id, self.NODE)
 
         deployer = BlockDeviceDeployer(
             # This deployer is responsible for *other_node*, not node.
