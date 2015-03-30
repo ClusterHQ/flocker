@@ -22,9 +22,9 @@ from .._loop import (
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
     ClusterStatus, ConvergenceLoop, LOG_SEND_TO_CONTROL_SERVICE
     )
-from ..testtools import ControllableDeployer, ControllableAction
+from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
-    NodeState, Deployment, Node, Manifestation, Dataset, DeploymentState,
+    NodeState, Deployment, Manifestation, Dataset, DeploymentState,
 )
 from ...control._protocol import NodeStateCommand, _AgentLocator, AgentAMP
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
@@ -37,18 +37,6 @@ def build_protocol():
     p = Protocol()
     p.makeConnection(StringTransport())
     return p
-
-
-def to_node(node_state):
-    """
-    Convert a ``NodeState`` to a corresponding ``Node``.
-
-    :param NodeState node_state: Object to convert.
-    :return Node: Equivalent node.
-    """
-    return Node(hostname=node_state.hostname,
-                applications=node_state.applications,
-                manifestations=node_state.manifestations)
 
 
 class StubFSM(object):
