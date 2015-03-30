@@ -705,6 +705,15 @@ def _find_manifestation_and_node(deployment, dataset_id):
 
 def _update_dataset_primary(deployment, dataset_id, primary):
     """
+    Update the ``deployment`` so that the ``Dataset`` with the supplied
+    ``dataset_id`` is on the ``Node`` with the supplied ``primary`` address.
+
+    :param Deployment deployment: The deployment containing the dataset to be
+        updated.
+    :param unicode dataset_id: The ID of the dataset to be updated.
+    :param unicode primary: The IP address of the new primary node of the
+        supplied ``dataset_id``.
+    :returns: An updated ``Deployment``.
     """
     primary_manifestation, old_primary_node = _find_manifestation_and_node(
         deployment, dataset_id
@@ -742,13 +751,14 @@ def _update_dataset_primary(deployment, dataset_id, primary):
 
 def _update_dataset_maximum_size(deployment, dataset_id, maximum_size):
     """
+    Update the ``deployment`` so that the ``Dataset`` with the supplied
+    ``dataset_id`` has the supplied ``maximum_size``.
+
     :param Deployment deployment: The deployment containing the dataset to be
         updated.
     :param unicode dataset_id: The ID of the dataset to be updated.
     :param int maximum_size: The new size, in bytes, of the dataset.
-    :returns: A ``Deployment`` where the ``Manifestation`` of the
-        ``Dataset`` with the supplied ``dataset_id`` has an updated
-        ``maximum_size``.
+    :returns: An updated ``Deployment``.
     """
     manifestation, node = _find_manifestation_and_node(deployment, dataset_id)
     deployment = deployment.transform(['nodes'], lambda s: s.remove(node))
