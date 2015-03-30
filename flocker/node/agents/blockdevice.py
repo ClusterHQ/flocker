@@ -162,11 +162,11 @@ def _logged_statechange(cls):
     logging.
 
     :param cls: An ``IStateChange`` implementation which also has an
-        ``_action`` attribute giving an Eliot action that should be used to log
-        its ``run`` method.
+        ``_eliot_action`` attribute giving an Eliot action that should be used
+        to log its ``run`` method.
 
     :return: ``cls``, mutated so that its ``run`` method is automatically run
-        in the context of its ``_action``.
+        in the context of its ``_eliot_action``.
     """
     original_run = cls.run
     # Work-around https://twistedmatrix.com/trac/ticket/7832
@@ -177,7 +177,7 @@ def _logged_statechange(cls):
 
     @wraps(original_run)
     def run(self, deployer):
-        with self._action:
+        with self._eliot_action:
             # IStateChange.run nominally returns a Deferred.  Hook it up to the
             # action properly.  Do this as part of FLOC-1549 or maybe earlier.
             return original_run(self, deployer)
@@ -226,7 +226,7 @@ class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
         super(DestroyBlockDeviceDataset, self).__init__(sequence)
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         return DESTROY_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
 
 
@@ -256,7 +256,7 @@ class UnmountBlockDevice(PRecord):
     volume = _volume()
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         return UNMOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
 
     def run(self, deployer):
@@ -285,7 +285,7 @@ class DetachVolume(PRecord):
     volume = _volume()
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         return DETACH_VOLUME(_logger, volume=self.volume)
 
     def run(self, deployer):
@@ -309,7 +309,7 @@ class DestroyVolume(PRecord):
     volume = _volume()
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         return DESTROY_VOLUME(_logger, volume=self.volume)
 
     def run(self, deployer):
