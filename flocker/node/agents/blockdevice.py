@@ -458,8 +458,7 @@ class IBlockDeviceAPI(Interface):
             exist.
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to anything.
-        :returns: A ``BlockDeviceVolume`` with a ``host`` attribute set to
-            ``None``.
+        :returns: ``None``
         """
 
     def list_volumes():
@@ -723,7 +722,6 @@ class LoopbackBlockDeviceAPI(object):
             volume.blockdevice_id.encode("ascii")
         )
         volume_path.moveTo(new_path)
-        return volume.set(host=None)
 
     def list_volumes(self):
         """

@@ -982,17 +982,11 @@ class IBlockDeviceAPITestsMixin(object):
 
         attached_error = fail_mount(device_path)
 
-        detached = self.api.detach_volume(volume.blockdevice_id)
+        self.api.detach_volume(volume.blockdevice_id)
 
-        expected = (
-            # unchanged unrelated volume, detached version of the target volume
-            {unrelated, volume.set(host=None)},
-            # detached version of the target volume
-            volume.set(host=None),
-        )
         self.assertEqual(
-            expected,
-            (set(self.api.list_volumes()), detached)
+            {unrelated, volume.set(host=None)},
+            set(self.api.list_volumes())
         )
 
         detached_error = fail_mount(device_path)
@@ -1018,7 +1012,7 @@ class IBlockDeviceAPITestsMixin(object):
         attached_volume = self.api.attach_volume(
             volume.blockdevice_id, node
         )
-        volume = self.api.detach_volume(volume.blockdevice_id)
+        self.api.detach_volume(volume.blockdevice_id)
         reattached_volume = self.api.attach_volume(
             volume.blockdevice_id, node
         )
