@@ -1951,45 +1951,6 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         saving.addCallback(saved)
         return saving
 
-    def test_no_primary(self):
-        """
-        An update request without a primary address is allowed.
-        """
-        expected_manifestation = _manifestation()
-        node_a = Node(
-            hostname=self.NODE_A,
-            applications=frozenset(),
-            manifestations={expected_manifestation.dataset_id:
-                            expected_manifestation},
-        )
-        deployment = Deployment(nodes=frozenset([node_a]))
-        saving = self.persistence_service.save(deployment)
-
-        def saved(ignored):
-            creating = self.assertResponseCode(
-                b"POST",
-                b"/configuration/datasets/%s" % (
-                    expected_manifestation.dataset.dataset_id.encode('ascii')
-                ),
-                {},
-                OK,
-            )
-            return creating
-        saving.addCallback(saved)
-        return saving
-    test_no_primary.todo = (
-        'It should be possible to submit a dataset update request without a '
-        'primary address, but the input schema currently requires the primary '
-        'attribute. This will need to be addressed before or as part of '
-        'https://clusterhq.atlassian.net/browse/FLOC-1404'
-        # Consider fixing this issue before implementing the resize API changes.
-    )
-
-    def test_no_primary(self):
-        """
-        An update request without a primary address is allowed.
-        """
-
 
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
     buildIntegrationTests(
