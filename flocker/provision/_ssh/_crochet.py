@@ -25,4 +25,4 @@ dispatcher = ComposedDispatcher([
     conch_dispatcher,
     make_twisted_dispatcher(reactor),
     dispatcher,
-]),
+])
