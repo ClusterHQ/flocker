@@ -115,6 +115,7 @@ run = run_with_fabric
 
 def task_test_homebrew(recipe_url):
     return [
+        Run.from_args(['brew', 'tap', 'ClusterHQ/tap']),
         Run(command="brew update"),
         Run(command="brew install {url}".format(url=recipe_url)),
         Run(command="brew test {url}".format(url=recipe_url)),
