@@ -16,7 +16,7 @@ from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
-from eliot.testing import validate_logging, LoggedAction, assertHasAction
+from eliot.testing import validate_logging, LoggedAction
 
 from .. import blockdevice
 
