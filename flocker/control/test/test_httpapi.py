@@ -2022,14 +2022,19 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
                               expected_code=OK, expected_result=None):
         """
         """
-        if expected_result is None:
-            expected_result = {
-                u'primary': self.NODE_A,
-                u'maximum_size': new_size
-            }
         expected_manifestation = _manifestation(
             maximum_size=original_size
         )
+
+        if expected_result is None:
+            expected_result = {
+                u'dataset_id': expected_manifestation.dataset_id,
+                u'primary': self.NODE_A,
+                u'deleted': False,
+                u'metadata': {},
+                u'maximum_size': new_size,
+            }
+
         current_primary_node = Node(
             hostname=self.NODE_A,
             applications=[],
