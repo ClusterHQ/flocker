@@ -2050,7 +2050,7 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
                     bytes(expected_manifestation.dataset_id),
                 ),
                 request_body={u'maximum_size': new_size},
-                expected_code=OK,
+                expected_code=expected_code,
                 expected_result=expected_result,
             )
         return saving.addCallback(resize)
@@ -2080,8 +2080,11 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         self.assert_dataset_resize(
             original_size=67108864,
             new_size=67108864-1,
-            expected_code=NOT_FOUND,
-            expected_result={}
+            expected_code=BAD_REQUEST,
+            expected_result={
+                u'description': u"The provided JSON doesn't match the required schema.",
+                u'errors': [u'67108863 is less than the minimum of 67108864']
+            }
         )
 
 
