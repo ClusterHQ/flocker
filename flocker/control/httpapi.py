@@ -738,10 +738,10 @@ def _update_dataset_primary(primary, deployment, primary_manifestation, origin_n
 
 def _update_dataset_maximum_size(deployment, dataset_id, maximum_size):
     """
-    XXX: Is there any error checking to be done here? We say different
-    backends may or may not support resizing, so can we report that to the
-    API user up front?
-
+    :param Deployment deployment: The deployment containing the dataset to be
+        updated.
+    :param unicode dataset_id: The ID of the dataset to be updated.
+    :param int maximum_size: The new size, in bytes, of the dataset.
     :returns: A ``Deployment`` where the ``Manifestation`` of the
         ``Dataset`` with the supplied ``dataset_id`` has an updated
         ``maximum_size``.
