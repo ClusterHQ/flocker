@@ -2021,6 +2021,27 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
     def assert_dataset_resize(self, original_size, new_size,
                               expected_code=OK, expected_result=None):
         """
+        Check that a request to resize a dataset results in an `OK` response
+        and that the returned dataset has the expected new size.
+
+        This function first creates and persists a deployment containing a
+        dataset with ``original_size``.  It then issues a dataset update
+        request for that dataset with ``new_size`` and checks that the the
+        response code is ``expected_code`` and that the decoded response body
+        is ``expected_result``.
+
+        ``expected_code`` and ``expected_result`` can be overridden to test
+        cases where the supplied ``new_size`` is invalid.
+
+        :param int original_size: The initial size in bytes of the dataset.
+        :param int new_size: The new size in bytes of the dataset.
+        :param int expected_code: The HTTP status code that is expected in the
+            response.
+        :param dict expected_result: The dictionary of dataset attributes that
+            is expected in the response body.
+
+        :returns: A ``Deferred`` which fires when all assertions have been
+            performed on the result of the dataset update request.
         """
         expected_manifestation = _manifestation(
             maximum_size=original_size
