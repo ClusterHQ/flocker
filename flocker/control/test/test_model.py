@@ -836,4 +836,3 @@ class DeploymentStateTests(SynchronousTestCase):
                           DeploymentState,
                           nonmanifest_datasets={u"123": MANIFESTATION.dataset})
 
-
