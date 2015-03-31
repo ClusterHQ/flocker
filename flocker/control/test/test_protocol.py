@@ -380,7 +380,7 @@ class ControlAMPServiceTests(ControlTestCase):
                 (ClusterStatusCommand,),
                 dict(
                     configuration=TEST_DEPLOYMENT,
-                    state=Deployment(nodes=frozenset())
+                    state=DeploymentState(),
                 )
             )
         )
