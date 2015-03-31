@@ -207,3 +207,9 @@ definitions:
     minimum: 67108864
     # This is how you require integers, of course.
     divisibleBy: 1
+
+  running:
+    title: "Running"
+    description: |
+      Whether or not the container is currently running.
+    type: boolean

@@ -4,7 +4,6 @@
 Functional tests for ``flocker.node._deploy``.
 """
 
-from subprocess import check_call
 from uuid import uuid4
 
 from pyrsistent import pmap
@@ -19,7 +18,8 @@ from ...control._model import (
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
-    random_name, DockerImageBuilder, assertContainsAll, loop_until)
+    random_name, DockerImageBuilder, assertContainsAll, loop_until,
+    run_process)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 
@@ -58,8 +58,8 @@ class DeployerTests(TestCase):
 
         def started(_):
             # Now that it's running, stop it behind our back:
-            check_call([b"docker", b"stop",
-                        docker_client._to_container_name(name)])
+            run_process([b"docker", b"stop",
+                         docker_client._to_container_name(name)])
             return wait_for_unit_state(docker_client, name,
                                        [u'inactive', u'failed'])
         d.addCallback(started)

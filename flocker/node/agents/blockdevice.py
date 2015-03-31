@@ -14,13 +14,10 @@ from functools import wraps
 from eliot import ActionType, Field, Logger
 from eliot.serializers import identity
 
-from characteristic import with_cmp
-
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
 
-from twisted.python.components import proxyForInterface
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
@@ -129,7 +126,7 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
 
 DESTROY_BLOCK_DEVICE_DATASET = ActionType(
     u"agent:blockdevice:destroy",
-    [VOLUME],
+    [DATASET_ID],
     [],
     u"A block-device-backed dataset is being destroyed.",
 )
@@ -162,11 +159,11 @@ def _logged_statechange(cls):
     logging.
 
     :param cls: An ``IStateChange`` implementation which also has an
-        ``_action`` attribute giving an Eliot action that should be used to log
-        its ``run`` method.
+        ``_eliot_action`` attribute giving an Eliot action that should be used
+        to log its ``run`` method.
 
     :return: ``cls``, mutated so that its ``run`` method is automatically run
-        in the context of its ``_action``.
+        in the context of its ``_eliot_action``.
     """
     original_run = cls.run
     # Work-around https://twistedmatrix.com/trac/ticket/7832
@@ -177,7 +174,7 @@ def _logged_statechange(cls):
 
     @wraps(original_run)
     def run(self, deployer):
-        with self._action:
+        with self._eliot_action:
             # IStateChange.run nominally returns a Deferred.  Hook it up to the
             # action properly.  Do this as part of FLOC-1549 or maybe earlier.
             return original_run(self, deployer)
@@ -190,7 +187,10 @@ class BlockDeviceVolume(PRecord):
     """
     A block device that may be attached to a host.
 
-    :ivar unicode blockdevice_id: The unique identifier of the block device.
+    :ivar unicode blockdevice_id: An identifier for the block device which is
+        unique across the entire cluster.  For example, an EBS volume
+        identifier (``vol-4282672b``).  This is used to address the block
+        device for operations like attach and detach.
     :ivar int size: The size, in bytes, of the block device.
     :ivar unicode host: The IP address of the host to which the block device is
         attached or ``None`` if it is currently unattached.
@@ -202,38 +202,46 @@ class BlockDeviceVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
 
 
+# Replace this with a simpler factory-function based API like:
+#
+#     change = destroy_blockdevice_dataset(volme)
+#
+# after FLOC-1591 makes it possible to have reasonable logging with such a
+# solution.
 @_logged_statechange
-@with_cmp(["change"])
-class DestroyBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
+@implementer(IStateChange)
+class DestroyBlockDeviceDataset(PRecord):
     """
     Destroy the volume for a dataset with a primary manifestation on the node
     where this state change runs.
 
-    :ivar IStateChange change: The real implementation of this state change.
-    :ivar volume: See ``__init__``.
+    :ivar UUID dataset_id: The unique identifier of the dataset to which the
+        volume to be destroyed belongs.
     """
-    def __init__(self, volume):
-        """
-        :param BlockDeviceVolume volume: The volume which will be destroyed.
-        """
-        self.volume = volume
-        sequence = Sequentially(changes=[
-            UnmountBlockDevice(volume=volume),
-            DetachVolume(volume=volume),
-            DestroyVolume(volume=volume),
-        ])
-
-        super(DestroyBlockDeviceDataset, self).__init__(sequence)
+    dataset_id = field(type=UUID, mandatory=True)
 
     @property
-    def _action(self):
-        return DESTROY_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
+    def _eliot_action(self):
+        return DESTROY_BLOCK_DEVICE_DATASET(
+            _logger, dataset_id=self.dataset_id
+        )
+
+    def run(self, deployer):
+        for volume in deployer.block_device_api.list_volumes():
+            if volume.dataset_id == self.dataset_id:
+                return Sequentially(
+                    changes=[
+                        UnmountBlockDevice(volume=volume),
+                        DetachVolume(volume=volume),
+                        DestroyVolume(volume=volume),
+                    ]
+                ).run(deployer)
+        return succeed(None)
 
 
 def _volume():
     """
-    Create and return a ``PRecord`` ``field`` for to hold a
-    ``BlockDeviceVolume``.
+    Create and return a ``PRecord`` ``field`` to hold a ``BlockDeviceVolume``.
     """
     return field(
         type=BlockDeviceVolume, mandatory=True,
@@ -257,7 +265,7 @@ class UnmountBlockDevice(PRecord):
     volume = _volume()
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         return UNMOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
 
     def run(self, deployer):
@@ -286,7 +294,7 @@ class DetachVolume(PRecord):
     volume = _volume()
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         return DETACH_VOLUME(_logger, volume=self.volume)
 
     def run(self, deployer):
@@ -310,15 +318,14 @@ class DestroyVolume(PRecord):
     volume = _volume()
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         return DESTROY_VOLUME(_logger, volume=self.volume)
 
     def run(self, deployer):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
-        # Make this asynchronous after FLOC-1549, probably as part of
-        # FLOC-1582.
+        # Make this asynchronous as part of FLOC-1549.
         deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
         return succeed(None)
 
@@ -451,8 +458,7 @@ class IBlockDeviceAPI(Interface):
             exist.
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to anything.
-        :returns: A ``BlockDeviceVolume`` with a ``host`` attribute set to
-            ``None``.
+        :returns: ``None``
         """
 
     def list_volumes():
@@ -716,7 +722,6 @@ class LoopbackBlockDeviceAPI(object):
             volume.blockdevice_id.encode("ascii")
         )
         volume_path.moveTo(new_path)
-        return volume.set(host=None)
 
     def list_volumes(self):
         """
@@ -798,12 +803,14 @@ class BlockDeviceDeployer(PRecord):
         """
         volumes = self.block_device_api.list_volumes()
 
-        manifestations = [_manifestation_from_volume(v)
-                          for v in volumes
-                          if v.host == self.hostname]
+        manifestations = {
+            m.dataset_id: m for m in (
+                _manifestation_from_volume(v) for v in volumes
+                if v.host == self.hostname)
+        }
 
         paths = {}
-        for manifestation in manifestations:
+        for manifestation in manifestations.values():
             dataset_id = manifestation.dataset.dataset_id
             # TODO This assumes things are actually mounted.  Maybe they
             # aren't.  FLOC-1498 and FLOC-1499 need correct information here.
@@ -850,10 +857,7 @@ class BlockDeviceDeployer(PRecord):
             if not manifestation.dataset.deleted
         )
 
-        local_dataset_ids = set(
-            manifestation.dataset.dataset_id for manifestation in
-            local_state.manifestations
-        )
+        local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set(
             configured_manifestations[dataset_id]
@@ -882,12 +886,12 @@ class BlockDeviceDeployer(PRecord):
             for this node (like ``Node.manifestations``).
 
         :return: A ``list`` of ``DestroyBlockDeviceDataset`` instances for each
-            volume that needs to be destroyed based on the given
-            configuration and the actual state of volumes (ie which exist
-            and which don't).
+            volume that may need to be destroyed based on the given
+            configuration.  A ``DestroyBlockDeviceDataset`` is returned
+            even for volumes that don't exist (this is verify inefficient
+            but it can be fixed later when extant volumes are included in
+            cluster state - see FLOC-1616).
         """
-        volumes = self.block_device_api.list_volumes()
-
         delete_dataset_ids = set(
             manifestation.dataset.dataset_id
             for manifestation in configured_manifestations.values()
@@ -895,8 +899,7 @@ class BlockDeviceDeployer(PRecord):
         )
 
         return [
-            DestroyBlockDeviceDataset(volume=volume)
-            for volume in volumes
-            # Only destroy volumes belonging to deleted datasets.
-            if unicode(volume.dataset_id) in delete_dataset_ids
+            DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
+            for dataset_id
+            in delete_dataset_ids
         ]

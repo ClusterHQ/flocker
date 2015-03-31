@@ -374,6 +374,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
+      cd ~/flocker-${VERSION}
       admin/publish-docs --production
 
 #. Submit the release pull request for review again.
@@ -411,25 +412,7 @@ Post-Release Review Process
 
      XXX: This step should be automated. See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
 
-   * The node package (``flocker-node``) should be installed on all supported platforms.
-     You can use vagrant to boot a clean Fedora 20 machine as follows:
-
-     .. prompt:: bash $
-
-        mkdir /tmp/fedora20
-        cd /tmp/fedora20
-        vagrant init clusterhq/fedora20-updated
-        vagrant up
-        vagrant ssh
-
-     Follow the :ref:`Flocker node installation documentation<installing-flocker-node>`.
-
-     XXX: These steps should be automated. See (
-     `FLOC-965 <https://clusterhq.atlassian.net/browse/FLOC-965>`_,
-     `FLOC-957 <https://clusterhq.atlassian.net/browse/FLOC-957>`_,
-     `FLOC-958 <https://clusterhq.atlassian.net/browse/FLOC-958>`_
-     ).
-
+   * The node package (``flocker-node``) should be installed and tested on all supported platforms.
    * Follow the :doc:`../../indepth/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
    * Follow the :doc:`ELK example documentation<../../indepth/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 

@@ -421,12 +421,44 @@ class ConfigurationAPIUserV1(object):
     )
     def get_containers_configuration(self):
         """
-        Get the configured datasets.
+        Get the configured containers.
 
         :return: A ``list`` of ``dict`` representing each of the containers
             that are configured to exist anywhere on the cluster.
         """
         return list(containers_from_deployment(self.persistence_service.get()))
+
+    @app.route("/state/containers", methods=['GET'])
+    @user_documentation(
+        """
+        Get the cluster's actual containers.
+        """,
+        examples=[u"get actual containers"],
+    )
+    @structured(
+        inputSchema={},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/state_containers_array',
+        },
+        schema_store=SCHEMAS,
+    )
+    def get_containers_state(self):
+        """
+        Get the containers present in the cluster.
+
+        :return: A ``list`` of ``dict`` representing each of the containers
+            that are configured to exist anywhere on the cluster.
+        """
+        result = []
+        deployment = self.cluster_state_service.as_deployment()
+        for node in deployment.nodes:
+            for application in node.applications:
+                container = container_configuration_response(
+                    application, node.hostname)
+                container[u"running"] = application.running
+                result.append(container)
+        return result
 
     def _get_attached_volume(self, host, volume):
         """
@@ -625,13 +657,71 @@ class ConfigurationAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
+    @app.route("/configuration/containers/<name>", methods=['POST'])
+    @user_documentation(
+        """
+        Update a named container's configuration.
+
+        This will lead to the container being relocated to the specified host
+        and restarted. This will also update the primary host of any attached
+        datasets.
+        """,
+        examples=[u"move container"],
+    )
+    @structured(
+        inputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_container_update',
+        },
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_container',
+        },
+        schema_store=SCHEMAS,
+    )
+    def update_containers_configuration(self, name, host):
+        """
+        Update the specified container's configuration.
+
+        :param unicode name: A unique identifier for the container within
+            the Flocker cluster.
+
+        :param unicode host: The address of the node on which the container
+            will run.
+
+        :return: An ``EndpointResponse`` describing the container which has
+            been updated.
+        """
+        deployment = self.persistence_service.get()
+        target_node = self._find_node_by_host(host, deployment)
+        for node in deployment.nodes:
+            for application in node.applications:
+                if application.name == name:
+                    deployment = deployment.move_application(
+                        application, target_node
+                    )
+                    saving = self.persistence_service.save(deployment)
+
+                    def saved(_):
+                        result = container_configuration_response(
+                            application, host
+                        )
+                        return EndpointResponse(OK, result)
+
+                    saving.addCallback(saved)
+                    return saving
+
+        # Didn't find the application:
+        raise CONTAINER_NOT_FOUND
+
     @app.route("/configuration/containers/<name>", methods=['DELETE'])
     @user_documentation(
         """
         Remove a container from the configuration.
 
         This will lead to the container being stopped and not being
-        restarted again.
+        restarted again. Any datasets that were attached as volumes will
+        continue to exist on the cluster.
         """,
         examples=[
             u"remove a container",
@@ -839,7 +929,10 @@ def container_configuration_response(application, node):
     result.update(ApplicationMarshaller(application).convert())
     # Configuration format isn't quite the same as JSON format:
     if u"volume" in result:
-        result[u"volumes"] = [result.pop(u"volume")]
+        # Config format includes maximum_size, which we don't want:
+        volume = result.pop(u"volume")
+        result[u"volumes"] = [{u"dataset_id": volume[u"dataset_id"],
+                               u"mountpoint": volume[u"mountpoint"]}]
     if application.cpu_shares is not None:
         result["cpu_shares"] = application.cpu_shares
     if application.memory_limit is not None:
