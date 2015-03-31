@@ -440,6 +440,12 @@ class P2PNodeDeployer(object):
         :returns: A ``Deferred`` which fires with a ``NodeState``
             instance.
         """
+        # FLOC-1513
+        #
+        # Does not require changes.  NodeState already implements the necessary
+        # interface (not formally).  There is no information about nonmanifest
+        # datasets to produce here.
+
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
         # strip the namespace since there will only ever be one.

@@ -507,6 +507,14 @@ class NodeState(PRecord):
     manifestations = pmap_field(unicode, Manifestation, optional=True)
     paths = pmap_field(unicode, FilePath, optional=True)
 
+    # FLOC-1513
+    #
+    # Add an update_cluster_state method that accepts a ``DeploymentState``
+    # instance and just calls ``DeploymentState.update_node(self)``.
+    #
+    # Double-dispatch is in support of letting VisibleClusterState get involved
+    # in the update process too.
+
 
 class DeploymentState(PRecord):
     """
@@ -516,6 +524,28 @@ class DeploymentState(PRecord):
         the state of each cooperating node.
     """
     nodes = pset_field(NodeState)
+
+    # FLOC-1513
+    #
+    # A new mapping from dataset ids to dataset instances.  This represents
+    # information about all datasets that are known to exist but have no
+    # manifestations.  There cannot be any such datasets against a P2P backend.
+    # IaaS agents can discover these datasets by finding unattached volumes.
+    #
+    # This doesn't convey backend-specific information.  Backends are expected
+    # to be able to map a dataset id back onto whatever the backend specific
+    # storage is.  Membership in this map indicates *something* exists.
+    #
+    # The Dataset instances in this pmap are "state" Datasets.  They have a
+    # dataset_id and all the rest of their fields are basically meaningless
+    # (XXX maybe maximum_size should be populated eventually?)  (Huh we should
+    # have a separate type for dataset state vs config).
+    #
+    # nonmanifest_datasets = pmap_field(UUID, Dataset)
+
+    # FLOC-1513
+    #
+    # Add an __invariant__ so keys and values match up.
 
     def update_node(self, node_state):
         """

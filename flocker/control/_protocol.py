@@ -109,6 +109,11 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
+    # FLOC-1513
+    #
+    # Add another argument, an optional `ListOf(Unicode)` representing
+    # dataset_ids of nonmanifest datasets.  Optional so ZFS deployer can ignore
+    # this completely.
     arguments = [('node_state', SerializableArgument(NodeState)),
                  ('eliot_context', _EliotActionArgument())]
     response = []
@@ -134,6 +139,13 @@ class ControlServiceLocator(CommandLocator):
     def version(self):
         return {"major": 1}
 
+    # FLOC-1513
+    #
+    # Accept dataset_ids collection here too.  Pass it on.  The default is
+    # None, distinct from an empty collection.  If the node doesn't pass us the
+    # info, it doesn't know anything about nonmanifest datasets.  If it doesn't
+    # know anything about them, we shouldn't update our local state based on
+    # the (non-)information.
     @NodeStateCommand.responder
     def node_changed(self, eliot_context, node_state):
         with eliot_context:
@@ -255,6 +267,9 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
+    # FLOC-1513
+    #
+    # Accept the new dataset_ids collection here.
     def node_changed(self, node_state):
         """
         We've received a node state update from a connected client.
@@ -263,6 +278,12 @@ class ControlAMPService(Service):
         :param NodeState node_state: The changed state for the node.
         """
         self.cluster_state.update_node_state(node_state)
+        # FLOC-1513
+        #
+        # If the dataset_ids collection is not None, call new
+        # cluster_state.replace_nonmanifest_datasets method with it.  None
+        # means the node doesn't know anything about this stuff and we
+        # shouldn't touch the state.
         self._send_state_to_connections(self.connections)
 
 

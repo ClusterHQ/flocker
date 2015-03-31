@@ -779,6 +779,20 @@ def _manifestation_from_volume(volume):
     )
     return Manifestation(dataset=dataset, primary=True)
 
+# FLOC-1513
+#
+# Introduce a new PRecord, ``VisibleClusterState``, with a ``NodeState`` field
+# and a ``nonmanifest_datasets`` field.
+#
+# It also has a method, update_cluster_state, which both updates the cluster
+# with its ``NodeState`` (just delegate to that object's update_cluster_state
+# method) and with its own ``nonmanifest_datasets`` (use
+# ``DeploymentState.update_nonmanifest_datasets``).
+#
+# Probably introduce an interface for this thing now.  It's what must be
+# returned by ``discover_local_state`` and it must have this
+# ``update_cluster_state`` method.
+
 
 @implementer(IDeployer)
 class BlockDeviceDeployer(PRecord):
@@ -823,6 +837,11 @@ class BlockDeviceDeployer(PRecord):
             manifestations=manifestations,
             paths=paths,
         )
+        # FLOC-1513
+        #
+        # Succeed with a VisibleClusterState instance here instead, initialized
+        # with ``state`` and with dataset_ids from the unattached volumes in
+        # ``volumes``.
         return succeed(state)
 
     def _mountpath_for_manifestation(self, manifestation):
@@ -840,6 +859,16 @@ class BlockDeviceDeployer(PRecord):
     def calculate_necessary_state_changes(self, local_state,
                                           desired_configuration,
                                           current_cluster_state):
+        # FLOC-1513
+        #
+        # Unwrap local_state into NodeState and pmap of Datasets.
+        #
+        # Use NodeState where currently using local_state.
+        #
+        # Eventually use the Datasets to avoid creating things that exist
+        # already (XXX need to file an issue) and to avoid deleting things that
+        # don't exist.
+
         potential_configs = list(
             node for node in desired_configuration.nodes
             if node.hostname == self.hostname

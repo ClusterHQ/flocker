@@ -35,6 +35,12 @@ class ClusterStateService(Service):
         """
         self._deployment_state = self._deployment_state.update_node(node_state)
 
+    # FLOC-1513
+    #
+    # Add a new method, replace_nonmanifest_datasets.
+    # It replaces _deployment_state with a new instance that has a new (not
+    # updated) set of dataset_ids.
+
     def manifestation_path(self, hostname, dataset_id):
         """
         Get the filesystem path of a manifestation on a particular node.
