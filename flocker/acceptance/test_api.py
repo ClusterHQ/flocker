@@ -10,7 +10,6 @@ import socket
 from uuid import uuid4
 from json import dumps
 
-from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
 from twisted.web.http import OK, CREATED
 
@@ -263,6 +262,22 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    def current_nodes(self):
+        """
+        Get current nodes.
+
+        :return: A ``Deferred`` firing with a tuple (cluster instance, API
+            response).
+        """
+        request = get(
+            self.base_url + b"/state/nodes",
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(lambda response: (self, response))
+        return request
+
 
 def get_test_cluster(test_case, node_count):
     """
@@ -295,10 +310,26 @@ def get_test_cluster(test_case, node_count):
                        "{existing} node(s) are set.".format(
                            necessary=node_count, existing=len(agent_nodes)))
 
-    return succeed(Cluster(
+    cluster = Cluster(
         control_node=Node(address=control_node),
-        nodes=map(lambda address: Node(address=address), agent_nodes),
-    ))
+        nodes=[]
+    )
+
+    # Wait until nodes are up and running:
+    def nodes_available():
+        d = cluster.current_nodes()
+        d.addCallback(lambda (cluster, nodes): len(nodes) == node_count)
+        return d
+    agents_connected = loop_until(nodes_available)
+
+    # Extract node hostnames from API that lists nodes. Currently we
+    # happen know these in advance, but in FLOC-1631 node identification
+    # will switch to UUIDs instead.
+    agents_connected.addCallback(lambda _: cluster.current_nodes())
+    agents_connected.addCallback(lambda (cluster, nodes): cluster.set(
+        "nodes", [Node(address=node[u"hostname"].encode("ascii"))
+                  for node in nodes]))
+    return agents_connected
 
 
 class ContainerAPITests(TestCase):
