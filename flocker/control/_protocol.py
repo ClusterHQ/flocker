@@ -272,12 +272,6 @@ class ControlAMPService(Service):
             state = change.update_cluster_state(state)
         self.cluster_state._deployment_state = state
 
-        # FLOC-1513
-        #
-        # If the dataset_ids collection is not None, call new
-        # cluster_state.replace_nonmanifest_datasets method with it.  None
-        # means the node doesn't know anything about this stuff and we
-        # shouldn't touch the state.
         self._send_state_to_connections(self.connections)
 
 

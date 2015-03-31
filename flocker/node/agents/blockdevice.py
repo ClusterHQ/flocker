@@ -849,12 +849,6 @@ class BlockDeviceDeployer(PRecord):
         )
 
     def calculate_changes(self, configuration, cluster_state):
-        # FLOC-1513
-        #
-        # Unwrap local_state into NodeState and pmap of Datasets.
-        #
-        # Use NodeState where currently using local_state.
-        #
         # Eventually use the Datasets to avoid creating things that exist
         # already (XXX need to file an issue) and to avoid deleting things that
         # don't exist.

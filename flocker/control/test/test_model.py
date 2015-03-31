@@ -6,7 +6,9 @@ Tests for ``flocker.node._model``.
 
 from uuid import uuid4
 
-from pyrsistent import InvariantException, pset, PRecord, PSet, pmap, PMap, thaw
+from pyrsistent import (
+    InvariantException, pset, PRecord, PSet, pmap, PMap, thaw
+)
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -282,9 +284,6 @@ class NonManifestDatasetsTests(SynchronousTestCase):
         self.assertEqual(
             datasets, thaw(updated.nonmanifest_datasets)
         )
-
-
-
 
 
 class DeploymentInitTests(make_with_init_tests(
