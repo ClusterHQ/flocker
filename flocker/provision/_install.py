@@ -128,17 +128,6 @@ def task_install_ssh_key():
     ]
 
 
-def task_upgrade_kernel():
-    """
-    Upgrade kernel.
-    """
-    return [
-        Run.from_args(['yum', 'upgrade', '-y', 'kernel']),
-        Comment(comment="# The upgrade doesn't make the new kernel default."),
-        Run.from_args(['grubby', '--set-default-index', '0']),
-    ]
-
-
 KOJI_URL_TEMPLATE = (
     'https://kojipkgs.fedoraproject.org/packages/kernel'
     '/{version}/{release}.{distribution}/{architecture}'
@@ -159,13 +148,16 @@ def koji_kernel_url(kernel):
     return url
 
 
-DIGITALOCEAN_KERNEL = Kernel(
+ZFS_COMPATIBLE_KERNEL = Kernel(
     version="3.17.8",
     release="200",
     distribution="fc20",
     architecture="x86_64"
 )
 
+DIGITALOCEAN_KERNEL = ZFS_COMPATIBLE_KERNEL
+
+AWS_FEDORA20_KERNEL = ZFS_COMPATIBLE_KERNEL
 
 DIGITALOCEAN_KERNEL_TITLE = (
     "Fedora 20 x64 "
@@ -181,6 +173,18 @@ def task_install_digitalocean_kernel():
     url = koji_kernel_url(DIGITALOCEAN_KERNEL)
     return [
         Run.from_args(['yum', 'update', '-y', url]),
+    ]
+
+
+def task_install_aws_fedora20_kernel():
+    """
+    Upgrade kernel on an AWS hosted Fedora20 virtual machine
+    """
+    url = koji_kernel_url(AWS_FEDORA20_KERNEL)
+    return [
+        Run.from_args(['yum', 'update', '-y', url]),
+        Comment(comment="# The upgrade doesn't make the new kernel default."),
+        Run.from_args(['grubby', '--set-default-index', '0']),
     ]
 
 

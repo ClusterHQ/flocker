@@ -9,7 +9,7 @@ from ._common import Variants
 from ._install import (
     provision, run,
     task_install_ssh_key,
-    task_upgrade_kernel,
+    task_install_aws_fedora20_kernel,
     task_upgrade_selinux,
     task_upgrade_kernel_centos,
     task_enable_updates_testing
@@ -49,7 +49,7 @@ def provision_aws(node, package_source, distribution, variants):
         run(
             username='root',
             address=node.address,
-            commands=task_upgrade_kernel(),
+            commands=task_install_aws_fedora20_kernel(),
         )
 
     node.reboot()

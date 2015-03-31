@@ -215,7 +215,7 @@ Using Amazon Web Services
 
    Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
 
-   .. task:: upgrade_kernel
+   .. task:: install_aws_fedora20_kernel
       :prompt: [root@aws]#
 
    And now reboot the machine to make use of the new kernel.
