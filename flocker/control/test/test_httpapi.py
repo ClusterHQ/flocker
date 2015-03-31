@@ -2968,6 +2968,47 @@ class ContainerStateTestsMixin(APITestsMixin):
             b"GET", b"/state/containers", None, OK, response
         )
 
+    def test_one_container_maximum_size(self):
+        """
+        When the cluster state includes one container that has a dataset with
+        a maximum size, the endpoint returns a single-element list
+        containing the container.
+
+        This is a regression test for a bug involving incorrect output in
+        this case that violated the JSON schema.
+        """
+        manifestation = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4()),
+                            maximum_size=1234),
+            primary=False
+        )
+        expected_application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox:1.2"),
+            volume=AttachedVolume(manifestation=manifestation,
+                                  mountpoint=FilePath(b"/xxx/yyy")),
+        )
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname,
+                applications={expected_application},
+                manifestations={manifestation.dataset_id: manifestation},
+            )
+        )
+        expected_dict = dict(
+            name=u"myapp",
+            host=expected_hostname,
+            image=u"busybox:1.2",
+            running=True,
+            restart_policy={u"name": u"never"},
+            volumes=[{"dataset_id": manifestation.dataset_id,
+                      "mountpoint": u"/xxx/yyy"}],
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
     def test_one_container_not_running(self):
         """
         When the cluster state includes one container that is not running, the

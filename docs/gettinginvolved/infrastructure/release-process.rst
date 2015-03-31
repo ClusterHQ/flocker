@@ -374,6 +374,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
+      cd ~/flocker-${VERSION}
       admin/publish-docs --production
 
 #. Submit the release pull request for review again.
