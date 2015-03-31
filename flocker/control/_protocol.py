@@ -34,7 +34,7 @@ from zope.interface import Interface, Attribute
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, CommandLocator, AMP, Unicode,
+    Argument, Command, Integer, CommandLocator, AMP, Unicode, ListOf,
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
@@ -111,10 +111,8 @@ class NodeStateCommand(Command):
     """
     # FLOC-1513
     #
-    # Add another argument, an optional `ListOf(Unicode)` representing
-    # dataset_ids of nonmanifest datasets.  Optional so ZFS deployer can ignore
-    # this completely.
-    arguments = [('node_state', SerializableArgument(NodeState)),
+    # Make this accept DatasetStateMumble or NodeState
+    arguments = [('state_changes', ListOf(SerializableArgument(NodeState))),
                  ('eliot_context', _EliotActionArgument())]
     response = []
 
@@ -139,17 +137,10 @@ class ControlServiceLocator(CommandLocator):
     def version(self):
         return {"major": 1}
 
-    # FLOC-1513
-    #
-    # Accept dataset_ids collection here too.  Pass it on.  The default is
-    # None, distinct from an empty collection.  If the node doesn't pass us the
-    # info, it doesn't know anything about nonmanifest datasets.  If it doesn't
-    # know anything about them, we shouldn't update our local state based on
-    # the (non-)information.
     @NodeStateCommand.responder
-    def node_changed(self, eliot_context, node_state):
+    def node_changed(self, eliot_context, state_changes):
         with eliot_context:
-            self.control_amp_service.node_changed(node_state)
+            self.control_amp_service.node_changed(state_changes)
             return {}
 
 
@@ -267,17 +258,20 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
-    # FLOC-1513
-    #
-    # Accept the new dataset_ids collection here.
-    def node_changed(self, node_state):
+    def node_changed(self, state_changes):
         """
         We've received a node state update from a connected client.
 
         :param bytes hostname: The hostname of the node.
-        :param NodeState node_state: The changed state for the node.
+        :param list state_changes: One or more ``IClusterStateChange``
+            providers representing the state change which has taken place.
         """
-        self.cluster_state.update_node_state(node_state)
+        # XXX
+        state = self.cluster_state.as_deployment()
+        for change in state_changes:
+            state = change.update_cluster_state(state)
+        self.cluster_state._deployment_state = state
+
         # FLOC-1513
         #
         # If the dataset_ids collection is not None, call new

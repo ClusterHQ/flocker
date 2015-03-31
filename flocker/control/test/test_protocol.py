@@ -264,7 +264,7 @@ class ControlAMPTests(ControlTestCase):
         """
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE,
+                                   state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
@@ -288,7 +288,7 @@ class ControlAMPTests(ControlTestCase):
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE,
+                                   state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
@@ -669,7 +669,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
 
         control_amp_service.connected(disconnected_protocol)
         control_amp_service.connected(connected_protocol)
-        control_amp_service.node_changed(NodeState(hostname=u"1.2.3.4"))
+        control_amp_service.node_changed((NodeState(hostname=u"1.2.3.4"),))
 
         actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
         self.assertEqual(

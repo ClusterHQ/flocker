@@ -532,13 +532,8 @@ class NodeState(PRecord):
     manifestations = pmap_field(unicode, Manifestation, optional=True)
     paths = pmap_field(unicode, FilePath, optional=True)
 
-    # FLOC-1513
-    #
-    # Add an update_cluster_state method that accepts a ``DeploymentState``
-    # instance and just calls ``DeploymentState.update_node(self)``.
-    #
-    # Double-dispatch is in support of letting VisibleClusterState get involved
-    # in the update process too.
+    def update_cluster_state(self, cluster_state):
+        return cluster_state.update_node(self)
 
 
 class DeploymentState(PRecord):

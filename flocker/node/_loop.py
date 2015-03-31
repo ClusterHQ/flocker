@@ -256,7 +256,7 @@ class ConvergenceLoop(object):
     :ivar Deployment configuration: Desired cluster
         configuration. Initially ``None``.
 
-    :ivar Deployment state: Actual cluster state.  Initially ``None``.
+    :ivar DeploymentState state: Actual cluster state.  Initially ``None``.
 
     :ivar fsm: The finite state machine this is part of.
     """
@@ -269,6 +269,7 @@ class ConvergenceLoop(object):
         """
         self.reactor = reactor
         self.deployer = deployer
+        self.state = None
 
     def output_STORE_INFO(self, context):
         self.client, self.configuration, self.cluster_state = (
@@ -277,6 +278,9 @@ class ConvergenceLoop(object):
     def output_CONVERGE(self, context):
         d = DeferredContext(self.deployer.discover_local_state())
 
+        # FLOC-1513
+        #
+        # Change this to accept a list of state change objects
         def got_local_state(local_state):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
@@ -286,17 +290,20 @@ class ConvergenceLoop(object):
 
             # FLOC-1513
             #
-            # Change this to call
-            # local_state.update_cluster_state(self.cluster_state) instead.
-            # This allows ``NodeState`` and ``VisibleClusterState`` to work.
-            self.cluster_state = self.cluster_state.update_node(local_state)
+            # Iterate over all of the state changes doing this.
+            self.cluster_state = (
+                local_state.update_cluster_state(
+                    self.cluster_state
+                )
+            )
+
             with LOG_SEND_TO_CONTROL_SERVICE(
                     self.fsm.logger, connection=self.client) as context:
                 # FLOC-1513
                 #
-                # Add the nonmanifest dataset_ids to this call.
+                # Add all of the state changes to this call.
                 self.client.callRemote(NodeStateCommand,
-                                       node_state=local_state,
+                                       state_changes=(local_state,),
                                        eliot_context=context)
             action = self.deployer.calculate_necessary_state_changes(
                 local_state, self.configuration, self.cluster_state

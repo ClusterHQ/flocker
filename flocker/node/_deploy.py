@@ -442,9 +442,8 @@ class P2PNodeDeployer(object):
         """
         # FLOC-1513
         #
-        # Does not require changes.  NodeState already implements the necessary
-        # interface (not formally).  There is no information about nonmanifest
-        # datasets to produce here.
+        # Change this to return a list of one element, the NodeState it already
+        # returns.
 
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
