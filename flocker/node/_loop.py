@@ -276,37 +276,29 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        d = DeferredContext(self.deployer.discover_local_state())
+        d = DeferredContext(self.deployer.discover_state())
 
-        # FLOC-1513
-        #
-        # Change this to accept a list of state change objects
-        def got_local_state(local_state):
+        def got_local_state(state_changes):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
             # XXX FLOC-1542 will need to deal with partial updates, and
             # make sure there is no duplication with code in
             # flocker.control._clusterstate.
 
-            # FLOC-1513
-            #
-            # Iterate over all of the state changes doing this.
-            self.cluster_state = (
-                local_state.update_cluster_state(
-                    self.cluster_state
+            for change in state_changes:
+                self.cluster_state = (
+                    change.update_cluster_state(
+                        self.cluster_state
+                    )
                 )
-            )
 
             with LOG_SEND_TO_CONTROL_SERVICE(
                     self.fsm.logger, connection=self.client) as context:
-                # FLOC-1513
-                #
-                # Add all of the state changes to this call.
                 self.client.callRemote(NodeStateCommand,
-                                       state_changes=(local_state,),
+                                       state_changes=state_changes,
                                        eliot_context=context)
-            action = self.deployer.calculate_necessary_state_changes(
-                local_state, self.configuration, self.cluster_state
+            action = self.deployer.calculate_changes(
+                self.configuration, self.cluster_state
             )
             return action.run(self.deployer)
         d.addCallback(got_local_state)

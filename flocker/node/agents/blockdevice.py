@@ -809,7 +809,7 @@ class BlockDeviceDeployer(PRecord):
     block_device_api = field(mandatory=True)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
 
-    def discover_local_state(self):
+    def discover_state(self):
         """
         Find all block devices that are currently associated with this host and
         return a ``NodeState`` containing only ``Manifestation`` instances and
@@ -842,7 +842,7 @@ class BlockDeviceDeployer(PRecord):
         # Succeed with a VisibleClusterState instance here instead, initialized
         # with ``state`` and with dataset_ids from the unattached volumes in
         # ``volumes``.
-        return succeed(state)
+        return succeed((state,))
 
     def _mountpath_for_manifestation(self, manifestation):
         """
@@ -856,9 +856,7 @@ class BlockDeviceDeployer(PRecord):
             manifestation.dataset.dataset_id.encode("ascii")
         )
 
-    def calculate_necessary_state_changes(self, local_state,
-                                          desired_configuration,
-                                          current_cluster_state):
+    def calculate_changes(self, configuration, cluster_state):
         # FLOC-1513
         #
         # Unwrap local_state into NodeState and pmap of Datasets.
@@ -868,16 +866,8 @@ class BlockDeviceDeployer(PRecord):
         # Eventually use the Datasets to avoid creating things that exist
         # already (XXX need to file an issue) and to avoid deleting things that
         # don't exist.
-
-        potential_configs = list(
-            node for node in desired_configuration.nodes
-            if node.hostname == self.hostname
-        )
-        if len(potential_configs) == 0:
-            configured_manifestations = {}
-        else:
-            [this_node_config] = potential_configs
-            configured_manifestations = this_node_config.manifestations
+        this_node_config = configuration.get_node(self.hostname)
+        configured_manifestations = this_node_config.manifestations
 
         configured_dataset_ids = set(
             manifestation.dataset.dataset_id
@@ -886,6 +876,7 @@ class BlockDeviceDeployer(PRecord):
             if not manifestation.dataset.deleted
         )
 
+        local_state = cluster_state.get_node(self.hostname)
         local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set(

@@ -18,7 +18,7 @@ from twisted.python.filepath import FilePath
 
 from .. import P2PNodeDeployer, change_node_state
 from ..testtools import (
-    ControllableDeployer, ControllableAction, ideployer_tests_factory, EMPTY,
+    ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
@@ -701,6 +701,28 @@ MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
 # Placeholder in case at some point discovered application is different
 # than requested application:
 DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
+
+
+class DeployerDiscoverStateTests(SynchronousTestCase):
+    """
+    Tests for ``P2PNodeDeployer.discover_state``.
+    """
+    def test_adapted_local_state(self):
+        """
+        ``P2PNodeDeployer.discover_state`` adapts the return value of
+        ``P2PNodeDeployer.discover_local_state`` to the type required by the
+        interface.
+        """
+        api = P2PNodeDeployer(
+            u"example.com",
+            create_volume_service(self),
+            docker_client=FakeDockerClient(units={}),
+            network=make_memory_network(),
+        )
+        self.assertEqual(
+            (self.successResultOf(api.discover_local_state()),),
+            self.successResultOf(api.discover_state())
+        )
 
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
@@ -3660,7 +3682,8 @@ class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
 class ControllableDeployerInterfaceTests(
         ideployer_tests_factory(
             lambda test: ControllableDeployer(
-                local_states=[succeed(NodeState(hostname=b'192.0.2.123'))],
+                hostname=u"192.0.2.123",
+                local_states=[succeed(NodeState(hostname=u'192.0.2.123'))],
                 calculated_actions=[InParallel(changes=[])],
             )
         )

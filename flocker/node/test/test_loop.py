@@ -240,7 +240,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         A newly created FSM is stopped.
         """
         loop = build_convergence_loop_fsm(
-            Clock(), ControllableDeployer([], [])
+            Clock(), ControllableDeployer(u"192.168.1.1", [], [])
         )
         self.assertEqual(loop.state, ConvergenceLoopStates.STOPPED)
 
@@ -248,7 +248,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         A stopped FSM that receives a status update starts discovery.
         """
-        deployer = ControllableDeployer([Deferred()], [])
+        deployer = ControllableDeployer(u"192.168.1.1", [Deferred()], [])
         loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(client=FakeAMPClient(),
                                          configuration=Deployment(),
@@ -286,10 +286,12 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         discovered state to the control service using the last received
         client.
         """
-        local_state = NodeState(hostname=b'192.0.2.123')
+        local_state = NodeState(hostname=u"192.0.2.123")
         client = self.successful_amp_client([local_state])
         action = ControllableAction(result=Deferred())
-        deployer = ControllableDeployer([succeed(local_state)], [action])
+        deployer = ControllableDeployer(
+            local_state.hostname, [succeed(local_state)], [action]
+        )
         loop = build_convergence_loop_fsm(Clock(), deployer)
         self.patch(loop, "logger", logger)
         loop.receive(
@@ -326,7 +328,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         )
         client = self.successful_amp_client([local_node_state])
         action = ControllableAction(result=Deferred())
-        deployer = ControllableDeployer([succeed(local_node_state)], [action])
+        deployer = ControllableDeployer(
+            local_node_hostname, [succeed(local_node_state)], [action]
+        )
 
         fsm = build_convergence_loop_fsm(Clock(), deployer)
         fsm.receive(
@@ -357,14 +361,16 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         calculated changes using last received desired configuration and
         cluster state.
         """
-        local_state = NodeState(hostname=b'192.0.2.123')
+        local_state = NodeState(hostname=u'192.0.2.123')
         configuration = object()
         received_state = DeploymentState(nodes=[])
         # Since this Deferred is unfired we never proceed to next
         # iteration; if we did we'd get exception from discovery since we
         # only configured one discovery result.
         action = ControllableAction(result=Deferred())
-        deployer = ControllableDeployer([succeed(local_state)], [action])
+        deployer = ControllableDeployer(
+            local_state.hostname, [succeed(local_state)], [action]
+        )
         loop = build_convergence_loop_fsm(Clock(), deployer)
         loop.receive(_ClientStatusUpdate(
             client=self.successful_amp_client([local_state]),
@@ -382,11 +388,13 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         An FSM completing the changes from one convergence iteration doesn't
         instantly start another iteration.
         """
-        local_state = NodeState(hostname=b'192.0.2.123')
+        local_state = NodeState(hostname=u'192.0.2.123')
         configuration = object()
         received_state = DeploymentState(nodes=[])
         action = ControllableAction(result=succeed(None))
-        deployer = ControllableDeployer([succeed(local_state)], [action])
+        deployer = ControllableDeployer(
+            local_state.hostname, [succeed(local_state)], [action]
+        )
         client = self.successful_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
@@ -407,8 +415,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         After a short delay, an FSM completing the changes from one convergence
         iteration starts another iteration.
         """
-        local_state = NodeState(hostname=b'192.0.2.123')
-        local_state2 = NodeState(hostname=b'192.0.2.123')
+        local_state = NodeState(hostname=u'192.0.2.123')
+        local_state2 = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
         action = ControllableAction(result=succeed(None))
@@ -417,6 +425,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # Deferred to fire.
         action2 = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
+            local_state.hostname,
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
         client = self.successful_amp_client([local_state, local_state2])
@@ -441,8 +450,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         client, desired configuration and cluster state, which are then
         used in next convergence iteration.
         """
-        local_state = NodeState(hostname=b'192.0.2.123')
-        local_state2 = NodeState(hostname=b'192.0.2.123')
+        local_state = NodeState(hostname=u'192.0.2.123')
+        local_state2 = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
         # Until this Deferred fires the first iteration won't finish:
@@ -450,6 +459,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # Until this Deferred fires the second iteration won't finish:
         action2 = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
+            local_state.hostname,
             [succeed(local_state), succeed(local_state2)],
             [action, action2])
         client = self.successful_amp_client([local_state])
@@ -483,7 +493,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         A FSM doing convergence that receives a stop input stops when the
         convergence iteration finishes.
         """
-        local_state = NodeState(hostname=b'192.0.2.123')
+        local_state = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
 
@@ -491,8 +501,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         action = ControllableAction(result=Deferred())
         # Only one discovery result is configured, so a second attempt at
         # discovery would fail:
-        deployer = ControllableDeployer([succeed(local_state)],
-                                        [action])
+        deployer = ControllableDeployer(
+            local_state.hostname, [succeed(local_state)],
+            [action]
+        )
         client = self.successful_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
@@ -531,8 +543,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         update continues on to to next convergence iteration (i.e. stop
         ends up being ignored).
         """
-        local_state = NodeState(hostname=b'192.0.2.123')
-        local_state2 = NodeState(hostname=b'192.0.2.123')
+        local_state = NodeState(hostname=u'192.0.2.123')
+        local_state2 = NodeState(hostname=u'192.0.2.123')
         configuration = Deployment(nodes=frozenset([to_node(local_state)]))
         state = DeploymentState(nodes=[local_state])
 
@@ -541,8 +553,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # Until this Deferred fires the second iteration won't finish:
         action2 = ControllableAction(result=Deferred())
         deployer = ControllableDeployer(
+            local_state.hostname,
             [succeed(local_state), succeed(local_state2)],
-            [action, action2])
+            [action, action2]
+        )
         client = self.successful_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)

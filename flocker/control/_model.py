@@ -379,6 +379,31 @@ class Node(PRecord):
     )
 
 
+def _get_node(default_factory):
+    """
+    Create a helper function for getting a node from a deployment.
+
+    :param default_factory: A one-argument callable which is called with the
+        requested hostname when no matching node is found in the deployment.
+        The return value is used as the result.
+
+    :return: A two-argument callable which accepts a ``Deployment`` or a
+             ``DeploymentState`` as the first argument and a ``unicode`` string
+             giving a node hostname as the second argument.  It will return a
+             node from the deployment object with a matching hostname or it
+             will return a value from ``default_factory`` if no matching node
+             is found.
+    """
+    def get_node(deployment, hostname):
+        nodes = list(
+            node for node in deployment.nodes if node.hostname == hostname
+        )
+        if len(nodes) == 0:
+            return default_factory(hostname=hostname)
+        return nodes[0]
+    return get_node
+
+
 class Deployment(PRecord):
     """
     A ``Deployment`` describes the configuration of a number of applications on
@@ -388,6 +413,8 @@ class Deployment(PRecord):
         describing the configuration of each cooperating node.
     """
     nodes = pset_field(Node)
+
+    get_node = _get_node(Node)
 
     def applications(self):
         """
@@ -556,6 +583,8 @@ class DeploymentState(PRecord):
         initialized to meaningful values.
     """
     nodes = pset_field(NodeState)
+
+    get_node = _get_node(NodeState)
 
     nonmanifest_datasets = pmap_field(
         unicode, Dataset, invariant=_keys_match_dataset_id

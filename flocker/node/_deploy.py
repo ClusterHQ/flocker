@@ -80,35 +80,71 @@ class IDeployer(Interface):
     changes to bring local state and desired cluster configuration into
     alignment.
     """
-    def discover_local_state():
+    def discover_state():
         """
-        Discover the local state, i.e. the state which is exclusively under
-        the purview of the convergence agent running this instance.
+        Discover the local state, i.e. the state which is exclusively under the
+        purview of the convergence agent running this instance.
 
-        :return: A ``Deferred`` which fires with an object describing
-             local state. This object will be passed to the control
-             service (see ``flocker.control._protocol``) and may also be
-             passed to this object's
-             ``calculate_necessary_state_changes()`` method.
+        :return: A ``Deferred`` which fires with a (repeatable) iterable of
+                 objects describing local state.  This iterable will be passed
+                 to the control service (see ``flocker.control._protocol``) and
+                 may also be passed to this object's
+                 ``calculate_necessary_state_changes()`` method.
         """
 
-    def calculate_necessary_state_changes(local_state,
-                                          desired_configuration,
-                                          current_cluster_state):
+    def calculate_changes(configuration, cluster_state):
         """
-        Calculate the state changes necessary to make the local state match
-        the desired cluster configuration.
+        Calculate the state changes necessary to make the local state match the
+        desired cluster configuration.
 
-        :param local_state: The recent output of ``discover_local_state``.
-        :param Deployment desired_configuration: The intended
-            configuration of all nodes.
-        :param Deployment current_cluster_state: The current state of all
-            nodes. While technically this may also includes the local
-            state, that information is likely out of date so should be
-            overriden by ``local_state``.
+        :param Deployment configuration: The intended configuration of all
+            nodes.
+        :param Deployment cluster_state: The current state of all nodes already
+            updated with recent output of ``discover_state``.
 
         :return: A ``IStateChange`` provider.
         """
+
+
+@implementer(IDeployer)
+class _OldToNewDeployer(object):
+    """
+    Base class to help update implementations of the old ``IDeployer`` to the
+    current version of the interface.
+
+    Subclass this and also set a ``hostname`` attribute on ``self`` that can be
+    used to find "this" node's state in the cluster state.
+
+    This is a transitional helper until we can update the old ``IDeployer``
+    implementations properly.
+
+    Don't use this in any new code.
+    """
+    def discover_state(self):
+        """
+        Discover only local state.
+
+        :return: A ``Deferred`` that fires with a one-tuple consisting of the
+            result of ``discover_local_state``.
+        """
+        discovering = self.discover_local_state()
+        discovering.addCallback(lambda local_state: (local_state,))
+        return discovering
+
+    def calculate_changes(self, configuration, cluster_state):
+        """
+        Extract the local state from ``cluster_state`` and delegate calculation
+        to ``calculate_necessary_state_changes``.
+        """
+        try:
+            [local_state] = (
+                node for node in cluster_state.nodes
+                if node.hostname == self.hostname
+            )
+        except ValueError:
+            local_state = NodeState(hostname=self.hostname)
+        return self.calculate_necessary_state_changes(
+            local_state, configuration, cluster_state)
 
 
 @implementer(IStateChange)
@@ -409,8 +445,7 @@ class OpenPorts(PRecord):
         return gather_deferreds(results)
 
 
-@implementer(IDeployer)
-class P2PNodeDeployer(object):
+class P2PNodeDeployer(_OldToNewDeployer):
     """
     Start and stop applications.
 
@@ -440,11 +475,6 @@ class P2PNodeDeployer(object):
         :returns: A ``Deferred`` which fires with a ``NodeState``
             instance.
         """
-        # FLOC-1513
-        #
-        # Change this to return a list of one element, the NodeState it already
-        # returns.
-
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
         # strip the namespace since there will only ever be one.
