@@ -13,16 +13,21 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
+from twisted.python import log
 
 from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
+from flocker.provision._ssh import (
+    run_remotely)
 from flocker.provision._install import (
-    run as run_tasks_on_node,
     task_pull_docker_images,
     configure_cluster,
 )
+
+from effect import parallel
+from flocker.provision._ssh._crochet import perform, dispatcher
 
 
 def safe_call(command, **kwargs):
@@ -161,16 +166,19 @@ class VagrantRunner(object):
         box_version = vagrant_version(self.package_source.version)
         # Boot the VMs
         check_safe_call(
-            ['vagrant', 'up'],
+            ['vagrant', 'up', '--parallel'],
             cwd=self.vagrant_path.path,
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
         for node in self.NODE_ADDRESSES:
             remove_known_host(node)
-            run_tasks_on_node(
-                username='root',
-                address=node,
-                commands=task_pull_docker_images()
+            perform(
+                dispatcher,
+                run_remotely(
+                    username='root',
+                    address=node,
+                    commands=task_pull_docker_images()
+                ),
             )
         return self.NODE_ADDRESSES
 
@@ -229,12 +237,16 @@ class LibcloudRunner(object):
                 print "It may have leaked into the cloud."
                 raise
 
-            self.nodes.append(node)
-
             remove_known_host(node.address)
+            self.nodes.append(node)
+            del node
+
+        commands = parallel([
             node.provision(package_source=self.package_source,
                            variants=self.variants)
-            del node
+            for node in self.nodes
+        ])
+        perform(dispatcher, commands)
 
         return [node.address for node in self.nodes]
 
@@ -393,9 +405,12 @@ def main(args, base_path, top_level):
     # and cleanup and VMs we created.
     signal.signal(signal.SIGTERM, signal_handler)
 
+    log.startLogging(sys.stdout)
+
     try:
         nodes = runner.start_nodes()
-        configure_cluster(control_node=nodes[0], agent_nodes=nodes)
+        perform(dispatcher,
+                configure_cluster(control_node=nodes[0], agent_nodes=nodes))
         result = run_tests(
             nodes=nodes,
             control_node=nodes[0], agent_nodes=nodes,

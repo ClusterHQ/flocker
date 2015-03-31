@@ -174,13 +174,12 @@ class LibcloudNode(object):
         :param set variants: The set of variant configurations to use when
             provisioning
         """
-        self._provisioner.provision(
+        return self._provisioner.provision(
             node=self,
             package_source=package_source,
             distribution=self.distribution,
             variants=variants,
-        )
-        return self.address
+        ).on(success=lambda _: self.address)
 
     @property
     def name(self):
