@@ -53,7 +53,7 @@ def pset_field(item_type, optional=False):
                  initial=TheSet())
 
 
-def pmap_field(key_type, value_type, optional=False):
+def pmap_field(key_type, value_type, optional=False, **kw):
     """
     Create a checked ``PMap`` field.
 
@@ -80,7 +80,7 @@ def pmap_field(key_type, value_type, optional=False):
         factory = TheMap
     return field(mandatory=True, initial=TheMap(),
                  type=optional_type(TheMap) if optional else TheMap,
-                 factory=factory)
+                 factory=factory, **kw)
 
 
 class DockerImage(PRecord):
@@ -317,6 +317,32 @@ class AttachedVolume(PRecord):
         return self.manifestation.dataset
 
 
+def _keys_match(attribute):
+    """
+    Create an invariant for a ``field`` holding a ``pmap``.
+
+    The invariant enforced is that the keys of the ``pmap`` equal the value of
+    a particular attribute of the corresponding values.
+
+    :param str attribute: The name of the attribute of the ``pmap`` values
+        which must equal the corresponding key.
+    :return: A function suitable for use as a pyrsistent invariant.
+    """
+    def key_match_invariant(pmap):
+        for (key, value) in pmap.items():
+            if key != getattr(value, attribute):
+                return (
+                    False, "{} is not correct key for {}".format(key, value)
+                )
+        return (True, "")
+    return key_match_invariant
+
+
+# An invariant we use a couple times below in mappings from dataset_id to
+# Dataset instances
+_keys_match_dataset_id = _keys_match("dataset_id")
+
+
 class Node(PRecord):
     """
     Configuration for a single node on which applications will be managed
@@ -344,14 +370,13 @@ class Node(PRecord):
             if app.volume is not None:
                 if app.volume.manifestation not in manifestations:
                     return (False, '%r manifestation is not on node' % (app,))
-        for key, value in self.manifestations.items():
-            if key != value.dataset_id:
-                return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     applications = pset_field(Application)
-    manifestations = pmap_field(unicode, Manifestation)
+    manifestations = pmap_field(
+        unicode, Manifestation, invariant=_keys_match_dataset_id
+    )
 
 
 class Deployment(PRecord):
@@ -520,32 +545,26 @@ class DeploymentState(PRecord):
     """
     A ``DeploymentState`` describes the state of the nodes in the cluster.
 
-    :ivar PSet nodes: A set containing ``NodeState`` instances describing
-        the state of each cooperating node.
+    :ivar PSet nodes: A set containing ``NodeState`` instances describing the
+        state of each cooperating node.
+    :ivar PMap nonmanifest_datasets: A mapping from dataset identifiers (as
+        ``unicode``) to corresponding ``Dataset`` instances.  This mapping
+        describes every ``Dataset`` which is known to exist as part of the
+        cluster but which has no manifestation on any node in the cluster.
+        Such datasets may not be possible with all backends (for example, P2P
+        backends must always store datasets on some cluster node).  This
+        mapping does not convey further backend-specific information; backends
+        are responsible for maintaining or determining additional information
+        themselves given a dataset identifier.  The ``Dataset`` instances which
+        are values in this mapping convey discovered state, not configuration.
+        The fields which are for conveying configuration will not be
+        initialized to meaningful values.
     """
     nodes = pset_field(NodeState)
 
-    # FLOC-1513
-    #
-    # A new mapping from dataset ids to dataset instances.  This represents
-    # information about all datasets that are known to exist but have no
-    # manifestations.  There cannot be any such datasets against a P2P backend.
-    # IaaS agents can discover these datasets by finding unattached volumes.
-    #
-    # This doesn't convey backend-specific information.  Backends are expected
-    # to be able to map a dataset id back onto whatever the backend specific
-    # storage is.  Membership in this map indicates *something* exists.
-    #
-    # The Dataset instances in this pmap are "state" Datasets.  They have a
-    # dataset_id and all the rest of their fields are basically meaningless
-    # (XXX maybe maximum_size should be populated eventually?)  (Huh we should
-    # have a separate type for dataset state vs config).
-    #
-    # nonmanifest_datasets = pmap_field(UUID, Dataset)
-
-    # FLOC-1513
-    #
-    # Add an __invariant__ so keys and values match up.
+    nonmanifest_datasets = pmap_field(
+        unicode, Dataset, invariant=_keys_match_dataset_id
+    )
 
     def update_node(self, node_state):
         """

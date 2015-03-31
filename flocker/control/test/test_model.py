@@ -785,3 +785,14 @@ class DeploymentStateTests(SynchronousTestCase):
         updated = original.update_node(update_applications).update_node(
             update_manifestations)
         self.assertEqual(updated, DeploymentState(nodes=[end_node]))
+
+    def test_nonmanifest_datasets_keys_are_their_ids(self):
+        """
+        The keys of the ``nonmanifest_datasets`` attribute must match the
+        value's ``dataset_id`` attribute.
+        """
+        self.assertRaises(InvariantException,
+                          DeploymentState,
+                          nonmanifest_datasets={u"123": MANIFESTATION.dataset})
+
+
