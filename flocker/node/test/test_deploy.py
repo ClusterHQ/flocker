@@ -25,7 +25,7 @@ from ..testtools import (
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
-    NodeState)
+    NodeState, DeploymentState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
@@ -669,8 +669,7 @@ APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
 # XXX For now we require volume names match application names,
 # see https://github.com/ClusterHQ/flocker/issues/49
 DATASET_ID = unicode(uuid4())
-DATASET = Dataset(dataset_id=DATASET_ID,
-                  metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
+DATASET = Dataset(dataset_id=DATASET_ID)
 APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
 APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
@@ -1896,7 +1895,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                               network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY)
         expected = Sequentially(changes=[])
@@ -1934,7 +1934,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired, current_cluster_state=EMPTY)
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
@@ -1956,7 +1957,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                               network=network)
         desired = Deployment(nodes=frozenset())
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired, current_cluster_state=EMPTY)
         expected = Sequentially(changes=[SetProxies(ports=frozenset())])
         self.assertEqual(expected, result)
@@ -2004,7 +2006,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired, current_cluster_state=EMPTY)
         expected = Sequentially(changes=[
             OpenPorts(ports=[OpenPort(port=expected_destination_port)])])
@@ -2025,7 +2028,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                               network=network)
         desired = Deployment(nodes=[])
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
+
             desired_configuration=desired, current_cluster_state=EMPTY)
         expected = Sequentially(changes=[OpenPorts(ports=[])])
         self.assertEqual(expected, result)
@@ -2046,7 +2051,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                               network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=u"node.example.com"))),
             desired_configuration=desired,
             current_cluster_state=EMPTY)
         to_stop = StopApplication(application=Application(
@@ -2080,7 +2086,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY)
         expected = Sequentially(changes=[InParallel(
@@ -2113,7 +2120,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY)
         expected = Sequentially(changes=[])
@@ -2152,7 +2160,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY)
         expected = Sequentially(changes=[])
@@ -2175,7 +2184,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                               network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY)
         to_stop = StopApplication(
@@ -2224,7 +2234,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset({node}))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2269,7 +2280,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             ("manifestations", DATASET_ID, "dataset", "deleted"), True))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2312,7 +2324,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             ("manifestations", DATASET_ID, "dataset", "deleted"), True))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2368,7 +2381,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         }))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2433,7 +2447,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         }))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2478,7 +2493,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
-        current_node = Node(
+        current_node = NodeState(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
             manifestations={MANIFESTATION.dataset_id:
@@ -2497,7 +2512,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         # The discovered current configuration of the cluster reveals the
         # application is running here.
-        current = Deployment(nodes=frozenset([current_node, another_node]))
+        current = DeploymentState(
+            nodes=[current_node, NodeState(hostname=another_node.hostname)])
         desired = Deployment(nodes=frozenset([desired_node, another_node]))
 
         api = P2PNodeDeployer(
@@ -2507,7 +2523,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(current_node)),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2569,7 +2585,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2653,7 +2670,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2681,6 +2699,71 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                     hostname=u'node2.example.com')]
             )])
         self.assertEqual(expected, changes)
+
+    def test_metadata_does_not_cause_restarts(self):
+        """
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` indicates no
+        action necessary if the configuration has metadata for a dataset
+        that is a volume.
+
+        Current cluster state lacks metadata, so we want to verify no
+        erroneous restarts are suggested.
+        """
+        volume_service = create_volume_service(self)
+        node_path = self.successResultOf(volume_service.create(
+            volume_service.get(
+                _to_volume_name(DATASET.dataset_id))
+            )
+        ).get_filesystem().get_path()
+
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            container_image=APPLICATION_WITH_VOLUME_IMAGE,
+            volumes=frozenset([DockerVolume(
+                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                node_path=node_path)]),
+            activation_state=u'active'
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+
+        current_nodes = [
+            NodeState(
+                hostname=u"node1.example.com",
+                applications={APPLICATION_WITH_VOLUME},
+                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
+            ),
+        ]
+        manifestation_with_metadata = MANIFESTATION.transform(
+            ["dataset", "metadata"], {u"xyz": u"u"})
+
+        desired_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+                applications={APPLICATION_WITH_VOLUME.transform(
+                    ["volume", "manifestation"], manifestation_with_metadata)},
+                manifestations={MANIFESTATION.dataset_id:
+                                manifestation_with_metadata},
+            ),
+        ]
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = DeploymentState(nodes=current_nodes)
+        desired = Deployment(nodes=desired_nodes)
+
+        api = P2PNodeDeployer(
+            u"node1.example.com",
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        changes = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state(current_nodes[0])),
+            desired_configuration=desired,
+            current_cluster_state=current,
+        )
+        self.assertEqual(changes, Sequentially(changes=[]))
 
     def test_volume_max_size_preserved_after_move(self):
         """
@@ -2721,7 +2804,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         }))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2764,7 +2848,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])
         desired = Deployment(nodes=nodes)
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY)
 
@@ -2793,7 +2878,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset())
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY)
         to_stop = Application(
@@ -2880,7 +2966,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         }))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2951,7 +3038,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                      new_postgres_app.volume.manifestation}),
         }))
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY,
         )
@@ -3011,7 +3099,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                  applications=frozenset({new_postgres_app})),
         }))
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY,
         )
@@ -3083,7 +3172,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                  applications=frozenset({new_postgres_app})),
         }))
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY,
         )
@@ -3154,7 +3244,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                  applications=frozenset({new_wordpress_app, postgres_app})),
         }))
         result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=EMPTY,
         )
@@ -3203,7 +3294,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         desired = Deployment(nodes=frozenset({node}))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -3245,7 +3337,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         }))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -3291,7 +3384,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
                  manifestations={MANIFESTATION.dataset_id: MANIFESTATION})}))
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -3333,7 +3427,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -3374,7 +3469,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -3431,7 +3527,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -3497,7 +3594,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
 
         changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state()),
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -3808,7 +3906,8 @@ class ChangeNodeStateTests(SynchronousTestCase):
 
         d = change_node_state(api, desired_configuration=desired,
                               current_cluster_state=EMPTY)
-        d.addCallback(lambda _: api.discover_local_state())
+        d.addCallback(lambda _: api.discover_local_state(
+            NodeState(hostname=api.hostname)))
 
         self.assertEqual(NodeState(hostname=u'node.example.com'),
                          self.successResultOf(d))
@@ -3840,7 +3939,8 @@ class ChangeNodeStateTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         d = change_node_state(api, desired_configuration=desired,
                               current_cluster_state=EMPTY)
-        d.addCallback(lambda _: api.discover_local_state())
+        d.addCallback(lambda _: api.discover_local_state(
+            NodeState(hostname=api.hostname)))
 
         expected_application = Application(name=expected_application_name,
                                            image=DockerImage(
@@ -3901,7 +4001,7 @@ class ChangeNodeStateTests(SynchronousTestCase):
                               docker_client=FakeDockerClient(),
                               network=make_memory_network())
         local = object()
-        api.discover_local_state = lambda: succeed(local)
+        api.discover_local_state = lambda node_state: succeed(local)
         arguments = []
 
         def calculate(local_state, desired_configuration,

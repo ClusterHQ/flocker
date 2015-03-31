@@ -238,7 +238,7 @@ _FIELD_CONNECTION = Field(
     u"connection",
     lambda client: repr(client),
     "The AMP connection to control service")
-
+xo
 LOG_SEND_TO_CONTROL_SERVICE = ActionType(
     u"flocker:agent:send_to_control_service",
     [_FIELD_CONNECTION], [],

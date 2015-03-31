@@ -711,6 +711,10 @@ class ApplicationNodeDeployer(object):
         for application_name in applications_to_inspect:
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
+            # Current state never has metadata, but that's OK:
+            if inspect_desired.volume:
+                inspect_desired = inspect_desired.transform(
+                    ["volume", "manifestation", "dataset", "metadata"], {})
             if inspect_desired != inspect_current:
                 changes = [
                     StopApplication(application=inspect_current),
@@ -786,7 +790,13 @@ def change_node_state(deployer, desired_configuration,  current_cluster_state):
 
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
-    d = deployer.discover_local_state()
+    nodes = [node for node in current_cluster_state.nodes
+             if node.hostname == deployer.hostname]
+    if nodes:
+        node = [nodes[0]]
+    else:
+        node = NodeState(hostname=deployer.hostname)
+    d = deployer.discover_local_state(node)
     d.addCallback(deployer.calculate_necessary_state_changes,
                   desired_configuration=desired_configuration,
                   current_cluster_state=current_cluster_state)
@@ -917,5 +927,5 @@ class P2PNodeDeployer(object):
 
     def calculate_necessary_state_changes(self, *args, **kwargs):
         # Calculation will be split up in FLOC-1553.
-        return self.application_deployer.calculate_necessary_state_changes(
+        return self.applications_deployer.calculate_necessary_state_changes(
             *args, **kwargs)

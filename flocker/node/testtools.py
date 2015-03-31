@@ -21,7 +21,7 @@ from zope.interface.verify import verifyObject
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
 from ..testtools import loop_until
-from ..control import Node, Deployment
+from ..control import Node, Deployment, NodeState
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -104,7 +104,7 @@ class ControllableDeployer(object):
         self.calculated_actions = calculated_actions
         self.calculate_inputs = []
 
-    def discover_local_state(self):
+    def discover_local_state(self, node_state):
         return self.local_states.pop(0)
 
     def calculate_necessary_state_changes(self, local_state,
@@ -144,7 +144,7 @@ def ideployer_tests_factory(fixture):
             ``IStateChange`` provider.
             """
             deployer = fixture(self)
-            d = deployer.discover_local_state()
+            d = deployer.discover_local_state(NodeState(hostname=u"127.0.0.1"))
             d.addCallback(
                 lambda local: deployer.calculate_necessary_state_changes(
                     local, EMPTY, EMPTY))
