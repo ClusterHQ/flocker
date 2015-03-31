@@ -19,7 +19,7 @@ from ._config import (
 from ._model import (
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
     NodeState, Manifestation, Dataset, RestartNever, RestartOnFailure,
-    RestartAlways, DeploymentState,
+    RestartAlways, DeploymentState, NonManifestDatasets,
     )
 
 __all__ = [
@@ -42,5 +42,6 @@ __all__ = [
     'Dataset',
     'RestartNever',
     'RestartOnFailure',
-    'RestartAlways'
+    'RestartAlways',
+    'NonManifestDatasets',
 ]

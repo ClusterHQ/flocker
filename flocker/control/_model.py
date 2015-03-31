@@ -617,6 +617,17 @@ class DeploymentState(PRecord):
             "nodes", self.nodes.discard(original_node).add(updated_node))
 
 
+class NonManifestDatasets(PRecord):
+    """
+    A ``NonManifestDatasets`` represents datasets which are known to exist but
+    which have no manifestations anywhere in the cluster.
+    """
+    datasets = pmap_field(unicode, Dataset, invariant=_keys_match_dataset_id)
+
+    def update_cluster_state(self, cluster_state):
+        return cluster_state.set(nonmanifest_datasets=self.datasets)
+
+
 # Classes that can be serialized to disk or sent over the network:
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,

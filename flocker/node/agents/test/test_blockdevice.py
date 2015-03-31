@@ -35,6 +35,7 @@ from ... import InParallel, IStateChange
 from ...testtools import ideployer_tests_factory, to_node
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
+    NonManifestDatasets,
 )
 
 GIBIBYTE = 2 ** 30
@@ -61,7 +62,7 @@ class BlockDeviceDeployerTests(
     """
 
 
-class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
+class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
     """
     Tests for ``BlockDeviceDeployer.discover_state``.
     """
@@ -73,7 +74,8 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
             block_device_api=self.api
         )
 
-    def assertDiscoveredState(self, deployer, expected_manifestations):
+    def assertDiscoveredState(self, deployer, expected_manifestations,
+                              expected_nonmanifest_datasets=None):
         """
         Assert that the manifestations on the state object returned by
         ``deployer.discover_state`` equals the given list of manifestations.
@@ -92,15 +94,23 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
             dataset_id = manifestation.dataset.dataset_id
             mountpath = deployer._mountpath_for_manifestation(manifestation)
             expected_paths[dataset_id] = mountpath
-        self.assertEqual(
-            (NodeState(
+        expected = (
+            NodeState(
                 hostname=deployer.hostname,
                 manifestations={
                     m.dataset_id: m for m in expected_manifestations},
                 paths=expected_paths,
-            ),),
-            state
+            ),
         )
+        if expected_nonmanifest_datasets is not None:
+            expected += (
+                NonManifestDatasets(datasets={
+                    unicode(dataset_id):
+                    Dataset(dataset_id=unicode(dataset_id))
+                    for dataset_id in expected_nonmanifest_datasets
+                }),
+            )
+        self.assertEqual(expected, state)
 
     def test_no_devices(self):
         """
@@ -147,14 +157,15 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
 
     def test_only_unattached_devices(self):
         """
-        ``BlockDeviceDeployer.discover_state`` does not consider unattached
-        volumes.
+        ``BlockDeviceDeployer.discover_state`` discovers volumes that are not
+        attached to any node and creates entries in a ``NonManifestDatasets``
+        instance corresponding to them.
         """
         dataset_id = uuid4()
         self.api.create_volume(
             dataset_id=dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE)
-        self.assertDiscoveredState(self.deployer, [])
+        self.assertDiscoveredState(self.deployer, [], [dataset_id])
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(

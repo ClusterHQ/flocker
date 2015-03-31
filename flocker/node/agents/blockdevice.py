@@ -22,7 +22,7 @@ from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
 from .. import IDeployer, IStateChange, Sequentially, InParallel
-from ...control import NodeState, Manifestation, Dataset
+from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
@@ -779,20 +779,6 @@ def _manifestation_from_volume(volume):
     )
     return Manifestation(dataset=dataset, primary=True)
 
-# FLOC-1513
-#
-# Introduce a new PRecord, ``VisibleClusterState``, with a ``NodeState`` field
-# and a ``nonmanifest_datasets`` field.
-#
-# It also has a method, update_cluster_state, which both updates the cluster
-# with its ``NodeState`` (just delegate to that object's update_cluster_state
-# method) and with its own ``nonmanifest_datasets`` (use
-# ``DeploymentState.update_nonmanifest_datasets``).
-#
-# Probably introduce an interface for this thing now.  It's what must be
-# returned by ``discover_local_state`` and it must have this
-# ``update_cluster_state`` method.
-
 
 @implementer(IDeployer)
 class BlockDeviceDeployer(PRecord):
@@ -817,11 +803,17 @@ class BlockDeviceDeployer(PRecord):
         """
         volumes = self.block_device_api.list_volumes()
 
-        manifestations = {
-            m.dataset_id: m for m in (
-                _manifestation_from_volume(v) for v in volumes
-                if v.host == self.hostname)
-        }
+        manifestations = {}
+        nonmanifest = {}
+
+        for volume in volumes:
+            dataset_id = unicode(volume.dataset_id)
+            if volume.host == self.hostname:
+                manifestations[dataset_id] = _manifestation_from_volume(
+                    volume
+                )
+            elif volume.host is None:
+                nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         paths = {}
         for manifestation in manifestations.values():
@@ -832,17 +824,17 @@ class BlockDeviceDeployer(PRecord):
             mountpath = self._mountpath_for_manifestation(manifestation)
             paths[dataset_id] = mountpath
 
-        state = NodeState(
-            hostname=self.hostname,
-            manifestations=manifestations,
-            paths=paths,
+        state = (
+            NodeState(
+                hostname=self.hostname,
+                manifestations=manifestations,
+                paths=paths,
+            ),
         )
-        # FLOC-1513
-        #
-        # Succeed with a VisibleClusterState instance here instead, initialized
-        # with ``state`` and with dataset_ids from the unattached volumes in
-        # ``volumes``.
-        return succeed((state,))
+
+        if nonmanifest:
+            state += (NonManifestDatasets(datasets=nonmanifest),)
+        return succeed(state)
 
     def _mountpath_for_manifestation(self, manifestation):
         """
