@@ -32,6 +32,7 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from ..control._protocol import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
     )
+from ..control import NodeState
 
 
 class ClusterStatusInputs(Names):
@@ -238,7 +239,7 @@ _FIELD_CONNECTION = Field(
     u"connection",
     lambda client: repr(client),
     "The AMP connection to control service")
-xo
+
 LOG_SEND_TO_CONTROL_SERVICE = ActionType(
     u"flocker:agent:send_to_control_service",
     [_FIELD_CONNECTION], [],
@@ -275,9 +276,12 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        # XXX known_local_state = lookup NodeState for this node. If it
-        # doesn't exist, create NodeState with all values set to None
-        # (i.e. we know nothing).
+        nodes = [node for node in self.cluster_state.nodes
+                 if node.hostname == self.deployer.hostname]
+        if nodes:
+            known_local_state = nodes[0]
+        else:
+            known_local_state = NodeState(hostname=self.deployer.hostname)
         d = DeferredContext(self.deployer.discover_local_state(
             known_local_state))
 

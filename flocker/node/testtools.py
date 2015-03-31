@@ -99,6 +99,8 @@ class ControllableDeployer(object):
     """
     ``IDeployer`` whose results can be controlled.
     """
+    hostname = u"127.0.0.1"
+
     def __init__(self, local_states, calculated_actions):
         self.local_states = local_states
         self.calculated_actions = calculated_actions

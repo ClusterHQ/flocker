@@ -7,7 +7,7 @@ Deploy applications on nodes.
 
 from itertools import chain
 
-from zope.interface import Interface, implementer
+from zope.interface import Interface, implementer, Attribute
 
 from characteristic import attributes
 
@@ -80,6 +80,9 @@ class IDeployer(Interface):
     changes to bring local state and desired cluster configuration into
     alignment.
     """
+    hostname = Attribute(
+        "The hostname of the node this deployer is managing.")
+
     def discover_local_state(local_state):
         """
         Discover the local state, i.e. the state which is exclusively under
