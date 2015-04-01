@@ -715,7 +715,7 @@ class UpdateRepoTests(TestCase):
 
     def test_fake_rpm(self):
         """
-        Calling :func:`update_repo` downloads the new RPM, creates the
+        Calling :func:`update_repo` downloads the new RPMs, creates the
         metadata, and uploads it to S3.
 
         - Existing package on S3 are preserved in the metadata.
@@ -783,6 +783,72 @@ class UpdateRepoTests(TestCase):
                          '<newhash>-metadata.xml'):
                 'metadata content for: ' + ','.join(expected_packages),
         })
+
+        self.assertEqual(
+            expected_keys,
+            aws.s3_buckets[self.target_bucket])
+
+    def test_fake_deb(self):
+        """
+        Calling :func:`update_repo` downloads the new DEBs, creates the
+        metadata, and uploads it to S3.
+
+        - Existing package on S3 are preserved in the metadata.
+        - Other packages on the buildserver are not downloaded.
+        """
+        existing_s3_keys = {
+            os.path.join(self.target_key, 'existing_package.deb'): '',
+            os.path.join(self.target_key,
+                         'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb'):
+                'existing-content-to-be-replaced',
+            os.path.join(self.target_key, 'Packages.gz'):
+                'metadata for: existing_package.deb',
+        }
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: existing_s3_keys,
+            },
+        )
+
+        unspecified_package = 'unspecified-package_0.3.3-0.dev.7_all.deb'
+        repo_contents = {
+            'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb': 'cli-package',
+            'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb': 'node-package',
+            unspecified_package: 'unspecified-package-content',
+        }
+
+        self.update_repo(
+            aws=aws,
+            yum=FakeYum(),
+            package_directory=self.package_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=create_fake_repository(self, files=repo_contents),
+            packages=self.packages,
+            flocker_version='0.3.3dev7',
+            distro_name='ubuntu',
+            distro_version='14.04',
+        )
+
+        # The expected files are the new files plus the package which already
+        # existed in S3.
+        expected_packages = {
+            'existing_package.deb',
+            'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',
+            'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
+        }
+
+        expected_keys = existing_s3_keys.copy()
+        expected_keys.update({
+            'test/target/key/clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb':
+                'cli-package',
+            'test/target/key/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb':
+                'node-package',
+            'test/target/key/Packages.gz':
+                'Packages.gz for: ' + ','.join(expected_packages),
+            })
 
         self.assertEqual(
             expected_keys,

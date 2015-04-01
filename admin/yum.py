@@ -180,9 +180,6 @@ class FakeYum(object):
         if package_type == PackageTypes.RPM:
             metadata_directory = intent.repository_path.child('repodata')
             metadata_directory.createDirectory()
-            packages = set([
-                file for file in
-                intent.repository_path.listdir() if file.endswith('rpm')])
 
             metadata_directory.child('repomod.xml').setContent(
                 '<newhash>-metadata.xml')

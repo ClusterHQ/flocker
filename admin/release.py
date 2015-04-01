@@ -1,4 +1,4 @@
-# -*- test-case-name: admin.test.test_release.UploadRPMsTests -*-
+# -*- test-case-name: admin.test.test_release -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
@@ -374,11 +374,18 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
     """
     package_directory.createDirectory()
 
+    from .packaging import Distribution
+    distribution = Distribution(
+        name=distro_name,
+        version=distro_version,
+    )
+    package_type = distribution.package_type()
+
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
         source_prefix=target_key,
         target_path=package_directory,
-        filter_extensions=('.rpm',)))
+        filter_extensions=('.' + package_type.value,)))
 
     downloaded_packages = yield Effect(DownloadPackagesFromRepository(
         source_repo=source_repo,
