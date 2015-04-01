@@ -149,7 +149,7 @@ def make_idockerclient_tests(fixture):
                 # known value simply allows us to compare an entire Unit
                 # object instead of individual properties and is therefore
                 # a convenience measure.
-                result.container_name = name
+                result = result.set("container_name", name)
                 self.assertEqual(result, expected)
             d.addCallback(got_list)
             return d
@@ -337,40 +337,6 @@ class UnitInitTests(
     """
 
 
-class UnitTests(TestCase):
-    """
-    Tests for ``Unit``.
-
-    XXX: The equality tests in this case are incomplete. See
-    https://github.com/hynek/characteristic/issues/4 for a proposed solution to
-    this.
-    """
-    def test_repr(self):
-        """
-        ``Unit.__repr__`` shows the name, activation_state, container_image,
-        and ports.
-        """
-        self.assertEqual(
-            "<Unit(name=u'site-example.com', "
-            "container_name=u'flocker--site-example.com', "
-            "activation_state=u'active', "
-            "container_image=u'flocker/flocker:v1.0.0', ports=[], "
-            "environment=None, "
-            "volumes=[<Volume(node_path=FilePath('/tmp'), "
-            "container_path=FilePath('/blah'))>], "
-            "mem_limit=None, cpu_shares=None, "
-            "restart_policy=RestartNever())>",
-
-            repr(Unit(name=u'site-example.com',
-                      container_name=u'flocker--site-example.com',
-                      activation_state=u'active',
-                      container_image=u'flocker/flocker:v1.0.0',
-                      ports=[], environment=None,
-                      volumes=[Volume(node_path=FilePath(b'/tmp'),
-                                      container_path=FilePath(b'/blah'))])),
-        )
-
-
 class EnvironmentInitTests(
         make_with_init_tests(
             record_type=Environment,
@@ -397,16 +363,6 @@ class EnvironmentTests(TestCase):
         environment = Environment(variables=frozenset(variables.items()))
 
         self.assertEqual(environment.to_dict(), variables)
-
-    def test_repr(self):
-        """
-        ``Environment.__repr__`` shows the id and variables.
-        """
-        self.assertEqual(
-            "<Environment("
-            "variables=frozenset([('foo', 'bar')]))>",
-            repr(Environment(variables=frozenset(dict(foo="bar").items())))
-        )
 
 
 class VolumeInitTests(

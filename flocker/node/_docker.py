@@ -15,6 +15,7 @@ from docker import Client
 from docker.errors import APIError
 from docker.utils import create_host_config
 
+from pyrsistent import field, PRecord
 from characteristic import attributes, Attribute
 
 from twisted.python.components import proxyForInterface
@@ -30,14 +31,15 @@ class AlreadyExists(Exception):
     """A unit with the given name already exists."""
 
 
-@attributes(["variables"])
-class Environment(object):
+class Environment(PRecord):
     """
     A collection of environment variables.
 
     :ivar frozenset variables: A ``frozenset`` of tuples containing
         key and value pairs representing the environment variables.
     """
+    variables = field(mandatory=True)
+
     def to_dict(self):
         """
         Convert to a dictionary suitable for serialising to JSON and then on to
@@ -48,8 +50,7 @@ class Environment(object):
         return dict(self.variables)
 
 
-@attributes(["node_path", "container_path"])
-class Volume(object):
+class Volume(PRecord):
     """
     A Docker volume.
 
@@ -59,18 +60,11 @@ class Volume(object):
     :ivar FilePath container_path: The volume's path within the
     container.
     """
+    node_path = field(mandatory=True, type=FilePath)
+    container_path = field(mandatory=True, type=FilePath)
 
 
-@attributes(["name", "container_name", "activation_state",
-             Attribute("container_image", default_value=None),
-             Attribute("ports", default_value=()),
-             Attribute("environment", default_value=None),
-             Attribute("volumes", default_value=()),
-             Attribute("mem_limit", default_value=None),
-             Attribute("cpu_shares", default_value=None),
-             Attribute("restart_policy", default_value=RestartNever()),
-             ])
-class Unit(object):
+class Unit(PRecord):
     """
     Information about a unit managed by Docker.
 
@@ -117,6 +111,16 @@ class Unit(object):
 
     :ivar IRestartPolicy restart_policy: The restart policy of the container.
     """
+    name = field(mandatory=True)
+    container_name = field(mandatory=True)
+    activation_state = field(mandatory=True)
+    container_image = field(mandatory=True, initial=None)
+    ports = field(mandatory=True, initial=())
+    environment = field(mandatory=True, initial=None)
+    volumes = field(mandatory=True, initial=())
+    mem_limit = field(mandatory=True, initial=None)
+    cpu_shares = field(mandatory=True, initial=None)
+    restart_policy = field(mandatory=True, initial=RestartNever())
 
 
 class IDockerClient(Interface):
