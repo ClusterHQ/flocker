@@ -13,7 +13,6 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
-from twisted.python import log
 
 from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
@@ -27,7 +26,8 @@ from flocker.provision._install import (
 )
 
 from effect import parallel
-from flocker.provision._ssh._crochet import perform, dispatcher
+from flocker.provision._ssh._crochet import dispatcher
+from effect import sync_perform as perform
 
 
 def safe_call(command, **kwargs):
@@ -166,7 +166,7 @@ class VagrantRunner(object):
         box_version = vagrant_version(self.package_source.version)
         # Boot the VMs
         check_safe_call(
-            ['vagrant', 'up', '--parallel'],
+            ['vagrant', 'up'],
             cwd=self.vagrant_path.path,
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
@@ -404,8 +404,6 @@ def main(args, base_path, top_level):
     # In particular, we will kill any processes we spawned
     # and cleanup and VMs we created.
     signal.signal(signal.SIGTERM, signal_handler)
-
-    log.startLogging(sys.stdout)
 
     try:
         nodes = runner.start_nodes()
