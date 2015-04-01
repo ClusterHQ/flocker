@@ -126,11 +126,14 @@ def perform_create_repository(dispatcher, intent):
             b'--multiversion',
             intent.repository_path.path])
 
+        intent.repository_path.child('Release').setContent(
+            "Origin: ClusterHQ\n")
+
         with intent.repository_path.child(
                 'Packages.gz').open(b"w") as raw_file:
             with GzipFile(b'Packages.gz', fileobj=raw_file) as gzip_file:
                 gzip_file.write(metadata)
-        return {'Packages.gz'}
+        return {'Packages.gz', 'Release'}
     else:
         raise NotImplementedError("Unknwon package type: %s"
                                   % (package_type,))
@@ -190,7 +193,9 @@ class FakeYum(object):
         elif package_type == PackageTypes.DEB:
             index = intent.repository_path.child('Packages.gz')
             index.setContent("Packages.gz for: " + ",".join(packages))
-            return {'Packages.gz'}
+            intent.repository_path.child('Release').setContent(
+                "Origin: ClusterHQ\n")
+            return {'Packages.gz', 'Release'}
         else:
             raise NotImplementedError("Unknwon package type: %s"
                                       % (package_type,))

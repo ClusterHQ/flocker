@@ -1091,6 +1091,7 @@ class UploadRPMsTests(TestCase):
             'ubuntu-testing/14.04/amd64/clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',  # noqa
             'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.3-0.dev.7_amd64.deb',  # noqa
             'ubuntu-testing/14.04/amd64/Packages.gz',
+            'ubuntu-testing/14.04/amd64/Release',
         }
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
@@ -1144,6 +1145,7 @@ class UploadRPMsTests(TestCase):
             'ubuntu/14.04/amd64/clusterhq-flocker-node_0.3.3-1_all.deb',
             'ubuntu/14.04/amd64/clusterhq-python-flocker_0.3.3-1_amd64.deb',
             'ubuntu/14.04/amd64/Packages.gz',
+            'ubuntu/14.04/amd64/Release',
         }
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
