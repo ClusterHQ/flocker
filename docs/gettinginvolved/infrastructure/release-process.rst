@@ -101,7 +101,7 @@ Preparing For a Release
 
    .. prompt:: bash $
 
-      export BASE_BRANCH=release/0.1.2
+      export BASE_BRANCH=release/flocker-0.1.2
 
 #. Create an issue in JIRA:
 
