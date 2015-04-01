@@ -9,7 +9,6 @@ from requests_file import FileAdapter
 from characteristic import attributes
 from effect import sync_performer, TypeDispatcher
 from subprocess import check_call, check_output
-from hashlib import md5
 from gzip import GzipFile
 
 
@@ -69,11 +68,7 @@ def perform_download_packages_from_repository(dispatcher, intent):
         url = intent.source_repo + '/' + package_name
         local_path = intent.target_path.child(package_name).path
         download = s.get(url)
-        try:
-         download.raise_for_status()
-        except Exception:
-            print url
-            raise
+        download.raise_for_status()
         content = download.content
         with open(local_path, "wb") as local_file:
             local_file.write(content)
@@ -189,17 +184,12 @@ class FakeYum(object):
                 file for file in
                 intent.repository_path.listdir() if file.endswith('rpm')])
 
-            index_filename = 'repomd.xml'
-            for filename in [index_filename, 'filelists.xml.gz',
-                             'other.xml.gz', 'primary.xml.gz']:
-                content = 'metadata content for: ' + ','.join(packages)
+            metadata_directory.child('repomod.xml').setContent(
+                '<newhash>-metadata.xml')
+            metadata_directory.child('<newhash>-metadata.xml').setContent(
+                'metadata content for: ' + ','.join(packages))
 
-                if filename != index_filename:
-                    # The index filename is always the same
-                    filename = md5(filename).hexdigest() + '-' + filename
-                metadata_directory.child(filename).setContent(content)
-
-            return _list_new_metadata(repository_path=intent.repository_path)
+            return {'repodata/repomod.xml', 'repodata/<newhash>-metadata.xml'}
         elif package_type == PackageTypes.DEB:
             index = intent.repository_path.child('Packages.gz')
             index.setContent("Packages.gz for: " + ",".join(packages))

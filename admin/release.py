@@ -394,7 +394,6 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
         distro_name=distro_name,
         distro_version=distro_version,
         ))
-    print new_metadata
 
     yield Effect(UploadToS3Recursively(
         source_path=package_directory,
