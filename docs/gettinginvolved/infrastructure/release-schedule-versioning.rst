@@ -34,18 +34,20 @@ The current value of ``X`` is 0 until the project is ready for production.
 
 Pre-release
 ^^^^^^^^^^^
+
 Pre-releases are made as part of ClusterHQ's internal release process.
 We don't currently solicit external feedback on pre-releases.
 
 Pre-releases will have the version number of the next release with a ``preX`` suffix, where ``X`` starts at ``1`` and is incremented for each pre-release.
 
 There is a feature-freeze at the time that first pre-release for a given release is made.
-The eventual final release is based on the last pre-release, including only bug fixes discovered during testing of the pre-release.
+The eventual final release is made from the last pre-release, including only bug fixes discovered during testing of the pre-release.
 
 There must be at least one pre-release which will be tested for one week before the final release (a Major Marketing Release or Minor Marketing Release) is made.
 
 Major Marketing Release
 ^^^^^^^^^^^^^^^^^^^^^^^
+
 The content of major marketing releases will typically be planned significantly in advance
 and will have a significant collection of new functionality.
 
@@ -57,6 +59,7 @@ The version of a major marketing release will have the minor version number incr
 
 Minor Marketing Release
 ^^^^^^^^^^^^^^^^^^^^^^^
+
 Minor marketing releases will be made when some particular feature of a major marketing release is ready
 and ClusterHQ's marketing team wants to announce that feature.
 These release will typically be made in preparation for a blog post or other announcement of a feature.
@@ -69,6 +72,7 @@ The version of a minor marketing release will have the micro version number incr
 
 Documentation Release
 ^^^^^^^^^^^^^^^^^^^^^
+
 Documentation releases will be made when documentation for a major or minor marketing release is to be updated, without doing a full release.
 
 Documentation releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
@@ -78,6 +82,7 @@ The version of a documentation will have the version of the corresponding market
 
 Weekly Development Release
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Weekly releases are made primarily to facilitate the testing and automation of the release process itself.
 
 If the previous release was a marketing release (either major or minor), the version of the following weekly release will increment the micro version
