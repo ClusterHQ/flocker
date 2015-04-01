@@ -21,7 +21,7 @@ By the end of the release process we will have:
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
 
-For a documentation release, we will have:
+For a maintenance release, we will have:
 
 - a tag in version control,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
@@ -60,7 +60,7 @@ Access
 
 - An OS X (most recent release) system.
 
-.. note:: For a documentation release, access to Google Cloud Storage and Atlas is not required.
+.. note:: For a maintenance release, access to Google Cloud Storage and Atlas is not required.
 
 .. _preparing-for-a-release:
 
@@ -80,6 +80,29 @@ Preparing For a Release
 
       export VERSION=0.1.2
 
+#. Export the base branch which the release will be branched from:
+
+   For a weekly development release, or the first pre-release for a marketing release,
+   the base branch should be ``master``:
+
+   .. prompt:: bash $
+
+      export BASE_BRANCH=master
+
+   For a marketing release, or any pre-release which is not the first pre-release for a particular marketing release,
+   the base branch should be the release branch for the most recent pre-release:
+
+   .. prompt:: bash $
+
+      export BASE_BRANCH=release/flocker-0.1.2pre1
+
+   For a maintenance release,
+   the base branch should be the release receiving the maintenance:
+
+   .. prompt:: bash $
+
+      export BASE_BRANCH=release/0.1.2
+
 #. Create an issue in JIRA:
 
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
@@ -93,16 +116,11 @@ Preparing For a Release
 
 #. Create a clean, local Flocker release branch with no modifications:
 
-   .. note::
-
-      For a maintenance release, replace ``origin/master`` below with ``origin/flocker-${BASE_VERSION}``,
-      where ``${BASE_VERSION}`` is the release receiving the maintenance.
-
    .. prompt:: bash $
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/master
+      git checkout -b release/flocker-${VERSION} origin/${BASE_BRANCH}
       git push --set-upstream origin release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
@@ -177,7 +195,7 @@ Preparing For a Release
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Update the staging documentation.
-   (For a documentation release ``${VERSION}`` should be the base release version in this step).
+   (For a maintenance release ``${VERSION}`` should be the the release receiving the maintenance).
 
    .. prompt:: bash $
 
@@ -302,7 +320,7 @@ Release
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance release.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -311,7 +329,7 @@ Release
 
 #. Build RPM packages and upload them to Amazon S3:
 
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance release.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -319,7 +337,7 @@ Release
 
 #. Copy the tutorial box to the final location:
    
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance release.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -327,7 +345,7 @@ Release
 
 #. Add the tutorial box to Atlas:
 
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance release.
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
 
@@ -339,7 +357,7 @@ Release
 
 #. Create a version specific ``Homebrew`` recipe for this release:
 
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance release.
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
 
