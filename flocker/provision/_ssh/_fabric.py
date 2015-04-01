@@ -60,9 +60,9 @@ def perform_run_remotely(base_dispatcher, intent):
 
     disconnect_all()
 
-dispatcher = ComposedDispatcher(
+dispatcher = ComposedDispatcher([
     TypeDispatcher({
         RunRemotely: perform_run_remotely,
     }),
     base_dispatcher,
-)
+])
