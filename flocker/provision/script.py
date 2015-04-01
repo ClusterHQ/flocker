@@ -14,6 +14,17 @@ from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 
 
+class CreateOptions(Options):
+    # TODO longdesc and synopsis
+    # TODO look at docker machine for inspiration
+    optParameters = [
+        ['driver', 'd', 'rackspace', 'choose cloud provider'],
+        ['rackspace-username', None, None, 'Rackspace account username'],
+        ['rackspace-api-key', None, None, 'Rackspace API key'],
+        ['rackspace-region', None, None, 'Rackspace region'],
+        ['num-agent-nodes', 'n', 3, 'how many nodes to create'],
+    ]
+
 @flocker_standard_options
 class ProvisionOptions(Options):
     """
@@ -27,6 +38,9 @@ class ProvisionOptions(Options):
     synopsis = ("Usage: flocker-provision [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
+
+    # TODO check other commands for period
+    subCommands = [['create', None, CreateOptions, "Create a Flocker cluster"]]
 
     def parseArgs(self):
         pass
