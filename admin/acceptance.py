@@ -25,7 +25,7 @@ from flocker.provision._install import (
     configure_cluster,
 )
 
-from flocker.provision._ssh._crochet import dispatcher
+from flocker.provision._ssh._fabric import dispatcher
 from flocker.provision._effect import sequence
 from effect import sync_perform as perform
 

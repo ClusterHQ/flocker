@@ -17,9 +17,7 @@ from twisted.python.procutils import which
 
 from pyrsistent import pmap
 
-from effect.twisted import (
-    perform as perform_with_twisted
-)
+from effect import sync_perform
 
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
@@ -28,7 +26,7 @@ from ..control import (
 from flocker.testtools import loop_until
 
 from flocker.provision._install import stop_cluster
-from flocker.provision._ssh._crochet import dispatcher
+from flocker.provision._ssh._fabric import dispatcher
 
 try:
     from pymongo import MongoClient
@@ -227,10 +225,10 @@ def _stop_acceptance_cluster():
     agent_nodes = filter(None, agent_nodes_env_var.split(':'))
 
     if control_node and agent_nodes:
-        return perform_with_twisted(
+        return succeed(sync_perform(
             dispatcher,
             stop_cluster(control_node, agent_nodes)
-        )
+        ))
     else:
         return succeed(None)
 

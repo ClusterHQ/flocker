@@ -10,6 +10,8 @@ from effect import (
     TypeDispatcher, ComposedDispatcher,
     )
 
+from ..effect import base_dispatcher
+
 
 @sync_performer
 def perform_run(dispatcher, intent):
@@ -58,6 +60,9 @@ def perform_run_remotely(base_dispatcher, intent):
 
     disconnect_all()
 
-dispatcher = TypeDispatcher({
-    RunRemotely: perform_run_remotely,
-})
+dispatcher = ComposedDispatcher(
+    TypeDispatcher({
+        RunRemotely: perform_run_remotely,
+    }),
+    base_dispatcher,
+)
