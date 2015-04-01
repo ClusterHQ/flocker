@@ -364,8 +364,10 @@ Release
 
         export VERSION=0.1.2
 
+     Install and test the Homebrew recipe:
+
      .. task:: test_homebrew flocker-${VERSION}
-           :prompt: [osx-user]$
+        :prompt: [osx-user]$
 
      If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
      The release process should not continue until the tests pass.
@@ -404,17 +406,15 @@ Post-Release Review Process
      - https://docs.clusterhq.com/en/devel/ should redirect to ``https://docs.clusterhq.com/en/${VERSION}/``
      - https://docs.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
 
-#. Verify that the tutorial works on all supported platforms:
+#. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
-   * The client (``flocker-deploy``) should be installed on all supported platforms.
+   Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`.
 
-     Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`.
+   XXX: This step should be documented.
+   See `FLOC-1622 <https://clusterhq.atlassian.net/browse/FLOC-1622>`_.
 
-     XXX: This step should be automated. See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
-
-   * The node package (``flocker-node``) should be installed and tested on all supported platforms.
-   * Follow the :doc:`../../indepth/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
-   * Follow the :doc:`ELK example documentation<../../indepth/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
+   XXX: This step should be automated.
+   See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
 
 #. Merge the release pull request.
 
