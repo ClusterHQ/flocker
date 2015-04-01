@@ -418,13 +418,13 @@ This installs CentOS 7 on Rackspace nodes.
 
 Options are:
 * Cloud provider? Maybe
-   * For each cloud provider, credential options (e.g. rackspace secret key)
+   * For each cloud provider, credential options (e.g. rackspace secret key, region)
 * Number of nodes
-* Instance details - have defaults which work but user can decide instance size etc.
+* Instance details - have defaults which work but user can decide instance size etc. - follow-up?
 
 For example:
 
-flocker-provision create -d rackspace --rackspace-secret=secret --num-agent-nodes=3
+flocker-provision create --driver rackspace --rackspace-secret=secret --num-agent-nodes=3 --rackspace-region=us-west-1
 > Creating... 90%
 > control_node: 192.0.2.1
 > agent_nodes:
