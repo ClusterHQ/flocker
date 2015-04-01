@@ -91,10 +91,10 @@ class TaskDirective(Directive):
         if len(self.arguments) > 1:
             # Some tasks can include the latest installable version as (part
             # of) an argument. This replaces a placeholder with that version.
-            arguments = self.arguments[1].encode("utf-8").split()
+            arguments = self.arguments[1].split()
             latest = get_installable_version(version)
-            task_arguments = [item.replace(PLACEHOLDER, latest) for
-                              item in arguments]
+            task_arguments = [item.replace(PLACEHOLDER, latest).encode("utf-8")
+                              for item in arguments]
         else:
             task_arguments = []
 
