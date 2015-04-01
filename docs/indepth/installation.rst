@@ -37,9 +37,9 @@ On CentOS 7 you can install these by running:
 
 On Ubuntu or Debian you can run:
 
-.. code-block:: console
+.. prompt:: bash alice@mercury:~$
 
-   alice@mercury:~$ sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
+   sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
 
 Then run the following script to install ``flocker-cli``:
 
@@ -187,36 +187,28 @@ Using Amazon Web Services
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
-   .. code-block:: sh
+   .. prompt:: bash yourlaptop$
 
-      yourlaptop$ mv ~/Downloads/my-instance.pem ~/.ssh/
-      yourlaptop$ chmod 600 ~/.ssh/my-instance.pem
-      yourlaptop$ ssh-add ~/.ssh/my-instance.pem
+      mv ~/Downloads/my-instance.pem ~/.ssh/
+      chmod 600 ~/.ssh/my-instance.pem
+      ssh-add ~/.ssh/my-instance.pem
 
-#. Look up the public DNS name or public IP address of the new instance and log in as user "fedora", e.g.:
+#. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user "fedora", "centos", or "ubuntu" e.g.:
 
-   .. code-block:: sh
+   .. prompt:: bash yourlaptop$
 
-      yourlaptop$ ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+      ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
-#. Allow SSH access for the ``root`` user
+#. Allow SSH access for the ``root`` user, then log out.
 
    .. task:: install_ssh_key
-      :prompt: [fedora@aws]#
-
-   You should now be able to log in as "root" and the ``authorized_keys`` file should look approximately like this:
-
-   .. code-block:: sh
-
-      yourlaptop$ ssh root@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
-      [root@aws]# cat /root/.ssh/authorized_keys
-      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
+      :prompt: [fedora@aws]$
 
 #. Log back into the instances as user "root", e.g.:
 
-   .. code-block:: sh
+   .. prompt:: bash yourlaptop$
 
-      yourlaptop$ ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+      ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 #. Upgrade the Kernel
 
@@ -227,9 +219,9 @@ Using Amazon Web Services
 
    And now reboot the machine to make use of the new kernel.
 
-   .. code-block:: sh
+   .. prompt:: bash [root@aws]#
 
-      [fedora@aws]$ sudo shutdown -r now
+         shutdown -r now
 
 #. Update the SELinux policies.
 
