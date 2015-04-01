@@ -364,6 +364,8 @@ Release
 
         export VERSION=0.1.2
 
+     Install and test the Homebrew recipe:
+
      .. task:: test_homebrew flocker-${VERSION}
         :prompt: [osx-user]$
 
