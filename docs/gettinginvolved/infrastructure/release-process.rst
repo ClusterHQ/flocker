@@ -364,8 +364,10 @@ Release
 
         export VERSION=0.1.2
 
+     Install and test the Homebrew recipe:
+
      .. task:: test_homebrew flocker-${VERSION}
-           :prompt: [osx-user]$
+        :prompt: [osx-user]$
 
      If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
      The release process should not continue until the tests pass.
