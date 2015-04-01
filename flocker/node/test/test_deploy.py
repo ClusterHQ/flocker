@@ -1311,6 +1311,26 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             self.successResultOf(d).paths)
 
 
+APP_NAME = u"site-example.com"
+UNIT_FOR_APP = Unit(name=APP_NAME,
+                    container_name=APP_NAME,
+                    container_image=u"flocker/wordpress:latest",
+                    activation_state=u'active')
+APP = Application(
+    name=APP_NAME,
+    image=DockerImage.from_string(UNIT_FOR_APP.container_image)
+)
+APP_NAME2 = u"site-example.net"
+UNIT_FOR_APP2 = Unit(name=APP_NAME2,
+                    container_name=APP_NAME2,
+                    container_image=u"flocker/wordpress:latest",
+                    activation_state=u'active')
+APP2 = Application(
+    name=APP_NAME2,
+    image=DockerImage.from_string(UNIT_FOR_APP2.container_image)
+)
+
+
 class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         SynchronousTestCase):
     """
@@ -1343,25 +1363,16 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         with a a list of running ``Application``\ s; one for each active
         container.
         """
-        expected_application_name = u'site-example.com'
-        unit = Unit(name=expected_application_name,
-                    container_name=expected_application_name,
-                    container_image=u"flocker/wordpress:latest",
-                    activation_state=u'active')
-        fake_docker = FakeDockerClient(units={expected_application_name: unit})
-        application = Application(
-            name=unit.name,
-            image=DockerImage.from_string(unit.container_image)
-        )
+        fake_docker = FakeDockerClient(units={APP_NAME: UNIT_FOR_APP})
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=u'example.com'))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
-        self.assertEqual(NodeState(hostname=u'example.com',
-                                   applications=[application],
+        self.assertEqual(NodeState(hostname=api.hostname,
+                                   applications=[APP],
                                    manifestations=None,
                                    paths=None),
                          self.successResultOf(d))
@@ -1372,29 +1383,16 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         ``NodeState`` with a running ``Application`` for every active
         container on the host.
         """
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net',
-                     container_name=u'site-example.net',
-                     container_image=u'clusterhq/wordpress:latest',
-                     activation_state=u'active')
-        units = {unit1.name: unit1, unit2.name: unit2}
+        units = {APP_NAME: UNIT_FOR_APP, APP_NAME2: UNIT_FOR_APP2}
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit.name,
-                image=DockerImage.from_string(unit.container_image)
-            ) for unit in units.values()
-        ]
+        applications = [APP, APP2]
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=u'example.com'))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d).applications)
@@ -1409,27 +1407,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             ('CUSTOM_ENV_B', 'something else'),
         )
         environment = Environment(variables=environment_variables)
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     environment=environment,
-                     activation_state=u'active')
+        unit1 = UNIT_FOR_APP.set("environment", environment)
         units = {unit1.name: unit1}
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                environment=environment_variables
-            )
-        ]
+        applications = [APP.set("environment", dict(environment_variables))]
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=u'example.com'))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertItemsEqual(pset(applications),
                               sorted(self.successResultOf(d).applications))
@@ -1454,31 +1442,22 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         )
         unit_environment = environment_variables + link_environment_variables
         environment = Environment(variables=frozenset(unit_environment))
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     environment=environment,
-                     activation_state=u'active')
+        unit1 = UNIT_FOR_APP.set("environment", environment)
         units = {unit1.name: unit1}
 
         fake_docker = FakeDockerClient(units=units)
         links = [
             Link(local_port=80, remote_port=8080, alias="APACHE")
         ]
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                environment=environment_variables,
-                links=frozenset(links)
-            )
-        ]
+        applications = [APP.set("links", links).set(
+            "environment", dict(environment_variables))]
+
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=u'example.com'))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertItemsEqual(pset(applications),
                               sorted(self.successResultOf(d).applications))
@@ -1489,15 +1468,9 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         with environment variables that correspond to an exposed link.
         """
         fake_docker = FakeDockerClient()
-        applications = [
-            Application(
-                name=u'site-example.com',
-                image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
-                links=frozenset([
-                    Link(local_port=80, remote_port=8080, alias='APACHE')
-                ])
-            )
-        ]
+        applications = [APP.set("links", [
+            Link(local_port=80, remote_port=8080, alias='APACHE')
+        ])]
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
@@ -1505,9 +1478,9 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         )
         for app in applications:
             StartApplication(
-                hostname='node1.example.com', application=app
+                hostname=api.hostname, application=app
             ).run(api)
-        d = api.discover_local_state(NodeState(hostname=u'example.com'))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
@@ -1518,29 +1491,18 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         with exposed ``Portmap`` objects.
         """
         ports = [PortMap(internal_port=80, external_port=8080)]
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     ports=frozenset(ports),
-                     activation_state=u'active')
+        unit1 = UNIT_FOR_APP.set("ports", ports)
         units = {unit1.name: unit1}
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                ports=frozenset([
-                    Port(internal_port=80, external_port=8080)
-                ])
-            )
-        ]
+        applications = [APP.set("ports",
+                                [Port(internal_port=80, external_port=8080)])]
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=u'example.com'))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
@@ -1567,39 +1529,27 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                                         paths={DATASET_ID: path1,
                                                DATASET_ID2: path2})
 
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=path1,
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net',
-                     container_name=u'site-example.net',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=path2,
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
+        unit1 = UNIT_FOR_APP.set("volumes", [
+            DockerVolume(
+                node_path=path1,
+                container_path=FilePath(b'/var/lib/data')
+            )]
+        )
+
+        unit2 = UNIT_FOR_APP2.set("volumes", [
+            DockerVolume(
+                node_path=path2,
+                container_path=FilePath(b'/var/lib/data')
+            )]
+        )
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit.name,
-                image=DockerImage.from_string(unit.container_image),
-                volume=AttachedVolume(
-                    manifestation=manifestations[respective_id],
-                    mountpoint=FilePath(b'/var/lib/data')
-                    )
-            ) for (unit, respective_id) in [(unit1, DATASET_ID),
-                                            (unit2, DATASET_ID2)]]
+        applications = [app.set("volume", AttachedVolume(
+            manifestation=manifestations[respective_id],
+            mountpoint=FilePath(b'/var/lib/data')
+        )) for (app, respective_id) in [(APP, DATASET_ID),
+                                        (APP2, DATASET_ID2)]]
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
