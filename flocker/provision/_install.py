@@ -54,12 +54,12 @@ def task_test_homebrew(recipe):
     :return: List of commands used to install a Homebrew recipe for Flocker and
         test it.
     """
-    return [
+    return sequence([
         run_from_args(['brew', 'tap', 'ClusterHQ/tap']),
         run("brew update"),
         run("brew install {recipe}".format(recipe=recipe)),
         run("brew test {recipe}".format(recipe=recipe)),
-    ]
+    ])
 
 
 def task_install_ssh_key():
