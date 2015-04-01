@@ -25,7 +25,7 @@ from ..testtools import (
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
-    NodeState, DeploymentState)
+    NodeState, DeploymentState, RestartAlways)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
@@ -1564,32 +1564,23 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         """
         Docker volumes that cannot be matched to a dataset are ignored.
         """
-        unit = Unit(name=u'site-example.com',
-                    container_name=u'site-example.com',
-                    container_image=u"clusterhq/wordpress:latest",
-                    volumes=frozenset(
-                        [DockerVolume(
-                            node_path=FilePath(b"/some/random/path"),
-                            container_path=FilePath(b'/var/lib/data')
-                        )],
-                    ),
-                    activation_state=u'active')
+        unit = UNIT_FOR_APP.set("volumes", [
+            DockerVolume(
+                node_path=FilePath(b"/some/random/path"),
+                container_path=FilePath(b'/var/lib/data')
+            )],
+        )
         units = {unit.name: unit}
 
         fake_docker = FakeDockerClient(units=units)
 
-        applications = [
-            Application(
-                name=unit.name,
-                image=DockerImage.from_string(unit.container_image),
-            ),
-        ]
+        applications = [APP]
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
@@ -1599,34 +1590,21 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         Units that are not active are considered to be not running by
         ``discover_local_state()``.
         """
-        unit1 = Unit(name=u'site-example3.net',
-                     container_name=u'site-example3.net',
-                     container_image=u'clusterhq/wordpress:latest',
-                     activation_state=u'inactive')
-        unit2 = Unit(name=u'site-example4.net',
-                     container_name=u'site-example4.net',
-                     container_image=u'clusterhq/wordpress:latest',
-                     activation_state=u'madeup')
+        unit1 = UNIT_FOR_APP.set("activation_state", u"inactive")
+        unit2 = UNIT_FOR_APP2.set("activation_state", u'madeup')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(name=unit.name,
-                        image=DockerImage.from_string(
-                            unit.container_image
-                        ),
-                        running=False) for unit in units.values()
-        ]
-        applications.sort()
+        applications = [APP.set("running", False), APP2.set("running", False)]
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
         result = self.successResultOf(d)
 
-        self.assertEqual(NodeState(hostname=u'example.com',
+        self.assertEqual(NodeState(hostname=api.hostname,
                                    applications=applications,
                                    manifestations=None,
                                    paths=None),
@@ -1660,31 +1638,21 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         An ``Application`` with the appropriate ``IRestartPolicy`` is
         discovered from the corresponding restart policy of the ``Unit``.
         """
-        policy = object()
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     restart_policy=policy,
-                     activation_state=u'active')
+        policy = RestartAlways()
+        unit1 = UNIT_FOR_APP.set("restart_policy", policy)
         units = {unit1.name: unit1}
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                restart_policy=policy,
-            )
-        ]
+        applications = [APP.set("restart_policy", policy)]
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).applications))
+        self.assertEqual(applications,
+                         list(self.successResultOf(d).applications))
 
     def test_unknown_manifestations(self):
         """
