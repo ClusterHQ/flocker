@@ -10,7 +10,7 @@ from effect import (
     TypeDispatcher, ComposedDispatcher,
     )
 
-from ..effect import base_dispatcher
+from .._effect import base_dispatcher
 
 
 @sync_performer
