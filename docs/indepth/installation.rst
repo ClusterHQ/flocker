@@ -29,6 +29,12 @@ On Fedora 20 you can install these by running:
 
    alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv
 
+On CentOS 7 you can install these by running:
+
+.. prompt:: bash alice@mercury:~$
+
+   sudo yum install gcc python python-devel python-virtualenv
+
 On Ubuntu or Debian you can run:
 
 .. code-block:: console
