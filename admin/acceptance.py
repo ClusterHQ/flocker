@@ -25,8 +25,8 @@ from flocker.provision._install import (
     configure_cluster,
 )
 
-from effect import parallel
 from flocker.provision._ssh._crochet import dispatcher
+from flocker.provision._effect import sequence
 from effect import sync_perform as perform
 
 
@@ -241,7 +241,7 @@ class LibcloudRunner(object):
             self.nodes.append(node)
             del node
 
-        commands = parallel([
+        commands = sequence([
             node.provision(package_source=self.package_source,
                            variants=self.variants)
             for node in self.nodes

@@ -12,6 +12,26 @@ from effect import (
 
 
 @sync_performer
+def perform_run(dispatcher, intent):
+    run(intent.command),
+
+
+@sync_performer
+def perform_sudo(dispatcher, intent):
+    sudo(intent.command),
+
+
+@sync_performer
+def perform_put(dispatcher, intent):
+    put(StringIO(intent.content), intent.path),
+
+
+@sync_performer
+def perform_comment(disptacher, intent):
+    pass
+
+
+@sync_performer
 def perform_run_remotely(base_dispatcher, intent):
     """
     Run a series of commands on a remote host.
@@ -19,10 +39,10 @@ def perform_run_remotely(base_dispatcher, intent):
 
     dispatcher = ComposedDispatcher([
         TypeDispatcher({
-            Run: lambda _, intent: run(intent.command),
-            Sudo: lambda _, intent: sudo(intent.command),
-            Put: lambda _, intent: put(StringIO(intent.content), intent.path),
-            Comment: lambda _, intent: None,
+            Run: perform_run,
+            Sudo: perform_sudo,
+            Put: perform_put,
+            Comment: perform_comment,
         }),
         base_dispatcher,
     ])

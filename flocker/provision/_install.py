@@ -8,7 +8,7 @@ Install flocker on a remote node.
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin
-from effect import parallel, Func, Effect
+from effect import Func, Effect
 
 from ._common import PackageSource, Variants, Kernel
 from ._ssh import (
@@ -297,7 +297,7 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
     :param list images: List of images to pull. Defaults to images used in
         acceptance tests.
     """
-    return parallel([
+    return sequence([
         run_from_args(['docker', 'pull', image]) for image in images
     ])
 
