@@ -16,7 +16,6 @@ from docker.errors import APIError
 from docker.utils import create_host_config
 
 from pyrsistent import field, PRecord
-from characteristic import attributes, Attribute
 
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
@@ -24,7 +23,8 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
-from ..control._model import RestartNever, RestartAlways, RestartOnFailure
+from ..control._model import (
+    RestartNever, RestartAlways, RestartOnFailure, pset_field)
 
 
 class AlreadyExists(Exception):
@@ -64,6 +64,18 @@ class Volume(PRecord):
     container_path = field(mandatory=True, type=FilePath)
 
 
+class PortMap(PRecord):
+    """
+    A record representing the mapping between a port exposed internally by a
+    docker container and the corresponding external port on the host.
+
+    :ivar int internal_port: The port number exposed by the container.
+    :ivar int external_port: The port number exposed by the host.
+    """
+    internal_port = field(mandatory=True, type=int)
+    external_port = field(mandatory=True, type=int)
+
+
 class Unit(PRecord):
     """
     Information about a unit managed by Docker.
@@ -86,7 +98,7 @@ class Unit(PRecord):
     :ivar unicode container_image: The docker image name associated with this
         container.
 
-    :ivar frozenset ports: The ``PortMap`` instances which define how
+    :ivar PSet ports: The ``PortMap`` instances which define how
         connections to ports on the host are routed to ports exposed in
         the container.
 
@@ -94,8 +106,7 @@ class Unit(PRecord):
         will be supplied to the Docker container or ``None`` if there are no
         environment variables for this container.
 
-    :ivar volumes: A ``frozenset`` of ``Volume`` instances, the container's
-        volumes.
+    :ivar PSet volumes: ``Volume`` instances, the container's volumes.
 
     :ivar int mem_limit: The number of bytes to which to limit the in-core
         memory allocations of this unit.  Or ``None`` to apply no limits.  The
@@ -115,9 +126,9 @@ class Unit(PRecord):
     container_name = field(mandatory=True)
     activation_state = field(mandatory=True)
     container_image = field(mandatory=True, initial=None)
-    ports = field(mandatory=True, initial=())
+    ports = pset_field(PortMap)
     environment = field(mandatory=True, initial=None)
-    volumes = field(mandatory=True, initial=())
+    volumes = pset_field(Volume)
     mem_limit = field(mandatory=True, initial=None)
     cpu_shares = field(mandatory=True, initial=None)
     restart_policy = field(mandatory=True, initial=RestartNever())
@@ -257,17 +268,6 @@ class FakeDockerClient(object):
     def list(self):
         units = set(self._units.values())
         return succeed(units)
-
-
-@attributes(['internal_port', 'external_port'])
-class PortMap(object):
-    """
-    A record representing the mapping between a port exposed internally by a
-    docker container and the corresponding external port on the host.
-
-    :ivar int internal_port: The port number exposed by the container.
-    :ivar int external_port: The port number exposed by the host.
-    """
 
 
 # Basic namespace for Flocker containers:

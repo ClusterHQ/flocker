@@ -4,6 +4,8 @@
 
 from zope.interface.verify import verifyObject
 
+from pyrsistent import pset
+
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
@@ -285,15 +287,6 @@ class PortMapTests(TestCase):
     https://github.com/hynek/characteristic/issues/4 for a proposed solution to
     this.
     """
-    def test_repr(self):
-        """
-        ``PortMap.__repr__`` shows the internal and external ports.
-        """
-        self.assertEqual(
-            "<PortMap(internal_port=5678, external_port=910)>",
-            repr(PortMap(internal_port=5678, external_port=910))
-        )
-
     def test_equal(self):
         """
         ``PortMap`` instances with the same internal and external ports compare
@@ -323,12 +316,12 @@ class UnitInitTests(
                 container_name=u'flocker--site-example.com',
                 activation_state=u'active',
                 container_image=u'flocker/flocker:v1.0.0',
-                ports=(PortMap(internal_port=80, external_port=8080),),
+                ports=pset((PortMap(internal_port=80, external_port=8080),)),
                 environment=Environment(variables={u'foo': u'bar'}),
                 restart_policy=RestartAlways(),
             ),
             expected_defaults=dict(
-                ports=(), container_image=None, environment=None,
+                ports=pset(), container_image=None, environment=None,
                 restart_policy=RestartNever())
         )
 ):
