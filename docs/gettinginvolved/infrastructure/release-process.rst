@@ -21,7 +21,7 @@ By the end of the release process we will have:
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
 
-For a maintenance release, we will have:
+For a maintenance or documentation release, we will have:
 
 - a tag in version control,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
@@ -60,7 +60,7 @@ Access
 
 - An OS X (most recent release) system.
 
-.. note:: For a maintenance release, access to Google Cloud Storage and Atlas is not required.
+.. note:: For a maintenance or documentation release, access to Google Cloud Storage and Atlas is not required.
 
 .. _preparing-for-a-release:
 
@@ -96,7 +96,7 @@ Preparing For a Release
 
       export BASE_BRANCH=release/flocker-0.1.2pre1
 
-   For a maintenance release,
+   For a maintenance or documentation release,
    the base branch should be the release receiving the maintenance:
 
    .. prompt:: bash $
@@ -108,7 +108,7 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that a maintenance release is in progress.
+#. If this is a maintenance or documentation release, announce on Zulip's Engineering > Maintenance Release topic that a maintenance or documentation release is in progress.
 
    ::
 
@@ -195,7 +195,7 @@ Preparing For a Release
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Update the staging documentation.
-   (For a maintenance release ``${VERSION}`` should be the the release receiving the maintenance).
+   (For a maintenance or documentation release ``${VERSION}`` should be the the release receiving the maintenance).
 
    .. prompt:: bash $
 
@@ -320,7 +320,7 @@ Release
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
-   .. note:: Skip this step for a maintenance release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -329,7 +329,7 @@ Release
 
 #. Build RPM packages and upload them to Amazon S3:
 
-   .. note:: Skip this step for a maintenance release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -337,7 +337,7 @@ Release
 
 #. Copy the tutorial box to the final location:
    
-   .. note:: Skip this step for a maintenance release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -345,7 +345,7 @@ Release
 
 #. Add the tutorial box to Atlas:
 
-   .. note:: Skip this step for a maintenance release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
 
@@ -357,7 +357,7 @@ Release
 
 #. Create a version specific ``Homebrew`` recipe for this release:
 
-   .. note:: Skip this step for a maintenance release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
 
@@ -436,7 +436,7 @@ Post-Release Review Process
 
 #. Merge the release pull request.
 
-#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that the maintenance release is in complete.
+#. If this is a maintenance or documentation release, announce on Zulip's Engineering > Maintenance Release topic that the maintenance or documentation release is in complete.
 
    ::
 
