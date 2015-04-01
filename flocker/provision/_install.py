@@ -42,12 +42,24 @@ CLUSTERHQ_REPO = {
 }
 
 
-def task_test_homebrew(recipe_url):
-    return sequence([
+def task_test_homebrew(recipe):
+    """
+    The commands used to install a Homebrew recipe for Flocker and test it.
+
+    This taps the ClusterHQ/tap tap, which means that Homebrew looks in the
+    ClusterHQ/homebrew-tap GitHub repository for any recipe name given.
+
+    :param bytes recipe: The name of a recipe in a either the official Homebrew
+        tap or ClusterHQ/tap, or a URL pointing to a recipe.
+    :return: List of commands used to install a Homebrew recipe for Flocker and
+        test it.
+    """
+    return [
+        run_from_args(['brew', 'tap', 'ClusterHQ/tap']),
         run("brew update"),
-        run("brew install {url}".format(url=recipe_url)),
-        run("brew test {url}".format(url=recipe_url)),
-    ])
+        run("brew install {recipe}".format(recipe=recipe)),
+        run("brew test {recipe}".format(recipe=recipe)),
+    ]
 
 
 def task_install_ssh_key():

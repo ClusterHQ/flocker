@@ -12,7 +12,7 @@ from zope.interface.verify import verifyObject
 from characteristic import attributes, Attribute
 
 from eliot import ActionType, start_action, MemoryLogger, Logger
-from eliot.testing import validate_logging, assertHasAction
+from eliot.testing import validate_logging, assertHasAction, LoggedAction
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
@@ -20,7 +20,7 @@ from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError, AMP
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
 
@@ -33,7 +33,7 @@ from .._protocol import (
 from .._clusterstate import ClusterStateService
 from .._model import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
-    Dataset,
+    Dataset, DeploymentState,
 )
 from .._persistence import ConfigurationPersistenceService
 
@@ -96,7 +96,8 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
 NODE_STATE = NodeState(hostname=u'node1.example.com',
                        applications=[APP1, APP2],
                        used_ports=[1, 2],
-                       manifestations=frozenset([MANIFESTATION]))
+                       manifestations={MANIFESTATION.dataset_id:
+                                       MANIFESTATION})
 
 
 class SerializationTests(SynchronousTestCase):
@@ -185,6 +186,8 @@ class ControlTestCase(SynchronousTestCase):
             capture.append((args, kwargs))
             return succeed(None)
 
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(
             protocol,
             "callRemote",
@@ -238,6 +241,8 @@ class ControlAMPTests(ControlTestCase):
         """
         marker = object()
         self.control_amp_service.connections.add(marker)
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(self.protocol, "callRemote",
                    lambda *args, **kwargs: succeed(None))
         self.protocol.makeConnection(StringTransport())
@@ -263,12 +268,7 @@ class ControlAMPTests(ControlTestCase):
                                    eliot_context=TEST_ACTION))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
-            Deployment(
-                nodes=frozenset([
-                    Node(hostname=u'node1.example.com',
-                         applications=frozenset([APP1, APP2]),
-                         manifestations={MANIFESTATION.dataset_id:
-                                         MANIFESTATION})])))
+            DeploymentState(nodes={NODE_STATE}))
 
     def test_nodestate_notifies_all_connected(self):
         """
@@ -457,7 +457,7 @@ class AgentClientTests(SynchronousTestCase):
         having cluster state updated.
         """
         self.client.makeConnection(StringTransport())
-        actual = Deployment(nodes=frozenset())
+        actual = DeploymentState(nodes=[])
         d = self.server.callRemote(
             ClusterStatusCommand,
             configuration=TEST_DEPLOYMENT,
@@ -628,7 +628,9 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         self.patch(control_amp_service, 'logger', logger)
 
         connection_protocol = ControlAMP(control_amp_service)
-        connection_protocol.makeConnection(StringTransport())
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
+        connection_protocol.callRemote = lambda *args, **kwargs: succeed({})
 
         control_amp_service._send_state_to_connections(
             connections=[connection_protocol])
@@ -655,3 +657,35 @@ class SendStateToConnectionsTests(SynchronousTestCase):
                 "agent": connection_protocol,
             }
         )
+
+    @validate_logging(None)
+    def test_error_sending(self, logger):
+        """
+        An error sending to one agent does not prevent others from being
+        notified.
+        """
+        control_amp_service = build_control_amp_service(self)
+        self.patch(control_amp_service, 'logger', logger)
+
+        connected_protocol = ControlAMP(control_amp_service)
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
+        connected_protocol.callRemote = lambda *args, **kwargs: succeed({})
+
+        error = ConnectionLost()
+        disconnected_protocol = ControlAMP(control_amp_service)
+        results = [succeed({}), fail(error)]
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
+        disconnected_protocol.callRemote = (
+            lambda *args, **kwargs: results.pop(0))
+
+        control_amp_service.connected(disconnected_protocol)
+        control_amp_service.connected(connected_protocol)
+        control_amp_service.node_changed(NodeState(hostname=u"1.2.3.4"))
+
+        actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
+        self.assertEqual(
+            [action.end_message["exception"] for action in actions
+             if not action.succeeded],
+            [u"twisted.internet.error.ConnectionLost"])

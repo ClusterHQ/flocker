@@ -659,6 +659,24 @@ class PublishDocsTests(TestCase):
         self.publish_docs(
             aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
 
+    def test_production_can_publish_prerelease(self):
+        """
+        Publishing a pre-release succeeds.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-docs': {
+                    'en/devel/': 'en/0.3.1.dev4/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-docs': {},
+                'clusterhq-dev-docs': {},
+            })
+        # Does not raise:
+        self.publish_docs(
+            aws, '0.3.2pre1', '0.3.2pre1', environment=Environments.PRODUCTION)
+
     def test_publish_non_release_fails(self):
         """
         Trying to publish to version that isn't a release fails.
@@ -1216,23 +1234,78 @@ class UploadRPMsTests(TestCase):
             build_server=self.create_fake_repository(files=repo_contents),
         )
 
-        expected_files = set()
-        for operating_system in self.operating_systems:
-            for file in [
-                'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
-                'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
-                'repodata/repomd.xml',
-            ]:
-                path = os.path.join(
-                    operating_system['distro'] + '-testing',
-                    operating_system['version'],
-                    operating_system['arch'],
-                    file,
-                )
-                expected_files.add(path)
+        expected_files = [
+            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm',  # noqa
+            'centos-testing/7/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'centos-testing/7/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'centos-testing/7/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'centos-testing/7/x86_64/repodata/repomd.xml',
+            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm',  # noqa
+            'fedora-testing/20/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/repomd.xml',
+    ]
 
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+        self.assertEqual(
+            sorted(expected_files),
+            sorted(aws.s3_buckets[self.target_bucket].keys()))
+
+    def test_development_repositories_created_for_pre_release(self):
+        """
+        Calling :func:`upload_rpms` creates development repositories for
+        CentOS 7 and Fedora 20 for a pre-release.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        repo_contents = {
+            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/centos-7/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
+        }
+
+        self.upload_rpms(
+            aws=aws,
+            yum=FakeYum(),
+            scratch_directory=self.scratch_directory,
+            target_bucket=self.target_bucket,
+            version='0.3.0pre1',
+            build_server=self.create_fake_repository(files=repo_contents),
+        )
+
+        expected_files = [
+            'fedora-testing/20/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'fedora-testing/20/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'centos-testing/7/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/repodata/repomd.xml',
+            'centos-testing/7/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/repomd.xml',
+        ]
+
+        self.assertEqual(
+            sorted(expected_files),
+            sorted(aws.s3_buckets[self.target_bucket].keys()))
+
 
     def test_marketing_repositories_created(self):
         """
@@ -1264,23 +1337,26 @@ class UploadRPMsTests(TestCase):
             build_server=self.create_fake_repository(files=repo_contents),
         )
 
-        expected_files = set()
-        for operating_system in self.operating_systems:
-            for file in [
-                'clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
-                'clusterhq-flocker-node-0.3.3-1.noarch.rpm',
-                'repodata/repomd.xml',
-            ]:
-                path = os.path.join(
-                    operating_system['distro'],
-                    operating_system['version'],
-                    operating_system['arch'],
-                    file,
-                )
-                expected_files.add(path)
+        expected_files = [
+            'centos/7/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'centos/7/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'fedora/20/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'centos/7/x86_64/repodata/repomd.xml',
+            'centos/7/x86_64/clusterhq-python-flocker-0.3.3-1.x86_64.rpm',
+            'fedora/20/x86_64/clusterhq-python-flocker-0.3.3-1.x86_64.rpm',
+            'fedora/20/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora/20/x86_64/clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
+            'fedora/20/x86_64/repodata/repomd.xml',
+            'centos/7/x86_64/clusterhq-flocker-node-0.3.3-1.noarch.rpm',
+            'centos/7/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora/20/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'centos/7/x86_64/clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
+            'fedora/20/x86_64/clusterhq-flocker-node-0.3.3-1.noarch.rpm',
+         ]
 
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+        self.assertEqual(
+            sorted(expected_files),
+            sorted(aws.s3_buckets[self.target_bucket].keys()))
 
     @skipUnless(which('createrepo'),
         "Tests require the ``createrepo`` command.")
@@ -1332,7 +1408,7 @@ class UploadRPMsTests(TestCase):
                               files])
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        # The original source repository contains no metadata.
-        # This tests that CreateRepo creates the expected metadata files from
-        # given RPMs, not that any metadata files are copied.
-        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+
+        self.assertTrue(
+            expected_files.issubset(set(files_on_s3)),
+            "Metadata files for the packages were not created.")

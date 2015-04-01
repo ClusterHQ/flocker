@@ -2600,7 +2600,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname,
-                manifestations={expected_manifestation},
+                manifestations={expected_dataset.dataset_id:
+                                expected_manifestation},
                 paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
             )
         )
@@ -2630,14 +2631,16 @@ class DatasetsStateTestsMixin(APITestsMixin):
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname1,
-                manifestations={expected_manifestation1},
+                manifestations={expected_dataset1.dataset_id:
+                                expected_manifestation1},
                 paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
             )
         )
         self.cluster_state_service.update_node_state(
             NodeState(
                 hostname=expected_hostname2,
-                manifestations={expected_manifestation2},
+                manifestations={expected_dataset2.dataset_id:
+                                expected_manifestation2},
                 paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
             )
         )
@@ -2944,7 +2947,7 @@ class ContainerStateTestsMixin(APITestsMixin):
             NodeState(
                 hostname=expected_hostname,
                 applications={expected_application},
-                manifestations={manifestation},
+                manifestations={manifestation.dataset_id: manifestation},
             )
         )
         expected_dict = dict(
@@ -2957,6 +2960,47 @@ class ContainerStateTestsMixin(APITestsMixin):
             links=[{"alias": u"db", u"local_port": 1234,
                     u"remote_port": 5678}],
             cpu_shares=512, memory_limit=1024*1024*100,
+            volumes=[{"dataset_id": manifestation.dataset_id,
+                      "mountpoint": u"/xxx/yyy"}],
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_one_container_maximum_size(self):
+        """
+        When the cluster state includes one container that has a dataset with
+        a maximum size, the endpoint returns a single-element list
+        containing the container.
+
+        This is a regression test for a bug involving incorrect output in
+        this case that violated the JSON schema.
+        """
+        manifestation = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4()),
+                            maximum_size=1234),
+            primary=False
+        )
+        expected_application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox:1.2"),
+            volume=AttachedVolume(manifestation=manifestation,
+                                  mountpoint=FilePath(b"/xxx/yyy")),
+        )
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            NodeState(
+                hostname=expected_hostname,
+                applications={expected_application},
+                manifestations={manifestation.dataset_id: manifestation},
+            )
+        )
+        expected_dict = dict(
+            name=u"myapp",
+            host=expected_hostname,
+            image=u"busybox:1.2",
+            running=True,
+            restart_policy={u"name": u"never"},
             volumes=[{"dataset_id": manifestation.dataset_id,
                       "mountpoint": u"/xxx/yyy"}],
         )

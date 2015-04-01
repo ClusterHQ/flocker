@@ -554,6 +554,21 @@ class DockerClient(object):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
+                # Retrieve environment variables for this container,
+                # disregarding any environment variables that are part
+                # of the image, rather than supplied in the configuration.
+                image_data = self._client.inspect_image(image)
+                unit_environment = []
+                container_environment = data[u"Config"][u"Env"]
+                image_environment = image_data[u"Config"]["Env"]
+                for environment in container_environment:
+                    if environment not in image_environment:
+                        env_key, env_value = environment.split('=', 1)
+                        unit_environment.append((env_key, env_value))
+                unit_environment = (
+                    Environment(variables=frozenset(unit_environment))
+                    if unit_environment else None
+                )
                 # Our Unit model counts None as the value for cpu_shares and
                 # mem_limit in containers without specified limits, however
                 # Docker returns the values in these cases as zero, so we
@@ -571,6 +586,7 @@ class DockerClient(object):
                     container_image=image,
                     ports=frozenset(ports),
                     volumes=frozenset(volumes),
+                    environment=unit_environment,
                     mem_limit=mem_limit,
                     cpu_shares=cpu_shares,
                     restart_policy=restart_policy)
