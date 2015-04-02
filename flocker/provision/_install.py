@@ -334,12 +334,6 @@ def task_install_flocker(
     return commands
 
 
-def task_upgrade_selinux():
-    return [
-        Run.from_args(['yum', 'upgrade', '-y', 'selinux-policy']),
-    ]
-
-
 ACCEPTANCE_IMAGES = [
     "clusterhq/elasticsearch",
     "clusterhq/logstash",

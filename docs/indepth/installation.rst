@@ -224,14 +224,6 @@ Using Amazon Web Services
 
       [fedora@aws]$ sudo shutdown -r now
 
-#. Update the SELinux policies.
-
-   Old SELinux policies stop docker from starting containers.
-
-   .. task:: upgrade_selinux
-      :prompt: [root@aws]#
-
-
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 
