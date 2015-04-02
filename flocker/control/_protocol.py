@@ -48,22 +48,27 @@ class SerializableArgument(Argument):
     AMP argument that takes an object that can be serialized by the
     configuration persistence layer.
     """
-    def __init__(self, cls):
+    def __init__(self, *classes):
         """
-        :param cls: The type of the objects we expect to (de)serialize.
+        :param *cls: The type or types of the objects we expect to
+            (de)serialize.
         """
         Argument.__init__(self)
-        self._expected_class = cls
+        self._expected_classes = classes
 
     def fromString(self, in_bytes):
         obj = wire_decode(in_bytes)
-        if not isinstance(obj, self._expected_class):
-            raise TypeError("{} is not a {}".format(obj, self._expected_class))
+        if not isinstance(obj, self._expected_classes):
+            raise TypeError(
+                "{} is none of {}".format(obj, self._expected_classes)
+            )
         return obj
 
     def toString(self, obj):
-        if not isinstance(obj, self._expected_class):
-            raise TypeError("{} is not a {}".format(obj, self._expected_class))
+        if not isinstance(obj, self._expected_classes):
+            raise TypeError(
+                "{} is none of {}".format(obj, self._expected_classes)
+            )
         return wire_encode(obj)
 
 
@@ -109,9 +114,6 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
-    # FLOC-1513
-    #
-    # Make this accept DatasetStateMumble or NodeState
     arguments = [('state_changes', ListOf(SerializableArgument(NodeState))),
                  ('eliot_context', _EliotActionArgument())]
     response = []

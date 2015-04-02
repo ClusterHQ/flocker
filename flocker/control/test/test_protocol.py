@@ -132,6 +132,26 @@ class SerializationTests(SynchronousTestCase):
         argument = SerializableArgument(Deployment)
         self.assertRaises(TypeError, argument.toString, NODE_STATE)
 
+    def test_multiple_type_serialization(self):
+        """
+        ``SerializableArgument`` can be given multiple types to allow instances
+        of any of those types to be serialized and deserialized.
+        """
+        argument = SerializableArgument(list, dict)
+        objects = [
+            [u"foo"],
+            {u"bar": u"baz"},
+        ]
+        serialized = list(
+            argument.toString(o)
+            for o in objects
+        )
+        unserialized = list(
+            argument.fromString(s)
+            for s in serialized
+        )
+        self.assertEqual(objects, unserialized)
+
     def test_wrong_type_deserialization(self):
         """
         ``SerializableArgument`` throws a ``TypeError`` if one attempts to
