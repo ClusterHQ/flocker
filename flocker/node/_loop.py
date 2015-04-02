@@ -32,7 +32,6 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from ..control._protocol import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
     )
-from ..control import NodeState
 
 
 class ClusterStatusInputs(Names):
