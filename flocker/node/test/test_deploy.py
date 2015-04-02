@@ -342,7 +342,7 @@ class StartApplicationTests(SynchronousTestCase):
                                         hostname="node1.example.com").run(api)
         exists_result = fake_docker.exists(unit_name=application.name)
 
-        port_maps = frozenset(
+        port_maps = pset(
             [PortMap(internal_port=80, external_port=8080)]
         )
         self.assertEqual(
@@ -494,8 +494,8 @@ class StartApplicationTests(SynchronousTestCase):
             _to_volume_name(DATASET_ID)).get_filesystem()
 
         self.assertEqual(
-            frozenset([DockerVolume(node_path=filesystem.get_path(),
-                                    container_path=mountpoint)]),
+            pset([DockerVolume(node_path=filesystem.get_path(),
+                               container_path=mountpoint)]),
             fake_docker._units[application_name].volumes
         )
 
