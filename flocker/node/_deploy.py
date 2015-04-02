@@ -96,7 +96,8 @@ class IDeployer(Interface):
             into the result; the return result should include only
             information discovered by this particular deployer.
 
-        :return: A ``Deferred`` which fires with an object describing
+        :return: A ``Deferred`` which fires with an object providing
+             ``IClusterStateChange`` describing
              local state. This object will be passed to the control
              service (see ``flocker.control._protocol``) and may also be
              passed to this object's
