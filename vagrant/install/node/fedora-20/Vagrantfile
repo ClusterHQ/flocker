@@ -1,0 +1,20 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = "2"
+
+unless Vagrant.has_plugin?("vagrant-reload")
+  print "Run the command 'vagrant plugin install vagrant-reload' first.\n"
+  exit 1
+end
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "chef/fedora-20"
+  # Disable /vagrant, as kernel updates cause problems with Guest Additions
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.provision :shell, :path => "fixtty.sh", :privileged => true
+  config.vm.provision :shell, :path => "install1.sh"
+  config.vm.provision :reload
+  config.vm.provision :shell, :path => "install2.sh"
+end
