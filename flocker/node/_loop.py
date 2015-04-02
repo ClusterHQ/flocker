@@ -257,7 +257,7 @@ class ConvergenceLoop(object):
     :ivar Deployment configuration: Desired cluster
         configuration. Initially ``None``.
 
-    :ivar Deployment state: Actual cluster state.  Initially ``None``.
+    :ivar DeploymentState state: Actual cluster state.  Initially ``None``.
 
     :ivar fsm: The finite state machine this is part of.
     """
@@ -270,6 +270,7 @@ class ConvergenceLoop(object):
         """
         self.reactor = reactor
         self.deployer = deployer
+        self.state = None
 
     def output_STORE_INFO(self, context):
         self.client, self.configuration, self.cluster_state = (
