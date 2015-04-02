@@ -280,7 +280,7 @@ class ConvergenceLoop(object):
             self.deployer.discover_local_state(known_local_state)
         )
 
-        def got_local_state(state_changes):
+        def got_local_state(local_state):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
             self.cluster_state = self.cluster_state.update_node(local_state)
