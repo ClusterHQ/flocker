@@ -226,10 +226,9 @@ class Application(PRecord):
         should be created between applications, or ``None`` if configuration
         information isn't available.
 
-    :ivar PSet environment: A ``frozenset`` of environment variables
-        that should be exposed in the ``Application`` container, or ``None``
-        if no environment variables are specified. A ``frozenset`` of
-        variables contains a ``tuple`` series mapping (key, value).
+    :ivar PMap environment: Environment variables that should be exposed
+        in the ``Application`` container, or ``None`` if no environment
+        variables are specified.
 
     :ivar IRestartPolicy restart_policy: The restart policy for this
         application.

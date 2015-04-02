@@ -87,7 +87,9 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         :raise: A test failure exception if the manifestations are not what is
                 expected.
         """
-        discovering = deployer.discover_state()
+        discovering = deployer.discover_state(
+            NodeState(hostname=self.expected_hostname)
+        )
         state = self.successResultOf(discovering)
         expected_paths = {}
         for manifestation in expected_manifestations:

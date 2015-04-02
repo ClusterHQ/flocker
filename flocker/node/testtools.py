@@ -106,7 +106,7 @@ class ControllableDeployer(_OldToNewDeployer):
         self.calculated_actions = calculated_actions
         self.calculate_inputs = []
 
-    def discover_local_state(self):
+    def discover_local_state(self, node_state):
         return self.local_states.pop(0)
 
     def calculate_necessary_state_changes(self, local_state,
