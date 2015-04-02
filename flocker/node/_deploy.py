@@ -11,7 +11,7 @@ from zope.interface import Interface, implementer, Attribute
 
 from characteristic import attributes
 
-from pyrsistent import pmap, PRecord, field
+from pyrsistent import PRecord, field
 
 from eliot import write_failure, Logger
 
