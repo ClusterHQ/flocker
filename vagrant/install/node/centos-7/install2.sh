@@ -6,6 +6,9 @@ sudo yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/epel/zfs-rel
 sudo yum install -y https://s3.amazonaws.com/clusterhq-archive/centos/clusterhq-release$(rpm -E %dist).noarch.rpm
 sudo yum install -y --enablerepo=clusterhq-testing clusterhq-flocker-node
 
+# Update this package to ensure Docker service starts
+sudo yum update -y device-mapper-libs
+
 sudo systemctl enable docker.service
 sudo systemctl start docker.service
 
