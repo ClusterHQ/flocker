@@ -355,6 +355,25 @@ Release
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
+#. Update and test the Getting Started Guide:
+
+   Create a branch in the ``vagrant-flocker`` repository:
+      XXX
+
+   Changes ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released.
+
+   Push the branch:
+      XXX
+
+   Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
+   after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch:
+      XXX
+
+   Test the client install instructions work on all supported platforms by following the instructions and checking the version:
+      XXX
+
+   The expected version is the version being released.
+
 #. Create a version specific ``Homebrew`` recipe for this release:
 
    .. note:: Skip this step for a maintenance or documentation release.
@@ -396,6 +415,8 @@ Release
 
       cd ~/flocker-${VERSION}
       admin/publish-docs --production
+
+#. Merge the new ``vagrant-flocker`` branch.
 
 #. Submit the release pull request for review again.
 
