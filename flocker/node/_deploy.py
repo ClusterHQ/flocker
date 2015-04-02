@@ -806,12 +806,7 @@ def change_node_state(deployer, desired_configuration,  current_cluster_state):
 
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
-    nodes = [node for node in current_cluster_state.nodes
-             if node.hostname == deployer.hostname]
-    if nodes:
-        node = nodes[0]
-    else:
-        node = NodeState(hostname=deployer.hostname)
+    node = current_cluster_state.get_node(deployer.hostname)
     d = deployer.discover_local_state(node)
     d.addCallback(deployer.calculate_necessary_state_changes,
                   desired_configuration=desired_configuration,

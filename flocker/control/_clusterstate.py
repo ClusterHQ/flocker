@@ -44,8 +44,7 @@ class ClusterStateService(Service):
 
         :return FilePath: The path where the manifestation exists.
         """
-        [node] = (node for node in self._deployment_state.nodes
-                  if node.hostname == hostname)
+        node = self._deployment_state.get_node(hostname)
         return node.paths[dataset_id]
 
     def as_deployment(self):

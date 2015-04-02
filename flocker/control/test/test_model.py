@@ -257,6 +257,57 @@ class DeploymentInitTests(make_with_init_tests(
     """
 
 
+class GetNodeTests(SynchronousTestCase):
+    """
+    Tests for ``Deployment.get_node`` and ``DeploymentState.get_node``.
+    """
+    def test_deployment_with_node(self):
+        """
+        If the ``Deployment`` has a ``Node`` with a matching hostname,
+        ``get_node`` returns it.
+        """
+        identifier = u"127.0.0.1"
+        node = Node(hostname=identifier, applications={APP1})
+        trap = Node(hostname=u"192.168.1.1")
+        config = Deployment(nodes={node, trap})
+        self.assertEqual(node, config.get_node(identifier))
+
+    def test_deployment_without_node(self):
+        """
+        If the ``Deployment`` has no ``Node`` with a matching hostname,
+        ``get_node`` returns a new empty ``Node`` with the given hostname.
+        """
+        identifier = u"127.0.0.1"
+        trap = Node(hostname=u"192.168.1.1")
+        config = Deployment(nodes={trap})
+        self.assertEqual(
+            Node(hostname=identifier), config.get_node(identifier)
+        )
+
+    def test_deploymentstate_with_node(self):
+        """
+        If the ``Deployment`` has a ``NodeState`` with a matching hostname,
+        ``get_nodes`` returns it.
+        """
+        identifier = u"127.0.0.1"
+        node = NodeState(hostname=identifier)
+        state = DeploymentState(nodes={node})
+        self.assertIs(node, state.get_node(identifier))
+
+    def test_deploymentstate_without_node(self):
+        """
+        If the ``DeploymentState`` has no ``NodeState`` with a matching
+        hostname, ``get_node`` returns a new empty ``NodeState`` with the given
+        hostname.
+        """
+        identifier = u"127.0.0.1"
+        trap = NodeState(hostname=u"192.168.1.1")
+        state = DeploymentState(nodes={trap})
+        self.assertEqual(
+            NodeState(hostname=identifier), state.get_node(identifier)
+        )
+
+
 class DeploymentTests(SynchronousTestCase):
     """
     Tests for ``Deployment``.

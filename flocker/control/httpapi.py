@@ -96,23 +96,6 @@ class ConfigurationAPIUserV1(object):
         self.persistence_service = persistence_service
         self.cluster_state_service = cluster_state_service
 
-    def _find_node_by_host(self, host, deployment):
-        """
-        Find a Node matching the specified host, or create a new one if it does
-        not already exist.
-        :param node: A ``unicode`` representing a host / IP address.
-        :param deployment: A ``Deployment`` instance.
-        :return: A ``Node`` instance.
-        """
-        for node in deployment.nodes:
-            if host == node.hostname:
-                return node
-
-        # The node wasn't found in the configuration so create a new node.
-        # FLOC-1278 will make sure we're not creating nonsense
-        # configuration in this step.
-        return Node(hostname=host)
-
     @app.route("/version", methods=['GET'])
     @user_documentation("""
         Get the version of Flocker being run.
@@ -226,7 +209,7 @@ class ConfigurationAPIUserV1(object):
         )
         manifestation = Manifestation(dataset=dataset, primary=True)
 
-        primary_node = self._find_node_by_host(primary, deployment)
+        primary_node = deployment.get_node(primary)
 
         new_node_config = primary_node.transform(
             ("manifestations", manifestation.dataset_id), manifestation)
@@ -380,24 +363,13 @@ class ConfigurationAPIUserV1(object):
             ("manifestations", dataset_id), discard)
         deployment = deployment.update_node(new_origin_node)
 
-        primary_nodes = list(
-            node for node in deployment.nodes if primary == node.hostname
+        # XXX Check cluster state to determine if the given primary node
+        # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
+        # See FLOC-1278
+        target_node = deployment.get_node(primary)
+        new_target_node = target_node.transform(
+            ("manifestations", dataset_id), primary_manifestation
         )
-        if len(primary_nodes) == 0:
-            # `primary` is not in cluster. Add it.
-            # XXX Check cluster state to determine if the given primary node
-            # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
-            # See FLOC-1278
-            new_target_node = Node(
-                hostname=primary,
-                manifestations={dataset_id: primary_manifestation},
-            )
-        else:
-            # There should only be one node with the requested primary
-            # hostname. ``ValueError`` here if that's not the case.
-            (target_node,) = primary_nodes
-            new_target_node = target_node.transform(
-                ("manifestations", dataset_id), primary_manifestation)
 
         deployment = deployment.update_node(new_target_node)
 
@@ -619,7 +591,7 @@ class ConfigurationAPIUserV1(object):
             attached_volume = self._get_attached_volume(host, volumes[0])
 
         # Find the node.
-        node = self._find_node_by_host(host, deployment)
+        node = deployment.get_node(host)
 
         # Check if we have any ports in the request. If we do, check existing
         # external ports exposed to ensure there is no conflict. If there is a
@@ -732,7 +704,7 @@ class ConfigurationAPIUserV1(object):
             been updated.
         """
         deployment = self.persistence_service.get()
-        target_node = self._find_node_by_host(host, deployment)
+        target_node = deployment.get_node(host)
         for node in deployment.nodes:
             for application in node.applications:
                 if application.name == name:
