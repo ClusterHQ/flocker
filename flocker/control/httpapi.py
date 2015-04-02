@@ -868,7 +868,10 @@ def container_configuration_response(application, node):
     result.update(ApplicationMarshaller(application).convert())
     # Configuration format isn't quite the same as JSON format:
     if u"volume" in result:
-        result[u"volumes"] = [result.pop(u"volume")]
+        # Config format includes maximum_size, which we don't want:
+        volume = result.pop(u"volume")
+        result[u"volumes"] = [{u"dataset_id": volume[u"dataset_id"],
+                               u"mountpoint": volume[u"mountpoint"]}]
     if application.cpu_shares is not None:
         result["cpu_shares"] = application.cpu_shares
     if application.memory_limit is not None:

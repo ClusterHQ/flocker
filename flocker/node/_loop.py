@@ -283,10 +283,7 @@ class ConvergenceLoop(object):
             # XXX FLOC-1542 will need to deal with partial updates, and
             # make sure there is no duplication with code in
             # flocker.control._clusterstate.
-            self.cluster_state = self.cluster_state.set(
-                "nodes", list(n for n in self.cluster_state.nodes
-                              if n.hostname != local_state.hostname)
-                + [local_state])
+            self.cluster_state = self.cluster_state.update_node(local_state)
             with LOG_SEND_TO_CONTROL_SERVICE(
                     self.fsm.logger, connection=self.client) as context:
                 self.client.callRemote(NodeStateCommand,
