@@ -148,18 +148,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api.attach_volume(new_volume.blockdevice_id, u'some.other.host')
         self.assertDiscoveredState(self.deployer, [])
 
-    def test_only_unattached_devices(self):
-        """
-        ``BlockDeviceDeployer.discover_state`` discovers volumes that are not
-        attached to any node and creates entries in a ``NonManifestDatasets``
-        instance corresponding to them.
-        """
-        dataset_id = uuid4()
-        self.api.create_volume(
-            dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
-        self.assertDiscoveredState(self.deployer, [], [dataset_id])
-
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
         SynchronousTestCase
