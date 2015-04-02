@@ -24,19 +24,6 @@ class ClusterStateService(Service):
     def __init__(self):
         self._deployment_state = DeploymentState()
 
-    def update_node_state(self, node_state):
-        """
-        Update the state of a given node.
-
-        XXX: Multiple nodes may report being primary for a dataset. Enforce
-        consistency here. See https://clusterhq.atlassian.net/browse/FLOC-1303
-
-        XXX: Use apply_changes instead.  Get rid of this method.
-
-        :param NodeState node_state: The state of the node.
-        """
-        self.apply_changes([node_state])
-
     def manifestation_path(self, hostname, dataset_id):
         """
         Get the filesystem path of a manifestation on a particular node.
@@ -64,6 +51,9 @@ class ClusterStateService(Service):
         :param list changes: Some ``IClusterStateChange`` providers to use to
             update the internal cluster state.
         """
+        # XXX: Multiple nodes may report being primary for a dataset. Enforce
+        # consistency here. See
+        # https://clusterhq.atlassian.net/browse/FLOC-1303
         for change in changes:
             self._deployment_state = change.update_cluster_state(
                 self._deployment_state

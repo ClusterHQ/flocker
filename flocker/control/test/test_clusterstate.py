@@ -45,7 +45,7 @@ class ClusterStateServiceTests(SynchronousTestCase):
         given node state.
         """
         service = self.service()
-        service.update_node_state(self.WITH_APPS)
+        service.apply_changes([self.WITH_APPS])
         self.assertEqual(
             service.as_deployment(),
             DeploymentState(nodes=[self.WITH_APPS])
@@ -57,7 +57,7 @@ class ClusterStateServiceTests(SynchronousTestCase):
         to the ``Node`` instances it creates.
         """
         service = self.service()
-        service.update_node_state(self.WITH_MANIFESTATION)
+        service.apply_changes([self.WITH_MANIFESTATION])
         self.assertEqual(
             service.as_deployment(),
             DeploymentState(nodes={self.WITH_MANIFESTATION})
@@ -69,13 +69,13 @@ class ClusterStateServiceTests(SynchronousTestCase):
         updates the information it knows about.
         """
         service = self.service()
-        service.update_node_state(NodeState(hostname=u"host1",
-                                            applications=[APP1]))
-        service.update_node_state(NodeState(hostname=u"host1",
-                                            applications=None,
-                                            manifestations={
-                                                MANIFESTATION.dataset_id:
-                                                MANIFESTATION}))
+        service.apply_changes([
+            NodeState(hostname=u"host1", applications=[APP1]),
+            NodeState(hostname=u"host1", applications=None,
+                      manifestations={
+                          MANIFESTATION.dataset_id:
+                          MANIFESTATION})
+        ])
         self.assertEqual(service.as_deployment(),
                          DeploymentState(nodes=[NodeState(
                              hostname=u"host1",
@@ -89,10 +89,10 @@ class ClusterStateServiceTests(SynchronousTestCase):
         of that hostname.
         """
         service = self.service()
-        service.update_node_state(NodeState(hostname=u"host1",
-                                            applications=[APP1]))
-        service.update_node_state(NodeState(hostname=u"host1",
-                                            applications=[APP2]))
+        service.apply_changes([
+            NodeState(hostname=u"host1", applications=[APP1]),
+            NodeState(hostname=u"host1", applications=[APP2]),
+        ])
         self.assertEqual(service.as_deployment(),
                          DeploymentState(nodes=[NodeState(
                              hostname=u"host1",
@@ -104,10 +104,10 @@ class ClusterStateServiceTests(SynchronousTestCase):
         ``ClusterStateService.as_deployment``.
         """
         service = self.service()
-        service.update_node_state(NodeState(hostname=u"host1",
-                                            applications=[APP1]))
-        service.update_node_state(NodeState(hostname=u"host2",
-                                            applications=[APP2]))
+        service.apply_changes([
+            NodeState(hostname=u"host1", applications=[APP1]),
+            NodeState(hostname=u"host2", applications=[APP2]),
+        ])
         self.assertEqual(service.as_deployment(),
                          DeploymentState(nodes=[
                              NodeState(
@@ -124,26 +124,14 @@ class ClusterStateServiceTests(SynchronousTestCase):
         given dataset exists.
         """
         service = self.service()
-        service.update_node_state(NodeState(hostname=u"host1",
-                                            manifestations={
-                                                MANIFESTATION.dataset_id:
-                                                MANIFESTATION},
-                                            paths={MANIFESTATION.dataset_id:
-                                                   FilePath(b"/xxx/yyy")}))
+        service.apply_changes([
+            NodeState(hostname=u"host1",
+                      manifestations={
+                          MANIFESTATION.dataset_id:
+                          MANIFESTATION},
+                      paths={MANIFESTATION.dataset_id:
+                             FilePath(b"/xxx/yyy")})
+        ])
         self.assertEqual(
             service.manifestation_path(u"host1", MANIFESTATION.dataset_id),
             FilePath(b"/xxx/yyy"))
-
-    def test_apply_changes(self):
-        """
-        ``ClusterStateService.apply_changes`` applies each of the
-        ``IClusterStateChange`` objects to the deployment state.
-        """
-        service = self.service()
-        service.apply_changes([self.WITH_APPS, self.WITH_MANIFESTATION])
-        self.assertEqual(
-            DeploymentState(
-                nodes={self.WITH_APPS, self.WITH_MANIFESTATION}
-            ),
-            service.as_deployment()
-        )
