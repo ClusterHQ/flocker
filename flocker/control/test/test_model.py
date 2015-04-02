@@ -199,6 +199,29 @@ class NodeStateTests(SynchronousTestCase):
     """
     Tests for ``NodeState``.
     """
+    def test_iclusterstatechange(self):
+        """
+        ``NodeState`` instances provide ``IClusterStateChange``.
+        """
+        self.assertTrue(
+            verifyObject(IClusterStateChange, NodeState(hostname=u"1.2.3.4"))
+        )
+
+    def test_update_cluster_state(self):
+        """
+        ``NodeState.update_cluster_state`` returns a new ``DeploymentState``
+        with the state of the ``NodeState`` with the matching ``hostname``
+        replaced with its own state.
+        """
+        node = NodeState(hostname=u"1.2.3.4", applications={APP1})
+        changed_node = node.set(applications={APP2})
+        cluster = DeploymentState(nodes={node})
+        changed_cluster = changed_node.update_cluster_state(cluster)
+        self.assertEqual(
+            DeploymentState(nodes={changed_node}),
+            changed_cluster
+        )
+
     def test_manifestations_keys_are_their_ids(self):
         """
         The keys of the ``manifestations`` attribute must match the

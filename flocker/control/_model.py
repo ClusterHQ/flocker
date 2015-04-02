@@ -531,6 +531,22 @@ class DatasetChanges(object):
     """
 
 
+class IClusterStateChange(Interface):
+    """
+    An ``IClusterStateChange`` can update a ``DeploymentState`` with new
+    information.
+    """
+    def update_cluster_state(cluster_state):
+        """
+        :param DeploymentState cluster_state: Some current known state of the
+            cluster.
+
+        :return: A new ``DeploymentState`` similar to ``cluster_state`` but
+            with changes from this object applied to it.
+        """
+
+
+@implementer(IClusterStateChange)
 class NodeState(PRecord):
     """
     The current state of a node.
@@ -561,6 +577,9 @@ class NodeState(PRecord):
     applications = pset_field(Application, optional=True)
     manifestations = pmap_field(unicode, Manifestation, optional=True)
     paths = pmap_field(unicode, FilePath, optional=True)
+
+    def update_cluster_state(self, cluster_state):
+        return cluster_state.update_node(self)
 
 
 class DeploymentState(PRecord):
