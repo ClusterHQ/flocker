@@ -32,6 +32,7 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from ..control._protocol import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
     )
+from ..control import NodeState
 
 
 class ClusterStatusInputs(Names):
@@ -275,14 +276,18 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        d = DeferredContext(self.deployer.discover_local_state())
+        nodes = [node for node in self.cluster_state.nodes
+                 if node.hostname == self.deployer.hostname]
+        if nodes:
+            known_local_state = nodes[0]
+        else:
+            known_local_state = NodeState(hostname=self.deployer.hostname)
+        d = DeferredContext(self.deployer.discover_local_state(
+            known_local_state))
 
         def got_local_state(local_state):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
-            # XXX FLOC-1542 will need to deal with partial updates, and
-            # make sure there is no duplication with code in
-            # flocker.control._clusterstate.
             self.cluster_state = self.cluster_state.update_node(local_state)
             with LOG_SEND_TO_CONTROL_SERVICE(
                     self.fsm.logger, connection=self.client) as context:

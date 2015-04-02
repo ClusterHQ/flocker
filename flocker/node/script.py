@@ -31,6 +31,7 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from ..control import (
     ConfigurationError, current_from_configuration, model_from_configuration,
+    NodeState
 )
 from . import P2PNodeDeployer, change_node_state
 from ._loop import AgentLoopService
@@ -210,7 +211,7 @@ class ReportStateScript(object):
         deployer = P2PNodeDeployer(
             u"localhost",
             volume_service, self._docker_client, self._network)
-        d = deployer.discover_local_state()
+        d = deployer.discover_local_state(NodeState(hostname=u"localhost"))
         d.addCallback(marshal_configuration)
         d.addCallback(safe_dump)
         d.addCallback(self._stdout.write)
