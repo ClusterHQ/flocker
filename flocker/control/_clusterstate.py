@@ -31,9 +31,11 @@ class ClusterStateService(Service):
         XXX: Multiple nodes may report being primary for a dataset. Enforce
         consistency here. See https://clusterhq.atlassian.net/browse/FLOC-1303
 
+        XXX: Use apply_changes instead.  Get rid of this method.
+
         :param NodeState node_state: The state of the node.
         """
-        self._deployment_state = self._deployment_state.update_node(node_state)
+        self.apply_changes([node_state])
 
     def manifestation_path(self, hostname, dataset_id):
         """
@@ -55,10 +57,14 @@ class ClusterStateService(Service):
         """
         return self._deployment_state
 
-    def set_deployment(self, state):
+    def apply_changes(self, changes):
         """
-        Replace the cluster state with a new one.
+        Apply some changes to the cluster state.
 
-        :param DeploymentState state: The new state.
+        :param list changes: Some ``IClusterStateChange`` providers to use to
+            update the internal cluster state.
         """
-        self._deployment_state = state
+        for change in changes:
+            self._deployment_state = change.update_cluster_state(
+                self._deployment_state
+            )
