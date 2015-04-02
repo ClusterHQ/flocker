@@ -1322,9 +1322,9 @@ APP = Application(
 )
 APP_NAME2 = u"site-example.net"
 UNIT_FOR_APP2 = Unit(name=APP_NAME2,
-                    container_name=APP_NAME2,
-                    container_image=u"flocker/wordpress:latest",
-                    activation_state=u'active')
+                     container_name=APP_NAME2,
+                     container_image=u"flocker/wordpress:latest",
+                     activation_state=u'active')
 APP2 = Application(
     name=APP_NAME2,
     image=DockerImage.from_string(UNIT_FOR_APP2.container_image)
@@ -1350,9 +1350,9 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=u'example.com'))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
-        self.assertEqual(NodeState(hostname=u'example.com',
+        self.assertEqual(NodeState(hostname=api.hostname,
                                    manifestations=None,
                                    paths=None),
                          self.successResultOf(d))
@@ -1403,8 +1403,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         ``Unit`` with ``Environment`` objects.
         """
         environment_variables = (
-            ('CUSTOM_ENV_A', 'a value'),
-            ('CUSTOM_ENV_B', 'something else'),
+            (b'CUSTOM_ENV_A', b'a value'),
+            (b'CUSTOM_ENV_B', b'something else'),
         )
         environment = Environment(variables=environment_variables)
         unit1 = UNIT_FOR_APP.set("environment", environment)
@@ -1431,14 +1431,14 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         to ``Link`` representations in the ``Application``.
         """
         environment_variables = (
-            ('CUSTOM_ENV_A', 'a value'),
-            ('CUSTOM_ENV_B', 'something else'),
+            (b'CUSTOM_ENV_A', b'a value'),
+            (b'CUSTOM_ENV_B', b'something else'),
         )
         link_environment_variables = (
-            ('APACHE_PORT_80_TCP', 'tcp://example.com:8080'),
-            ('APACHE_PORT_80_TCP_PROTO', 'tcp'),
-            ('APACHE_PORT_80_TCP_ADDR', 'example.com'),
-            ('APACHE_PORT_80_TCP_PORT', '8080'),
+            (b'APACHE_PORT_80_TCP', b'tcp://example.com:8080'),
+            (b'APACHE_PORT_80_TCP_PROTO', b'tcp'),
+            (b'APACHE_PORT_80_TCP_ADDR', b'example.com'),
+            (b'APACHE_PORT_80_TCP_PORT', b'8080'),
         )
         unit_environment = environment_variables + link_environment_variables
         environment = Environment(variables=frozenset(unit_environment))
@@ -1447,7 +1447,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
         fake_docker = FakeDockerClient(units=units)
         links = [
-            Link(local_port=80, remote_port=8080, alias="APACHE")
+            Link(local_port=80, remote_port=8080, alias=u"APACHE")
         ]
         applications = [APP.set("links", links).set(
             "environment", dict(environment_variables))]
@@ -1469,7 +1469,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         """
         fake_docker = FakeDockerClient()
         applications = [APP.set("links", [
-            Link(local_port=80, remote_port=8080, alias='APACHE')
+            Link(local_port=80, remote_port=8080, alias=u'APACHE')
         ])]
         api = ApplicationNodeDeployer(
             u'example.com',
@@ -1628,7 +1628,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         state = self.successResultOf(discovering)
 
         self.assertEqual(
-            NodeState(hostname=u'example.com', used_ports=used_ports,
+            NodeState(hostname=api.hostname, used_ports=used_ports,
                       manifestations=None, paths=None),
             state
         )
@@ -1700,8 +1700,8 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             u'example.com', self.volume_service)
         self.assertEqual(
             self.successResultOf(deployer.discover_local_state(
-                NodeState(hostname=u"example.com"))),
-            NodeState(hostname=u"example.com",
+                NodeState(hostname=deployer.hostname))),
+            NodeState(hostname=deployer.hostname,
                       manifestations={}, paths={},
                       applications=None, used_ports=None))
 
@@ -1729,7 +1729,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         All datasets on the node are added to ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertEqual(
             {self.DATASET_ID: Manifestation(
@@ -1746,7 +1746,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertEqual(
             {self.DATASET_ID:
@@ -1780,7 +1780,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             u'example.com',
             self.volume_service,
         )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
+        d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertItemsEqual(
             self.successResultOf(d).manifestations[self.DATASET_ID],
