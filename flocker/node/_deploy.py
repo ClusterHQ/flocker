@@ -97,11 +97,10 @@ class IDeployer(Interface):
             information discovered by this particular deployer.
 
         :return: A ``Deferred`` which fires with a list of
-             ``IClusterStateChange`` providers describing
-             local state. These objects will be passed to the control
-             service (see ``flocker.control._protocol``) and may also be
-             passed to this object's
-             ``calculate_necessary_changes()`` method.
+            ``IClusterStateChange`` providers describing
+            local state. These objects will be passed to the control
+            service (see ``flocker.control._protocol``) and may also be
+            passed to this object's ``calculate_changes()`` method.
         """
 
     def calculate_changes(configuration, cluster_state):
