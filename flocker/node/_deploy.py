@@ -504,7 +504,15 @@ class ApplicationNodeDeployer(object):
         List all the ``Application``\ s running on this node.
 
         The given local state is used to figure out if applications have
-        attached volumes that are specific manifestations.
+        attached volumes that are specific manifestations. If no
+        manifestations are known then discovery isn't done and ignorance
+        is claimed about applications. This ensures that the information
+        returned is accurate, and therefore that convergence is done
+        correctly.
+
+        This does mean you can't run an application agent without a
+        dataset agent. See
+        https://clusterhq.atlassian.net/browse/FLOC-1646.
 
         :return: A ``Deferred`` which fires with a ``NodeState`` instance
             with information only about

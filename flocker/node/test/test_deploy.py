@@ -1659,9 +1659,6 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         If the given ``NodeState`` indicates ignorance of manifestations, the
         ``ApplicationNodeDeployer`` doesn't bother doing any discovery and
         just indicates ignorance of applications.
-
-        XXX file issue for "it's not possible to run the container agent
-        without any dataset agents".
         """
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name,
