@@ -53,7 +53,10 @@ def pset_field(item_type, optional=False):
                  initial=TheSet())
 
 
-def pmap_field(key_type, value_type, optional=False):
+_valid = lambda item: (True, "")
+
+
+def pmap_field(key_type, value_type, optional=False, invariant=_valid):
     """
     Create a checked ``PMap`` field.
 
@@ -61,6 +64,7 @@ def pmap_field(key_type, value_type, optional=False):
     :param value: The required type for the values of the map.
     :param bool optional: If true, ``None`` can be used as a value for
         this field.
+    :param invariant: Pass-through to ``field``.
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
@@ -80,7 +84,7 @@ def pmap_field(key_type, value_type, optional=False):
         factory = TheMap
     return field(mandatory=True, initial=TheMap(),
                  type=optional_type(TheMap) if optional else TheMap,
-                 factory=factory)
+                 factory=factory, invariant=invariant)
 
 
 class DockerImage(PRecord):
@@ -316,6 +320,32 @@ class AttachedVolume(PRecord):
         return self.manifestation.dataset
 
 
+def _keys_match(attribute):
+    """
+    Create an invariant for a ``field`` holding a ``pmap``.
+
+    The invariant enforced is that the keys of the ``pmap`` equal the value of
+    a particular attribute of the corresponding values.
+
+    :param str attribute: The name of the attribute of the ``pmap`` values
+        which must equal the corresponding key.
+    :return: A function suitable for use as a pyrsistent invariant.
+    """
+    def key_match_invariant(pmap):
+        for (key, value) in pmap.items():
+            if key != getattr(value, attribute):
+                return (
+                    False, "{} is not correct key for {}".format(key, value)
+                )
+        return (True, "")
+    return key_match_invariant
+
+
+# An invariant we use a couple times below in mappings from dataset_id to
+# Dataset instances
+_keys_match_dataset_id = _keys_match("dataset_id")
+
+
 class Node(PRecord):
     """
     Configuration for a single node on which applications will be managed
@@ -343,14 +373,13 @@ class Node(PRecord):
             if app.volume is not None:
                 if app.volume.manifestation not in manifestations:
                     return (False, '%r manifestation is not on node' % (app,))
-        for key, value in self.manifestations.items():
-            if key != value.dataset_id:
-                return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     applications = pset_field(Application)
-    manifestations = pmap_field(unicode, Manifestation)
+    manifestations = pmap_field(
+        unicode, Manifestation, invariant=_keys_match_dataset_id
+    )
 
 
 class Deployment(PRecord):

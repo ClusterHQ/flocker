@@ -721,6 +721,18 @@ class PMapFieldTests(SynchronousTestCase):
                  Record().value2.__class__.__name__) ==
                 ("SomethingAnotherPMap", "IntFloatPMap"))
 
+    def test_additional_keyword_arguments(self):
+        """
+        The ``invariant`` parameter is passed through to ``field``.
+        """
+        class Record(PRecord):
+            value = pmap_field(
+                int, int,
+                invariant=lambda pmap: (False, "Very strict invariant.")
+            )
+
+        self.assertRaises(InvariantException, Record, value={})
+
 
 class DeploymentStateTests(SynchronousTestCase):
     """
