@@ -705,7 +705,7 @@ MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
 DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
 
-class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
+class WillBeDeletedSoonDeployerDiscoveryTests(SynchronousTestCase):
     """
     Tests for ``P2PNodeDeployer.discover_local_state``.
 
@@ -1420,7 +1420,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertItemsEqual(pset(applications),
-                              sorted(self.successResultOf(d).applications))
+                              self.successResultOf(d).applications)
 
     def test_discover_application_with_environment_and_links(self):
         """
@@ -1460,7 +1460,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         d = api.discover_local_state(NodeState(hostname=api.hostname))
 
         self.assertItemsEqual(pset(applications),
-                              sorted(self.successResultOf(d).applications))
+                              self.successResultOf(d).applications)
 
     def test_discover_application_with_links(self):
         """
@@ -1482,8 +1482,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             ).run(api)
         d = api.discover_local_state(NodeState(hostname=api.hostname))
 
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).applications))
+        self.assertItemsEqual(applications,
+                              self.successResultOf(d).applications)
 
     def test_discover_application_with_ports(self):
         """
