@@ -124,14 +124,6 @@ class SerializationTests(SynchronousTestCase):
         self.assertEqual([bytes, TEST_DEPLOYMENT],
                          [type(as_bytes), deserialized])
 
-    def test_wrong_type_serialization(self):
-        """
-        ``SerializableArgument`` throws a ``TypeError`` if one attempts to
-        serialize an object of the wrong type.
-        """
-        argument = SerializableArgument(Deployment)
-        self.assertRaises(TypeError, argument.toString, NODE_STATE)
-
     def test_multiple_type_serialization(self):
         """
         ``SerializableArgument`` can be given multiple types to allow instances
@@ -151,6 +143,14 @@ class SerializationTests(SynchronousTestCase):
             for s in serialized
         )
         self.assertEqual(objects, unserialized)
+
+    def test_wrong_type_serialization(self):
+        """
+        ``SerializableArgument`` throws a ``TypeError`` if one attempts to
+        serialize an object of the wrong type.
+        """
+        argument = SerializableArgument(Deployment)
+        self.assertRaises(TypeError, argument.toString, NODE_STATE)
 
     def test_wrong_type_deserialization(self):
         """
