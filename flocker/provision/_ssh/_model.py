@@ -5,7 +5,7 @@ from effect import Effect
 
 class RunRemotely(PRecord):
     """
-    Run a some commands on a remote host.
+    Run some commands on a remote host.
 
     :ivar bytes address: The address of the remote host to connect to.
     :ivar bytes username: The user to connect as.
@@ -18,7 +18,7 @@ class RunRemotely(PRecord):
 
 def run_remotely(username, address, commands):
     """
-    Run a some commands on a remote host.
+    Run some commands on a remote host.
 
     :param bytes address: The address of the remote host to connect to.
     :param bytes username: The user to connect as.
@@ -60,7 +60,7 @@ class Put(PRecord):
     """
     Create a file with the given content on a remote host.
 
-    :ivar bytes content: The desired contests.
+    :ivar bytes content: The desired contents.
     :ivar bytes path: The remote path to create.
     """
     content = field(type=bytes)
@@ -100,7 +100,7 @@ def put(content, path):
     """
     Create a file with the given content on a remote host.
 
-    :param bytes content: The desired contests.
+    :param bytes content: The desired contents.
     :param bytes path: The remote path to create.
 
     :return Effect:

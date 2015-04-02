@@ -208,7 +208,7 @@ def _clean_node(test_case, node):
 
 def _stop_acceptance_cluster():
     """
-    Stop the Flocker cluster configured for the accpetance tests.
+    Stop the Flocker cluster configured for the acceptance tests.
 
     XXX https://clusterhq.atlassian.net/browse/FLOC-1563
     Flocker doesn't support using flocker-deploy along-side flocker-control and
@@ -219,6 +219,8 @@ def _stop_acceptance_cluster():
 
     This also removes the environment variables associated with the cluster, so
     that tests attempting to use it will be skipped.
+
+    :return: A ``Deferred`` which fires when the cluster is stopped.
     """
     control_node = environ.pop("FLOCKER_ACCEPTANCE_CONTROL_NODE", None)
     agent_nodes_env_var = environ.pop("FLOCKER_ACCEPTANCE_AGENT_NODES", "")

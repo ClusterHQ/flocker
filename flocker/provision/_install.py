@@ -51,7 +51,7 @@ def task_test_homebrew(recipe):
 
     :param bytes recipe: The name of a recipe in a either the official Homebrew
         tap or ClusterHQ/tap, or a URL pointing to a recipe.
-    :return: List of commands used to install a Homebrew recipe for Flocker and
+    :return Effect: Commands used to install a Homebrew recipe for Flocker and
         test it.
     """
     return sequence([
@@ -63,6 +63,9 @@ def task_test_homebrew(recipe):
 
 
 def task_install_ssh_key():
+    """
+    Install the authorized ssh keys of the current user for root as well.
+    """
     return sequence([
         sudo_from_args(['cp', '.ssh/authorized_keys',
                         '/root/.ssh/authorized_keys']),

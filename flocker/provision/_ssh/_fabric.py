@@ -29,7 +29,7 @@ def perform_put(dispatcher, intent):
 
 
 @sync_performer
-def perform_comment(disptacher, intent):
+def perform_comment(dispatcher, intent):
     pass
 
 

@@ -211,9 +211,9 @@ def latest_droplet_kernel(droplet,
 
 def change_kernel(node_id, token, kernel_version):
     """
-    Change the configured kernel on a digitialocean node.
+    Change the configured kernel on a DigitalOcean node.
 
-    :param bytes node_id: The id of the digitialocean.
+    :param bytes node_id: The id of the DigitalOcean.
     :param bytes token: A DigitalOcean v2 API token.
     """
     # Import here, so that this can be added to ``flocker.provision`` without
