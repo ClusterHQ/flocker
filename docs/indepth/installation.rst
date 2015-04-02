@@ -366,6 +366,16 @@ Paste them into a root console on the target node:
 Post installation configuration for Fedora 20 and CentOS 7
 ----------------------------------------------------------
 
+First disable SELINUX.
+
+.. task:: disable_selinux
+   :prompt: [root@node]#
+
+.. note:: Flocker does not currently set the necessary SELINUX context types on the filesystem mountpoints that it creates on nodes.
+          This prevents Docker containers accessing those filesystems as volumes.
+          A future stable version of Flocker will set the appropriate SELINUX contexts.
+          See https://clusterhq.atlassian.net/browse/FLOC-619.
+
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 

@@ -6,6 +6,7 @@ All the tasks available from the ``task`` directive.
 
 from ._install import (
     task_create_flocker_pool_file,
+    task_disable_selinux,
     task_enable_docker,
     task_install_flocker,
     task_install_digitalocean_kernel,
@@ -21,6 +22,7 @@ from ._install import (
 
 __all__ = [
     'task_create_flocker_pool_file',
+    'task_disable_selinux',
     'task_enable_docker',
     'task_install_flocker',
     'task_install_digitalocean_kernel',
