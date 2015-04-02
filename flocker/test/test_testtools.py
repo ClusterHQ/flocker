@@ -21,7 +21,7 @@ class RunProcessTests(SynchronousTestCase):
         raises ``CalledProcessError`` initialized with the command, exit
         status, and any output.
         """
-        command = [b"/bin/sh", b"-c", "echo goodbye && exec /bin/false"]
+        command = [b"/bin/sh", b"-c", "echo goodbye && exec false"]
         exception = self.assertRaises(
             CalledProcessError,
             run_process,
