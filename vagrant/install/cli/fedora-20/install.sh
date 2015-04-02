@@ -10,7 +10,7 @@ fi
 
 VIRTUAL_ENV=flocker-cli-fedora
 
-sudo yum install -y @buildsys-build python python-devel python-virtualenv
+sudo yum install -y gcc python python-devel python-virtualenv
 
 virtualenv --python=/usr/bin/python2.7 ${VIRTUAL_ENV}
 
