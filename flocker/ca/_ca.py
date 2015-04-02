@@ -7,7 +7,7 @@ Uses ECDSA + SHA256? Or if that turns out to be too difficult RSA 4096-bit
 + SHA 256.
 """
 
-from twisted.internet.ssl import KeyPair
+from twisted.internet.ssl import DistinguishedName, KeyPair
 
 
 def generate_keypair():
@@ -45,7 +45,7 @@ class CertificateAuthority(object):
         """
         # XXX do we want to do something else/more with the name?
         # More metadata?
-        #dn = DistinguishedName(commonName=name)
+        dn = DistinguishedName(commonName=name)
         #keypair = generate_keypair()
         #request = keypair.requestObject(dn)
         #certificate = keypair.signRequestObject(dn, request, generateaserial, digestAlgorithm='sha256')

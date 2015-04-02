@@ -4,7 +4,13 @@
 The command-line certificate authority tool.
 """
 
+from twisted.internet.defer import maybeDeferred
 from twisted.python.usage import Options
+
+from zope.interface import implementer
+
+from ..common.script import (flocker_standard_options, ICommandLineScript,
+                             FlockerScriptRunner)
 
 
 class InitializeOptions(Options):
@@ -39,7 +45,7 @@ class InitializeOptions(Options):
         pass
 
 
-#@flocker_standard_options
+@flocker_standard_options
 class CAOptions(Options):
     """
     Command line options for ``flocker-ca``.
@@ -54,11 +60,12 @@ class CAOptions(Options):
 
     subCommands = [
         ["initialize", None, InitializeOptions,
-         "Initialize a certificate authority in the current working directory."]
+         ("Initialize a certificate authority in the "
+          "current working directory.")]
         ]
 
 
-#@implementer(ICommandLineScript):
+@implementer(ICommandLineScript)
 class CAScript(object):
     """
     Command-line script for ``flocker-ca``.
@@ -67,7 +74,7 @@ class CAScript(object):
         if options.subCommand is not None:
             return maybeDeferred(options.subOptions.run)
         else:
-            return self.opt_help()
+            return options.opt_help()
 
 
 def flocker_ca_main():

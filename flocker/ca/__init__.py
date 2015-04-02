@@ -3,3 +3,9 @@
 """
 A minimal certificate authority.
 """
+
+__all__ = [
+    "CertificateAuthority",
+]
+
+from ._ca import CertificateAuthority
