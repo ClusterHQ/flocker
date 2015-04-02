@@ -404,6 +404,8 @@ class ContainerAPITests(TestCase):
                               u"mountpoint": u"/data/db"}],
             }
             created = cluster.create_container(mongodb)
+            created.addCallback(lambda _: self.addCleanup(
+                cluster.remove_container, mongodb[u"name"]))
             created.addCallback(
                 lambda _: get_mongo_client(cluster.nodes[0].address))
 
@@ -417,12 +419,24 @@ class ContainerAPITests(TestCase):
                 moved = cluster.move_container(
                     u"container", cluster.nodes[1].address
                 )
-                moved.addCallback(lambda _: record)
+
+                def destroy_and_recreate(_, record):
+                    removed = cluster.remove_container(u"container")
+                    mongodb2 = mongodb.copy()
+                    mongodb2[u"ports"] = [
+                        {u"internal": 27017, u"external": 27018}
+                    ]
+                    mongodb2[u"host"] = cluster.nodes[1].address
+                    removed.addCallback(
+                        lambda _: cluster.create_container(mongodb2))
+                    removed.addCallback(lambda _: record)
+                    return removed
+                moved.addCallback(destroy_and_recreate, record)
                 return moved
             created.addCallback(inserted)
 
             def moved(record):
-                d = get_mongo_client(cluster.nodes[1].address, 27017)
+                d = get_mongo_client(cluster.nodes[1].address, 27018)
                 d.addCallback(lambda client: client.example.posts.find_one())
                 d.addCallback(self.assertEqual, record)
                 return d
@@ -453,6 +467,8 @@ class ContainerAPITests(TestCase):
                               u"mountpoint": u"/data/db"}],
             }
             created = cluster.create_container(mongodb)
+            created.addCallback(lambda _: self.addCleanup(
+                cluster.remove_container, mongodb[u"name"]))
             created.addCallback(
                 lambda _: get_mongo_client(cluster.nodes[0].address))
 
