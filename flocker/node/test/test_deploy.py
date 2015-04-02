@@ -1660,12 +1660,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         ``ApplicationNodeDeployer`` doesn't bother doing any discovery and
         just indicates ignorance of applications.
         """
-        expected_application_name = u'site-example.com'
-        unit = Unit(name=expected_application_name,
-                    container_name=expected_application_name,
-                    container_image=u"flocker/wordpress:latest",
-                    activation_state=u'active')
-        fake_docker = FakeDockerClient(units={expected_application_name: unit})
+        fake_docker = FakeDockerClient(units={APP_NAME: UNIT_FOR_APP})
         api = ApplicationNodeDeployer(
             u'example.com',
             docker_client=fake_docker,
@@ -1674,10 +1669,10 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         # Apparently we know nothing about manifestations one way or the
         # other:
         d = api.discover_local_state(NodeState(
-            hostname=u'example.com',
+            hostname=api.hostname,
             manifestations=None, paths=None))
 
-        self.assertEqual(NodeState(hostname=u'example.com',
+        self.assertEqual(NodeState(hostname=api.hostname,
                                    # Can't do app discovery if don't know
                                    # about manifestations:
                                    applications=None,
