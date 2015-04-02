@@ -54,3 +54,11 @@ class ClusterStateService(Service):
         :return DeploymentState: Current state of the cluster.
         """
         return self._deployment_state
+
+    def set_deployment(self, state):
+        """
+        Replace the cluster state with a new one.
+
+        :param DeploymentState state: The new state.
+        """
+        self._deployment_state = state

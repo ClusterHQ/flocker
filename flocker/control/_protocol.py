@@ -268,11 +268,10 @@ class ControlAMPService(Service):
         :param list state_changes: One or more ``IClusterStateChange``
             providers representing the state change which has taken place.
         """
-        # XXX
         state = self.cluster_state.as_deployment()
         for change in state_changes:
             state = change.update_cluster_state(state)
-        self.cluster_state._deployment_state = state
+        self.cluster_state.set_deployment(state)
 
         self._send_state_to_connections(self.connections)
 

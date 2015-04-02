@@ -134,3 +134,20 @@ class ClusterStateServiceTests(SynchronousTestCase):
         self.assertEqual(
             service.manifestation_path(u"host1", MANIFESTATION.dataset_id),
             FilePath(b"/xxx/yyy"))
+
+    def test_set_deployment(self):
+        """
+        ``ClusterStateService.set_deployment`` completely replaces the cluster
+        state.
+        """
+        service = self.service()
+        deployment = DeploymentState(
+            nodes={
+                NodeState(
+                    hostname=u"host1",
+                    applications={APP1, APP2},
+                ),
+            },
+        )
+        service.set_deployment(deployment)
+        self.assertEqual(deployment, service.as_deployment())
