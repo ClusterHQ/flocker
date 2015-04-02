@@ -77,4 +77,4 @@ Pre-release Branches
 Similarly to `maintenance-branches`_, bug fixes and improvements may need to be applied to pre-releases.
 These changes should be the only changes between pre-releases for the same marketing release, and the only changes between the last pre-release and the final marketing release.
 
-Follow the procedure for merging fixes into maintenance branches, but also merge fixes into the last pre-release.
+Follow the procedure for merging fixes into maintenance branches, merging fixes into the last pre-release.
