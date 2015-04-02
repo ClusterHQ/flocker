@@ -101,7 +101,6 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                     m.dataset_id: m for m in expected_manifestations},
                 paths=expected_paths,
             ),
-            state
         )
         self.assertEqual(expected, state)
 
