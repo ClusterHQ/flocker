@@ -50,7 +50,7 @@ class SerializableArgument(Argument):
     """
     def __init__(self, *classes):
         """
-        :param *cls: The type or types of the objects we expect to
+        :param *classes: The type or types of the objects we expect to
             (de)serialize.
         """
         Argument.__init__(self)
