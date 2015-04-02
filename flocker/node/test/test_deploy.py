@@ -666,8 +666,6 @@ class StopApplicationTests(SynchronousTestCase):
 # This models an application that has a volume.
 
 APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
-# XXX For now we require volume names match application names,
-# see https://github.com/ClusterHQ/flocker/issues/49
 DATASET_ID = unicode(uuid4())
 DATASET = Dataset(dataset_id=DATASET_ID)
 APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")

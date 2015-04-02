@@ -79,9 +79,11 @@ class IDeployer(Interface):
     An object that can discover local state and calculate necessary
     changes to bring local state and desired cluster configuration into
     alignment.
+
+    :ivar unicode hostname: The hostname of the node this deployer is
+        managing.
     """
-    hostname = Attribute(
-        "The hostname of the node this deployer is managing.")
+    hostname = Attribute("The hostname for this node.")
 
     def discover_local_state(local_state):
         """
@@ -432,6 +434,9 @@ class P2PManifestationDeployer(object):
         self.volume_service = volume_service
 
     def discover_local_state(self, local_state):
+        """
+        Discover local ZFS manifestations.
+        """
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
         # strip the namespace since there will only ever be one.
@@ -449,11 +454,10 @@ class P2PManifestationDeployer(object):
         volumes.addCallback(map_volumes_to_size)
 
         def got_volumes(available_manifestations):
-            manifestations = []  # Manifestation objects we're constructing
             manifestation_paths = {dataset_id: path for (path, (dataset_id, _))
                                    in available_manifestations.items()}
 
-            manifestations += list(
+            manifestations = list(
                 Manifestation(dataset=Dataset(dataset_id=dataset_id,
                                               maximum_size=maximum_size),
                               primary=True)
@@ -473,7 +477,8 @@ class P2PManifestationDeployer(object):
 
     def calculate_necessary_state_changes(self, *args, **kwargs):
         # Does nothing in this branch. Follow up will move
-        # calculate_necessary_state_changes code here.
+        # calculate_necessary_state_changes code here:
+        # https://clusterhq.atlassian.net/browse/FLOC-1553
         return Sequentially(changes=[])
 
 
@@ -515,9 +520,9 @@ class ApplicationNodeDeployer(object):
         https://clusterhq.atlassian.net/browse/FLOC-1646.
 
         :return: A ``Deferred`` which fires with a ``NodeState`` instance
-            with information only about
-            ``Application``. ``NodeState.manifestations`` and
-            ``NodeState.paths`` will not be filled in.
+            with information only about ``Application``.
+            ``NodeState.manifestations`` and ``NodeState.paths`` will not be
+            filled in.
         """
         if local_state.manifestations is None:
             # Without manifestations we don't know if local applications'
@@ -723,7 +728,7 @@ class ApplicationNodeDeployer(object):
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
             # Current state never has metadata, but that's OK:
-            if inspect_desired.volume:
+            if inspect_desired.volume is not None:
                 inspect_desired = inspect_desired.transform(
                     ["volume", "manifestation", "dataset", "metadata"], {})
             if inspect_desired != inspect_current:
@@ -804,7 +809,7 @@ def change_node_state(deployer, desired_configuration,  current_cluster_state):
     nodes = [node for node in current_cluster_state.nodes
              if node.hostname == deployer.hostname]
     if nodes:
-        node = [nodes[0]]
+        node = nodes[0]
     else:
         node = NodeState(hostname=deployer.hostname)
     d = deployer.discover_local_state(node)
