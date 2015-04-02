@@ -1327,6 +1327,7 @@ APP2 = Application(
     name=APP_NAME2,
     image=DockerImage.from_string(UNIT_FOR_APP2.container_image)
 )
+EMPTY_NODESTATE = NodeState(hostname=u"example.com")
 
 
 class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
@@ -1348,7 +1349,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertEqual(NodeState(hostname=api.hostname,
                                    manifestations=None,
@@ -1367,7 +1368,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertEqual(NodeState(hostname=api.hostname,
                                    applications=[APP],
@@ -1390,7 +1391,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d).applications)
@@ -1415,7 +1416,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d).applications)
@@ -1455,7 +1456,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d).applications)
@@ -1478,7 +1479,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             StartApplication(
                 hostname=api.hostname, application=app
             ).run(api)
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(applications,
                               self.successResultOf(d).applications)
@@ -1500,7 +1501,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
@@ -1578,7 +1579,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).applications))
@@ -1599,7 +1600,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
         result = self.successResultOf(d)
 
         self.assertEqual(NodeState(hostname=api.hostname,
@@ -1621,8 +1622,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             network=make_memory_network(used_ports=used_ports)
         )
 
-        discovering = api.discover_local_state(
-            NodeState(hostname=u"example.com"))
+        discovering = api.discover_local_state(EMPTY_NODESTATE)
         state = self.successResultOf(discovering)
 
         self.assertEqual(
@@ -1647,7 +1647,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertEqual(applications,
                          list(self.successResultOf(d).applications))
@@ -1698,7 +1698,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             u'example.com', self.volume_service)
         self.assertEqual(
             self.successResultOf(deployer.discover_local_state(
-                NodeState(hostname=deployer.hostname))),
+                EMPTY_NODESTATE)),
             NodeState(hostname=deployer.hostname,
                       manifestations={}, paths={},
                       applications=None, used_ports=None))
@@ -1727,7 +1727,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         All datasets on the node are added to ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID: Manifestation(
@@ -1744,7 +1744,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID:
@@ -1778,7 +1778,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             u'example.com',
             self.volume_service,
         )
-        d = api.discover_local_state(NodeState(hostname=api.hostname))
+        d = api.discover_local_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(
             self.successResultOf(d).manifestations[self.DATASET_ID],
