@@ -24,7 +24,7 @@ from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
 from . import (
-    Dataset, Manifestation, Node, Application, DockerImage, Port,
+    Dataset, Manifestation, Application, DockerImage, Port,
     AttachedVolume, Link
 )
 from ._config import (
