@@ -404,7 +404,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         expected_cluster_state = DeploymentState(nodes=[local_state])
 
         # Calculating actions happened and the result was run.
-        self.assertEqual(
+        self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls),
             ([(local_state, configuration, expected_cluster_state)],
              [(NodeStateCommand, dict(state_changes=(local_state,)))])

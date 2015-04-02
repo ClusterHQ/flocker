@@ -6,7 +6,9 @@ Tests for ``flocker.node._model``.
 
 from uuid import uuid4
 
-from pyrsistent import InvariantException, pset, PRecord, PSet, pmap, PMap
+from pyrsistent import (
+    InvariantException, pset, PRecord, PSet, pmap, PMap, thaw
+)
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -18,7 +20,7 @@ from .._model import (
     IClusterStateChange,
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
-    NodeState, pset_field, pmap_field, DeploymentState
+    NodeState, pset_field, pmap_field, DeploymentState, NonManifestDatasets,
 )
 
 
@@ -269,6 +271,56 @@ class NodeStateTests(SynchronousTestCase):
         self.assertEqual(
             NodeState(hostname=u"1.2.3.4", used_ports=None).used_ports,
             None)
+
+
+class NonManifestDatasetsInitTests(make_with_init_tests(
+        record_type=NonManifestDatasets,
+        kwargs=dict(datasets={
+            MANIFESTATION.dataset.dataset_id: MANIFESTATION.dataset,
+        })
+)):
+    """
+    Tests for ``NonManifestDatasets.__init__``.
+    """
+
+
+class NonManifestDatasetsTests(SynchronousTestCase):
+    """
+    Tests for ``NonManifestDatasets``.
+    """
+    def test_iclusterstatechange(self):
+        """
+        ``NonManifestDatasets`` instances provide ``IClusterStateChange``.
+        """
+        self.assertTrue(
+            verifyObject(IClusterStateChange, NonManifestDatasets())
+        )
+
+    def test_manifestations_keys_are_their_ids(self):
+        """
+        The keys of the ``datasets`` attribute must match the value's
+        ``dataset_id`` attribute.
+        """
+        self.assertRaises(
+            InvariantException,
+            NonManifestDatasets,
+            datasets={unicode(uuid4()): Dataset(dataset_id=unicode(uuid4()))},
+        )
+
+    def test_update_cluster_state(self):
+        """
+        ``NonManifestDatasets.update_cluster_state`` returns a new
+        ``DeploymentState`` instance with its ``nonmanifest_datasets`` field
+        replaced with the value of the ``NonManifestDatasets.datasets`` field.
+        """
+        dataset = Dataset(dataset_id=unicode(uuid4()))
+        datasets = {dataset.dataset_id: dataset}
+        nonmanifest = NonManifestDatasets(datasets=datasets)
+        deployment = DeploymentState()
+        updated = nonmanifest.update_cluster_state(deployment)
+        self.assertEqual(
+            datasets, thaw(updated.nonmanifest_datasets)
+        )
 
 
 class DeploymentInitTests(make_with_init_tests(
@@ -874,3 +926,13 @@ class DeploymentStateTests(SynchronousTestCase):
         updated = original.update_node(update_applications).update_node(
             update_manifestations)
         self.assertEqual(updated, DeploymentState(nodes=[end_node]))
+
+    def test_nonmanifest_datasets_keys_are_their_ids(self):
+        """
+        The keys of the ``nonmanifest_datasets`` attribute must match the
+        value's ``dataset_id`` attribute.
+        """
+        self.assertRaises(InvariantException,
+                          DeploymentState,
+                          nonmanifest_datasets={u"123": MANIFESTATION.dataset})
+

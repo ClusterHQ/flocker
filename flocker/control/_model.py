@@ -586,12 +586,28 @@ class DeploymentState(PRecord):
     """
     A ``DeploymentState`` describes the state of the nodes in the cluster.
 
-    :ivar PSet nodes: A set containing ``NodeState`` instances describing
-        the state of each cooperating node.
+    :ivar PSet nodes: A set containing ``NodeState`` instances describing the
+        state of each cooperating node.
+    :ivar PMap nonmanifest_datasets: A mapping from dataset identifiers (as
+        ``unicode``) to corresponding ``Dataset`` instances.  This mapping
+        describes every ``Dataset`` which is known to exist as part of the
+        cluster but which has no manifestation on any node in the cluster.
+        Such datasets may not be possible with all backends (for example, P2P
+        backends must always store datasets on some cluster node).  This
+        mapping does not convey further backend-specific information; backends
+        are responsible for maintaining or determining additional information
+        themselves given a dataset identifier.  The ``Dataset`` instances which
+        are values in this mapping convey discovered state, not configuration.
+        The fields which are for conveying configuration will not be
+        initialized to meaningful values.
     """
     nodes = pset_field(NodeState)
 
     get_node = _get_node(NodeState)
+
+    nonmanifest_datasets = pmap_field(
+        unicode, Dataset, invariant=_keys_match_dataset_id
+    )
 
     def update_node(self, node_state):
         """
@@ -618,6 +634,18 @@ class DeploymentState(PRecord):
                 updated_node = updated_node.set(key, value)
         return self.set(
             "nodes", self.nodes.discard(original_node).add(updated_node))
+
+
+@implementer(IClusterStateChange)
+class NonManifestDatasets(PRecord):
+    """
+    A ``NonManifestDatasets`` represents datasets which are known to exist but
+    which have no manifestations anywhere in the cluster.
+    """
+    datasets = pmap_field(unicode, Dataset, invariant=_keys_match_dataset_id)
+
+    def update_cluster_state(self, cluster_state):
+        return cluster_state.set(nonmanifest_datasets=self.datasets)
 
 
 # Classes that can be serialized to disk or sent over the network:

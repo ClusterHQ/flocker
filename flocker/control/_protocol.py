@@ -114,6 +114,7 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
+    # XXX Add NonManifestDatasets here
     arguments = [('state_changes', ListOf(SerializableArgument(NodeState))),
                  ('eliot_context', _EliotActionArgument())]
     response = []
