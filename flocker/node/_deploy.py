@@ -124,8 +124,11 @@ class _OldToNewDeployer(object):
     Base class to help update implementations of the old ``IDeployer`` to the
     current version of the interface.
 
-    Subclass this and also set a ``hostname`` attribute on ``self`` that can be
-    used to find "this" node's state in the cluster state.
+    Subclass this and the existing ``hostname`` attribute and
+    ``discover_local_state`` and ``calculate_necessary_state_changes`` methods
+    will be adapted to the new interface (and this would be cleaner as an
+    adapter but that would require updating more code that's soon to be thrown
+    away).
 
     This is a transitional helper until we can update the old ``IDeployer``
     implementations properly.
