@@ -23,13 +23,8 @@ Linux
 -----
 
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
-On Fedora 20 you can install these by running:
 
-.. code-block:: console
-
-   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv
-
-On CentOS 7 you can install these by running:
+On CentOS 7 or Fedora 20 you can install these by running:
 
 .. prompt:: bash alice@mercury:~$
 
