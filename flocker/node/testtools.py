@@ -18,10 +18,11 @@ from twisted.trial.unittest import TestCase
 
 from zope.interface.verify import verifyObject
 
+from ._deploy import _OldToNewDeployer
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
 from ..testtools import loop_until
-from ..control import Node, Deployment, NodeState
+from ..control import Node, Deployment
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -95,7 +96,7 @@ class ControllableAction(object):
 
 
 @implementer(IDeployer)
-class ControllableDeployer(object):
+class ControllableDeployer(_OldToNewDeployer):
     """
     ``IDeployer`` whose results can be controlled.
     """
@@ -145,14 +146,9 @@ def ideployer_tests_factory(fixture):
             ``IStateChange`` provider.
             """
             deployer = fixture(self)
-            d = deployer.discover_local_state(NodeState(hostname=u"127.0.0.1"))
-            d.addCallback(
-                lambda local: deployer.calculate_necessary_state_changes(
-                    local, EMPTY, EMPTY))
-            d.addCallback(
-                lambda result: self.assertTrue(verifyObject(IStateChange,
-                                                            result)))
-            return d
+            result = deployer.calculate_changes(EMPTY, EMPTY)
+            self.assertTrue(verifyObject(IStateChange, result))
+
     return IDeployerTests
 
 

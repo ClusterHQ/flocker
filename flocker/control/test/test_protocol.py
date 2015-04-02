@@ -264,7 +264,7 @@ class ControlAMPTests(ControlTestCase):
         """
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE,
+                                   state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
@@ -288,7 +288,7 @@ class ControlAMPTests(ControlTestCase):
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE,
+                                   state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
@@ -380,7 +380,7 @@ class ControlAMPServiceTests(ControlTestCase):
                 (ClusterStatusCommand,),
                 dict(
                     configuration=TEST_DEPLOYMENT,
-                    state=Deployment(nodes=frozenset())
+                    state=DeploymentState(),
                 )
             )
         )
@@ -581,19 +581,6 @@ class AgentLocatorTests(SynchronousTestCase):
         self.assertIs(logger, locator.logger)
 
 
-class NodeStateCommandTests(SynchronousTestCase):
-    """
-    Tests for ``NodeStateCommand``.
-    """
-    def test_command_arguments(self):
-        """
-        ``NodeStateCommand`` requires the following arguments.
-        """
-        self.assertItemsEqual(
-            ['node_state', 'eliot_context'],
-            (v[0] for v in NodeStateCommand.arguments))
-
-
 class ControlServiceLocatorTests(SynchronousTestCase):
     """
     Tests for ``ControlServiceLocator``.
@@ -682,7 +669,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
 
         control_amp_service.connected(disconnected_protocol)
         control_amp_service.connected(connected_protocol)
-        control_amp_service.node_changed(NodeState(hostname=u"1.2.3.4"))
+        control_amp_service.node_changed((NodeState(hostname=u"1.2.3.4"),))
 
         actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
         self.assertEqual(

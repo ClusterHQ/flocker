@@ -703,6 +703,32 @@ MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
 DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
 
+class DeployerDiscoverStateTests(SynchronousTestCase):
+    """
+    Tests for ``P2PNodeDeployer.discover_state``.
+    """
+    def test_adapted_local_state(self):
+        """
+        ``P2PNodeDeployer.discover_state`` adapts the return value of
+        ``P2PNodeDeployer.discover_local_state`` to the type required by the
+        interface.
+        """
+        api = P2PNodeDeployer(
+            u"example.com",
+            create_volume_service(self),
+            docker_client=FakeDockerClient(units={}),
+            network=make_memory_network(),
+        )
+        known_local_state = NodeState(hostname=api.hostname)
+
+        old_result = api.discover_local_state(known_local_state)
+        new_result = api.discover_state(known_local_state)
+        self.assertEqual(
+            (self.successResultOf(old_result),),
+            self.successResultOf(new_result)
+        )
+
+
 class WillBeDeletedSoonDeployerDiscoveryTests(SynchronousTestCase):
     """
     Tests for ``P2PNodeDeployer.discover_local_state``.
