@@ -4238,7 +4238,8 @@ class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
 class ControllableDeployerInterfaceTests(
         ideployer_tests_factory(
             lambda test: ControllableDeployer(
-                local_states=[succeed(NodeState(hostname=b'192.0.2.123'))],
+                hostname=u"192.0.2.123",
+                local_states=[succeed(NodeState(hostname=u'192.0.2.123'))],
                 calculated_actions=[InParallel(changes=[])],
             )
         )
