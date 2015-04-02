@@ -17,6 +17,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision :reload
   config.vm.provision :shell, :path => "install2.sh",
   :args => [
-    ENV.fetch('FLOCKER_VERSION', '0.3.3-0.dev.8'),
+    ENV.fetch('FLOCKER_VERSION', '0.3.3-0.dev.8.661.g5c313b5'),
   ]
 end
