@@ -267,7 +267,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         client = FakeAMPClient()
         for local_state in local_states:
             client.register_response(
-                NodeStateCommand, dict(node_state=local_state),
+                NodeStateCommand, dict(state_changes=(local_state,)),
                 {"result": None})
         return client
 
@@ -306,7 +306,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             )
         )
         self.assertEqual(client.calls, [(NodeStateCommand,
-                                         dict(node_state=local_state))])
+                                         dict(state_changes=(local_state,)))])
 
     def test_convergence_done_update_local_state(self):
         """
@@ -404,10 +404,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         expected_cluster_state = DeploymentState(nodes=[local_state])
 
         # Calculating actions happened and the result was run.
-        self.assertEqual(
+        self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls),
             ([(local_state, configuration, expected_cluster_state)],
-             [(NodeStateCommand, dict(node_state=local_state))])
+             [(NodeStateCommand, dict(state_changes=(local_state,)))])
         )
 
     def test_convergence_done_start_new_iteration(self):
@@ -436,11 +436,13 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         reactor.advance(1.0)
         # Calculating actions happened, result was run... and then we did
         # whole thing again:
-        self.assertEqual((deployer.calculate_inputs, client.calls),
-                         ([(local_state, configuration, state),
-                           (local_state2, configuration, state)],
-                          [(NodeStateCommand, dict(node_state=local_state)),
-                           (NodeStateCommand, dict(node_state=local_state2))]))
+        self.assertTupleEqual(
+            (deployer.calculate_inputs, client.calls),
+            ([(local_state, configuration, state),
+              (local_state2, configuration, state)],
+             [(NodeStateCommand, dict(state_changes=(local_state,))),
+              (NodeStateCommand, dict(state_changes=(local_state2,)))])
+        )
 
     def test_convergence_status_update(self):
         """
@@ -479,12 +481,12 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         action.result.callback(None)
         reactor.advance(1.0)
 
-        self.assertEqual(
+        self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls, client2.calls),
             ([(local_state, configuration, state),
               (local_state2, configuration2, state2)],
-             [(NodeStateCommand, dict(node_state=local_state))],
-             [(NodeStateCommand, dict(node_state=local_state2))]))
+             [(NodeStateCommand, dict(state_changes=(local_state,)))],
+             [(NodeStateCommand, dict(state_changes=(local_state2,)))]))
 
     def test_convergence_stop(self):
         """
@@ -521,7 +523,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             # The actions are calculated
             [(local_state, configuration, state)],
             # And the result is run
-            [(NodeStateCommand, dict(node_state=local_state))],
+            [(NodeStateCommand, dict(state_changes=(local_state,)))],
             # The state machine gets to the desired state.
             ConvergenceLoopStates.STOPPED,
             # And no subsequent work is scheduled to be run.
@@ -533,7 +535,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             loop.state,
             reactor.getDelayedCalls(),
         )
-        self.assertEqual(expected, actual)
+        self.assertTupleEqual(expected, actual)
 
     def test_convergence_stop_then_status_update(self):
         """
@@ -575,12 +577,12 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         # and cluster state:
         action.result.callback(None)
         reactor.advance(1.0)
-        self.assertEqual(
+        self.assertTupleEqual(
             (deployer.calculate_inputs, client.calls, client2.calls),
             ([(local_state, configuration, state),
               (local_state2, configuration2, state2)],
-             [(NodeStateCommand, dict(node_state=local_state))],
-             [(NodeStateCommand, dict(node_state=local_state2))]))
+             [(NodeStateCommand, dict(state_changes=(local_state,)))],
+             [(NodeStateCommand, dict(state_changes=(local_state2,)))]))
 
 
 class AgentLoopServiceTests(SynchronousTestCase):
