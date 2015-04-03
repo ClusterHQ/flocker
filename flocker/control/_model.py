@@ -599,7 +599,8 @@ class DeploymentState(PRecord):
         themselves given a dataset identifier.  The ``Dataset`` instances which
         are values in this mapping convey discovered state, not configuration.
         The fields which are for conveying configuration will not be
-        initialized to meaningful values.
+        initialized to meaningful values (see
+        https://clusterhq.atlassian.net/browse/FLOC-1247).
     """
     nodes = pset_field(NodeState)
 
