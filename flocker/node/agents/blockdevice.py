@@ -841,8 +841,8 @@ class BlockDeviceDeployer(PRecord):
 
     def calculate_changes(self, configuration, cluster_state):
         # Eventually use the Datasets to avoid creating things that exist
-        # already (XXX need to file an issue) and to avoid deleting things that
-        # don't exist.
+        # already (https://clusterhq.atlassian.net/browse/FLOC-1575) and to
+        # avoid deleting things that don't exist.
         this_node_config = configuration.get_node(self.hostname)
         configured_manifestations = this_node_config.manifestations
 
