@@ -11,6 +11,7 @@ from pyrsistent import pmap, thaw
 from twisted.python.filepath import FilePath
 from twisted.web.http import (
     CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
+    BAD_REQUEST
 )
 from twisted.web.server import Site
 from twisted.web.resource import Resource
@@ -29,7 +30,8 @@ from . import (
 )
 from ._config import (
     ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY,
-    model_from_configuration, FigConfiguration, FlockerConfiguration
+    model_from_configuration, FigConfiguration, FlockerConfiguration,
+    ConfigurationError
 )
 from .. import __version__
 
@@ -819,12 +821,15 @@ class ConfigurationAPIUserV1(object):
         :param deployment: Configuration of which applications run on
             which nodes.
         """
-        configuration = FigConfiguration(applications)
-        if not configuration.is_valid_format():
-            configuration = FlockerConfiguration(applications)
-        return self.persistence_service.save(model_from_configuration(
-            applications=configuration.applications(),
-            deployment_configuration=deployment))
+        try:
+            configuration = FigConfiguration(applications)
+            if not configuration.is_valid_format():
+                configuration = FlockerConfiguration(applications)
+            return self.persistence_service.save(model_from_configuration(
+                applications=configuration.applications(),
+                deployment_configuration=deployment))
+        except ConfigurationError as e:
+            raise make_bad_request(code=BAD_REQUEST, description=unicode(e))
 
 
 def manifestations_from_deployment(deployment, dataset_id):

@@ -3179,6 +3179,35 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         saved.addCallback(lambda _: self.configuration_test())
         return saved
 
+    def error_test(self, application_config, deployment_config,
+                   message):
+        """
+        POSTing to ``/configuration/_compose`` in Flocker's custom
+        configuration format changes returns parsing errors appropriately
+        """
+        configuration = {u"applications": application_config,
+                         u"deployment": deployment_config}
+        return self.assertResult(
+            b"POST", b"/configuration/_compose", configuration, BAD_REQUEST,
+            {u"description": message}
+        )
+
+    def test_bad_applications(self):
+        """
+        A bad applications configuration results in a useful error.
+        """
+        return self.error_test({u"lalala": u"lololo"}, COMPLEX_DEPLOYMENT_YAML,
+                               u"Application configuration has an error. " +
+                               u"Missing 'applications' key.")
+
+    def test_bad_deployment(self):
+        """
+        A bad deployment configuration results in a useful error.
+        """
+        return self.error_test(
+            COMPLEX_APPLICATION_YAML, {u"lalala": u"lololo"},
+            u"Deployment configuration has an error. Missing 'nodes' key.")
+
 
 RealTestsConfigurationAPI, MemoryTestsConfigurationAPI = (
     buildIntegrationTests(ConfigurationComposeTestsMixin, "ConfigurationAPI",
