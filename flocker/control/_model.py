@@ -342,7 +342,8 @@ def _keys_match(attribute):
 
 
 # An invariant we use a couple times below in mappings from dataset_id to
-# Dataset instances
+# Dataset or Manifestation instances (or anything with a "dataset_id"
+# attribute, really).
 _keys_match_dataset_id = _keys_match("dataset_id")
 
 
