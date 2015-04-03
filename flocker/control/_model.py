@@ -652,5 +652,5 @@ class NonManifestDatasets(PRecord):
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState, DeploymentState,
+    NodeState, DeploymentState, NonManifestDatasets,
 ]

@@ -33,7 +33,7 @@ from .._protocol import (
 from .._clusterstate import ClusterStateService
 from .._model import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
-    Dataset, DeploymentState,
+    Dataset, DeploymentState, NonManifestDatasets,
 )
 from .._persistence import ConfigurationPersistenceService
 
@@ -98,6 +98,9 @@ NODE_STATE = NodeState(hostname=u'node1.example.com',
                        used_ports=[1, 2],
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
+NONMANIFEST = NonManifestDatasets(
+    datasets={MANIFESTATION.dataset_id: MANIFESTATION.dataset}
+)
 
 
 class SerializationTests(SynchronousTestCase):
@@ -123,6 +126,19 @@ class SerializationTests(SynchronousTestCase):
         deserialized = argument.fromString(as_bytes)
         self.assertEqual([bytes, TEST_DEPLOYMENT],
                          [type(as_bytes), deserialized])
+
+    def test_nonmanifestdatasets(self):
+        """
+        ``SerializableArgument`` can round-trip a ``NonManifestDatasets``
+        instance.
+        """
+        argument = SerializableArgument(NonManifestDatasets)
+        as_bytes = argument.toString(NONMANIFEST)
+        deserialized = argument.fromString(as_bytes)
+        self.assertEqual(
+            [bytes, NONMANIFEST],
+            [type(as_bytes), deserialized],
+        )
 
     def test_multiple_type_serialization(self):
         """
