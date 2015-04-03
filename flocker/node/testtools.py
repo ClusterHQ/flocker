@@ -22,7 +22,7 @@ from ._deploy import _OldToNewDeployer
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
 from ..testtools import loop_until
-from ..control import Node, Deployment
+from ..control import IClusterStateChange, Node, NodeState, Deployment
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -139,6 +139,43 @@ def ideployer_tests_factory(fixture):
             The object claims to provide the interface.
             """
             self.assertTrue(verifyObject(IDeployer, fixture(self)))
+
+        def _discover_state(self):
+            """
+            Create a deployer using the fixture and ask it to discover state.
+
+            :return: The return value of the object's ``discover_state``
+                method.
+            """
+            deployer = fixture(self)
+            result = deployer.discover_state(NodeState(hostname=b"10.0.0.1"))
+            return result
+
+        def test_discover_state_list_result(self):
+            """
+            The object's ``discover_state`` method returns a ``Deferred`` that
+            fires with a ``list``.
+            """
+            def discovered(changes):
+                self.assertEqual(tuple, type(changes))
+            return self._discover_state().addCallback(discovered)
+
+        def test_discover_state_iclusterstatechange(self):
+            """
+            The elements of the ``list`` that ``discover_state``\ 's
+            ``Deferred`` fires with provide ``IClusterStateChange``.
+            """
+            def discovered(changes):
+                wrong = []
+                for obj in changes:
+                    if not IClusterStateChange.providedBy(obj):
+                        wrong.append(obj)
+                if wrong:
+                    template = (
+                        "Some elements did not provide IClusterStateChange: {}"
+                    )
+                    self.fail(template.format(wrong))
+            return self._discover_state().addCallback(discovered)
 
         def test_calculate_necessary_state_changes(self):
             """
