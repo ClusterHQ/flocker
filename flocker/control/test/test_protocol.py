@@ -98,9 +98,12 @@ NODE_STATE = NodeState(hostname=u'node1.example.com',
                        used_ports=[1, 2],
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
+
+dataset = Dataset(dataset_id=unicode(uuid4()))
 NONMANIFEST = NonManifestDatasets(
-    datasets={MANIFESTATION.dataset_id: MANIFESTATION.dataset}
+    datasets={dataset.dataset_id: dataset}
 )
+del dataset
 
 
 class SerializationTests(SynchronousTestCase):
