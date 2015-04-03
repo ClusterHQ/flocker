@@ -256,7 +256,8 @@ class ConvergenceLoop(object):
     :ivar Deployment configuration: Desired cluster
         configuration. Initially ``None``.
 
-    :ivar Deployment state: Actual cluster state.  Initially ``None``.
+    :ivar DeploymentState cluster_state: Actual cluster state.  Initially
+        ``None``.
 
     :ivar fsm: The finite state machine this is part of.
     """
@@ -269,6 +270,7 @@ class ConvergenceLoop(object):
         """
         self.reactor = reactor
         self.deployer = deployer
+        self.cluster_state = None
 
     def output_STORE_INFO(self, context):
         self.client, self.configuration, self.cluster_state = (
@@ -276,21 +278,22 @@ class ConvergenceLoop(object):
 
     def output_CONVERGE(self, context):
         known_local_state = self.cluster_state.get_node(self.deployer.hostname)
-        d = DeferredContext(
-            self.deployer.discover_local_state(known_local_state)
-        )
+        d = DeferredContext(self.deployer.discover_state(known_local_state))
 
-        def got_local_state(local_state):
+        def got_local_state(state_changes):
             # Current cluster state is likely out of date as regards the local
             # state, so update it accordingly.
-            self.cluster_state = self.cluster_state.update_node(local_state)
+            for state in state_changes:
+                self.cluster_state = state.update_cluster_state(
+                    self.cluster_state
+                )
             with LOG_SEND_TO_CONTROL_SERVICE(
                     self.fsm.logger, connection=self.client) as context:
                 self.client.callRemote(NodeStateCommand,
-                                       node_state=local_state,
+                                       state_changes=state_changes,
                                        eliot_context=context)
-            action = self.deployer.calculate_necessary_state_changes(
-                local_state, self.configuration, self.cluster_state
+            action = self.deployer.calculate_changes(
+                self.configuration, self.cluster_state
             )
             return action.run(self.deployer)
         d.addCallback(got_local_state)

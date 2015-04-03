@@ -2597,14 +2597,14 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_manifestation = Manifestation(
             dataset=expected_dataset, primary=True)
         expected_hostname = u"192.0.2.101"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
                 manifestations={expected_dataset.dataset_id:
                                 expected_manifestation},
                 paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
             )
-        )
+        ])
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
@@ -2628,22 +2628,20 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_manifestation2 = Manifestation(
             dataset=expected_dataset2, primary=True)
         expected_hostname2 = u"192.0.2.102"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname1,
                 manifestations={expected_dataset1.dataset_id:
                                 expected_manifestation1},
                 paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
-            )
-        )
-        self.cluster_state_service.update_node_state(
+            ),
             NodeState(
                 hostname=expected_hostname2,
                 manifestations={expected_dataset2.dataset_id:
                                 expected_manifestation2},
                 paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
             )
-        )
+        ])
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
             primary=expected_hostname1,
@@ -2943,13 +2941,13 @@ class ContainerStateTestsMixin(APITestsMixin):
             restart_policy=RestartAlways(),
         )
         expected_hostname = u"192.0.2.101"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
                 applications={expected_application},
                 manifestations={manifestation.dataset_id: manifestation},
             )
-        )
+        ])
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
@@ -2988,13 +2986,13 @@ class ContainerStateTestsMixin(APITestsMixin):
                                   mountpoint=FilePath(b"/xxx/yyy")),
         )
         expected_hostname = u"192.0.2.101"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
                 applications={expected_application},
                 manifestations={manifestation.dataset_id: manifestation},
             )
-        )
+        ])
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
@@ -3019,12 +3017,12 @@ class ContainerStateTestsMixin(APITestsMixin):
             name=u"myapp", image=DockerImage.from_string(u"busybox"),
             running=False)
         expected_hostname = u"192.0.2.101"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
                 applications={expected_application},
             )
-        )
+        ])
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
@@ -3048,18 +3046,16 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_application2 = Application(
             name=u"myapp2", image=DockerImage.from_string(u"busybox2"))
         expected_hostname2 = u"192.0.2.102"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname1,
                 applications={expected_application1},
-            )
-        )
-        self.cluster_state_service.update_node_state(
+            ),
             NodeState(
                 hostname=expected_hostname2,
                 applications={expected_application2},
             )
-        )
+        ])
         expected_dict1 = dict(
             name=u"myapp",
             host=expected_hostname1,

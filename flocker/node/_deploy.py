@@ -85,7 +85,7 @@ class IDeployer(Interface):
     """
     hostname = Attribute("The hostname for this node.")
 
-    def discover_local_state(local_state):
+    def discover_state(local_state):
         """
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.
@@ -96,29 +96,64 @@ class IDeployer(Interface):
             into the result; the return result should include only
             information discovered by this particular deployer.
 
-        :return: A ``Deferred`` which fires with an object describing
-             local state. This object will be passed to the control
-             service (see ``flocker.control._protocol``) and may also be
-             passed to this object's
-             ``calculate_necessary_state_changes()`` method.
+        :return: A ``Deferred`` which fires with a tuple of
+            ``IClusterStateChange`` providers describing
+            local state. These objects will be passed to the control
+            service (see ``flocker.control._protocol``) and may also be
+            passed to this object's ``calculate_changes()`` method.
         """
 
-    def calculate_necessary_state_changes(local_state,
-                                          desired_configuration,
-                                          current_cluster_state):
+    def calculate_changes(configuration, cluster_state):
         """
-        Calculate the state changes necessary to make the local state match
-        the desired cluster configuration.
+        Calculate the state changes necessary to make the local state match the
+        desired cluster configuration.
 
-        :param local_state: The recent output of ``discover_local_state``.
-        :param Deployment desired_configuration: The intended
-            configuration of all nodes.
-        :param DeploymentState current_cluster_state: The current state of
-            all nodes. It is the caller's responsibility to ensure this is
-            up-to-date with the given local state.
+        :param Deployment configuration: The intended configuration of all
+            nodes.
 
-        :return: A ``IStateChange`` provider.
+        :param DeploymentState cluster_state: The current state of all nodes
+            already updated with recent output of ``discover_state``.
+
+        :return: An ``IStateChange`` provider.
         """
+
+
+@implementer(IDeployer)
+class _OldToNewDeployer(object):
+    """
+    Base class to help update implementations of the old ``IDeployer`` to the
+    current version of the interface.
+
+    Subclass this and the existing ``hostname`` attribute and
+    ``discover_local_state`` and ``calculate_necessary_state_changes`` methods
+    will be adapted to the new interface (and this would be cleaner as an
+    adapter but that would require updating more code that's soon to be thrown
+    away).
+
+    This is a transitional helper until we can update the old ``IDeployer``
+    implementations properly.
+
+    Don't use this in any new code.
+    """
+    def discover_state(self, known_local_state):
+        """
+        Discover only local state.
+
+        :return: A ``Deferred`` that fires with a one-tuple consisting of the
+            result of ``discover_local_state``.
+        """
+        discovering = self.discover_local_state(known_local_state)
+        discovering.addCallback(lambda local_state: (local_state,))
+        return discovering
+
+    def calculate_changes(self, configuration, cluster_state):
+        """
+        Extract the local state from ``cluster_state`` and delegate calculation
+        to ``calculate_necessary_state_changes``.
+        """
+        local_state = cluster_state.get_node(self.hostname)
+        return self.calculate_necessary_state_changes(
+            local_state, configuration, cluster_state)
 
 
 @implementer(IStateChange)
@@ -419,14 +454,12 @@ class OpenPorts(PRecord):
         return gather_deferreds(results)
 
 
-@implementer(IDeployer)
-class P2PManifestationDeployer(object):
+class P2PManifestationDeployer(_OldToNewDeployer):
     """
-    Discover and calculate changes for peer-to-peer manifestations
-    (e.g. ZFS) on a node.
+    Discover and calculate changes for peer-to-peer manifestations (e.g. ZFS)
+    on a node.
 
-    :ivar unicode hostname: The hostname of the node that this is running
-            on.
+    :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
     """
     def __init__(self, hostname, volume_service):
@@ -482,8 +515,7 @@ class P2PManifestationDeployer(object):
         return Sequentially(changes=[])
 
 
-@implementer(IDeployer)
-class ApplicationNodeDeployer(object):
+class ApplicationNodeDeployer(_OldToNewDeployer):
     """
     Discover and calculate changes for applications running on a node.
 
@@ -494,8 +526,7 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, hostname, docker_client=None,
-                 network=None):
+    def __init__(self, hostname, docker_client=None, network=None):
         self.hostname = hostname
         if docker_client is None:
             docker_client = DockerClient()
@@ -903,8 +934,7 @@ def find_dataset_changes(hostname, current_state, desired_state):
                           creating=creating, resizing=resizing)
 
 
-@implementer(IDeployer)
-class P2PNodeDeployer(object):
+class P2PNodeDeployer(_OldToNewDeployer):
     """
     Combination of ZFS and container deployer.
 
