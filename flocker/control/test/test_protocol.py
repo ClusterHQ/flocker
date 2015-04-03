@@ -298,13 +298,18 @@ class ControlAMPTests(ControlTestCase):
         """
         ``NodeStateCommand`` updates the node state.
         """
+        changes = (NODE_STATE, NONMANIFEST)
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   state_changes=(NODE_STATE,),
+                                   state_changes=changes,
                                    eliot_context=TEST_ACTION))
         self.assertEqual(
+            DeploymentState(
+                nodes={NODE_STATE},
+                nonmanifest_datasets=NONMANIFEST.datasets,
+            ),
             self.control_amp_service.cluster_state.as_deployment(),
-            DeploymentState(nodes={NODE_STATE}))
+        )
 
     def test_nodestate_notifies_all_connected(self):
         """

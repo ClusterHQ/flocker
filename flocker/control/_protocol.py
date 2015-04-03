@@ -40,7 +40,7 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 
 from ._persistence import wire_encode, wire_decode
-from ._model import Deployment, NodeState, DeploymentState
+from ._model import Deployment, NodeState, DeploymentState, NonManifestDatasets
 
 
 class SerializableArgument(Argument):
@@ -114,9 +114,10 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
-    # XXX Add NonManifestDatasets here
-    arguments = [('state_changes', ListOf(SerializableArgument(NodeState))),
-                 ('eliot_context', _EliotActionArgument())]
+    arguments = [
+        ('state_changes', ListOf(
+            SerializableArgument(NodeState, NonManifestDatasets))),
+        ('eliot_context', _EliotActionArgument())]
     response = []
 
 
