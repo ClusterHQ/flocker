@@ -216,12 +216,26 @@ class NodeStateTests(SynchronousTestCase):
         with the state of the ``NodeState`` with the matching ``hostname``
         replaced with its own state.
         """
-        node = NodeState(hostname=u"1.2.3.4", applications={APP1})
-        changed_node = node.set(applications={APP2})
-        cluster = DeploymentState(nodes={node})
-        changed_cluster = changed_node.update_cluster_state(cluster)
+        hostname = u"1.2.3.4"
+        apps = {APP1}
+        manifestations = {MANIFESTATION.dataset_id: MANIFESTATION}
+        node = NodeState(
+            hostname=hostname,
+            applications=None,
+            manifestations=None,
+        )
+        app_state = node.set(applications=apps)
+        data_state = node.set(manifestations=manifestations)
+        cluster = DeploymentState(nodes={app_state})
+        changed_cluster = data_state.update_cluster_state(cluster)
         self.assertEqual(
-            DeploymentState(nodes={changed_node}),
+            DeploymentState(nodes={
+                NodeState(
+                    hostname=hostname,
+                    applications=apps,
+                    manifestations=manifestations,
+                )
+            }),
             changed_cluster
         )
 
