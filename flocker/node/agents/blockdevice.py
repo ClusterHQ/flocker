@@ -22,7 +22,7 @@ from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
 from .. import IDeployer, IStateChange, Sequentially, InParallel
-from ...control import NodeState, Manifestation, Dataset
+from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
@@ -803,11 +803,17 @@ class BlockDeviceDeployer(PRecord):
         """
         volumes = self.block_device_api.list_volumes()
 
-        manifestations = {
-            m.dataset_id: m for m in (
-                _manifestation_from_volume(v) for v in volumes
-                if v.host == self.hostname)
-        }
+        manifestations = {}
+        nonmanifest = {}
+
+        for volume in volumes:
+            dataset_id = unicode(volume.dataset_id)
+            if volume.host == self.hostname:
+                manifestations[dataset_id] = _manifestation_from_volume(
+                    volume
+                )
+            elif volume.host is None:
+                nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         paths = {}
         for manifestation in manifestations.values():
@@ -825,6 +831,9 @@ class BlockDeviceDeployer(PRecord):
                 paths=paths,
             ),
         )
+
+        if nonmanifest:
+            state += (NonManifestDatasets(datasets=nonmanifest),)
         return succeed(state)
 
     def _mountpath_for_manifestation(self, manifestation):

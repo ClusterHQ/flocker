@@ -35,6 +35,7 @@ from ... import InParallel, IStateChange
 from ...testtools import ideployer_tests_factory, to_node
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
+    NonManifestDatasets,
 )
 
 GIBIBYTE = 2 ** 30
@@ -73,7 +74,8 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             block_device_api=self.api
         )
 
-    def assertDiscoveredState(self, deployer, expected_manifestations):
+    def assertDiscoveredState(self, deployer, expected_manifestations,
+                              expected_nonmanifest_datasets=None):
         """
         Assert that the manifestations on the state object returned by
         ``deployer.discover_state`` equals the given list of manifestations.
@@ -102,6 +104,14 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                 paths=expected_paths,
             ),
         )
+        if expected_nonmanifest_datasets is not None:
+            expected += (
+                NonManifestDatasets(datasets={
+                    unicode(dataset_id):
+                    Dataset(dataset_id=unicode(dataset_id))
+                    for dataset_id in expected_nonmanifest_datasets
+                }),
+            )
         self.assertEqual(expected, state)
 
     def test_no_devices(self):
@@ -146,6 +156,18 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
         self.api.attach_volume(new_volume.blockdevice_id, u'some.other.host')
         self.assertDiscoveredState(self.deployer, [])
+
+    def test_only_unattached_devices(self):
+        """
+        ``BlockDeviceDeployer.discover_state`` discovers volumes that are not
+        attached to any node and creates entries in a ``NonManifestDatasets``
+        instance corresponding to them.
+        """
+        dataset_id = uuid4()
+        self.api.create_volume(
+            dataset_id=dataset_id,
+            size=REALISTIC_BLOCKDEVICE_SIZE)
+        self.assertDiscoveredState(self.deployer, [], [dataset_id])
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
@@ -379,8 +401,6 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
 
         :param unicode local_hostname: The node identifier to give to the
             ``BlockDeviceDeployer``.
-        :param local_state: As accepted by
-            ``IDeployer.calculate_necessary_state_changes``.
         :param desired_configuration: As accepted by
             ``IDeployer.calculate_changes``.
 
