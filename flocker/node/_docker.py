@@ -27,6 +27,18 @@ from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field)
 
 
+import httplib
+httplib.HTTPConnection.debuglevel = 1
+
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.DEBUG)
+requests_log.propagate = True
+
+
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
 

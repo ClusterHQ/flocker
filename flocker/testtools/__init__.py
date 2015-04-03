@@ -838,5 +838,5 @@ def run_process(command, *args, **kwargs):
     status = process.wait()
     result = _ProcessResult(command=command, output=output, status=status)
     if result.status:
-        raise CalledProcessError(command=command, status=status, output=output)
+        raise CalledProcessError(returncode=status, cmd=command, output=output)
     return result
