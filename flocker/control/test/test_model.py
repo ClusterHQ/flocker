@@ -16,11 +16,12 @@ from twisted.python.filepath import FilePath
 from zope.interface.verify import verifyObject
 
 from ...testtools import make_with_init_tests
-from .._model import (
+from .._model import pset_field, pmap_field
+from .. import (
     IClusterStateChange,
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
-    NodeState, pset_field, pmap_field, DeploymentState, NonManifestDatasets,
+    NodeState, DeploymentState, NonManifestDatasets,
 )
 
 
