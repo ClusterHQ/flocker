@@ -28,7 +28,8 @@ from . import (
     AttachedVolume, Link
 )
 from ._config import (
-    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
+    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY,
+    model_from_configuration, FigConfiguration, FlockerConfiguration
 )
 from .. import __version__
 
@@ -795,6 +796,35 @@ class ConfigurationAPIUserV1(object):
 
         # Didn't find the application:
         raise CONTAINER_NOT_FOUND
+
+    @app.route("/configuration/_compose", methods=['POST'])
+    # Undocumented for now since this is temporary, private endpoint for
+    # flocker-deploy.
+    @structured(
+        inputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_compose'
+        },
+        outputSchema={},
+        schema_store=SCHEMAS
+    )
+    def replace_configuration(self, applications, deployment):
+        """
+        Replace the existing configuration with one given by flocker-deploy
+        command line tool.
+
+        :param applications: Configuration in Flocker-native or
+            Fig/Compose format.
+
+        :param deployment: Configuration of which applications run on
+            which nodes.
+        """
+        configuration = FigConfiguration(applications)
+        if not configuration.is_valid_format():
+            configuration = FlockerConfiguration(applications)
+        return self.persistence_service.save(model_from_configuration(
+            applications=configuration.applications(),
+            deployment_configuration=deployment))
 
 
 def manifestations_from_deployment(deployment, dataset_id):

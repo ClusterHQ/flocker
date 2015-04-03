@@ -39,6 +39,9 @@ from ..httpapi import (
 )
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
+from .._config import (
+    FlockerConfiguration, FigConfiguration, model_from_configuration)
+from .test_config import COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML
 from ... import __version__
 
 
@@ -3081,4 +3084,102 @@ class ContainerStateTestsMixin(APITestsMixin):
 
 RealTestsContainerStateAPI, MemoryTestsContainerStateAPI = (
     buildIntegrationTests(ContainerStateTestsMixin, "ContainerStateAPI",
+                          _build_app))
+
+
+class ConfigurationComposeTestsMixin(APITestsMixin):
+    """
+    Tests for the container configuration endpoint at
+    ``/configuration/_compose``.
+    """
+    def configuration_test(self):
+        """
+        POSTing to ``/configuration/_compose`` in Flocker's custom
+        configuration format changes the deployment configuration
+        appropriately.
+        """
+        configuration = {u"applications": COMPLEX_APPLICATION_YAML,
+                         u"deployment": COMPLEX_DEPLOYMENT_YAML}
+        setting = self.assertResponseCode(
+            b"POST", b"/configuration/_compose", configuration, OK
+        )
+
+        def configuration_set(_):
+            actual = self.persistence_service.get()
+            apps = FlockerConfiguration(
+                COMPLEX_APPLICATION_YAML).applications()
+            expected = model_from_configuration(
+                applications=apps,
+                deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+            self.assertEqual(actual, expected)
+        setting.addCallback(configuration_set)
+        return setting
+
+    def test_flocker_configuration_format(self):
+        """
+        POSTing to ``/configuration/_compose`` in Flocker's custom
+        configuration format changes the deployment configuration
+        appropriately.
+        """
+        return self.configuration_test()
+
+    def test_fig_configuration_format(self):
+        """
+        POSTing to ``/configuration/_compose`` in Flocker's custom
+        configuration format changes the deployment configuration
+        appropriately.
+        """
+        fig_config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
+                'links': ['mysql:db'],
+            },
+            'mysql': {
+                'image': 'sample/mysql',
+                'ports': ['3306:3306', '3307:3307'],
+            }
+        }
+
+        configuration = {u"applications": fig_config,
+                         u"deployment": COMPLEX_DEPLOYMENT_YAML}
+        setting = self.assertResponseCode(
+            b"POST", b"/configuration/_compose", configuration, OK
+        )
+
+        def configuration_set(_):
+            actual = self.persistence_service.get()
+            apps = FigConfiguration(fig_config).applications()
+            expected = model_from_configuration(
+                applications=apps,
+                deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+            self.assertEqual(actual, expected)
+        setting.addCallback(configuration_set)
+        return setting
+
+    def test_overwrite_existing(self):
+        """
+        Any existing configuration is wiped by ``/configuration/_compose``.
+        """
+        application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox"),
+            running=False)
+        dataset = Dataset(dataset_id=unicode(uuid4()))
+        manifestation = Manifestation(dataset=dataset, primary=True)
+        expected_hostname = u"192.0.2.101"
+        saved = self.persistence_service.save(Deployment(nodes=[
+            Node(
+                hostname=expected_hostname,
+                applications={application},
+                manifestations={manifestation.dataset_id: manifestation}
+            )
+        ]))
+        saved.addCallback(lambda _: self.configuration_test())
+        return saved
+
+
+RealTestsConfigurationAPI, MemoryTestsConfigurationAPI = (
+    buildIntegrationTests(ConfigurationComposeTestsMixin, "ConfigurationAPI",
                           _build_app))

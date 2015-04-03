@@ -156,3 +156,16 @@ definitions:
         - dataset_id
         - path
       additionalProperties: false
+
+  configuration_compose:
+    description: "Private endpoint for flocker-deploy."
+    type: object
+    properties:
+      applications:
+        type: object
+      deployment:
+        type: object
+    required:
+      - applications
+      - deployment
+    additionalProperties: false
