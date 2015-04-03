@@ -728,10 +728,13 @@ class PMapFieldTests(SynchronousTestCase):
         class Record(PRecord):
             value = pmap_field(
                 int, int,
-                invariant=lambda pmap: (False, "Very strict invariant.")
+                invariant=(
+                    lambda pmap: (len(pmap) == 1, "Exactly one item required.")
+                )
             )
-
         self.assertRaises(InvariantException, Record, value={})
+        self.assertRaises(InvariantException, Record, value={1: 2, 3: 4})
+        assert Record(value={1: 2}).value == {1: 2}
 
 
 class DeploymentStateTests(SynchronousTestCase):
