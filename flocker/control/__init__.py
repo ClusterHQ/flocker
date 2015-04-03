@@ -17,12 +17,14 @@ from ._config import (
     current_from_configuration,
     )
 from ._model import (
+    IClusterStateChange,
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
     NodeState, Manifestation, Dataset, RestartNever, RestartOnFailure,
     RestartAlways, DeploymentState, NonManifestDatasets,
     )
 
 __all__ = [
+    'IClusterStateChange',
     'FlockerConfiguration',
     'ConfigurationError',
     'applications_to_flocker_yaml',
