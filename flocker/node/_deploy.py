@@ -111,8 +111,8 @@ class IDeployer(Interface):
         :param Deployment configuration: The intended configuration of all
             nodes.
 
-        :param Deployment cluster_state: The current state of all nodes already
-            updated with recent output of ``discover_state``.
+        :param DeploymentState cluster_state: The current state of all nodes
+            already updated with recent output of ``discover_state``.
 
         :return: An ``IStateChange`` provider.
         """
