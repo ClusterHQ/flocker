@@ -935,4 +935,3 @@ class DeploymentStateTests(SynchronousTestCase):
         self.assertRaises(InvariantException,
                           DeploymentState,
                           nonmanifest_datasets={u"123": MANIFESTATION.dataset})
-
