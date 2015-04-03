@@ -31,9 +31,9 @@ from .._protocol import (
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
 )
 from .._clusterstate import ClusterStateService
-from .._model import (
+from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
-    Dataset, DeploymentState,
+    Dataset, DeploymentState, NonManifestDatasets,
 )
 from .._persistence import ConfigurationPersistenceService
 
@@ -99,6 +99,12 @@ NODE_STATE = NodeState(hostname=u'node1.example.com',
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
 
+dataset = Dataset(dataset_id=unicode(uuid4()))
+NONMANIFEST = NonManifestDatasets(
+    datasets={dataset.dataset_id: dataset}
+)
+del dataset
+
 
 class SerializationTests(SynchronousTestCase):
     """
@@ -123,6 +129,19 @@ class SerializationTests(SynchronousTestCase):
         deserialized = argument.fromString(as_bytes)
         self.assertEqual([bytes, TEST_DEPLOYMENT],
                          [type(as_bytes), deserialized])
+
+    def test_nonmanifestdatasets(self):
+        """
+        ``SerializableArgument`` can round-trip a ``NonManifestDatasets``
+        instance.
+        """
+        argument = SerializableArgument(NonManifestDatasets)
+        as_bytes = argument.toString(NONMANIFEST)
+        deserialized = argument.fromString(as_bytes)
+        self.assertEqual(
+            [bytes, NONMANIFEST],
+            [type(as_bytes), deserialized],
+        )
 
     def test_multiple_type_serialization(self):
         """
@@ -282,13 +301,18 @@ class ControlAMPTests(ControlTestCase):
         """
         ``NodeStateCommand`` updates the node state.
         """
+        changes = (NODE_STATE, NONMANIFEST)
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   state_changes=(NODE_STATE,),
+                                   state_changes=changes,
                                    eliot_context=TEST_ACTION))
         self.assertEqual(
+            DeploymentState(
+                nodes={NODE_STATE},
+                nonmanifest_datasets=NONMANIFEST.datasets,
+            ),
             self.control_amp_service.cluster_state.as_deployment(),
-            DeploymentState(nodes={NODE_STATE}))
+        )
 
     def test_nodestate_notifies_all_connected(self):
         """

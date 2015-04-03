@@ -21,7 +21,7 @@ from .. import (
     P2PManifestationDeployer,
 )
 from ..testtools import (
-    ControllableDeployer, ControllableAction, ideployer_tests_factory, EMPTY,
+    ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
