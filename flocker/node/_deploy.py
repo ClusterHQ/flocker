@@ -318,19 +318,6 @@ class ResizeDataset(object):
 
 
 @implementer(IStateChange)
-@attributes(["dataset"])
-class WaitForDataset(object):
-    """
-    Wait for a dataset to exist and be owned locally.
-
-    :ivar Dataset dataset: Dataset to wait for.
-    """
-    def run(self, deployer):
-        return deployer.volume_service.wait_for_volume(
-            _to_volume_name(self.dataset.dataset_id))
-
-
-@implementer(IStateChange)
 @attributes(["dataset", "hostname"])
 class HandoffDataset(object):
     """
@@ -509,10 +496,12 @@ class P2PManifestationDeployer(_OldToNewDeployer):
         return volumes
 
     def calculate_necessary_state_changes(self, *args, **kwargs):
-        # Does nothing in this branch. Follow up will move
-        # calculate_necessary_state_changes code here:
-        # https://clusterhq.atlassian.net/browse/FLOC-1553
-        return Sequentially(changes=[])
+        # XXX
+        # 0. If applications or manifestations are unknown indicate no changes, give up
+        # 1.  If volume exists on current node and should be on another node
+        #     and it's not in an application, hand it off.
+        # 2. Also create/delete as necessary.
+        pass
 
 
 class ApplicationNodeDeployer(_OldToNewDeployer):
@@ -681,6 +670,12 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
 
         :return: A ``IStateChange`` provider.
         """
+        # FLOC-1553 logic:
+        # 0. if applications=None on local node, no changes and give up
+        # 1. stop any relevant applications
+        # 2. for any applications that need to be started and have volumes, if volumes exist then start them. if no volumes are needed then just start them.
+
+
         phases = []
 
         desired_proxies = set()
@@ -804,6 +799,9 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
         # resized to the appropriate quota max size once they
         # have been received
         if dataset_changes.coming:
+            # XXX WaitForDataset is no longer needed in new scheme since
+            # we do convergence repeatedly, so we replace state change
+            # that polls with polling on a higher level :)
             phases.append(InParallel(changes=[
                 WaitForDataset(dataset=dataset)
                 for dataset in dataset_changes.coming]))
@@ -828,6 +826,8 @@ def change_node_state(deployer, desired_configuration,  current_cluster_state):
     """
     Change the local state to match the given desired state.
 
+    Legacy code used by flocker-changestate.
+
     :param IDeployer deployer: Deployer to discover local state and
         calculate changes.
     :param Deployment desired_configuration: The intended configuration of all
@@ -837,6 +837,8 @@ def change_node_state(deployer, desired_configuration,  current_cluster_state):
 
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
+    # FLOC-1553 run this loop repeatedly until cluster state for this node
+    # matches configuration.
     node = current_cluster_state.get_node(deployer.hostname)
     d = deployer.discover_local_state(node)
     d.addCallback(deployer.calculate_necessary_state_changes,
@@ -938,8 +940,9 @@ class P2PNodeDeployer(_OldToNewDeployer):
     """
     Combination of ZFS and container deployer.
 
-    Temporary expedient, to be removed in FLOC-1553 or perhaps another
-    sub-task of FLOC-1443.
+    Temporary expedient for use by flocker-changestate until we rip it
+    out, and even more temporarily in flocker-zfs-agent. In FLOC-1554
+    flocker-zfs-agent will be split up and stop using this.
     """
     def __init__(self, hostname, volume_service, docker_client=None,
                  network=None):
@@ -967,6 +970,11 @@ class P2PNodeDeployer(_OldToNewDeployer):
         return d
 
     def calculate_necessary_state_changes(self, *args, **kwargs):
-        # Calculation will be split up in FLOC-1553.
-        return self.applications_deployer.calculate_necessary_state_changes(
-            *args, **kwargs)
+        return Sequentially(changes=[
+            self.applications_deployer.calculate_necessary_state_changes(
+                *args, **kwargs),
+            # FLOC-1553
+            #self.manifestations_deployer.calculate_necessary_state_changes(
+            #    *args, **kwargs),
+        ])
+
