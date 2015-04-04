@@ -53,7 +53,10 @@ def pset_field(item_type, optional=False):
                  initial=TheSet())
 
 
-def pmap_field(key_type, value_type, optional=False):
+_valid = lambda item: (True, "")
+
+
+def pmap_field(key_type, value_type, optional=False, invariant=_valid):
     """
     Create a checked ``PMap`` field.
 
@@ -61,6 +64,7 @@ def pmap_field(key_type, value_type, optional=False):
     :param value: The required type for the values of the map.
     :param bool optional: If true, ``None`` can be used as a value for
         this field.
+    :param invariant: Pass-through to ``field``.
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
@@ -80,7 +84,7 @@ def pmap_field(key_type, value_type, optional=False):
         factory = TheMap
     return field(mandatory=True, initial=TheMap(),
                  type=optional_type(TheMap) if optional else TheMap,
-                 factory=factory)
+                 factory=factory, invariant=invariant)
 
 
 class DockerImage(PRecord):
@@ -316,6 +320,33 @@ class AttachedVolume(PRecord):
         return self.manifestation.dataset
 
 
+def _keys_match(attribute):
+    """
+    Create an invariant for a ``field`` holding a ``pmap``.
+
+    The invariant enforced is that the keys of the ``pmap`` equal the value of
+    a particular attribute of the corresponding values.
+
+    :param str attribute: The name of the attribute of the ``pmap`` values
+        which must equal the corresponding key.
+    :return: A function suitable for use as a pyrsistent invariant.
+    """
+    def key_match_invariant(pmap):
+        for (key, value) in pmap.items():
+            if key != getattr(value, attribute):
+                return (
+                    False, "{} is not correct key for {}".format(key, value)
+                )
+        return (True, "")
+    return key_match_invariant
+
+
+# An invariant we use a couple times below in mappings from dataset_id to
+# Dataset or Manifestation instances (or anything with a "dataset_id"
+# attribute, really).
+_keys_match_dataset_id = _keys_match("dataset_id")
+
+
 class Node(PRecord):
     """
     Configuration for a single node on which applications will be managed
@@ -343,14 +374,38 @@ class Node(PRecord):
             if app.volume is not None:
                 if app.volume.manifestation not in manifestations:
                     return (False, '%r manifestation is not on node' % (app,))
-        for key, value in self.manifestations.items():
-            if key != value.dataset_id:
-                return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     applications = pset_field(Application)
-    manifestations = pmap_field(unicode, Manifestation)
+    manifestations = pmap_field(
+        unicode, Manifestation, invariant=_keys_match_dataset_id
+    )
+
+
+def _get_node(default_factory):
+    """
+    Create a helper function for getting a node from a deployment.
+
+    :param default_factory: A one-argument callable which is called with the
+        requested hostname when no matching node is found in the deployment.
+        The return value is used as the result.
+
+    :return: A two-argument callable which accepts a ``Deployment`` or a
+             ``DeploymentState`` as the first argument and a ``unicode`` string
+             giving a node hostname as the second argument.  It will return a
+             node from the deployment object with a matching hostname or it
+             will return a value from ``default_factory`` if no matching node
+             is found.
+    """
+    def get_node(deployment, hostname):
+        nodes = list(
+            node for node in deployment.nodes if node.hostname == hostname
+        )
+        if len(nodes) == 0:
+            return default_factory(hostname=hostname)
+        return nodes[0]
+    return get_node
 
 
 class Deployment(PRecord):
@@ -362,6 +417,8 @@ class Deployment(PRecord):
         describing the configuration of each cooperating node.
     """
     nodes = pset_field(Node)
+
+    get_node = _get_node(Node)
 
     def applications(self):
         """
@@ -475,6 +532,22 @@ class DatasetChanges(object):
     """
 
 
+class IClusterStateChange(Interface):
+    """
+    An ``IClusterStateChange`` can update a ``DeploymentState`` with new
+    information.
+    """
+    def update_cluster_state(cluster_state):
+        """
+        :param DeploymentState cluster_state: Some current known state of the
+            cluster.
+
+        :return: A new ``DeploymentState`` similar to ``cluster_state`` but
+            with changes from this object applied to it.
+        """
+
+
+@implementer(IClusterStateChange)
 class NodeState(PRecord):
     """
     The current state of a node.
@@ -506,15 +579,37 @@ class NodeState(PRecord):
     manifestations = pmap_field(unicode, Manifestation, optional=True)
     paths = pmap_field(unicode, FilePath, optional=True)
 
+    def update_cluster_state(self, cluster_state):
+        return cluster_state.update_node(self)
+
 
 class DeploymentState(PRecord):
     """
     A ``DeploymentState`` describes the state of the nodes in the cluster.
 
-    :ivar PSet nodes: A set containing ``NodeState`` instances describing
-        the state of each cooperating node.
+    :ivar PSet nodes: A set containing ``NodeState`` instances describing the
+        state of each cooperating node.
+    :ivar PMap nonmanifest_datasets: A mapping from dataset identifiers (as
+        ``unicode``) to corresponding ``Dataset`` instances.  This mapping
+        describes every ``Dataset`` which is known to exist as part of the
+        cluster but which has no manifestation on any node in the cluster.
+        Such datasets may not be possible with all backends (for example, P2P
+        backends must always store datasets on some cluster node).  This
+        mapping does not convey further backend-specific information; backends
+        are responsible for maintaining or determining additional information
+        themselves given a dataset identifier.  The ``Dataset`` instances which
+        are values in this mapping convey discovered state, not configuration.
+        The fields which are for conveying configuration will not be
+        initialized to meaningful values (see
+        https://clusterhq.atlassian.net/browse/FLOC-1247).
     """
     nodes = pset_field(NodeState)
+
+    get_node = _get_node(NodeState)
+
+    nonmanifest_datasets = pmap_field(
+        unicode, Dataset, invariant=_keys_match_dataset_id
+    )
 
     def update_node(self, node_state):
         """
@@ -543,9 +638,21 @@ class DeploymentState(PRecord):
             "nodes", self.nodes.discard(original_node).add(updated_node))
 
 
+@implementer(IClusterStateChange)
+class NonManifestDatasets(PRecord):
+    """
+    A ``NonManifestDatasets`` represents datasets which are known to exist but
+    which have no manifestations anywhere in the cluster.
+    """
+    datasets = pmap_field(unicode, Dataset, invariant=_keys_match_dataset_id)
+
+    def update_cluster_state(self, cluster_state):
+        return cluster_state.set(nonmanifest_datasets=self.datasets)
+
+
 # Classes that can be serialized to disk or sent over the network:
 SERIALIZABLE_CLASSES = [
     Deployment, Node, DockerImage, Port, Link, RestartNever, RestartAlways,
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
-    NodeState, DeploymentState,
+    NodeState, DeploymentState, NonManifestDatasets,
 ]
