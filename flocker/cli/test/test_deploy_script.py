@@ -116,36 +116,3 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             "as YAML"
         ).format(path=app.path)
         self.assertTrue(str(e).startswith(expected))
-
-
-class FlockerDeployMainTests(TestCase):
-    """
-    Tests for ``DeployScript.main``.
-    """
-    def test_deferred_result(self):
-        """
-        ``DeployScript.main`` returns a ``Deferred`` on success.
-        """
-        temp = FilePath(self.mktemp())
-        temp.makedirs()
-
-        application_config_path = temp.child(b"app.yml")
-        application_config_path.setContent(safe_dump({
-            u"version": 1,
-            u"applications": {},
-        }))
-
-        deployment_config_path = temp.child(b"deploy.yml")
-        deployment_config_path.setContent(safe_dump({
-            u"version": 1,
-            u"nodes": {},
-        }))
-
-        options = DeployOptions()
-        options.parseOptions([
-            CONTROL_HOST, deployment_config_path.path,
-            application_config_path.path])
-
-        script = DeployScript()
-        dummy_reactor = MemoryCoreReactor()
-        self.assertIsInstance(script.main(dummy_reactor, options), Deferred)
