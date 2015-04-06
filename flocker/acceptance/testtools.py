@@ -3,7 +3,7 @@
 """
 Testing utilities for ``flocker.acceptance``.
 """
-
+from json import dumps
 from os import environ
 from pipes import quote as shell_quote
 from socket import gaierror, socket
@@ -11,15 +11,17 @@ from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump, safe_load
 
+from twisted.web.http import OK, CREATED
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from pyrsistent import pmap
+from treq import get, post, delete, json_content
+from pyrsistent import PRecord, field, CheckedPVector, pmap
 
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
-    FlockerConfiguration
+    FlockerConfiguration, REST_API_PORT
 )
 from flocker.testtools import loop_until
 
@@ -110,12 +112,18 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
 
 def get_node_state(node):
     """
-    Call flocker-reportstate on the specified node and return its output,
-    as ``Application`` instances parsed via class ``FlockerConfiguration``.
+    Get the applications on a node using the HTTP API.
+
+    :param node: The hostname of the node.
+
+    :return: ``list`` of ``Application`` currently on that node.
     """
-    yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
-    state = safe_load(yaml)
-    return FlockerConfiguration(state).applications()
+    cluster = Cluster(control_node=Node(
+        address=environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')))
+    d = cluster.current_containers()
+    d.addCallback(
+        lambda result: [app for app in result[1] if app[u"hostname"] == node])
+    return d
 
 
 def run_SSH(port, user, node, command, input, key=None,
@@ -346,3 +354,260 @@ def assert_expected_deployment(test_case, expected_deployment):
         test_case.assertSetEqual(
             set(FlockerConfiguration(state).applications().values()),
             expected)
+
+
+class Node(PRecord):
+    """
+    A record of a cluster node.
+
+    :ivar bytes address: The IPv4 address of the node.
+    """
+    address = field(type=bytes)
+
+
+class _NodeList(CheckedPVector):
+    """
+    A list of nodes.
+
+    See https://github.com/tobgu/pyrsistent/issues/26 for more succinct
+    idiom combining this with ``field()``.
+    """
+    __type__ = Node
+
+
+def check_and_decode_json(result, response_code):
+    """
+    Given ``treq`` response object, extract JSON and ensure response code
+    is the expected one.
+
+    :param result: ``treq`` response.
+    :param int response_code: Expected response code.
+
+    :return: ``Deferred`` firing with decoded JSON.
+    """
+    if result.code != response_code:
+        raise ValueError("Unexpected response code:", result.code)
+    return json_content(result)
+
+
+class Cluster(PRecord):
+    """
+    A record of the control service and the nodes in a cluster for acceptance
+    testing.
+
+    :param Node control_node: The node running the ``flocker-control``
+        service.
+    :param list nodes: The ``Node`` s in this cluster.
+    """
+    control_node = field(type=Node)
+    nodes = field(type=_NodeList)
+
+    @property
+    def base_url(self):
+        """
+        :returns: The base url for API requests to this cluster's control
+            service.
+        """
+        return b"http://{}:{}/v1".format(
+            self.control_node.address, REST_API_PORT
+        )
+
+    def datasets_state(self):
+        """
+        Return the actual dataset state of the cluster.
+
+        :return: ``Deferred`` firing with a list of dataset dictionaries,
+            the state of the cluster.
+        """
+        request = get(self.base_url + b"/state/datasets", persistent=False)
+        request.addCallback(check_and_decode_json, OK)
+        return request
+
+    def wait_for_dataset(self, dataset_properties):
+        """
+        Poll the dataset state API until the supplied dataset exists.
+
+        :param dict dataset_properties: The attributes of the dataset that
+            we're waiting for.
+        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
+            API response when a dataset with the supplied properties appears in
+            the cluster.
+        """
+        def created():
+            """
+            Check the dataset state list for the expected dataset.
+            """
+            request = self.datasets_state()
+
+            def got_body(body):
+                # State listing doesn't have metadata or deleted, but does
+                # have unpredictable path.
+                expected_dataset = dataset_properties.copy()
+                del expected_dataset[u"metadata"]
+                del expected_dataset[u"deleted"]
+                for dataset in body:
+                    dataset.pop("path")
+                return expected_dataset in body
+            request.addCallback(got_body)
+            return request
+
+        waiting = loop_until(created)
+        waiting.addCallback(lambda ignored: (self, dataset_properties))
+        return waiting
+
+    def create_dataset(self, dataset_properties):
+        """
+        Create a dataset with the supplied ``dataset_properties``.
+
+        :param dict dataset_properties: The properties of the dataset to
+            create.
+        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
+            API response when a dataset with the supplied properties has been
+            persisted to the cluster configuration.
+        """
+        request = post(
+            self.base_url + b"/configuration/datasets",
+            data=dumps(dataset_properties),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, CREATED)
+        # Return cluster and API response
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    def update_dataset(self, dataset_id, dataset_properties):
+        """
+        Update a dataset with the supplied ``dataset_properties``.
+
+        :param unicode dataset_id: The uuid of the dataset to be modified.
+        :param dict dataset_properties: The properties of the dataset to
+            create.
+        :returns: A 2-tuple of (cluster, api_response)
+        """
+        request = post(
+            self.base_url + b"/configuration/datasets/%s" % (
+                dataset_id.encode('ascii'),
+            ),
+            data=dumps(dataset_properties),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        # Return cluster and API response
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    def delete_dataset(self, dataset_id):
+        """
+        Delete a dataset.
+
+        :param unicode dataset_id: The uuid of the dataset to be modified.
+
+        :returns: A 2-tuple of (cluster, api_response)
+        """
+        request = delete(
+            self.base_url + b"/configuration/datasets/%s" % (
+                dataset_id.encode('ascii'),
+            ),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        # Return cluster and API response
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    def create_container(self, properties):
+        """
+        Create a container with the specified properties.
+
+        :param dict properties: A ``dict`` mapping to the API request fields
+            to create a container.
+
+        :returns: A tuple of (cluster, api_response)
+        """
+        request = post(
+            self.base_url + b"/configuration/containers",
+            data=dumps(properties),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, CREATED)
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    def remove_container(self, name):
+        """
+        Remove a container.
+
+        :param unicode name: The name of the container to remove.
+
+        :returns: A tuple of (cluster, api_response)
+        """
+        request = delete(
+            self.base_url + b"/configuration/containers/" +
+            name.encode("ascii"),
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    def current_containers(self):
+        """
+        Get current containers.
+
+        :return: A ``Deferred`` firing with a tuple (cluster instance, API
+            response).
+        """
+        request = get(
+            self.base_url + b"/state/containers",
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(lambda response: (self, response))
+        return request
+
+
+def get_test_cluster(test_case, node_count):
+    """
+    Build a ``Cluster`` instance with at least ``node_count`` nodes.
+
+    :param TestCase test_case: The test case instance on which to register
+        cleanup operations.
+    :param int node_count: The number of nodes to request in the cluster.
+    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
+    """
+    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
+
+    if control_node is None:
+        raise SkipTest(
+            "Set acceptance testing control node IP address using the " +
+            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
+
+    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_AGENT_NODES')
+
+    if agent_nodes_env_var is None:
+        raise SkipTest(
+            "Set acceptance testing node IP addresses using the " +
+            "FLOCKER_ACCEPTANCE_AGENT_NODES environment variable and a " +
+            "colon separated list.")
+
+    agent_nodes = filter(None, agent_nodes_env_var.split(':'))
+
+    if len(agent_nodes) < node_count:
+        raise SkipTest("This test requires a minimum of {necessary} nodes, "
+                       "{existing} node(s) are set.".format(
+                           necessary=node_count, existing=len(agent_nodes)))
+
+    return succeed(Cluster(
+        control_node=Node(address=control_node),
+        nodes=map(lambda address: Node(address=address), agent_nodes),
+    ))

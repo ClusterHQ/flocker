@@ -167,16 +167,15 @@ class DeploymentTests(TestCase):
         representations of the data given by the configuration files supplied
         to flocker-deploy.
         """
-        getting_nodes = get_nodes(self, num_nodes=2)
+        getting_nodes = get_nodes(self, num_nodes=1)
 
         def deploy(node_ips):
-            node_1, node_2 = node_ips
+            [node_1] = node_ips
 
             minimal_deployment = {
                 u"version": 1,
                 u"nodes": {
                     node_1: [MONGO_APPLICATION],
-                    node_2: [],
                 },
             }
 
@@ -193,7 +192,6 @@ class DeploymentTests(TestCase):
 
             d = assert_expected_deployment(self, {
                 node_1: set([get_mongo_application()]),
-                node_2: set([]),
             })
 
             return d
