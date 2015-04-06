@@ -6,8 +6,6 @@ Tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
-from zope.interface.verify import verifyObject
-
 from eliot.testing import validate_logging
 
 from pyrsistent import pmap, pset
@@ -27,7 +25,7 @@ from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState, DeploymentState, RestartAlways)
 
-from .. import IStateChange, sequentially, in_parallel
+from .. import sequentially, in_parallel
 
 from .._deploy import (
     StartApplication, StopApplication,
@@ -47,6 +45,8 @@ from ...volume.service import Volume, VolumeName
 from ...volume._model import VolumeSize
 from ...volume.testtools import create_volume_service
 from ...volume._ipc import RemoteVolumeManager, standard_node
+
+from .istatechange import make_istatechange_tests
 
 
 class P2PNodeDeployerAttributesTests(SynchronousTestCase):
@@ -91,66 +91,6 @@ class P2PNodeDeployerAttributesTests(SynchronousTestCase):
                             network=dummy_network).network
         )
 
-
-def make_comparison_tests(klass, kwargs1, kwargs2):
-    class Tests(SynchronousTestCase):
-        def test_equality(self):
-            """
-            Instances with the same arguments are equal.
-            """
-            self.assertTrue(klass(**kwargs1) == klass(**kwargs1))
-            self.assertFalse(klass(**kwargs1) == klass(**kwargs2))
-
-        def test_notequality(self):
-            """
-            Instance with different arguments are not equal.
-            """
-            self.assertTrue(klass(**kwargs1) != klass(**kwargs2))
-            self.assertFalse(klass(**kwargs1) != klass(**kwargs1))
-    Tests.__name__ = klass.__name__ + "ComparisonTests"
-    return Tests
-
-
-def make_istatechange_tests(klass, kwargs1, kwargs2):
-    """
-    Create tests to verify a class provides ``IStateChange``.
-
-    :param klass: Class that implements ``IStateChange``.
-    :param kwargs1: Keyword arguments to ``klass``.
-    :param kwargs2: Keyword arguments to ``klass`` that create different
-        change than ``kwargs1``.
-
-    :return: ``SynchronousTestCase`` subclass named
-        ``<klassname>IStateChangeTests``.
-    """
-    class Tests(make_comparison_tests(klass, kwargs1, kwargs2)):
-        def test_interface(self):
-            """
-            The class implements ``IStateChange``.
-            """
-            self.assertTrue(verifyObject(IStateChange, klass(**kwargs1)))
-
-        def test_equality(self):
-            """
-            Instances with the same arguments are equal.
-            """
-            self.assertTrue(klass(**kwargs1) == klass(**kwargs1))
-            self.assertFalse(klass(**kwargs1) == klass(**kwargs2))
-
-        def test_notequality(self):
-            """
-            Instance with different arguments are not equal.
-            """
-            self.assertTrue(klass(**kwargs1) != klass(**kwargs2))
-            self.assertFalse(klass(**kwargs1) != klass(**kwargs1))
-    Tests.__name__ = klass.__name__ + "IStateChangeTests"
-    return Tests
-
-
-SequentiallyIStateChangeTests = make_comparison_tests(
-    sequentially, dict(changes=[1]), dict(changes=[2]))
-InParallelIStateChangeTests = make_comparison_tests(
-    in_parallel, dict(changes=[1]), dict(changes=[2]))
 
 StartApplicationIStateChangeTests = make_istatechange_tests(
     StartApplication,
