@@ -1822,9 +1822,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         applications running or desired, and no proxies exist or are
         desired.
         """
-        fake_docker = FakeDockerClient(units={})
         api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=fake_docker,
+                                      docker_client=FakeDockerClient(),
                                       network=make_memory_network())
         result = api.calculate_changes(
             desired_configuration=EMPTY,
@@ -1839,9 +1838,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
         """
-        fake_docker = FakeDockerClient(units={})
         api = ApplicationNodeDeployer(u'node2.example.com',
-                                      docker_client=fake_docker,
+                                      docker_client=FakeDockerClient(),
                                       network=make_memory_network())
         expected_destination_port = 1001
         expected_destination_host = u'node1.example.com'
@@ -1894,21 +1892,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         ports to open. One for each port exposed by ``Application``\ s
         hosted on this node.
         """
-        fake_docker = FakeDockerClient(units={})
-        unit = Unit(name=u'mysql-hybridcluster',
-                    container_name=u'mysql-hybridcluster',
-                    container_image=u'clusterhq/mysql:release-14.0',
-                    activation_state=u'active',
-                    ports=frozenset([PortMap(
-                        external_port=1001,
-                        internal_port=3306,
-                        )]),
-                    )
-
-        fake_docker = FakeDockerClient(units={unit.name: unit})
-
         api = ApplicationNodeDeployer(u'example.com',
-                                      docker_client=fake_docker,
+                                      docker_client=FakeDockerClient(),
                                       network=make_memory_network())
         expected_destination_port = 1001
         port = Port(internal_port=3306,
@@ -1960,19 +1945,13 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         ``ApplicationNodeDeployer.calculate_changes`` specifies that an
         application must be stopped when it is running but not desired.
         """
-        unit = Unit(name=u'site-example.com',
-                    container_name=u'site-example.com',
-                    container_image=u'flocker/wordpress:v1.0.0',
-                    activation_state=u'active')
-
-        fake_docker = FakeDockerClient(units={unit.name: unit})
         api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=fake_docker,
+                                      docker_client=FakeDockerClient(),
                                       network=make_memory_network())
 
         to_stop = StopApplication(application=Application(
-            name=unit.name, image=DockerImage.from_string(
-                unit.container_image)))
+            name=u"site-example.com", image=DockerImage.from_string(
+                u"flocker/wordpress")))
 
         result = api.calculate_changes(
             desired_configuration=EMPTY,
@@ -1987,9 +1966,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         application must be started when it is desired on the given node but
         not running.
         """
-        fake_docker = FakeDockerClient(units={})
         api = ApplicationNodeDeployer(u'example.com',
-                                      docker_client=fake_docker,
+                                      docker_client=FakeDockerClient(),
                                       network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
@@ -2019,9 +1997,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         that an application must be started if the desired changes apply
         to a different node.
         """
-        fake_docker = FakeDockerClient(units={})
         api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=fake_docker,
+                                      docker_client=FakeDockerClient(),
                                       network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
@@ -2049,15 +2026,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         that an application must be started or stopped if the desired
         configuration is the same as the current configuration.
         """
-        unit = Unit(name=u'mysql-hybridcluster',
-                    container_name=u'mysql-hybridcluster',
-                    container_image=u'clusterhq/mysql:latest',
-                    activation_state=u'active',
-                    )
-
-        fake_docker = FakeDockerClient(units={unit.name: unit})
         api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=fake_docker,
+                                      docker_client=FakeDockerClient(),
                                       network=make_memory_network())
 
         application = Application(
@@ -2089,18 +2059,12 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         all applications on a node must be stopped if the desired
         configuration does not include that node.
         """
-        unit = Unit(name=u'mysql-hybridcluster',
-                    container_name='mysql-hybridcluster',
-                    container_image=u'clusterhq/mysql:latest',
-                    activation_state=u'active')
-
-        fake_docker = FakeDockerClient(units={unit.name: unit})
         api = ApplicationNodeDeployer(u'node.example.com',
-                                      docker_client=fake_docker,
+                                      docker_client=FakeDockerClient(),
                                       network=make_memory_network())
         application = Application(
-            name=unit.name,
-            image=DockerImage.from_string(unit.container_image)
+            name=u"my-db",
+            image=DockerImage.from_string("postgres")
         )
         desired = Deployment(nodes=frozenset())
         result = api.calculate_changes(
@@ -2119,14 +2083,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         Applications that are not running but are supposed to be on the local
         node are added to the list of applications to restart.
         """
-        unit = Unit(name=u'mysql-hybridcluster',
-                    container_name=u'mysql-hybridcluster',
-                    container_image=u'clusterhq/mysql:latest',
-                    activation_state=u'inactive')
-
-        fake_docker = FakeDockerClient(units={unit.name: unit})
         api = ApplicationNodeDeployer(u'n.example.com',
-                                      docker_client=fake_docker,
+                                      docker_client=FakeDockerClient(),
                                       network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
@@ -2159,19 +2117,13 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         Applications that are not running and are not supposed to be on the
         local node are added to the list of applications to stop.
         """
-        unit = Unit(name=u'mysql-hybridcluster',
-                    container_name=u'mysql-hybridcluster',
-                    container_image=u'flocker/mysql:latest',
-                    activation_state=u'inactive')
-
-        fake_docker = FakeDockerClient(units={unit.name: unit})
         api = ApplicationNodeDeployer(
             u'example.com',
-            docker_client=fake_docker,
+            docker_client=FakeDockerClient(),
             network=make_memory_network())
         to_stop = Application(
-            name=unit.name,
-            image=DockerImage.from_string(unit.container_image),
+            name=u"myapp",
+            image=DockerImage.from_string(u"postgres"),
             running=False,
         )
 
@@ -2190,17 +2142,9 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         to restart even if there are different reasons to restart it (it is
         not running and its setup has changed).
         """
-        unit = Unit(
-            name=u'postgres-example',
-            container_name=u'postgres-example',
-            container_image=u'clusterhq/postgres:latest',
-            activation_state=u'inactive'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
         api = ApplicationNodeDeployer(
             u'node1.example.com',
-            docker_client=docker,
+            docker_client=FakeDockerClient(),
             network=make_memory_network()
         )
 
@@ -2249,17 +2193,9 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         specified in the desired state to the image used by the application now
         is added to the list of applications to restart.
         """
-        unit = Unit(
-            name=u'postgres-example',
-            container_name=u'postgres-example',
-            container_image=u'clusterhq/postgres:latest',
-            activation_state=u'active'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
         api = ApplicationNodeDeployer(
             u'node1.example.com',
-            docker_client=docker,
+            docker_client=FakeDockerClient(),
             network=make_memory_network()
         )
 
@@ -2309,23 +2245,12 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         application's current state is added to the list of applications to
         restart.
         """
-        unit = Unit(
-            name=u'postgres-example',
-            container_name=u'postgres-example',
-            container_image=u'clusterhq/postgres:latest',
-            ports=frozenset([PortMap(
-                internal_port=5432,
-                external_port=50432
-            )]),
-            activation_state=u'active'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
         network = make_memory_network()
         network.open_port(50432)
 
         api = ApplicationNodeDeployer(
             u'node1.example.com',
-            docker_client=docker,
+            docker_client=FakeDockerClient(),
             network=network,
         )
 
@@ -2387,11 +2312,9 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         application's current state is added to the list of applications to
         restart.
         """
-        docker = FakeDockerClient()
-
         api = ApplicationNodeDeployer(
             u'node1.example.com',
-            docker_client=docker,
+            docker_client=FakeDockerClient(),
             network=make_memory_network()
         )
 
