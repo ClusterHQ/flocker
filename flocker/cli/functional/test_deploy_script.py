@@ -15,7 +15,7 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutputAndValue
-
+from twisted.web.resource import Resource
 from twisted.web.server import Site
 
 from ...testtools.ssh import create_ssh_server, create_ssh_agent
@@ -53,7 +53,9 @@ class FlockerDeployTests(TestCase):
         self.addCleanup(self.persistence_service.stopService)
         app = ConfigurationAPIUserV1(self.persistence_service,
                                      self.cluster_state_service).app
-        self.port = reactor.listenTCP(0, Site(app.resource()),
+        api_root = Resource()
+        api_root.putChild('v1', app.resource())
+        self.port = reactor.listenTCP(0, Site(api_root),
                                       interface="127.0.0.1")
         self.addCleanup(self.port.stopListening)
         self.port_number = self.port.getHost().port
