@@ -785,8 +785,8 @@ class BlockDeviceDeployer(PRecord):
     """
     An ``IDeployer`` that operates on ``IBlockDeviceAPI`` providers.
 
-    :param unicode hostname: The IP address of the node that has this deployer.
-    :param IBlockDeviceAPI block_device_api: The block device API that will be
+    :ivar unicode hostname: The IP address of the node that has this deployer.
+    :ivar IBlockDeviceAPI block_device_api: The block device API that will be
         called upon to perform block device operations.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
