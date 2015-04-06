@@ -185,7 +185,7 @@ class InParallel(object):
 
 
 @implementer(IStateChange)
-@attributes(["application", "hostname"])
+@attributes(["application", "node_state"])
 class StartApplication(object):
     """
     Launch the supplied application as a container.
@@ -193,19 +193,18 @@ class StartApplication(object):
     :ivar Application application: The ``Application`` to create and
         start.
 
-    :ivar unicode hostname: The hostname of the application is running on.
+    :ivar NodeState node_state: The state of the node the ``Application``
+        is running on.
     """
     def run(self, deployer):
         application = self.application
 
         volumes = []
         if application.volume is not None:
-            volume = deployer.volume_service.get(
-                _to_volume_name(
-                    application.volume.manifestation.dataset.dataset_id))
+            dataset_id = application.volume.manifestation.dataset_id
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
-                node_path=volume.get_filesystem().get_path()))
+                node_path=self.node_state.paths[dataset_id]))
 
         if application.ports is not None:
             port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
@@ -221,7 +220,7 @@ class StartApplication(object):
                 protocol=u"tcp",
                 alias=link.alias,
                 local_port=link.local_port,
-                hostname=self.hostname,
+                hostname=self.node_state.hostname,
                 remote_port=link.remote_port,
                 ))
 

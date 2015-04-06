@@ -28,7 +28,7 @@ from ...control import (
     NodeState, DeploymentState, RestartAlways)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
-    CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
+    CreateDataset, HandoffDataset, SetProxies, PushDataset,
     ResizeDataset, _link_environment, _to_volume_name,
     DeleteDataset, OpenPorts
 )
@@ -46,46 +46,52 @@ from ...volume.testtools import create_volume_service
 from ...volume._ipc import RemoteVolumeManager, standard_node
 
 
-class P2PNodeDeployerAttributesTests(SynchronousTestCase):
+class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):
     """
-    Tests for attributes and initialiser arguments of `P2PNodeDeployer`.
+    Tests for attributes and initialiser arguments of
+    `ApplicationNodeDeployer`.
     """
     def test_docker_client_default(self):
         """
-        ``P2PNodeDeployer.docker_client`` is a ``DockerClient`` by default.
+        ``ApplicationNodeDeployer.docker_client`` is a ``DockerClient`` by
+        default.
         """
         self.assertIsInstance(
-            P2PNodeDeployer(u"example.com", None).docker_client,
+            ApplicationNodeDeployer(u"example.com", None).docker_client,
             DockerClient
         )
 
     def test_docker_override(self):
         """
-        ``P2PNodeDeployer.docker_client`` can be overridden in the constructor.
+        ``ApplicationNodeDeployer.docker_client`` can be overridden in the
+        constructor.
         """
         dummy_docker_client = object()
         self.assertIs(
             dummy_docker_client,
-            P2PNodeDeployer(u'example.com', create_volume_service(self),
-                            docker_client=dummy_docker_client).docker_client
+            ApplicationNodeDeployer(
+                u'example.com',
+                docker_client=dummy_docker_client).docker_client
         )
 
     def test_network_default(self):
         """
-        ``P2PNodeDeployer._network`` is a ``HostNetwork`` by default.
+        ``ApplicationNodeDeployer._network`` is a ``HostNetwork`` by default.
         """
-        self.assertIsInstance(P2PNodeDeployer(u'example.com', None).network,
-                              HostNetwork)
+        self.assertIsInstance(
+            ApplicationNodeDeployer(u'example.com', None).network,
+            HostNetwork)
 
     def test_network_override(self):
         """
-        ``P2PNodeDeployer._network`` can be overridden in the constructor.
+        ``ApplicationNodeDeployer._network`` can be overridden in the
+        constructor.
         """
         dummy_network = object()
         self.assertIs(
             dummy_network,
-            P2PNodeDeployer(u'example.com', create_volume_service(self),
-                            network=dummy_network).network
+            ApplicationNodeDeployer(u'example.com',
+                                    network=dummy_network).network
         )
 
 
@@ -137,8 +143,6 @@ StopApplicationIStageChangeTests = make_istatechange_tests(
     StopApplication, dict(application=1), dict(application=2))
 SetProxiesIStateChangeTests = make_istatechange_tests(
     SetProxies, dict(ports=[1]), dict(ports=[2]))
-WaitForVolumeIStateChangeTests = make_istatechange_tests(
-    WaitForDataset, dict(dataset=1), dict(dataset=2))
 CreateVolumeIStateChangeTests = make_istatechange_tests(
     CreateDataset, dict(dataset=1), dict(dataset=2))
 HandoffVolumeIStateChangeTests = make_istatechange_tests(
@@ -327,8 +331,8 @@ class StartApplicationTests(SynchronousTestCase):
         has been added and started.
         """
         fake_docker = FakeDockerClient()
-        api = P2PNodeDeployer(u'example.com', create_volume_service(self),
-                              docker_client=fake_docker)
+        api = ApplicationNodeDeployer(u'example.com',
+                                      docker_client=fake_docker)
         docker_image = DockerImage(repository=u'clusterhq/flocker',
                                    tag=u'release-14.0')
         ports = frozenset([Port(internal_port=80, external_port=8080)])
@@ -339,7 +343,7 @@ class StartApplicationTests(SynchronousTestCase):
             links=frozenset(),
         )
         start_result = StartApplication(application=application,
-                                        hostname="node1.example.com").run(api)
+                                        node_state=EMPTY_NODESTATE).run(api)
         exists_result = fake_docker.exists(unit_name=application.name)
 
         port_maps = pset(
@@ -359,8 +363,8 @@ class StartApplicationTests(SynchronousTestCase):
         an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
-        api = P2PNodeDeployer(u'example.com', create_volume_service(self),
-                              docker_client=FakeDockerClient())
+        api = ApplicationNodeDeployer(u'example.com',
+                                      docker_client=FakeDockerClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -369,11 +373,11 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         result1 = StartApplication(application=application,
-                                   hostname="node1.example.com").run(api)
+                                   node_state=EMPTY_NODESTATE).run(api)
         self.successResultOf(result1)
 
         result2 = StartApplication(application=application,
-                                   hostname="node1.example.com").run(api)
+                                   node_state=EMPTY_NODESTATE).run(api)
         self.failureResultOf(result2, AlreadyExists)
 
     def test_environment_supplied_to_docker(self):
@@ -381,9 +385,8 @@ class StartApplicationTests(SynchronousTestCase):
         ``StartApplication.run()`` passes the environment dictionary of the
         application to ``DockerClient.add`` as an ``Environment`` instance.
         """
-        volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
         application_name = u'site-example.com'
         variables = frozenset({u'foo': u"bar", u"baz": u"qux"}.iteritems())
@@ -397,7 +400,7 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
+                         node_state=EMPTY_NODESTATE).run(deployer)
 
         expected_environment = Environment(variables=variables.copy())
 
@@ -411,9 +414,8 @@ class StartApplicationTests(SynchronousTestCase):
         ``StartApplication.run()`` only passes an ``Environment`` instance
         if the application defines an environment.
         """
-        volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -425,7 +427,7 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
+                         node_state=EMPTY_NODESTATE).run(deployer)
 
         self.assertEqual(
             None,
@@ -437,9 +439,8 @@ class StartApplicationTests(SynchronousTestCase):
         ``StartApplication.run()`` passes environment variables to connect to
         the remote application to ``DockerClient.add``.
         """
-        volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -450,11 +451,11 @@ class StartApplicationTests(SynchronousTestCase):
                                   remote_port=8080)]))
 
         StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
+                         node_state=EMPTY_NODESTATE).run(deployer)
 
         variables = frozenset({
-            'ALIAS_PORT_80_TCP': 'tcp://node1.example.com:8080',
-            'ALIAS_PORT_80_TCP_ADDR': 'node1.example.com',
+            'ALIAS_PORT_80_TCP': 'tcp://example.com:8080',
+            'ALIAS_PORT_80_TCP_ADDR': 'example.com',
             'ALIAS_PORT_80_TCP_PORT': '8080',
             'ALIAS_PORT_80_TCP_PROTO': 'tcp',
         }.iteritems())
@@ -470,10 +471,10 @@ class StartApplicationTests(SynchronousTestCase):
         ``StartApplication.run()`` passes the appropriate volume arguments to
         ``DockerClient.add`` based on the application's volume.
         """
-        DATASET_ID = u'2141324'
-        volume_service = create_volume_service(self)
+        DATASET_ID = unicode(uuid4())
         fake_docker = FakeDockerClient()
-        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
+        node_path = FilePath(b"/flocker/" + DATASET_ID.encode("ascii"))
 
         mountpoint = FilePath(b"/mymount")
         application_name = u'site-example.com'
@@ -488,13 +489,13 @@ class StartApplicationTests(SynchronousTestCase):
                     primary=True),
                 mountpoint=mountpoint))
 
-        StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
-        filesystem = volume_service.get(
-            _to_volume_name(DATASET_ID)).get_filesystem()
+        StartApplication(
+            application=application,
+            node_state=EMPTY_NODESTATE.set(
+                "paths", {DATASET_ID: node_path})).run(deployer)
 
         self.assertEqual(
-            pset([DockerVolume(node_path=filesystem.get_path(),
+            pset([DockerVolume(node_path=node_path,
                                container_path=mountpoint)]),
             fake_docker._units[application_name].volumes
         )
@@ -505,9 +506,8 @@ class StartApplicationTests(SynchronousTestCase):
         ``DockerClient.add`` which is used when creating a Unit.
         """
         EXPECTED_MEMORY_LIMIT = 100000000
-        volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -520,7 +520,7 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
+                         node_state=EMPTY_NODESTATE).run(deployer)
 
         self.assertEqual(
             EXPECTED_MEMORY_LIMIT,
@@ -533,9 +533,8 @@ class StartApplicationTests(SynchronousTestCase):
         ``DockerClient.add`` which is used when creating a Unit.
         """
         EXPECTED_CPU_SHARES = 512
-        volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -548,7 +547,7 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname=u"node1.example.com").run(deployer)
+                         node_state=EMPTY_NODESTATE).run(deployer)
 
         self.assertEqual(
             EXPECTED_CPU_SHARES,
@@ -561,9 +560,8 @@ class StartApplicationTests(SynchronousTestCase):
         to ``DockerClient.add`` which is used when creating a Unit.
         """
         policy = object()
-        volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
-        deployer = P2PNodeDeployer(u'example.com', volume_service, fake_docker)
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -574,7 +572,7 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname=u"node1.example.com").run(deployer)
+                         node_state=EMPTY_NODESTATE).run(deployer)
 
         self.assertIs(
             policy,
@@ -622,7 +620,7 @@ class StopApplicationTests(SynchronousTestCase):
         has been removed.
         """
         fake_docker = FakeDockerClient()
-        api = P2PNodeDeployer(u'example.com', create_volume_service(self),
+        api = ApplicationNodeDeployer(u'example.com', create_volume_service(self),
                               docker_client=fake_docker)
         application = Application(
             name=b'site-example.com',
@@ -649,7 +647,7 @@ class StopApplicationTests(SynchronousTestCase):
         ``StopApplication.run()`` does not errback if the application does
         not exist.
         """
-        api = P2PNodeDeployer(u'example.com', create_volume_service(self),
+        api = ApplicationNodeDeployer(u'example.com', create_volume_service(self),
                               docker_client=FakeDockerClient())
         application = Application(
             name=b'site-example.com',
