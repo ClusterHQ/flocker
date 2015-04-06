@@ -502,6 +502,54 @@ class P2PManifestationDeployer(_OldToNewDeployer):
         # 2. Also create/delete as necessary.
         pass
 
+        # Find any dataset that are moving to or from this node - or
+        # that are being newly created by this new configuration.
+        dataset_changes = find_dataset_changes(
+            self.hostname, current_cluster_state, desired_configuration)
+
+        if dataset_changes.resizing:
+            phases.append(InParallel(changes=[
+                ResizeDataset(dataset=dataset)
+                for dataset in dataset_changes.resizing]))
+
+        # Do an initial push of all volumes that are going to move, so
+        # that the final push which happens during handoff is a quick
+        # incremental push. This should significantly reduces the
+        # application downtime caused by the time it takes to copy
+        # data.
+        if dataset_changes.going:
+            phases.append(InParallel(changes=[
+                PushDataset(dataset=handoff.dataset,
+                            hostname=handoff.hostname)
+                for handoff in dataset_changes.going]))
+
+        if dataset_changes.going:
+            phases.append(InParallel(changes=[
+                HandoffDataset(dataset=handoff.dataset,
+                               hostname=handoff.hostname)
+                for handoff in dataset_changes.going]))
+        # any datasets coming to this node should also be
+        # resized to the appropriate quota max size once they
+        # have been received
+        if dataset_changes.coming:
+            # XXX WaitForDataset is no longer needed in new scheme since
+            # we do convergence repeatedly, so we replace state change
+            # that polls with polling on a higher level :)
+            phases.append(InParallel(changes=[
+                WaitForDataset(dataset=dataset)
+                for dataset in dataset_changes.coming]))
+            phases.append(InParallel(changes=[
+                ResizeDataset(dataset=dataset)
+                for dataset in dataset_changes.coming]))
+        if dataset_changes.creating:
+            phases.append(InParallel(changes=[
+                CreateDataset(dataset=dataset)
+                for dataset in dataset_changes.creating]))
+        if dataset_changes.deleting:
+            phases.append(InParallel(changes=[
+                DeleteDataset(dataset=dataset)
+                for dataset in dataset_changes.deleting]))
+
 
 @implementer(IDeployer)
 class ApplicationNodeDeployer(object):
@@ -723,7 +771,7 @@ class ApplicationNodeDeployer(object):
             desired_local_state)
 
         start_containers = [
-            StartApplication(application=app, hostname=self.hostname)
+            StartApplication(application=app, node_state=current_node_state)
             for app in desired_node_applications
             if app.name in start_names
         ]
@@ -731,10 +779,12 @@ class ApplicationNodeDeployer(object):
             StopApplication(application=app) for app in all_applications
             if app.name in stop_names
         ]
+
         restart_containers = [
-            Sequentially(changes=[StopApplication(application=app),
-                                  StartApplication(application=app,
-                                                   hostname=self.hostname)])
+            Sequentially(changes=[
+                StopApplication(application=app),
+                StartApplication(application=app,
+                                 node_state=current_node_state)])
             for app in desired_node_applications
             if app.name in not_running
         ]
@@ -759,61 +809,14 @@ class ApplicationNodeDeployer(object):
                 changes = [
                     StopApplication(application=inspect_current),
                     StartApplication(application=inspect_desired,
-                                     hostname=self.hostname)
+                                     node_state=current_node_state),
                 ]
                 sequence = Sequentially(changes=changes)
                 if sequence not in restart_containers:
                     restart_containers.append(sequence)
 
-        # Find any dataset that are moving to or from this node - or
-        # that are being newly created by this new configuration.
-        dataset_changes = find_dataset_changes(
-            self.hostname, current_cluster_state, desired_configuration)
-
-        if dataset_changes.resizing:
-            phases.append(InParallel(changes=[
-                ResizeDataset(dataset=dataset)
-                for dataset in dataset_changes.resizing]))
-
-        # Do an initial push of all volumes that are going to move, so
-        # that the final push which happens during handoff is a quick
-        # incremental push. This should significantly reduces the
-        # application downtime caused by the time it takes to copy
-        # data.
-        if dataset_changes.going:
-            phases.append(InParallel(changes=[
-                PushDataset(dataset=handoff.dataset,
-                            hostname=handoff.hostname)
-                for handoff in dataset_changes.going]))
-
         if stop_containers:
             phases.append(InParallel(changes=stop_containers))
-        if dataset_changes.going:
-            phases.append(InParallel(changes=[
-                HandoffDataset(dataset=handoff.dataset,
-                               hostname=handoff.hostname)
-                for handoff in dataset_changes.going]))
-        # any datasets coming to this node should also be
-        # resized to the appropriate quota max size once they
-        # have been received
-        if dataset_changes.coming:
-            # XXX WaitForDataset is no longer needed in new scheme since
-            # we do convergence repeatedly, so we replace state change
-            # that polls with polling on a higher level :)
-            phases.append(InParallel(changes=[
-                WaitForDataset(dataset=dataset)
-                for dataset in dataset_changes.coming]))
-            phases.append(InParallel(changes=[
-                ResizeDataset(dataset=dataset)
-                for dataset in dataset_changes.coming]))
-        if dataset_changes.creating:
-            phases.append(InParallel(changes=[
-                CreateDataset(dataset=dataset)
-                for dataset in dataset_changes.creating]))
-        if dataset_changes.deleting:
-            phases.append(InParallel(changes=[
-                DeleteDataset(dataset=dataset)
-                for dataset in dataset_changes.deleting]))
         start_restart = start_containers + restart_containers
         if start_restart:
             phases.append(InParallel(changes=start_restart))

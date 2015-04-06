@@ -1810,7 +1810,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             manifestation)
 
 
-class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
+class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
     """
     Tests for ``ApplicationNodeDeployer.calculate_changes``.
     """
@@ -1907,7 +1907,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
 
-        api = ApplicationNodeDeployer(u'node2.example.com',
+        api = ApplicationNodeDeployer(u'example.com',
                                       docker_client=fake_docker,
                                       network=make_memory_network())
         expected_destination_port = 1001
@@ -1929,9 +1929,12 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY)
+            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
         expected = Sequentially(changes=[
-            OpenPorts(ports=[OpenPort(port=expected_destination_port)])])
+            OpenPorts(ports=[OpenPort(port=expected_destination_port)]),
+            InParallel(changes=[
+                StartApplication(application=application,
+                                 node_state=EMPTY_NODESTATE)])])
         self.assertEqual(expected, result)
 
     def test_open_ports_empty(self):
@@ -1966,13 +1969,15 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         api = ApplicationNodeDeployer(u'node.example.com',
                                       docker_client=fake_docker,
                                       network=make_memory_network())
-        desired = Deployment(nodes=frozenset())
-        result = api.calculate_changes(
-            desired_configuration=desired,
-            current_cluster_state=EMPTY_STATE)
+
         to_stop = StopApplication(application=Application(
             name=unit.name, image=DockerImage.from_string(
                 unit.container_image)))
+
+        result = api.calculate_changes(
+            desired_configuration=EMPTY,
+            current_cluster_state=DeploymentState(nodes=[NodeState(
+                hostname=api.hostname, applications={to_stop.application})]))
         expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, result)
 
@@ -2002,7 +2007,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY)
+            current_cluster_state=EMPTY_STATE)
         expected = Sequentially(changes=[InParallel(
             changes=[StartApplication(application=application,
                                       node_state=EMPTY_NODESTATE)])])
@@ -2162,7 +2167,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = ApplicationNodeDeployer(
             u'example.com',
-            create_volume_service(self), docker_client=fake_docker,
+            docker_client=fake_docker,
             network=make_memory_network())
         to_stop = Application(
             name=unit.name,
@@ -2195,24 +2200,19 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
         api = ApplicationNodeDeployer(
             u'node1.example.com',
-            create_volume_service(self), docker_client=docker,
+            docker_client=docker,
             network=make_memory_network()
         )
 
         old_postgres_app = Application(
             name=u'postgres-example',
-            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
-            volume=None
+            image=DockerImage.from_string(u'clusterhq/postgres:7.5'),
+            running=False,
         )
 
         new_postgres_app = Application(
             name=u'postgres-example',
-            image=DockerImage.from_string(u'docker/postgres:latest'),
-            volume=AttachedVolume(
-                manifestation=Manifestation(
-                    dataset=Dataset(dataset_id=u"342342"),
-                    primary=True),
-                mountpoint=FilePath(b'/var/lib/data')),
+            image=DockerImage.from_string(u'docker/postgres:7.6'),
         )
 
         node = Node(
@@ -2222,22 +2222,17 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=frozenset({new_postgres_app}),
-                 manifestations={
-                     new_postgres_app.volume.manifestation.dataset_id:
-                     new_postgres_app.volume.manifestation}),
+                 applications=frozenset({new_postgres_app})),
         }))
         node_state = NodeState(
             hostname=api.hostname,
-            applications={old_postgres_app.set("running", False)})
+            applications={old_postgres_app})
 
         result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[node_state]))
 
         expected = Sequentially(changes=[
-            InParallel(changes=[
-                CreateDataset(dataset=new_postgres_app.volume.dataset)]),
             InParallel(changes=[
                 Sequentially(changes=[
                     StopApplication(application=new_postgres_app),
@@ -2264,7 +2259,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
         api = ApplicationNodeDeployer(
             u'node1.example.com',
-            create_volume_service(self), docker_client=docker,
+            docker_client=docker,
             network=make_memory_network()
         )
 
@@ -2330,7 +2325,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
         api = ApplicationNodeDeployer(
             u'node1.example.com',
-            create_volume_service(self), docker_client=docker,
+            docker_client=docker,
             network=network,
         )
 
@@ -2396,7 +2391,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
         api = ApplicationNodeDeployer(
             u'node1.example.com',
-            create_volume_service(self), docker_client=docker,
+            docker_client=docker,
             network=make_memory_network()
         )
 
