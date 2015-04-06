@@ -149,4 +149,3 @@ class FlockerDeployMainTests(TestCase):
         script = DeployScript()
         dummy_reactor = MemoryCoreReactor()
         self.assertIsInstance(script.main(dummy_reactor, options), Deferred)
-

@@ -23,7 +23,6 @@ from ..control import (
 )
 from flocker.testtools import loop_until
 
-from flocker.provision._install import stop_cluster
 
 try:
     from pymongo import MongoClient
