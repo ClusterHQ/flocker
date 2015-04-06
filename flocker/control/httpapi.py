@@ -800,8 +800,12 @@ class ConfigurationAPIUserV1(object):
         raise CONTAINER_NOT_FOUND
 
     @app.route("/configuration/_compose", methods=['POST'])
-    # Undocumented for now since this is temporary, private endpoint for
-    # flocker-deploy.
+    @user_documentation(
+        """
+        Private API endpoint used by flocker-deploy.
+        """,
+        examples=[],
+    )
     @structured(
         inputSchema={
             '$ref':

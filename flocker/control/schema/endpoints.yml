@@ -163,8 +163,14 @@ definitions:
     properties:
       applications:
         type: object
+        title: Application configuration
+        description: |
+          Application configuration in Flocker or Fig/Compose format.
       deployment:
         type: object
+        title: Application location configuration
+        description: |
+          Configuration of application locations within the cluster.
     required:
       - applications
       - deployment

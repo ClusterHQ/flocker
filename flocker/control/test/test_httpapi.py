@@ -3095,8 +3095,9 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
     def configuration_test(self):
         """
         POSTing to ``/configuration/_compose`` in Flocker's custom
-        configuration format changes the deployment configuration
-        appropriately.
+        configuration format changes the deployment configuration by
+        parsing the given JSON in Flocker's custom configuration format
+        and using it to replace the existing configuration.
         """
         configuration = {u"applications": COMPLEX_APPLICATION_YAML,
                          u"deployment": COMPLEX_DEPLOYMENT_YAML}
