@@ -8,6 +8,8 @@ import os
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
+import psutil
+
 from zope.interface.verify import verifyObject
 
 from pyrsistent import InvariantException
@@ -1172,13 +1174,13 @@ def umount_all(root_path):
 
     :param FilePath root_path: A directory in which to search for mount points.
     """
-    for device_file, mountpoint_directory, filesystem_type in get_mounts():
+    for partition in psutil.disk_partitions():
         try:
-            mountpoint_directory.segmentsFrom(root_path)
+            FilePath(partition.mountpoint).segmentsFrom(root_path)
         except ValueError:
             pass
         else:
-            umount(device_file)
+            umount(FilePath(partition.device))
 
 
 def mountroot_for_test(test_case):
@@ -1373,7 +1375,11 @@ class UnmountBlockDeviceTests(make_state_change_tests(_make_unmount)):
         self.successResultOf(change.run(deployer))
         self.assertNotIn(
             device,
-            [device_path for (device_path, ignored, ignored) in get_mounts()]
+            list(
+                FilePath(partition.device)
+                for partition
+                in psutil.disk_partitions()
+            )
         )
 
 
@@ -1548,20 +1554,10 @@ class CreateBlockDeviceDatasetTests(make_state_change_tests(_make_create)):
         )
 
         self.assertIn(
-            (device_path, expected_mountpoint, b"ext4"),
-            list(get_mounts())
+            (device_path.path, expected_mountpoint.path, b"ext4"),
+            list(
+                (partition.device, partition.mountpoint, partition.fstype)
+                for partition
+                in psutil.disk_partitions()
+            )
         )
-
-
-# FLOC-1617
-#
-# Move this to ``blockdevice.py``.  Write integration tests for it.
-def get_mounts():
-    """
-    :returns: A generator 3-tuple(device_path, mountpoint, filesystem_type) for
-        each currently mounted filesystem reported in ``/proc/self/mounts``.
-    """
-    with open("/proc/self/mounts") as mounts:
-        for mount in mounts:
-            device_path, mountpoint, filesystem_type = mount.split()[:3]
-            yield FilePath(device_path), FilePath(mountpoint), filesystem_type
