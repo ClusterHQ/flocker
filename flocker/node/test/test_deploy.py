@@ -1811,9 +1811,9 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             manifestation)
 
 
-class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
+class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
     """
-    Tests for ``P2PNodeDeployer.calculate_necessary_state_changes``.
+    Tests for ``ApplicationNodeDeployer.calculate_necessary_state_changes``.
     """
     def test_no_state_changes(self):
         """
@@ -2131,6 +2131,354 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, result)
 
+    def test_local_not_running_applications_restarted(self):
+        """
+        Applications that are not running but are supposed to be on the local
+        node are added to the list of applications to restart.
+        """
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    container_image=u'clusterhq/mysql:latest',
+                    activation_state=u'inactive')
+
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+        api = P2PNodeDeployer(u'n.example.com',
+                              create_volume_service(self),
+                              docker_client=fake_docker,
+                              network=make_memory_network())
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+        nodes = frozenset([
+            Node(
+                hostname=u'n.example.com',
+                applications=frozenset([application])
+            )
+        ])
+        desired = Deployment(nodes=nodes)
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
+
+        expected = Sequentially(changes=[InParallel(changes=[
+            Sequentially(changes=[StopApplication(application=application),
+                                  StartApplication(application=application,
+                                                   hostname="n.example.com")]),
+        ])])
+        self.assertEqual(expected, result)
+
+    def test_not_local_not_running_applications_stopped(self):
+        """
+        Applications that are not running and are supposed to be on the local
+        node are added to the list of applications to stop.
+        """
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    container_image=u'flocker/mysql:latest',
+                    activation_state=u'inactive')
+
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+        api = P2PNodeDeployer(
+            u'example.com',
+            create_volume_service(self), docker_client=fake_docker,
+            network=make_memory_network())
+
+        desired = Deployment(nodes=frozenset())
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY)
+        to_stop = Application(
+            name=unit.name,
+            image=DockerImage.from_string(unit.container_image),
+            running=False,
+        )
+        expected = Sequentially(changes=[InParallel(changes=[
+            StopApplication(application=to_stop)])])
+        self.assertEqual(expected, result)
+
+    def test_restart_application_once_only(self):
+        """
+        An ``Application`` will only be added once to the list of applications
+        to restart even if there are different reasons to restart it (it is
+        not running and its setup has changed).
+        """
+        unit = Unit(
+            name=u'postgres-example',
+            container_name=u'postgres-example',
+            container_image=u'clusterhq/postgres:latest',
+            activation_state=u'inactive'
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+
+        api = P2PNodeDeployer(
+            u'node1.example.com',
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        old_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
+            volume=None
+        )
+
+        new_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'docker/postgres:latest'),
+            volume=AttachedVolume(
+                manifestation=Manifestation(
+                    dataset=Dataset(dataset_id=u"342342"),
+                    primary=True),
+                mountpoint=FilePath(b'/var/lib/data')),
+        )
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({old_postgres_app}),
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset({new_postgres_app}),
+                 manifestations={
+                     new_postgres_app.volume.manifestation.dataset_id:
+                     new_postgres_app.volume.manifestation}),
+        }))
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY,
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[
+                CreateDataset(dataset=new_postgres_app.volume.dataset)]),
+            InParallel(changes=[
+                Sequentially(changes=[
+                    StopApplication(application=new_postgres_app),
+                    StartApplication(application=new_postgres_app,
+                                     hostname=u'node1.example.com')
+                ])
+            ])
+        ])
+        self.assertEqual(expected, result)
+
+    def test_app_with_changed_image_restarted(self):
+        """
+        An ``Application`` running on a given node that has a different image
+        specified in the desired state to the image used by the application now
+        is added to the list of applications to restart.
+        """
+        unit = Unit(
+            name=u'postgres-example',
+            container_name=u'postgres-example',
+            container_image=u'clusterhq/postgres:latest',
+            activation_state=u'active'
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+
+        api = P2PNodeDeployer(
+            u'node1.example.com',
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        old_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
+            volume=None
+        )
+
+        new_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'docker/postgres:latest'),
+            volume=None
+        )
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({old_postgres_app}),
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset({new_postgres_app})),
+        }))
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY,
+        )
+
+        expected = Sequentially(changes=[InParallel(changes=[
+            Sequentially(changes=[
+                StopApplication(application=old_postgres_app),
+                StartApplication(application=new_postgres_app,
+                                 hostname="node1.example.com")
+                ]),
+        ])])
+
+        self.assertEqual(expected, result)
+
+    def test_app_with_changed_ports_restarted(self):
+        """
+        An ``Application`` running on a given node that has different port
+        exposures specified in the desired state to the ports exposed by the
+        application's current state is added to the list of applications to
+        restart.
+        """
+        unit = Unit(
+            name=u'postgres-example',
+            container_name=u'postgres-example',
+            container_image=u'clusterhq/postgres:latest',
+            ports=frozenset([PortMap(
+                internal_port=5432,
+                external_port=50432
+            )]),
+            activation_state=u'active'
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+        network = make_memory_network()
+        network.open_port(50432)
+
+        api = P2PNodeDeployer(
+            u'node1.example.com',
+            create_volume_service(self), docker_client=docker,
+            network=network,
+        )
+
+        old_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
+            volume=None,
+            ports=frozenset([Port(
+                internal_port=5432,
+                external_port=50432
+            )])
+        )
+
+        new_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
+            volume=None,
+            ports=frozenset([Port(
+                internal_port=5433,
+                external_port=50433
+            )])
+        )
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({old_postgres_app}),
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset({new_postgres_app})),
+        }))
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY,
+        )
+
+        expected = Sequentially(changes=[
+            OpenPorts(ports=[OpenPort(port=50433)]),
+            InParallel(changes=[
+                Sequentially(changes=[
+                    StopApplication(application=old_postgres_app),
+                    StartApplication(application=new_postgres_app,
+                                     hostname="node1.example.com")
+                ]),
+            ]),
+        ])
+
+        self.assertEqual(expected, result)
+
+    def test_app_with_changed_links_restarted(self):
+        """
+        An ``Application`` running on a given node that has different links
+        specified in the desired state to the links specified by the
+        application's current state is added to the list of applications to
+        restart.
+        """
+        docker = FakeDockerClient()
+
+        api = P2PNodeDeployer(
+            u'node1.example.com',
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        old_wordpress_app = Application(
+            name=u'wordpress-example',
+            image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
+            volume=None,
+            links=frozenset([
+                Link(
+                    local_port=5432, remote_port=50432, alias='POSTGRES'
+                )
+            ])
+        )
+
+        postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest')
+        )
+
+        StartApplication(hostname=u'node1.example.com',
+                         application=postgres_app).run(api)
+
+        StartApplication(hostname=u'node1.example.com',
+                         application=old_wordpress_app).run(api)
+
+        new_wordpress_app = Application(
+            name=u'wordpress-example',
+            image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
+            volume=None,
+            links=frozenset([
+                Link(
+                    local_port=5432, remote_port=51432, alias='POSTGRES'
+                )
+            ])
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=u'node1.example.com',
+                 applications=frozenset({new_wordpress_app, postgres_app})),
+        }))
+        result = api.calculate_necessary_state_changes(
+            self.successResultOf(api.discover_local_state(
+                NodeState(hostname=api.hostname))),
+            desired_configuration=desired,
+            current_cluster_state=EMPTY,
+        )
+
+        expected = Sequentially(changes=[InParallel(changes=[
+            Sequentially(changes=[
+                StopApplication(application=old_wordpress_app),
+                StartApplication(application=new_wordpress_app,
+                                 hostname="node1.example.com")
+                ]),
+        ])])
+
+        self.assertEqual(expected, result)
+
+
+class P2PManifestationDeployerCalculateChangeTest(SynchronousTestCase):
+    """
+    Tests for
+    ``P2PManifestationDeployer.calculate_necessary_state_changes``.
+    """
     def test_volume_created(self):
         """
         ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
@@ -2272,63 +2620,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             InParallel(changes=[DeleteDataset(dataset=DATASET.set(
                 "deleted", True))])
             ])
-        self.assertEqual(expected, changes)
-
-    def test_volume_wait(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
-        the volume for an application which was previously running on
-        another node must be waited for, in anticipation of that node
-        handing it off to us.
-        """
-        # The application is not running here - therefore there is no container
-        # for it.
-        docker = FakeDockerClient(units={})
-
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset(),
-        )
-        another_node = Node(
-            hostname=u"node2.example.com",
-            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-
-        # The discovered current configuration of the cluster reveals the
-        # application is running somewhere else.
-        current = Deployment(nodes=frozenset([node, another_node]))
-
-        api = P2PNodeDeployer(
-            node.hostname,
-            create_volume_service(self), docker_client=docker,
-            network=make_memory_network()
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME}),
-                 manifestations={MANIFESTATION.dataset_id:
-                                 MANIFESTATION}),
-            Node(hostname=another_node.hostname,
-                 applications=frozenset()),
-        }))
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        volume = APPLICATION_WITH_VOLUME.volume
-
-        expected = Sequentially(changes=[
-            InParallel(changes=[WaitForDataset(dataset=volume.dataset)]),
-            InParallel(changes=[ResizeDataset(dataset=volume.dataset)]),
-            InParallel(changes=[StartApplication(
-                application=APPLICATION_WITH_VOLUME,
-                hostname="node1.example.com")])])
         self.assertEqual(expected, changes)
 
     def test_volume_handoff(self):
@@ -2754,452 +3045,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 hostname="node1.example.com")])])
         self.assertEqual(expected, changes)
 
-    def test_local_not_running_applications_restarted(self):
-        """
-        Applications that are not running but are supposed to be on the local
-        node are added to the list of applications to restart.
-        """
-        unit = Unit(name=u'mysql-hybridcluster',
-                    container_name=u'mysql-hybridcluster',
-                    container_image=u'clusterhq/mysql:latest',
-                    activation_state=u'inactive')
 
-        fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = P2PNodeDeployer(u'n.example.com',
-                              create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
-        application = Application(
-            name=b'mysql-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
-        )
-        nodes = frozenset([
-            Node(
-                hostname=u'n.example.com',
-                applications=frozenset([application])
-            )
-        ])
-        desired = Deployment(nodes=nodes)
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=EMPTY)
-
-        expected = Sequentially(changes=[InParallel(changes=[
-            Sequentially(changes=[StopApplication(application=application),
-                                  StartApplication(application=application,
-                                                   hostname="n.example.com")]),
-        ])])
-        self.assertEqual(expected, result)
-
-    def test_not_local_not_running_applications_stopped(self):
-        """
-        Applications that are not running and are supposed to be on the local
-        node are added to the list of applications to stop.
-        """
-        unit = Unit(name=u'mysql-hybridcluster',
-                    container_name=u'mysql-hybridcluster',
-                    container_image=u'flocker/mysql:latest',
-                    activation_state=u'inactive')
-
-        fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=fake_docker,
-            network=make_memory_network())
-
-        desired = Deployment(nodes=frozenset())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=EMPTY)
-        to_stop = Application(
-            name=unit.name,
-            image=DockerImage.from_string(unit.container_image),
-            running=False,
-        )
-        expected = Sequentially(changes=[InParallel(changes=[
-            StopApplication(application=to_stop)])])
-        self.assertEqual(expected, result)
-
-    def test_handoff_precedes_wait(self):
-        """
-        Volume handoffs happen before volume waits, to prevent deadlocks
-        between two nodes that are swapping volumes.
-        """
-        # The application is running here.
-        unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            container_name=APPLICATION_WITH_VOLUME_NAME,
-            activation_state=u'active',
-            container_image=APPLICATION_WITH_VOLUME_IMAGE,
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-        volume = APPLICATION_WITH_VOLUME.volume
-        volume2 = AttachedVolume(
-            manifestation=Manifestation(
-                dataset=Dataset(
-                    dataset_id=unicode(uuid4()),
-                    metadata=pmap({"name": "another"})),
-                primary=True),
-            mountpoint=FilePath(b"/blah"))
-
-        another_application = Application(
-            name=u"another",
-            image=DockerImage(repository=u'clusterhq/postgresql',
-                              tag=u'9.1'),
-            volume=volume2,
-            links=frozenset(),
-        )
-        discovered_another_application = Application(
-            name=u"another",
-            image=DockerImage.from_string(u'clusterhq/postgresql:9.1'),
-            volume=volume2,
-        )
-
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-        another_node = Node(
-            hostname=u"node2.example.com",
-            applications=frozenset({discovered_another_application}),
-            manifestations={volume2.manifestation.dataset_id:
-                            volume2.manifestation},
-        )
-
-        # The discovered current configuration of the cluster reveals the
-        # application is running here, and another application is running
-        # at the other node.
-        current = Deployment(nodes=frozenset([node, another_node]))
-
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        api = P2PNodeDeployer(
-            node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        # We're swapping the location of applications:
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset({another_application}),
-                 manifestations={volume2.manifestation.dataset_id:
-                                 volume2.manifestation}),
-            Node(hostname=another_node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME}),
-                 manifestations={MANIFESTATION.dataset_id:
-                                 MANIFESTATION}),
-        }))
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        expected = Sequentially(changes=[
-            InParallel(changes=[PushDataset(
-                dataset=volume.dataset, hostname=another_node.hostname)]),
-            InParallel(changes=[StopApplication(
-                application=Application(name=APPLICATION_WITH_VOLUME_NAME,
-                                        image=DockerImage.from_string(
-                                            u'clusterhq/postgresql:9.1'),),)]),
-            InParallel(changes=[HandoffDataset(
-                dataset=volume.dataset, hostname=another_node.hostname)]),
-            InParallel(changes=[WaitForDataset(dataset=volume2.dataset)]),
-            InParallel(changes=[ResizeDataset(dataset=volume2.dataset)]),
-            InParallel(changes=[
-                StartApplication(application=another_application,
-                                 hostname="node1.example.com")]),
-        ])
-        self.assertEqual(expected, changes)
-
-    def test_restart_application_once_only(self):
-        """
-        An ``Application`` will only be added once to the list of applications
-        to restart even if there are different reasons to restart it (it is
-        not running and its setup has changed).
-        """
-        unit = Unit(
-            name=u'postgres-example',
-            container_name=u'postgres-example',
-            container_image=u'clusterhq/postgres:latest',
-            activation_state=u'inactive'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
-        api = P2PNodeDeployer(
-            u'node1.example.com',
-            create_volume_service(self), docker_client=docker,
-            network=make_memory_network()
-        )
-
-        old_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
-            volume=None
-        )
-
-        new_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'docker/postgres:latest'),
-            volume=AttachedVolume(
-                manifestation=Manifestation(
-                    dataset=Dataset(dataset_id=u"342342"),
-                    primary=True),
-                mountpoint=FilePath(b'/var/lib/data')),
-        )
-
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset({new_postgres_app}),
-                 manifestations={
-                     new_postgres_app.volume.manifestation.dataset_id:
-                     new_postgres_app.volume.manifestation}),
-        }))
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=EMPTY,
-        )
-
-        expected = Sequentially(changes=[
-            InParallel(changes=[
-                CreateDataset(dataset=new_postgres_app.volume.dataset)]),
-            InParallel(changes=[
-                Sequentially(changes=[
-                    StopApplication(application=new_postgres_app),
-                    StartApplication(application=new_postgres_app,
-                                     hostname=u'node1.example.com')
-                ])
-            ])
-        ])
-        self.assertEqual(expected, result)
-
-    def test_app_with_changed_image_restarted(self):
-        """
-        An ``Application`` running on a given node that has a different image
-        specified in the desired state to the image used by the application now
-        is added to the list of applications to restart.
-        """
-        unit = Unit(
-            name=u'postgres-example',
-            container_name=u'postgres-example',
-            container_image=u'clusterhq/postgres:latest',
-            activation_state=u'active'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
-        api = P2PNodeDeployer(
-            u'node1.example.com',
-            create_volume_service(self), docker_client=docker,
-            network=make_memory_network()
-        )
-
-        old_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
-            volume=None
-        )
-
-        new_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'docker/postgres:latest'),
-            volume=None
-        )
-
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset({new_postgres_app})),
-        }))
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=EMPTY,
-        )
-
-        expected = Sequentially(changes=[InParallel(changes=[
-            Sequentially(changes=[
-                StopApplication(application=old_postgres_app),
-                StartApplication(application=new_postgres_app,
-                                 hostname="node1.example.com")
-                ]),
-        ])])
-
-        self.assertEqual(expected, result)
-
-    def test_app_with_changed_ports_restarted(self):
-        """
-        An ``Application`` running on a given node that has different port
-        exposures specified in the desired state to the ports exposed by the
-        application's current state is added to the list of applications to
-        restart.
-        """
-        unit = Unit(
-            name=u'postgres-example',
-            container_name=u'postgres-example',
-            container_image=u'clusterhq/postgres:latest',
-            ports=frozenset([PortMap(
-                internal_port=5432,
-                external_port=50432
-            )]),
-            activation_state=u'active'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-        network = make_memory_network()
-        network.open_port(50432)
-
-        api = P2PNodeDeployer(
-            u'node1.example.com',
-            create_volume_service(self), docker_client=docker,
-            network=network,
-        )
-
-        old_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
-            volume=None,
-            ports=frozenset([Port(
-                internal_port=5432,
-                external_port=50432
-            )])
-        )
-
-        new_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
-            volume=None,
-            ports=frozenset([Port(
-                internal_port=5433,
-                external_port=50433
-            )])
-        )
-
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset({new_postgres_app})),
-        }))
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=EMPTY,
-        )
-
-        expected = Sequentially(changes=[
-            OpenPorts(ports=[OpenPort(port=50433)]),
-            InParallel(changes=[
-                Sequentially(changes=[
-                    StopApplication(application=old_postgres_app),
-                    StartApplication(application=new_postgres_app,
-                                     hostname="node1.example.com")
-                ]),
-            ]),
-        ])
-
-        self.assertEqual(expected, result)
-
-    def test_app_with_changed_links_restarted(self):
-        """
-        An ``Application`` running on a given node that has different links
-        specified in the desired state to the links specified by the
-        application's current state is added to the list of applications to
-        restart.
-        """
-        docker = FakeDockerClient()
-
-        api = P2PNodeDeployer(
-            u'node1.example.com',
-            create_volume_service(self), docker_client=docker,
-            network=make_memory_network()
-        )
-
-        old_wordpress_app = Application(
-            name=u'wordpress-example',
-            image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
-            volume=None,
-            links=frozenset([
-                Link(
-                    local_port=5432, remote_port=50432, alias='POSTGRES'
-                )
-            ])
-        )
-
-        postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'clusterhq/postgres:latest')
-        )
-
-        StartApplication(hostname=u'node1.example.com',
-                         application=postgres_app).run(api)
-
-        StartApplication(hostname=u'node1.example.com',
-                         application=old_wordpress_app).run(api)
-
-        new_wordpress_app = Application(
-            name=u'wordpress-example',
-            image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
-            volume=None,
-            links=frozenset([
-                Link(
-                    local_port=5432, remote_port=51432, alias='POSTGRES'
-                )
-            ])
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=u'node1.example.com',
-                 applications=frozenset({new_wordpress_app, postgres_app})),
-        }))
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=EMPTY,
-        )
-
-        expected = Sequentially(changes=[InParallel(changes=[
-            Sequentially(changes=[
-                StopApplication(application=old_wordpress_app),
-                StartApplication(application=new_wordpress_app,
-                                 hostname="node1.example.com")
-                ]),
-        ])])
-
-        self.assertEqual(expected, result)
-
-
-class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
+class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
         SynchronousTestCase):
     """
-    Tests for ``P2PNodeDeployer.calculate_necessary_state_changes`` when only
-    datasets are involved which are not attached to applications.
+    Tests for
+    ``P2PManifestationDeployer.calculate_necessary_state_changes`` when
+    only datasets are involved which are not attached to applications.
     """
     def test_dataset_created(self):
         """
