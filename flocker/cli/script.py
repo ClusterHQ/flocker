@@ -148,8 +148,9 @@ class DeployScript(object):
                 d.addCallback(
                     lambda error: fail(error[u"description"] + u"\n"))
                 return d
+            else:
+                sys.stdout.write(_OK_MESSAGE)
         ready.addCallback(got_response)
-        ready.addCallback(lambda _: sys.stdout.write(_OK_MESSAGE))
         return ready
 
     def _configure_ssh(self, hostnames):
