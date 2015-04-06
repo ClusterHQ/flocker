@@ -620,8 +620,8 @@ class StopApplicationTests(SynchronousTestCase):
         has been removed.
         """
         fake_docker = FakeDockerClient()
-        api = ApplicationNodeDeployer(u'example.com', create_volume_service(self),
-                              docker_client=fake_docker)
+        api = ApplicationNodeDeployer(u'example.com',
+                                      docker_client=fake_docker)
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -630,7 +630,7 @@ class StopApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname="node1.example.com").run(api)
+                         node_state=EMPTY_NODESTATE).run(api)
         existed = fake_docker.exists(application.name)
         stop_result = StopApplication(application=application).run(api)
         exists_result = fake_docker.exists(unit_name=application.name)
@@ -647,8 +647,8 @@ class StopApplicationTests(SynchronousTestCase):
         ``StopApplication.run()`` does not errback if the application does
         not exist.
         """
-        api = ApplicationNodeDeployer(u'example.com', create_volume_service(self),
-                              docker_client=FakeDockerClient())
+        api = ApplicationNodeDeployer(u'example.com',
+                                      docker_client=FakeDockerClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
