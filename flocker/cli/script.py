@@ -36,6 +36,11 @@ FEEDBACK_CLI_TEXT = (
     "https://docs.clusterhq.com/en/latest/gettinginvolved/"
     "contributing.html#talk-to-us")
 
+_OK_MESSAGE = (
+    b"The configuration has been updated. It may take a short "
+    b"while for changes to take effect, in particular if Docker "
+    b"images need to be pulled.\n")
+
 
 @attributes(['node', 'hostname'])
 class NodeTarget(object):
@@ -56,8 +61,7 @@ class DeployOptions(Options):
     """
 
     synopsis = ("Usage: flocker-deploy [OPTIONS] "
-                "CONTROL_HOST DEPLOYMENT_CONFIGURATION_PATH "
-                "APPLICATION_CONFIGURATION_PATH"
+                "<control-host> <deployment.yml-path> <application.yml-path>"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
     optFlags = [["nossh", None, "Disable SSH setup stage."]]
@@ -76,8 +80,8 @@ class DeployOptions(Options):
             raise UsageError('No file exists at {path}'
                              .format(path=application_config.path))
 
-        self["url"] = b"http://{}:{}/configuration/_compose".format(
-            control_host, self["port"])
+        self["url"] = u"http://{}:{}/configuration/_compose".format(
+            control_host, self["port"]).encode("ascii")
         self["application_config"] = application_config.getContent()
 
         try:
@@ -144,14 +148,8 @@ class DeployScript(object):
                     lambda error: fail(error[u"description"] + u"\n"))
                 return d
         ready.addCallback(got_response)
-        ready.addCallback(lambda _: sys.stdout.write(
-            b"The configuration has been updated. It may take a short "
-            b"while for changes to take effect, in particular if Docker "
-            b"images need to be pulled.\n"))
+        ready.addCallback(lambda _: sys.stdout.write(_OK_MESSAGE))
         return ready
-        # 1. Send request to server.
-        # 2. If OK status, exit.
-        # 3. Otherwise, print error.
 
     def _configure_ssh(self, hostnames):
         """

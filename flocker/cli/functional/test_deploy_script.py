@@ -29,7 +29,7 @@ from ...control._clusterstate import ClusterStateService
 from ...control.test.test_config import (
     COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML)
 
-from ..script import DeployScript
+from ..script import DeployScript, _OK_MESSAGE
 
 from ... import __version__
 
@@ -106,12 +106,7 @@ class FlockerDeployTests(TestCase):
         ``flocker-deploy`` prints a helpful message when it's done.
         """
         result = self._send_configuration()
-        result.addCallback(
-            self.assertEqual,
-            (b"The configuration has been updated. It may take a "
-             b"short while for changes to take effect, in "
-             b"particular if Docker images need to be pulled.\n",
-             b"", 0))
+        result.addCallback(self.assertEqual, (_OK_MESSAGE, b"", 0))
         return result
 
     def test_error(self):
