@@ -50,13 +50,23 @@ class IStateChange(Interface):
         """
 
 
+def run_state_change(change, deployer):
+    """
+    Apply the change to local state.
+
+    :param change: Either an ``IStateChange`` provider or the result of an
+        ``in_parallel`` or ``sequentially`` call.
+    :param IDeployer deployer: The ``IDeployer`` to use.  Specific
+        ``IStateChange`` providers may require specific ``IDeployer`` providers
+        that provide relevant functionality for applying the change.
+
+    :return: ``Deferred`` firing when the change is done.
+    """
+    return change.run(deployer)
+
+
 @implementer(IStateChange)
 class _InParallel(PRecord):
-    """
-    Run a series of changes in parallel.
-
-    Failures in one change do not prevent other changes from continuing.
-    """
     changes = field(type=PVector, factory=pvector, mandatory=True)
 
     def run(self, deployer):
@@ -64,13 +74,17 @@ class _InParallel(PRecord):
             [change.run(deployer) for change in self.changes])
 
 
+def in_parallel(changes):
+    """
+    Run a series of changes in parallel.
+
+    Failures in one change do not prevent other changes from continuing.
+    """
+    return _InParallel(changes=changes)
+
+
 @implementer(IStateChange)
 class _Sequentially(PRecord):
-    """
-    Run a series of changes in sequence, one after the other.
-
-    Failures in earlier changes stop later changes.
-    """
     changes = field(type=PVector, factory=pvector, mandatory=True)
 
     def run(self, deployer):
@@ -80,13 +94,10 @@ class _Sequentially(PRecord):
         return d
 
 
-def in_parallel(changes):
-    return _InParallel(changes=changes)
-
-
 def sequentially(changes):
+    """
+    Run a series of changes in sequence, one after the other.
+
+    Failures in earlier changes stop later changes.
+    """
     return _Sequentially(changes=changes)
-
-
-def run_state_change(change, deployer):
-    return change.run(deployer)
