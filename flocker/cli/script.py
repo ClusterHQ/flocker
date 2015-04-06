@@ -129,7 +129,8 @@ class DeployScript(object):
         if options["nossh"]:
             ready = succeed(None)
         else:
-            ready = self._configure_ssh(options["deployment_config"].keys())
+            ready = self._configure_ssh(
+                options["deployment_config"]["nodes"].keys())
 
         body = dumps({"applications": options["application_config"],
                       "deployment": options["deployment_config"]})
