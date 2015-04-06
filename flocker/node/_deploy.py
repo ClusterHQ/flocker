@@ -503,7 +503,8 @@ class P2PManifestationDeployer(_OldToNewDeployer):
         pass
 
 
-class ApplicationNodeDeployer(_OldToNewDeployer):
+@implementer(IDeployer)
+class ApplicationNodeDeployer(object):
     """
     Discover and calculate changes for applications running on a node.
 
@@ -523,7 +524,7 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
             network = make_host_network()
         self.network = network
 
-    def discover_local_state(self, local_state):
+    def discover_state(self, local_state):
         """
         List all the ``Application``\ s running on this node.
 
@@ -538,10 +539,10 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
         dataset agent. See
         https://clusterhq.atlassian.net/browse/FLOC-1646.
 
-        :return: A ``Deferred`` which fires with a ``NodeState`` instance
-            with information only about ``Application``.
-            ``NodeState.manifestations`` and ``NodeState.paths`` will not be
-            filled in.
+        :return: A ``Deferred`` which fires with alist containing a
+            ``NodeState`` instance with information only about
+            ``Application`` and ports. ``NodeState.manifestations`` and
+            ``NodeState.paths`` will not be filled in.
         """
         if local_state.manifestations is None:
             # Without manifestations we don't know if local applications'
@@ -630,19 +631,17 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
                     running=(unit.activation_state == u"active"),
                 ))
 
-            return NodeState(
+            return [NodeState(
                 hostname=self.hostname,
                 applications=applications,
                 used_ports=self.network.enumerate_used_ports(),
                 manifestations=None,
                 paths=None,
-            )
+            )]
         d.addCallback(applications_from_units)
         return d
 
-    def calculate_necessary_state_changes(self, local_state,
-                                          desired_configuration,
-                                          current_cluster_state):
+    def calculate_changes(self, desired_configuration, current_cluster_state):
         """
         Work out which changes need to happen to the local state to match
         the given desired state.
@@ -702,7 +701,7 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
             phases.append(OpenPorts(ports=desired_open_ports))
 
         # We are a node-specific IDeployer:
-        current_node_state = local_state
+        current_node_state = current_cluster_state.get_node(self.hostname)
         current_node_applications = set(
             app for app in current_node_state.applications if app.running)
         all_applications = current_node_state.applications

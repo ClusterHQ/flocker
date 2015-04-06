@@ -21,7 +21,8 @@ from .. import (
     P2PManifestationDeployer,
 )
 from ..testtools import (
-    ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY
+    ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
+    EMPTY_STATE
 )
 from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
@@ -1811,41 +1812,37 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
 
 class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
     """
-    Tests for ``ApplicationNodeDeployer.calculate_necessary_state_changes``.
+    Tests for ``ApplicationNodeDeployer.calculate_changes``.
     """
     def test_no_state_changes(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``ApplicationNodeDeployer.calculate_changes`` returns a
         ``Deferred`` which fires with a :class:`IStateChange` instance
         indicating that no changes are necessary when there are no
         applications running or desired, and no proxies exist or are
         desired.
         """
         fake_docker = FakeDockerClient(units={})
-        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
-        desired = Deployment(nodes=frozenset())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=EMPTY)
+        api = ApplicationNodeDeployer(u'node.example.com',
+                                      docker_client=fake_docker,
+                                      network=make_memory_network())
+        result = api.calculate_changes(
+            desired_configuration=EMPTY,
+            current_cluster_state=EMPTY_STATE)
         expected = Sequentially(changes=[])
         self.assertEqual(expected, result)
 
     def test_proxy_needs_creating(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``ApplicationNodeDeployer.calculate_changes`` returns a
         ``IStateChange``, specifically a ``SetProxies`` with a list of
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
         """
         fake_docker = FakeDockerClient(units={})
-        api = P2PNodeDeployer(u'node2.example.com',
-                              create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
+        api = ApplicationNodeDeployer(u'node2.example.com',
+                                      docker_client=fake_docker,
+                                      network=make_memory_network())
         expected_destination_port = 1001
         expected_destination_host = u'node1.example.com'
         port = Port(internal_port=3306,
@@ -1865,10 +1862,8 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired, current_cluster_state=EMPTY)
+        result = api.calculate_changes(
+            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
         expected = Sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
@@ -1876,28 +1871,25 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
     def test_proxy_empty(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``ApplicationNodeDeployer.calculate_changes`` returns a
         ``SetProxies`` instance containing an empty `proxies`
         list if there are no remote applications that need proxies.
         """
         network = make_memory_network()
         network.create_proxy_to(ip=u'192.0.2.100', port=3306)
 
-        api = P2PNodeDeployer(u'node2.example.com',
-                              create_volume_service(self),
-                              docker_client=FakeDockerClient(),
-                              network=network)
+        api = ApplicationNodeDeployer(u'node2.example.com',
+                                      docker_client=FakeDockerClient(),
+                                      network=network)
         desired = Deployment(nodes=frozenset())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        result = api.calculate_changes(
             desired_configuration=desired, current_cluster_state=EMPTY)
         expected = Sequentially(changes=[SetProxies(ports=frozenset())])
         self.assertEqual(expected, result)
 
     def test_open_port_needs_creating(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``ApplicationNodeDeployer.calculate_changes`` returns a
         ``IStateChange``, specifically a ``OpenPorts`` with a list of
         ports to open. One for each port exposed by ``Application``\ s
         hosted on this node.
@@ -1915,10 +1907,9 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
 
-        api = P2PNodeDeployer(u'node2.example.com',
-                              create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
+        api = ApplicationNodeDeployer(u'node2.example.com',
+                                      docker_client=fake_docker,
+                                      network=make_memory_network())
         expected_destination_port = 1001
         port = Port(internal_port=3306,
                     external_port=expected_destination_port)
@@ -1937,9 +1928,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         ]
 
         desired = Deployment(nodes=nodes)
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        result = api.calculate_changes(
             desired_configuration=desired, current_cluster_state=EMPTY)
         expected = Sequentially(changes=[
             OpenPorts(ports=[OpenPort(port=expected_destination_port)])])
@@ -1947,29 +1936,25 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
     def test_open_ports_empty(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``ApplicationNodeDeployer.calculate_changes`` returns a
         ``OpenPorts`` instance containing an empty `ports`
         list if there are no local applications that need open_ports.
         """
         network = make_memory_network()
         network.open_port(port=3306)
 
-        api = P2PNodeDeployer(u'node2.example.com',
-                              create_volume_service(self),
-                              docker_client=FakeDockerClient(),
-                              network=network)
+        api = ApplicationNodeDeployer(u'node2.example.com',
+                                      docker_client=FakeDockerClient(),
+                                      network=network)
         desired = Deployment(nodes=[])
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-
+        result = api.calculate_changes(
             desired_configuration=desired, current_cluster_state=EMPTY)
         expected = Sequentially(changes=[OpenPorts(ports=[])])
         self.assertEqual(expected, result)
 
     def test_application_needs_stopping(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that an
+        ``ApplicationNodeDeployer.calculate_changes`` specifies that an
         application must be stopped when it is running but not desired.
         """
         unit = Unit(name=u'site-example.com',
@@ -1978,15 +1963,13 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
                     activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
+        api = ApplicationNodeDeployer(u'node.example.com',
+                                      docker_client=fake_docker,
+                                      network=make_memory_network())
         desired = Deployment(nodes=frozenset())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=u"node.example.com"))),
+        result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY)
+            current_cluster_state=EMPTY_STATE)
         to_stop = StopApplication(application=Application(
             name=unit.name, image=DockerImage.from_string(
                 unit.container_image)))
@@ -1995,14 +1978,14 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
     def test_application_needs_starting(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that an
+        ``ApplicationNodeDeployer.calculate_changes`` specifies that an
         application must be started when it is desired on the given node but
         not running.
         """
         fake_docker = FakeDockerClient(units={})
-        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
+        api = ApplicationNodeDeployer(u'example.com',
+                                      docker_client=fake_docker,
+                                      network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -2011,32 +1994,30 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
 
         nodes = frozenset([
             Node(
-                hostname=u'node.example.com',
+                hostname=u'example.com',
                 applications=frozenset([application])
             )
         ])
 
         desired = Deployment(nodes=nodes)
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=EMPTY)
         expected = Sequentially(changes=[InParallel(
             changes=[StartApplication(application=application,
-                                      hostname="node.example.com")])])
+                                      node_state=EMPTY_NODESTATE)])])
         self.assertEqual(expected, result)
 
     def test_only_this_node(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` does not specify
+        ``ApplicationNodeDeployer.calculate_changes`` does not specify
         that an application must be started if the desired changes apply
         to a different node.
         """
         fake_docker = FakeDockerClient(units={})
-        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
+        api = ApplicationNodeDeployer(u'node.example.com',
+                                      docker_client=fake_docker,
+                                      network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -2051,17 +2032,15 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY)
+            current_cluster_state=EMPTY_STATE)
         expected = Sequentially(changes=[])
         self.assertEqual(expected, result)
 
     def test_no_change_needed(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` does not specify
+        ``ApplicationNodeDeployer.calculate_changes`` does not specify
         that an application must be started or stopped if the desired
         configuration is the same as the current configuration.
         """
@@ -2072,9 +2051,9 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
                     )
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
+        api = ApplicationNodeDeployer(u'node.example.com',
+                                      docker_client=fake_docker,
+                                      network=make_memory_network())
 
         application = Application(
             name=u'mysql-hybridcluster',
@@ -2091,17 +2070,17 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY)
+            current_cluster_state=DeploymentState(nodes=[
+                NodeState(hostname=api.hostname,
+                          applications=[application])]))
         expected = Sequentially(changes=[])
         self.assertEqual(expected, result)
 
     def test_node_not_described(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        ``ApplicationNodeDeployer.calculate_changes`` specifies that
         all applications on a node must be stopped if the desired
         configuration does not include that node.
         """
@@ -2111,20 +2090,21 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
                     activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
+        api = ApplicationNodeDeployer(u'node.example.com',
+                                      docker_client=fake_docker,
+                                      network=make_memory_network())
+        application = Application(
+            name=unit.name,
+            image=DockerImage.from_string(unit.container_image)
+        )
         desired = Deployment(nodes=frozenset())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY)
+            current_cluster_state=DeploymentState(nodes=[
+                NodeState(hostname=api.hostname,
+                          applications=[application])]))
         to_stop = StopApplication(
-            application=Application(
-                name=unit.name,
-                image=DockerImage.from_string(unit.container_image)
-            )
+            application=application,
         )
         expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, result)
@@ -2140,10 +2120,9 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
                     activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = P2PNodeDeployer(u'n.example.com',
-                              create_volume_service(self),
-                              docker_client=fake_docker,
-                              network=make_memory_network())
+        api = ApplicationNodeDeployer(u'n.example.com',
+                                      docker_client=fake_docker,
+                                      network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -2155,24 +2134,25 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
                 applications=frozenset([application])
             )
         ])
+        node_state = NodeState(
+            hostname=api.hostname,
+            applications=[application.set("running", False)])
         desired = Deployment(nodes=nodes)
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY)
+            current_cluster_state=DeploymentState(nodes=[node_state]))
 
         expected = Sequentially(changes=[InParallel(changes=[
             Sequentially(changes=[StopApplication(application=application),
                                   StartApplication(application=application,
-                                                   hostname="n.example.com")]),
+                                                   node_state=node_state)]),
         ])])
         self.assertEqual(expected, result)
 
     def test_not_local_not_running_applications_stopped(self):
         """
-        Applications that are not running and are supposed to be on the local
-        node are added to the list of applications to stop.
+        Applications that are not running and are not supposed to be on the
+        local node are added to the list of applications to stop.
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name=u'mysql-hybridcluster',
@@ -2180,22 +2160,21 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
                     activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
             create_volume_service(self), docker_client=fake_docker,
             network=make_memory_network())
-
-        desired = Deployment(nodes=frozenset())
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=EMPTY)
         to_stop = Application(
             name=unit.name,
             image=DockerImage.from_string(unit.container_image),
             running=False,
         )
+
+        result = api.calculate_changes(
+            desired_configuration=EMPTY,
+            current_cluster_state=DeploymentState(nodes=[
+                NodeState(hostname=api.hostname,
+                          applications={to_stop})]))
         expected = Sequentially(changes=[InParallel(changes=[
             StopApplication(application=to_stop)])])
         self.assertEqual(expected, result)
@@ -2214,7 +2193,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'node1.example.com',
             create_volume_service(self), docker_client=docker,
             network=make_memory_network()
@@ -2248,12 +2227,13 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
                      new_postgres_app.volume.manifestation.dataset_id:
                      new_postgres_app.volume.manifestation}),
         }))
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        node_state = NodeState(
+            hostname=api.hostname,
+            applications={old_postgres_app.set("running", False)})
+
+        result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY,
-        )
+            current_cluster_state=DeploymentState(nodes=[node_state]))
 
         expected = Sequentially(changes=[
             InParallel(changes=[
@@ -2262,7 +2242,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
                 Sequentially(changes=[
                     StopApplication(application=new_postgres_app),
                     StartApplication(application=new_postgres_app,
-                                     hostname=u'node1.example.com')
+                                     node_state=node_state)
                 ])
             ])
         ])
@@ -2282,7 +2262,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'node1.example.com',
             create_volume_service(self), docker_client=docker,
             network=make_memory_network()
@@ -2309,18 +2289,19 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset({new_postgres_app})),
         }))
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        node_state = NodeState(
+            hostname=api.hostname,
+            applications={old_postgres_app})
+        result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY,
+            current_cluster_state=DeploymentState(nodes={node_state}),
         )
 
         expected = Sequentially(changes=[InParallel(changes=[
             Sequentially(changes=[
                 StopApplication(application=old_postgres_app),
                 StartApplication(application=new_postgres_app,
-                                 hostname="node1.example.com")
+                                 node_state=node_state)
                 ]),
         ])])
 
@@ -2347,7 +2328,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         network = make_memory_network()
         network.open_port(50432)
 
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'node1.example.com',
             create_volume_service(self), docker_client=docker,
             network=network,
@@ -2377,16 +2358,18 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
             hostname=u"node1.example.com",
             applications=frozenset({old_postgres_app}),
         )
+        node_state = NodeState(
+            hostname=api.hostname,
+            applications={old_postgres_app},
+        )
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
                  applications=frozenset({new_postgres_app})),
         }))
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY,
+            current_cluster_state=DeploymentState(nodes={node_state}),
         )
 
         expected = Sequentially(changes=[
@@ -2395,7 +2378,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
                 Sequentially(changes=[
                     StopApplication(application=old_postgres_app),
                     StartApplication(application=new_postgres_app,
-                                     hostname="node1.example.com")
+                                     node_state=node_state)
                 ]),
             ]),
         ])
@@ -2411,7 +2394,7 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
         """
         docker = FakeDockerClient()
 
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'node1.example.com',
             create_volume_service(self), docker_client=docker,
             network=make_memory_network()
@@ -2432,13 +2415,6 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
             name=u'postgres-example',
             image=DockerImage.from_string(u'clusterhq/postgres:latest')
         )
-
-        StartApplication(hostname=u'node1.example.com',
-                         application=postgres_app).run(api)
-
-        StartApplication(hostname=u'node1.example.com',
-                         application=old_wordpress_app).run(api)
-
         new_wordpress_app = Application(
             name=u'wordpress-example',
             image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
@@ -2454,18 +2430,18 @@ class ApplicationDeployerCalculateChangesTests(SynchronousTestCase):
             Node(hostname=u'node1.example.com',
                  applications=frozenset({new_wordpress_app, postgres_app})),
         }))
-        result = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        node_state = NodeState(hostname=api.hostname,
+                               applications={postgres_app, old_wordpress_app})
+        result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY,
+            current_cluster_state=DeploymentState(nodes={node_state}),
         )
 
         expected = Sequentially(changes=[InParallel(changes=[
             Sequentially(changes=[
                 StopApplication(application=old_wordpress_app),
                 StartApplication(application=new_wordpress_app,
-                                 hostname="node1.example.com")
+                                 node_state=node_state)
                 ]),
         ])])
 
