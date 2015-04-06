@@ -6,6 +6,7 @@ Functional tests for the ``flocker-deploy`` command line tool.
 from subprocess import check_output, CalledProcessError
 from unittest import skipUnless
 from os import environ
+from copy import deepcopy
 
 from yaml import safe_dump
 
@@ -91,10 +92,11 @@ class FlockerDeployTests(TestCase):
         will replace the cluster configuration.
         """
         result = self._send_configuration()
-        apps = FlockerConfiguration(COMPLEX_APPLICATION_YAML).applications()
+        apps = FlockerConfiguration(
+            deepcopy(COMPLEX_APPLICATION_YAML)).applications()
         expected = model_from_configuration(
             applications=apps,
-            deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+            deployment_configuration=deepcopy(COMPLEX_DEPLOYMENT_YAML))
         result.addCallback(lambda _: self.assertEqual(
             self.persistence_service.get(), expected))
         return result

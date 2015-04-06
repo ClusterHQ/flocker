@@ -9,6 +9,7 @@ from yaml import safe_dump
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase, SynchronousTestCase
+from twisted.internet.defer import Deferred
 
 from ...testtools import (
     FlockerScriptTestsMixin, StandardOptionsTestsMixin, MemoryCoreReactor)
@@ -147,8 +148,5 @@ class FlockerDeployMainTests(TestCase):
 
         script = DeployScript()
         dummy_reactor = MemoryCoreReactor()
+        self.assertIsInstance(script.main(dummy_reactor, options), Deferred)
 
-        self.assertEqual(
-            None,
-            self.successResultOf(script.main(dummy_reactor, options))
-        )
