@@ -716,11 +716,12 @@ class ApplicationNodeDeployer(object):
 
         :return: A ``IStateChange`` provider.
         """
-        # FLOC-1553 logic:
-        # 0. if applications=None on local node, no changes and give up
-        # 1. stop any relevant applications
-        # 2. for any applications that need to be started and have volumes, if volumes exist then start them. if no volumes are needed then just start them.
-
+        # We are a node-specific IDeployer:
+        current_node_state = current_cluster_state.get_node(self.hostname)
+        if current_node_state.applications is None:
+            # We don't know current application state, so can't calculate
+            # anything...
+            return Sequentially(changes=[])
 
         phases = []
 
@@ -748,8 +749,6 @@ class ApplicationNodeDeployer(object):
         if desired_open_ports != set(self.network.enumerate_open_ports()):
             phases.append(OpenPorts(ports=desired_open_ports))
 
-        # We are a node-specific IDeployer:
-        current_node_state = current_cluster_state.get_node(self.hostname)
         current_node_applications = set(
             app for app in current_node_state.applications if app.running)
         all_applications = current_node_state.applications
@@ -773,7 +772,12 @@ class ApplicationNodeDeployer(object):
         start_containers = [
             StartApplication(application=app, node_state=current_node_state)
             for app in desired_node_applications
-            if app.name in start_names
+            if ((app.name in start_names) and
+                # If manifestation isn't available yet, don't start:
+                # XXX in FLOC-1240 non-primaries should be checked.
+                (app.volume is None or
+                 app.volume.manifestation.dataset_id in
+                 current_node_state.manifestations))
         ]
         stop_containers = [
             StopApplication(application=app) for app in all_applications

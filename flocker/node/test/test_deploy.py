@@ -2274,17 +2274,13 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             )])
         )
 
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
         node_state = NodeState(
             hostname=api.hostname,
             applications={old_postgres_app},
         )
 
         desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
+            Node(hostname=api.hostname,
                  applications=frozenset({new_postgres_app})),
         }))
         result = api.calculate_changes(
@@ -2365,11 +2361,71 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         self.assertEqual(expected, result)
 
+    def test_unknown_applications(self):
+        """
+        If application state for local state is unknown, don't do anything.
+        """
+        api = ApplicationNodeDeployer(
+            u'node1.example.com',
+            docker_client=FakeDockerClient(),
+            network=make_memory_network()
+        )
 
-class P2PManifestationDeployerCalculateChangeTest(SynchronousTestCase):
+        postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'docker/postgres:latest'),
+        )
+        node = Node(
+            hostname=api.hostname, applications={postgres_app})
+        desired = Deployment(nodes=[node])
+
+        result = api.calculate_changes(desired, DeploymentState(nodes=[
+            NodeState(hostname=api.hostname, applications=None)]))
+        self.assertEqual(result, Sequentially(changes=[]))
+
+    def test_missing_volume(self):
+        """
+        If a desired but non-running application has a volume but its
+        manifestation does not exist on the node, the application is not
+        started.
+
+        Eventually the manifestation will appear, at which point the
+        application can be started.
+        """
+        api = ApplicationNodeDeployer(u'example.com',
+                                      docker_client=FakeDockerClient(),
+                                      network=make_memory_network())
+        manifestation = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=True,
+        )
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0'),
+            volume=AttachedVolume(
+                manifestation=manifestation,
+                mountpoint=FilePath(b"/data"),
+            )
+        )
+
+        desired = Deployment(
+            nodes=[Node(hostname=api.hostname, applications=[application],
+                        manifestations={manifestation.dataset_id:
+                                        manifestation})])
+
+        result = api.calculate_changes(
+            desired_configuration=desired,
+            # No manifestations available!
+            current_cluster_state=EMPTY_STATE)
+        expected = Sequentially(changes=[])
+        self.assertEqual(expected, result)
+
+
+class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
     """
     Tests for
-    ``P2PManifestationDeployer.calculate_necessary_state_changes``.
+    ``P2PManifestationDeployer.calculate_changes``.
     """
     def test_volume_created(self):
         """
