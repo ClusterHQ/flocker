@@ -22,7 +22,7 @@ from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
 from .. import IDeployer, IStateChange, Sequentially, InParallel
-from ...control import NodeState, Manifestation, Dataset
+from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
@@ -795,7 +795,7 @@ class BlockDeviceDeployer(PRecord):
     block_device_api = field(mandatory=True)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
 
-    def discover_local_state(self):
+    def discover_state(self, node_state):
         """
         Find all block devices that are currently associated with this host and
         return a ``NodeState`` containing only ``Manifestation`` instances and
@@ -803,11 +803,17 @@ class BlockDeviceDeployer(PRecord):
         """
         volumes = self.block_device_api.list_volumes()
 
-        manifestations = {
-            m.dataset_id: m for m in (
-                _manifestation_from_volume(v) for v in volumes
-                if v.host == self.hostname)
-        }
+        manifestations = {}
+        nonmanifest = {}
+
+        for volume in volumes:
+            dataset_id = unicode(volume.dataset_id)
+            if volume.host == self.hostname:
+                manifestations[dataset_id] = _manifestation_from_volume(
+                    volume
+                )
+            elif volume.host is None:
+                nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         # FLOC-1617
         #
@@ -836,11 +842,16 @@ class BlockDeviceDeployer(PRecord):
             # But ... the future.
             paths[dataset_id] = mountpath
 
-        state = NodeState(
-            hostname=self.hostname,
-            manifestations=manifestations,
-            paths=paths,
+        state = (
+            NodeState(
+                hostname=self.hostname,
+                manifestations=manifestations,
+                paths=paths,
+            ),
         )
+
+        if nonmanifest:
+            state += (NonManifestDatasets(datasets=nonmanifest),)
         return succeed(state)
 
     def _mountpath_for_manifestation(self, manifestation):
@@ -855,18 +866,12 @@ class BlockDeviceDeployer(PRecord):
             manifestation.dataset.dataset_id.encode("ascii")
         )
 
-    def calculate_necessary_state_changes(self, local_state,
-                                          desired_configuration,
-                                          current_cluster_state):
-        potential_configs = list(
-            node for node in desired_configuration.nodes
-            if node.hostname == self.hostname
-        )
-        if len(potential_configs) == 0:
-            configured_manifestations = {}
-        else:
-            [this_node_config] = potential_configs
-            configured_manifestations = this_node_config.manifestations
+    def calculate_changes(self, configuration, cluster_state):
+        # Eventually use the Datasets to avoid creating things that exist
+        # already (https://clusterhq.atlassian.net/browse/FLOC-1575) and to
+        # avoid deleting things that don't exist.
+        this_node_config = configuration.get_node(self.hostname)
+        configured_manifestations = this_node_config.manifestations
 
         configured_dataset_ids = set(
             manifestation.dataset.dataset_id
@@ -875,6 +880,7 @@ class BlockDeviceDeployer(PRecord):
             if not manifestation.dataset.deleted
         )
 
+        local_state = cluster_state.get_node(self.hostname)
         local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set(
