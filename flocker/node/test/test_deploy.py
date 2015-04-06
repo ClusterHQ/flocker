@@ -2427,61 +2427,9 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
     Tests for
     ``P2PManifestationDeployer.calculate_changes``.
     """
-    def test_volume_created(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
-        new volume must be created if the desired configuration specifies
-        that an application which was previously running nowhere is going
-        to be running on *this* node and that application requires a
-        volume.
-        """
-        hostname = u"node1.example.com"
-
-        # The application is not running here - therefore there is no container
-        # for it.
-        docker = FakeDockerClient(units={})
-
-        # The discovered current configuration of the cluster also reflects
-        # this.
-        current = Deployment(nodes=frozenset({
-            Node(hostname=hostname, applications=frozenset()),
-        }))
-
-        api = P2PNodeDeployer(hostname, create_volume_service(self),
-                              docker_client=docker,
-                              network=make_memory_network())
-
-        node = Node(
-            hostname=hostname,
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
-            manifestations={MANIFESTATION.dataset_id:
-                            MANIFESTATION},
-        )
-
-        # This completely expresses the configuration for a cluster of one node
-        # with one application which requires a volume.  It's the state we
-        # should get to with the changes calculated below.
-        desired = Deployment(nodes=frozenset({node}))
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        volume = APPLICATION_WITH_VOLUME.volume
-
-        expected = Sequentially(changes=[
-            InParallel(changes=[CreateDataset(dataset=volume.dataset)]),
-            InParallel(changes=[StartApplication(
-                application=APPLICATION_WITH_VOLUME,
-                hostname=hostname)])])
-        self.assertEqual(expected, changes)
-
     def test_dataset_deleted(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        ``P2PManifestationDeployer.calculate_changes`` specifies that a
         dataset must be deleted if the desired configuration specifies
         that the dataset has the ``deleted`` attribute set to True.
 
@@ -2489,29 +2437,23 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         actually has the dataset, since the deployer doesn't know about
         replicas... see FLOC-1240.
         """
-        docker = FakeDockerClient(units={})
-        node = Node(
+        node_state = NodeState(
             hostname=u"10.1.1.1",
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
         )
-        current = Deployment(nodes=[node])
 
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        api = P2PNodeDeployer(
-            node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
+        api = P2PManifestationDeployer(
+            node_state.hostname,
+            create_volume_service(self),
         )
-        desired = current.update_node(node.transform(
-            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
+        current = DeploymentState(nodes=[node_state])
+        desired = Deployment(nodes=[
+            Node(hostname=api.hostname,
+                 manifestations=node_state.manifestations.transform(
+                     (DATASET_ID, "dataset", "deleted"), True))])
 
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        changes = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2522,150 +2464,77 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             ])
         self.assertEqual(expected, changes)
 
-    def test_deletion_after_application_stop(self):
+    def test_no_deletion_if_in_use(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` ensures dataset
-        deletion happens after application stop phase to make sure nothing
-        is using the deleted dataset.
-        """
-        unit = Unit(name=u'site-example.com',
-                    container_name=u'site-example.com',
-                    container_image=u'flocker/wordpress:v1.0.0',
-                    activation_state=u'active')
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset
+        deletion happens only if there is no application using the deleted
+        dataset.
 
-        docker = FakeDockerClient(units={unit.name: unit})
+        This will eventually be switched to use a lease system, rather
+        than inspecting application configuration.
+        """
         node = Node(
             hostname=u"10.1.1.1",
-            manifestations={MANIFESTATION.dataset_id:
-                            MANIFESTATION},
+            manifestations={
+                MANIFESTATION.dataset_id:
+                MANIFESTATION.transform(("dataset", "deleted"), True)},
         )
-        current = Deployment(nodes=[node])
+        desired = Deployment(nodes=[node])
+        current = DeploymentState(nodes=[NodeState(
+            hostname=node.hostname,
+            applications={APPLICATION_WITH_VOLUME},
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION})])
 
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        api = P2PNodeDeployer(
-            node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
+        api = P2PManifestationDeployer(
+            node.hostname, create_volume_service(self),
         )
-        desired = current.update_node(node.transform(
-            ("manifestations", DATASET_ID, "dataset", "deleted"), True))
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
+        changes = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=current,
         )
-
-        to_stop = StopApplication(application=Application(
-            name=unit.name, image=DockerImage.from_string(
-                unit.container_image)))
-        expected = Sequentially(changes=[
-            InParallel(changes=[to_stop]),
-            InParallel(changes=[DeleteDataset(dataset=DATASET.set(
-                "deleted", True))])
-            ])
-        self.assertEqual(expected, changes)
+        self.assertEqual(Sequentially(changes=[]), changes)
 
     def test_volume_handoff(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        ``P2PManifestationDeployer.calculate_changes`` specifies that
         the volume for an application which was previously running on this
         node but is now running on another node must be handed off.
         """
-        # The application is running here.
-        unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            container_name=APPLICATION_WITH_VOLUME_NAME,
-            container_image=APPLICATION_WITH_VOLUME_IMAGE,
-            activation_state=u'active'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
-        node = Node(
+        node_state = NodeState(
             hostname=u"node1.example.com",
-            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
         )
-        another_node = Node(
+        another_node_state = NodeState(
             hostname=u"node2.example.com",
-            applications=frozenset(),
         )
-
-        # The discovered current configuration of the cluster reveals the
-        # application is running here.
-        current = Deployment(nodes=frozenset([node, another_node]))
-
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        api = P2PNodeDeployer(
-            node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset()),
-            Node(hostname=another_node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME}),
+        current = DeploymentState(nodes=[node_state, another_node_state])
+        desired = Deployment(nodes={
+            Node(hostname=node_state.hostname),
+            Node(hostname=another_node_state.hostname,
                  manifestations={MANIFESTATION.dataset_id:
                                  MANIFESTATION}),
-        }))
+        })
 
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
+        api = P2PManifestationDeployer(
+            node_state.hostname, create_volume_service(self),
         )
 
+        changes = api.calculate_changes(desired, current)
         volume = APPLICATION_WITH_VOLUME.volume
 
         expected = Sequentially(changes=[
-            InParallel(changes=[PushDataset(
-                dataset=volume.dataset, hostname=another_node.hostname)]),
-            InParallel(changes=[StopApplication(
-                application=Application(name=APPLICATION_WITH_VOLUME_NAME,
-                                        image=DockerImage.from_string(
-                                            unit.container_image
-                                        )),)]),
             InParallel(changes=[HandoffDataset(
-                dataset=volume.dataset, hostname=another_node.hostname)]),
+                dataset=volume.dataset,
+                hostname=another_node_state.hostname)]),
         ])
         self.assertEqual(expected, changes)
 
     def test_no_volume_changes(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies no
-        work for the volume if an application which was previously running
-        on this node continues to run on this node.
+        ``P2PManifestationDeployer.calculate_changes`` specifies no work for
+        the volume if it was and is supposed to be available on the node.
         """
-        volume_service = create_volume_service(self)
-        node_path = self.successResultOf(volume_service.create(
-            volume_service.get(
-                _to_volume_name(DATASET.dataset_id))
-            )
-        ).get_filesystem().get_path()
-
-        # The application is running here.
-        unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            container_name=APPLICATION_WITH_VOLUME_NAME,
-            container_image=APPLICATION_WITH_VOLUME_IMAGE,
-            volumes=frozenset([DockerVolume(
-                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                node_path=node_path)]),
-            activation_state=u'active'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
         current_node = NodeState(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
@@ -2678,25 +2547,14 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
         )
-        another_node = Node(
-            hostname=u"node2.example.com",
-            applications=frozenset(),
+        current = DeploymentState(nodes=[current_node])
+        desired = Deployment(nodes=[desired_node])
+
+        api = P2PManifestationDeployer(
+            current_node.hostname, create_volume_service(self),
         )
 
-        # The discovered current configuration of the cluster reveals the
-        # application is running here.
-        current = DeploymentState(
-            nodes=[current_node, NodeState(hostname=another_node.hostname)])
-        desired = Deployment(nodes=frozenset([desired_node, another_node]))
-
-        api = P2PNodeDeployer(
-            current_node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(current_node)),
+        changes = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=current,
         )
@@ -2704,178 +2562,9 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[])
         self.assertEqual(expected, changes)
 
-    def test_volume_resize(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
-        volume will be resized if an application which was previously
-        running on this node continues to run on this node but specifies a
-        dataset maximum_size that differs to the existing dataset
-        size. The Application will also be restarted.
-        """
-        volume_service = create_volume_service(self)
-        node_path = self.successResultOf(volume_service.create(
-            volume_service.get(
-                _to_volume_name(DATASET.dataset_id))
-            )
-        ).get_filesystem().get_path()
-
-        unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            container_name=APPLICATION_WITH_VOLUME_NAME,
-            container_image=APPLICATION_WITH_VOLUME_IMAGE,
-            volumes=frozenset([DockerVolume(
-                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                node_path=node_path)]),
-            activation_state=u'active'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
-        current_node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-        desired_node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
-            manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
-                            MANIFESTATION_WITH_SIZE},
-        )
-        another_node = Node(
-            hostname=u"node2.example.com",
-            applications=frozenset(),
-        )
-
-        # The discovered current configuration of the cluster reveals the
-        # application is running here.
-        current = Deployment(nodes=frozenset([current_node, another_node]))
-        desired = Deployment(nodes=frozenset([desired_node, another_node]))
-
-        api = P2PNodeDeployer(
-            current_node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        expected = Sequentially(changes=[
-            InParallel(
-                changes=[ResizeDataset(
-                    dataset=APPLICATION_WITH_VOLUME_SIZE.volume.dataset,
-                    )]
-            ),
-            InParallel(
-                changes=[Sequentially(
-                    changes=[
-                        StopApplication(application=APPLICATION_WITH_VOLUME),
-                        StartApplication(
-                            application=APPLICATION_WITH_VOLUME_SIZE,
-                            hostname=u'node1.example.com')
-                    ])]
-            )])
-        self.assertEqual(expected, changes)
-
-    def test_volume_resized_before_move(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
-        volume will be resized if an application which was previously
-        running on this node is to be relocated to a different node but
-        specifies a volume maximum_size that differs to the existing
-        volume size. The volume will be resized before moving.
-        """
-        volume_service = create_volume_service(self)
-        node_path = self.successResultOf(volume_service.create(
-            volume_service.get(
-                _to_volume_name(DATASET.dataset_id))
-            )
-        ).get_filesystem().get_path()
-
-        unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            container_name=APPLICATION_WITH_VOLUME_NAME,
-            container_image=APPLICATION_WITH_VOLUME_IMAGE,
-            volumes=frozenset([DockerVolume(
-                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                node_path=node_path)]),
-            activation_state=u'active'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
-        current_nodes = [
-            Node(
-                hostname=u"node1.example.com",
-                applications=frozenset({APPLICATION_WITH_VOLUME}),
-                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-            ),
-            Node(
-                hostname=u"node2.example.com",
-                applications=frozenset(),
-            )
-        ]
-        desired_nodes = [
-            Node(
-                hostname=u"node2.example.com",
-                applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
-                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
-                                MANIFESTATION_WITH_SIZE},
-            ),
-            Node(
-                hostname=u"node1.example.com",
-                applications=frozenset(),
-            )
-        ]
-
-        # The discovered current configuration of the cluster reveals the
-        # application is running here.
-        current = Deployment(nodes=frozenset(current_nodes))
-        desired = Deployment(nodes=frozenset(desired_nodes))
-
-        api = P2PNodeDeployer(
-            u"node1.example.com",
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        volume = APPLICATION_WITH_VOLUME_SIZE.volume
-
-        # expected is: resize volume, push, stop application, handoff
-        expected = Sequentially(changes=[
-            InParallel(
-                changes=[ResizeDataset(dataset=volume.dataset)],
-            ),
-            InParallel(
-                changes=[PushDataset(
-                    dataset=volume.dataset,
-                    hostname=u'node2.example.com')]
-            ),
-            InParallel(
-                changes=[
-                    StopApplication(application=APPLICATION_WITH_VOLUME)
-                ]
-            ),
-            InParallel(
-                changes=[HandoffDataset(
-                    dataset=volume.dataset,
-                    hostname=u'node2.example.com')]
-            )])
-        self.assertEqual(expected, changes)
-
     def test_metadata_does_not_cause_restarts(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` indicates no
+        ``P2PManifestationDeployer.calculate_changes`` indicates no
         action necessary if the configuration has metadata for a dataset
         that is a volume.
 
@@ -2925,85 +2614,22 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         current = DeploymentState(nodes=current_nodes)
         desired = Deployment(nodes=desired_nodes)
 
-        api = P2PNodeDeployer(
+        api = P2PManifestationDeployer(
             u"node1.example.com",
             volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
-        changes = api.calculate_necessary_state_changes(
+        changes = api.calculate_changes(
             self.successResultOf(api.discover_local_state(current_nodes[0])),
             desired_configuration=desired,
             current_cluster_state=current,
         )
         self.assertEqual(changes, Sequentially(changes=[]))
 
-    def test_volume_max_size_preserved_after_move(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
-        volume will be resized if an application which was previously
-        running on this node is to be relocated to a different node but
-        specifies a volume maximum_size that differs to the existing
-        volume size. The volume on the new target node will be resized
-        after it has been received.
-        """
-        docker = FakeDockerClient(units={})
-
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset(),
-        )
-        another_node = Node(
-            hostname=u"node2.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-
-        current = Deployment(nodes=frozenset([node, another_node]))
-
-        api = P2PNodeDeployer(
-            node.hostname,
-            create_volume_service(self), docker_client=docker,
-            network=make_memory_network()
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
-                 manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
-                                 MANIFESTATION_WITH_SIZE}),
-            Node(hostname=another_node.hostname,
-                 applications=frozenset()),
-        }))
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        volume = APPLICATION_WITH_VOLUME_SIZE.volume
-
-        expected = Sequentially(changes=[
-            InParallel(changes=[WaitForDataset(dataset=volume.dataset)]),
-            InParallel(changes=[ResizeDataset(dataset=volume.dataset)]),
-            InParallel(changes=[StartApplication(
-                application=APPLICATION_WITH_VOLUME_SIZE,
-                hostname="node1.example.com")])])
-        self.assertEqual(expected, changes)
-
-
-class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
-        SynchronousTestCase):
-    """
-    Tests for
-    ``P2PManifestationDeployer.calculate_necessary_state_changes`` when
-    only datasets are involved which are not attached to applications.
-    """
     def test_dataset_created(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        ``P2PManifestationDeployer.calculate_changes`` specifies that a
         new dataset must be created if the desired configuration specifies
         that a dataset that previously existed nowhere is going to be on
         this node.
@@ -3014,7 +2640,7 @@ class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
             Node(hostname=hostname),
         }))
 
-        api = P2PNodeDeployer(
+        api = P2PManifestationDeployer(
             hostname,
             create_volume_service(self),
             docker_client=FakeDockerClient(units={}),
@@ -3027,7 +2653,7 @@ class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
         )
         desired = Deployment(nodes=frozenset({node}))
 
-        changes = api.calculate_necessary_state_changes(
+        changes = api.calculate_changes(
             self.successResultOf(api.discover_local_state(
                 NodeState(hostname=api.hostname))),
             desired_configuration=desired,
@@ -3039,140 +2665,9 @@ class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
                 dataset=MANIFESTATION.dataset)])])
         self.assertEqual(expected, changes)
 
-    def test_dataset_wait(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
-        the dataset previously stored on another node must be waited for,
-        in anticipation of that node handing it off to us.
-        """
-        docker = FakeDockerClient(units={})
-
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset(),
-        )
-        another_node = Node(
-            hostname=u"node2.example.com",
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-
-        current = Deployment(nodes=frozenset([node, another_node]))
-
-        api = P2PNodeDeployer(
-            node.hostname,
-            create_volume_service(self), docker_client=docker,
-            network=make_memory_network()
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION}),
-            Node(hostname=another_node.hostname),
-        }))
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        expected = Sequentially(changes=[
-            InParallel(changes=[
-                WaitForDataset(dataset=MANIFESTATION.dataset)]),
-            InParallel(changes=[
-                ResizeDataset(dataset=MANIFESTATION.dataset)])])
-        self.assertEqual(expected, changes)
-
-    def test_dataset_handoff(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
-        the dataset which was previously hosted on this node but is now
-        supposed to be on another node must be handed off.
-        """
-        docker = FakeDockerClient(units={})
-
-        node = Node(
-            hostname=u"node1.example.com",
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-        another_node = Node(
-            hostname=u"node2.example.com",
-        )
-
-        current = Deployment(nodes=frozenset([node, another_node]))
-
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        api = P2PNodeDeployer(
-            node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname),
-            Node(hostname=another_node.hostname,
-                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION})}))
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        dataset = MANIFESTATION.dataset
-
-        expected = Sequentially(changes=[
-            InParallel(changes=[PushDataset(
-                dataset=dataset, hostname=another_node.hostname)]),
-            InParallel(changes=[HandoffDataset(
-                dataset=dataset, hostname=another_node.hostname)]),
-        ])
-        self.assertEqual(expected, changes)
-
-    def test_no_dataset_changes(self):
-        """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies no
-        work for the dataset if it was and continues to be on the node.
-        """
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        docker = FakeDockerClient(units={})
-
-        current_node = Node(
-            hostname=u"node1.example.com",
-            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-        )
-        desired_node = current_node
-
-        current = Deployment(nodes=frozenset([current_node]))
-        desired = Deployment(nodes=frozenset([desired_node]))
-
-        api = P2PNodeDeployer(
-            current_node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        changes = api.calculate_necessary_state_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        expected = Sequentially(changes=[])
-        self.assertEqual(expected, changes)
-
     def test_dataset_resize(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        ``P2PManifestationDeployer.calculate_changes`` specifies that a
         dataset will be resized if a dataset which was previously hosted
         on this node continues to be on this node but specifies a dataset
         maximum_size that differs to the existing dataset size.
@@ -3196,13 +2691,13 @@ class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
         current = Deployment(nodes=frozenset([current_node]))
         desired = Deployment(nodes=frozenset([desired_node]))
 
-        api = P2PNodeDeployer(
+        api = P2PManifestationDeployer(
             current_node.hostname,
             volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
-        changes = api.calculate_necessary_state_changes(
+        changes = api.calculate_changes(
             self.successResultOf(api.discover_local_state(
                 NodeState(hostname=api.hostname))),
             desired_configuration=desired,
@@ -3220,7 +2715,7 @@ class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
 
     def test_dataset_resized_before_move(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        ``P2PManifestationDeployer.calculate_changes`` specifies that a
         dataset will be resized if it is to be relocated to a different
         node but specifies a maximum_size that differs to the existing
         size. The dataset will be resized before moving.
@@ -3254,13 +2749,13 @@ class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
         current = Deployment(nodes=frozenset(current_nodes))
         desired = Deployment(nodes=frozenset(desired_nodes))
 
-        api = P2PNodeDeployer(
+        api = P2PManifestationDeployer(
             u"node1.example.com",
             volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
-        changes = api.calculate_necessary_state_changes(
+        changes = api.calculate_changes(
             self.successResultOf(api.discover_local_state(
                 NodeState(hostname=api.hostname))),
             desired_configuration=desired,
@@ -3288,7 +2783,7 @@ class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
 
     def test_dataset_max_size_preserved_after_move(self):
         """
-        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        ``P2PManifestationDeployer.calculate_changes`` specifies that a
         dataset will be resized if it is to be relocated to a different
         node but specifies a maximum_size that differs to the existing
         size. The dataset on the new target node will be resized after it
@@ -3321,13 +2816,13 @@ class P2PManifestationsDeployerCalculateChangesDatasetOnlyTests(
         current = Deployment(nodes=frozenset(current_nodes))
         desired = Deployment(nodes=frozenset(desired_nodes))
 
-        api = P2PNodeDeployer(
+        api = P2PManifestationDeployer(
             u"node2.example.com",
             volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
-        changes = api.calculate_necessary_state_changes(
+        changes = api.calculate_changes(
             self.successResultOf(api.discover_local_state(
                 NodeState(hostname=api.hostname))),
             desired_configuration=desired,
