@@ -271,7 +271,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[
+            in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ]),
             changes
@@ -315,7 +315,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[]),
+            in_parallel(changes=[]),
             changes
         )
 
@@ -353,7 +353,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             block_device_api=api,
         )
         changes = deployer.calculate_changes(configuration, state)
-        self.assertEqual(InParallel(changes=[]), changes)
+        self.assertEqual(in_parallel(changes=[]), changes)
 
     def test_no_devices_one_dataset(self):
         """
@@ -383,7 +383,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         changes = deployer.calculate_changes(configuration, state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         self.assertEqual(
-            InParallel(
+            in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
                         dataset=dataset, mountpoint=mountpoint
@@ -465,7 +465,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             desired_configuration
         )
 
-        expected_changes = InParallel(changes=[])
+        expected_changes = in_parallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
 
