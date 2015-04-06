@@ -80,7 +80,7 @@ class DeployOptions(Options):
             raise UsageError('No file exists at {path}'
                              .format(path=application_config.path))
 
-        self["url"] = u"http://{}:{}/configuration/_compose".format(
+        self["url"] = u"http://{}:{}/v1/configuration/_compose".format(
             control_host, self["port"]).encode("ascii")
         self["application_config"] = application_config.getContent()
 
