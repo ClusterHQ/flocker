@@ -3126,21 +3126,21 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
 
     def test_fig_configuration_format(self):
         """
-        POSTing to ``/configuration/_compose`` in Flocker's custom
+        POSTing to ``/configuration/_compose`` in Fig/Docker Compose
         configuration format changes the deployment configuration
         appropriately.
         """
         fig_config = {
-            'wordpress': {
-                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
-                'volumes': ['/var/www/wordpress'],
-                'image': 'sample/wordpress',
-                'ports': ['8080:80'],
-                'links': ['mysql:db'],
+            u'wordpress': {
+                u'environment': {u'WORDPRESS_ADMIN_PASSWORD': u'admin'},
+                u'volumes': [u'/var/www/wordpress'],
+                u'image': u'sample/wordpress',
+                u'ports': [u'8080:80'],
+                u'links': [u'mysql:db'],
             },
-            'mysql': {
-                'image': 'sample/mysql',
-                'ports': ['3306:3306', '3307:3307'],
+            u'mysql': {
+                u'image': u'sample/mysql',
+                u'ports': [u'3306:3306', u'3307:3307'],
             }
         }
 

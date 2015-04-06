@@ -803,6 +803,8 @@ class ConfigurationAPIUserV1(object):
     @user_documentation(
         """
         Private API endpoint used by flocker-deploy.
+
+        Please do not use it as it may be removed in the near future.
         """,
         examples=[],
     )
