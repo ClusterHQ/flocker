@@ -31,7 +31,7 @@ from ..blockdevice import (
     DESTROY_VOLUME,
 )
 
-from ... import InParallel, IStateChange
+from ... import IStateChange, in_parallel
 from ...testtools import ideployer_tests_factory, to_node
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
@@ -231,7 +231,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[]),
+            in_parallel(changes=[]),
             changes
         )
 

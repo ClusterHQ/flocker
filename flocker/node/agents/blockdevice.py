@@ -21,7 +21,7 @@ from pyrsistent import PRecord, field
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
-from .. import IDeployer, IStateChange, Sequentially, InParallel
+from .. import IDeployer, IStateChange, sequentially, in_parallel
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 
 # Eliot is transitioning away from the "Logger instances all over the place"
@@ -229,7 +229,7 @@ class DestroyBlockDeviceDataset(PRecord):
     def run(self, deployer):
         for volume in deployer.block_device_api.list_volumes():
             if volume.dataset_id == self.dataset_id:
-                return Sequentially(
+                return sequentially(
                     changes=[
                         UnmountBlockDevice(volume=volume),
                         DetachVolume(volume=volume),
@@ -884,7 +884,7 @@ class BlockDeviceDeployer(PRecord):
 
         deletes = self._calculate_deletes(configured_manifestations)
 
-        return InParallel(changes=creates + deletes)
+        return in_parallel(changes=creates + deletes)
 
     def _calculate_deletes(self, configured_manifestations):
         """

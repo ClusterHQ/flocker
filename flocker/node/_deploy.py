@@ -17,6 +17,7 @@ from eliot import write_failure, Logger
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
+from . import IStateChange, in_parallel, sequentially
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
@@ -45,33 +46,6 @@ def _to_volume_name(dataset_id):
     :return: ``VolumeName`` with default namespace.
     """
     return VolumeName(namespace=u"default", dataset_id=dataset_id)
-
-
-class IStateChange(Interface):
-    """
-    An operation that changes local state.
-    """
-    def run(deployer):
-        """
-        Apply the change to local state.
-
-        :param IDeployer deployer: The ``IDeployer`` to use. Specific
-            ``IStateChange`` providers may require specific ``IDeployer``
-            providers that provide relevant functionality for applying the
-            change.
-
-        :return: ``Deferred`` firing when the change is done.
-        """
-
-    def __eq__(other):
-        """
-        Return whether this change is equivalent to another.
-        """
-
-    def __ne__(other):
-        """
-        Return whether this change is not equivalent to another.
-        """
 
 
 class IDeployer(Interface):
@@ -154,34 +128,6 @@ class _OldToNewDeployer(object):
         local_state = cluster_state.get_node(self.hostname)
         return self.calculate_necessary_state_changes(
             local_state, configuration, cluster_state)
-
-
-@implementer(IStateChange)
-@attributes(["changes"])
-class Sequentially(object):
-    """
-    Run a series of changes in sequence, one after the other.
-
-    Failures in earlier changes stop later changes.
-    """
-    def run(self, deployer):
-        d = succeed(None)
-        for change in self.changes:
-            d.addCallback(lambda _, change=change: change.run(deployer))
-        return d
-
-
-@implementer(IStateChange)
-@attributes(["changes"])
-class InParallel(object):
-    """
-    Run a series of changes in parallel.
-
-    Failures in one change do not prevent other changes from continuing.
-    """
-    def run(self, deployer):
-        return gather_deferreds(
-            [change.run(deployer) for change in self.changes])
 
 
 @implementer(IStateChange)
@@ -512,7 +458,7 @@ class P2PManifestationDeployer(_OldToNewDeployer):
         # Does nothing in this branch. Follow up will move
         # calculate_necessary_state_changes code here:
         # https://clusterhq.atlassian.net/browse/FLOC-1553
-        return Sequentially(changes=[])
+        return sequentially(changes=[])
 
 
 class ApplicationNodeDeployer(_OldToNewDeployer):
@@ -739,7 +685,7 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
             if app.name in stop_names
         ]
         restart_containers = [
-            Sequentially(changes=[StopApplication(application=app),
+            sequentially(changes=[StopApplication(application=app),
                                   StartApplication(application=app,
                                                    hostname=self.hostname)])
             for app in desired_node_applications
@@ -768,7 +714,7 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
                     StartApplication(application=inspect_desired,
                                      hostname=self.hostname)
                 ]
-                sequence = Sequentially(changes=changes)
+                sequence = sequentially(changes=changes)
                 if sequence not in restart_containers:
                     restart_containers.append(sequence)
 
@@ -778,7 +724,7 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
             self.hostname, current_cluster_state, desired_configuration)
 
         if dataset_changes.resizing:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 ResizeDataset(dataset=dataset)
                 for dataset in dataset_changes.resizing]))
 
@@ -788,15 +734,15 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
         # application downtime caused by the time it takes to copy
         # data.
         if dataset_changes.going:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 PushDataset(dataset=handoff.dataset,
                             hostname=handoff.hostname)
                 for handoff in dataset_changes.going]))
 
         if stop_containers:
-            phases.append(InParallel(changes=stop_containers))
+            phases.append(in_parallel(changes=stop_containers))
         if dataset_changes.going:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 HandoffDataset(dataset=handoff.dataset,
                                hostname=handoff.hostname)
                 for handoff in dataset_changes.going]))
@@ -804,24 +750,24 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
         # resized to the appropriate quota max size once they
         # have been received
         if dataset_changes.coming:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 WaitForDataset(dataset=dataset)
                 for dataset in dataset_changes.coming]))
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 ResizeDataset(dataset=dataset)
                 for dataset in dataset_changes.coming]))
         if dataset_changes.creating:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 CreateDataset(dataset=dataset)
                 for dataset in dataset_changes.creating]))
         if dataset_changes.deleting:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 DeleteDataset(dataset=dataset)
                 for dataset in dataset_changes.deleting]))
         start_restart = start_containers + restart_containers
         if start_restart:
-            phases.append(InParallel(changes=start_restart))
-        return Sequentially(changes=phases)
+            phases.append(in_parallel(changes=start_restart))
+        return sequentially(changes=phases)
 
 
 def change_node_state(deployer, desired_configuration,  current_cluster_state):

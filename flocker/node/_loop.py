@@ -29,6 +29,8 @@ from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.protocol import ReconnectingClientFactory
 
+from . import run_state_change
+
 from ..control._protocol import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
     )
@@ -295,7 +297,7 @@ class ConvergenceLoop(object):
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state
             )
-            return action.run(self.deployer)
+            return run_state_change(action, self.deployer)
         d.addCallback(got_local_state)
 
         # It would be better to have a "quiet time" state in the FSM and
