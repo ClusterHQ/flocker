@@ -37,7 +37,7 @@ FEEDBACK_CLI_TEXT = (
     "contributing.html#talk-to-us")
 
 _OK_MESSAGE = (
-    b"The configuration has been updated. It may take a short "
+    b"The cluster configuration has been updated. It may take a short "
     b"while for changes to take effect, in particular if Docker "
     b"images need to be pulled.\n")
 
