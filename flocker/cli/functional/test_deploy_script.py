@@ -9,12 +9,19 @@ from unittest import skipUnless
 from twisted.python.procutils import which
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
+from twisted.internet import reactor
+from twisted.web.server import Site
 
 from ...testtools.ssh import create_ssh_server, create_ssh_agent
 from .._sshconfig import OpenSSHConfiguration
 from ...control import Deployment, Node
 
-from ..script import DeployScript
+from ...control.httpapi import ConfigurationAPIUserV1
+from ...control._persistence import ConfigurationPersistenceService
+from ...control._clusterstate import ClusterStateService
+from ..control.test.test_config import (
+    COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML)
+
 
 from ... import __version__
 
@@ -29,12 +36,37 @@ class FlockerDeployTests(TestCase):
     """
     @_require_installed
     def setUp(self):
-        pass
+        self.persistence_service = ConfigurationPersistenceService(
+            reactor, FilePath(self.mktemp()))
+        self.persistence_service.startService()
+        self.cluster_state_service = ClusterStateService()
+        self.cluster_state_service.startService()
+        self.addCleanup(self.cluster_state_service.stopService)
+        self.addCleanup(self.persistence_service.stopService)
+        app = ConfigurationAPIUserV1(self.persistence_service,
+                                     self.cluster_state_service).app
+        self.port = reactor.listenTCP(0, Site(app.resource()),
+                                      interface="127.0.0.1")
+        self.addCleanup(self.port.stopListening)
+        self.port_number = self.port.getHost().port
 
     def test_version(self):
         """``flocker-deploy --version`` returns the current version."""
         result = check_output([b"flocker-deploy"] + [b"--version"])
         self.assertEqual(result, b"%s\n" % (__version__,))
+
+    def test_configures_cluster(self):
+        """
+        ``flocker-deploy`` sends the configuration to the API endpoint that
+        will replace the cluster configuration.
+        """
+
+    def test_error(self):
+        """
+        ``flocker-deploy`` exits with error code 1 and prints the returned
+        error message if the API endpoint returns a non-successful
+        response code.
+        """
 
 
 class FlockerDeployConfigureSSHTests(TestCase):

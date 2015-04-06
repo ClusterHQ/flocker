@@ -53,6 +53,9 @@ class DeployOptions(Options):
                 "APPLICATION_CONFIGURATION_PATH"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
+    optParameters = [["port", "p", REST_API_PORT,
+                      "The REST API port on the server.", int]]
+
     def parseArgs(self, control_host, deployment_config, application_config):
         deployment_config = FilePath(deployment_config)
         application_config = FilePath(application_config)

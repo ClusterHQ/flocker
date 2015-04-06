@@ -1,23 +1,19 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Unit tests for the implementation ``flocker-deploy``.
+Unit tests for the implementation of ``flocker-deploy``.
 """
 
-from yaml import safe_dump, safe_load
-from threading import current_thread
+from yaml import safe_dump
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase, SynchronousTestCase
-from twisted.internet.defer import succeed
-from twisted.internet import reactor
 
 from ...testtools import (
-    FlockerScriptTestsMixin, StandardOptionsTestsMixin, make_with_init_tests,
-    MemoryCoreReactor)
-from ..script import DeployScript, DeployOptions, NodeTarget
-from ...control import Application, Deployment, DockerImage, Node
+    FlockerScriptTestsMixin, StandardOptionsTestsMixin, MemoryCoreReactor)
+from ..script import DeployScript, DeployOptions
+from ...control.httpapi import REST_API_PORT
 
 
 class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
@@ -33,6 +29,20 @@ CONTROL_HOST = u"192.168.1.1"
 class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     """Tests for :class:`DeployOptions`."""
     options = DeployOptions
+
+    def default_port(self):
+        """
+        The default port to connect to is the REST API port.
+        """
+        options = self.options()
+        deploy = FilePath(self.mktemp())
+        app = FilePath(self.mktemp())
+
+        deploy.setContent(b"{}")
+        app.setContent(b"{}")
+
+        self.assertEqual(options.parseOptions(
+            [CONTROL_HOST, deploy.path, app.path])["port"], REST_API_PORT)
 
     def test_deploy_must_exist(self):
         """
