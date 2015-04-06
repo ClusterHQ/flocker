@@ -4,11 +4,17 @@
 The command-line ``flocker-deploy`` tool.
 """
 
+import sys
 from subprocess import CalledProcessError
+from json import dumps
 
 from twisted.internet.threads import deferToThread
+from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
+from twisted.web.http import OK
+
+from treq import post, json_content
 
 from zope.interface import implementer
 
@@ -54,6 +60,7 @@ class DeployOptions(Options):
                 "APPLICATION_CONFIGURATION_PATH"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
+    optFlags = [["nossh", None, "Disable SSH setup stage."]]
     optParameters = [["port", "p", REST_API_PORT,
                       "The REST API port on the server.", int]]
 
@@ -70,7 +77,7 @@ class DeployOptions(Options):
                              .format(path=application_config.path))
 
         self["url"] = b"http://{}:{}/configuration/_compose".format(
-            control_host, REST_API_PORT)
+            control_host, self["port"])
         self["application_config"] = application_config.getContent()
 
         try:
@@ -102,35 +109,6 @@ class DeployScript(object):
     """
     A script to start configured deployments on a Flocker cluster.
     """
-    def main(self, reactor, options):
-        """
-        See :py:meth:`ICommandLineScript.main` for parameter documentation.
-
-        :return: A ``Deferred`` which fires when the deployment is complete or
-                 has encountered an error.
-        """
-        # 1. Send request to server.
-        # 2. If OK status, exit.
-        # 3. Otherwise, print error.
-
-
-@flocker_standard_options
-class CLIOptions(Options):
-    """
-    Command line options for ``flocker`` CLI.
-    """
-    longdesc = ("flocker is under development, please see flocker-deploy "
-                "to configure existing nodes.")
-
-    synopsis = "Usage: flocker [OPTIONS] {feedback}".format(
-        feedback=FEEDBACK_CLI_TEXT)
-
-
-@implementer(ICommandLineScript)
-class CLIScript(object):
-    """
-    A command-line script to interact with a cluster via the API.
-    """
     def __init__(self, ssh_configuration=None, ssh_port=22):
         if ssh_configuration is None:
             ssh_configuration = OpenSSHConfiguration.defaults()
@@ -144,7 +122,36 @@ class CLIScript(object):
         :return: A ``Deferred`` which fires when the deployment is complete or
                  has encountered an error.
         """
-        return self._configure_ssh(options["deployment_config"].keys())
+        if options["nossh"]:
+            ready = succeed(None)
+        else:
+            ready = self._configure_ssh(options["deployment_config"].keys())
+
+        body = dumps({"applications": options["application_config"],
+                      "deployment": options["deployment_config"]})
+        ready.addCallback(
+            lambda _: post(options["url"], data=body,
+                           headers={b"content-type": b"application/json"},
+                           persistent=False))
+
+        def fail(msg):
+            raise SystemExit(msg)
+
+        def got_response(response):
+            if response.code != OK:
+                d = json_content(response)
+                d.addCallback(
+                    lambda error: fail(error[u"description"] + u"\n"))
+                return d
+        ready.addCallback(got_response)
+        ready.addCallback(lambda _: sys.stdout.write(
+            b"The configuration has been updated. It may take a short "
+            b"while for changes to take effect, in particular if Docker "
+            b"images need to be pulled.\n"))
+        return ready
+        # 1. Send request to server.
+        # 2. If OK status, exit.
+        # 3. Otherwise, print error.
 
     def _configure_ssh(self, hostnames):
         """
@@ -176,6 +183,33 @@ class CLIScript(object):
 
         d.addErrback(got_failure)
         return d
+
+
+@flocker_standard_options
+class CLIOptions(Options):
+    """
+    Command line options for ``flocker`` CLI.
+    """
+    longdesc = ("flocker is under development, please see flocker-deploy "
+                "to configure existing nodes.")
+
+    synopsis = "Usage: flocker [OPTIONS] {feedback}".format(
+        feedback=FEEDBACK_CLI_TEXT)
+
+
+@implementer(ICommandLineScript)
+class CLIScript(object):
+    """
+    A command-line script to interact with a cluster via the API.
+    """
+    def main(self, reactor, options):
+        """
+        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+
+        :return: A ``Deferred`` which fires when the deployment is complete or
+                 has encountered an error.
+        """
+        return succeed(None)
 
 
 def flocker_deploy_main():

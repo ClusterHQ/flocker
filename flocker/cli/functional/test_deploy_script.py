@@ -5,23 +5,30 @@ Functional tests for the ``flocker-deploy`` command line tool.
 """
 from subprocess import check_output, CalledProcessError
 from unittest import skipUnless
+from os import environ
+
+from yaml import safe_dump
 
 from twisted.python.procutils import which
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 from twisted.internet import reactor
+from twisted.internet.utils import getProcessOutputAndValue
+
 from twisted.web.server import Site
 
 from ...testtools.ssh import create_ssh_server, create_ssh_agent
 from .._sshconfig import OpenSSHConfiguration
-from ...control import Deployment, Node
+from ...control import (
+    FlockerConfiguration, model_from_configuration)
 
 from ...control.httpapi import ConfigurationAPIUserV1
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
-from ..control.test.test_config import (
+from ...control.test.test_config import (
     COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML)
 
+from ..script import DeployScript
 
 from ... import __version__
 
@@ -55,11 +62,55 @@ class FlockerDeployTests(TestCase):
         result = check_output([b"flocker-deploy"] + [b"--version"])
         self.assertEqual(result, b"%s\n" % (__version__,))
 
+    def _send_configuration(self,
+                            application_config_yaml=COMPLEX_APPLICATION_YAML,
+                            deployment_config_yaml=COMPLEX_DEPLOYMENT_YAML):
+        """
+        Run ``flocker-deploy`` against the API server.
+
+        :param application_config: Application configuration dictionary.
+        :param deployment_config: Deployment configuration dictionary.
+
+        :return: ``Deferred`` that fires with a tuple (stdout, stderr,
+            exit code).
+        """
+        app_config = FilePath(self.mktemp())
+        app_config.setContent(safe_dump(application_config_yaml))
+        deployment_config = FilePath(self.mktemp())
+        deployment_config.setContent(safe_dump(deployment_config_yaml))
+        return getProcessOutputAndValue(
+            b"flocker-deploy", [
+                b"--nossh",
+                b"--port", unicode(self.port_number).encode("ascii"),
+                b"localhost", deployment_config.path, app_config.path],
+            env=environ)
+
     def test_configures_cluster(self):
         """
         ``flocker-deploy`` sends the configuration to the API endpoint that
         will replace the cluster configuration.
         """
+        result = self._send_configuration()
+        apps = FlockerConfiguration(COMPLEX_APPLICATION_YAML).applications()
+        expected = model_from_configuration(
+            applications=apps,
+            deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+        result.addCallback(lambda _: self.assertEqual(
+            self.persistence_service.get(), expected))
+        return result
+
+    def test_output(self):
+        """
+        ``flocker-deploy`` prints a helpful message when it's done.
+        """
+        result = self._send_configuration()
+        result.addCallback(
+            self.assertEqual,
+            (b"The configuration has been updated. It may take a "
+             b"short while for changes to take effect, in "
+             b"particular if Docker images need to be pulled.\n",
+             b"", 0))
+        return result
 
     def test_error(self):
         """
@@ -67,6 +118,14 @@ class FlockerDeployTests(TestCase):
         error message if the API endpoint returns a non-successful
         response code.
         """
+        result = self._send_configuration(
+            application_config_yaml={"bogus": "bogus"})
+        result.addCallback(
+            self.assertEqual,
+            (b"",
+             b'Application configuration has an error. '
+             b'Missing \'applications\' key.\n\n', 1))
+        return result
 
 
 class FlockerDeployConfigureSSHTests(TestCase):
@@ -97,22 +156,9 @@ class FlockerDeployConfigureSSHTests(TestCase):
         ``DeployScript._configure_ssh`` installs the cluster wide public ssh
         keys on each node in the supplied ``Deployment``.
         """
-        deployment = Deployment(
-            nodes=[
-                Node(
-                    hostname=unicode(self.server.ip),
-                    applications=[]
-                ),
-                # Node(
-                #     hostname='node2.example.com',
-                #     applications=None
-                # )
-            ]
-        )
-
         script = DeployScript(
             ssh_configuration=self.config, ssh_port=self.server.port)
-        result = script._configure_ssh(deployment)
+        result = script._configure_ssh([unicode(self.server.ip)])
 
         local_key = self.local_user_ssh.child(b'id_rsa_flocker.pub')
         authorized_keys = self.sshd_config.descendant([
@@ -134,18 +180,9 @@ class FlockerDeployConfigureSSHTests(TestCase):
             raise ZeroDivisionError()
         self.config.configure_ssh = fail
 
-        deployment = Deployment(
-            nodes=[
-                Node(
-                    hostname=unicode(self.server.ip),
-                    applications=[]
-                ),
-            ]
-        )
-
         script = DeployScript(
             ssh_configuration=self.config, ssh_port=self.server.port)
-        result = script._configure_ssh(deployment)
+        result = script._configure_ssh([unicode(self.server.ip)])
         result.addErrback(lambda f: f.value.subFailure)
         result = self.assertFailure(result, ZeroDivisionError)
         # Handle errors logged by gather_deferreds
@@ -162,18 +199,9 @@ class FlockerDeployConfigureSSHTests(TestCase):
             raise CalledProcessError(1, "ssh", output=b"onoes")
         self.config.configure_ssh = fail
 
-        deployment = Deployment(
-            nodes=[
-                Node(
-                    hostname=unicode(self.server.ip),
-                    applications=[]
-                ),
-            ]
-        )
-
         script = DeployScript(
             ssh_configuration=self.config, ssh_port=self.server.port)
-        result = script._configure_ssh(deployment)
+        result = script._configure_ssh([unicode(self.server.ip)])
         result = self.assertFailure(result, SystemExit)
         result.addCallback(lambda exc: self.assertEqual(
             exc.args, (b"Error connecting to cluster node: onoes",)))
@@ -198,27 +226,11 @@ class FlockerDeployConfigureSSHTests(TestCase):
 
         self.config.configure_ssh = fail
 
-        deployment = Deployment(
-            nodes=[
-                Node(
-                    hostname=u'node1.example.com',
-                    applications=[]
-                ),
-                Node(
-                    hostname=u'node2.example.com',
-                    applications=[]
-                ),
-                Node(
-                    hostname=u'node3.example.com',
-                    applications=[]
-                ),
-
-            ]
-        )
-
         script = DeployScript(
             ssh_configuration=self.config, ssh_port=self.server.port)
-        result = script._configure_ssh(deployment)
+        result = script._configure_ssh([u'node1.example.com',
+                                        u'node2.example.com',
+                                        u'node3.example.com'])
 
         def check_logs(ignored_first_error):
             failures = self.flushLoggedErrors(ZeroDivisionError)
