@@ -18,6 +18,8 @@ from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
 
+import psutil
+
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
@@ -795,6 +797,36 @@ class BlockDeviceDeployer(PRecord):
     block_device_api = field(mandatory=True)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
 
+    def _get_system_mounts(self, volumes):
+        """
+        Load information about mounted filesystems related to the given
+        volumes.
+
+        :param list volumes: The ``BlockDeviceVolumes`` known to exist.  They
+            may or may not be attached to this host.  Only system mounts that
+            related to these volumes will be returned.
+
+        :return: A ``dict`` mapping mount points (directories represented using
+            ``FilePath``) to dataset identifiers (as ``UUID``\ s) representing
+            all of the mounts on this system that were discovered and related
+            to ``volumes``.
+        """
+        partitions = psutil.disk_partitions()
+        device_to_dataset_id = {
+            self.block_device_api.get_device_path(volume.blockdevice_id):
+                volume.dataset_id
+            for volume
+            in volumes
+            if volume.host == self.hostname
+        }
+        return {
+            FilePath(partition.mountpoint):
+                device_to_dataset_id[FilePath(partition.device)]
+            for partition
+            in partitions
+            if FilePath(partition.device) in device_to_dataset_id
+        }
+
     def discover_state(self, node_state):
         """
         Find all block devices that are currently associated with this host and
@@ -802,7 +834,6 @@ class BlockDeviceDeployer(PRecord):
         their mount paths.
         """
         volumes = self.block_device_api.list_volumes()
-
         manifestations = {}
         nonmanifest = {}
 
@@ -815,23 +846,18 @@ class BlockDeviceDeployer(PRecord):
             elif volume.host is None:
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
-        # FLOC-1617
-        #
-        # Interrogate the platform for its mount state.  Get the ``get_mounts``
-        # helper from ``test_blockdevice.py``.
+        system_mounts = self._get_system_mounts(volumes)
 
         paths = {}
         for manifestation in manifestations.values():
             dataset_id = manifestation.dataset.dataset_id
             mountpath = self._mountpath_for_manifestation(manifestation)
-            # FLOC-1617
-            #
-            # Compare mountpath with the mount state discovered above.  If the
-            # path is not actually mounted on the system, do not add a new item
-            # to ``paths`` and remove the corresponding dataset_id from
-            # ``manifestations`` (to avoid having a supposed manifestation with
-            # no actual mountpoint - useless).
-            #
+
+            # If the expected mount point doesn't actually have a (XXX should
+            # be "the") device mounted where we expected to find this
+            # manifestation, the manifestation doesn't really exist here.
+            properly_mounted = system_mounts.get(mountpath) == UUID(dataset_id)
+
             # In the future it would be nice to be able to represent
             # intermediate states (at least internally, if not exposed via the
             # API).  This makes certain IStateChange implementations easier
@@ -840,7 +866,12 @@ class BlockDeviceDeployer(PRecord):
             # about those first two state changes like trying them and handling
             # failure or doing more system inspection to try to see what's up).
             # But ... the future.
-            paths[dataset_id] = mountpath
+
+            if properly_mounted:
+                paths[dataset_id] = mountpath
+            else:
+                del manifestations[dataset_id]
+                nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         state = (
             NodeState(
