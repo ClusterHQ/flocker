@@ -837,8 +837,6 @@ def change_node_state(deployer, desired_configuration,  current_cluster_state):
 
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
-    # FLOC-1553 run this loop repeatedly until cluster state for this node
-    # matches configuration.
     node = current_cluster_state.get_node(deployer.hostname)
     d = deployer.discover_local_state(node)
     d.addCallback(deployer.calculate_necessary_state_changes,
@@ -977,4 +975,3 @@ class P2PNodeDeployer(_OldToNewDeployer):
             #self.manifestations_deployer.calculate_necessary_state_changes(
             #    *args, **kwargs),
         ])
-
