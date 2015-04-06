@@ -6,20 +6,21 @@ The command-line ``flocker-deploy`` tool.
 
 from subprocess import CalledProcessError
 
-from twisted.internet.defer import DeferredList, succeed
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
 from zope.interface import implementer
 
-from yaml import safe_load, safe_dump
+from yaml import safe_load
 from yaml.error import YAMLError
 
 from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
+from ..common import gather_deferreds
+from ._sshconfig import OpenSSHConfiguration
 from ..control.httpapi import REST_API_PORT
 
 
@@ -130,6 +131,12 @@ class CLIScript(object):
     """
     A command-line script to interact with a cluster via the API.
     """
+    def __init__(self, ssh_configuration=None, ssh_port=22):
+        if ssh_configuration is None:
+            ssh_configuration = OpenSSHConfiguration.defaults()
+        self.ssh_configuration = ssh_configuration
+        self.ssh_port = ssh_port
+
     def main(self, reactor, options):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
@@ -137,7 +144,38 @@ class CLIScript(object):
         :return: A ``Deferred`` which fires when the deployment is complete or
                  has encountered an error.
         """
-        return succeed(None)
+        return self._configure_ssh(options["deployment_config"].keys())
+
+    def _configure_ssh(self, hostnames):
+        """
+        :param list hostnames: The addresses of the machines for which to
+            configure SSH keys.
+
+        :return: A ``Deferred`` which fires when all nodes have been configured
+        with ssh keys.
+        """
+        self.ssh_configuration.create_keypair()
+        results = []
+        for hostname in hostnames:
+            results.append(
+                deferToThread(
+                    self.ssh_configuration.configure_ssh,
+                    hostname.encode("ascii"), self.ssh_port
+                )
+            )
+        d = gather_deferreds(results)
+
+        # Exit with ssh's output if it failed for some reason:
+        def got_failure(failure):
+            if failure.value.subFailure.check(CalledProcessError):
+                raise SystemExit(
+                    b"Error connecting to cluster node: " +
+                    failure.value.subFailure.value.output)
+            else:
+                return failure
+
+        d.addErrback(got_failure)
+        return d
 
 
 def flocker_deploy_main():
