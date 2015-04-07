@@ -111,19 +111,20 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
     )
 
 
-def get_node_state(hostname):
+def get_node_state(cluster, hostname):
     """
     Get the applications on a node using the HTTP API.
 
+    :param Cluster cluster: The cluster to talk to.
     :param hostname: The hostname of the node.
 
-    :return: ``list`` of ``Application`` currently on that node.
+    :return: ``Deferred`` that fires with a tuple of the ``Cluster`` and a
+        ``list`` of ``Application`` currently on that node.
     """
-    d = get_test_cluster()
-    d = d.addCallback(lambda cluster: cluster.current_containers())
+    d = cluster.current_containers()
     d.addCallback(
-        lambda result: {app.name: app for app in result[1].values()
-                        if app[u"hostname"] == hostname})
+        lambda result: (cluster, {app.name: app for app in result[1]
+                                  if app[u"hostname"] == hostname}))
     return d
 
 
