@@ -347,6 +347,7 @@ Installing on CentOS 7
 Flocker requires the latest available kernel.
 
 .. task:: upgrade_kernel_centos
+   :prompt: [root@node]#
 
 Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
 Thus we need to reboot into the new kernel.
