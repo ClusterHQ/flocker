@@ -217,8 +217,8 @@ def task_upgrade_kernel_ubuntu():
         "linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
     ]
 
-    package_install_commands = [Run.from_args(["wget", packages_url + package])
-        for package in packages
+    package_install_commands = [
+        Run.from_args(["wget", packages_url + package]) for package in packages
     ]
 
     return [
@@ -230,9 +230,7 @@ def task_upgrade_kernel_ubuntu():
         # XXX This brings up a prompt about upgrading grub,
         # somehow work around that, see
         # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade  # noqa
-        Run.from_args([
-            "dpkg", "-i", "linux-headers-3.18.0-*.deb",
-            "linux-image-3.18.0-*.deb"]),
+        Run(command='dpkg -i linux-*.deb'),
         Run.from_args(['sync']),
     ]
 
@@ -249,11 +247,11 @@ def task_install_requirements_ubuntu():
         # somehow work around that, see
         # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
         Run.from_args([
-            "add-get", "-y", "upgrade"]),
+            "apt-get", "-y", "upgrade"]),
         Run.from_args([
-            "add-get", "-y", "install", "spl-dkms"]),
+            "apt-get", "-y", "install", "spl-dkms"]),
         Run.from_args([
-            "add-get", "-y", "install", "zfs-dkms", "zfsutils", "docker.io"]),
+            "apt-get", "-y", "install", "zfs-dkms", "zfsutils", "docker.io"]),
     ]
 
 
@@ -262,11 +260,11 @@ def task_install_flocker_ubuntu():
     # install from. When this is the case then I think some dependencies won't
     # need to be installed separately to clusterhq-flocker-node
     # XXX Replace this in FLOC-1065
-    packages_url = "http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/"
+    packages_url = "http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/"  # noqa
     packages = [
         {
            'name': "clusterhq-python-flocker",
-           'file': "clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb",
+           'file': "clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb",  # noqa
         },
         {
            'name': "clusterhq-flocker-node",
@@ -275,13 +273,15 @@ def task_install_flocker_ubuntu():
     ]
 
     download_packages = [
-        Run.from_args(["wget", "-O", package['name'],
-        packages_url + package['file']]) for package in packages
+        Run.from_args(
+            ["wget", "-O", package['name'], packages_url + package['file']]
+            ) for package in packages
     ]
 
     return download_packages + [
         Run.from_args([
-            "dpkg","-i", "clusterhq-python-flocker", "clusterhq-flocker-node"])
+            "dpkg", "-i", "clusterhq-python-flocker",
+            "clusterhq-flocker-node"])
     ]
 
 
