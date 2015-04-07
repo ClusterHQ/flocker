@@ -121,7 +121,8 @@ def comment(comment):
 
 def run_from_args(command):
     """
-    Run a shell command on a remote host.
+    Run a command on a remote host. This quotes the provided arguments, so they
+    are not interpreted by the shell.
 
     :param list command: The command to run.
 
@@ -132,7 +133,8 @@ def run_from_args(command):
 
 def sudo_from_args(command):
     """
-    Run a shell command on a remote host with sudo.
+    Run a command on a remote host with sudo. This quotes the provided
+    arguments, so they are not interpreted by the shell.
 
     :param list command: The command to run.
 
