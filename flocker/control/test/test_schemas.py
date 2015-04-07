@@ -541,6 +541,9 @@ CONFIGURATION_DATASET_PASSING_INSTANCES = [
     # maximum_size is an integer of at least 64MiB
     {u"primary": u"10.0.0.1", u"maximum_size": 1024 * 1024 * 64},
 
+    # maximum_size may be null, which means no size limit
+    {u"primary": u"10.0.0.1", u"maximum_size": None},
+
     # dataset_id is a string of 36 characters
     {u"primary": u"10.0.0.1", u"dataset_id": u"x" * 36},
 
