@@ -45,6 +45,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Cleanup
   config.vm.provision :shell, :path => "../cleanup.sh", :privileged => true
 
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
   end
