@@ -85,7 +85,7 @@ class CertificateAuthority(PRecord):
         """
         if not path.isdir():
             raise PathError(
-                b"Path {path} is not a xdirectory.".format(path=path.path)
+                b"Path {path} is not a directory.".format(path=path.path)
             )
 
         certPath = path.child("cluster.crt")

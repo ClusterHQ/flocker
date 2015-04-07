@@ -103,7 +103,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         st = os.stat(keyPath.path)
         self.assertEqual(b'0600', oct(st.st_mode & 0777))
 
-    def test_error_on_non_existent_path(self):
+    def test_create_error_on_non_existent_path(self):
         """
         An ``Exception`` is raised if the path given to
         ``CertificateAuthority.initialize`` does not exist.
@@ -111,6 +111,18 @@ class CertificateAuthorityTests(SynchronousTestCase):
         path = FilePath(self.mktemp())
         e = self.assertRaises(
             PathError, CertificateAuthority.initialize, path, b"mycluster"
+        )
+        expected = b"Path {path} is not a directory.".format(path=path.path)
+        self.assertEqual(str(e), expected)
+
+    def test_load_error_on_non_existent_path(self):
+        """
+        An ``Exception`` is raised if the path given to
+        ``CertificateAuthority.from_path`` does not exist.
+        """
+        path = FilePath(self.mktemp())
+        e = self.assertRaises(
+            PathError, CertificateAuthority.from_path, path
         )
         expected = b"Path {path} is not a directory.".format(path=path.path)
         self.assertEqual(str(e), expected)
