@@ -113,11 +113,23 @@ def run_with_fabric(username, address, commands):
 run = run_with_fabric
 
 
-def task_test_homebrew(recipe_url):
+def task_test_homebrew(recipe):
+    """
+    The commands used to install a Homebrew recipe for Flocker and test it.
+
+    This taps the ClusterHQ/tap tap, which means that Homebrew looks in the
+    ClusterHQ/homebrew-tap GitHub repository for any recipe name given.
+
+    :param bytes recipe: The name of a recipe in a either the official Homebrew
+        tap or ClusterHQ/tap, or a URL pointing to a recipe.
+    :return: List of commands used to install a Homebrew recipe for Flocker and
+        test it.
+    """
     return [
+        Run.from_args(['brew', 'tap', 'ClusterHQ/tap']),
         Run(command="brew update"),
-        Run(command="brew install {url}".format(url=recipe_url)),
-        Run(command="brew test {url}".format(url=recipe_url)),
+        Run(command="brew install {recipe}".format(recipe=recipe)),
+        Run(command="brew test {recipe}".format(recipe=recipe)),
     ]
 
 

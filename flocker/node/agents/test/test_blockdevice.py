@@ -5,25 +5,37 @@ Tests for ``flocker.node.agents.blockdevice``.
 """
 
 import os
-from uuid import uuid4
-from subprocess import check_output
+from uuid import UUID, uuid4
+from subprocess import STDOUT, PIPE, Popen, check_output
 
 from zope.interface.verify import verifyObject
+
+from pyrsistent import InvariantException
 
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
+from eliot.testing import validate_logging, LoggedAction
+
+from .. import blockdevice
+
 from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume,
-    _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id
+    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
+    DestroyVolume,
+    _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
+    DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
+    DESTROY_VOLUME,
 )
 
 from ... import InParallel, IStateChange
-from ...testtools import ideployer_tests_factory
-from ....control import Dataset, Manifestation, Node, NodeState, Deployment
+from ...testtools import ideployer_tests_factory, to_node
+from ....control import (
+    Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
+)
 
 GIBIBYTE = 2 ** 30
 REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
@@ -84,7 +96,8 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
         self.assertEqual(
             NodeState(
                 hostname=deployer.hostname,
-                manifestations=expected_manifestations,
+                manifestations={
+                    m.dataset_id: m for m in expected_manifestations},
                 paths=expected_paths,
             ),
             state
@@ -146,6 +159,164 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
         self.assertDiscoveredState(self.deployer, [])
 
 
+class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
+        SynchronousTestCase
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_necessary_state_changes``
+    in the cases relating to dataset destruction.
+    """
+    DATASET_ID = uuid4()
+    NODE = u"192.0.2.1"
+
+    # The state of a single node which has a single primary manifestation for a
+    # dataset.  Common starting point for several of the test scenarios.
+    ONE_DATASET_STATE = NodeState(
+        hostname=NODE,
+        manifestations={
+            unicode(DATASET_ID): Manifestation(
+                dataset=Dataset(
+                    dataset_id=unicode(DATASET_ID),
+                ),
+                primary=True,
+            ),
+        },
+        paths={
+            unicode(DATASET_ID):
+            FilePath(b"/flocker/").child(bytes(DATASET_ID)),
+        },
+    )
+
+    def test_undeleted_dataset_not_deleted(self):
+        """
+        ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
+        calculate a change to destroy datasets that are not marked as deleted
+        in the configuration.
+        """
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state)
+
+        cluster_state = Deployment(
+            nodes={local_config}
+        )
+
+        cluster_configuration = Deployment(
+            nodes={local_config}
+        )
+
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=self.DATASET_ID, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        api.attach_volume(volume.blockdevice_id, self.NODE)
+
+        deployer = BlockDeviceDeployer(
+            hostname=self.NODE,
+            block_device_api=api,
+        )
+
+        changes = deployer.calculate_necessary_state_changes(
+            local_state=self.ONE_DATASET_STATE,
+            desired_configuration=cluster_configuration,
+            current_cluster_state=cluster_state,
+        )
+
+        self.assertEqual(
+            InParallel(changes=[]),
+            changes
+        )
+
+    def test_deleted_dataset_volume_exists(self):
+        """
+        If the configuration indicates a dataset with a primary manifestation
+        on the node has been deleted and the volume associated with
+        that dataset still exists,
+        ``BlockDeviceDeployer.calculate_necessary_state_changes``
+        returns a ``DestroyBlockDeviceDataset`` state change
+        operation.
+        """
+        local_state = self.ONE_DATASET_STATE
+        cluster_state = Deployment(
+            nodes={to_node(local_state)}
+        )
+
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        cluster_configuration = Deployment(
+            nodes={local_config}
+        )
+
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=self.DATASET_ID, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = api.attach_volume(volume.blockdevice_id, self.NODE)
+
+        deployer = BlockDeviceDeployer(
+            hostname=self.NODE,
+            block_device_api=api,
+        )
+
+        changes = deployer.calculate_necessary_state_changes(
+            local_state=local_state,
+            desired_configuration=cluster_configuration,
+            current_cluster_state=cluster_state,
+        )
+
+        self.assertEqual(
+            InParallel(changes=[
+                DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
+            ]),
+            changes
+        )
+
+    def test_deleted_dataset_belongs_to_other_node(self):
+        """
+        If a dataset with a primary manifestation on one node is marked as
+        deleted in the configuration, the ``BlockDeviceDeployer`` for a
+        different node does not return a ``DestroyBlockDeviceDataset`` from its
+        ``calculate_necessary_state_changes`` for that dataset.
+        """
+        other_node = u"192.0.2.2"
+        local_state = self.ONE_DATASET_STATE
+        cluster_state = Deployment(
+            nodes={to_node(local_state)}
+        )
+
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True
+        )
+        cluster_configuration = Deployment(
+            nodes={local_config}
+        )
+
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=self.DATASET_ID, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        api.attach_volume(volume.blockdevice_id, self.NODE)
+
+        deployer = BlockDeviceDeployer(
+            # This deployer is responsible for *other_node*, not node.
+            hostname=other_node,
+            block_device_api=api,
+        )
+
+        changes = deployer.calculate_necessary_state_changes(
+            local_state=NodeState(hostname=other_node),
+            desired_configuration=cluster_configuration,
+            current_cluster_state=cluster_state,
+        )
+
+        self.assertEqual(
+            InParallel(changes=[]),
+            changes
+        )
+
+
 class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         SynchronousTestCase
 ):
@@ -172,7 +343,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
                 )
             }
         )
-        state = Deployment(nodes=[])
+        state = DeploymentState(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
             hostname=node,
@@ -204,7 +375,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
                 )
             }
         )
-        state = Deployment(nodes=[])
+        state = DeploymentState(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
             hostname=node,
@@ -244,8 +415,8 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             ``BlockDeviceDeployer.calculate_necessary_state_changes``.
         """
         # Control service still reports that this node has no manifestations.
-        current_cluster_state = Deployment(
-            nodes={Node(hostname=local_hostname)}
+        current_cluster_state = DeploymentState(
+            nodes={NodeState(hostname=local_hostname)}
         )
 
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
@@ -280,7 +451,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         # already on this node.
         local_state = NodeState(
             hostname=local_hostname,
-            manifestations=[manifestation],
+            manifestations={dataset_id: manifestation},
             paths={dataset_id: FilePath('/foo/bar')}
         )
 
@@ -321,6 +492,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
                 )
             },
             manifestations={
+                expected_dataset_id:
                 Manifestation(
                     primary=True,
                     dataset=Dataset(
@@ -337,60 +509,18 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
 
         # Give the dataset some metadata in the configuration, thus diverging
         # it from the representation in local_state.
-        desired_node_configuration = local_state.to_node().transform(
-            ("manifestations", expected_dataset_id, "dataset", "metadata"),
-            {u"name": u"my_volume"}
-        )
-        desired_configuration = Deployment(nodes=[desired_node_configuration])
-
-        actual_changes = self._calculate_changes(
-            expected_hostname,
-            local_state,
-            desired_configuration
-        )
-
-        expected_changes = InParallel(changes=[])
-
-        self.assertEqual(expected_changes, actual_changes)
-
-    def test_ignore_deleted_datasets(self):
-        """
-        Deleted datasets in the supplied configuration do not result in
-        ``CreateBlockDeviceDataset`` changes.
-        """
-        expected_hostname = u'192.0.2.123'
-        expected_dataset_id = unicode(uuid4())
-        local_state = NodeState(
+        desired_configuration = Deployment(nodes=[Node(
             hostname=expected_hostname,
-            paths={},
-            manifestations=[]
-        )
-
-        desired_configuration = Deployment(
-            nodes=[
-                Node(
-                    hostname=expected_hostname,
-                    manifestations={
-                        expected_dataset_id: Manifestation(
-                            primary=True,
-                            dataset=Dataset(
-                                dataset_id=expected_dataset_id,
-                                maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
-                                # There's a dataset in the configuration but
-                                # it's deleted and should not be recreated.
-                                deleted=True,
-                            )
-                        )
-                    }
-                )
-            ]
-        )
-
+            manifestations=local_state.manifestations.transform(
+                (expected_dataset_id, "dataset", "metadata"),
+                {u"name": u"my_volume"}
+            ))])
         actual_changes = self._calculate_changes(
             expected_hostname,
             local_state,
             desired_configuration
         )
+
         expected_changes = InParallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
@@ -664,6 +794,172 @@ class IBlockDeviceAPITestsMixin(object):
         device_path2 = self.api.get_device_path(attached_volume.blockdevice_id)
 
         self.assertEqual(device_path1, device_path2)
+
+    def test_destroy_unknown_volume(self):
+        """
+        ``destroy_volume`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` does not exist.
+        """
+        blockdevice_id = unicode(uuid4)
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.destroy_volume, blockdevice_id=blockdevice_id
+        )
+        self.assertEqual(exception.args, (blockdevice_id,))
+
+    def test_destroy_volume(self):
+        """
+        An unattached volume can be destroyed using ``destroy_volume``.
+        """
+        unrelated = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.api.destroy_volume(volume.blockdevice_id)
+        self.assertEqual([unrelated], self.api.list_volumes())
+
+    def _destroyed_volume(self):
+        """
+        :return: A ``BlockDeviceVolume`` representing a volume which has been
+            destroyed.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        self.api.destroy_volume(volume.blockdevice_id)
+        return volume
+
+    def test_destroy_destroyed_volume(self):
+        """
+        ``destroy_volume`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` was associated with a volume but that volume has
+        been destroyed.
+        """
+        volume = self._destroyed_volume()
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.destroy_volume, blockdevice_id=volume.blockdevice_id
+        )
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
+
+    def test_detach_unknown_volume(self):
+        """
+        ``detach_volume`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` does not exist.
+        """
+        blockdevice_id = unicode(uuid4)
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.detach_volume, blockdevice_id=blockdevice_id
+        )
+        self.assertEqual(exception.args, (blockdevice_id,))
+
+    def test_detach_detached_volume(self):
+        """
+        ``detach_volume`` raises ``UnattachedVolume`` if the supplied
+        ``blockdevice_id`` is not attached to a host.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        exception = self.assertRaises(
+            UnattachedVolume,
+            self.api.detach_volume, volume.blockdevice_id
+        )
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
+
+    def test_detach_volume(self):
+        """
+        A volume that is attached becomes detached after ``detach_volume`` is
+        called with its ``blockdevice_id``.
+        """
+        def fail_mount(device):
+            mountpoint = FilePath(self.mktemp())
+            mountpoint.makedirs()
+            process = Popen(
+                [b"mount", device_path.path, mountpoint.path],
+                stdout=PIPE,
+                stderr=STDOUT
+            )
+            output = process.stdout.read()
+            process.wait()
+            return output
+
+        node = u"192.0.2.1"
+
+        # Create an unrelated, attached volume that should be undisturbed.
+        unrelated = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        unrelated = self.api.attach_volume(unrelated.blockdevice_id, node)
+
+        # Create the volume we'll detach.
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = self.api.attach_volume(
+            volume.blockdevice_id, node
+        )
+
+        device_path = self.api.get_device_path(volume.blockdevice_id)
+
+        attached_error = fail_mount(device_path)
+
+        self.api.detach_volume(volume.blockdevice_id)
+
+        self.assertEqual(
+            {unrelated, volume.set(host=None)},
+            set(self.api.list_volumes())
+        )
+
+        detached_error = fail_mount(device_path)
+
+        # Make an incredibly indirect assertion to try to demonstrate we've
+        # successfully detached the device.  The volume never had a filesystem
+        # initialized on it so we couldn't mount it before when it was
+        # attached.  Now that it's detached we still shouldn't be able to mount
+        # it - but the reason we can't mount it should have changed.
+        #
+        # This isn't particularly great, no.
+        self.assertNotEqual(attached_error, detached_error)
+
+    def test_reattach_detached_volume(self):
+        """
+        A volume that has been detached can be re-attached.
+        """
+        node = u"192.0.2.4"
+        # Create the volume we'll detach.
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        attached_volume = self.api.attach_volume(
+            volume.blockdevice_id, node
+        )
+        self.api.detach_volume(volume.blockdevice_id)
+        reattached_volume = self.api.attach_volume(
+            volume.blockdevice_id, node
+        )
+        self.assertEqual(
+            (attached_volume, [attached_volume]),
+            (reattached_volume, self.api.list_volumes())
+        )
+
+    def test_attach_destroyed_volume(self):
+        """
+        ``attach_volume`` raises ``UnknownVolume`` when called with the
+        ``blockdevice_id`` of a volume which has been destroyed.
+        """
+        node = u"192.0.2.5"
+        volume = self._destroyed_volume()
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.attach_volume, volume.blockdevice_id, node
+        )
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
 
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
@@ -955,24 +1251,276 @@ def mountroot_for_test(test_case):
     return mountroot
 
 
-class CreateBlockDeviceDatasetTests(SynchronousTestCase):
+class _StateChangeTestsMixin(object):
+    """
+    Implementation of the general tests generated by
+    ``make_state_change_tests``.
+    """
+    state_change = None
+
+    def test_interface(self):
+        """
+        Instances of the type provide ``IStateChange``.
+        """
+        self.assertTrue(verifyObject(IStateChange, self.state_change()))
+
+
+def make_state_change_tests(state_change):
+    """
+    Make some general tests that apply to any ``IStateChange`` implementation.
+
+    :param state_change: A no-argument callable that returns the
+        ``IStateChange`` provider to be tested.
+    """
+    class Tests(SynchronousTestCase, _StateChangeTestsMixin):
+        def setUp(self):
+            self.state_change = state_change
+    return Tests
+
+
+_ARBITRARY_VOLUME = BlockDeviceVolume(
+    blockdevice_id=u"abcd",
+    size=REALISTIC_BLOCKDEVICE_SIZE,
+    dataset_id=uuid4(),
+)
+
+
+def _make_destroy_dataset():
+    """
+    Make a ``DestroyBlockDeviceDataset`` instance for
+    ``make_state_change_tests``.
+    """
+    return DestroyBlockDeviceDataset(
+        dataset_id=_ARBITRARY_VOLUME.dataset_id,
+    )
+
+
+class DestroyBlockDeviceDatasetTests(
+        make_state_change_tests(_make_destroy_dataset)
+):
+    """
+    Tests for ``DestroyBlockDeviceDataset``.
+    """
+    def test_dataset_id_required(self):
+        """
+        If ``dataset_id`` is not supplied when initializing
+        ``DestroyBlockDeviceDataset``, ``InvariantException`` is raised.
+        """
+        self.assertRaises(InvariantException, DestroyBlockDeviceDataset)
+
+    def test_dataset_id_must_be_uuid(self):
+        """
+        If the value given for ``dataset_id`` is not an instance of ``UUID``
+        when initializing ``DestroyBlockDeviceDataset``, ``TypeError`` is
+        raised.
+        """
+        self.assertRaises(
+            TypeError, DestroyBlockDeviceDataset, dataset_id=object()
+        )
+
+    def test_equal(self):
+        """
+        Two ``DestroyBlockDeviceDataset`` instances compare as equal if they
+        are initialized with the same dataset identifier.
+        """
+        dataset_id = unicode(uuid4())
+        # Avoid using the same instance, just provide the same value.
+        a = DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
+        b = DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
+        self.assertTrue(a == b)
+
+    def test_not_equal(self):
+        """
+        Two ``DestroyBlockDeviceDataset`` instances compare as not equal if
+        they are initialized with different dataset identifiers.
+        """
+        a = DestroyBlockDeviceDataset(dataset_id=uuid4())
+        b = DestroyBlockDeviceDataset(dataset_id=uuid4())
+        self.assertTrue(a != b)
+
+    def verify_run_log(self, logger):
+        # One action is logged
+        [action] = LoggedAction.of_type(
+            logger.messages, DESTROY_BLOCK_DEVICE_DATASET
+        )
+        # Child actions are logged
+        [unmount] = LoggedAction.of_type(logger.messages, UNMOUNT_BLOCK_DEVICE)
+        [detach] = LoggedAction.of_type(logger.messages, DETACH_VOLUME)
+        [destroy] = LoggedAction.of_type(logger.messages, DESTROY_VOLUME)
+        self.assertEqual([unmount, detach, destroy], action.children)
+
+    @validate_logging(verify_run_log)
+    def test_run(self, logger):
+        """
+        After running ``DestroyBlockDeviceDataset``, its volume has been
+        unmounted, detached, and destroyed.
+        """
+        self.patch(blockdevice, "_logger", logger)
+
+        node = u"192.0.2.3"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = api.attach_volume(volume.blockdevice_id, node)
+        device = api.get_device_path(volume.blockdevice_id)
+        mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
+        mountpoint.makedirs()
+        check_output([b"mkfs", b"-t", b"ext4", device.path])
+        check_output([b"mount", device.path, mountpoint.path])
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+            mountroot=mountroot,
+        )
+        change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
+        self.successResultOf(change.run(deployer))
+
+        # It's only possible to destroy a volume that's been detached.  It's
+        # only possible to detach a volume that's been unmounted.  If the
+        # volume doesn't exist, all three things we wanted to happen have
+        # happened.
+        self.assertEqual([], api.list_volumes())
+
+
+def _make_unmount():
+    """
+    Make an ``UnmountBlockDevice`` instance for ``make_state_change_tests``.
+    """
+    return UnmountBlockDevice(
+        volume=_ARBITRARY_VOLUME,
+    )
+
+
+class UnmountBlockDeviceTests(make_state_change_tests(_make_unmount)):
+    """
+    Tests for ``UnmountBlockDevice``.
+    """
+    def test_run(self):
+        """
+        ``UnmountBlockDevice.run`` unmounts the filesystem / block device
+        associated with the volume passed to it (association as determined by
+        the deployer's ``IBlockDeviceAPI`` provider).
+        """
+        node = u"192.0.2.1"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = api.attach_volume(volume.blockdevice_id, node)
+        device = api.get_device_path(volume.blockdevice_id)
+        mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
+        mountpoint.makedirs()
+        check_output([b"mkfs", b"-t", b"ext4", device.path])
+        check_output([b"mount", device.path, mountpoint.path])
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+            mountroot=mountroot,
+        )
+
+        change = UnmountBlockDevice(volume=volume)
+        self.successResultOf(change.run(deployer))
+        self.assertNotIn(
+            device,
+            [device_path for (device_path, ignored, ignored) in get_mounts()]
+        )
+
+
+def _make_detach():
+    """
+    Make a ``DetachVolume`` for ``make_state_change_tests``.
+    """
+    return DetachVolume(
+        volume=_ARBITRARY_VOLUME,
+    )
+
+
+class DetachVolumeTests(make_state_change_tests(_make_detach)):
+    """
+    Tests for ``DetachVolume``.
+    """
+    def test_run(self):
+        """
+        ``DetachVolume.run`` uses the deployer's ``IBlockDeviceAPI`` to detach
+        its volume from the deployer's node.
+        """
+        node = u"192.0.2.1"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        volume = api.attach_volume(volume.blockdevice_id, node)
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+        )
+
+        change = DetachVolume(volume=volume)
+        self.successResultOf(change.run(deployer))
+
+        [volume] = api.list_volumes()
+        self.assertIs(None, volume.host)
+
+
+def _make_destroy_volume():
+    """
+    Make a ``DestroyVolume`` for ``make_state_change_tests``.
+    """
+    return DestroyVolume(
+        volume=_ARBITRARY_VOLUME,
+    )
+
+
+class DestroyVolumeTests(make_state_change_tests(_make_destroy_volume)):
+    """
+    Tests for ``DestroyVolume``.
+    """
+    def test_run(self):
+        """
+        ``DestroyVolume.run`` uses the deployer's ``IBlockDeviceAPI`` to
+        destroy its volume.
+        """
+        node = u"192.0.2.1"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+        )
+
+        change = DestroyVolume(volume=volume)
+        self.successResultOf(change.run(deployer))
+
+        self.assertEqual([], api.list_volumes())
+
+
+def _make_create():
+    """
+    Make a ``CreateBlockDeviceDataset`` for ``make_state_change_tests``.
+    """
+    return CreateBlockDeviceDataset(
+        dataset=Dataset(dataset_id=unicode(uuid4())),
+        mountpoint=FilePath('.')
+    )
+
+
+class CreateBlockDeviceDatasetTests(make_state_change_tests(_make_create)):
     """
     Tests for ``CreateBlockDeviceDataset``.
     """
-    def test_interface(self):
-        """
-        ``CreateBlockDeviceDataset`` provides ``IStateChange``.
-        """
-        self.assertTrue(
-            verifyObject(
-                IStateChange,
-                CreateBlockDeviceDataset(
-                    dataset=Dataset(dataset_id=unicode(uuid4())),
-                    mountpoint=FilePath('.')
-                )
-            )
-        )
-
     def _create_blockdevice_dataset(self, host, dataset_id, maximum_size):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.

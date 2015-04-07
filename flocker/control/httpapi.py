@@ -759,7 +759,8 @@ class ConfigurationAPIUserV1(object):
         Remove a container from the configuration.
 
         This will lead to the container being stopped and not being
-        restarted again.
+        restarted again. Any datasets that were attached as volumes will
+        continue to exist on the cluster.
         """,
         examples=[
             u"remove a container",
@@ -867,7 +868,10 @@ def container_configuration_response(application, node):
     result.update(ApplicationMarshaller(application).convert())
     # Configuration format isn't quite the same as JSON format:
     if u"volume" in result:
-        result[u"volumes"] = [result.pop(u"volume")]
+        # Config format includes maximum_size, which we don't want:
+        volume = result.pop(u"volume")
+        result[u"volumes"] = [{u"dataset_id": volume[u"dataset_id"],
+                               u"mountpoint": volume[u"mountpoint"]}]
     if application.cpu_shares is not None:
         result["cpu_shares"] = application.cpu_shares
     if application.memory_limit is not None:
