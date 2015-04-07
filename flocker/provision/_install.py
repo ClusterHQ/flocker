@@ -219,7 +219,7 @@ def task_disable_selinux():
     See https://clusterhq.atlassian.net/browse/FLOC-619.
     """
     return [
-        Run(command="setenforce 0"),
+        Run(command="selinuxenabled && setenforce 0"),
         Run(
             command=(
                 "test -e /etc/selinux/config && "
