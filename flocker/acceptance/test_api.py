@@ -588,7 +588,9 @@ class DatasetAPITests(TestCase):
         The size of a dataset can be increased.
         """
         # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE
-        creating = create_dataset(maximum_size=REALISTIC_BLOCKDEVICE_SIZE)
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
         new_size = REALISTIC_BLOCKDEVICE_SIZE * 2
         def resize_dataset(result):
             cluster, dataset = result
