@@ -372,7 +372,7 @@ First disable SELinux.
    :prompt: [root@node]#
 
 .. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
-          This prevents Docker containers accessing those filesystems as volumes.
+          This prevents Docker containers from accessing those filesystems as volumes.
           A future version of Flocker may provide a different integration strategy.
           See https://clusterhq.atlassian.net/browse/FLOC-619.
 
