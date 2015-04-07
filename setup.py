@@ -76,9 +76,6 @@ dev_requirements = [
     # Packages are downloaded from Buildbot
     "requests==2.4.3",
     "requests-file==1.0",
-
-    # Functional programming is used in the release process.
-    "effect==0.1a13",
 ]
 
 # The test suite uses network namespaces
@@ -160,6 +157,9 @@ setup(
         "jsonschema == 2.4.0",
         "klein == 0.2.3",
         "pyrsistent == 0.9.1",
+
+        # This is used for provisioning code.
+        "effect==0.1a13",
         ],
 
     extras_require={
@@ -185,7 +185,6 @@ setup(
             "PyCrypto",
             "pyasn1",
             "tl.eggdeps",
-            "effect==0.1a13",
             "boto==2.30.0",
             # Packages are downloaded from Buildbot
             "requests==2.4.3",
