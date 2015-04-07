@@ -2355,6 +2355,15 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
             }
         )
 
+    def test_remove_limit(self):
+        """
+        A dataset maximum_size can be removed.
+        """
+        return self.assert_dataset_resize(
+            original_size=REALISTIC_BLOCKDEVICE_SIZE,
+            new_size=None
+        )
+
 
 RealTestsUpdateSizeDataset, MemoryTestsUpdateSizeDataset = (
     buildIntegrationTests(
