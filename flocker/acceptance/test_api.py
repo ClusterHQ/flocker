@@ -462,12 +462,13 @@ class ContainerAPITests(TestCase):
         return creating
 
 
-def create_dataset(test_case):
+def create_dataset(test_case, maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
     """
     Create a dataset on a single-node cluster.
 
     :param TestCase test_case: The test the API is running on.
-
+    :param int maximum_size: The size of the dataset to create on the test
+        cluster. Defaults to ``REALISTIC_BLOCKDEVICE_SIZE``.
     :return: ``Deferred`` firing with a tuple of (``Cluster``
         instance, dataset dictionary) once the dataset is present in
         actual cluster state.
@@ -483,7 +484,7 @@ def create_dataset(test_case):
         requested_dataset = {
             u"primary": cluster.nodes[0].address,
             u"dataset_id": unicode(uuid4()),
-            u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
+            u"maximum_size": maximum_size,
             u"metadata": {u"name": u"my_volume"},
         }
 
@@ -587,7 +588,7 @@ class DatasetAPITests(TestCase):
         The size of a dataset can be increased.
         """
         # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE
-        creating = self._create_test()
+        creating = create_dataset(maximum_size=REALISTIC_BLOCKDEVICE_SIZE)
         new_size = REALISTIC_BLOCKDEVICE_SIZE * 2
         def resize_dataset(result):
             cluster, dataset = result
