@@ -136,6 +136,7 @@ setup(
             'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
             'flocker = flocker.cli.script:flocker_cli_main',
+            'flocker-provision = flocker.provision.script:flocker_provision_main',
         ],
     },
 

@@ -3,7 +3,8 @@
 """
 The command-line ``flocker-provision`` tool.
 """
-from twisted.internet.defer import succeed
+import yaml
+from twisted.internet.defer import succeed, fail
 from twisted.python.usage import Options
 
 from zope.interface import implementer
@@ -12,6 +13,11 @@ from flocker.cli.script import FEEDBACK_CLI_TEXT
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
+
+from flocker.provision import CLOUD_PROVIDERS, PackageSource
+from flocker.provision._install import (
+    configure_cluster,
+)
 
 
 class CreateOptions(Options):
@@ -22,8 +28,10 @@ class CreateOptions(Options):
         ['rackspace-username', None, None, 'Rackspace account username'],
         ['rackspace-api-key', None, None, 'Rackspace API key'],
         ['rackspace-region', None, None, 'Rackspace region'],
+        ['rackspace-ssh-key-name', None, None, 'Name of Rackspace SSH key.'],
         ['num-agent-nodes', 'n', 3, 'how many nodes to create'],
     ]
+
 
 @flocker_standard_options
 class ProvisionOptions(Options):
@@ -46,6 +54,45 @@ class ProvisionOptions(Options):
         pass
 
 
+def create(reactor, options):
+    # Only rackspace for the moment
+    provisioner = CLOUD_PROVIDERS[options['driver']](
+        username=options['rackspace-username'],
+        key=options['rackspace-api-key'],
+        region=options['rackspace-region'],
+        keyname=options['rackspace-ssh-key-name'],
+    )
+
+    nodes = []
+    for index in range(options['num-agent-nodes'] + 1):
+        name = "flocker-provisioning-script-%d" % (index,)
+        try:
+            print "Creating node %d: %s" % (index, name)
+            node = provisioner.create_node(
+                name=name,
+                distribution='centos-7',
+            )
+        except:
+            print "Error creating node %d: %s" % (index, name)
+            print "It may have leaked into the cloud."
+            raise
+
+        nodes.append(node)
+
+        node.provision(package_source=PackageSource(),
+                       variants=set())
+        del node
+
+    control_node = nodes[0].address
+    agent_nodes = [node.address for node in nodes[1:]]
+    configure_cluster(control_node=control_node, agent_nodes=agent_nodes)
+    print yaml.safe_dump({
+        'control_node': control_node,
+        'agent_nodes': agent_nodes,
+    })
+    return succeed(None)
+
+
 @implementer(ICommandLineScript)
 class ProvisionScript(object):
     """
@@ -58,7 +105,10 @@ class ProvisionScript(object):
         :return: A ``Deferred`` which fires when the deployment is complete or
                  has encountered an error.
         """
-        return succeed(None)
+        if options.subCommand == 'create':
+            return create(reactor, options.subOptions)
+        else:
+            return fail(ValueError("Unknown subCommand."))
 
 
 def flocker_provision_main():
