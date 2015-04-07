@@ -678,10 +678,9 @@ class DatasetAPITests(TestCase):
 
         def check_dataset_size(result):
             cluster, dataset = result
-            import pdb; pdb.set_trace()
-            # Check that the configuration response has the expected size.
-            self.assertEqual(new_size, dataset['maximum_size'])
-            # Wait for the dataset to have the expected size.
+            # If there is no maximum_size, the configuration response will not
+            # contain that key
+            self.assertNotIn(u'maximum_size', dataset.keys())
             return cluster.wait_for_dataset(dataset)
 
         checking = resizing.addCallback(check_dataset_size)
