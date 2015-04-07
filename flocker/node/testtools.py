@@ -18,6 +18,8 @@ from twisted.trial.unittest import TestCase
 
 from zope.interface.verify import verifyObject
 
+from eliot import Logger, ActionType
+
 from ._deploy import _OldToNewDeployer
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
@@ -81,6 +83,9 @@ def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
     return loop_until(check_if_in_states)
 
 
+CONTROLLABLE_ACTION_TYPE = ActionType(u"test:controllableaction", [], [])
+
+
 @implementer(IStateChange)
 @attributes(['result'])
 class ControllableAction(object):
@@ -89,6 +94,12 @@ class ControllableAction(object):
     """
     called = False
     deployer = None
+
+    _logger = Logger()
+
+    @property
+    def eliot_action(self):
+        return CONTROLLABLE_ACTION_TYPE(self._logger)
 
     def run(self, deployer):
         self.called = True

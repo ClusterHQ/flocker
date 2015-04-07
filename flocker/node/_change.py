@@ -14,11 +14,13 @@ providers.
 changes.
 """
 
-from zope.interface import Interface, implementer
+from zope.interface import Interface, Attribute, implementer
 
 from pyrsistent import PVector, PRecord, pvector, field
 
 from twisted.internet.defer import succeed
+
+from eliot.twisted import DeferredContext
 
 from ..common import gather_deferreds
 
@@ -27,6 +29,11 @@ class IStateChange(Interface):
     """
     An operation that changes local state.
     """
+    eliot_action = Attribute(
+        "An ``eliot.ActionType`` within the context of which to execute this "
+        "state change's run method."
+    )
+
     def run(deployer):
         """
         Apply the change to local state.
@@ -77,7 +84,10 @@ def run_state_change(change, deployer):
             )
         return d
 
-    return change.run(deployer)
+    with change.eliot_action.context():
+        context = DeferredContext(change.run(deployer))
+        context.addActionFinish()
+        return context.result
 
 
 # run_state_change doesn't use the IStateChange implementation provided by
@@ -86,6 +96,10 @@ def run_state_change(change, deployer):
 @implementer(IStateChange)
 class _InParallel(PRecord):
     changes = field(type=PVector, factory=pvector, mandatory=True)
+
+    # Supplied so we technically conform to the interface.  This won't actually
+    # be used.
+    eliot_action = None
 
     def run(self, deployer):
         return run_state_change(self, deployer)
@@ -104,6 +118,9 @@ def in_parallel(changes):
 @implementer(IStateChange)
 class _Sequentially(PRecord):
     changes = field(type=PVector, factory=pvector, mandatory=True)
+
+    # See comment for _InParallel.eliot_action.
+    eliot_action = None
 
     def run(self, deployer):
         return run_state_change(self, deployer)
