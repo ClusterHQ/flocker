@@ -4,26 +4,20 @@
 Tests for the control service REST API.
 """
 
-from os import environ
 import socket
 
 from uuid import uuid4
-from json import dumps
 
-from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
-from twisted.web.http import OK, CREATED
 
-from unittest import SkipTest
-from treq import get, post, delete, json_content
-from pyrsistent import PRecord, field, CheckedPVector
+from treq import get, json_content
 
 from ..testtools import loop_until, random_name
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
 )
 from ..node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
-from ..control.httpapi import REST_API_PORT
+from .testtools import get_test_cluster
 
 
 def verify_socket(host, port):
@@ -44,263 +38,6 @@ def verify_socket(host, port):
     return dl
 
 
-class Node(PRecord):
-    """
-    A record of a cluster node.
-
-    :ivar bytes address: The IPv4 address of the node.
-    """
-    address = field(type=bytes)
-
-
-class _NodeList(CheckedPVector):
-    """
-    A list of nodes.
-
-    See https://github.com/tobgu/pyrsistent/issues/26 for more succinct
-    idiom combining this with ``field()``.
-    """
-    __type__ = Node
-
-
-def check_and_decode_json(result, response_code):
-    """
-    Given ``treq`` response object, extract JSON and ensure response code
-    is the expected one.
-
-    :param result: ``treq`` response.
-    :param int response_code: Expected response code.
-
-    :return: ``Deferred`` firing with decoded JSON.
-    """
-    if result.code != response_code:
-        raise ValueError("Unexpected response code:", result.code)
-    return json_content(result)
-
-
-class Cluster(PRecord):
-    """
-    A record of the control service and the nodes in a cluster for acceptance
-    testing.
-
-    :param Node control_node: The node running the ``flocker-control``
-        service.
-    :param list nodes: The ``Node`` s in this cluster.
-    """
-    control_node = field(type=Node)
-    nodes = field(type=_NodeList)
-
-    @property
-    def base_url(self):
-        """
-        :returns: The base url for API requests to this cluster's control
-            service.
-        """
-        return b"http://{}:{}/v1".format(
-            self.control_node.address, REST_API_PORT
-        )
-
-    def datasets_state(self):
-        """
-        Return the actual dataset state of the cluster.
-
-        :return: ``Deferred`` firing with a list of dataset dictionaries,
-            the state of the cluster.
-        """
-        request = get(self.base_url + b"/state/datasets", persistent=False)
-        request.addCallback(check_and_decode_json, OK)
-        return request
-
-    def wait_for_dataset(self, dataset_properties):
-        """
-        Poll the dataset state API until the supplied dataset exists.
-
-        :param dict dataset_properties: The attributes of the dataset that
-            we're waiting for.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties appears in
-            the cluster.
-        """
-        def created():
-            """
-            Check the dataset state list for the expected dataset.
-            """
-            request = self.datasets_state()
-
-            def got_body(body):
-                # State listing doesn't have metadata or deleted, but does
-                # have unpredictable path.
-                expected_dataset = dataset_properties.copy()
-                del expected_dataset[u"metadata"]
-                del expected_dataset[u"deleted"]
-                for dataset in body:
-                    dataset.pop("path")
-                return expected_dataset in body
-            request.addCallback(got_body)
-            return request
-
-        waiting = loop_until(created)
-        waiting.addCallback(lambda ignored: (self, dataset_properties))
-        return waiting
-
-    def create_dataset(self, dataset_properties):
-        """
-        Create a dataset with the supplied ``dataset_properties``.
-
-        :param dict dataset_properties: The properties of the dataset to
-            create.
-        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
-            API response when a dataset with the supplied properties has been
-            persisted to the cluster configuration.
-        """
-        request = post(
-            self.base_url + b"/configuration/datasets",
-            data=dumps(dataset_properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, CREATED)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
-        return request
-
-    def update_dataset(self, dataset_id, dataset_properties):
-        """
-        Update a dataset with the supplied ``dataset_properties``.
-
-        :param unicode dataset_id: The uuid of the dataset to be modified.
-        :param dict dataset_properties: The properties of the dataset to
-            create.
-        :returns: A 2-tuple of (cluster, api_response)
-        """
-        request = post(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
-            data=dumps(dataset_properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
-        return request
-
-    def delete_dataset(self, dataset_id):
-        """
-        Delete a dataset.
-
-        :param unicode dataset_id: The uuid of the dataset to be modified.
-
-        :returns: A 2-tuple of (cluster, api_response)
-        """
-        request = delete(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        # Return cluster and API response
-        request.addCallback(lambda response: (self, response))
-        return request
-
-    def create_container(self, properties):
-        """
-        Create a container with the specified properties.
-
-        :param dict properties: A ``dict`` mapping to the API request fields
-            to create a container.
-
-        :returns: A tuple of (cluster, api_response)
-        """
-        request = post(
-            self.base_url + b"/configuration/containers",
-            data=dumps(properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, CREATED)
-        request.addCallback(lambda response: (self, response))
-        return request
-
-    def remove_container(self, name):
-        """
-        Remove a container.
-
-        :param unicode name: The name of the container to remove.
-
-        :returns: A tuple of (cluster, api_response)
-        """
-        request = delete(
-            self.base_url + b"/configuration/containers/" +
-            name.encode("ascii"),
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
-        return request
-
-    def current_containers(self):
-        """
-        Get current containers.
-
-        :return: A ``Deferred`` firing with a tuple (cluster instance, API
-            response).
-        """
-        request = get(
-            self.base_url + b"/state/containers",
-            persistent=False
-        )
-
-        request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
-        return request
-
-
-def get_test_cluster(test_case, node_count):
-    """
-    Build a ``Cluster`` instance with at least ``node_count`` nodes.
-
-    :param TestCase test_case: The test case instance on which to register
-        cleanup operations.
-    :param int node_count: The number of nodes to request in the cluster.
-    :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
-    """
-    control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
-
-    if control_node is None:
-        raise SkipTest(
-            "Set acceptance testing control node IP address using the " +
-            "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
-
-    agent_nodes_env_var = environ.get('FLOCKER_ACCEPTANCE_AGENT_NODES')
-
-    if agent_nodes_env_var is None:
-        raise SkipTest(
-            "Set acceptance testing node IP addresses using the " +
-            "FLOCKER_ACCEPTANCE_AGENT_NODES environment variable and a " +
-            "colon separated list.")
-
-    agent_nodes = filter(None, agent_nodes_env_var.split(':'))
-
-    if len(agent_nodes) < node_count:
-        raise SkipTest("This test requires a minimum of {necessary} nodes, "
-                       "{existing} node(s) are set.".format(
-                           necessary=node_count, existing=len(agent_nodes)))
-
-    return succeed(Cluster(
-        control_node=Node(address=control_node),
-        nodes=map(lambda address: Node(address=address), agent_nodes),
-    ))
-
-
 class ContainerAPITests(TestCase):
     """
     Tests for the container API.
@@ -319,7 +56,7 @@ class ContainerAPITests(TestCase):
             u"ports": [{u"internal": 80, u"external": 8080}],
             u'restart_policy': {u'name': u'never'}
         }
-        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
+        waiting_for_cluster = get_test_cluster(node_count=1)
 
         def create_container(cluster, data):
             data[u"host"] = cluster.nodes[0].address
@@ -358,7 +95,7 @@ class ContainerAPITests(TestCase):
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'},
             u'restart_policy': {u'name': u'never'},
         }
-        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
+        waiting_for_cluster = get_test_cluster(node_count=1)
 
         def create_container(cluster, data):
             data[u"host"] = cluster.nodes[0].address
@@ -473,7 +210,7 @@ def create_dataset(test_case):
         actual cluster state.
     """
     # Create a 1 node cluster
-    waiting_for_cluster = get_test_cluster(test_case=test_case, node_count=1)
+    waiting_for_cluster = get_test_cluster(node_count=1)
 
     # Configure a dataset on node1
     def configure_dataset(cluster):
@@ -523,7 +260,7 @@ class DatasetAPITests(TestCase):
         A dataset can be moved from one node to another.
         """
         # Create a 2 node cluster
-        waiting_for_cluster = get_test_cluster(test_case=self, node_count=2)
+        waiting_for_cluster = get_test_cluster(node_count=2)
 
         # Configure a dataset on node1
         def configure_dataset(cluster):
