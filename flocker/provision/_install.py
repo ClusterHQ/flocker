@@ -214,8 +214,8 @@ ${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 
 def task_disable_selinux():
     """
-    Disable SELINUX for this session and permanently.
-    XXX: Remove this when we work out suitable SELINUX settings.
+    Disable SELinux for this session and permanently.
+    XXX: Remove this when we work out suitable SELinux settings.
     See https://clusterhq.atlassian.net/browse/FLOC-619.
     """
     return [
