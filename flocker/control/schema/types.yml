@@ -200,7 +200,9 @@ definitions:
     description: |
       The upper limit on how much data the dataset will be allowed to
       store, as an integer number of bytes.
-    type: number
+    type:
+      - "number"
+      - "null"
     # 64 MiB.  Sort of an arbitrary limit but inspired by the lower bound
     # on what this can be set to for the ZFS backend.  Could probably be
     # considered more carefully.
