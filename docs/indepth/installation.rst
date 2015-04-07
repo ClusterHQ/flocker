@@ -59,8 +59,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
 
 .. version-prompt:: bash linux$,|latest-installable| auto
 
-   linux$ cd flocker-tutorial
-   linux$ bin/flocker-deploy --version
+   linux$ flocker-tutorial/bin/flocker-deploy --version
    |latest-installable|
 
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
@@ -68,7 +67,7 @@ You'll need to do this every time you start a new shell.
 
 .. version-prompt:: bash linux$,|latest-installable| auto
 
-   linux$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
+   linux$ export PATH="${PATH:+${PATH}:}${PWD}/flocker-tutorial/bin"
    linux$ flocker-deploy --version
    |latest-installable|
 
@@ -201,10 +200,22 @@ Using Amazon Web Services
 
    Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
 
-   .. task:: upgrade_kernel
-      :prompt: [root@aws]#
+   On Fedora, run:
 
-   And now reboot the machine to make use of the new kernel.
+   .. task:: upgrade_kernel
+      :prompt: [root@fedora]#
+
+   On CentOS, run:
+
+   .. task:: upgrade_kernel_centos
+      :prompt: [root@centos]#
+
+   On Ubuntu, run:
+
+   .. task:: upgrade_kernel_ubuntu
+      :prompt: [root@ubuntu]#
+
+#. Reboot the machine to make use of the new kernel.
 
    .. prompt:: bash [root@aws]#
 
@@ -218,7 +229,7 @@ Using Amazon Web Services
       :prompt: [root@aws]#
 
 
-#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
+#. Follow the operating system specific installation instructions below.
 
 
 .. _digitalocean-install:
@@ -345,18 +356,6 @@ Installing on CentOS 7
 
 .. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
 
-Flocker requires the latest available kernel.
-
-.. task:: upgrade_kernel_centos
-   :prompt: [root@centos]#
-
-Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
-Thus we need to reboot into the new kernel.
-
-.. prompt:: bash [root@centos]#
-
-   shutdown -r now
-
 Now install the ``flocker-node`` package.
 To install ``flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
 You must also install the ZFS package repository.
@@ -388,20 +387,6 @@ Installing on Ubuntu 14.04
    * This is similar to following the AWS instructions above but ignoring the "Upgrade the Kernel" step which is different on Ubuntu and SELinux can be ignored I think
 
 .. XXX Maybe say that it needs at least 3.16.4 instead of "latest available", but maybe not, if this is best consistent with CentOS (or change that too?)
-
-Flocker requires the latest available kernel.
-
-.. TODO get rid of the quotes in this task
-
-.. task:: upgrade_kernel_ubuntu
-   :prompt: [root@ubuntu]#
-
-Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
-Thus we need to reboot into the new kernel.
-
-.. prompt:: bash [root@ubuntu]#
-
-   shutdown -r now
 
 Flocker requires recent versions of ZFS and Docker.
 

@@ -200,9 +200,6 @@ def task_upgrade_kernel_centos():
     return [
         Run.from_args([
             "yum", "install", "-y", "kernel-devel", "kernel"]),
-        # For dkms and ... ?
-        Run.from_args([
-            "yum", "install", "-y", "epel-release"]),
         Run.from_args(['sync']),
     ]
 
@@ -231,7 +228,7 @@ def task_upgrade_kernel_ubuntu():
         # somehow work around that, see
         # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade  # noqa
         Run(command='dpkg -i linux-*.deb'),
-        Run.from_args(['sync']),
+        Run.from_args(['rm', '-r', '/tmp/kernel-packages']),
     ]
 
 
@@ -374,6 +371,10 @@ def task_install_flocker_yum(
         Run(command="yum install -y " + ZFS_REPO[distribution]),
         Run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
     ]
+
+    if distribution == 'centos-7':
+        commands.append(
+            Run.from_args(["yum", "install", "-y", "epel-release"]))
 
     if package_source.branch:
         result_path = posixpath.join(
