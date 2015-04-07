@@ -2300,6 +2300,9 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
                 u'maximum_size': new_size,
             }
 
+            if new_size is None:
+                del expected_result[u'maximum_size']
+
         current_primary_node = Node(
             hostname=self.NODE_A,
             applications=[],

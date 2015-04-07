@@ -78,6 +78,8 @@ DATASET_IN_USE = make_bad_request(
     description=u"The dataset is being used by another container.")
 
 
+_UNDEFINED_MAXIMUM_SIZE = object()
+
 class ConfigurationAPIUserV1(object):
     """
     A user accessing the API.
@@ -174,9 +176,10 @@ class ConfigurationAPIUserV1(object):
             This is not for easy human use.  For human-friendly identifiers,
             use items in ``metadata``.
 
-        :param int maximum_size: The maximum number of bytes the dataset will
-            be capable of storing.  This may be optional or required depending
-            on the dataset backend.
+        :param maximum_size: Either, the maximum number of bytes the dataset
+            will be capable of storing or ``null`` make the dataset size
+            unlimited. This may be optional or required depending on the
+            dataset backend.
 
         :param dict metadata: A small collection of unicode key/value pairs to
             associate with the dataset.  These items are not interpreted.  They
@@ -305,7 +308,8 @@ class ConfigurationAPIUserV1(object):
                       '/v1/endpoints.json#/definitions/configuration_dataset'},
         schema_store=SCHEMAS
     )
-    def update_dataset(self, dataset_id, primary=None, maximum_size=None):
+    def update_dataset(self, dataset_id, primary=None,
+                       maximum_size=_UNDEFINED_MAXIMUM_SIZE):
         """
         Update an existing dataset in the cluster configuration.
 
@@ -315,9 +319,10 @@ class ConfigurationAPIUserV1(object):
         :param unicode primary: The address of the node to which the dataset
             will be moved.
 
-        :param int maximum_size: The maximum number of bytes the dataset will
-            be capable of storing.  This may be optional or required depending
-            on the dataset backend.
+        :param maximum_size: Either, the maximum number of bytes the dataset
+            will be capable of storing or ``null`` make the dataset size
+            unlimited. This may be optional or required depending on the
+            dataset backend.
 
         :return: A ``dict`` describing the dataset which has been added to the
             cluster configuration or giving error information if this is not
@@ -339,7 +344,7 @@ class ConfigurationAPIUserV1(object):
                 deployment, dataset_id, primary
             )
 
-        if maximum_size is not None:
+        if maximum_size is not _UNDEFINED_MAXIMUM_SIZE:
             deployment = _update_dataset_maximum_size(
                 deployment, dataset_id, maximum_size
             )
@@ -855,7 +860,8 @@ def _update_dataset_maximum_size(deployment, dataset_id, maximum_size):
     :param Deployment deployment: The deployment containing the dataset to be
         updated.
     :param unicode dataset_id: The ID of the dataset to be updated.
-    :param int maximum_size: The new size, in bytes, of the dataset.
+    :param maximum_size: The new size of the dataset or ``None`` to remove the
+        size limit.
     :returns: An updated ``Deployment``.
     """
     manifestation, node = _find_manifestation_and_node(deployment, dataset_id)
