@@ -31,9 +31,9 @@ from .._protocol import (
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
 )
 from .._clusterstate import ClusterStateService
-from .._model import (
+from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
-    Dataset, DeploymentState,
+    Dataset, DeploymentState, NonManifestDatasets,
 )
 from .._persistence import ConfigurationPersistenceService
 
@@ -99,6 +99,12 @@ NODE_STATE = NodeState(hostname=u'node1.example.com',
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
 
+dataset = Dataset(dataset_id=unicode(uuid4()))
+NONMANIFEST = NonManifestDatasets(
+    datasets={dataset.dataset_id: dataset}
+)
+del dataset
+
 
 class SerializationTests(SynchronousTestCase):
     """
@@ -123,6 +129,39 @@ class SerializationTests(SynchronousTestCase):
         deserialized = argument.fromString(as_bytes)
         self.assertEqual([bytes, TEST_DEPLOYMENT],
                          [type(as_bytes), deserialized])
+
+    def test_nonmanifestdatasets(self):
+        """
+        ``SerializableArgument`` can round-trip a ``NonManifestDatasets``
+        instance.
+        """
+        argument = SerializableArgument(NonManifestDatasets)
+        as_bytes = argument.toString(NONMANIFEST)
+        deserialized = argument.fromString(as_bytes)
+        self.assertEqual(
+            [bytes, NONMANIFEST],
+            [type(as_bytes), deserialized],
+        )
+
+    def test_multiple_type_serialization(self):
+        """
+        ``SerializableArgument`` can be given multiple types to allow instances
+        of any of those types to be serialized and deserialized.
+        """
+        argument = SerializableArgument(list, dict)
+        objects = [
+            [u"foo"],
+            {u"bar": u"baz"},
+        ]
+        serialized = list(
+            argument.toString(o)
+            for o in objects
+        )
+        unserialized = list(
+            argument.fromString(s)
+            for s in serialized
+        )
+        self.assertEqual(objects, unserialized)
 
     def test_wrong_type_serialization(self):
         """
@@ -224,7 +263,7 @@ class ControlAMPTests(ControlTestCase):
         sent = []
         self.patch_call_remote(sent, self.protocol)
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
-        self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
+        self.control_amp_service.cluster_state.apply_changes([NODE_STATE])
 
         self.protocol.makeConnection(StringTransport())
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
@@ -262,13 +301,18 @@ class ControlAMPTests(ControlTestCase):
         """
         ``NodeStateCommand`` updates the node state.
         """
+        changes = (NODE_STATE, NONMANIFEST)
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE,
+                                   state_changes=changes,
                                    eliot_context=TEST_ACTION))
         self.assertEqual(
+            DeploymentState(
+                nodes={NODE_STATE},
+                nonmanifest_datasets=NONMANIFEST.datasets,
+            ),
             self.control_amp_service.cluster_state.as_deployment(),
-            DeploymentState(nodes={NODE_STATE}))
+        )
 
     def test_nodestate_notifies_all_connected(self):
         """
@@ -288,7 +332,7 @@ class ControlAMPTests(ControlTestCase):
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE,
+                                   state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
@@ -380,7 +424,7 @@ class ControlAMPServiceTests(ControlTestCase):
                 (ClusterStatusCommand,),
                 dict(
                     configuration=TEST_DEPLOYMENT,
-                    state=Deployment(nodes=frozenset())
+                    state=DeploymentState(),
                 )
             )
         )
@@ -581,19 +625,6 @@ class AgentLocatorTests(SynchronousTestCase):
         self.assertIs(logger, locator.logger)
 
 
-class NodeStateCommandTests(SynchronousTestCase):
-    """
-    Tests for ``NodeStateCommand``.
-    """
-    def test_command_arguments(self):
-        """
-        ``NodeStateCommand`` requires the following arguments.
-        """
-        self.assertItemsEqual(
-            ['node_state', 'eliot_context'],
-            (v[0] for v in NodeStateCommand.arguments))
-
-
 class ControlServiceLocatorTests(SynchronousTestCase):
     """
     Tests for ``ControlServiceLocator``.
@@ -682,7 +713,7 @@ class SendStateToConnectionsTests(SynchronousTestCase):
 
         control_amp_service.connected(disconnected_protocol)
         control_amp_service.connected(connected_protocol)
-        control_amp_service.node_changed(NodeState(hostname=u"1.2.3.4"))
+        control_amp_service.node_changed((NodeState(hostname=u"1.2.3.4"),))
 
         actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
         self.assertEqual(
