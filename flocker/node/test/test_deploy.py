@@ -2487,6 +2487,39 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         changes = api.calculate_changes(desired, current)
         self.assertEqual(Sequentially(changes=[]), changes)
 
+    def test_no_handoff_if_in_use(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset handoff
+        happens only if there is no application using the dataset that
+        needs to be moved.
+
+        This will eventually be switched to use a lease system, rather
+        than inspecting application configuration.
+        """
+        node_state = NodeState(
+            hostname=u"node1.example.com",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+            applications={APPLICATION_WITH_VOLUME},
+        )
+        another_node_state = NodeState(
+            hostname=u"node2.example.com",
+        )
+        current = DeploymentState(nodes=[node_state, another_node_state])
+        desired = Deployment(nodes={
+            Node(hostname=node_state.hostname),
+            Node(hostname=another_node_state.hostname,
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
+        })
+
+        api = P2PManifestationDeployer(
+            node_state.hostname, create_volume_service(self),
+        )
+
+        changes = api.calculate_changes(desired, current)
+        self.assertEqual(Sequentially(changes=[]), changes)
+
     def test_volume_handoff(self):
         """
         ``P2PManifestationDeployer.calculate_changes`` specifies that
@@ -2708,6 +2741,30 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                     dataset=dataset,
                     hostname=u'node2.example.com')]
             )])
+        self.assertEqual(expected, changes)
+
+    def test_unknown_applications(self):
+        """
+        If applications are unknown, no changes are calculated.
+        """
+        node_state = NodeState(
+            hostname=u"10.1.1.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+            applications=None,
+        )
+
+        api = P2PManifestationDeployer(
+            node_state.hostname, create_volume_service(self)
+        )
+        current = DeploymentState(nodes=[node_state])
+        desired = Deployment(nodes=[
+            Node(hostname=api.hostname,
+                 manifestations=node_state.manifestations.transform(
+                     (DATASET_ID, "dataset", "deleted"), True))])
+
+        changes = api.calculate_changes(desired, current)
+        expected = Sequentially(changes=[])
         self.assertEqual(expected, changes)
 
 

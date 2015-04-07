@@ -496,11 +496,14 @@ class P2PManifestationDeployer(object):
         return volumes
 
     def calculate_changes(self, configuration, cluster_state):
-        # XXX
-        # 0. If applications or manifestations are unknown indicate no changes, give up
-        # 1.  If volume exists on current node and should be on another node
-        #     and it's not in an application, hand it off.
-        # 2. Also create/delete as necessary.
+        """
+        Calculate changes to peer-to-peer manifestations.
+        """
+        local_state = cluster_state.get_node(self.hostname)
+        # We need to know applications (for now) to see if we should delay
+        # deletion or handoffs.
+        if local_state.applications is None:
+            return Sequentially(changes=[])
         phases = []
 
         # For now we delay deletion and handoffs until we know application
@@ -521,11 +524,13 @@ class P2PManifestationDeployer(object):
                 ResizeDataset(dataset=dataset)
                 for dataset in dataset_changes.resizing]))
 
-        if dataset_changes.going:
+        going = [handoff for handoff in dataset_changes.going
+                 if handoff.dataset.dataset_id not in in_use_datasets]
+        if going:
             phases.append(InParallel(changes=[
                 HandoffDataset(dataset=handoff.dataset,
                                hostname=handoff.hostname)
-                for handoff in dataset_changes.going]))
+                for handoff in going]))
 
         if dataset_changes.creating:
             phases.append(InParallel(changes=[
