@@ -126,7 +126,7 @@ done
 export "FLOCKER_ACCEPTANCE_CONTROL_NODE"
 export "FLOCKER_ACCEPTANCE_AGENT_NODES=${nodes}"
 
-trial flocker.acceptance.test_api.DatasetAPITests || echo "TEST FAILURE"
+trial flocker.acceptance.test_api.DatasetAPITests.test_dataset_remove_size_limit || echo "TEST FAILURE"
 
 # Kill agent and wait for it to exit
 # echo "REMOTE_AGENT_PID: ${REMOTE_AGENT_PID}"

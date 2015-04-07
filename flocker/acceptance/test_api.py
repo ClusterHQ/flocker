@@ -670,3 +670,34 @@ class DatasetAPITests(TestCase):
             )
 
         return creating.addCallback(resize_dataset)
+
+    def test_dataset_remove_size_limit(self):
+        """
+        A dataset with a size limit can have that limit removed.
+        """
+        # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = None
+        def resize_dataset(result):
+            cluster, dataset = result
+
+            # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE * 2
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            import pdb; pdb.set_trace()
+            # Check that the configuration response has the expected size.
+            self.assertEqual(new_size, dataset['maximum_size'])
+            # Wait for the dataset to have the expected size.
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
