@@ -595,13 +595,13 @@ class ApplicationNodeDeployer(object):
             # convergence actions, just declare ignorance. Eventually the
             # convergence agent for datasets will discover the information
             # and then we can proceed.
-            return succeed(NodeState(
+            return succeed([NodeState(
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,
                 manifestations=None,
                 paths=None,
-            ))
+            )])
 
         path_to_manifestations = {path: local_state.manifestations[dataset_id]
                                   for (dataset_id, path)
@@ -955,13 +955,14 @@ class P2PNodeDeployer(_OldToNewDeployer):
         self.network = self.applications_deployer.network
 
     def discover_local_state(self, local_state):
-        d = self.manifestations_deployer.discover_local_state(local_state)
+        d = self.manifestations_deployer.discover_state(local_state)
 
         def got_manifestations_state(manifestations_state):
-            app_discovery = self.applications_deployer.discover_local_state(
+            manifestations_state = manifestations_state[0]
+            app_discovery = self.applications_deployer.discover_state(
                 manifestations_state)
             app_discovery.addCallback(
-                lambda app_state: app_state.set(
+                lambda app_state: app_state[0].set(
                     "manifestations", manifestations_state.manifestations).set(
                     "paths", manifestations_state.paths))
             return app_discovery

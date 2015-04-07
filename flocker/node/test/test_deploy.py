@@ -10,7 +10,7 @@ from zope.interface.verify import verifyObject
 
 from eliot.testing import validate_logging
 
-from pyrsistent import pmap, pset
+from pyrsistent import pset
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
@@ -41,7 +41,7 @@ from .._docker import (
     DockerClient, Volume as DockerVolume)
 from ...route import Proxy, OpenPort, make_memory_network
 from ...route._iptables import HostNetwork
-from ...volume.service import Volume, VolumeName
+from ...volume.service import VolumeName
 from ...volume._model import VolumeSize
 from ...volume.testtools import create_volume_service
 from ...volume._ipc import RemoteVolumeManager, standard_node
@@ -138,8 +138,8 @@ InParallelIStateChangeTests = make_istatechange_tests(
     InParallel, dict(changes=[1]), dict(changes=[2]))
 StartApplicationIStateChangeTests = make_istatechange_tests(
     StartApplication,
-    dict(application=1, hostname="node1.example.com"),
-    dict(application=2, hostname="node2.example.com"))
+    dict(application=1, node_state=NodeState(hostname="node1.example.com")),
+    dict(application=2, node_state=NodeState(hostname="node2.example.com")))
 StopApplicationIStageChangeTests = make_istatechange_tests(
     StopApplication, dict(application=1), dict(application=2))
 SetProxiesIStateChangeTests = make_istatechange_tests(
@@ -728,612 +728,6 @@ class DeployerDiscoverStateTests(SynchronousTestCase):
         )
 
 
-class WillBeDeletedSoonDeployerDiscoveryTests(SynchronousTestCase):
-    """
-    Tests for ``P2PNodeDeployer.discover_local_state``.
-
-    These tests should be deleted when ``P2PNodeDeployer`` is removed as
-    part of FLOC-1443; they're just here to ensure initial refactoring
-    didn't break anything.
-    """
-    def setUp(self):
-        self.volume_service = create_volume_service(self)
-        self.network = make_memory_network()
-
-    def test_discover_none(self):
-        """
-        ``P2PNodeDeployer.discover_local_state`` returns an empty
-        ``NodeState`` if there are no Docker containers on the host.
-        """
-        fake_docker = FakeDockerClient(units={})
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertEqual(NodeState(hostname=u'example.com'),
-                         self.successResultOf(d))
-
-    def test_discover_one(self):
-        """
-        ``P2PNodeDeployer.discover_local_state`` returns ``NodeState`` with a
-        a list of running ``Application``\ s; one for each active container.
-        """
-        expected_application_name = u'site-example.com'
-        unit = Unit(name=expected_application_name,
-                    container_name=expected_application_name,
-                    container_image=u"flocker/wordpress:latest",
-                    activation_state=u'active')
-        fake_docker = FakeDockerClient(units={expected_application_name: unit})
-        application = Application(
-            name=unit.name,
-            image=DockerImage.from_string(unit.container_image)
-        )
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertEqual(NodeState(hostname=u'example.com',
-                                   applications=[application]),
-                         self.successResultOf(d))
-
-    def test_discover_multiple(self):
-        """
-        ``P2PNodeDeployer.discover_local_state`` returns a ``NodeState`` with
-        a running ``Application`` for every active container on the host.
-        """
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net',
-                     container_name=u'site-example.net',
-                     container_image=u'clusterhq/wordpress:latest',
-                     activation_state=u'active')
-        units = {unit1.name: unit1, unit2.name: unit2}
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit.name,
-                image=DockerImage.from_string(unit.container_image)
-            ) for unit in units.values()
-        ]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).applications)
-
-    def test_discover_application_with_environment(self):
-        """
-        An ``Application`` with ``Environment`` objects is discovered from a
-        ``Unit`` with ``Environment`` objects.
-        """
-        environment_variables = (
-            ('CUSTOM_ENV_A', 'a value'),
-            ('CUSTOM_ENV_B', 'something else'),
-        )
-        environment = Environment(variables=environment_variables)
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     environment=environment,
-                     activation_state=u'active')
-        units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                environment=environment_variables
-            )
-        ]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertItemsEqual(pset(applications),
-                              sorted(self.successResultOf(d).applications))
-
-    def test_discover_application_with_environment_and_links(self):
-        """
-        An ``Application`` with ``Environment`` and ``Link`` objects is
-        discovered from a ``Unit`` with both custom environment variables and
-        environment variables representing container links. The environment
-        variables taking the format <ALIAS>_PORT_<PORT>_TCP are separated in
-        to ``Link`` representations in the ``Application``.
-        """
-        environment_variables = (
-            ('CUSTOM_ENV_A', 'a value'),
-            ('CUSTOM_ENV_B', 'something else'),
-        )
-        link_environment_variables = (
-            ('APACHE_PORT_80_TCP', 'tcp://example.com:8080'),
-            ('APACHE_PORT_80_TCP_PROTO', 'tcp'),
-            ('APACHE_PORT_80_TCP_ADDR', 'example.com'),
-            ('APACHE_PORT_80_TCP_PORT', '8080'),
-        )
-        unit_environment = environment_variables + link_environment_variables
-        environment = Environment(variables=frozenset(unit_environment))
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     environment=environment,
-                     activation_state=u'active')
-        units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
-        links = [
-            Link(local_port=80, remote_port=8080, alias="APACHE")
-        ]
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                environment=environment_variables,
-                links=frozenset(links)
-            )
-        ]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertItemsEqual(pset(applications),
-                              sorted(self.successResultOf(d).applications))
-
-    def test_discover_application_with_links(self):
-        """
-        An ``Application`` with ``Link`` objects is discovered from a ``Unit``
-        with environment variables that correspond to an exposed link.
-        """
-        fake_docker = FakeDockerClient()
-        applications = [
-            Application(
-                name=u'site-example.com',
-                image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
-                links=frozenset([
-                    Link(local_port=80, remote_port=8080, alias='APACHE')
-                ])
-            )
-        ]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        for app in applications:
-            StartApplication(
-                hostname='node1.example.com', application=app
-            ).run(api)
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).applications))
-
-    def test_discover_application_with_ports(self):
-        """
-        An ``Application`` with ``Port`` objects is discovered from a ``Unit``
-        with exposed ``Portmap`` objects.
-        """
-        ports = [PortMap(internal_port=80, external_port=8080)]
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     ports=frozenset(ports),
-                     activation_state=u'active')
-        units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                ports=frozenset([
-                    Port(internal_port=80, external_port=8080)
-                ])
-            )
-        ]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).applications))
-
-    def test_discover_locally_owned_volume(self):
-        """
-        Locally owned volumes are added to ``Application`` with same name as
-        an ``AttachedVolume``.
-        """
-        DATASET_ID = u"uuid123"
-        DATASET_ID2 = u"uuid456"
-        volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID))
-        ))
-        volume2 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID2))
-        ))
-
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=volume1.get_filesystem().get_path(),
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net',
-                     container_name=u'site-example.net',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=volume2.get_filesystem().get_path(),
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
-        units = {unit1.name: unit1, unit2.name: unit2}
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit.name,
-                image=DockerImage.from_string(unit.container_image),
-                volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=respective_id),
-                        primary=True,
-                    ),
-                    mountpoint=FilePath(b'/var/lib/data')
-                    )
-            ) for (unit, respective_id) in [(unit1, DATASET_ID),
-                                            (unit2, DATASET_ID2)]]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).applications)
-
-    def test_discover_locally_owned_volume_with_size(self):
-        """
-        Locally owned volumes are added to ``Application`` with same name as
-        an ``AttachedVolume``, which contains a maximum_size corresponding to
-        the existing volume's maximum size.
-        """
-        DATASET_ID = u"uuid123"
-        DATASET_ID2 = u"uuid456"
-        volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(
-                _to_volume_name(DATASET_ID),
-                size=VolumeSize(maximum_size=1024 * 1024 * 100)
-            )
-        ))
-        volume2 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(DATASET_ID2))
-        ))
-
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=volume1.get_filesystem().get_path(),
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net',
-                     container_name=u'site-example.net',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=volume2.get_filesystem().get_path(),
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
-        units = {unit1.name: unit1, unit2.name: unit2}
-
-        fake_docker = FakeDockerClient(units=units)
-
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=Dataset(
-                            dataset_id=DATASET_ID,
-                            maximum_size=1024 * 1024 * 100),
-                        primary=True,
-                    ),
-                    mountpoint=FilePath(b'/var/lib/data'),
-                    )
-            ),
-            Application(
-                name=unit2.name,
-                image=DockerImage.from_string(unit2.container_image),
-                volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=DATASET_ID2),
-                        primary=True,
-                    ),
-                    mountpoint=FilePath(b'/var/lib/data'),
-                    )
-            )]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).applications)
-
-    def test_discover_remotely_owned_volumes_ignored(self):
-        """
-        Remotely owned volumes are not added to the discovered ``Application``
-        instances.
-        """
-        unit = Unit(name=u'site-example.com',
-                    container_name=u'site-example.com',
-                    container_image=u"clusterhq/wordpress:latest",
-                    activation_state=u'active')
-        units = {unit.name: unit}
-
-        volume = Volume(node_id=unicode(uuid4()),
-                        name=_to_volume_name(u"xxxx1234"),
-                        service=self.volume_service)
-        self.successResultOf(volume.service.pool.create(volume))
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name,
-                                    image=DockerImage.from_string(
-                                        unit.container_image))]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).applications))
-
-    def test_ignore_unknown_volumes(self):
-        """
-        Docker volumes that cannot be matched to a dataset are ignored.
-        """
-        unit = Unit(name=u'site-example.com',
-                    container_name=u'site-example.com',
-                    container_image=u"clusterhq/wordpress:latest",
-                    volumes=frozenset(
-                        [DockerVolume(
-                            node_path=FilePath(b"/some/random/path"),
-                            container_path=FilePath(b'/var/lib/data')
-                        )],
-                    ),
-                    activation_state=u'active')
-        units = {unit.name: unit}
-
-        fake_docker = FakeDockerClient(units=units)
-
-        applications = [
-            Application(
-                name=unit.name,
-                image=DockerImage.from_string(unit.container_image),
-            ),
-        ]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).applications))
-
-    def test_not_running_units(self):
-        """
-        Units that are not active are considered to be not running by
-        ``discover_local_state()``.
-        """
-        unit1 = Unit(name=u'site-example3.net',
-                     container_name=u'site-example3.net',
-                     container_image=u'clusterhq/wordpress:latest',
-                     activation_state=u'inactive')
-        unit2 = Unit(name=u'site-example4.net',
-                     container_name=u'site-example4.net',
-                     container_image=u'clusterhq/wordpress:latest',
-                     activation_state=u'madeup')
-        units = {unit1.name: unit1, unit2.name: unit2}
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(name=unit.name,
-                        image=DockerImage.from_string(
-                            unit.container_image
-                        ),
-                        running=False) for unit in units.values()
-        ]
-        applications.sort()
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-        result = self.successResultOf(d)
-
-        self.assertEqual(NodeState(hostname=u'example.com',
-                                   applications=applications),
-                         result)
-
-    def test_discover_used_ports(self):
-        """
-        Any ports in use, as reported by the deployer's ``INetwork`` provider,
-        are reported in the ``used_ports`` attribute of the ``NodeState``
-        returned by ``discover_local_state``.
-        """
-        used_ports = frozenset([1, 3, 5, 1000])
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self),
-            docker_client=FakeDockerClient(),
-            network=make_memory_network(used_ports=used_ports)
-        )
-
-        discovering = api.discover_local_state(
-            NodeState(hostname=u"example.com"))
-        state = self.successResultOf(discovering)
-
-        self.assertEqual(
-            NodeState(hostname=u'example.com', used_ports=used_ports),
-            state
-        )
-
-    def test_discover_application_restart_policy(self):
-        """
-        An ``Application`` with the appropriate ``IRestartPolicy`` is
-        discovered from the corresponding restart policy of the ``Unit``.
-        """
-        policy = object()
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     restart_policy=policy,
-                     activation_state=u'active')
-        units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [
-            Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
-                restart_policy=policy,
-            )
-        ]
-        api = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).applications))
-
-    DATASET_ID = u"uuid123"
-    DATASET_ID2 = u"uuid456"
-
-    def _setup_datasets(self):
-        """
-        Setup a ``P2PNodeDeployer`` that will discover two manifestations.
-
-        :return: Suitably configured ``P2PNodeDeployer``.
-        """
-        volume1 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(self.DATASET_ID))
-        ))
-        self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(self.DATASET_ID2))
-        ))
-
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u"clusterhq/wordpress:latest",
-                     volumes=frozenset(
-                         [DockerVolume(
-                             node_path=volume1.get_filesystem().get_path(),
-                             container_path=FilePath(b'/var/lib/data')
-                         )]
-                     ),
-                     activation_state=u'active')
-        units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
-        return P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-
-    def test_discover_datasets(self):
-        """
-        All datasets on the node are added to ``NodeState.manifestations``.
-        """
-        api = self._setup_datasets()
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertEqual(
-            {self.DATASET_ID: Manifestation(
-                dataset=Dataset(
-                    dataset_id=self.DATASET_ID),
-                primary=True),
-             self.DATASET_ID2: Manifestation(
-                 dataset=Dataset(dataset_id=self.DATASET_ID2),
-                 primary=True)},
-            self.successResultOf(d).manifestations)
-
-    def test_discover_manifestation_paths(self):
-        """
-        All datasets on the node have their paths added to
-        ``NodeState.manifestations``.
-        """
-        api = self._setup_datasets()
-        d = api.discover_local_state(NodeState(hostname=u"example.com"))
-
-        self.assertEqual(
-            {self.DATASET_ID:
-             self.volume_service.get(_to_volume_name(
-                 self.DATASET_ID)).get_filesystem().get_path(),
-             self.DATASET_ID2:
-             self.volume_service.get(_to_volume_name(
-                 self.DATASET_ID2)).get_filesystem().get_path()},
-            self.successResultOf(d).paths)
-
-
 APP_NAME = u"site-example.com"
 UNIT_FOR_APP = Unit(name=APP_NAME,
                     container_name=APP_NAME,
@@ -1365,7 +759,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
     def test_discover_none(self):
         """
-        ``ApplicationNodeDeployer.discover_local_state`` returns an empty
+        ``ApplicationNodeDeployer.discover_state`` returns an empty
         ``NodeState`` if there are no Docker containers on the host.
         """
         fake_docker = FakeDockerClient(units={})
@@ -1374,16 +768,16 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
-        self.assertEqual(NodeState(hostname=api.hostname,
-                                   manifestations=None,
-                                   paths=None),
+        self.assertEqual([NodeState(hostname=api.hostname,
+                                    manifestations=None,
+                                    paths=None)],
                          self.successResultOf(d))
 
     def test_discover_one(self):
         """
-        ``ApplicationNodeDeployer.discover_local_state`` returns ``NodeState``
+        ``ApplicationNodeDeployer.discover_state`` returns ``NodeState``
         with a a list of running ``Application``\ s; one for each active
         container.
         """
@@ -1393,17 +787,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
-        self.assertEqual(NodeState(hostname=api.hostname,
-                                   applications=[APP],
-                                   manifestations=None,
-                                   paths=None),
+        self.assertEqual([NodeState(hostname=api.hostname,
+                                    applications=[APP],
+                                    manifestations=None,
+                                    paths=None)],
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
         """
-        ``ApplicationNodeDeployer.discover_local_state`` returns a
+        ``ApplicationNodeDeployer.discover_state`` returns a
         ``NodeState`` with a running ``Application`` for every active
         container on the host.
         """
@@ -1416,10 +810,10 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).applications)
+                              self.successResultOf(d)[0].applications)
 
     def test_discover_application_with_environment(self):
         """
@@ -1441,10 +835,10 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).applications)
+                              self.successResultOf(d)[0].applications)
 
     def test_discover_application_with_environment_and_links(self):
         """
@@ -1481,10 +875,10 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).applications)
+                              self.successResultOf(d)[0].applications)
 
     def test_discover_application_with_links(self):
         """
@@ -1502,12 +896,12 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         )
         for app in applications:
             StartApplication(
-                hostname=api.hostname, application=app
+                node_state=NodeState(hostname=api.hostname), application=app
             ).run(api)
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(applications,
-                              self.successResultOf(d).applications)
+                              self.successResultOf(d)[0].applications)
 
     def test_discover_application_with_ports(self):
         """
@@ -1526,10 +920,10 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).applications))
+                         sorted(self.successResultOf(d)[0].applications))
 
     def test_discover_attached_volume(self):
         """
@@ -1579,10 +973,10 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(current_known_state)
+        d = api.discover_state(current_known_state)
 
         self.assertItemsEqual(pset(applications),
-                              self.successResultOf(d).applications)
+                              self.successResultOf(d)[0].applications)
 
     def test_ignore_unknown_volumes(self):
         """
@@ -1604,15 +998,15 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertEqual(sorted(applications),
-                         sorted(self.successResultOf(d).applications))
+                         sorted(self.successResultOf(d)[0].applications))
 
     def test_not_running_units(self):
         """
         Units that are not active are considered to be not running by
-        ``discover_local_state()``.
+        ``discover_state()``.
         """
         unit1 = UNIT_FOR_APP.set("activation_state", u"inactive")
         unit2 = UNIT_FOR_APP2.set("activation_state", u'madeup')
@@ -1625,20 +1019,20 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
         result = self.successResultOf(d)
 
-        self.assertEqual(NodeState(hostname=api.hostname,
-                                   applications=applications,
-                                   manifestations=None,
-                                   paths=None),
+        self.assertEqual([NodeState(hostname=api.hostname,
+                                    applications=applications,
+                                    manifestations=None,
+                                    paths=None)],
                          result)
 
     def test_discover_used_ports(self):
         """
         Any ports in use, as reported by the deployer's ``INetwork`` provider,
         are reported in the ``used_ports`` attribute of the ``NodeState``
-        returned by ``discover_local_state``.
+        returned by ``discover_state``.
         """
         used_ports = frozenset([1, 3, 5, 1000])
         api = ApplicationNodeDeployer(
@@ -1647,13 +1041,13 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             network=make_memory_network(used_ports=used_ports)
         )
 
-        discovering = api.discover_local_state(EMPTY_NODESTATE)
-        state = self.successResultOf(discovering)
+        discovering = api.discover_state(EMPTY_NODESTATE)
+        states = self.successResultOf(discovering)
 
         self.assertEqual(
-            NodeState(hostname=api.hostname, used_ports=used_ports,
-                      manifestations=None, paths=None),
-            state
+            [NodeState(hostname=api.hostname, used_ports=used_ports,
+                       manifestations=None, paths=None)],
+            states
         )
 
     def test_discover_application_restart_policy(self):
@@ -1672,10 +1066,10 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertEqual(applications,
-                         list(self.successResultOf(d).applications))
+                         list(self.successResultOf(d)[0].applications))
 
     def test_unknown_manifestations(self):
         """
@@ -1691,17 +1085,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         )
         # Apparently we know nothing about manifestations one way or the
         # other:
-        d = api.discover_local_state(NodeState(
+        d = api.discover_state(NodeState(
             hostname=api.hostname,
             manifestations=None, paths=None))
 
-        self.assertEqual(NodeState(hostname=api.hostname,
-                                   # Can't do app discovery if don't know
-                                   # about manifestations:
-                                   applications=None,
-                                   used_ports=None,
-                                   manifestations=None,
-                                   paths=None),
+        self.assertEqual([NodeState(hostname=api.hostname,
+                                    # Can't do app discovery if don't know
+                                    # about manifestations:
+                                    applications=None,
+                                    used_ports=None,
+                                    manifestations=None,
+                                    paths=None)],
                          self.successResultOf(d))
 
 
@@ -1722,11 +1116,11 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         deployer = P2PManifestationDeployer(
             u'example.com', self.volume_service)
         self.assertEqual(
-            self.successResultOf(deployer.discover_local_state(
+            self.successResultOf(deployer.discover_state(
                 EMPTY_NODESTATE)),
-            NodeState(hostname=deployer.hostname,
-                      manifestations={}, paths={},
-                      applications=None, used_ports=None))
+            [NodeState(hostname=deployer.hostname,
+                       manifestations={}, paths={},
+                       applications=None, used_ports=None)])
 
     def _setup_datasets(self):
         """
@@ -1752,7 +1146,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         All datasets on the node are added to ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID: Manifestation(
@@ -1761,7 +1155,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
              self.DATASET_ID2: Manifestation(
                  dataset=Dataset(dataset_id=self.DATASET_ID2),
                  primary=True)},
-            self.successResultOf(d).manifestations)
+            self.successResultOf(d)[0].manifestations)
 
     def test_discover_manifestation_paths(self):
         """
@@ -1769,7 +1163,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID:
@@ -1778,7 +1172,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
              self.DATASET_ID2:
              self.volume_service.get(_to_volume_name(
                  self.DATASET_ID2)).get_filesystem().get_path()},
-            self.successResultOf(d).paths)
+            self.successResultOf(d)[0].paths)
 
     def test_discover_manifestation_with_size(self):
         """
@@ -1803,10 +1197,10 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
             u'example.com',
             self.volume_service,
         )
-        d = api.discover_local_state(EMPTY_NODESTATE)
+        d = api.discover_state(EMPTY_NODESTATE)
 
         self.assertItemsEqual(
-            self.successResultOf(d).manifestations[self.DATASET_ID],
+            self.successResultOf(d)[0].manifestations[self.DATASET_ID],
             manifestation)
 
 
@@ -2777,9 +2171,9 @@ class SetProxiesTests(SynchronousTestCase):
         Proxies which are required are added.
         """
         fake_network = make_memory_network()
-        api = P2PNodeDeployer(
+        api = ApplicationNodeDeployer(
             u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+            docker_client=FakeDockerClient(),
             network=fake_network)
 
         expected_proxy = Proxy(ip=u'192.0.2.100', port=3306)
@@ -2796,9 +2190,8 @@ class SetProxiesTests(SynchronousTestCase):
         """
         fake_network = make_memory_network()
         fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(ports=[]).run(api)
@@ -2823,9 +2216,8 @@ class SetProxiesTests(SynchronousTestCase):
         required_proxy2 = fake_network.create_proxy_to(ip=u'192.0.2.101',
                                                        port=8080)
 
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(ports=[required_proxy1, required_proxy2]).run(api)
@@ -2845,9 +2237,8 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
         fake_network.delete_proxy = lambda proxy: 1/0
 
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(ports=[]).run(api)
@@ -2866,9 +2257,8 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network = make_memory_network()
         fake_network.create_proxy_to = lambda ip, port: 1/0
 
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(ports=[Proxy(ip=u'192.0.2.100', port=3306)]).run(api)
@@ -2886,9 +2276,8 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network = make_memory_network()
         fake_network.create_proxy_to = lambda ip, port: 1/0
 
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(
@@ -2912,9 +2301,8 @@ class OpenPortsTests(SynchronousTestCase):
         Porst which are required are opened.
         """
         fake_network = make_memory_network()
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         expected_open_port = OpenPort(port=3306)
@@ -2931,9 +2319,8 @@ class OpenPortsTests(SynchronousTestCase):
         """
         fake_network = make_memory_network()
         fake_network.open_port(port=3306)
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = OpenPorts(ports=[]).run(api)
@@ -2956,9 +2343,8 @@ class OpenPortsTests(SynchronousTestCase):
         required_open_port_1 = fake_network.open_port(port=3306)
         required_open_port_2 = fake_network.open_port(port=8080)
 
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         state_change = OpenPorts(
@@ -2980,9 +2366,8 @@ class OpenPortsTests(SynchronousTestCase):
         fake_network.open_port(port=3306)
         fake_network.delete_open_port = lambda open_port: 1/0
 
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = OpenPorts(ports=[]).run(api)
@@ -3001,9 +2386,8 @@ class OpenPortsTests(SynchronousTestCase):
         fake_network = make_memory_network()
         fake_network.open_port = lambda port: 1/0
 
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = OpenPorts(ports=[OpenPort(port=3306)]).run(api)
@@ -3021,9 +2405,8 @@ class OpenPortsTests(SynchronousTestCase):
         fake_network = make_memory_network()
         fake_network.open_port = lambda port: 1/0
 
-        api = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self), docker_client=FakeDockerClient(),
+        api = ApplicationNodeDeployer(
+            u'example.com', docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = OpenPorts(
@@ -3182,11 +2565,8 @@ class CreateDatasetTests(SynchronousTestCase):
         ``CreateDataset.run()`` creates the named volume.
         """
         volume_service = create_volume_service(self)
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
+        deployer = P2PManifestationDeployer(
+            u'example.com', volume_service)
         volume = APPLICATION_WITH_VOLUME.volume
         create = CreateDataset(dataset=volume.dataset)
         create.run(deployer)
@@ -3204,11 +2584,8 @@ class CreateDatasetTests(SynchronousTestCase):
         EXPECTED_SIZE = VolumeSize(maximum_size=EXPECTED_SIZE_BYTES)
 
         volume_service = create_volume_service(self)
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
+        deployer = P2PManifestationDeployer(
+            u'example.com', volume_service)
         volume = APPLICATION_WITH_VOLUME_SIZE.volume
         create = CreateDataset(dataset=volume.dataset)
         create.run(deployer)
@@ -3226,11 +2603,8 @@ class CreateDatasetTests(SynchronousTestCase):
         ``CreateDataset.run()`` returns a ``Deferred`` that fires with the
         created volume.
         """
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            create_volume_service(self),
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
+        deployer = P2PManifestationDeployer(
+            u'example.com', create_volume_service(self))
         volume = APPLICATION_WITH_VOLUME.volume
         create = CreateDataset(dataset=volume.dataset)
         result = self.successResultOf(create.run(deployer))
@@ -3244,11 +2618,8 @@ class DeleteDatasetTests(TestCase):
     """
     def setUp(self):
         self.volume_service = create_volume_service(self)
-        self.deployer = P2PNodeDeployer(
-            u'example.com',
-            self.volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
+        self.deployer = P2PManifestationDeployer(
+            u'example.com', self.volume_service)
 
         id1 = unicode(uuid4())
         self.volume1 = self.volume_service.get(_to_volume_name(id1))
@@ -3307,10 +2678,8 @@ class ResizeVolumeTests(TestCase):
                 maximum_size=size.maximum_size,
             )
             change = ResizeDataset(dataset=dataset)
-            deployer = P2PNodeDeployer(
-                u'example.com',
-                volume_service, docker_client=FakeDockerClient(),
-                network=make_memory_network())
+            deployer = P2PManifestationDeployer(
+                u'example.com', volume_service)
             return change.run(deployer)
         d.addCallback(created)
 
@@ -3326,50 +2695,6 @@ class ResizeVolumeTests(TestCase):
             self.assertEqual(size, filesystem.size)
         d.addCallback(resized)
         return d
-
-
-class WaitForVolumeTests(SynchronousTestCase):
-    """
-    Tests for ``WaitForVolume``.
-    """
-    def test_waits(self):
-        """
-        ``WaitForVolume.run()`` waits for the named volume.
-        """
-        volume_service = create_volume_service(self)
-        result = []
-
-        def wait(name):
-            result.append(name)
-        self.patch(volume_service, "wait_for_volume", wait)
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
-        wait = WaitForDataset(
-            dataset=APPLICATION_WITH_VOLUME.volume.dataset)
-        wait.run(deployer)
-        self.assertEqual(result,
-                         [VolumeName(namespace=u"default",
-                                     dataset_id=DATASET.dataset_id)])
-
-    def test_return(self):
-        """
-        ``WaitVolume.run()`` returns a ``Deferred`` that fires when the
-        named volume is available.
-        """
-        result = Deferred()
-        volume_service = create_volume_service(self)
-        self.patch(volume_service, "wait_for_volume", lambda name: result)
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
-        wait = WaitForDataset(dataset=APPLICATION_WITH_VOLUME.volume.dataset)
-        wait_result = wait.run(deployer)
-        self.assertIs(wait_result, result)
 
 
 class HandoffVolumeTests(SynchronousTestCase):
@@ -3389,11 +2714,8 @@ class HandoffVolumeTests(SynchronousTestCase):
         def _handoff(volume, destination):
             result.extend([volume, destination])
         self.patch(volume_service, "handoff", _handoff)
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
+        deployer = P2PManifestationDeployer(
+            u'example.com', volume_service)
         handoff = HandoffDataset(
             dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=hostname)
@@ -3412,11 +2734,8 @@ class HandoffVolumeTests(SynchronousTestCase):
         volume_service = create_volume_service(self)
         self.patch(volume_service, "handoff",
                    lambda volume, destination: result)
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
+        deployer = P2PManifestationDeployer(
+            u'example.com', volume_service)
         handoff = HandoffDataset(
             dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=b"dest.example.com")
@@ -3441,11 +2760,8 @@ class PushVolumeTests(SynchronousTestCase):
         def _push(volume, destination):
             result.extend([volume, destination])
         self.patch(volume_service, "push", _push)
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
+        deployer = P2PManifestationDeployer(
+            u'example.com', volume_service)
         push = PushDataset(
             dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=hostname)
@@ -3464,11 +2780,8 @@ class PushVolumeTests(SynchronousTestCase):
         volume_service = create_volume_service(self)
         self.patch(volume_service, "push",
                    lambda volume, destination: result)
-        deployer = P2PNodeDeployer(
-            u'example.com',
-            volume_service,
-            docker_client=FakeDockerClient(),
-            network=make_memory_network())
+        deployer = P2PManifestationDeployer(
+            u'example.com', volume_service)
         push = PushDataset(
             dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=b"dest.example.com")
