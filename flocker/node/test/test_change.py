@@ -172,7 +172,7 @@ class InParallelTests(SynchronousTestCase):
             ControllableAction(result=fail(ZeroDivisionError('e3'))),
         ]
         change = in_parallel(changes=subchanges)
-        result = change.run(deployer=DEPLOYER)
+        result = run_state_change(change, DEPLOYER)
         self.failureResultOf(result, FirstError)
 
         self.assertEqual(
