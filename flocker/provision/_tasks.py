@@ -6,6 +6,7 @@ All the tasks available from the ``task`` directive.
 
 from ._install import (
     task_create_flocker_pool_file,
+    task_disable_selinux,
     task_enable_docker,
     task_install_flocker,
     task_install_digitalocean_kernel,
@@ -14,7 +15,6 @@ from ._install import (
     task_test_homebrew,
     task_upgrade_kernel,
     task_upgrade_kernel_centos,
-    task_upgrade_selinux,
     task_enable_flocker_control,
     task_enable_flocker_agent,
     task_open_control_firewall,
@@ -22,6 +22,7 @@ from ._install import (
 
 __all__ = [
     'task_create_flocker_pool_file',
+    'task_disable_selinux',
     'task_enable_docker',
     'task_install_flocker',
     'task_install_digitalocean_kernel',
@@ -30,7 +31,6 @@ __all__ = [
     'task_test_homebrew',
     'task_upgrade_kernel',
     'task_upgrade_kernel_centos',
-    'task_upgrade_selinux',
     'task_enable_flocker_control',
     'task_enable_flocker_agent',
     'task_open_control_firewall',

@@ -217,14 +217,6 @@ Using Amazon Web Services
 
       [fedora@aws]$ sudo shutdown -r now
 
-#. Update the SELinux policies.
-
-   Old SELinux policies stop docker from starting containers.
-
-   .. task:: upgrade_selinux
-      :prompt: [root@aws]#
-
-
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 
@@ -366,6 +358,16 @@ Paste them into a root console on the target node:
 
 Post installation configuration for Fedora 20 and CentOS 7
 ----------------------------------------------------------
+
+First disable SELinux.
+
+.. task:: disable_selinux
+   :prompt: [root@node]#
+
+.. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
+          This prevents Docker containers from accessing those filesystems as volumes.
+          A future version of Flocker may provide a different integration strategy.
+          See https://clusterhq.atlassian.net/browse/FLOC-619.
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
