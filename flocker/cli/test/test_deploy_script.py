@@ -4,15 +4,12 @@
 Unit tests for the implementation of ``flocker-deploy``.
 """
 
-from yaml import safe_dump
-
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase, SynchronousTestCase
-from twisted.internet.defer import Deferred
 
 from ...testtools import (
-    FlockerScriptTestsMixin, StandardOptionsTestsMixin, MemoryCoreReactor)
+    FlockerScriptTestsMixin, StandardOptionsTestsMixin)
 from ..script import DeployScript, DeployOptions
 from ...control.httpapi import REST_API_PORT
 
