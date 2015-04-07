@@ -373,7 +373,7 @@ First disable SELINUX.
 
 .. note:: Flocker does not currently set the necessary SELINUX context types on the filesystem mountpoints that it creates on nodes.
           This prevents Docker containers accessing those filesystems as volumes.
-          A future stable version of Flocker will set the appropriate SELINUX contexts.
+          A future version of Flocker may provide a different integration strategy.
           See https://clusterhq.atlassian.net/browse/FLOC-619.
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
