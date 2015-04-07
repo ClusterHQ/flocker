@@ -6,14 +6,13 @@ Tests for ``flocker.node._config``.
 
 from __future__ import unicode_literals, absolute_import
 
-import copy
 from uuid import uuid4, UUID
 
 from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
-from yaml import safe_load
+
 from .._config import (
     ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,

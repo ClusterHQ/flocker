@@ -5,21 +5,13 @@
 The command-line ``flocker-*-agent`` tools.
 """
 
-import sys
 from functools import partial
-
-from yaml import safe_load, safe_dump
-from yaml.error import YAMLError
 
 from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 
-from twisted.python.usage import Options, UsageError
-
-from ..control._config import (
-    FlockerConfiguration, marshal_configuration,
-    )
+from twisted.python.usage import Options
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)

@@ -18,7 +18,6 @@ from pyrsistent import pmap, InvariantException
 
 from twisted.python.filepath import FilePath
 
-from yaml import safe_dump
 from zope.interface import Interface, implementer
 
 from ._model import (
