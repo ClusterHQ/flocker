@@ -132,6 +132,10 @@ class VersionPrompt(sphinx_prompt.PromptDirective):
         latest = get_installable_version(version)
         self.content = [item.replace(PLACEHOLDER, latest) for
                         item in self.content]
+        if len(self.arguments) > 1:
+            # Allow placeholder to appear in list of prompts
+            prompt = self.arguments[1]
+            self.arguments[1] = prompt.replace(PLACEHOLDER, latest)
         return sphinx_prompt.PromptDirective.run(self)
 
 

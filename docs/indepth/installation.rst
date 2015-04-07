@@ -57,7 +57,7 @@ Install flocker-cli and dependencies inside the Python virtual environment:
 
 The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
 
-.. version-prompt:: bash linux$ auto
+.. version-prompt:: bash linux$,|latest-installable| auto
 
    linux$ cd flocker-tutorial
    linux$ bin/flocker-deploy --version
@@ -66,7 +66,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
 You'll need to do this every time you start a new shell.
 
-.. version-prompt:: bash linux$ auto
+.. version-prompt:: bash linux$,|latest-installable| auto
 
    linux$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    linux$ flocker-deploy --version
@@ -94,7 +94,7 @@ You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
 The ``flocker-deploy`` command line program will now be available:
 
-.. version-prompt:: bash mac$ auto
+.. version-prompt:: bash mac$,|latest-installable| auto
 
    mac$ flocker-deploy --version
    |latest-installable|
