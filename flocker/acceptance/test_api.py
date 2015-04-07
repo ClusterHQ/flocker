@@ -617,11 +617,30 @@ class DatasetAPITests(TestCase):
         """
         The size of a dataset can be decreased.
         """
-        # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE * 2
-        # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE
-        # Check for 200 response code
-        # Wait for the state of that dataset to show the updated size.
-        1/0
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
+        new_size = REALISTIC_BLOCKDEVICE_SIZE
+        def resize_dataset(result):
+            cluster, dataset = result
+
+            # Reconfigure that dataset to be half the size.
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            # Check that the configuration response has the expected size.
+            self.assertEqual(new_size, dataset['maximum_size'])
+            # Wait for the dataset to have the expected size.
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
 
     def test_dataset_shrink_not_possible(self):
         """
