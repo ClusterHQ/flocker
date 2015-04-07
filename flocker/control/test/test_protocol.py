@@ -12,7 +12,7 @@ from zope.interface.verify import verifyObject
 from characteristic import attributes, Attribute
 
 from eliot import ActionType, start_action, MemoryLogger, Logger
-from eliot.testing import validate_logging, assertHasAction
+from eliot.testing import validate_logging, assertHasAction, LoggedAction
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
@@ -20,7 +20,7 @@ from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError, AMP
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
 
@@ -31,9 +31,9 @@ from .._protocol import (
     ControlServiceLocator, LOG_SEND_CLUSTER_STATE, LOG_SEND_TO_AGENT,
 )
 from .._clusterstate import ClusterStateService
-from .._model import (
+from .. import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
-    Dataset, DeploymentState,
+    Dataset, DeploymentState, NonManifestDatasets,
 )
 from .._persistence import ConfigurationPersistenceService
 
@@ -99,6 +99,12 @@ NODE_STATE = NodeState(hostname=u'node1.example.com',
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
 
+dataset = Dataset(dataset_id=unicode(uuid4()))
+NONMANIFEST = NonManifestDatasets(
+    datasets={dataset.dataset_id: dataset}
+)
+del dataset
+
 
 class SerializationTests(SynchronousTestCase):
     """
@@ -123,6 +129,39 @@ class SerializationTests(SynchronousTestCase):
         deserialized = argument.fromString(as_bytes)
         self.assertEqual([bytes, TEST_DEPLOYMENT],
                          [type(as_bytes), deserialized])
+
+    def test_nonmanifestdatasets(self):
+        """
+        ``SerializableArgument`` can round-trip a ``NonManifestDatasets``
+        instance.
+        """
+        argument = SerializableArgument(NonManifestDatasets)
+        as_bytes = argument.toString(NONMANIFEST)
+        deserialized = argument.fromString(as_bytes)
+        self.assertEqual(
+            [bytes, NONMANIFEST],
+            [type(as_bytes), deserialized],
+        )
+
+    def test_multiple_type_serialization(self):
+        """
+        ``SerializableArgument`` can be given multiple types to allow instances
+        of any of those types to be serialized and deserialized.
+        """
+        argument = SerializableArgument(list, dict)
+        objects = [
+            [u"foo"],
+            {u"bar": u"baz"},
+        ]
+        serialized = list(
+            argument.toString(o)
+            for o in objects
+        )
+        unserialized = list(
+            argument.fromString(s)
+            for s in serialized
+        )
+        self.assertEqual(objects, unserialized)
 
     def test_wrong_type_serialization(self):
         """
@@ -186,6 +225,8 @@ class ControlTestCase(SynchronousTestCase):
             capture.append((args, kwargs))
             return succeed(None)
 
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(
             protocol,
             "callRemote",
@@ -222,7 +263,7 @@ class ControlAMPTests(ControlTestCase):
         sent = []
         self.patch_call_remote(sent, self.protocol)
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
-        self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
+        self.control_amp_service.cluster_state.apply_changes([NODE_STATE])
 
         self.protocol.makeConnection(StringTransport())
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
@@ -239,6 +280,8 @@ class ControlAMPTests(ControlTestCase):
         """
         marker = object()
         self.control_amp_service.connections.add(marker)
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
         self.patch(self.protocol, "callRemote",
                    lambda *args, **kwargs: succeed(None))
         self.protocol.makeConnection(StringTransport())
@@ -258,13 +301,18 @@ class ControlAMPTests(ControlTestCase):
         """
         ``NodeStateCommand`` updates the node state.
         """
+        changes = (NODE_STATE, NONMANIFEST)
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE,
+                                   state_changes=changes,
                                    eliot_context=TEST_ACTION))
         self.assertEqual(
+            DeploymentState(
+                nodes={NODE_STATE},
+                nonmanifest_datasets=NONMANIFEST.datasets,
+            ),
             self.control_amp_service.cluster_state.as_deployment(),
-            DeploymentState(nodes={NODE_STATE}))
+        )
 
     def test_nodestate_notifies_all_connected(self):
         """
@@ -284,7 +332,7 @@ class ControlAMPTests(ControlTestCase):
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand,
-                                   node_state=NODE_STATE,
+                                   state_changes=(NODE_STATE,),
                                    eliot_context=TEST_ACTION))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
@@ -376,7 +424,7 @@ class ControlAMPServiceTests(ControlTestCase):
                 (ClusterStatusCommand,),
                 dict(
                     configuration=TEST_DEPLOYMENT,
-                    state=Deployment(nodes=frozenset())
+                    state=DeploymentState(),
                 )
             )
         )
@@ -577,19 +625,6 @@ class AgentLocatorTests(SynchronousTestCase):
         self.assertIs(logger, locator.logger)
 
 
-class NodeStateCommandTests(SynchronousTestCase):
-    """
-    Tests for ``NodeStateCommand``.
-    """
-    def test_command_arguments(self):
-        """
-        ``NodeStateCommand`` requires the following arguments.
-        """
-        self.assertItemsEqual(
-            ['node_state', 'eliot_context'],
-            (v[0] for v in NodeStateCommand.arguments))
-
-
 class ControlServiceLocatorTests(SynchronousTestCase):
     """
     Tests for ``ControlServiceLocator``.
@@ -624,7 +659,9 @@ class SendStateToConnectionsTests(SynchronousTestCase):
         self.patch(control_amp_service, 'logger', logger)
 
         connection_protocol = ControlAMP(control_amp_service)
-        connection_protocol.makeConnection(StringTransport())
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
+        connection_protocol.callRemote = lambda *args, **kwargs: succeed({})
 
         control_amp_service._send_state_to_connections(
             connections=[connection_protocol])
@@ -651,3 +688,35 @@ class SendStateToConnectionsTests(SynchronousTestCase):
                 "agent": connection_protocol,
             }
         )
+
+    @validate_logging(None)
+    def test_error_sending(self, logger):
+        """
+        An error sending to one agent does not prevent others from being
+        notified.
+        """
+        control_amp_service = build_control_amp_service(self)
+        self.patch(control_amp_service, 'logger', logger)
+
+        connected_protocol = ControlAMP(control_amp_service)
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
+        connected_protocol.callRemote = lambda *args, **kwargs: succeed({})
+
+        error = ConnectionLost()
+        disconnected_protocol = ControlAMP(control_amp_service)
+        results = [succeed({}), fail(error)]
+        # Patching is bad.
+        # https://clusterhq.atlassian.net/browse/FLOC-1603
+        disconnected_protocol.callRemote = (
+            lambda *args, **kwargs: results.pop(0))
+
+        control_amp_service.connected(disconnected_protocol)
+        control_amp_service.connected(connected_protocol)
+        control_amp_service.node_changed((NodeState(hostname=u"1.2.3.4"),))
+
+        actions = LoggedAction.ofType(logger.messages, LOG_SEND_TO_AGENT)
+        self.assertEqual(
+            [action.end_message["exception"] for action in actions
+             if not action.succeeded],
+            [u"twisted.internet.error.ConnectionLost"])

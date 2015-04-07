@@ -7,11 +7,11 @@ Deploy applications on nodes.
 
 from itertools import chain
 
-from zope.interface import Interface, implementer
+from zope.interface import Interface, implementer, Attribute
 
 from characteristic import attributes
 
-from pyrsistent import pmap, PRecord, field
+from pyrsistent import PRecord, field
 
 from eliot import write_failure, Logger
 
@@ -79,36 +79,81 @@ class IDeployer(Interface):
     An object that can discover local state and calculate necessary
     changes to bring local state and desired cluster configuration into
     alignment.
+
+    :ivar unicode hostname: The hostname of the node this deployer is
+        managing.
     """
-    def discover_local_state():
+    hostname = Attribute("The hostname for this node.")
+
+    def discover_state(local_state):
         """
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.
 
-        :return: A ``Deferred`` which fires with an object describing
-             local state. This object will be passed to the control
-             service (see ``flocker.control._protocol``) and may also be
-             passed to this object's
-             ``calculate_necessary_state_changes()`` method.
+        :param NodeState local_state: The previously known state of this
+            node. This may include information that this deployer cannot
+            discover on its own. Information here should NOT be copied
+            into the result; the return result should include only
+            information discovered by this particular deployer.
+
+        :return: A ``Deferred`` which fires with a tuple of
+            ``IClusterStateChange`` providers describing
+            local state. These objects will be passed to the control
+            service (see ``flocker.control._protocol``) and may also be
+            passed to this object's ``calculate_changes()`` method.
         """
 
-    def calculate_necessary_state_changes(local_state,
-                                          desired_configuration,
-                                          current_cluster_state):
+    def calculate_changes(configuration, cluster_state):
         """
-        Calculate the state changes necessary to make the local state match
-        the desired cluster configuration.
+        Calculate the state changes necessary to make the local state match the
+        desired cluster configuration.
 
-        :param local_state: The recent output of ``discover_local_state``.
-        :param Deployment desired_configuration: The intended
-            configuration of all nodes.
-        :param Deployment current_cluster_state: The current state of all
-            nodes. While technically this may also includes the local
-            state, that information is likely out of date so should be
-            overriden by ``local_state``.
+        :param Deployment configuration: The intended configuration of all
+            nodes.
 
-        :return: A ``IStateChange`` provider.
+        :param DeploymentState cluster_state: The current state of all nodes
+            already updated with recent output of ``discover_state``.
+
+        :return: An ``IStateChange`` provider.
         """
+
+
+@implementer(IDeployer)
+class _OldToNewDeployer(object):
+    """
+    Base class to help update implementations of the old ``IDeployer`` to the
+    current version of the interface.
+
+    Subclass this and the existing ``hostname`` attribute and
+    ``discover_local_state`` and ``calculate_necessary_state_changes`` methods
+    will be adapted to the new interface (and this would be cleaner as an
+    adapter but that would require updating more code that's soon to be thrown
+    away).
+
+    This is a transitional helper until we can update the old ``IDeployer``
+    implementations properly.
+
+    Don't use this in any new code.
+    """
+    def discover_state(self, known_local_state):
+        """
+        Discover only local state.
+
+        :return: A ``Deferred`` that fires with a one-tuple consisting of the
+            result of ``discover_local_state``.
+        """
+        discovering = self.discover_local_state(known_local_state)
+        discovering.addCallback(lambda local_state: (local_state,))
+        return discovering
+
+    def calculate_changes(self, configuration, cluster_state):
+        """
+        Extract the local state from ``cluster_state`` and delegate calculation
+        to ``calculate_necessary_state_changes``.
+        """
+        local_state = cluster_state.get_node(self.hostname)
+        return self.calculate_necessary_state_changes(
+            local_state, configuration, cluster_state)
 
 
 @implementer(IStateChange)
@@ -409,36 +454,21 @@ class OpenPorts(PRecord):
         return gather_deferreds(results)
 
 
-@implementer(IDeployer)
-class P2PNodeDeployer(object):
+class P2PManifestationDeployer(_OldToNewDeployer):
     """
-    Start and stop applications.
+    Discover and calculate changes for peer-to-peer manifestations (e.g. ZFS)
+    on a node.
 
-    :ivar unicode hostname: The hostname of the node that this is running
-            on.
+    :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
-    :ivar IDockerClient docker_client: The Docker client API to use in
-        deployment operations. Default ``DockerClient``.
-    :ivar INetwork network: The network routing API to use in
-        deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, hostname, volume_service, docker_client=None,
-                 network=None):
+    def __init__(self, hostname, volume_service):
         self.hostname = hostname
-        if docker_client is None:
-            docker_client = DockerClient()
-        self.docker_client = docker_client
-        if network is None:
-            network = make_host_network()
-        self.network = network
         self.volume_service = volume_service
 
-    def discover_local_state(self):
+    def discover_local_state(self, local_state):
         """
-        List all the ``Application``\ s running on this node.
-
-        :returns: A ``Deferred`` which fires with a ``NodeState``
-            instance.
+        Discover local ZFS manifestations.
         """
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
@@ -455,14 +485,98 @@ class P2PNodeDeployer(object):
                         volume.name.dataset_id, volume.size.maximum_size)
             return primary_manifestations
         volumes.addCallback(map_volumes_to_size)
-        d = gatherResults([self.docker_client.list(), volumes])
 
-        def applications_from_units(result):
-            units, available_manifestations = result
-            applications = []
-            manifestations = []  # Manifestation objects we're constructing
+        def got_volumes(available_manifestations):
             manifestation_paths = {dataset_id: path for (path, (dataset_id, _))
                                    in available_manifestations.items()}
+
+            manifestations = list(
+                Manifestation(dataset=Dataset(dataset_id=dataset_id,
+                                              maximum_size=maximum_size),
+                              primary=True)
+                for (dataset_id, maximum_size) in
+                available_manifestations.values())
+
+            return NodeState(
+                hostname=self.hostname,
+                applications=None,
+                used_ports=None,
+                manifestations={manifestation.dataset_id: manifestation
+                                for manifestation in manifestations},
+                paths=manifestation_paths,
+            )
+        volumes.addCallback(got_volumes)
+        return volumes
+
+    def calculate_necessary_state_changes(self, *args, **kwargs):
+        # Does nothing in this branch. Follow up will move
+        # calculate_necessary_state_changes code here:
+        # https://clusterhq.atlassian.net/browse/FLOC-1553
+        return Sequentially(changes=[])
+
+
+class ApplicationNodeDeployer(_OldToNewDeployer):
+    """
+    Discover and calculate changes for applications running on a node.
+
+    :ivar unicode hostname: The hostname of the node that this is running
+            on.
+    :ivar IDockerClient docker_client: The Docker client API to use in
+        deployment operations. Default ``DockerClient``.
+    :ivar INetwork network: The network routing API to use in
+        deployment operations. Default is iptables-based implementation.
+    """
+    def __init__(self, hostname, docker_client=None, network=None):
+        self.hostname = hostname
+        if docker_client is None:
+            docker_client = DockerClient()
+        self.docker_client = docker_client
+        if network is None:
+            network = make_host_network()
+        self.network = network
+
+    def discover_local_state(self, local_state):
+        """
+        List all the ``Application``\ s running on this node.
+
+        The given local state is used to figure out if applications have
+        attached volumes that are specific manifestations. If no
+        manifestations are known then discovery isn't done and ignorance
+        is claimed about applications. This ensures that the information
+        returned is accurate, and therefore that convergence is done
+        correctly.
+
+        This does mean you can't run an application agent without a
+        dataset agent. See
+        https://clusterhq.atlassian.net/browse/FLOC-1646.
+
+        :return: A ``Deferred`` which fires with a ``NodeState`` instance
+            with information only about ``Application``.
+            ``NodeState.manifestations`` and ``NodeState.paths`` will not be
+            filled in.
+        """
+        if local_state.manifestations is None:
+            # Without manifestations we don't know if local applications'
+            # volumes are manifestations or not. Rather than return
+            # incorrect information leading to possibly erroneous
+            # convergence actions, just declare ignorance. Eventually the
+            # convergence agent for datasets will discover the information
+            # and then we can proceed.
+            return succeed(NodeState(
+                hostname=self.hostname,
+                applications=None,
+                used_ports=None,
+                manifestations=None,
+                paths=None,
+            ))
+
+        path_to_manifestations = {path: local_state.manifestations[dataset_id]
+                                  for (dataset_id, path)
+                                  in local_state.paths.items()}
+        d = self.docker_client.list()
+
+        def applications_from_units(units):
+            applications = []
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.volumes:
@@ -473,21 +587,15 @@ class P2PNodeDeployer(object):
                     # we assume all volumes are datasets
                     docker_volume = list(unit.volumes)[0]
                     try:
-                        dataset_id, max_size = available_manifestations.pop(
-                            docker_volume.node_path)
+                        manifestation = path_to_manifestations[
+                            docker_volume.node_path]
                     except KeyError:
                         # Apparently not a dataset we're managing, give up.
                         volume = None
                     else:
                         volume = AttachedVolume(
-                            manifestation=Manifestation(
-                                dataset=Dataset(
-                                    dataset_id=dataset_id,
-                                    metadata=pmap({u"name": unit.name}),
-                                    maximum_size=max_size),
-                                primary=True),
+                            manifestation=manifestation,
                             mountpoint=docker_volume.container_path)
-                        manifestations.append(volume.manifestation)
                 else:
                     volume = None
                 ports = []
@@ -497,6 +605,7 @@ class P2PNodeDeployer(object):
                         external_port=portmap.external_port
                     ))
                 links = []
+                environment = []
                 if unit.environment:
                     environment_dict = unit.environment.to_dict()
                     for label, value in environment_dict.items():
@@ -506,6 +615,15 @@ class P2PNodeDeployer(object):
                             alias, pad_a, port, pad_b, pad_c = parts
                             local_port = int(port)
                         except ValueError:
+                            # <ALIAS>_PORT_<PORT>_TCP
+                            parts = label.rsplit(b"_", 3)
+                            try:
+                                alias, pad_a, port, pad_b = parts
+                            except ValueError:
+                                environment.append((label, value))
+                                continue
+                            if not (pad_a, pad_b) == (b"PORT", b"TCP"):
+                                environment.append((label, value))
                             continue
                         if (pad_a, pad_b, pad_c) == (b"PORT", b"TCP", b"PORT"):
                             links.append(Link(
@@ -518,25 +636,18 @@ class P2PNodeDeployer(object):
                     image=image,
                     ports=frozenset(ports),
                     volume=volume,
+                    environment=environment if environment else None,
                     links=frozenset(links),
                     restart_policy=unit.restart_policy,
                     running=(unit.activation_state == u"active"),
                 ))
 
-            manifestations += list(
-                Manifestation(dataset=Dataset(dataset_id=dataset_id,
-                                              maximum_size=maximum_size),
-                              primary=True)
-                for (dataset_id, maximum_size) in
-                available_manifestations.values())
-
             return NodeState(
                 hostname=self.hostname,
                 applications=applications,
                 used_ports=self.network.enumerate_used_ports(),
-                manifestations={manifestation.dataset_id: manifestation
-                                for manifestation in manifestations},
-                paths=manifestation_paths,
+                manifestations=None,
+                paths=None,
             )
         d.addCallback(applications_from_units)
         return d
@@ -647,6 +758,10 @@ class P2PNodeDeployer(object):
         for application_name in applications_to_inspect:
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
+            # Current state never has metadata, but that's OK:
+            if inspect_desired.volume is not None:
+                inspect_desired = inspect_desired.transform(
+                    ["volume", "manifestation", "dataset", "metadata"], {})
             if inspect_desired != inspect_current:
                 changes = [
                     StopApplication(application=inspect_current),
@@ -722,7 +837,8 @@ def change_node_state(deployer, desired_configuration,  current_cluster_state):
 
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
-    d = deployer.discover_local_state()
+    node = current_cluster_state.get_node(deployer.hostname)
+    d = deployer.discover_local_state(node)
     d.addCallback(deployer.calculate_necessary_state_changes,
                   desired_configuration=desired_configuration,
                   current_cluster_state=current_cluster_state)
@@ -816,3 +932,41 @@ def find_dataset_changes(hostname, current_state, desired_state):
                    if dataset.deleted)
     return DatasetChanges(going=going, coming=coming, deleting=deleting,
                           creating=creating, resizing=resizing)
+
+
+class P2PNodeDeployer(_OldToNewDeployer):
+    """
+    Combination of ZFS and container deployer.
+
+    Temporary expedient, to be removed in FLOC-1553 or perhaps another
+    sub-task of FLOC-1443.
+    """
+    def __init__(self, hostname, volume_service, docker_client=None,
+                 network=None):
+        self.manifestations_deployer = P2PManifestationDeployer(
+            hostname, volume_service)
+        self.applications_deployer = ApplicationNodeDeployer(
+            hostname, docker_client, network)
+        self.hostname = hostname
+        self.volume_service = self.manifestations_deployer.volume_service
+        self.docker_client = self.applications_deployer.docker_client
+        self.network = self.applications_deployer.network
+
+    def discover_local_state(self, local_state):
+        d = self.manifestations_deployer.discover_local_state(local_state)
+
+        def got_manifestations_state(manifestations_state):
+            app_discovery = self.applications_deployer.discover_local_state(
+                manifestations_state)
+            app_discovery.addCallback(
+                lambda app_state: app_state.set(
+                    "manifestations", manifestations_state.manifestations).set(
+                    "paths", manifestations_state.paths))
+            return app_discovery
+        d.addCallback(got_manifestations_state)
+        return d
+
+    def calculate_necessary_state_changes(self, *args, **kwargs):
+        # Calculation will be split up in FLOC-1553.
+        return self.applications_deployer.calculate_necessary_state_changes(
+            *args, **kwargs)

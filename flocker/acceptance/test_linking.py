@@ -29,7 +29,7 @@ from twisted.trial.unittest import TestCase
 
 from flocker.control import (
     Application, DockerImage, AttachedVolume, Port, Dataset,
-    Manifestation)
+    Manifestation, Link)
 from flocker.testtools import loop_until
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
@@ -75,6 +75,13 @@ LOGSTASH_APPLICATION = Application(
         Port(internal_port=LOGSTASH_INTERNAL_PORT,
              external_port=LOGSTASH_INTERNAL_PORT),
     ]),
+    links=frozenset([
+        Link(
+            alias=u"ES",
+            local_port=LOGSTASH_LOCAL_PORT,
+            remote_port=LOGSTASH_REMOTE_PORT
+        )
+    ])
 )
 
 KIBANA_INTERNAL_PORT = 8080

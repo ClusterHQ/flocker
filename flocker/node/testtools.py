@@ -18,10 +18,11 @@ from twisted.trial.unittest import TestCase
 
 from zope.interface.verify import verifyObject
 
+from ._deploy import _OldToNewDeployer
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
 from ..testtools import loop_until
-from ..control import Deployment
+from ..control import IClusterStateChange, Node, NodeState, Deployment
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -95,16 +96,17 @@ class ControllableAction(object):
 
 
 @implementer(IDeployer)
-class ControllableDeployer(object):
+class ControllableDeployer(_OldToNewDeployer):
     """
     ``IDeployer`` whose results can be controlled.
     """
-    def __init__(self, local_states, calculated_actions):
+    def __init__(self, hostname, local_states, calculated_actions):
+        self.hostname = hostname
         self.local_states = local_states
         self.calculated_actions = calculated_actions
         self.calculate_inputs = []
 
-    def discover_local_state(self):
+    def discover_local_state(self, node_state):
         return self.local_states.pop(0)
 
     def calculate_necessary_state_changes(self, local_state,
@@ -138,18 +140,62 @@ def ideployer_tests_factory(fixture):
             """
             self.assertTrue(verifyObject(IDeployer, fixture(self)))
 
+        def _discover_state(self):
+            """
+            Create a deployer using the fixture and ask it to discover state.
+
+            :return: The return value of the object's ``discover_state``
+                method.
+            """
+            deployer = fixture(self)
+            result = deployer.discover_state(NodeState(hostname=b"10.0.0.1"))
+            return result
+
+        def test_discover_state_list_result(self):
+            """
+            The object's ``discover_state`` method returns a ``Deferred`` that
+            fires with a ``list``.
+            """
+            def discovered(changes):
+                self.assertEqual(tuple, type(changes))
+            return self._discover_state().addCallback(discovered)
+
+        def test_discover_state_iclusterstatechange(self):
+            """
+            The elements of the ``list`` that ``discover_state``\ 's
+            ``Deferred`` fires with provide ``IClusterStateChange``.
+            """
+            def discovered(changes):
+                wrong = []
+                for obj in changes:
+                    if not IClusterStateChange.providedBy(obj):
+                        wrong.append(obj)
+                if wrong:
+                    template = (
+                        "Some elements did not provide IClusterStateChange: {}"
+                    )
+                    self.fail(template.format(wrong))
+            return self._discover_state().addCallback(discovered)
+
         def test_calculate_necessary_state_changes(self):
             """
             The object's ``calculate_necessary_state_changes`` method returns a
             ``IStateChange`` provider.
             """
             deployer = fixture(self)
-            d = deployer.discover_local_state()
-            d.addCallback(
-                lambda local: deployer.calculate_necessary_state_changes(
-                    local, EMPTY, EMPTY))
-            d.addCallback(
-                lambda result: self.assertTrue(verifyObject(IStateChange,
-                                                            result)))
-            return d
+            result = deployer.calculate_changes(EMPTY, EMPTY)
+            self.assertTrue(verifyObject(IStateChange, result))
+
     return IDeployerTests
+
+
+def to_node(node_state):
+    """
+    Convert a ``NodeState`` to a corresponding ``Node``.
+
+    :param NodeState node_state: Object to convert.
+    :return Node: Equivalent node.
+    """
+    return Node(hostname=node_state.hostname,
+                applications=node_state.applications,
+                manifestations=node_state.manifestations)

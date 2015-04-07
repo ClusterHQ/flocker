@@ -84,17 +84,10 @@ Make sure Homebrew has no issues:
 
 Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
 
-Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
+Add the ``ClusterHQ/tap`` tap to Homebrew and install ``flocker``:
 
-.. version-code-block:: console
-
-   alice@mercury:~$ brew tap ClusterHQ/tap
-   ...
-   alice@mercury:~$ brew install flocker-|latest-installable|
-   ...
-   alice@mercury:~$ brew test flocker-|latest-installable|
-   ...
-   alice@mercury:~$
+.. task:: test_homebrew flocker-|latest-installable|
+   :prompt: alice@mercury:~$
 
 You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 

@@ -18,23 +18,11 @@ class ClusterStateService(Service):
     semantics of expiring data, which should happen so stale information
     isn't treated as correct.
 
-    https://clusterhq.atlassian.net/browse/FLOC-1542 will deal with
-    NodeState that has manifestations or application set to ``None``; for
-    now we assume all data is present in any given update.
+    :ivar DeploymentState _deployment_state: The current known cluster
+        state.
     """
     def __init__(self):
-        self._nodes = {}
-
-    def update_node_state(self, node_state):
-        """
-        Update the state of a given node.
-
-        XXX: Multiple nodes may report being primary for a dataset. Enforce
-        consistency here. See https://clusterhq.atlassian.net/browse/FLOC-1303
-
-        :param NodeState node_state: The state of the node.
-        """
-        self._nodes[node_state.hostname] = node_state
+        self._deployment_state = DeploymentState()
 
     def manifestation_path(self, hostname, dataset_id):
         """
@@ -45,7 +33,8 @@ class ClusterStateService(Service):
 
         :return FilePath: The path where the manifestation exists.
         """
-        return self._nodes[hostname].paths[dataset_id]
+        node = self._deployment_state.get_node(hostname)
+        return node.paths[dataset_id]
 
     def as_deployment(self):
         """
@@ -53,4 +42,19 @@ class ClusterStateService(Service):
 
         :return DeploymentState: Current state of the cluster.
         """
-        return DeploymentState(nodes=self._nodes.values())
+        return self._deployment_state
+
+    def apply_changes(self, changes):
+        """
+        Apply some changes to the cluster state.
+
+        :param list changes: Some ``IClusterStateChange`` providers to use to
+            update the internal cluster state.
+        """
+        # XXX: Multiple nodes may report being primary for a dataset. Enforce
+        # consistency here. See
+        # https://clusterhq.atlassian.net/browse/FLOC-1303
+        for change in changes:
+            self._deployment_state = change.update_cluster_state(
+                self._deployment_state
+            )

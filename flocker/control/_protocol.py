@@ -3,9 +3,6 @@
 """
 Communication protocol between control service and convergence agent.
 
-THIS CODE IS INSECURE AND SHOULD NOT BE DEPLOYED IN ANY FORM UNTIL
-https://clusterhq.atlassian.net/browse/FLOC-1241 IS FIXED.
-
 The cluster is composed of a control service server, and convergence
 agents. The code below implicitly assumes convergence agents are
 node-specific, but that will likely change and involve additinal commands.
@@ -29,6 +26,7 @@ http://eliot.readthedocs.org/en/0.6.0/threads.html).
 """
 
 from eliot import Logger, ActionType, Action, Field
+from eliot.twisted import DeferredContext
 
 from characteristic import with_cmp
 
@@ -36,13 +34,13 @@ from zope.interface import Interface, Attribute
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, CommandLocator, AMP, Unicode,
+    Argument, Command, Integer, CommandLocator, AMP, Unicode, ListOf,
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
 
 from ._persistence import wire_encode, wire_decode
-from ._model import Deployment, NodeState, DeploymentState
+from ._model import Deployment, NodeState, DeploymentState, NonManifestDatasets
 
 
 class SerializableArgument(Argument):
@@ -50,22 +48,27 @@ class SerializableArgument(Argument):
     AMP argument that takes an object that can be serialized by the
     configuration persistence layer.
     """
-    def __init__(self, cls):
+    def __init__(self, *classes):
         """
-        :param cls: The type of the objects we expect to (de)serialize.
+        :param *classes: The type or types of the objects we expect to
+            (de)serialize.
         """
         Argument.__init__(self)
-        self._expected_class = cls
+        self._expected_classes = classes
 
     def fromString(self, in_bytes):
         obj = wire_decode(in_bytes)
-        if not isinstance(obj, self._expected_class):
-            raise TypeError("{} is not a {}".format(obj, self._expected_class))
+        if not isinstance(obj, self._expected_classes):
+            raise TypeError(
+                "{} is none of {}".format(obj, self._expected_classes)
+            )
         return obj
 
     def toString(self, obj):
-        if not isinstance(obj, self._expected_class):
-            raise TypeError("{} is not a {}".format(obj, self._expected_class))
+        if not isinstance(obj, self._expected_classes):
+            raise TypeError(
+                "{} is none of {}".format(obj, self._expected_classes)
+            )
         return wire_encode(obj)
 
 
@@ -111,8 +114,10 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
-    arguments = [('node_state', SerializableArgument(NodeState)),
-                 ('eliot_context', _EliotActionArgument())]
+    arguments = [
+        ('state_changes', ListOf(
+            SerializableArgument(NodeState, NonManifestDatasets))),
+        ('eliot_context', _EliotActionArgument())]
     response = []
 
 
@@ -137,9 +142,9 @@ class ControlServiceLocator(CommandLocator):
         return {"major": 1}
 
     @NodeStateCommand.responder
-    def node_changed(self, eliot_context, node_state):
+    def node_changed(self, eliot_context, state_changes):
         with eliot_context:
-            self.control_amp_service.node_changed(node_state)
+            self.control_amp_service.node_changed(state_changes)
             return {}
 
 
@@ -229,16 +234,16 @@ class ControlAMPService(Service):
                                     configuration=configuration,
                                     state=state):
             for connection in connections:
-                with LOG_SEND_TO_AGENT(
-                        self.logger, agent=connection) as action:
-                    connection.callRemote(
+                action = LOG_SEND_TO_AGENT(self.logger, agent=connection)
+                with action.context():
+                    d = DeferredContext(connection.callRemote(
                         ClusterStatusCommand,
                         configuration=configuration,
                         state=state,
                         eliot_context=action
-                    )
-                # Handle errors from callRemote by logging them
-                # https://clusterhq.atlassian.net/browse/FLOC-1311
+                    ))
+                    d.addActionFinish()
+                    d.result.addErrback(lambda _: None)
 
     def connected(self, connection):
         """
@@ -257,14 +262,15 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
-    def node_changed(self, node_state):
+    def node_changed(self, state_changes):
         """
         We've received a node state update from a connected client.
 
         :param bytes hostname: The hostname of the node.
-        :param NodeState node_state: The changed state for the node.
+        :param list state_changes: One or more ``IClusterStateChange``
+            providers representing the state change which has taken place.
         """
-        self.cluster_state.update_node_state(node_state)
+        self.cluster_state.apply_changes(state_changes)
         self._send_state_to_connections(self.connections)
 
 
