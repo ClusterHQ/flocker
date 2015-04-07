@@ -849,6 +849,8 @@ def omnibus_package_builder(
                      flocker_cli_path),
                     (FilePath('/opt/flocker/bin/flocker'),
                      flocker_cli_path),
+                    (FilePath('/opt/flocker/bin/flocker-ca'),
+                     flocker_cli_path),
                 ]
             ),
             BuildPackage(
