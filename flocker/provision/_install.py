@@ -242,6 +242,9 @@ def task_install_requirements_ubuntu():
         Run.from_args([
             "add-apt-repository", "-y", "ppa:james-page/docker"]),
         Run.from_args([
+            "add-apt-repository", "-y",
+            "deb http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04 /"]),  # noqa
+        Run.from_args([
             "apt-get", "update"]),
         # XXX This brings up a prompt about upgrading grub,
         # somehow work around that, see
@@ -256,33 +259,9 @@ def task_install_requirements_ubuntu():
 
 
 def task_install_flocker_ubuntu():
-    # This is a stopgap - there will be a proper repository on S3 to apt-get
-    # install from. When this is the case then I think some dependencies won't
-    # need to be installed separately to clusterhq-flocker-node
-    # XXX Replace this in FLOC-1065
-    packages_url = "http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04/"  # noqa
-    packages = [
-        {
-           'name': "clusterhq-python-flocker",
-           'file': "clusterhq-python-flocker_0.3.3-0.dev.8.661.g5c313b5_amd64.deb",  # noqa
-        },
-        {
-           'name': "clusterhq-flocker-node",
-           'file': "clusterhq-flocker-node_0.3.3-0.dev.8.661.g5c313b5_all.deb",
-        },
-    ]
-
-    download_packages = [
-        Run.from_args(
-            ["wget", "-O", package['name'], packages_url + package['file']]
-            ) for package in packages
-    ]
-
-    return download_packages + [
-        Run.from_args([
-            "dpkg", "-i", "clusterhq-python-flocker",
-            "clusterhq-flocker-node"])
-    ]
+    return [Run.from_args([
+        'apt-get', '-y', '--force-yes', 'install', 'clusterhq-python-flocker',
+        'clusterhq-flocker-node'])]
 
 
 def task_install_kernel_devel():
