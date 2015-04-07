@@ -56,7 +56,7 @@ class ContainerAPITests(TestCase):
             u"ports": [{u"internal": 80, u"external": 8080}],
             u'restart_policy': {u'name': u'never'}
         }
-        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
+        waiting_for_cluster = get_test_cluster(node_count=1)
 
         def create_container(cluster, data):
             data[u"host"] = cluster.nodes[0].address
@@ -95,7 +95,7 @@ class ContainerAPITests(TestCase):
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'},
             u'restart_policy': {u'name': u'never'},
         }
-        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
+        waiting_for_cluster = get_test_cluster(node_count=1)
 
         def create_container(cluster, data):
             data[u"host"] = cluster.nodes[0].address
@@ -210,7 +210,7 @@ def create_dataset(test_case):
         actual cluster state.
     """
     # Create a 1 node cluster
-    waiting_for_cluster = get_test_cluster(test_case=test_case, node_count=1)
+    waiting_for_cluster = get_test_cluster(node_count=1)
 
     # Configure a dataset on node1
     def configure_dataset(cluster):
@@ -260,7 +260,7 @@ class DatasetAPITests(TestCase):
         A dataset can be moved from one node to another.
         """
         # Create a 2 node cluster
-        waiting_for_cluster = get_test_cluster(test_case=self, node_count=2)
+        waiting_for_cluster = get_test_cluster(node_count=2)
 
         # Configure a dataset on node1
         def configure_dataset(cluster):

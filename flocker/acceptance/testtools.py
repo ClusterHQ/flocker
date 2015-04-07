@@ -9,7 +9,7 @@ from pipes import quote as shell_quote
 from socket import gaierror, socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
-from yaml import safe_dump, safe_load
+from yaml import safe_dump
 
 from twisted.web.http import OK, CREATED
 from twisted.internet.defer import succeed
@@ -21,8 +21,9 @@ from pyrsistent import PRecord, field, CheckedPVector, pmap
 
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
-    FlockerConfiguration, REST_API_PORT
 )
+from ..control.httpapi import container_configuration_response, REST_API_PORT
+
 from flocker.testtools import loop_until
 
 
@@ -110,19 +111,19 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
     )
 
 
-def get_node_state(node):
+def get_node_state(hostname):
     """
     Get the applications on a node using the HTTP API.
 
-    :param node: The hostname of the node.
+    :param hostname: The hostname of the node.
 
     :return: ``list`` of ``Application`` currently on that node.
     """
-    cluster = Cluster(control_node=Node(
-        address=environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')))
-    d = cluster.current_containers()
+    d = get_test_cluster()
+    d = d.addCallback(lambda cluster: cluster.current_containers())
     d.addCallback(
-        lambda result: [app for app in result[1] if app[u"hostname"] == node])
+        lambda result: {app.name: app for app in result[1].values()
+                        if app[u"hostname"] == hostname})
     return d
 
 
@@ -347,13 +348,23 @@ def assert_expected_deployment(test_case, expected_deployment):
     :param dict expected_deployment: A mapping of IP addresses to set of
         ``Application`` instances expected on the nodes with those IP
         addresses.
+
+    :return Deferred: Fires on end of assertion.
     """
-    for node, expected in expected_deployment.items():
-        yaml = run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
-        state = safe_load(yaml)
-        test_case.assertSetEqual(
-            set(FlockerConfiguration(state).applications().values()),
-            expected)
+    d = get_test_cluster()
+    d.addCallback(lambda cluster: cluster.current_containers())
+
+    def got_results(results):
+        cluster, existing_containers = results
+        expected = []
+        for hostname, apps in expected_deployment.items():
+            expected += list(container_configuration_response(app, hostname)
+                             for app in apps)
+        for app in expected:
+            app[u"running"] = True
+        test_case.assertItemsEqual(existing_containers, expected)
+    d.addCallback(got_results)
+    return d
 
 
 class Node(PRecord):
@@ -576,13 +587,12 @@ class Cluster(PRecord):
         return request
 
 
-def get_test_cluster(test_case, node_count):
+def get_test_cluster(node_count=0):
     """
     Build a ``Cluster`` instance with at least ``node_count`` nodes.
 
-    :param TestCase test_case: The test case instance on which to register
-        cleanup operations.
-    :param int node_count: The number of nodes to request in the cluster.
+    :param int node_count: The number of nodes to ensure in the cluster.
+
     :returns: A ``Deferred`` which fires with a ``Cluster`` instance.
     """
     control_node = environ.get('FLOCKER_ACCEPTANCE_CONTROL_NODE')
