@@ -212,6 +212,25 @@ ${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 """)]
 
 
+def task_disable_selinux():
+    """
+    Disable SELinux for this session and permanently.
+    XXX: Remove this when we work out suitable SELinux settings.
+    See https://clusterhq.atlassian.net/browse/FLOC-619.
+    """
+    return [
+        Run(command="if selinuxenabled; then setenforce 0; fi"),
+        Run(
+            command=(
+                "test -e /etc/selinux/config && "
+                "sed --in-place='.preflocker' "
+                "'s/^SELINUX=.*$/SELINUX=disabled/g' "
+                "/etc/selinux/config"
+            )
+        ),
+    ]
+
+
 def task_enable_docker():
     """
     Start docker and configure it to start automatically.
@@ -334,12 +353,6 @@ def task_install_flocker(
     return commands
 
 
-def task_upgrade_selinux():
-    return [
-        Run.from_args(['yum', 'upgrade', '-y', 'selinux-policy']),
-    ]
-
-
 ACCEPTANCE_IMAGES = [
     "clusterhq/elasticsearch",
     "clusterhq/logstash",
@@ -450,6 +463,7 @@ def provision(distribution, package_source, variants):
 
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
+    commands += task_disable_selinux()
     commands += task_enable_docker()
     commands += task_create_flocker_pool_file()
     commands += task_pull_docker_images()
