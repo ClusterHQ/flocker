@@ -220,7 +220,14 @@ def task_disable_selinux():
     """
     return [
         Run(command="setenforce 0"),
-        Run(command="test -e /etc/selinux/config && sed --in-place='.preflocker' 's/^SELINUX=.*$/SELINUX=disabled/g' /etc/selinux/config"),
+        Run(
+            command=(
+                "test -e /etc/selinux/config && "
+                "sed --in-place='.preflocker' "
+                "'s/^SELINUX=.*$/SELINUX=disabled/g' "
+                "/etc/selinux/config"
+            )
+        ),
     ]
 
 
