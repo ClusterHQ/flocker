@@ -12,7 +12,7 @@ yum install -y epel-release
 yum install -y https://s3.amazonaws.com/clusterhq-archive/centos/clusterhq-release$(rpm -E %dist).noarch.rpm
 
 # Install packages
-# XXX: We're disabling SELINUX now so libselinux-devel may no longer be needed.
+# XXX: We're disabling SELinux now so libselinux-devel may no longer be needed.
 # See https://clusterhq.atlassian.net/browse/FLOC-1643
 yum install -y \
 	@buildsys-build git \
