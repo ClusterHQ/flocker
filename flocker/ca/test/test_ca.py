@@ -21,21 +21,31 @@ class CertificateAuthorityTests(SynchronousTestCase):
         specified path.
         """
         path = FilePath(self.mktemp())
+        path.makedirs()
         CertificateAuthority.initialize(path, b"mycluster")
         self.assertEqual(
             (True, True),
-            (path.child("cluster.pem").exists(),
+            (path.child("cluster.crt").exists(),
              path.child("cluster.crt").exists())
         )
+
+    def test_decoded_certificate_matches_key(self):
+        """
+        A decoded certificate matches the private key it is meant to be
+        paired with.
+        """
+        pass
 
     def test_written_keypair_reloads(self):
         """
         A keypair written by ``CertificateAuthority.initialize`` can be
-        successfully reloaded in to a ``CertificateAuthority`` instance.
+        successfully reloaded in to an identical ``CertificateAuthority``
+        instance.
         """
         path = FilePath(self.mktemp())
+        path.makedirs()
         ca1 = CertificateAuthority.initialize(path, b"mycluster")
-        ca2 = CertificateAuthority(path)
+        ca2 = CertificateAuthority.from_path(path)
         self.assertEqual(ca1, ca2)
 
     def test_keypair_correct_umask(self):

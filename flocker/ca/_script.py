@@ -4,13 +4,20 @@
 The command-line certificate authority tool.
 """
 
-from twisted.internet.defer import maybeDeferred
-from twisted.python.usage import Options
+import os
+import sys
+
+from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.python.filepath import FilePath
+from twisted.python.usage import Options, UsageError
 
 from zope.interface import implementer
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
+
+from ._ca import (CertificateAuthority, CertificateAlreadyExistsError,
+                  KeyAlreadyExistsError)
 
 
 class InitializeOptions(Options):
@@ -35,14 +42,37 @@ class InitializeOptions(Options):
     synoposis = "<name>"
 
     def parseArgs(self, name):
-        pass  # self["name"] =  name
+        self["name"] = name
+        self["path"] = FilePath(os.getcwd())
 
     def run(self):
         # Check if files already exist in current directory. If they do
         # error out. Otherwise calling APIs on CertificateAuthority,
         # create new private/public key pair, self-sign, write out to
         # files locally.
-        pass
+        d = Deferred()
+
+        def generateCert(_):
+            try:
+                CertificateAuthority.initialize(self["path"], self["name"])
+                print (
+                    b"Created cluster.key and cluster.crt. "
+                    "Please keep cluster.key secret, as anyone who can access "
+                    "will be able to control your cluster."
+                )
+            except CertificateAlreadyExistsError as e:
+                raise UsageError(str(e))
+            except KeyAlreadyExistsError as e:
+                raise UsageError(str(e))
+
+        def generateError(failure):
+            print b"Error: {error}".format(error=str(failure.value))
+            sys.exit(1)
+
+        d.addCallback(generateCert)
+        d.addErrback(generateError)
+        d.callback(None)
+        return d
 
 
 @flocker_standard_options
@@ -56,7 +86,7 @@ class CAOptions(Options):
     API clients within a Flocker cluster.
     """
 
-    synoposis = "Usage: flocker-ca [OPTIONS]"
+    synoposis = "Usage: flocker-ca <command> [OPTIONS]"
 
     subCommands = [
         ["initialize", None, InitializeOptions,
