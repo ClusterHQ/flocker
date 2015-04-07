@@ -51,9 +51,10 @@ Some older versions of pip have issues installing Python wheel packages.
 
 Install flocker-cli and dependencies inside the virtualenv:
 
-.. prompt:: bash linux$
+.. version-code-block:: console
 
-   flocker-tutorial/bin/pip install https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.3dev8-py2-none-any.whl
+   linux$ flocker-tutorial/bin/pip install \
+      https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl
 
 The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
 
