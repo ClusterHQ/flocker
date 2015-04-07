@@ -230,10 +230,10 @@ def change_kernel(node_id, token, kernel_version):
 
 def hard_reboot(node_id, token):
     """
-    Reboot a digitialocean node by powering it off and then back on.
+    Reboot a DigitalOcean node by powering it off and then back on.
     This is necessary for a new kernel to be selected.
 
-    :param bytes node_id: The id of the digitialocean.
+    :param bytes node_id: The id of the DigitalOcean.
     :param bytes token: A DigitalOcean v2 API token.
     """
     # Import here, so that this can be added to ``flocker.provision`` without

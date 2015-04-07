@@ -19,6 +19,12 @@ from effect import Func, Effect
 def provision_rackspace(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
+
+    :param LibcloudNode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param bytes distribution: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
     """
     commands = []
     if distribution in ('centos-7',):
