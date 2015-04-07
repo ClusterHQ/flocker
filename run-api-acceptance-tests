@@ -100,6 +100,8 @@ fi
 # Transfer and run the remote provisioning script
 nodes=""
 for node in ${FLOCKER_ACCEPTANCE_AGENT_NODES}; do
+    # Configure Flocker SSH Keys
+    python -c "from flocker.cli import configure_ssh; configure_ssh(b'${node}', 22);"
     # Upload the RPMs
     scp *-${VERSION}.*.rpm "root@${node}:/tmp/"
     # Upload a flocker-agent configuration file
