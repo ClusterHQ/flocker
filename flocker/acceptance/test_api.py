@@ -587,15 +587,12 @@ class DatasetAPITests(TestCase):
         """
         The size of a dataset can be increased.
         """
-        # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE
         creating = create_dataset(
             test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
         )
         new_size = REALISTIC_BLOCKDEVICE_SIZE * 2
         def resize_dataset(result):
             cluster, dataset = result
-
-            # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE * 2
             return cluster.update_dataset(
                 dataset["dataset_id"], {u'maximum_size': new_size}
             )
@@ -604,9 +601,7 @@ class DatasetAPITests(TestCase):
 
         def check_dataset_size(result):
             cluster, dataset = result
-            # Check that the configuration response has the expected size.
             self.assertEqual(new_size, dataset['maximum_size'])
-            # Wait for the dataset to have the expected size.
             return cluster.wait_for_dataset(dataset)
 
         checking = resizing.addCallback(check_dataset_size)
@@ -623,8 +618,6 @@ class DatasetAPITests(TestCase):
         new_size = REALISTIC_BLOCKDEVICE_SIZE
         def resize_dataset(result):
             cluster, dataset = result
-
-            # Reconfigure that dataset to be half the size.
             return cluster.update_dataset(
                 dataset["dataset_id"], {u'maximum_size': new_size}
             )
@@ -633,9 +626,7 @@ class DatasetAPITests(TestCase):
 
         def check_dataset_size(result):
             cluster, dataset = result
-            # Check that the configuration response has the expected size.
             self.assertEqual(new_size, dataset['maximum_size'])
-            # Wait for the dataset to have the expected size.
             return cluster.wait_for_dataset(dataset)
 
         checking = resizing.addCallback(check_dataset_size)
@@ -653,13 +644,11 @@ class DatasetAPITests(TestCase):
         new_size = 67108864-1
         def resize_dataset(result):
             cluster, dataset = result
-
             # Reconfigure that dataset to be an invalid size.
             resizing = cluster.update_dataset(
                 dataset_id=dataset["dataset_id"],
                 dataset_properties={u'maximum_size': new_size}
             )
-
             # Check for expected exception and response code.
             return self.assertFailure(
                 resizing, ValueError
@@ -675,15 +664,12 @@ class DatasetAPITests(TestCase):
         """
         A dataset with a size limit can have that limit removed.
         """
-        # Create a dataset with REALISTIC_BLOCKDEVICE_SIZE
         creating = create_dataset(
             test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
         )
         new_size = None
         def resize_dataset(result):
             cluster, dataset = result
-
-            # Reconfigure that dataset to be REALISTIC_BLOCKDEVICE_SIZE * 2
             return cluster.update_dataset(
                 dataset["dataset_id"], {u'maximum_size': new_size}
             )
