@@ -75,6 +75,9 @@ def run_state_change(change, deployer):
     return change.run(deployer)
 
 
+# run_state_change doesn't use the IStateChange implementation provided by
+# _InParallel and _Sequentially but those types provide it anyway because
+# certain other areas of the test suite depend on it.
 @implementer(IStateChange)
 class _InParallel(PRecord):
     changes = field(type=PVector, factory=pvector, mandatory=True)
@@ -92,6 +95,7 @@ def in_parallel(changes):
     return _InParallel(changes=changes)
 
 
+# See comment above _InParallel.
 @implementer(IStateChange)
 class _Sequentially(PRecord):
     changes = field(type=PVector, factory=pvector, mandatory=True)
