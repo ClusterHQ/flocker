@@ -6,7 +6,6 @@ Tests for certification logic in ``flocker.ca._ca``
 
 import datetime
 import os
-import stat
 
 from Crypto.Util import asn1
 from OpenSSL import crypto
@@ -87,7 +86,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
-        ca = CertificateAuthority.initialize(path, b"mycluster")
+        CertificateAuthority.initialize(path, b"mycluster")
         keyPath = path.child(b"cluster.key")
         st = os.stat(keyPath.path)
         self.assertEqual(b'0600', oct(st.st_mode & 0777))
@@ -99,7 +98,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
-        ca = CertificateAuthority.initialize(path, b"mycluster")
+        CertificateAuthority.initialize(path, b"mycluster")
         keyPath = path.child(b"cluster.crt")
         st = os.stat(keyPath.path)
         self.assertEqual(b'0600', oct(st.st_mode & 0777))

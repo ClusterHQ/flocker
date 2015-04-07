@@ -7,7 +7,7 @@ A minimal certificate authority.
 __all__ = [
     "CertificateAuthority", "FlockerKeyPair", "PathError",
     "CertificateAlreadyExistsError", "KeyAlreadyExistsError",
-    "EXPIRY_20_EYARS"
+    "EXPIRY_20_YEARS"
 ]
 
 from ._ca import (

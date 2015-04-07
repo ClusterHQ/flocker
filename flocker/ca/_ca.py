@@ -84,8 +84,8 @@ class CertificateAuthority(PRecord):
             stored.
         """
         if not path.isdir():
-            raise PathDoesNotExistError(
-                b"Path {path} is not a directory.".format(path=path.path)
+            raise PathError(
+                b"Path {path} is not a xdirectory.".format(path=path.path)
             )
 
         certPath = path.child("cluster.crt")
@@ -105,7 +105,7 @@ class CertificateAuthority(PRecord):
 
         try:
             certFile = certPath.open()
-        except IOError as e:
+        except IOError:
             raise PathError(
                 (b"Certificate file {path} could not be opened. "
                  b"Check file permissions.").format(
@@ -114,7 +114,7 @@ class CertificateAuthority(PRecord):
 
         try:
             keyFile = keyPath.open()
-        except IOError as e:
+        except IOError:
             raise PathError(
                 (b"Private key file {path} could not be opened. "
                  b"Check file permissions.").format(
