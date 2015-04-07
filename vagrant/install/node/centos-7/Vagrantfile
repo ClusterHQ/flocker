@@ -10,10 +10,10 @@ unless Vagrant.has_plugin?("vagrant-reload")
 end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-	config.vm.box = "chef/centos-7.0"
+  config.vm.box = "chef/centos-7.0"
   # Disable /vagrant, as kernel updates cause problems with Guest Additions
   config.vm.synced_folder ".", "/vagrant", disabled: true
-	config.vm.provision :shell, :path => "install1.sh"
-	config.vm.provision :reload
+  config.vm.provision :shell, :path => "install1.sh"
+  config.vm.provision :reload
   config.vm.provision :shell, :path => "install2.sh"
 end
