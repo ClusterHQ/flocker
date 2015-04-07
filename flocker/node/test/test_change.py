@@ -98,6 +98,27 @@ class SequentiallyTests(SynchronousTestCase):
                        self.failureResultOf(result).value])
         self.assertEqual(called, [False, False, exception])
 
+    def test_nested_sequentially(self):
+        """
+        ``run_state_changes`` executes all of the changes in a ``sequentially``
+        nested within another ``sequentially``.
+        """
+        actions = list(
+            ControllableAction(result=succeed(None))
+            for i in range(3)
+        )
+        subchanges = [
+            actions[0],
+            sequentially(changes=[actions[1]]),
+            actions[2],
+        ]
+        change = sequentially(changes=subchanges)
+        run_state_change(change, DEPLOYER)
+        self.assertEqual(
+            [True, True, True],
+            list(action.called for action in actions)
+        )
+
 
 class InParallelTests(SynchronousTestCase):
     """
