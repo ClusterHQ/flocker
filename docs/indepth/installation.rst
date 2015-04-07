@@ -36,20 +36,20 @@ On Ubuntu or Debian you can run:
 
    sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
 
-Create an isolated Python environment in a new directory "flocker-tutorial".
+Create an isolated Python virtual environment in a new directory "flocker-tutorial".
 
 .. prompt:: bash linux$
 
    virtualenv --python=/usr/bin/python2.7 flocker-tutorial
 
-Upgrade the pip Python package manager to its latest version inside the virtualenv.
+Upgrade the pip Python package manager to its latest version inside the Python virtual environment.
 Some older versions of pip have issues installing Python wheel packages.
 
 .. prompt:: bash linux$
 
    flocker-tutorial/bin/pip install --upgrade pip
 
-Install flocker-cli and dependencies inside the virtualenv:
+Install flocker-cli and dependencies inside the Python virtual environment:
 
 .. version-code-block:: console
 
