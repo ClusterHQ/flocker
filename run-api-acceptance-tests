@@ -56,7 +56,7 @@ yum remove -y clusterhq-python-flocker || true
 # Remove control service persisted configuration (if exists)
 rm -rf /var/lib/flocker/current_configuration.v1.json
 
-pushd /flocker
+pushd /tmp
 #
 # Install packages
 #
@@ -81,7 +81,9 @@ systemctl start flocker-control-api.socket
 systemctl enable flocker-agent.service
 systemctl start flocker-agent.service
 
-# Open up the firewall
+# Start and open up the firewall
+systemctl enable firewalld
+systemctl start firewalld
 firewall-cmd --permanent --add-service flocker-control-api
 firewall-cmd --add-service flocker-control-api
 firewall-cmd --permanent --add-service flocker-control-agent
@@ -92,18 +94,22 @@ EOF
 
 if [[ ! -e "clusterhq-python-flocker-${VERSION}.x86_64.rpm" ]]; then
     # Build packages on local machine
-    ./admin/build-package --distribution fedora-20 $PWD
+    ./admin/build-package --distribution centos-7 $PWD
 fi
 
 # Transfer and run the remote provisioning script
 nodes=""
 for node in ${FLOCKER_ACCEPTANCE_AGENT_NODES}; do
+    # Upload the RPMs
+    scp *-${VERSION}.*.rpm "root@${node}:/tmp/"
+    # Upload a flocker-agent configuration file
     node_config_file="/tmp/flocker-agent.${node}"
     echo "FLOCKER_NODE_NAME = ${node}" > "${node_config_file}"
     echo "FLOCKER_CONTROL_NODE = ${FLOCKER_ACCEPTANCE_CONTROL_NODE}" >> "${node_config_file}"
     scp "${node_config_file}" "root@${node}:/etc/sysconfig/flocker-agent"
-
+    # Upload the provisioning script
     scp "${REMOTE_PROVISIONING_SCRIPT_PATH}" "root@${node}:${REMOTE_PROVISIONING_SCRIPT_PATH}"
+    # Run the provisioning script
     ssh "root@${node}" -- "sh ${REMOTE_PROVISIONING_SCRIPT_PATH}"
     nodes="${nodes}${node}:"
 done
