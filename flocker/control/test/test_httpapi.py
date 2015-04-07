@@ -1942,6 +1942,49 @@ class CreateDatasetTestsMixin(APITestsMixin):
         return creating
 
 
+    def test_create_with_maximum_size_null(self):
+        """
+        A maximum size of ``null`` included with the creation of a dataset
+        results in a persisted configuration which excludes the maximum_size
+        attribute.
+        """
+        dataset_id = unicode(uuid4())
+        maximum_size = None
+        dataset = {
+            u"primary": self.NODE_A,
+            u"dataset_id": dataset_id,
+            u"maximum_size": maximum_size,
+        }
+        response = dataset.copy()
+        response[u"metadata"] = {}
+        response[u"deleted"] = False
+        del response[u"maximum_size"]
+        creating = self.assertResult(
+            b"POST", b"/configuration/datasets", dataset, CREATED, response
+        )
+
+        def created(ignored):
+            deployment = self.persistence_service.get()
+            self.assertEqual(
+                Deployment(nodes=frozenset({
+                    Node(
+                        hostname=self.NODE_A,
+                        manifestations={
+                            dataset_id: Manifestation(
+                                dataset=Dataset(
+                                    dataset_id=dataset_id,
+                                ),
+                                primary=True
+                            )
+                        }
+                    )
+                })),
+                deployment
+            )
+        creating.addCallback(created)
+        return creating
+
+
 class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
     """
     Tests for the behaviour of the dataset modification endpoint at
