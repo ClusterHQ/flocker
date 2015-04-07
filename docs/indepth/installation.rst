@@ -345,6 +345,8 @@ To enable and start Docker, run the following commands in a root console:
 Installing on CentOS 7
 ----------------------
 
+.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
+
 Flocker requires the latest available kernel.
 
 .. task:: upgrade_kernel_centos
@@ -377,6 +379,8 @@ To enable and start Docker, run the following commands in a root console:
 
 Installing on Ubuntu 14.04
 --------------------------
+
+.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
 
 .. To test this:
    * create two ubuntu medium instances on AWS with security group "acceptance"
