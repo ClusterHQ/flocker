@@ -158,7 +158,6 @@ setup(
         "klein == 0.2.3",
         "pyrsistent == 0.9.1",
 
-        # This is used for provisioning code.
         "effect==0.1a13",
         ],
 
