@@ -605,7 +605,7 @@ class DatasetAPITests(TestCase):
         def check_dataset_size(result):
             cluster, dataset = result
             # Check that the configuration response has the expected size.
-            self.assertEqual(new_size, dataset.maximum_size)
+            self.assertEqual(new_size, dataset['maximum_size'])
             # Wait for the dataset to have the expected size.
             return cluster.wait_for_dataset(dataset)
 
