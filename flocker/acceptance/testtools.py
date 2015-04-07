@@ -352,18 +352,25 @@ def assert_expected_deployment(test_case, expected_deployment):
     :return Deferred: Fires on end of assertion.
     """
     d = get_test_cluster()
-    d.addCallback(lambda cluster: cluster.current_containers())
 
-    def got_results(results):
-        cluster, existing_containers = results
-        expected = []
-        for hostname, apps in expected_deployment.items():
-            expected += list(container_configuration_response(app, hostname)
-                             for app in apps)
-        for app in expected:
-            app[u"running"] = True
-        test_case.assertItemsEqual(existing_containers, expected)
-    d.addCallback(got_results)
+    def got_cluster(cluster):
+        def got_results(results):
+            cluster, existing_containers = results
+            expected = []
+            for hostname, apps in expected_deployment.items():
+                expected += [container_configuration_response(app, hostname)
+                             for app in apps]
+            for app in expected:
+                app[u"running"] = True
+            return sorted(existing_containers) == sorted(expected)
+
+        def configuration_matches_state():
+            d = cluster.current_containers()
+            d.addCallback(got_results)
+            return d
+
+        return loop_until(configuration_matches_state)
+    d.addCallback(got_cluster)
     return d
 
 
