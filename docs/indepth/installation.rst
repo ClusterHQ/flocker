@@ -366,12 +366,12 @@ Paste them into a root console on the target node:
 Post installation configuration for Fedora 20 and CentOS 7
 ----------------------------------------------------------
 
-First disable SELINUX.
+First disable SELinux.
 
 .. task:: disable_selinux
    :prompt: [root@node]#
 
-.. note:: Flocker does not currently set the necessary SELINUX context types on the filesystem mountpoints that it creates on nodes.
+.. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
           This prevents Docker containers accessing those filesystems as volumes.
           A future version of Flocker may provide a different integration strategy.
           See https://clusterhq.atlassian.net/browse/FLOC-619.
