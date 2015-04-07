@@ -14,6 +14,9 @@ from pyrsistent import PRecord, field
 from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
 
 
+EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
+
+
 class CertificateAlreadyExistsError(Exception):
     """
     Error raised when a certificate file already exists.
@@ -138,15 +141,13 @@ class CertificateAuthority(PRecord):
 
         :return CertificateAuthority: Initialized certificate authority.
         """
-        EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
-
         if not path.isdir():
             raise PathError(
                 b"Path {path} is not a directory.".format(path=path.path)
             )
 
-        certPath = path.child("cluster.crt")
-        keyPath = path.child("cluster.key")
+        certPath = path.child(b"cluster.crt")
+        keyPath = path.child(b"cluster.key")
 
         if certPath.exists():
             raise CertificateAlreadyExistsError(
