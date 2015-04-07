@@ -96,7 +96,7 @@ class DeploymentTests(TestCase):
                     application = mongo_application(int(SIZE_100_MB))
 
                     # now we verify that the second deployment has moved the
-                    # app and flocker-reportstate on the new host gives the
+                    # app and cluster state on the new host gives the
                     # expected maximum size for the deployed app's volume
                     self.assertEqual(application, state[MONGO_APPLICATION])
                 d.addCallback(got_state2)

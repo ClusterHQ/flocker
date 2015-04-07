@@ -11,7 +11,7 @@ from pyrsistent import pmap
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from .. import P2PNodeDeployer, change_node_state
+from .. import P2PNodeDeployer
 from ...control._model import (
     Deployment, Application, DockerImage, Node, AttachedVolume, Link,
     Manifestation, Dataset)
