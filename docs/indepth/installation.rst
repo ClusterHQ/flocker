@@ -51,14 +51,13 @@ Some older versions of pip have issues installing Python wheel packages.
 
 Install flocker-cli and dependencies inside the Python virtual environment:
 
-.. version-code-block:: console
+.. version-prompt:: bash linux$
 
-   linux$ flocker-tutorial/bin/pip install \
-      https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl
+   flocker-tutorial/bin/pip install https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl
 
 The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
 
-.. version-code-block:: console
+.. version-prompt:: bash linux$ auto
 
    linux$ cd flocker-tutorial
    linux$ bin/flocker-deploy --version
@@ -67,7 +66,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
 You'll need to do this every time you start a new shell.
 
-.. version-code-block:: console
+.. version-prompt:: bash linux$ auto
 
    linux$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    linux$ flocker-deploy --version
@@ -95,11 +94,10 @@ You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
 The ``flocker-deploy`` command line program will now be available:
 
-.. version-code-block:: console
+.. version-prompt:: bash mac$ auto
 
    mac$ flocker-deploy --version
    |latest-installable|
-   mac$
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
