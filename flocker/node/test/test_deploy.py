@@ -2453,11 +2453,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                  manifestations=node_state.manifestations.transform(
                      (DATASET_ID, "dataset", "deleted"), True))])
 
-        changes = api.calculate_changes(
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
+        changes = api.calculate_changes(desired, current)
         expected = Sequentially(changes=[
             InParallel(changes=[DeleteDataset(dataset=DATASET.set(
                 "deleted", True))])
@@ -2488,10 +2484,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         api = P2PManifestationDeployer(
             node.hostname, create_volume_service(self),
         )
-        changes = api.calculate_changes(
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
+        changes = api.calculate_changes(desired, current)
         self.assertEqual(Sequentially(changes=[]), changes)
 
     def test_volume_handoff(self):
@@ -2554,11 +2547,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             current_node.hostname, create_volume_service(self),
         )
 
-        changes = api.calculate_changes(
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
+        changes = api.calculate_changes(desired, current)
         expected = Sequentially(changes=[])
         self.assertEqual(expected, changes)
 
@@ -2571,24 +2560,6 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         Current cluster state lacks metadata, so we want to verify no
         erroneous restarts are suggested.
         """
-        volume_service = create_volume_service(self)
-        node_path = self.successResultOf(volume_service.create(
-            volume_service.get(
-                _to_volume_name(DATASET.dataset_id))
-            )
-        ).get_filesystem().get_path()
-
-        unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            container_name=APPLICATION_WITH_VOLUME_NAME,
-            container_image=APPLICATION_WITH_VOLUME_IMAGE,
-            volumes=frozenset([DockerVolume(
-                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                node_path=node_path)]),
-            activation_state=u'active'
-        )
-        docker = FakeDockerClient(units={unit.name: unit})
-
         current_nodes = [
             NodeState(
                 hostname=u"node1.example.com",
@@ -2616,15 +2587,10 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
 
         api = P2PManifestationDeployer(
             u"node1.example.com",
-            volume_service, docker_client=docker,
-            network=make_memory_network()
+            create_volume_service(self),
         )
 
-        changes = api.calculate_changes(
-            self.successResultOf(api.discover_local_state(current_nodes[0])),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
+        changes = api.calculate_changes(desired, current)
         self.assertEqual(changes, Sequentially(changes=[]))
 
     def test_dataset_created(self):
@@ -2636,15 +2602,13 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         """
         hostname = u"node1.example.com"
 
-        current = Deployment(nodes=frozenset({
-            Node(hostname=hostname),
+        current = DeploymentState(nodes=frozenset({
+            NodeState(hostname=hostname),
         }))
 
         api = P2PManifestationDeployer(
             hostname,
             create_volume_service(self),
-            docker_client=FakeDockerClient(units={}),
-            network=make_memory_network()
         )
 
         node = Node(
@@ -2653,12 +2617,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         )
         desired = Deployment(nodes=frozenset({node}))
 
-        changes = api.calculate_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
+        changes = api.calculate_changes(desired, current)
 
         expected = Sequentially(changes=[
             InParallel(changes=[CreateDataset(
@@ -2672,13 +2631,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         on this node continues to be on this node but specifies a dataset
         maximum_size that differs to the existing dataset size.
         """
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        docker = FakeDockerClient(units={})
-
-        current_node = Node(
+        current_node = NodeState(
             hostname=u"node1.example.com",
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
         )
@@ -2688,21 +2641,15 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                             MANIFESTATION_WITH_SIZE},
         )
 
-        current = Deployment(nodes=frozenset([current_node]))
+        current = DeploymentState(nodes=[current_node])
         desired = Deployment(nodes=frozenset([desired_node]))
 
         api = P2PManifestationDeployer(
             current_node.hostname,
-            volume_service, docker_client=docker,
-            network=make_memory_network()
+            create_volume_service(self),
         )
 
-        changes = api.calculate_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
+        changes = api.calculate_changes(desired, current)
 
         expected = Sequentially(changes=[
             InParallel(
@@ -2720,18 +2667,12 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         node but specifies a maximum_size that differs to the existing
         size. The dataset will be resized before moving.
         """
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(_to_volume_name(DATASET_ID))))
-
-        docker = FakeDockerClient(units={})
-
         current_nodes = [
-            Node(
+            NodeState(
                 hostname=u"node1.example.com",
                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
             ),
-            Node(
+            NodeState(
                 hostname=u"node2.example.com",
             )
         ]
@@ -2746,21 +2687,14 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             ),
         ]
 
-        current = Deployment(nodes=frozenset(current_nodes))
-        desired = Deployment(nodes=frozenset(desired_nodes))
+        current = DeploymentState(nodes=current_nodes)
+        desired = Deployment(nodes=desired_nodes)
 
         api = P2PManifestationDeployer(
-            u"node1.example.com",
-            volume_service, docker_client=docker,
-            network=make_memory_network()
+            u"node1.example.com", create_volume_service(self),
         )
 
-        changes = api.calculate_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
+        changes = api.calculate_changes(desired, current)
 
         dataset = MANIFESTATION_WITH_SIZE.dataset
 
@@ -2770,71 +2704,10 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
                 changes=[ResizeDataset(dataset=dataset)],
             ),
             InParallel(
-                changes=[PushDataset(
-                    dataset=dataset,
-                    hostname=u'node2.example.com')]
-            ),
-            InParallel(
                 changes=[HandoffDataset(
                     dataset=dataset,
                     hostname=u'node2.example.com')]
             )])
-        self.assertEqual(expected, changes)
-
-    def test_dataset_max_size_preserved_after_move(self):
-        """
-        ``P2PManifestationDeployer.calculate_changes`` specifies that a
-        dataset will be resized if it is to be relocated to a different
-        node but specifies a maximum_size that differs to the existing
-        size. The dataset on the new target node will be resized after it
-        has been received.
-        """
-        volume_service = create_volume_service(self)
-        docker = FakeDockerClient(units={})
-
-        current_nodes = [
-            Node(
-                hostname=u"node1.example.com",
-                manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
-            ),
-            Node(
-                hostname=u"node2.example.com",
-            )
-        ]
-
-        desired_nodes = [
-            Node(
-                hostname=u"node1.example.com",
-            ),
-            Node(
-                hostname=u"node2.example.com",
-                manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
-                                MANIFESTATION_WITH_SIZE},
-            ),
-        ]
-
-        current = Deployment(nodes=frozenset(current_nodes))
-        desired = Deployment(nodes=frozenset(desired_nodes))
-
-        api = P2PManifestationDeployer(
-            u"node2.example.com",
-            volume_service, docker_client=docker,
-            network=make_memory_network()
-        )
-
-        changes = api.calculate_changes(
-            self.successResultOf(api.discover_local_state(
-                NodeState(hostname=api.hostname))),
-            desired_configuration=desired,
-            current_cluster_state=current,
-        )
-
-        dataset = MANIFESTATION_WITH_SIZE.dataset
-
-        expected = Sequentially(changes=[
-            InParallel(changes=[WaitForDataset(dataset=dataset)]),
-            InParallel(changes=[ResizeDataset(dataset=dataset)]),
-        ])
         self.assertEqual(expected, changes)
 
 

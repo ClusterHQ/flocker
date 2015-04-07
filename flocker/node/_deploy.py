@@ -440,7 +440,8 @@ class OpenPorts(PRecord):
         return gather_deferreds(results)
 
 
-class P2PManifestationDeployer(_OldToNewDeployer):
+@implementer(IDeployer)
+class P2PManifestationDeployer(object):
     """
     Discover and calculate changes for peer-to-peer manifestations (e.g. ZFS)
     on a node.
@@ -452,7 +453,7 @@ class P2PManifestationDeployer(_OldToNewDeployer):
         self.hostname = hostname
         self.volume_service = volume_service
 
-    def discover_local_state(self, local_state):
+    def discover_state(self, local_state):
         """
         Discover local ZFS manifestations.
         """
@@ -483,72 +484,62 @@ class P2PManifestationDeployer(_OldToNewDeployer):
                 for (dataset_id, maximum_size) in
                 available_manifestations.values())
 
-            return NodeState(
+            return [NodeState(
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,
                 manifestations={manifestation.dataset_id: manifestation
                                 for manifestation in manifestations},
                 paths=manifestation_paths,
-            )
+            )]
         volumes.addCallback(got_volumes)
         return volumes
 
-    def calculate_necessary_state_changes(self, *args, **kwargs):
+    def calculate_changes(self, configuration, cluster_state):
         # XXX
         # 0. If applications or manifestations are unknown indicate no changes, give up
         # 1.  If volume exists on current node and should be on another node
         #     and it's not in an application, hand it off.
         # 2. Also create/delete as necessary.
-        pass
+        phases = []
+
+        # For now we delay deletion and handoffs until we know application
+        # isn't using the dataset. Later on we'll use leases to decouple
+        # the application and dataset logic better.
+        in_use_datasets = {app.volume.manifestation.dataset_id
+                           for node in cluster_state.nodes
+                           for app in node.applications
+                           if app.volume is not None}
 
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.
         dataset_changes = find_dataset_changes(
-            self.hostname, current_cluster_state, desired_configuration)
+            self.hostname, cluster_state, configuration)
 
         if dataset_changes.resizing:
             phases.append(InParallel(changes=[
                 ResizeDataset(dataset=dataset)
                 for dataset in dataset_changes.resizing]))
 
-        # Do an initial push of all volumes that are going to move, so
-        # that the final push which happens during handoff is a quick
-        # incremental push. This should significantly reduces the
-        # application downtime caused by the time it takes to copy
-        # data.
-        if dataset_changes.going:
-            phases.append(InParallel(changes=[
-                PushDataset(dataset=handoff.dataset,
-                            hostname=handoff.hostname)
-                for handoff in dataset_changes.going]))
-
         if dataset_changes.going:
             phases.append(InParallel(changes=[
                 HandoffDataset(dataset=handoff.dataset,
                                hostname=handoff.hostname)
                 for handoff in dataset_changes.going]))
-        # any datasets coming to this node should also be
-        # resized to the appropriate quota max size once they
-        # have been received
-        if dataset_changes.coming:
-            # XXX WaitForDataset is no longer needed in new scheme since
-            # we do convergence repeatedly, so we replace state change
-            # that polls with polling on a higher level :)
-            phases.append(InParallel(changes=[
-                WaitForDataset(dataset=dataset)
-                for dataset in dataset_changes.coming]))
-            phases.append(InParallel(changes=[
-                ResizeDataset(dataset=dataset)
-                for dataset in dataset_changes.coming]))
+
         if dataset_changes.creating:
             phases.append(InParallel(changes=[
                 CreateDataset(dataset=dataset)
                 for dataset in dataset_changes.creating]))
-        if dataset_changes.deleting:
+
+        deleting = [dataset for dataset in dataset_changes.deleting
+                    if dataset.dataset_id not in in_use_datasets]
+        if deleting:
             phases.append(InParallel(changes=[
                 DeleteDataset(dataset=dataset)
-                for dataset in dataset_changes.deleting]))
+                for dataset in deleting
+                ]))
+        return Sequentially(changes=phases)
 
 
 @implementer(IDeployer)
