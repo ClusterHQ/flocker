@@ -26,49 +26,51 @@ Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the
 
 On CentOS 7 or Fedora 20 you can install these by running:
 
-.. prompt:: bash alice@mercury:~$
+.. prompt:: bash linux$
 
    sudo yum install gcc python python-devel python-virtualenv
 
 On Ubuntu or Debian you can run:
 
-.. prompt:: bash alice@mercury:~$
+.. prompt:: bash linux$
 
    sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
 
-Then run the following script to install ``flocker-cli``:
+Create an isolated Python environment in a new directory "flocker-tutorial".
 
-:version-download:`linux-install.sh.template`
+.. prompt:: bash linux$
 
-.. version-literalinclude:: linux-install.sh.template
-   :language: sh
+   virtualenv --python=/usr/bin/python2.7 flocker-tutorial
 
-Save the script to a file and then run it:
+Upgrade the pip Python package manager to its latest version inside the virtualenv.
+Some older versions of pip have issues installing Python wheel packages.
 
-.. code-block:: console
+.. prompt:: bash linux$
 
-   alice@mercury:~$ sh linux-install.sh
-   ...
-   alice@mercury:~$
+   flocker-tutorial/bin/pip install --upgrade pip
+
+Install flocker-cli and dependencies inside the virtualenv:
+
+.. prompt:: bash linux$
+
+   flocker-tutorial/bin/pip install https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.3dev8-py2-none-any.whl
 
 The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
 
 .. version-code-block:: console
 
-   alice@mercury:~$ cd flocker-tutorial
-   alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
+   linux$ cd flocker-tutorial
+   linux$ bin/flocker-deploy --version
    |latest-installable|
-   alice@mercury:~/flocker-tutorial$
 
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
 You'll need to do this every time you start a new shell.
 
 .. version-code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
-   alice@mercury:~/flocker-tutorial$ flocker-deploy --version
+   linux$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
+   linux$ flocker-deploy --version
    |latest-installable|
-   alice@mercury:~/flocker-tutorial$
 
 OS X
 ----
@@ -77,18 +79,16 @@ Install the `Homebrew`_ package manager.
 
 Make sure Homebrew has no issues:
 
-.. code-block:: console
+.. prompt:: bash mac$
 
-   alice@mercury:~$ brew doctor
-   ...
-   alice@mercury:~$
+   brew doctor
 
 Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
 
 Add the ``ClusterHQ/tap`` tap to Homebrew and install ``flocker``:
 
 .. task:: test_homebrew flocker-|latest-installable|
-   :prompt: alice@mercury:~$
+   :prompt: mac$
 
 You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
@@ -96,9 +96,9 @@ The ``flocker-deploy`` command line program will now be available:
 
 .. version-code-block:: console
 
-   alice@mercury:~$ flocker-deploy --version
+   mac$ flocker-deploy --version
    |latest-installable|
-   alice@mercury:~$
+   mac$
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
@@ -175,7 +175,7 @@ Using Amazon Web Services
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
-   .. prompt:: bash yourlaptop$
+   .. prompt:: bash laptop$
 
       mv ~/Downloads/my-instance.pem ~/.ssh/
       chmod 600 ~/.ssh/my-instance.pem
@@ -183,18 +183,18 @@ Using Amazon Web Services
 
 #. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user "fedora", "centos", or "ubuntu" e.g.:
 
-   .. prompt:: bash yourlaptop$
+   .. prompt:: bash laptop$
 
       ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 #. Allow SSH access for the ``root`` user, then log out.
 
    .. task:: install_ssh_key
-      :prompt: [fedora@aws]$
+      :prompt: [aws]$
 
 #. Log back into the instances as user "root", e.g.:
 
-   .. prompt:: bash yourlaptop$
+   .. prompt:: bash laptop$
 
       ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
@@ -241,9 +241,9 @@ You'll probably want to setup at least two nodes.
 
    You can find the IP in the Droplet page after it is created, to the left of the green "Active" text near the top.
 
-   .. code-block:: sh
+   .. prompt:: bash laptop$
 
-      yourlaptop$ ssh root@203.0.113.109
+      ssh root@203.0.113.109
 
 #. Install a supported Linux kernel
 
@@ -270,9 +270,9 @@ You'll probably want to setup at least two nodes.
 
       * Shut down the virtual machine:
 
-      .. code-block:: sh
+      .. prompt:: bash [root@digitalocean]#
 
-         [root@digitalocean]# shutdown -h now
+         shutdown -h now
 
       * On the "Power" administration page, click "Boot".
 
@@ -300,9 +300,9 @@ You'll probably want to setup at least two nodes.
 
    You can find the IP in the Server Details page after it is created.
 
-   .. code-block:: sh
+   .. prompt:: bash laptop$
 
-      yourlaptop$  ssh root@203.0.113.109
+      ssh root@203.0.113.109
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
@@ -319,7 +319,7 @@ Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
 
 .. task:: install_kernel_devel
-   :prompt: [root@node]#
+   :prompt: [root@fedora]#
 
 .. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
 
@@ -330,13 +330,13 @@ The following commands will install the two repositories and the ``clusterhq-flo
 Paste them into a root console on the target node:
 
 .. task:: install_flocker_yum fedora-20
-   :prompt: [root@node]#
+   :prompt: [root@fedora]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker
-   :prompt: [root@node]#
+   :prompt: [root@fedora]#
 
 
 .. _centos-7-install:
@@ -347,12 +347,12 @@ Installing on CentOS 7
 Flocker requires the latest available kernel.
 
 .. task:: upgrade_kernel_centos
-   :prompt: [root@node]#
+   :prompt: [root@centos]#
 
 Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
 Thus we need to reboot into the new kernel.
 
-.. prompt:: bash [root@node]#
+.. prompt:: bash [root@centos]#
 
    shutdown -r now
 
@@ -363,13 +363,13 @@ The following commands will install the two repositories and the ``flocker-node`
 Paste them into a root console on the target node:
 
 .. task:: install_flocker_yum centos-7
-   :prompt: [root@node]#
+   :prompt: [root@centos]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker
-   :prompt: [root@node]#
+   :prompt: [root@centos]#
 
 
 .. _ubuntu-14.04-install:
@@ -391,24 +391,24 @@ Flocker requires the latest available kernel.
 .. TODO get rid of the quotes in this task
 
 .. task:: upgrade_kernel_ubuntu
-   :prompt: [root@node]#
+   :prompt: [root@ubuntu]#
 
 Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
 Thus we need to reboot into the new kernel.
 
-.. prompt:: bash [root@node]#
+.. prompt:: bash [root@ubuntu]#
 
    shutdown -r now
 
 Flocker requires recent versions of ZFS and Docker.
 
 .. task:: install_requirements_ubuntu
-   :prompt: [root@node]#
+   :prompt: [root@ubuntu]#
 
 Now install the ``clusterhq-flocker-node`` package.
 
 .. task:: install_flocker_ubuntu
-   :prompt: [root@node]#
+   :prompt: [root@ubuntu]#
 
 Post installation configuration
 -------------------------------
