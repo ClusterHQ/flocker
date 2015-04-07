@@ -64,12 +64,17 @@ def run_state_change(change, deployer):
     """
     if isinstance(change, _InParallel):
         return gather_deferreds(list(
-            subchange.run(deployer) for subchange in change.changes
+            run_state_change(subchange, deployer)
+            for subchange in change.changes
         ))
     if isinstance(change, _Sequentially):
         d = succeed(None)
         for subchange in change.changes:
-            d.addCallback(lambda _, change=subchange: change.run(deployer))
+            d.addCallback(
+                lambda _, subchange=subchange: run_state_change(
+                    subchange, deployer
+                )
+            )
         return d
 
     return change.run(deployer)
