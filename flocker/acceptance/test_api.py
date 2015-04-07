@@ -12,7 +12,7 @@ from json import dumps
 
 from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
-from twisted.web.http import OK, CREATED
+from twisted.web.http import OK, CREATED, BAD_REQUEST
 
 from unittest import SkipTest
 from treq import get, post, delete, json_content
@@ -654,9 +654,29 @@ class DatasetAPITests(TestCase):
 
     def test_dataset_shrink_not_valid(self):
         """
-        If the requested maximum_size is smaller than the allowed minimum, then what??
+        If the requested maximum_size is smaller than the allowed minimum the
+        response is ``BAD_REQUEST``.
         """
-        # Create a dataset REALISTIC_BLOCKDEVICE_SIZE
-        # Request a new maximum_size < minimum defined in schema.
-        # Check response code.
-        1/0
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = 67108864-1
+        def resize_dataset(result):
+            cluster, dataset = result
+
+            # Reconfigure that dataset to be an invalid size.
+            resizing = cluster.update_dataset(
+                dataset_id=dataset["dataset_id"],
+                dataset_properties={u'maximum_size': new_size}
+            )
+
+            # Check for expected exception and response code.
+            return self.assertFailure(
+                resizing, ValueError
+            ).addCallback(
+                lambda exception: self.assertEqual(
+                    BAD_REQUEST, exception.args[1]
+                )
+            )
+
+        return creating.addCallback(resize_dataset)
