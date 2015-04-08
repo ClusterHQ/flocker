@@ -591,6 +591,7 @@ class DatasetAPITests(TestCase):
             test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
         )
         new_size = REALISTIC_BLOCKDEVICE_SIZE * 2
+
         def resize_dataset(result):
             cluster, dataset = result
             return cluster.update_dataset(
@@ -616,6 +617,7 @@ class DatasetAPITests(TestCase):
             test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE * 2
         )
         new_size = REALISTIC_BLOCKDEVICE_SIZE
+
         def resize_dataset(result):
             cluster, dataset = result
             return cluster.update_dataset(
@@ -642,6 +644,7 @@ class DatasetAPITests(TestCase):
             test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
         )
         new_size = 67108864 - 1
+
         def resize_dataset(result):
             cluster, dataset = result
             # Reconfigure that dataset to be an invalid size.
@@ -668,6 +671,7 @@ class DatasetAPITests(TestCase):
             test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
         )
         new_size = None
+
         def resize_dataset(result):
             cluster, dataset = result
             return cluster.update_dataset(
