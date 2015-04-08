@@ -351,9 +351,9 @@ def assert_expected_deployment(test_case, expected_deployment):
 
     The tutorial looks at Docker output, but the acceptance tests are
     intended to test high-level external behaviors. Since this is looking
-    at the output of ``flocker-reportstate`` it merely verifies what
-    Flocker believes the system configuration is, not the actual
-    setup. The latter should be verified separately with additional tests
+    at the output of the control service API it merely verifies what
+    Flocker believes the system state is, not the actual state.
+    The latter should be verified separately with additional tests
     for external side-effects (applications being available on ports,
     say).
 
