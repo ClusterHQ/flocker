@@ -86,7 +86,7 @@ class CAOptions(Options):
     API clients within a Flocker cluster.
     """
 
-    synoposis = "Usage: flocker-ca <command> [OPTIONS]"
+    synopsis = "Usage: flocker-ca <command> [OPTIONS]"
 
     subCommands = [
         ["initialize", None, InitializeOptions,
