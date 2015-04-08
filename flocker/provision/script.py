@@ -52,7 +52,7 @@ class ProvisionOptions(Options):
 
     """
 
-    # TODO this is from flocker-provision
+    # TODO Fix this
     synopsis = ("Usage: flocker-provision [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
