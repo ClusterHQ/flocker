@@ -18,7 +18,7 @@ from random import random
 import shutil
 from functools import wraps
 from unittest import skipIf, skipUnless
-
+from inspect import getfile, getsourcelines
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
 from pyrsistent import PRecord, field
@@ -40,6 +40,7 @@ from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.protocols.amp import AMP, InvalidSignature
+from twisted.python.log import msg
 
 from characteristic import attributes
 
@@ -191,6 +192,8 @@ def loop_until(predicate):
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
+    msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
+                                    getsourcelines(predicate)[1]))
     d = maybeDeferred(predicate)
 
     def loop(result):
