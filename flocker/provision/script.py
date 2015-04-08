@@ -22,8 +22,23 @@ from flocker.provision._install import (
 )
 
 
+@flocker_standard_options
 class CreateOptions(Options):
-    # TODO longdesc and synopsis
+    """
+    Command line options for ``flocker-provision create``.
+    """
+
+    longdesc = """\
+    flocker-provision create can be used to create clusters of nodes to
+    experiment with Flocker on.
+    """
+
+    #
+    synopsis = ("Usage: flocker-provision create [OPTIONS] "
+                ""
+                "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
+    # TODO perhaps flocker_standard_options should add the feedback text?
+
     optParameters = [
         ['driver', 'd', 'rackspace', 'choose cloud provider'],
         ['username', None, None, 'Rackspace account username'],
