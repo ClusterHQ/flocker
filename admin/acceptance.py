@@ -369,7 +369,7 @@ def signal_handler(signal, frame):
     raise SystemExit(1)
 
 
-def main(args, base_path, top_level):
+def main(reactor, args, base_path, top_level):
     """
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
