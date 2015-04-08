@@ -641,7 +641,7 @@ class DatasetAPITests(TestCase):
         creating = create_dataset(
             test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        new_size = 67108864-1
+        new_size = 67108864 - 1
         def resize_dataset(result):
             cluster, dataset = result
             # Reconfigure that dataset to be an invalid size.
