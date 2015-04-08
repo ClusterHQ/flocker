@@ -319,8 +319,8 @@ class ConfigurationAPIUserV1(object):
         :param unicode primary: The address of the node to which the dataset
             will be moved.
 
-        :param maximum_size: Either, the maximum number of bytes the dataset
-            will be capable of storing or ``null`` make the dataset size
+        :param maximum_size: Either the maximum number of bytes the dataset
+            will be capable of storing or ``None`` to make the dataset size
             unlimited. This may be optional or required depending on the
             dataset backend.
 
