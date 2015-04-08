@@ -190,12 +190,6 @@ def _clean_node(test_case, node):
     :param test_case: The ``TestCase`` running this unit test.
     :param bytes node: The hostname or IP of the node.
     """
-    clean_deploy = {u"version": 1,
-                    u"nodes": {node.decode("ascii"): []}}
-    clean_applications = {u"version": 1,
-                          u"applications": {}}
-    flocker_deploy(test_case, clean_deploy, clean_applications)
-
     # Without the below, deploying the same application with a data volume
     # twice fails. See the error given with the tutorial's yml files:
     #
@@ -274,9 +268,27 @@ def get_nodes(test_case, num_nodes):
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
-    for node in reachable_nodes:
-        _clean_node(test_case, node)
-    return succeed(reachable_nodes)
+    # Remove all existing containers:
+    clean_deploy = {u"version": 1,
+                    u"nodes": {}}
+    clean_applications = {u"version": 1,
+                          u"applications": {}}
+    flocker_deploy(test_case, clean_deploy, clean_applications)
+    getting = get_test_cluster()
+
+    def no_containers(cluster):
+        d = cluster.current_containers()
+        d.addCallback(lambda result: len(result[1]) == 0)
+        return d
+    getting.addCallback(lambda cluster:
+                        loop_until(lambda: no_containers(cluster)))
+
+    def clean_zfs(_):
+        for node in reachable_nodes:
+            _clean_node(test_case, node)
+    getting.addCallback(clean_zfs)
+    getting.addCallback(lambda _: reachable_nodes)
+    return getting
 
 
 def flocker_deploy(test_case, deployment_config, application_config):
