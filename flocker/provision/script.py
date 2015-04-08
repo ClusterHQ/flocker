@@ -3,7 +3,9 @@
 """
 The command-line ``flocker-provision`` tool.
 """
+from sys import stdout
 import yaml
+
 from twisted.internet.defer import succeed, fail
 from twisted.python.usage import Options
 
@@ -54,17 +56,11 @@ class ProvisionOptions(Options):
         pass
 
 
-def create(reactor, options):
-    # Only rackspace for the moment
-    provisioner = CLOUD_PROVIDERS[options['driver']](
-        username=options['rackspace-username'],
-        key=options['rackspace-api-key'],
-        region=options['rackspace-region'],
-        keyname=options['rackspace-ssh-key-name'],
-    )
-
+def create(reactor, provisioner, num_agent_nodes, output):
+    # This uses the reactor because we will start using conch
+    # and node.provision will return a deferred, as will configure_cluster.
     nodes = []
-    for index in range(options['num-agent-nodes'] + 1):
+    for index in range(num_agent_nodes) + 1):
         name = "flocker-provisioning-script-%d" % (index,)
         try:
             print "Creating node %d: %s" % (index, name)
