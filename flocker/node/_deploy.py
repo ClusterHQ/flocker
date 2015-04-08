@@ -945,11 +945,14 @@ class P2PNodeDeployer(_OldToNewDeployer):
         d.addCallback(got_manifestations_state)
         return d
 
-    def calculate_necessary_state_changes(self, *args, **kwargs):
+    def calculate_necessary_state_changes(
+            self, local_state, configuration, cluster_state):
+        """
+        Combine changes from the application and ZFS agents.
+        """
         return Sequentially(changes=[
-            self.applications_deployer.calculate_necessary_state_changes(
-                *args, **kwargs),
-            # FLOC-1553
-            #self.manifestations_deployer.calculate_necessary_state_changes(
-            #    *args, **kwargs),
+            self.applications_deployer.calculate_changes(
+                configuration, cluster_state),
+            self.manifestations_deployer.calculate_changes(
+                configuration, cluster_state),
         ])

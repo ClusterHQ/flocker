@@ -34,16 +34,23 @@ def change_node_state(deployer, desired_configuration):
         nodes.
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
-    d = deployer.discover_state(NodeState(hostname=deployer.hostname))
+    def _converge():
+        d = deployer.discover_state(NodeState(hostname=deployer.hostname))
 
-    def got_changes(changes):
-        cluster_state = DeploymentState()
-        for change in changes:
-            cluster_state = change.update_cluster_state(cluster_state)
-        return deployer.calculate_changes(desired_configuration, cluster_state)
-    d.addCallback(got_changes)
-    d.addCallback(lambda change: change.run(deployer))
-    return d
+        def got_changes(changes):
+            cluster_state = DeploymentState()
+            for change in changes:
+                cluster_state = change.update_cluster_state(cluster_state)
+            return deployer.calculate_changes(
+                desired_configuration, cluster_state)
+        d.addCallback(got_changes)
+        d.addCallback(lambda change: change.run(deployer))
+        return d
+    # Repeat a few times until things settle down:
+    result = _converge()
+    result.addCallback(lambda _: _converge())
+    result.addCallback(lambda _: _converge())
+    return result
 
 
 class DeployerTests(TestCase):
