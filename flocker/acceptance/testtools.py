@@ -26,7 +26,15 @@ from ..control import (
 from flocker.testtools import loop_until
 
 from flocker.provision._install import stop_cluster
-from flocker.provision._ssh._fabric import dispatcher
+try:
+    from flocker.provision._ssh._fabric import dispatcher
+    FABRIC_INSTALLED = True
+except ImportError:
+    FABRIC_INSTALLED = False
+
+
+require_fabric = skipUnless(
+    FABRIC_INSTALLED, "Fabric not installed.")
 
 try:
     from pymongo import MongoClient
@@ -206,6 +214,7 @@ def _clean_node(test_case, node):
             [b"flocker"], None)
 
 
+@require_fabric
 def _stop_acceptance_cluster():
     """
     Stop the Flocker cluster configured for the acceptance tests.
