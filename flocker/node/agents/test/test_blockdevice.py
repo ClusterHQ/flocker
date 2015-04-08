@@ -53,19 +53,41 @@ if not platform.isLinux():
     skip = "flocker.node.agents.blockdevice is only supported on Linux"
 
 
-def mkfs(device):
+def make_filesystem(device, block_device):
     """
     Synchronously initialize a device file with an ext4 filesystem.
 
     :param FilePath device: The path to the file onto which to put the
         filesystem.  Anything accepted by ``mkfs`` is acceptable (including a
         regular file instead of a device file).
+    :param bool block_device: If ``True`` then the device is expected to be a
+        block device and the ``-F`` flag will not be passed to ``mkfs``.  If
+        ``False`` then the device is expected to be a regular file rather than
+        an actual device and ``-F`` will be passed to ``mkfs`` to force it to
+        create the filesystem.  It's possible to detect whether the given file
+        is a device file or not.  This flag is required anyway because it's
+        about what the caller *expects*.  This is meant to provide an extra
+        measure of safety (these tests run as root, this function potentially
+        wipes the filesystem from the device specified, this could have bad
+        consequences if it goes wrong).
     """
     options = []
-    if not device.isBlockDevice():
+    if block_device and not device.isBlockDevice():
+        raise Exception(
+            "{} is not a block device but it was expected to be".format(
+                device.path
+            )
+        )
+    elif device.isBlockDevice() and not block_device:
+        raise Exception(
+            "{} is a block device but it was not expected to be".format(
+                device.path
+            )
+        )
+    if block_device:
         options.extend([
-            # Make the filesystem even if the destination is not a block
-            # device.
+            # Force mkfs to make the filesystem even though the target is not a
+            # block device.
             b"-F",
         ])
     command = [b"mkfs"] + options + [b"-t", b"ext4", device.path]
@@ -193,7 +215,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
 
         device = self.api.get_device_path(unexpected.blockdevice_id)
-        mkfs(device)
+        make_filesystem(device, block_device=True)
 
         # Mount it somewhere beneath the expected mountroot (so that it is
         # cleaned up automatically) but not at the expected place beneath it.
@@ -228,7 +250,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             unmounted.blockdevice_id, self.expected_hostname
         )
 
-        mkfs(unrelated_device)
+        make_filesystem(unrelated_device, block_device=False)
         mount(unrelated_device, mountpoint)
 
         self.assertDiscoveredState(
@@ -254,7 +276,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         device = self.api.get_device_path(new_volume.blockdevice_id)
         mountpoint = self.deployer.mountroot.child(bytes(dataset_id))
         mountpoint.makedirs()
-        mkfs(device)
+        make_filesystem(device, block_device=True)
         mount(device, mountpoint)
         expected_dataset = Dataset(
             dataset_id=dataset_id,
@@ -1437,7 +1459,7 @@ class DestroyBlockDeviceDatasetTests(
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
         mountpoint.makedirs()
-        mkfs(device)
+        make_filesystem(device, block_device=True)
         mount(device, mountpoint)
 
         deployer = BlockDeviceDeployer(
@@ -1485,7 +1507,7 @@ class UnmountBlockDeviceTests(make_state_change_tests(_make_unmount)):
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
         mountpoint.makedirs()
-        mkfs(device)
+        make_filesystem(device, block_device=True)
         check_output([b"mount", device.path, mountpoint.path])
 
         deployer = BlockDeviceDeployer(
