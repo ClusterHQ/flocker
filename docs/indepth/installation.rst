@@ -23,53 +23,51 @@ Linux
 -----
 
 Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
+On Fedora 20 you can install these by running:
 
-On CentOS 7 or Fedora 20 you can install these by running:
+.. code-block:: console
 
-.. prompt:: bash linux$
-
-   sudo yum install gcc python python-devel python-virtualenv
+   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv
 
 On Ubuntu or Debian you can run:
 
-.. prompt:: bash linux$
+.. code-block:: console
 
-   sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
+   alice@mercury:~$ sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
 
-Create an isolated Python virtual environment in a new directory "flocker-tutorial".
+Then run the following script to install ``flocker-cli``:
 
-.. prompt:: bash linux$
+:version-download:`linux-install.sh.template`
 
-   virtualenv --python=/usr/bin/python2.7 flocker-tutorial
+.. version-literalinclude:: linux-install.sh.template
+   :language: sh
 
-Upgrade the pip Python package manager to its latest version inside the Python virtual environment.
-Some older versions of pip have issues installing Python wheel packages.
+Save the script to a file and then run it:
 
-.. prompt:: bash linux$
+.. code-block:: console
 
-   flocker-tutorial/bin/pip install --upgrade pip
-
-Install flocker-cli and dependencies inside the Python virtual environment:
-
-.. version-prompt:: bash linux$
-
-   flocker-tutorial/bin/pip install https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl
+   alice@mercury:~$ sh linux-install.sh
+   ...
+   alice@mercury:~$
 
 The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
 
-.. version-prompt:: bash linux$,|latest-installable| auto
+.. version-code-block:: console
 
-   linux$ flocker-tutorial/bin/flocker-deploy --version
+   alice@mercury:~$ cd flocker-tutorial
+   alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
    |latest-installable|
+   alice@mercury:~/flocker-tutorial$
 
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
 You'll need to do this every time you start a new shell.
 
-.. version-prompt:: bash linux$,|latest-installable| auto
+.. version-code-block:: console
 
-   linux$ export PATH="${PATH:+${PATH}:}${PWD}/flocker-tutorial/bin"
-   linux$ flocker-deploy --version
+   alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
+   alice@mercury:~/flocker-tutorial$ flocker-deploy --version
    |latest-installable|
+   alice@mercury:~/flocker-tutorial$
 
 OS X
 ----
@@ -78,28 +76,32 @@ Install the `Homebrew`_ package manager.
 
 Make sure Homebrew has no issues:
 
-.. prompt:: bash mac$
+.. code-block:: console
 
-   brew doctor
+   alice@mercury:~$ brew doctor
+   ...
+   alice@mercury:~$
 
 Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
 
 Add the ``ClusterHQ/tap`` tap to Homebrew and install ``flocker``:
 
 .. task:: test_homebrew flocker-|latest-installable|
-   :prompt: mac$
+   :prompt: alice@mercury:~$
 
 You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
 The ``flocker-deploy`` command line program will now be available:
 
-.. version-prompt:: bash mac$,|latest-installable| auto
+.. version-code-block:: console
 
-   mac$ flocker-deploy --version
+   alice@mercury:~$ flocker-deploy --version
    |latest-installable|
+   alice@mercury:~$
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
+
 
 .. _installing-flocker-node:
 
