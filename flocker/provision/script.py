@@ -24,15 +24,23 @@ from flocker.provision._install import (
 
 class CreateOptions(Options):
     # TODO longdesc and synopsis
-    # TODO look at docker machine for inspiration
     optParameters = [
         ['driver', 'd', 'rackspace', 'choose cloud provider'],
-        ['rackspace-username', None, None, 'Rackspace account username'],
-        ['rackspace-api-key', None, None, 'Rackspace API key'],
-        ['rackspace-region', None, None, 'Rackspace region'],
-        ['rackspace-ssh-key-name', None, None, 'Name of Rackspace SSH key.'],
+        ['username', None, None, 'Rackspace account username'],
+        ['api-key', None, None, 'Rackspace API key'],
+        # TODO default region? Does a user care? If so print this
+        ['region', None, None, 'Rackspace region'],
+        ['ssh-key-name', None, None, 'Name of Rackspace SSH key.'],
         ['num-agent-nodes', 'n', 3, 'how many nodes to create'],
     ]
+
+    def postOptions(self):
+        self.provisioner = CLOUD_PROVIDERS[self['driver']](
+            username=self['username'],
+            key=self['api-key'],
+            region=self['region'],
+            keyname=self['ssh-key-name'],
+        )
 
 
 @flocker_standard_options
@@ -71,16 +79,18 @@ def create(reactor, provisioner, num_agent_nodes, output):
         except:
             print "Error creating node %d: %s" % (index, name)
             print "It may have leaked into the cloud."
+            # TODO give the IP address of the nodes to a user,
+            # or perhaps destroy nodes
+            # or perhaps say "you may want to destroy nodes called flocker-XXX"
             raise
 
         nodes.append(node)
 
         node.provision(package_source=PackageSource(),
                        variants=set())
-        del node
 
     control_node = nodes[0].address
-    agent_nodes = [node.address for node in nodes[1:]]
+    agent_nodes = [agent.address for agent in nodes[1:]]
     configure_cluster(control_node=control_node, agent_nodes=agent_nodes)
     print yaml.safe_dump({
         'control_node': control_node,
@@ -102,9 +112,13 @@ class ProvisionScript(object):
                  has encountered an error.
         """
         if options.subCommand == 'create':
-            return create(reactor, options.subOptions)
+            return create(
+                reactor,
+                provisioner=options.provisioner,
+                num_agent_nodes=options['num-agent-nodes'],
+                output=stdout)
         else:
-            return fail(ValueError("Unknown subCommand."))
+            return fail(ValueError("Unknown subcommand %s.", (options.subCommand)))
 
 
 def flocker_provision_main():
