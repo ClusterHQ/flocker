@@ -114,18 +114,21 @@ definitions:
     description: |
       The output schema for the create_dataset and update_dataset and
       delete_dataset endpoints.
+    type: object
     allOf:
       - {"$ref": "types.json#/definitions/dataset_configuration"}
 
   configuration_datasets_update:
     description: |
       The input schema for the update_dataset endpoint.
+    type: object
     allOf:
       - {"$ref": "types.json#/definitions/dataset_configuration"}
 
   configuration_datasets_create:
     description: |
       The input schema for the create_dataset endpoint
+    type: object
     allOf:
       - {"$ref": "types.json#/definitions/dataset_configuration"}
       - required:
