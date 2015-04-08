@@ -1,10 +1,58 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 from StringIO import StringIO
+from itertools import count
+from textwrap import dedent
+
+from characteristic import Attribute, attributes
+
+from twisted.test.proto_helpers import MemoryReactor
 
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
-from ..script import ProvisionScript, ProvisionOptions
+from ..script import ProvisionScript, ProvisionOptions, create, CreateOptions
+
+
+@attributes([
+    Attribute('_name'),
+    Attribute('_provisioner'),
+    Attribute('distribution'),
+    Attribute('address'),
+])
+class MemoryNode(object):
+    def __init__(self):
+        self.provisioned = False
+
+    def destroy(self):
+        self._provisioner.nodes.remove(self)
+
+    def reboot(self):
+        pass
+
+    def provision(self, package_source, variants=()):
+        self.provisioned = True
+
+    @property
+    def name(self):
+        return self._name
+
+
+class MemoryProvisioner(object):
+    def __init__(self):
+        self.nodes = []
+        self.index = count(1)
+
+    def create_node(self, name, distribution,
+                    userdata=None,
+                    size=None, disk_size=8,
+                    keyname=None, metadata={}):
+        index = next(self.index)
+        address = '192.0.2.%d' % (index,)
+        node = MemoryNode(
+            name=name, distribution=distribution,
+            provisioner=self, address=address)
+        self.nodes.append(node)
+        return node
 
 
 class FlockerProvisionTests(FlockerScriptTestsMixin, TestCase):
