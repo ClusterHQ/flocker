@@ -13,7 +13,8 @@ from twisted.trial.unittest import TestCase
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
                         MONGO_APPLICATION, MONGO_IMAGE, get_mongo_application,
                         require_flocker_cli, require_mongo, create_application,
-                        create_attached_volume, get_node_state)
+                        create_attached_volume, get_node_state,
+                        get_test_cluster)
 
 
 class DeploymentTests(TestCase):
@@ -72,29 +73,40 @@ class DeploymentTests(TestCase):
             }
 
             flocker_deploy(self, config_deployment, config_application)
-            state = get_node_state(node_1)
+            d = get_test_cluster()
+            d.addCallback(lambda cluster: get_node_state(cluster, node_1))
 
-            self.assertEqual(application, state[MONGO_APPLICATION])
+            def got_state(result):
+                cluster, state = result
+                self.assertEqual(application, state[MONGO_APPLICATION])
 
-            # now we've verified the initial deployment has succeeded
-            # with the expected result, we will redeploy the same application
-            # with new deployment and app configs; the app config will specify
-            # a maximum size for the volume and the deployment config will ask
-            # flocker to push our app to the second node
-            config_deployment[u"nodes"][node_2] = [MONGO_APPLICATION]
-            config_deployment[u"nodes"][node_1] = []
-            app_config = config_application[u"applications"][MONGO_APPLICATION]
-            app_config[u"volume"][u"maximum_size"] = SIZE_100_MB
+                # now we've verified the initial deployment has succeeded
+                # with the expected result, we will redeploy the same
+                # application with new deployment and app configs; the app
+                # config will specify a maximum size for the volume and
+                # the deployment config will ask flocker to push our app
+                # to the second node
+                config_deployment[u"nodes"][node_2] = [MONGO_APPLICATION]
+                config_deployment[u"nodes"][node_1] = []
+                app_config = config_application[
+                    u"applications"][MONGO_APPLICATION]
+                app_config[u"volume"][u"maximum_size"] = SIZE_100_MB
 
-            flocker_deploy(self, config_deployment, config_application)
-            state = get_node_state(node_2)
+                flocker_deploy(self, config_deployment, config_application)
+                d = get_node_state(cluster, node_2)
 
-            application = mongo_application(int(SIZE_100_MB))
+                def got_state2(result):
+                    _, state = result
+                    application = mongo_application(int(SIZE_100_MB))
 
-            # now we verify that the second deployment has moved the app and
-            # flocker-reportstate on the new host gives the expected maximum
-            # size for the deployed app's volume
-            self.assertEqual(application, state[MONGO_APPLICATION])
+                    # now we verify that the second deployment has moved the
+                    # app and cluster state on the new host gives the
+                    # expected maximum size for the deployed app's volume
+                    self.assertEqual(application, state[MONGO_APPLICATION])
+                d.addCallback(got_state2)
+                return d
+            d.addCallback(got_state)
+            return d
 
         nodes.addCallback(deploy_with_quotas)
         return nodes
@@ -147,13 +159,20 @@ class DeploymentTests(TestCase):
             }
 
             flocker_deploy(self, config_deployment, config_application)
-            state = get_node_state(node_1)
-            self.assertEqual(application, state[MONGO_APPLICATION])
-            config_deployment[u"nodes"][node_2] = [MONGO_APPLICATION]
-            config_deployment[u"nodes"][node_1] = []
-            flocker_deploy(self, config_deployment, config_application)
-            state = get_node_state(node_2)
-            self.assertEqual(application, state[MONGO_APPLICATION])
+            d = get_test_cluster()
+            d.addCallback(get_node_state, node_1)
+
+            def got_state(result):
+                cluster, state = result
+                self.assertEqual(application, state[MONGO_APPLICATION])
+                config_deployment[u"nodes"][node_2] = [MONGO_APPLICATION]
+                config_deployment[u"nodes"][node_1] = []
+                flocker_deploy(self, config_deployment, config_application)
+                return get_node_state(cluster, node_2)
+            d.addCallback(got_state)
+            d.addCallback(lambda result: self.assertEqual(
+                application, result[1][MONGO_APPLICATION]))
+            return d
 
         nodes.addCallback(deploy_with_quotas)
         return nodes
@@ -167,16 +186,15 @@ class DeploymentTests(TestCase):
         representations of the data given by the configuration files supplied
         to flocker-deploy.
         """
-        getting_nodes = get_nodes(self, num_nodes=2)
+        getting_nodes = get_nodes(self, num_nodes=1)
 
         def deploy(node_ips):
-            node_1, node_2 = node_ips
+            [node_1] = node_ips
 
             minimal_deployment = {
                 u"version": 1,
                 u"nodes": {
                     node_1: [MONGO_APPLICATION],
-                    node_2: [],
                 },
             }
 
@@ -193,7 +211,6 @@ class DeploymentTests(TestCase):
 
             d = assert_expected_deployment(self, {
                 node_1: set([get_mongo_application()]),
-                node_2: set([]),
             })
 
             return d

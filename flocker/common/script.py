@@ -125,8 +125,6 @@ class FlockerScriptRunner(object):
         :param sys_module: An optional ``sys`` like module for use in
             testing. Defaults to ``sys``.
         """
-        # XXX FLOC-936 flocker-deploy, flocker-volume, flocker-reportstate
-        # and flocker-changestate should all set logging to False.
         self.script = script
         self.options = options
         self.logging = logging

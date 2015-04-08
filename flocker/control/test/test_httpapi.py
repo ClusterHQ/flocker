@@ -5,6 +5,7 @@ Tests for ``flocker.control.httpapi``.
 
 from io import BytesIO
 from uuid import uuid4
+from copy import deepcopy
 
 from pyrsistent import pmap, thaw
 
@@ -3104,10 +3105,10 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         def configuration_set(_):
             actual = self.persistence_service.get()
             apps = FlockerConfiguration(
-                COMPLEX_APPLICATION_YAML).applications()
+                deepcopy(COMPLEX_APPLICATION_YAML)).applications()
             expected = model_from_configuration(
                 applications=apps,
-                deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+                deployment_configuration=deepcopy(COMPLEX_DEPLOYMENT_YAML))
             self.assertEqual(actual, expected)
         setting.addCallback(configuration_set)
         return setting
