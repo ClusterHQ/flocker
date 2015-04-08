@@ -468,7 +468,7 @@ def create_dataset(test_case, maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
 
     :param TestCase test_case: The test the API is running on.
     :param int maximum_size: The size of the dataset to create on the test
-        cluster. Defaults to ``REALISTIC_BLOCKDEVICE_SIZE``.
+        cluster.
     :return: ``Deferred`` firing with a tuple of (``Cluster``
         instance, dataset dictionary) once the dataset is present in
         actual cluster state.
