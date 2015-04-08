@@ -198,12 +198,18 @@ Using Amazon Web Services
 
 #. Upgrade the Kernel
 
-   Fedora kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
+   Some operating systems require an updated kernel.
 
+   Fedora kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
    On Fedora, run:
 
    .. task:: upgrade_kernel
       :prompt: [root@fedora]#
+
+   On CentOS, run:
+
+   .. task:: upgrade_kernel_centos
+      :prompt: [root@centos]#
 
    Reboot the machine to make use of the new kernel.
 
