@@ -312,7 +312,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             size=REALISTIC_BLOCKDEVICE_SIZE)
         self.assertDiscoveredState(
             self.deployer,
-            expected_manifestation=[],
+            expected_manifestations=[],
             expected_nonmanifest_datasets=[dataset_id]
         )
 
