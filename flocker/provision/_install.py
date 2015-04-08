@@ -162,17 +162,13 @@ def task_disable_selinux():
     XXX: Remove this when we work out suitable SELinux settings.
     See https://clusterhq.atlassian.net/browse/FLOC-619.
     """
-    return [
-        Run(command="if selinuxenabled; then setenforce 0; fi"),
-        Run(
-            command=(
-                "test -e /etc/selinux/config && "
-                "sed --in-place='.preflocker' "
-                "'s/^SELINUX=.*$/SELINUX=disabled/g' "
-                "/etc/selinux/config"
-            )
-        ),
-    ]
+    return sequence([
+        run("if selinuxenabled; then setenforce 0; fi"),
+        run("test -e /etc/selinux/config && "
+            "sed --in-place='.preflocker' "
+            "'s/^SELINUX=.*$/SELINUX=disabled/g' "
+            "/etc/selinux/config"),
+    ])
 
 
 def task_enable_docker():
