@@ -572,6 +572,26 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    def move_container(self, name, host):
+        """
+        Move a container.
+
+        :param unicode name: The name of the container to move.
+        :param unicode host: The host to which the container should be moved.
+        :returns: A tuple of (cluster, api_response)
+        """
+        request = post(
+            self.base_url + b"/configuration/containers/" +
+            name.encode("ascii"),
+            data=dumps({u"host": host}),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(lambda response: (self, response))
+        return request
+
     def remove_container(self, name):
         """
         Remove a container.
