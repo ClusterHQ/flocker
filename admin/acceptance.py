@@ -13,6 +13,8 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
+from twisted.python import log
+from twisted.internet import reactor
 
 from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
@@ -25,9 +27,9 @@ from flocker.provision._install import (
     configure_cluster,
 )
 
-from flocker.provision._ssh._fabric import dispatcher
-from flocker.provision._effect import sequence
-from effect import sync_perform as perform
+from effect import parallel
+from effect.twisted import perform
+from flocker.provision._ssh._conch import make_dispatcher
 
 
 def safe_call(command, **kwargs):
@@ -166,14 +168,14 @@ class VagrantRunner(object):
         box_version = vagrant_version(self.package_source.version)
         # Boot the VMs
         check_safe_call(
-            ['vagrant', 'up'],
+            ['vagrant', 'up', '--parallel'],
             cwd=self.vagrant_path.path,
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
         for node in self.NODE_ADDRESSES:
             remove_known_host(node)
             perform(
-                dispatcher,
+                make_dispatcher(reactor),
                 run_remotely(
                     username='root',
                     address=node,
@@ -241,12 +243,12 @@ class LibcloudRunner(object):
             self.nodes.append(node)
             del node
 
-        commands = sequence([
+        commands = parallel([
             node.provision(package_source=self.package_source,
                            variants=self.variants)
             for node in self.nodes
         ])
-        perform(dispatcher, commands)
+        perform(make_dispatcher(reactor), commands)
 
         return [node.address for node in self.nodes]
 
@@ -405,9 +407,11 @@ def main(args, base_path, top_level):
     # and cleanup and VMs we created.
     signal.signal(signal.SIGTERM, signal_handler)
 
+    log.startLogging(sys.stdout)
+
     try:
         nodes = runner.start_nodes()
-        perform(dispatcher,
+        perform(make_dispatcher(reactor),
                 configure_cluster(control_node=nodes[0], agent_nodes=nodes))
         result = run_tests(
             nodes=nodes,

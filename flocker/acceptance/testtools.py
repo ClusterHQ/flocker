@@ -17,7 +17,7 @@ from twisted.python.procutils import which
 
 from pyrsistent import pmap
 
-from effect import sync_perform
+from effect.twisted import perform
 
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
@@ -27,14 +27,14 @@ from flocker.testtools import loop_until
 
 from flocker.provision._install import stop_cluster
 try:
-    from flocker.provision._ssh._fabric import dispatcher
-    FABRIC_INSTALLED = True
+    from flocker.provision._ssh._conch import make_dispatcher
+    CONCH_INSTALLED = True
 except ImportError:
-    FABRIC_INSTALLED = False
+    CONCH_INSTALLED = False
 
 
-require_fabric = skipUnless(
-    FABRIC_INSTALLED, "Fabric not installed.")
+require_conch = skipUnless(
+    CONCH_INSTALLED, "conch not importable.")
 
 try:
     from pymongo import MongoClient
@@ -214,7 +214,7 @@ def _clean_node(test_case, node):
             [b"flocker"], None)
 
 
-@require_fabric
+@require_conch
 def _stop_acceptance_cluster():
     """
     Stop the Flocker cluster configured for the acceptance tests.
@@ -236,10 +236,11 @@ def _stop_acceptance_cluster():
     agent_nodes = filter(None, agent_nodes_env_var.split(':'))
 
     if control_node and agent_nodes:
-        return succeed(sync_perform(
-            dispatcher,
+        from twisted.internet import reactor
+        return perform(
+            make_dispatcher(reactor),
             stop_cluster(control_node, agent_nodes)
-        ))
+        )
     else:
         return succeed(None)
 
