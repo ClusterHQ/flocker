@@ -209,33 +209,70 @@ class CreateTests(SynchronousTestCase):
         self.assertEqual(
             [output.getvalue(), error.getvalue()],
             [dedent("""\
+                agent_nodes: [192.0.2.2, 192.0.2.3, 192.0.2.4]
                 control_node: 192.0.2.1
-                agent_nodes:
-                - 192.0.2.2
-                - 192.0.2.3
-                - 192.0.2.4
                 """),
              dedent("""\
                  Creating node 0: flocker-provisioning-script-0
                  Creating node 1: flocker-provisioning-script-1
                  Creating node 2: flocker-provisioning-script-2
                  Creating node 3: flocker-provisioning-script-3
-                 """)
+                 """)])
+
+        # TODO check that the the nodes are actally provisoned
+        #      and the cluster is provisioned
 
 
     def test_num_nodes(self):
         """
-        The number of nodes specified are created.
+        The number of agent nodes specified are created, plus a control node.
         """
-        reactor = MemoryReactor
-        create
-        pass
+        reactor = MemoryReactor()
+        output = StringIO()
+        error = StringIO()
+        provisioner = MemoryProvisioner()
+        d = create(
+            reactor, provisioner=provisioner, num_agent_nodes=1,
+            output=output, error=error)
+        self.successResultOf(d)
+        self.assertEqual(
+            len(provisioner.nodes), 2)
 
-    def test_provisioning_fails(self):
+    def test_provisioning_fails_output(self):
         """
         If provisioning the node fails, an error message is shown.
+
+        No attempt is made to create any nodes after the creation one node fails.
         """
-        pass
+        reactor = MemoryReactor()
+        output = StringIO()
+        error = StringIO()
+        provisioner = MemoryProvisioner(fail_create_node='flocker-provisioning-script-2')
+        d = create(
+            reactor, provisioner=provisioner, num_agent_nodes=3,
+            output=output, error=error)
+        self.failureResultOf(d)
+        self.assertEqual(
+            [output.getvalue(), error.getvalue()],
+            ["",
+             dedent("""\
+                 Creating node 0: flocker-provisioning-script-0
+                 Creating node 1: flocker-provisioning-script-1
+                 Creating node 2: flocker-provisioning-script-2
+                 Error creating node 2: flocker-provisioning-script-2
+                 It may have leaked into the cloud
+                 Destroying node 0: flocker-provisioning-script-0
+                 Destroying node 1: flocker-provisioning-script-1
+                 """)])
+        self.assertEqual(
+            provisoner.nodes, [])
+
+    def test_nodes_destroyed(self):
+        """
+        All nodes are destroyed after creating one node fails.
+        """
+
+
 
     def _test_control_node(self):
         """
