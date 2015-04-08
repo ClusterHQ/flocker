@@ -853,9 +853,9 @@ class BlockDeviceDeployer(PRecord):
             dataset_id = manifestation.dataset.dataset_id
             mountpath = self._mountpath_for_manifestation(manifestation)
 
-            # If the expected mount point doesn't actually have a (XXX should
-            # be "the") device mounted where we expected to find this
-            # manifestation, the manifestation doesn't really exist here.
+            # If the expected mount point doesn't actually have the device
+            # mounted where we expected to find this manifestation, the
+            # manifestation doesn't really exist here.
             properly_mounted = system_mounts.get(mountpath) == UUID(dataset_id)
 
             # In the future it would be nice to be able to represent
