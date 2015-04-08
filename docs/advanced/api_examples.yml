@@ -213,7 +213,7 @@
 
   doc: |
     Update a dataset with a new maximum_size. This will grow or shrink
-    the dataset.
+    the filesystem on the dataset.
 
   requires:
     - "create dataset with dataset_id"
