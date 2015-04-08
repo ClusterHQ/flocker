@@ -13,7 +13,7 @@ from characteristic import attributes
 
 from pyrsistent import PRecord, field
 
-from eliot import write_failure, Logger
+from eliot import write_failure, Logger, start_action
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
@@ -131,6 +131,10 @@ class _OldToNewDeployer(object):
             local_state, configuration, cluster_state)
 
 
+def _eliot_system(part):
+    return u"flocker:p2pdeployer:" + part
+
+
 @implementer(IStateChange)
 @attributes(["application", "node_state"])
 class StartApplication(object):
@@ -143,6 +147,14 @@ class StartApplication(object):
     :ivar NodeState node_state: The state of the node the ``Application``
         is running on.
     """
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"startapplication"),
+            name=self.application.name,
+        )
+
     def run(self, deployer):
         application = self.application
 
@@ -225,6 +237,13 @@ class StopApplication(object):
 
     :ivar Application application: The ``Application`` to stop.
     """
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"stopapplication"),
+            name=self.application.name,
+        )
+
     def run(self, deployer):
         application = self.application
         unit_name = application.name
@@ -239,6 +258,14 @@ class CreateDataset(object):
 
     :ivar Dataset dataset: Dataset to create.
     """
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"createdataset"),
+            dataset_id=self.dataset.dataset_id,
+            maximum_size=self.dataset.maximum_size,
+        )
+
     def run(self, deployer):
         volume = deployer.volume_service.get(
             name=_to_volume_name(self.dataset.dataset_id),
@@ -255,6 +282,14 @@ class ResizeDataset(object):
 
     :ivar Dataset dataset: Dataset to resize.
     """
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"createdataset"),
+            dataset_id=self.dataset.dataset_id,
+            maximum_size=self.dataset.maximum_size,
+        )
+
     def run(self, deployer):
         volume = deployer.volume_service.get(
             name=_to_volume_name(self.dataset.dataset_id),
