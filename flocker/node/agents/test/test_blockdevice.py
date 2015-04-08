@@ -171,7 +171,10 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api.attach_volume(
             unmounted.blockdevice_id, self.expected_hostname
         )
-        self.assertDiscoveredState(self.deployer, [], [unmounted.dataset_id])
+        self.assertDiscoveredState(
+            self.deployer, expected_manifestations=[],
+            expected_nonmanifest_datasets=[unmounted.dataset_id]
+        )
 
     def test_attached_and_mismounted(self):
         """
@@ -198,7 +201,11 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mountpoint.makedirs()
         mount(device, mountpoint)
 
-        self.assertDiscoveredState(self.deployer, [], [unexpected.dataset_id])
+        self.assertDiscoveredState(
+            self.deployer,
+            expected_manifestations=[],
+            expected_nonmanifest_datasets=[unexpected.dataset_id]
+        )
 
     def test_unrelated_mounted(self):
         """
@@ -224,7 +231,11 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mkfs(unrelated_device)
         mount(unrelated_device, mountpoint)
 
-        self.assertDiscoveredState(self.deployer, [], [unmounted.dataset_id])
+        self.assertDiscoveredState(
+            self.deployer,
+            expected_manifestations=[],
+            expected_nonmanifest_datasets=[unmounted.dataset_id]
+        )
 
     def test_one_device(self):
         """
@@ -277,7 +288,11 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api.create_volume(
             dataset_id=dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE)
-        self.assertDiscoveredState(self.deployer, [], [dataset_id])
+        self.assertDiscoveredState(
+            self.deployer,
+            expected_manifestation=[],
+            expected_nonmanifest_datasets=[dataset_id]
+        )
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
