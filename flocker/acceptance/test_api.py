@@ -247,13 +247,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        def check_response_code(response):
-            if response.code != OK:
-                raise ValueError("Unexpected response code:", response.code)
-            return response
-
-        request.addCallback(check_response_code)
-        request.addCallback(json_content)
+        request.addCallback(check_and_decode_json, OK)
         request.addCallback(lambda response: (self, response))
         return request
 
@@ -457,6 +451,17 @@ class ContainerAPITests(TestCase):
                 )
 
                 def destroy_and_recreate(_, record):
+                    """
+                    After moving our container via the API, we then remove the
+                    container on the new host and recreate it, pointing to the
+                    same dataset, but with the new container instance exposing
+                    a different external port. This technique ensures that the
+                    test does not pass by mere accident without the container
+                    having moved; by recreating the container on its new host
+                    after moving, we can be sure that if we can still connect
+                    and read the data, the dataset was successfully moved along
+                    with the container.
+                    """
                     removed = cluster.remove_container(u"container")
                     mongodb2 = mongodb.copy()
                     mongodb2[u"ports"] = [
