@@ -11,7 +11,6 @@ from ._install import (
     task_install_ssh_key,
     task_upgrade_kernel,
     task_upgrade_selinux,
-    task_upgrade_kernel_centos,
     task_enable_updates_testing
 )
 
@@ -49,15 +48,9 @@ def provision_aws(node, package_source, distribution, variants):
             task_enable_updates_testing(distribution)
         )
 
-    if distribution in ('centos-7',):
-        pre_reboot_commands.append(
-            task_upgrade_kernel_centos()
-        )
-
-    elif distribution in ('fedora-20',):
-        pre_reboot_commands.append(
-            task_upgrade_kernel(),
-        )
+    pre_reboot_commands.append(
+        task_upgrade_kernel(distribution)
+    )
 
     commands.append(run_remotely(
         username='root',

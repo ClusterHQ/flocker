@@ -203,12 +203,12 @@ Using Amazon Web Services
    Fedora kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
    On Fedora, run:
 
-   .. task:: upgrade_kernel
+   .. task:: upgrade_kernel fedora-20
       :prompt: [root@fedora]#
 
    On CentOS, run:
 
-   .. task:: upgrade_kernel_centos
+   .. task:: upgrade_kernel centos-7
       :prompt: [root@centos]#
 
    Reboot the machine to make use of the new kernel.
@@ -335,7 +335,7 @@ You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
 Paste them into a root console on the target node:
 
-.. task:: install_flocker_yum fedora-20
+.. task:: install_flocker fedora-20
    :prompt: [root@fedora]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
@@ -358,7 +358,7 @@ You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``flocker-node`` package.
 Paste them into a root console on the target node:
 
-.. task:: install_flocker_yum centos-7
+.. task:: install_flocker centos-7
    :prompt: [root@centos]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
@@ -386,12 +386,12 @@ Installing on Ubuntu 14.04
 
 Flocker requires recent versions of ZFS and Docker.
 
-.. task:: install_requirements_ubuntu
+.. task:: install_requirements ubuntu-14.04
    :prompt: [root@ubuntu]#
 
 Now install the ``clusterhq-flocker-node`` package.
 
-.. task:: install_flocker_ubuntu
+.. task:: install_flocker ubuntu-14.04
    :prompt: [root@ubuntu]#
 
 Post installation configuration

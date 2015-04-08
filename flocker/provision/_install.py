@@ -72,15 +72,51 @@ def task_install_ssh_key():
     ])
 
 
-def task_upgrade_kernel():
+def task_upgrade_kernel(distribution):
     """
     Upgrade kernel.
     """
-    return sequence([
-        run_from_args(['yum', 'upgrade', '-y', 'kernel']),
-        comment(comment="The upgrade doesn't make the new kernel default."),
-        run_from_args(['grubby', '--set-default-index', '0']),
-    ])
+    if distribution == 'fedora-20':
+        return sequence([
+            run_from_args(['yum', 'upgrade', '-y', 'kernel']),
+            comment(
+                comment="The upgrade doesn't make the new kernel default."),
+            run_from_args(['grubby', '--set-default-index', '0']),
+        ])
+    elif distribution == 'centos-7':
+        return sequence([
+            run_from_args([
+                "yum", "install", "-y", "kernel-devel", "kernel"]),
+            run_from_args(['sync']),
+        ])
+    elif distribution == 'ubuntu-14.04':
+        # When 15.04 is available then the kernel can be backported from that,
+        # similar to `apt-get install linux-image-generic-lts-utopic`.
+        packages_url = \
+                "http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/"
+        packages = [
+            "linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
+            "linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb",  # noqa
+            "linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
+        ]
+
+        package_install_commands = [
+            run_from_args(
+                ["wget", packages_url + package]) for package in packages
+        ]
+
+        return sequence([
+            run_from_args([
+                "mkdir", "-p", "/tmp/kernel-packages"]),
+            run_from_args([
+                "cd", "/tmp/kernel-packages"]),
+        ] + package_install_commands + [
+            # XXX This brings up a prompt about upgrading grub,
+            # somehow work around that, see
+            # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade  # noqa
+            run(command='dpkg -i linux-*.deb'),
+            run_from_args(['rm', '-r', '/tmp/kernel-packages']),
+        ])
 
 
 KOJI_URL_TEMPLATE = (
@@ -128,78 +164,39 @@ def task_install_digitalocean_kernel():
     ])
 
 
-def task_upgrade_kernel_centos():
-    return sequence([
-        run_from_args([
-            "yum", "install", "-y", "kernel-devel", "kernel"]),
-        run_from_args(['sync']),
-    ])
-
-
-def task_upgrade_kernel_ubuntu():
-    # When 15.04 is available then the kernel can be backported from that,
-    # similar to `apt-get install linux-image-generic-lts-utopic`.
-    packages_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/"
-    packages = [
-        "linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
-        "linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb",  # noqa
-        "linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
-    ]
-
-    package_install_commands = [
-        run_from_args(["wget", packages_url + package]) for package in packages
-    ]
-
-    return sequence([
-        run_from_args([
-            "mkdir", "-p", "/tmp/kernel-packages"]),
-        run_from_args([
-            "cd", "/tmp/kernel-packages"]),
-    ] + package_install_commands + [
-        # XXX This brings up a prompt about upgrading grub,
-        # somehow work around that, see
-        # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade  # noqa
-        run(command='dpkg -i linux-*.deb'),
-        run_from_args(['rm', '-r', '/tmp/kernel-packages']),
-    ])
-
-
-def task_install_requirements_ubuntu():
-    return sequence([
-        # Add ZFS repo for recent ZFS versions - XXX no minimum version
-        # documented
-        run_from_args([
-            "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
-        # Add Docker repo for recent Docker versions - XXX no minimum
-        # version documented
-        run_from_args([
-            "add-apt-repository", "-y", "ppa:james-page/docker"]),
-        # Add ClusterHQ repo for installation of Flocker packages.
-        run_from_args([
-            "add-apt-repository", "-y",
-            "deb http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04 /"]),  # noqa
-        # Update to read package info from new repos
-        run_from_args([
-            "apt-get", "update"]),
-        # Not clear that an upgrade is required at this point, so leave it out.
-        # XXX This brings up a prompt about upgrading grub,
-        # somehow work around that, see
-        # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
-        # run_from_args([
-            # "apt-get", "-y", "upgrade"]),
-        # Package spl-dkms must be installed as a separate step before
-        # installing zfs-dkms
-        run_from_args([
-            "apt-get", "-y", "install", "spl-dkms"]),
-        run_from_args([
-            "apt-get", "-y", "install", "zfs-dkms", "zfsutils", "docker.io"]),
-    ])
-
-
-def task_install_flocker_ubuntu():
-    return sequence([run_from_args([
-        'apt-get', '-y', '--force-yes', 'install', 'clusterhq-python-flocker',
-        'clusterhq-flocker-node'])])
+def task_install_requirements(distribution):
+    if distribution == 'ubuntu-14.04':
+        return sequence([
+            # Add ZFS repo for recent ZFS versions - XXX no minimum
+            # version documented
+            run_from_args([
+                "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
+            # Add Docker repo for recent Docker versions - XXX no
+            # minimum version documented
+            run_from_args([
+                "add-apt-repository", "-y", "ppa:james-page/docker"]),
+            # Add ClusterHQ repo for installation of Flocker packages.
+            run_from_args([
+                "add-apt-repository", "-y",
+                "deb http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04 /"]),  # noqa
+            # Update to read package info from new repos
+            run_from_args([
+                "apt-get", "update"]),
+            # Not clear that an upgrade is required at this point, so
+            # leave it out.
+            # XXX This brings up a prompt about upgrading grub,
+            # somehow work around that, see
+            # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
+            # run_from_args([
+                # "apt-get", "-y", "upgrade"]),
+            # Package spl-dkms must be installed as a separate step
+            # before installing zfs-dkms
+            run_from_args([
+                "apt-get", "-y", "install", "spl-dkms"]),
+            run_from_args([
+                "apt-get", "-y", "install", "zfs-dkms", "zfsutils",
+                "docker.io"]),
+        ])
 
 
 def task_install_kernel_devel():
@@ -298,51 +295,57 @@ def task_create_flocker_pool_file():
     ])
 
 
-def task_install_flocker_yum(
+def task_install_flocker(
         distribution=None,
         package_source=PackageSource()):
     """
-    Install flocker on a distribution which uses yum.
+    Install flocker on a distribution.
 
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
     """
-    commands = [
-        run(command="yum install -y " + ZFS_REPO[distribution]),
-        run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
-    ]
-
-    if distribution == 'centos-7':
-        commands.append(
-            run_from_args(["yum", "install", "-y", "epel-release"]))
-
-    if package_source.branch:
-        result_path = posixpath.join(
-            '/results/omnibus/', package_source.branch, distribution)
-        base_url = urljoin(package_source.build_server, result_path)
-        repo = dedent(b"""\
-            [clusterhq-build]
-            name=clusterhq-build
-            baseurl=%s
-            gpgcheck=0
-            enabled=0
-            """) % (base_url,)
-        commands.append(put(content=repo,
-                            path='/etc/yum.repos.d/clusterhq-build.repo'))
-        branch_opt = ['--enablerepo=clusterhq-build']
+    if distribution == 'ubuntu-14.04':
+        return sequence([run_from_args([
+            'apt-get', '-y', '--force-yes', 'install',
+            'clusterhq-python-flocker', 'clusterhq-flocker-node'])])
     else:
-        branch_opt = []
+        commands = [
+            run(command="yum install -y " + ZFS_REPO[distribution]),
+            run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+        ]
 
-    if package_source.os_version:
-        package = 'clusterhq-flocker-node-%s' % (package_source.os_version,)
-    else:
-        package = 'clusterhq-flocker-node'
+        if distribution == 'centos-7':
+            commands.append(
+                run_from_args(["yum", "install", "-y", "epel-release"]))
 
-    commands.append(run_from_args(
-        ["yum", "install"] + branch_opt + ["-y", package]))
+        if package_source.branch:
+            result_path = posixpath.join(
+                '/results/omnibus/', package_source.branch, distribution)
+            base_url = urljoin(package_source.build_server, result_path)
+            repo = dedent(b"""\
+                [clusterhq-build]
+                name=clusterhq-build
+                baseurl=%s
+                gpgcheck=0
+                enabled=0
+                """) % (base_url,)
+            commands.append(put(content=repo,
+                                path='/etc/yum.repos.d/clusterhq-build.repo'))
+            branch_opt = ['--enablerepo=clusterhq-build']
+        else:
+            branch_opt = []
 
-    return sequence(commands)
+        if package_source.os_version:
+            package = 'clusterhq-flocker-node-%s' % (
+                package_source.os_version,)
+        else:
+            package = 'clusterhq-flocker-node'
+
+        commands.append(run_from_args(
+            ["yum", "install"] + branch_opt + ["-y", package]))
+
+        return sequence(commands)
 
 
 def task_upgrade_selinux():
@@ -376,7 +379,7 @@ def task_enable_updates_testing(distribution):
     """
     Enable the distribution's proposed updates repository.
 
-    :param bytes distribution: See func:`task_install_flocker_yum`
+    :param bytes distribution: See func:`task_install_flocker`
     """
     if distribution == 'fedora-20':
         return sequence([
@@ -393,7 +396,7 @@ def task_enable_docker_head_repository(distribution):
     Enable the distribution's repository containing in-development docker
     builds.
 
-    :param bytes distribution: See func:`task_install_flocker_yum`
+    :param bytes distribution: See func:`task_install_flocker`
     """
     if distribution == 'fedora-20':
         return sequence([
@@ -423,7 +426,7 @@ def task_enable_zfs_testing(distribution):
     """
     Enable the zfs-testing repository.
 
-    :param bytes distribution: See func:`task_install_flocker_yum`
+    :param bytes distribution: See func:`task_install_flocker`
     """
     if distribution in ('fedora-20', 'centos-7'):
         return sequence([
@@ -444,8 +447,8 @@ def provision(distribution, package_source, variants):
 
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.
-    :param bytes distribution: See func:`task_install_flocker_yum`
-    :param PackageSource package_source: See func:`task_install_flocker_yum`
+    :param bytes distribution: See func:`task_install_flocker`
+    :param PackageSource package_source: See func:`task_install_flocker`
     :param set variants: The set of variant configurations to use when
         provisioning
     """
@@ -462,7 +465,7 @@ def provision(distribution, package_source, variants):
         commands.append(task_install_kernel_devel())
 
     commands += [
-        task_install_flocker_yum(
+        task_install_flocker(
             package_source=package_source, distribution=distribution),
         task_enable_docker(),
         task_create_flocker_pool_file(),
