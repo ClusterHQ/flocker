@@ -8,11 +8,14 @@ from functools import partial
 
 from ._libcloud import LibcloudProvisioner
 from ._install import (
-    provision, run,
+    provision,
     task_install_digitalocean_kernel, DIGITALOCEAN_KERNEL,
     task_open_control_firewall
 )
 from ._common import Kernel
+from ._ssh import run_remotely
+from effect import Effect, Func
+from ._effect import sequence
 
 
 def retry_on_error(error_checkers, callable, *args, **kwargs):
@@ -206,6 +209,52 @@ def latest_droplet_kernel(droplet,
     return latest_kernel
 
 
+def change_kernel(node_id, token, kernel_version):
+    """
+    Change the configured kernel on a DigitalOcean node.
+
+    :param bytes node_id: The id of the DigitalOcean.
+    :param bytes token: A DigitalOcean v2 API token.
+    """
+    # Import here, so that this can be added to ``flocker.provision`` without
+    # having to install ``pyocean``.
+    import pyocean
+    v2client = pyocean.DigitalOcean(access_token=token)
+    v2droplet = v2client.droplet.get(node_id)
+    do_kernel = get_droplet_kernel(v2droplet, kernel_version)
+
+    retry_on_error(
+        [pending_event],
+        v2droplet.change_kernel, do_kernel.id)
+
+
+def hard_reboot(node_id, token):
+    """
+    Reboot a DigitalOcean node by powering it off and then back on.
+    This is necessary for a new kernel to be selected.
+
+    :param bytes node_id: The id of the DigitalOcean.
+    :param bytes token: A DigitalOcean v2 API token.
+    """
+    # Import here, so that this can be added to ``flocker.provision`` without
+    # having to install ``pyocean``.
+    import pyocean
+    v2client = pyocean.DigitalOcean(access_token=token)
+    v2droplet = v2client.droplet.get(node_id)
+
+    # Libcloud doesn't support shutting down DO vms.
+    # See https://issues.apache.org/jira/browse/LIBCLOUD-655
+    retry_on_error(
+        [pending_event],
+        v2droplet.shutdown)
+
+    # Libcloud doesn't support powering up DO vms.
+    # See https://issues.apache.org/jira/browse/LIBCLOUD-655
+    # Even after the shutdown, the droplet may not be quite ready to power on,
+    # so also check for that resulting error here.
+    retry_on_error([pending_event, droplet_still_on], v2droplet.power_on)
+
+
 def provision_digitalocean(node, token,
                            package_source, distribution, variants):
     """
@@ -235,50 +284,37 @@ def provision_digitalocean(node, token,
     # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api # noqa
     # * https://issues.apache.org/jira/browse/JCLOUDS-613
 
-    # Import here, so that this can be added to ``flocker.provision`` without
-    # having to install ``pyocean``.
-    import pyocean
-
-    v2client = pyocean.DigitalOcean(access_token=token)
-    v2droplet = v2client.droplet.get(node._node.id)
-    do_kernel = get_droplet_kernel(v2droplet, DIGITALOCEAN_KERNEL)
-
-    retry_on_error(
-        [pending_event],
-        v2droplet.change_kernel, do_kernel.id)
-
-    run(
-        username='root',
-        address=node.address,
-        commands=task_install_digitalocean_kernel()
-    )
-
-    # Libcloud doesn't support shutting down DO vms.
-    # See https://issues.apache.org/jira/browse/LIBCLOUD-655
-    retry_on_error(
-        [pending_event],
-        v2droplet.shutdown)
-
-    # Libcloud doesn't support powering up DO vms.
-    # See https://issues.apache.org/jira/browse/LIBCLOUD-655
-    # Even after the shutdown, the droplet may not be quite ready to power on,
-    # so also check for that resulting error here.
-    retry_on_error([pending_event, droplet_still_on], v2droplet.power_on)
-
-    # Finally run all the standard Fedora20 installation steps.
-    run(
-        username='root',
-        address=node.address,
-        commands=provision(
-            package_source=package_source,
-            distribution=node.distribution,
-            variants=variants,
-        )
-        # https://clusterhq.atlassian.net/browse/FLOC-1550
-        # This should be part of ._install.configure_cluster
-        + task_open_control_firewall()
-    )
-    return node.address
+    return sequence([
+        # Change the configured kernel
+        Effect(Func(
+            lambda: change_kernel(node._node.id, token, DIGITALOCEAN_KERNEL)
+        )),
+        # Install the corresponding kernel package.
+        run_remotely(
+            username='root',
+            address=node.address,
+            commands=task_install_digitalocean_kernel()
+        ),
+        # Hard reboot the machine to boot into the new kernel.
+        Effect(Func(
+            lambda: hard_reboot(node._node.id, token)
+        )),
+        # Finally run all the standard Fedora20 installation steps.
+        run_remotely(
+            username='root',
+            address=node.address,
+            commands=sequence([
+                provision(
+                    package_source=package_source,
+                    distribution=node.distribution,
+                    variants=variants,
+                ),
+                # https://clusterhq.atlassian.net/browse/FLOC-1550
+                # This should be part of ._install.configure_cluster
+                task_open_control_firewall()
+            ]),
+        ),
+    ])
 
 
 IMAGE_NAMES = {

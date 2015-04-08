@@ -18,11 +18,16 @@ from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
+from flocker.provision._ssh import (
+    run_remotely)
 from flocker.provision._install import (
-    run as run_tasks_on_node,
     task_pull_docker_images,
     configure_cluster,
 )
+
+from flocker.provision._ssh._fabric import dispatcher
+from flocker.provision._effect import sequence
+from effect import sync_perform as perform
 
 
 def safe_call(command, **kwargs):
@@ -167,10 +172,13 @@ class VagrantRunner(object):
 
         for node in self.NODE_ADDRESSES:
             remove_known_host(node)
-            run_tasks_on_node(
-                username='root',
-                address=node,
-                commands=task_pull_docker_images()
+            perform(
+                dispatcher,
+                run_remotely(
+                    username='root',
+                    address=node,
+                    commands=task_pull_docker_images()
+                ),
             )
         return self.NODE_ADDRESSES
 
@@ -229,12 +237,16 @@ class LibcloudRunner(object):
                 print "It may have leaked into the cloud."
                 raise
 
-            self.nodes.append(node)
-
             remove_known_host(node.address)
+            self.nodes.append(node)
+            del node
+
+        commands = sequence([
             node.provision(package_source=self.package_source,
                            variants=self.variants)
-            del node
+            for node in self.nodes
+        ])
+        perform(dispatcher, commands)
 
         return [node.address for node in self.nodes]
 
@@ -395,7 +407,8 @@ def main(reactor, args, base_path, top_level):
 
     try:
         nodes = runner.start_nodes()
-        configure_cluster(control_node=nodes[0], agent_nodes=nodes)
+        perform(dispatcher,
+                configure_cluster(control_node=nodes[0], agent_nodes=nodes))
         result = run_tests(
             nodes=nodes,
             control_node=nodes[0], agent_nodes=nodes,

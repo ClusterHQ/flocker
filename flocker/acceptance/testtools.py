@@ -17,6 +17,8 @@ from twisted.python.procutils import which
 
 from pyrsistent import pmap
 
+from effect import sync_perform
+
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
     FlockerConfiguration
@@ -24,6 +26,15 @@ from ..control import (
 from flocker.testtools import loop_until
 
 from flocker.provision._install import stop_cluster
+try:
+    from flocker.provision._ssh._fabric import dispatcher
+    FABRIC_INSTALLED = True
+except ImportError:
+    FABRIC_INSTALLED = False
+
+
+require_fabric = skipUnless(
+    FABRIC_INSTALLED, "Fabric not installed.")
 
 try:
     from pymongo import MongoClient
@@ -203,9 +214,10 @@ def _clean_node(test_case, node):
             [b"flocker"], None)
 
 
+@require_fabric
 def _stop_acceptance_cluster():
     """
-    Stop the Flocker cluster configured for the accpetance tests.
+    Stop the Flocker cluster configured for the acceptance tests.
 
     XXX https://clusterhq.atlassian.net/browse/FLOC-1563
     Flocker doesn't support using flocker-deploy along-side flocker-control and
@@ -216,13 +228,20 @@ def _stop_acceptance_cluster():
 
     This also removes the environment variables associated with the cluster, so
     that tests attempting to use it will be skipped.
+
+    :return: A ``Deferred`` which fires when the cluster is stopped.
     """
     control_node = environ.pop("FLOCKER_ACCEPTANCE_CONTROL_NODE", None)
     agent_nodes_env_var = environ.pop("FLOCKER_ACCEPTANCE_AGENT_NODES", "")
     agent_nodes = filter(None, agent_nodes_env_var.split(':'))
 
     if control_node and agent_nodes:
-        stop_cluster(control_node, agent_nodes)
+        return succeed(sync_perform(
+            dispatcher,
+            stop_cluster(control_node, agent_nodes)
+        ))
+    else:
+        return succeed(None)
 
 
 def get_nodes(test_case, num_nodes):
@@ -289,14 +308,14 @@ def get_nodes(test_case, num_nodes):
 
     # Stop flocker-control and flocker-agent here, as by this point, we know
     # that we aren't skipping this test.
-    _stop_acceptance_cluster()
+    d = _stop_acceptance_cluster()
 
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
     for node in reachable_nodes:
         _clean_node(test_case, node)
-    return succeed(reachable_nodes)
+    return d.addCallback(lambda _: reachable_nodes)
 
 
 def flocker_deploy(test_case, deployment_config, application_config):
