@@ -43,7 +43,9 @@ class CommandProtocol(LineOnlyReceiver, object):
 
 
 def run(reactor, command, **kwargs):
-    endpoint = ProcessEndpoint(reactor, command[0], command, env=os.environ)
+    if 'env' not in kwargs:
+        kwargs['env'] = os.environ
+    endpoint = ProcessEndpoint(reactor, command[0], command, **kwargs)
     protocol_done = Deferred()
     protocol = CommandProtocol(deferred=protocol_done, output=sys.stdout)
 
