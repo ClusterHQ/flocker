@@ -127,7 +127,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         expected = b"Path {path} is not a directory.".format(path=path.path)
         self.assertEqual(str(e), expected)
 
-    def test_certificate_is_signed(self):
+    def test_certificate_is_self_signed(self):
         """
         A cert written by ``CertificateAuthority.initialize`` is validated
         as a self-signed certificate.

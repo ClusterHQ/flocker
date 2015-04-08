@@ -37,8 +37,8 @@ class PathError(Exception):
 
 class FlockerKeyPair(object):
     """
-    XXX Twisted's ``KeyPair``s are not comparable so this class wraps it
-    to provide comparison.
+    KeyPair with added functionality for comparison and signing a request
+    object with additional extensions for generating a self-signed CA.
     """
     def __init__(self, keypair):
         self.keypair = keypair
@@ -50,6 +50,49 @@ class FlockerKeyPair(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def selfSignedCACertificate(self, dn, request, serial, expiry, digest):
+        """
+        Sign a CertificateRequest with extensions for use as a CA certificate.
+
+        This code based on ``twisted.internet.ssl.KeyPair.signRequestObject``
+
+        :param DistinguishedName dn: The ``DistinguishedName`` for the
+            certificate.
+
+        :param CertificateRequest request: The signing request object.
+
+        :param int serial: The certificate serial number.
+
+        :param int expiry: Number of seconds from now until this certificate
+            should expire.
+
+        :param str digest: The digest algorithm to use.
+        """
+        req = request.original
+        cert = crypto.X509()
+        dn._copyInto(cert.get_issuer())
+        cert.set_subject(req.get_subject())
+        cert.set_pubkey(req.get_pubkey())
+        cert.gmtime_adj_notBefore(0)
+        cert.gmtime_adj_notAfter(expiry)
+        cert.set_serial_number(serial)
+        cert.add_extensions([
+            crypto.X509Extension("basicConstraints", True,
+                                 "CA:TRUE, pathlen:0"),
+            crypto.X509Extension("keyUsage", True,
+                                 "keyCertSign, cRLSign"),
+            crypto.X509Extension("subjectKeyIdentifier", False, "hash",
+                                 subject=cert),
+        ])
+        cert.add_extensions([
+            crypto.X509Extension(
+                "authorityKeyIdentifier", False,
+                "keyid:always", issuer=cert
+            )
+        ])
+        cert.sign(self.keypair.original, digest)
+        return Certificate(cert)
 
 
 def generate_keypair():
@@ -165,10 +208,8 @@ class CertificateAuthority(PRecord):
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
-        certificate = keypair.keypair.signRequestObject(
-            dn, request, serial,
-            secondsToExpiry=EXPIRY_20_YEARS,
-            digestAlgorithm='sha256'
+        certificate = keypair.selfSignedCACertificate(
+            dn, request, serial, EXPIRY_20_YEARS, 'sha256'
         )
         original_umask = os.umask(0)
         mode = 0o600
