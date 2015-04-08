@@ -113,13 +113,14 @@ definitions:
   configuration_dataset:
     description: "The configuration for a particular dataset."
     allOf:
-      - "$ref": "types.json#/definitions/dataset_configuration"
+      - {"$ref": "types.json#/definitions/dataset_configuration"}
 
   configuration_dataset_primary:
     description: "The configuration for a new dataset with a primary address"
     allOf:
-      - "$ref": "types.json#/definitions/dataset_configuration"
-      - "required": ["primary"]
+      - {"$ref": "types.json#/definitions/dataset_configuration"}
+      - required:
+        - primary
 
   # A sequence of datasets
   configuration_datasets_array:
