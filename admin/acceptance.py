@@ -2,19 +2,17 @@
 """
 Run the acceptance tests.
 """
-from subprocess import Popen, CalledProcessError
 
 import sys
 import os
 import yaml
-import signal
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.python import log
-from twisted.internet import reactor
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
@@ -31,36 +29,7 @@ from effect import parallel
 from effect.twisted import perform
 from flocker.provision._ssh._conch import make_dispatcher
 
-
-def safe_call(command, **kwargs):
-    """
-    Run a process and kill it if the process is interrupted.
-
-    Takes the same arguments as ``subprocess.Popen``.
-    """
-    process = Popen(command, **kwargs)
-    try:
-        return process.wait()
-    except:
-        # We expect KeyboardInterrupt (from C-c) and
-        # SystemExit (from signal_handler below) here.
-        # But we'll cleanup on any execption.
-        process.terminate()
-        raise
-
-
-def check_safe_call(command, **kwargs):
-    """
-    Run a process and kill it if the process is interrupted.
-
-    Takes the same arguments as ``subprocess.Popen``.
-
-    :raises CalledProcessError: if the program exits with a failure.
-    """
-    result = safe_call(command, **kwargs)
-    if result != 0:
-        raise CalledProcessError(result, command[0])
-    return result
+from .runner import run
 
 
 def extend_environ(**kwargs):
@@ -76,17 +45,17 @@ def extend_environ(**kwargs):
     return env
 
 
-def remove_known_host(hostname):
+def remove_known_host(reactor, hostname):
     """
     Remove all keys belonging to hostname from a known_hosts file.
 
     param bytes hostname: Remove all keys belonging to this hostname from
         known_hosts.
     """
-    check_safe_call(['ssh-keygen', '-R', hostname])
+    return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def run_tests(nodes, control_node, agent_nodes, trial_args):
+def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
     """
     Run the acceptance tests.
 
@@ -100,7 +69,8 @@ def run_tests(nodes, control_node, agent_nodes, trial_args):
     """
     if not trial_args:
         trial_args = ['flocker.acceptance']
-    return safe_call(
+    return run(
+        reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes),
@@ -114,14 +84,14 @@ class INodeRunner(Interface):
     Interface for starting and stopping nodes for acceptance testing.
     """
 
-    def start_nodes():
+    def start_nodes(reactor):
         """
         Start nodes for running acceptance tests.
 
-        :return list: List of nodes to run tests against.
+        :return Deferred: List of nodes to run tests against.
         """
 
-    def stop_nodes(self):
+    def stop_nodes(reactor):
         """
         Stop the nodes started by `start_nodes`.
         """
@@ -158,23 +128,26 @@ class VagrantRunner(object):
             raise UsageError("Unsupored varianta: %s."
                              % (', '.join(self.variants),))
 
-    def start_nodes(self):
+    @inlineCallbacks
+    def start_nodes(self, reactor):
         # Destroy the box to begin, so that we are guaranteed
         # a clean build.
-        check_safe_call(
+        yield run(
+            reactor,
             ['vagrant', 'destroy', '-f'],
-            cwd=self.vagrant_path.path)
+            path=self.vagrant_path.path)
 
         box_version = vagrant_version(self.package_source.version)
         # Boot the VMs
-        check_safe_call(
-            ['vagrant', 'up', '--parallel'],
-            cwd=self.vagrant_path.path,
+        yield run(
+            reactor,
+            ['vagrant', 'up'],
+            path=self.vagrant_path.path,
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
         for node in self.NODE_ADDRESSES:
-            remove_known_host(node)
-            perform(
+            yield remove_known_host(reactor, node)
+            yield perform(
                 make_dispatcher(reactor),
                 run_remotely(
                     username='root',
@@ -182,12 +155,14 @@ class VagrantRunner(object):
                     commands=task_pull_docker_images()
                 ),
             )
-        return self.NODE_ADDRESSES
 
-    def stop_nodes(self):
-        check_safe_call(
+        returnValue(self.NODE_ADDRESSES)
+
+    def stop_nodes(self, reactor):
+        return run(
+            reactor,
             ['vagrant', 'destroy', '-f'],
-            cwd=self.vagrant_path.path)
+            path=self.vagrant_path.path)
 
 
 @attributes(RUNNER_ATTRIBUTES + [
@@ -212,7 +187,8 @@ class LibcloudRunner(object):
             )
         self.creator = creator
 
-    def start_nodes(self):
+    @inlineCallbacks
+    def start_nodes(self, reactor):
         """
         Provision cloud nodes for acceptance tests.
 
@@ -239,7 +215,7 @@ class LibcloudRunner(object):
                 print "It may have leaked into the cloud."
                 raise
 
-            remove_known_host(node.address)
+            yield remove_known_host(reactor, node.address)
             self.nodes.append(node)
             del node
 
@@ -248,11 +224,11 @@ class LibcloudRunner(object):
                            variants=self.variants)
             for node in self.nodes
         ])
-        perform(make_dispatcher(reactor), commands)
+        yield perform(make_dispatcher(reactor), commands)
 
-        return [node.address for node in self.nodes]
+        returnValue([node.address for node in self.nodes])
 
-    def stop_nodes(self):
+    def stop_nodes(self, reactor):
         """
         Deprovision the nodes provisioned by ``start_nodes``.
         """
@@ -373,17 +349,8 @@ class RunOptions(Options):
             )
 
 
-def signal_handler(signal, frame):
-    """
-    Exit gracefully when receiving a signal.
-
-    :param int signal: The signal that was received.
-    :param frame: The running frame.
-    """
-    raise SystemExit(1)
-
-
-def main(args, base_path, top_level):
+@inlineCallbacks
+def main(reactor, args, base_path, top_level):
     """
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
@@ -399,21 +366,15 @@ def main(args, base_path, top_level):
 
     runner = options.runner
 
-    # We register a signal handler for SIGTERM here.
-    # When a signal is received, python will call this function
-    # from the main thread.
-    # We raise SystemExit to shutdown gracefully.
-    # In particular, we will kill any processes we spawned
-    # and cleanup and VMs we created.
-    signal.signal(signal.SIGTERM, signal_handler)
-
     log.startLogging(sys.stdout)
 
     try:
-        nodes = runner.start_nodes()
-        perform(make_dispatcher(reactor),
-                configure_cluster(control_node=nodes[0], agent_nodes=nodes))
-        result = run_tests(
+        nodes = yield runner.start_nodes(reactor)
+        yield perform(
+            make_dispatcher(reactor),
+            configure_cluster(control_node=nodes[0], agent_nodes=nodes))
+        result = yield run_tests(
+            reactor=reactor,
             nodes=nodes,
             control_node=nodes[0], agent_nodes=nodes,
             trial_args=options['trial-args'])
@@ -424,7 +385,7 @@ def main(args, base_path, top_level):
         # Unless the tests failed, and the user asked to keep the nodes, we
         # delete them.
         if not (result != 0 and options['keep']):
-            runner.stop_nodes()
+            runner.stop_nodes(reactor)
         elif options['keep']:
             print "--keep specified, not destroying nodes."
     raise SystemExit(result)
