@@ -150,7 +150,7 @@ def task_upgrade_kernel_ubuntu():
         run_from_args(["wget", packages_url + package]) for package in packages
     ]
 
-    return [
+    return sequence([
         run_from_args([
             "mkdir", "-p", "/tmp/kernel-packages"]),
         run_from_args([
@@ -161,36 +161,45 @@ def task_upgrade_kernel_ubuntu():
         # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade  # noqa
         run(command='dpkg -i linux-*.deb'),
         run_from_args(['rm', '-r', '/tmp/kernel-packages']),
-    ]
+    ])
 
 
 def task_install_requirements_ubuntu():
-    return [
+    return sequence([
+        # Add ZFS repo for recent ZFS versions - XXX no minimum version
+        # documented
         run_from_args([
             "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
+        # Add Docker repo for recent Docker versions - XXX no minimum
+        # version documented
         run_from_args([
             "add-apt-repository", "-y", "ppa:james-page/docker"]),
+        # Add ClusterHQ repo for installation of Flocker packages.
         run_from_args([
             "add-apt-repository", "-y",
             "deb http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04 /"]),  # noqa
+        # Update to read package info from new repos
         run_from_args([
             "apt-get", "update"]),
+        # Not clear that an upgrade is required at this point, so leave it out.
         # XXX This brings up a prompt about upgrading grub,
         # somehow work around that, see
         # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
-        run_from_args([
-            "apt-get", "-y", "upgrade"]),
+        # run_from_args([
+            # "apt-get", "-y", "upgrade"]),
+        # Package spl-dkms must be installed as a separate step before
+        # installing zfs-dkms
         run_from_args([
             "apt-get", "-y", "install", "spl-dkms"]),
         run_from_args([
             "apt-get", "-y", "install", "zfs-dkms", "zfsutils", "docker.io"]),
-    ]
+    ])
 
 
 def task_install_flocker_ubuntu():
-    return [run_from_args([
+    return sequence([run_from_args([
         'apt-get', '-y', '--force-yes', 'install', 'clusterhq-python-flocker',
-        'clusterhq-flocker-node'])]
+        'clusterhq-flocker-node'])])
 
 
 def task_install_kernel_devel():
