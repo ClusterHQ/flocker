@@ -5,7 +5,6 @@ from characteristic import attributes
 
 from effect import (
     sync_performer, TypeDispatcher, ComposedDispatcher, Effect,
-    base_dispatcher,
     )
 from effect.twisted import (
     make_twisted_dispatcher,
@@ -27,6 +26,8 @@ import os
 from flocker.testtools import loop_until
 
 from ._model import Run, Sudo, Put, Comment, RunRemotely
+
+from .._effect import dispatcher as base_dispatcher
 
 
 @attributes([
