@@ -425,7 +425,6 @@ Options are:
 For example:
 
 flocker-provision create --driver rackspace --rackspace-secret=secret --num-agent-nodes=3 --rackspace-region=us-west-1
-> Creating... 90%
 > control_node: 192.0.2.1
 > agent_nodes:
 >  - 192.0.2.2
