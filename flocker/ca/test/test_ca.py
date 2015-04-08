@@ -91,10 +91,10 @@ class CertificateAuthorityTests(SynchronousTestCase):
         st = os.stat(keyPath.path)
         self.assertEqual(b'0600', oct(st.st_mode & 0777))
 
-    def test_certificate_correct_umask(self):
+    def test_certificate_correct_permission(self):
         """
         A certificate file written by ``CertificateAuthority.initialize`` has
-        the correct access masks set (0600).
+        the correct access mode set (0600).
         """
         path = FilePath(self.mktemp())
         path.makedirs()
