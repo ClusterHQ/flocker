@@ -164,7 +164,7 @@ class CreateOptionsTests(SynchronousTestCase):
              '--api-key', 'api-key',
              '--region', 'region',
              '--ssh-key-name', 'key-name',
-             '--num-agent-nodes', '0')
+             '--num-agent-nodes', '0'])
 
     def test_negative_nodes(self):
         """
@@ -178,7 +178,7 @@ class CreateOptionsTests(SynchronousTestCase):
              '--api-key', 'api-key',
              '--region', 'region',
              '--ssh-key-name', 'key-name',
-             '--num-agent-nodes', '-1')
+             '--num-agent-nodes', '-1'])
 
 
 class CreateTests(SynchronousTestCase):
