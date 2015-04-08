@@ -865,12 +865,12 @@ def _update_dataset_maximum_size(deployment, dataset_id, maximum_size):
     :returns: An updated ``Deployment``.
     """
     manifestation, node = _find_manifestation_and_node(deployment, dataset_id)
-    deployment = deployment.transform(['nodes'], lambda s: s.remove(node))
+    deployment = deployment.set(nodes=deployment.nodes.discard(node))
     node = node.transform(
         ['manifestations', dataset_id, 'dataset', 'maximum_size'],
         maximum_size
     )
-    return deployment.transform(['nodes'], lambda s: s.add(node))
+    return deployment.set(nodes=deployment.nodes.add(node))
 
 
 def manifestations_from_deployment(deployment, dataset_id):
