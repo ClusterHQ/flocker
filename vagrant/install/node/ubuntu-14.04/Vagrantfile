@@ -4,17 +4,19 @@
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
-unless Vagrant.has_plugin?("vagrant-reload")
-  print "Run the command 'vagrant plugin install vagrant-reload' first.\n"
-  exit 1
-end
+# unless Vagrant.has_plugin?("vagrant-reload")
+#   print "Run the command 'vagrant plugin install vagrant-reload' first.\n"
+#   exit 1
+# end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "ubuntu/trusty64"
   # Disable /vagrant, as kernel updates cause problems with Guest Additions
   config.vm.synced_folder ".", "/vagrant", disabled: true
-  config.vm.provision :shell, :path => "install1.sh"
-  config.vm.provision :reload
+  # Ubuntu does not appear to need an upgraded kernel. Leaving this commented
+  # in case we start to see bugs that may indicate a need to upgrade.
+  # config.vm.provision :shell, :path => "install1.sh"
+  # config.vm.provision :reload
   config.vm.provision :shell, :path => "install2.sh",
   :args => [
     ENV.fetch('FLOCKER_VERSION', '0.3.3-0.dev.8.661.g5c313b5'),
