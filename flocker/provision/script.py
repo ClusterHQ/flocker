@@ -3,7 +3,7 @@
 """
 The command-line ``flocker-provision`` tool.
 """
-from sys import stdout
+from sys import stdout, stderr
 import yaml
 
 from twisted.internet.defer import succeed, fail
@@ -63,37 +63,37 @@ class ProvisionOptions(Options):
     """
     Command line options for ``flocker-provision``.
     """
-    longdesc = """flocker-provision...
-
+    longdesc = """\
+    flocker-provision can be used to create clusters of nodes to experiment
+    with Flocker on.
     """
 
-    # TODO Fix this
     synopsis = ("Usage: flocker-provision [OPTIONS] "
-                "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
-    # TODO check other commands for period
-    subCommands = [['create', None, CreateOptions, "Create a Flocker cluster"]]
+    subCommands = [
+        ['create', None, CreateOptions, "Create a Flocker cluster."]
+    ]
 
     def parseArgs(self):
         pass
 
 
-def create(reactor, provisioner, num_agent_nodes, output):
+def create(reactor, provisioner, num_agent_nodes, output, error):
     # This uses the reactor because we will start using conch
     # and node.provision will return a deferred, as will configure_cluster.
     nodes = []
-    for index in range(num_agent_nodes) + 1):
+    for index in range(num_agent_nodes + 1):
         name = "flocker-provisioning-script-%d" % (index,)
         try:
-            print "Creating node %d: %s" % (index, name)
+            error.write("Creating node %d: %s\n" % (index, name))
             node = provisioner.create_node(
                 name=name,
                 distribution='centos-7',
             )
         except:
-            print "Error creating node %d: %s" % (index, name)
-            print "It may have leaked into the cloud."
+            error.write("Error creating node %d: %s\n" % (index, name))
+            error.write("It may have leaked into the cloud.\n")
             # TODO give the IP address of the nodes to a user,
             # or perhaps destroy nodes
             # or perhaps say "you may want to destroy nodes called flocker-XXX"
@@ -106,11 +106,11 @@ def create(reactor, provisioner, num_agent_nodes, output):
 
     control_node = nodes[0].address
     agent_nodes = [agent.address for agent in nodes[1:]]
-    configure_cluster(control_node=control_node, agent_nodes=agent_nodes)
-    print yaml.safe_dump({
+    # configure_cluster(control_node=control_node, agent_nodes=agent_nodes)
+    output.write(yaml.safe_dump({
         'control_node': control_node,
         'agent_nodes': agent_nodes,
-    })
+    }))
     return succeed(None)
 
 
@@ -131,7 +131,7 @@ class ProvisionScript(object):
                 reactor,
                 provisioner=options.provisioner,
                 num_agent_nodes=options['num-agent-nodes'],
-                output=stdout)
+                output=stdout, error=stderr)
         else:
             return fail(ValueError("Unknown subcommand %s.", (options.subCommand)))
 
