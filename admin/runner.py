@@ -43,6 +43,14 @@ class CommandProtocol(LineOnlyReceiver, object):
 
 
 def run(reactor, command, **kwargs):
+    """
+    Run a process and kill it if the reactor stops.
+
+    :param reactor: Reactor to use.
+    :param list command: The command to run.
+
+    :return Deferred: Deferred that fires when the process is ended.
+    """
     if 'env' not in kwargs:
         kwargs['env'] = os.environ
     endpoint = ProcessEndpoint(reactor, command[0], command, **kwargs)
