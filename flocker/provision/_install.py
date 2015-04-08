@@ -92,8 +92,7 @@ def task_upgrade_kernel(distribution):
     elif distribution == 'ubuntu-14.04':
         # When 15.04 is available then the kernel can be backported from that,
         # similar to `apt-get install linux-image-generic-lts-utopic`.
-        packages_url = \
-                "http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/"
+        packages_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/"  # noqa
         packages = [
             "linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
             "linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb",  # noqa
