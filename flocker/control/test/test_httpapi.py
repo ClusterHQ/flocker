@@ -1941,7 +1941,6 @@ class CreateDatasetTestsMixin(APITestsMixin):
         creating.addCallback(created)
         return creating
 
-
     def test_create_with_maximum_size_null(self):
         """
         A maximum size of ``null`` included with the creation of a dataset
@@ -1985,11 +1984,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
         return creating
 
 
-class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
+class UpdateDatasetGeneralTestsMixin(APITestsMixin):
     """
-    Tests for the behaviour of the dataset modification endpoint at
-    ``/configuration/datasets/<dataset_id>`` when supplied with a ``primary``
-    value.
+    Tests for the general behaviour of the dataset modification endpoint at
+    ``/configuration/datasets/<dataset_id>``.
     """
     def test_unknown_dataset(self):
         """
@@ -1998,13 +1996,27 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         unknown_dataset_id = unicode(uuid4())
         return self.assertResult(
-            b"POST",
-            b"/configuration/datasets/%s" % (
+            method=b"POST",
+            path=b"/configuration/datasets/%s" % (
                 unknown_dataset_id.encode('ascii'),),
-            {u'primary': self.NODE_A},
-            NOT_FOUND,
-            {u"description": u'Dataset not found.'})
+            request_body={},
+            expected_code=NOT_FOUND,
+            expected_result={u"description": u'Dataset not found.'}
+        )
 
+
+RealTestsUpdateGeneralDataset, MemoryTestsUpdateDatasetGeneral = (
+    buildIntegrationTests(
+        UpdateDatasetGeneralTestsMixin, "UpdateDatasetGeneral", _build_app)
+)
+
+
+class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
+    """
+    Tests for the behaviour of the dataset modification endpoint at
+    ``/configuration/datasets/<dataset_id>`` when supplied with a ``primary``
+    value.
+    """
     def _test_change_primary(self, dataset, deployment, origin, target):
         """
         Helper method which pre-populates the persistence_service with the
@@ -2247,21 +2259,6 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
     ``/configuration/datasets/<dataset_id>`` when supplied with a maximum_size
     value.
     """
-    def test_unknown_dataset(self):
-        """
-        NOT_FOUND is returned if the requested dataset_id doesn't exist.
-        The error includes the requested dataset_id.
-        """
-        unknown_dataset_id = unicode(uuid4())
-        return self.assertResult(
-            method=b"POST",
-            path=b"/configuration/datasets/%s" % (
-                unknown_dataset_id.encode('ascii'),),
-            request_body={},
-            expected_code=NOT_FOUND,
-            expected_result={u"description": u'Dataset not found.'}
-        )
-
     def assert_dataset_resize(self, original_size, new_size,
                               expected_code=OK, expected_result=None):
         """
