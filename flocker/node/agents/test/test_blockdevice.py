@@ -84,7 +84,7 @@ def make_filesystem(device, block_device):
                 device.path
             )
         )
-    if block_device:
+    if not block_device:
         options.extend([
             # Force mkfs to make the filesystem even though the target is not a
             # block device.
