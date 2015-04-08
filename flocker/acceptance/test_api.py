@@ -129,6 +129,80 @@ class ContainerAPITests(TestCase):
         return d
 
     @require_mongo
+    def test_move_container_with_dataset(self):
+        """
+        Create a mongodb container with an attached dataset, issue API call
+        to move the container. Wait until we can connect to the running
+        container on the new host and verify the data has moved with it.
+        """
+        creating_dataset = create_dataset(self, nodes=2)
+
+        def created_dataset(result):
+            cluster, dataset = result
+            mongodb = {
+                u"name": "container",
+                u"host": cluster.nodes[0].address,
+                u"image": MONGO_IMAGE,
+                u"ports": [{u"internal": 27017, u"external": 27017}],
+                u'restart_policy': {u'name': u'never'},
+                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                              u"mountpoint": u"/data/db"}],
+            }
+            created = cluster.create_container(mongodb)
+            created.addCallback(lambda _: self.addCleanup(
+                cluster.remove_container, mongodb[u"name"]))
+            created.addCallback(
+                lambda _: get_mongo_client(cluster.nodes[0].address))
+
+            def got_mongo_client(client):
+                database = client.example
+                database.posts.insert({u"the data": u"it moves"})
+                return database.posts.find_one()
+            created.addCallback(got_mongo_client)
+
+            def inserted(record):
+                moved = cluster.move_container(
+                    u"container", cluster.nodes[1].address
+                )
+
+                def destroy_and_recreate(_, record):
+                    """
+                    After moving our container via the API, we then remove the
+                    container on the new host and recreate it, pointing to the
+                    same dataset, but with the new container instance exposing
+                    a different external port. This technique ensures that the
+                    test does not pass by mere accident without the container
+                    having moved; by recreating the container on its new host
+                    after moving, we can be sure that if we can still connect
+                    and read the data, the dataset was successfully moved along
+                    with the container.
+                    """
+                    removed = cluster.remove_container(u"container")
+                    mongodb2 = mongodb.copy()
+                    mongodb2[u"ports"] = [
+                        {u"internal": 27017, u"external": 27018}
+                    ]
+                    mongodb2[u"host"] = cluster.nodes[1].address
+                    removed.addCallback(
+                        lambda _: cluster.create_container(mongodb2))
+                    removed.addCallback(lambda _: record)
+                    return removed
+                moved.addCallback(destroy_and_recreate, record)
+                return moved
+            created.addCallback(inserted)
+
+            def moved(record):
+                d = get_mongo_client(cluster.nodes[1].address, 27018)
+                d.addCallback(lambda client: client.example.posts.find_one())
+                d.addCallback(self.assertEqual, record)
+                return d
+
+            created.addCallback(moved)
+            return created
+        creating_dataset.addCallback(created_dataset)
+        return creating_dataset
+
+    @require_mongo
     def test_create_container_with_dataset(self):
         """
         Create a mongodb container with an attached dataset, insert some data,
@@ -199,18 +273,20 @@ class ContainerAPITests(TestCase):
         return creating
 
 
-def create_dataset(test_case):
+def create_dataset(test_case, nodes=1):
     """
-    Create a dataset on a single-node cluster.
+    Create a dataset on a cluster.
 
     :param TestCase test_case: The test the API is running on.
+
+    :param int nodes: The number of nodes to create. Defaults to 1.
 
     :return: ``Deferred`` firing with a tuple of (``Cluster``
         instance, dataset dictionary) once the dataset is present in
         actual cluster state.
     """
-    # Create a 1 node cluster
-    waiting_for_cluster = get_test_cluster(node_count=1)
+    # Create a cluster
+    waiting_for_cluster = get_test_cluster(node_count=nodes)
 
     # Configure a dataset on node1
     def configure_dataset(cluster):
