@@ -475,7 +475,7 @@ ConfigurationContainersSchemaTests = build_schema_test(
     ],
 )
 
-CONFIGURATION_DATASET_FAILING_INSTANCES = [
+CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     # wrong type for dataset_id
     {u"primary": u"10.0.0.1", u"dataset_id": 10},
 
@@ -529,7 +529,7 @@ CONFIGURATION_DATASET_FAILING_INSTANCES = [
      u"deleted": u"hello"},
 ]
 
-CONFIGURATION_DATASET_PASSING_INSTANCES = [
+CONFIGURATION_DATASETS_PASSING_INSTANCES = [
     # everything optional except primary
     {u"primary": u"10.0.0.1"},
 
@@ -562,27 +562,37 @@ CONFIGURATION_DATASET_PASSING_INSTANCES = [
 ConfigurationDatasetsSchemaTests = build_schema_test(
     name="ConfigurationDatasetsSchemaTests",
     schema={'$ref':
-            '/v1/endpoints.json#/definitions/configuration_dataset'},
+            '/v1/endpoints.json#/definitions/configuration_datasets'},
     schema_store=SCHEMAS,
-    failing_instances=CONFIGURATION_DATASET_FAILING_INSTANCES,
-    passing_instances=CONFIGURATION_DATASET_PASSING_INSTANCES,
+    failing_instances=CONFIGURATION_DATASETS_FAILING_INSTANCES,
+    passing_instances=CONFIGURATION_DATASETS_PASSING_INSTANCES,
 )
 
 
-ConfigurationDatasetsNewSchemaTests = build_schema_test(
-    name="ConfigurationDatasetsPrimarySchemaTests",
+ConfigurationDatasetsUpdateSchemaTests = build_schema_test(
+    name="ConfigurationDatasetsUpdateSchemaTests",
     schema={'$ref':
-            '/v1/endpoints.json#/definitions/configuration_dataset_primary'},
+            '/v1/endpoints.json#/definitions/configuration_datasets_update'},
+    schema_store=SCHEMAS,
+    failing_instances=CONFIGURATION_DATASETS_FAILING_INSTANCES,
+    passing_instances=CONFIGURATION_DATASETS_PASSING_INSTANCES,
+)
+
+
+ConfigurationDatasetsCreateSchemaTests = build_schema_test(
+    name="ConfigurationDatasetsCreateSchemaTests",
+    schema={'$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets_create'},
     schema_store=SCHEMAS,
     failing_instances=(
-        CONFIGURATION_DATASET_FAILING_INSTANCES + [
+        CONFIGURATION_DATASETS_FAILING_INSTANCES + [
             # missing primary
             {u"metadata": {},
              u"maximum_size": 1024 * 1024 * 1024,
              u"dataset_id": u"x" * 36},
         ]
     ),
-    passing_instances=CONFIGURATION_DATASET_PASSING_INSTANCES,
+    passing_instances=CONFIGURATION_DATASETS_PASSING_INSTANCES,
 )
 
 StateDatasetsArraySchemaTests = build_schema_test(
@@ -635,10 +645,10 @@ StateDatasetsArraySchemaTests = build_schema_test(
     ]
 )
 
-ConfigurationDatasetsArrayTests = build_schema_test(
-    name="ConfigurationDatasetsArrayTests",
+ConfigurationDatasetsListTests = build_schema_test(
+    name="ConfigurationDatasetsListTests",
     schema={'$ref':
-            '/v1/endpoints.json#/definitions/configuration_datasets_array'},
+            '/v1/endpoints.json#/definitions/configuration_datasets_list'},
     schema_store=SCHEMAS,
     failing_instances=[
         # Incorrect type

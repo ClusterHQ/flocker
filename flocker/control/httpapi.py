@@ -80,6 +80,7 @@ DATASET_IN_USE = make_bad_request(
 
 _UNDEFINED_MAXIMUM_SIZE = object()
 
+
 class ConfigurationAPIUserV1(object):
     """
     A user accessing the API.
@@ -127,7 +128,7 @@ class ConfigurationAPIUserV1(object):
         inputSchema={},
         outputSchema={
             '$ref':
-            '/v1/endpoints.json#/definitions/configuration_datasets_array',
+            '/v1/endpoints.json#/definitions/configuration_datasets_list',
         },
         schema_store=SCHEMAS,
     )
@@ -156,10 +157,11 @@ class ConfigurationAPIUserV1(object):
     @structured(
         inputSchema={
             '$ref':
-            '/v1/endpoints.json#/definitions/configuration_dataset_primary'
+            '/v1/endpoints.json#/definitions/configuration_datasets_create'
         },
-        outputSchema={'$ref':
-                      '/v1/endpoints.json#/definitions/configuration_dataset'},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS
     )
     def create_dataset_configuration(self, primary, dataset_id=None,
@@ -245,8 +247,9 @@ class ConfigurationAPIUserV1(object):
     )
     @structured(
         inputSchema={},
-        outputSchema={'$ref':
-                      '/v1/endpoints.json#/definitions/configuration_dataset'},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS
     )
     def delete_dataset(self, dataset_id):
@@ -302,10 +305,12 @@ class ConfigurationAPIUserV1(object):
         ]
     )
     @structured(
-        inputSchema={'$ref':
-                     '/v1/endpoints.json#/definitions/configuration_dataset'},
-        outputSchema={'$ref':
-                      '/v1/endpoints.json#/definitions/configuration_dataset'},
+        inputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets_update'},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS
     )
     def update_dataset(self, dataset_id, primary=None,
