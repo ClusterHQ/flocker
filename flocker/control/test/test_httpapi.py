@@ -2345,7 +2345,7 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         """
         return self.assert_dataset_resize(
             original_size=67108864,
-            new_size=67108864-1,
+            new_size=67108864 - 1,
             expected_code=BAD_REQUEST,
             expected_result={
                 u'description':
