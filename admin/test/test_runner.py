@@ -150,3 +150,32 @@ class RunTests(TestCase):
         self.assertEqual(
             process.path,
             expected_path)
+
+    def test_process_shutdown(self):
+        """
+        When the reactor is shutdown, the process is killed with signal `TERM`.
+        """
+
+        reactor = ProcessCoreReactor()
+        run(reactor, ['command', 'and', 'args'])
+        [process] = reactor.processes
+
+        reactor.fireSystemEvent('shutdown')
+        self.assertEqual(
+            process.transport.signals,
+            ['TERM'])
+
+    def test_process_shutdown_unregister(self):
+        """
+        If the process is killed after shutting down, an error
+        isn't raised.
+
+        In particular, remove the killer doesn't cause an error.
+        """
+
+        reactor = ProcessCoreReactor()
+        run(reactor, ['command', 'and', 'args'])
+        [process] = reactor.processes
+
+        reactor.fireSystemEvent('shutdown')
+        process.processProtocol.processEnded(Failure(ProcessDone(0)))

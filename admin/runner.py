@@ -52,7 +52,12 @@ def run(reactor, command, **kwargs):
     connected = connectProtocol(endpoint, protocol)
 
     def unregister_killer(result, trigger_id):
-        reactor.removeSystemEventTrigger(trigger_id)
+        try:
+            reactor.removeSystemEventTrigger(trigger_id)
+        except:
+            # If we can't remove the trigger, presumably
+            # it has already been removed (or run).
+            pass
         return result
 
     def register_killer(_):
