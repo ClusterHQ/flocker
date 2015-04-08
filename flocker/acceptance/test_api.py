@@ -318,7 +318,7 @@ def get_test_cluster(test_case, node_count):
     # Wait until nodes are up and running:
     def nodes_available():
         d = cluster.current_nodes()
-        d.addCallback(lambda (cluster, nodes): len(nodes) == node_count)
+        d.addCallback(lambda (cluster, nodes): len(nodes) >= node_count)
         return d
     agents_connected = loop_until(nodes_available)
 
