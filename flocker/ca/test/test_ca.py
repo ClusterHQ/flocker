@@ -32,7 +32,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         self.assertEqual(
             (True, True),
             (path.child("cluster.crt").exists(),
-             path.child("cluster.crt").exists())
+             path.child("cluster.key").exists())
         )
 
     def test_decoded_certificate_matches_public_key(self):
