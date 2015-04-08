@@ -22,7 +22,10 @@ from subprocess import check_output, CalledProcessError
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
-from flocker.provision._install import run_with_fabric, task_test_homebrew
+from flocker.provision._install import task_test_homebrew
+from flocker.provision._ssh import run_remotely
+from flocker.provision._ssh._fabric import dispatcher
+from effect import sync_perform as perform
 from flocker import __version__
 
 
@@ -90,9 +93,14 @@ def main(args):
         check_output([
             "vmrun", "start", options['vmpath'].path, "nogui",
         ])
-        commands = task_test_homebrew(recipe_url)
-        run_with_fabric(options['vmuser'], options['vmhost'],
-                        commands=commands)
+        perform(
+            dispatcher,
+            run_remotely(
+                username=options['vmuser'],
+                address=options['vmhost'],
+                commands=task_test_homebrew(recipe_url)
+            ),
+        )
         check_output([
             "vmrun", "stop", options['vmpath'].path, "hard",
         ])

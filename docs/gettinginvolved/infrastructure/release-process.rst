@@ -390,12 +390,64 @@ Release
      If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
      The release process should not continue until the tests pass.
 
+#. Update and test the Getting Started Guide:
+
+   XXX This process should be changed https://clusterhq.atlassian.net/browse/FLOC-1307
+
+   Create a branch in the ``vagrant-flocker`` repository:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      cd
+      git clone git@github.com:ClusterHQ/vagrant-flocker.git
+      cd vagrant-flocker
+      git checkout -b release/flocker-${VERSION} origin/master
+
+   Change ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      cd
+      vi vagrant-flocker/Vagrantfile
+
+   Commit the changes and push the branch:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      git commit -am "Updated Vagrantfile"
+      git push
+
+   XXX This process should be automated https://clusterhq.atlassian.net/browse/FLOC-1309
+
+   Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
+   after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch.
+   This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps):
+
+   Test the client install instructions work on all supported platforms by following the instructions and checking the version:
+
+   .. prompt:: bash $
+
+      flocker-deploy --version
+
+   The expected version is the version being released.
+
 #. Update the documentation.
+
+   This should be done from the :doc:`Flocker development machine <vagrant>`.
+
+   If this machine is no longer connected to, go to the clone of ``flocker-${VERSION}`` and SSH into the machine:
+
+   .. prompt:: bash $
+
+      vagrant up
+      vagrant ssh -- -A
 
    .. prompt:: bash [vagrant@localhost]$
 
       cd ~/flocker-${VERSION}
       admin/publish-docs --production
+
+#. Merge the new ``vagrant-flocker`` branch.
 
 #. Submit the release pull request for review again.
 

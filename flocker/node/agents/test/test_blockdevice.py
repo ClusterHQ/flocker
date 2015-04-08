@@ -35,6 +35,7 @@ from ... import InParallel, IStateChange
 from ...testtools import ideployer_tests_factory, to_node
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
+    NonManifestDatasets,
 )
 
 GIBIBYTE = 2 ** 30
@@ -61,9 +62,9 @@ class BlockDeviceDeployerTests(
     """
 
 
-class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
+class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
     """
-    Tests for ``BlockDeviceDeployer.discover_local_state``.
+    Tests for ``BlockDeviceDeployer.discover_state``.
     """
     def setUp(self):
         self.expected_hostname = u'192.0.2.123'
@@ -73,49 +74,58 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
             block_device_api=self.api
         )
 
-    def assertDiscoveredState(self, deployer, expected_manifestations):
+    def assertDiscoveredState(self, deployer, expected_manifestations,
+                              expected_nonmanifest_datasets=None):
         """
         Assert that the manifestations on the state object returned by
-        ``deployer.discover_local_state`` equals the given list of
-        manifestations.
+        ``deployer.discover_state`` equals the given list of manifestations.
 
         :param IDeployer deployer: The object to use to discover the state.
         :param list expected_manifestations: The ``Manifestation``\ s expected
             to be discovered.
 
         :raise: A test failure exception if the manifestations are not what is
-            expected.
+                expected.
         """
-        discovering = deployer.discover_local_state()
+        discovering = deployer.discover_state(
+            NodeState(hostname=self.expected_hostname)
+        )
         state = self.successResultOf(discovering)
         expected_paths = {}
         for manifestation in expected_manifestations:
             dataset_id = manifestation.dataset.dataset_id
             mountpath = deployer._mountpath_for_manifestation(manifestation)
             expected_paths[dataset_id] = mountpath
-        self.assertEqual(
+        expected = (
             NodeState(
                 hostname=deployer.hostname,
                 manifestations={
                     m.dataset_id: m for m in expected_manifestations},
                 paths=expected_paths,
             ),
-            state
         )
+        if expected_nonmanifest_datasets is not None:
+            expected += (
+                NonManifestDatasets(datasets={
+                    unicode(dataset_id):
+                    Dataset(dataset_id=unicode(dataset_id))
+                    for dataset_id in expected_nonmanifest_datasets
+                }),
+            )
+        self.assertEqual(expected, state)
 
     def test_no_devices(self):
         """
-        ``BlockDeviceDeployer.discover_local_state`` returns a ``NodeState``
-        with empty ``manifestations`` if the ``api`` reports no locally
-        attached volumes.
+        ``BlockDeviceDeployer.discover_state`` returns a ``NodeState`` with
+        empty ``manifestations`` if the ``api`` reports no locally attached
+        volumes.
         """
         self.assertDiscoveredState(self.deployer, [])
 
     def test_one_device(self):
         """
-        ``BlockDeviceDeployer.discover_local_state`` returns a ``NodeState``
-        with one ``manifestations`` if the ``api`` reports one locally
-        attached volumes.
+        ``BlockDeviceDeployer.discover_state`` returns a ``NodeState`` with one
+        ``manifestations`` if the ``api`` reports one locally attached volumes.
         """
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
@@ -136,7 +146,7 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
 
     def test_only_remote_device(self):
         """
-        ``BlockDeviceDeployer.discover_local_state`` does not consider remotely
+        ``BlockDeviceDeployer.discover_state`` does not consider remotely
         attached volumes.
         """
         dataset_id = uuid4()
@@ -149,22 +159,23 @@ class BlockDeviceDeployerDiscoverLocalStateTests(SynchronousTestCase):
 
     def test_only_unattached_devices(self):
         """
-        ``BlockDeviceDeployer.discover_local_state`` does not consider
-        unattached volumes.
+        ``BlockDeviceDeployer.discover_state`` discovers volumes that are not
+        attached to any node and creates entries in a ``NonManifestDatasets``
+        instance corresponding to them.
         """
         dataset_id = uuid4()
         self.api.create_volume(
             dataset_id=dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE)
-        self.assertDiscoveredState(self.deployer, [])
+        self.assertDiscoveredState(self.deployer, [], [dataset_id])
 
 
-class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
+class BlockDeviceDeployerDestructionCalculateChangesTests(
         SynchronousTestCase
 ):
     """
-    Tests for ``BlockDeviceDeployer.calculate_necessary_state_changes``
-    in the cases relating to dataset destruction.
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to dataset destruction.
     """
     DATASET_ID = uuid4()
     NODE = u"192.0.2.1"
@@ -189,15 +200,15 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
 
     def test_undeleted_dataset_not_deleted(self):
         """
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
-        calculate a change to destroy datasets that are not marked as deleted
-        in the configuration.
+        ``BlockDeviceDeployer.calculate_changes`` does not calculate a change
+        to destroy datasets that are not marked as deleted in the
+        configuration.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state)
 
-        cluster_state = Deployment(
-            nodes={local_config}
+        cluster_state = DeploymentState(
+            nodes={local_state}
         )
 
         cluster_configuration = Deployment(
@@ -215,10 +226,8 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
             block_device_api=api,
         )
 
-        changes = deployer.calculate_necessary_state_changes(
-            local_state=self.ONE_DATASET_STATE,
-            desired_configuration=cluster_configuration,
-            current_cluster_state=cluster_state,
+        changes = deployer.calculate_changes(
+            cluster_configuration, cluster_state,
         )
 
         self.assertEqual(
@@ -229,11 +238,9 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
     def test_deleted_dataset_volume_exists(self):
         """
         If the configuration indicates a dataset with a primary manifestation
-        on the node has been deleted and the volume associated with
-        that dataset still exists,
-        ``BlockDeviceDeployer.calculate_necessary_state_changes``
-        returns a ``DestroyBlockDeviceDataset`` state change
-        operation.
+        on the node has been deleted and the volume associated with that
+        dataset still exists, ``BlockDeviceDeployer.calculate_changes`` returns
+        a ``DestroyBlockDeviceDataset`` state change operation.
         """
         local_state = self.ONE_DATASET_STATE
         cluster_state = Deployment(
@@ -259,10 +266,8 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
             block_device_api=api,
         )
 
-        changes = deployer.calculate_necessary_state_changes(
-            local_state=local_state,
-            desired_configuration=cluster_configuration,
-            current_cluster_state=cluster_state,
+        changes = deployer.calculate_changes(
+            cluster_configuration, cluster_state,
         )
 
         self.assertEqual(
@@ -305,10 +310,8 @@ class BlockDeviceDeployerDestructionCalculateNecessaryStateChangesTests(
             block_device_api=api,
         )
 
-        changes = deployer.calculate_necessary_state_changes(
-            local_state=NodeState(hostname=other_node),
-            desired_configuration=cluster_configuration,
-            current_cluster_state=cluster_state,
+        changes = deployer.calculate_changes(
+            cluster_configuration, cluster_state,
         )
 
         self.assertEqual(
@@ -321,8 +324,8 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         SynchronousTestCase
 ):
     """
-    Tests for ``BlockDeviceDeployer.calculate_necessary_state_changes`` in the
-    cases relating to dataset creation.
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to dataset creation.
     """
     def test_no_devices_no_local_datasets(self):
         """
@@ -349,11 +352,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             hostname=node,
             block_device_api=api,
         )
-        changes = deployer.calculate_necessary_state_changes(
-            local_state=NodeState(hostname=node),
-            desired_configuration=configuration,
-            current_cluster_state=state,
-        )
+        changes = deployer.calculate_changes(configuration, state)
         self.assertEqual(InParallel(changes=[]), changes)
 
     def test_no_devices_one_dataset(self):
@@ -381,11 +380,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             hostname=node,
             block_device_api=api,
         )
-        changes = deployer.calculate_necessary_state_changes(
-            local_state=NodeState(hostname=node),
-            desired_configuration=configuration,
-            current_cluster_state=state,
-        )
+        changes = deployer.calculate_changes(configuration, state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         self.assertEqual(
             InParallel(
@@ -406,18 +401,14 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
 
         :param unicode local_hostname: The node identifier to give to the
             ``BlockDeviceDeployer``.
-        :param local_state: As accepted by
-            ``IDeployer.calculate_necessary_state_changes``.
         :param desired_configuration: As accepted by
-            ``IDeployer.calculate_necessary_state_changes``.
+            ``IDeployer.calculate_changes``.
 
-        :return: The return value of
-            ``BlockDeviceDeployer.calculate_necessary_state_changes``.
+        :return: The return value of ``BlockDeviceDeployer.calculate_changes``.
         """
-        # Control service still reports that this node has no manifestations.
-        current_cluster_state = DeploymentState(
-            nodes={NodeState(hostname=local_hostname)}
-        )
+        # It is expected that someone will have merged local state into cluster
+        # state.
+        current_cluster_state = DeploymentState(nodes={local_state})
 
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
@@ -425,61 +416,15 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             block_device_api=api,
         )
 
-        return deployer.calculate_necessary_state_changes(
-            local_state, desired_configuration, current_cluster_state
+        return deployer.calculate_changes(
+            desired_configuration, current_cluster_state
         )
-
-    def test_local_state_overrides_cluster_state(self):
-        """
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` bases its
-        decision about whether it is necessary to create a dataset by
-        inspecting the ``local_state`` argument.  It does this, instead of
-        inspecting the ``current_cluster_state`` argument, because the
-        ``local_state`` is presumed to be the most up-to-date information.
-        ``current_cluster_state`` has traveled a round-trip between the node
-        and the control service and had that period of time to fall behind the
-        actual node state.
-        """
-        local_hostname = u"192.0.2.1"
-        dataset_id = unicode(uuid4())
-        dataset = Dataset(dataset_id=dataset_id)
-        manifestation = Manifestation(
-            dataset=dataset, primary=True
-        )
-
-        # Discovered local state reveals the configured manifestation is
-        # already on this node.
-        local_state = NodeState(
-            hostname=local_hostname,
-            manifestations={dataset_id: manifestation},
-            paths={dataset_id: FilePath('/foo/bar')}
-        )
-
-        # Configuration requires a manifestation on this node.
-        desired_configuration = Deployment(
-            nodes={
-                Node(
-                    hostname=local_hostname,
-                    manifestations={dataset_id: manifestation},
-                )
-            }
-        )
-
-        actual_changes = self._calculate_changes(
-            local_hostname, local_state, desired_configuration
-        )
-
-        # If Deployer is buggy and not overriding cluster state with local
-        # state this would result in a dataset creation action:
-        expected_changes = InParallel(changes=[])
-
-        self.assertEqual(expected_changes, actual_changes)
 
     def test_match_configuration_to_state_of_datasets(self):
         """
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
-        yield a ``CreateBlockDeviceDataset`` change if a dataset with the same
-        ID exists with different metadata.
+        ``BlockDeviceDeployer.calculate_changes`` does not yield a
+        ``CreateBlockDeviceDataset`` change if a dataset with the same ID
+        exists with different metadata.
         """
         expected_hostname = u'192.0.2.123'
         expected_dataset_id = unicode(uuid4())
@@ -487,9 +432,8 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         local_state = NodeState(
             hostname=expected_hostname,
             paths={
-                expected_dataset_id: FilePath(
-                    u'/flocker/{}'.format(expected_dataset_id)
-                )
+                expected_dataset_id: FilePath(b"/flocker").child(
+                    expected_dataset_id.encode("ascii")),
             },
             manifestations={
                 expected_dataset_id:
