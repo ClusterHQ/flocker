@@ -248,6 +248,8 @@ So it is important to check that the code in the release branch is working befor
 
    The "Files changed" should include changes to NEWS and What's New.
    For some releases it may include bug fixes or documentation changes which have been merged into the branch from which the release was created.
+   These fixes or documentation changes may have to be merged into ``master`` in order to merge the release branch into master.
+   This should either block the acceptance of the release branch, or the team should discuss a workaround for that particular situation.
 
 #. Update GitHub:
 
