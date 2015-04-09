@@ -108,7 +108,11 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. If this is a maintenance or documentation release, announce on Zulip's Engineering > Maintenance Release topic that a maintenance or documentation release is in progress.
+#. Announce on Zulip's Engineering > Release topic not to land anything on the base branch:
+
+   .. note::
+
+      Skip this step for a weekly development release, or the first pre-release for a marketing release.
 
    ::
 
@@ -490,7 +494,11 @@ Post-Release Review Process
 
 #. Merge the release pull request.
 
-#. If this is a maintenance or documentation release, announce on Zulip's Engineering > Maintenance Release topic that the maintenance or documentation release is in complete.
+#. Announce on Zulip's Engineering > Release topic that branches can land on the base branch:
+
+   .. note::
+
+      Skip this step for a weekly development release, or the first pre-release for a marketing release.
 
    ::
 
