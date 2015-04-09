@@ -510,7 +510,7 @@ Improving the Release Process
 
 The release engineer should aim to spend up to one day improving the release process in whichever way they find most appropriate.
 If there is no existing issue for the planned improvements then a new one should be made.
-Search for "labels = release_process AND status != done" to find existing issues relating to the release process.
+Look at `existing issues relating to the release process <https://clusterhq.atlassian.net/issues/?jql=labels%20%3D%20release_process%20AND%20status%20!%3D%20done>`_.
 The issue(s) for the planned improvements should be put into the next sprint.
 
 
