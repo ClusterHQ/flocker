@@ -130,11 +130,6 @@ Preparing For a Release
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
 
-#. Back port features from master (optional)
-
-   The release may require certain changes to be back ported from the master branch.
-   See :ref:`back-porting-changes`\ .
-
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
@@ -509,15 +504,6 @@ The release engineer should aim to spend up to one day improving the release pro
 If there is no existing issue for the planned improvements then a new one should be made.
 Search for "labels = release_process AND status != done" to find existing issues relating to the release process.
 The issue(s) for the planned improvements should be put into the next sprint.
-
-
-.. _back-porting-changes:
-
-
-Appendix: Back Porting Changes From Master
-------------------------------------------
-
-XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/FLOC-877
 
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
