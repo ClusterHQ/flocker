@@ -434,7 +434,7 @@ Release
    .. prompt:: bash [vagrant@localhost]$
 
       git commit -am "Updated Vagrantfile"
-      git push
+      git push --set-upstream origin release/flocker-${VERSION}
 
    XXX This process should be automated https://clusterhq.atlassian.net/browse/FLOC-1309
 
