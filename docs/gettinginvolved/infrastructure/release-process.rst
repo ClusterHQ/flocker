@@ -48,7 +48,7 @@ Access
 
 - Access to `Google Cloud Storage`_.
 
-- Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
+- Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
