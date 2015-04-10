@@ -69,35 +69,6 @@ Preparing For a Release
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-#. Export the version number of the release being created as an environment variable for later use:
-
-   .. prompt:: bash $
-
-      export VERSION=0.1.2
-
-#. Export the base branch which the release will be branched from:
-
-   For a weekly development release, or the first pre-release for a marketing release,
-   the base branch should be ``master``:
-
-   .. prompt:: bash $
-
-      export BASE_BRANCH=master
-
-   For a marketing release, or any pre-release which is not the first pre-release for a particular marketing release,
-   the base branch should be the release branch for the most recent pre-release:
-
-   .. prompt:: bash $
-
-      export BASE_BRANCH=release/flocker-0.1.2pre1
-
-   For a maintenance or documentation release,
-   the base branch should be the release receiving the maintenance:
-
-   .. prompt:: bash $
-
-      export BASE_BRANCH=release/flocker-0.1.2
-
 #. Create an issue in JIRA:
 
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
@@ -113,21 +84,65 @@ Preparing For a Release
 
       @engineering I am releasing from release/flocker-0.3.2. Please don't land anything on that branch until the release is complete.
 
-#. Create a clean, local Flocker release branch with no modifications:
+#. Create and log in to a new :doc:`Flocker development machine <vagrant>`:
+
+   This uses SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+
+   This copies your local git configuration from ``~/.gitconfig``.
+   If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
+
+   This copies your local configuration for `gsutil`_ and `S3`_ from ``~/.boto``.
+   If this does not exist, a later step will create it.
 
    .. prompt:: bash $
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
+      vagrant up
+      vagrant ssh -- -A
+
+#. Export the version number of the release being created as an environment variable for later use:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      export VERSION=0.1.2
+
+#. Export the base branch which the release will be branched from:
+
+   For a weekly development release, or the first pre-release for a marketing release,
+   the base branch should be ``master``:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      export BASE_BRANCH=master
+
+   For a marketing release, or any pre-release which is not the first pre-release for a particular marketing release,
+   the base branch should be the release branch for the most recent pre-release:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      export BASE_BRANCH=release/flocker-0.1.2pre1
+
+   For a maintenance or documentation release,
+   the base branch should be the release receiving the maintenance:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      export BASE_BRANCH=release/flocker-0.1.2
+
+#. Create a release branch, and create and activate a virtual environment:
+
+   .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
+
+   .. prompt:: [vagrant@localhost]$
+
+      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+      cd flocker-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/${BASE_BRANCH}
       git push --set-upstream origin release/flocker-${VERSION}
-
-#. Create and activate the Flocker release virtual environment:
-
-   .. prompt:: bash $
-
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
+      pip install setuptools==3.6
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
@@ -140,13 +155,13 @@ Preparing For a Release
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-            .. prompt:: bash $
+            .. prompt:: bash [vagrant@localhost]$
 
                 # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
                 export OLD_VERSION=0.3.0
                 git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git commit -am "Updated NEWS"
 
@@ -162,7 +177,7 @@ Preparing For a Release
 
    Finally, commit the changes:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git commit -am "Updated What's New"
 
@@ -172,13 +187,13 @@ Preparing For a Release
    - This is already the case up to and including 2015.
    - If any such years are not present in the list, add them and commit the changes:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git commit -am "Updated copyright"
 
 #. Push the changes:
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       git push
 
@@ -200,18 +215,29 @@ Preparing For a Release
    - Any ``docker-head`` builders.
    - Any builders in the "Expected failures" section.
 
-#. Set up Google Cloud Storage credentials:
+#. Set up Google Cloud Storage and Amazon S3 credentials:
 
-   .. prompt:: bash $
+   Creating the Vagrant machine attempts to copy the ``~/.boto`` configuration file from the host machine.
+
+   Run:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+     gsutil ls gs:// s3://
+
+   If the credentials have been set up correctly, you should see ClusterHQ's ``gs://`` and ``s3://`` buckets.
+   If they have not, run:
+
+   .. prompt:: bash [vagrant@localhost]$
 
       gsutil config
 
-   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
+   and set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
 
 #. Update the staging documentation.
    (For a maintenance or documentation release ``${VERSION}`` should be the the release receiving the maintenance).
 
-   .. prompt:: bash $
+   .. prompt:: bash [vagrant@localhost]$
 
       admin/publish-docs --doc-version ${VERSION}
 
@@ -285,13 +311,7 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-#. Create and log in to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
-
-   This copies your local git configuration from ``~/.gitconfig``.
-   If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
-
-   This copies your local configuration for `gsutil`_ and `S3`_ from ``~/.boto``.
-   This was created in :ref:`preparing-for-a-release`.
+#. If it is not running in to the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`:
 
    From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
@@ -305,24 +325,6 @@ Release
    .. prompt:: bash [vagrant@localhost]$
 
       export VERSION=0.1.2
-
-#. Create a clean, local copy of the Flocker release branch with no modifications:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      cd flocker-${VERSION}
-      git checkout release/flocker-${VERSION}
-
-#. Create and activate the Flocker release virtual environment:
-   
-   .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      mkvirtualenv flocker-release-${VERSION}
-      pip install --editable .[release]
-      pip install setuptools==3.6
 
 #. Tag the version being released:
 
