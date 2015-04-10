@@ -266,6 +266,9 @@ Release
    This copies your local git configuration from `~/.gitconfig`.
    If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
 
+   This copies your local configuration for `gsutil`_ and `S3`_ from `~/.boto`.
+   This was created or modified in :ref:`preparing-for-a-release`.
+
    From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    .. prompt:: bash $
