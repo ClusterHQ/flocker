@@ -431,7 +431,6 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      cd vagrant-flocker
       vi Vagrantfile
 
    Commit the changes and push the branch:
