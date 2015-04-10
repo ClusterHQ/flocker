@@ -236,6 +236,9 @@ So it is important to check that the code in the release branch is working befor
 
 #. Check that the staging documentation is set up correctly:
 
+   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+   To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
+
    In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
    - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
@@ -530,7 +533,6 @@ Post-Release Review Process
 
       @engineering The release from release/flocker-0.3.2 is complete. Branches targeting it can now land.
 
-.. _BrowserStack: https://www.browserstack.com/
 
 Improving the Release Process
 -----------------------------
@@ -550,3 +552,4 @@ The issue(s) for the planned improvements should be put into the next sprint.
 .. _Homebrew: http://brew.sh
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home
+.. _BrowserStack: https://www.browserstack.com/
