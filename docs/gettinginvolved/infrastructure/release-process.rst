@@ -418,7 +418,7 @@ Release
 
    XXX This process should be changed https://clusterhq.atlassian.net/browse/FLOC-1307
 
-   Create a branch in the ``vagrant-flocker`` repository:
+   Change ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released, in a new branch of the ``vagrant-flocker`` repository:
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -426,11 +426,6 @@ Release
       git clone git@github.com:ClusterHQ/vagrant-flocker.git
       cd vagrant-flocker
       git checkout -b release/flocker-${VERSION} origin/master
-
-   Change ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released.
-
-   .. prompt:: bash [vagrant@localhost]$
-
       vi Vagrantfile
 
    Commit the changes and push the branch:
