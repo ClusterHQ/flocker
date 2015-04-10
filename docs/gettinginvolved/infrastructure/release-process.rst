@@ -200,11 +200,13 @@ Preparing For a Release
 
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
-   In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
+   The next steps in this section can be done while waiting for BuildBot to run, unless otherwise stated.
 
    Unfortunately it is acceptable or expected for some tests to fail.
    Discuss with the team whether the release can continue given any failed tests.
    Some Buildbot builders may have to be run again if temporary issues with external dependencies have caused failures.
+
+   In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
    XXX This should be explicit in Buildbot https://clusterhq.atlassian.net/browse/FLOC-1700.
 
@@ -213,6 +215,27 @@ Preparing For a Release
    - ``flocker-vagrant-dev-box``
    - Any ``docker-head`` builders.
    - Any builders in the "Expected failures" section.
+
+#. Update the Getting Started Guide ``Vagrantfile`` in a new branch:
+
+   XXX This process should be changed https://clusterhq.atlassian.net/browse/FLOC-1307
+
+   Change ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released, in a new branch of the ``vagrant-flocker`` repository:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      cd
+      git clone git@github.com:ClusterHQ/vagrant-flocker.git
+      cd vagrant-flocker
+      git checkout -b release/flocker-${VERSION} origin/master
+      vi Vagrantfile
+
+   Commit the changes and push the branch:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      git commit -am "Updated Vagrantfile"
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Set up Google Cloud Storage and Amazon S3 credentials:
 
@@ -233,14 +256,19 @@ Preparing For a Release
 
    and set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
 
-#. Update the staging documentation.
+#. Update the staging documentation:
+
+   This requires the BuildBot step to have finished.
+
    (For a maintenance or documentation release ``${VERSION}`` should be the the release receiving the maintenance).
 
    .. prompt:: bash [vagrant@localhost]$
 
       admin/publish-docs --doc-version ${VERSION}
 
-#. Make a pull request on GitHub
+#. Make a pull request on GitHub:
+
+   This requires the BuildBot step to have finished.
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
    Add a note to the pull request why any failed tests were deemed acceptable.
@@ -410,26 +438,7 @@ Release
      If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
      The release process should not continue until the tests pass.
 
-#. Update and test the Getting Started Guide:
-
-   XXX This process should be changed https://clusterhq.atlassian.net/browse/FLOC-1307
-
-   Change ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released, in a new branch of the ``vagrant-flocker`` repository:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      cd
-      git clone git@github.com:ClusterHQ/vagrant-flocker.git
-      cd vagrant-flocker
-      git checkout -b release/flocker-${VERSION} origin/master
-      vi Vagrantfile
-
-   Commit the changes and push the branch:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      git commit -am "Updated Vagrantfile"
-      git push --set-upstream origin release/flocker-${VERSION}
+#. Test the Getting Started Guide:
 
    XXX This process should be automated https://clusterhq.atlassian.net/browse/FLOC-1309
 
