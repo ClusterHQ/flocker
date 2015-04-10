@@ -84,6 +84,12 @@ Preparing For a Release
 
       @engineering I am releasing from release/flocker-0.3.2. Please don't land anything on that branch until the release is complete.
 
+#. Export the version number of the release being created as an environment variable for later use:
+
+   .. prompt:: bash $
+
+      export VERSION=0.1.2
+
 #. Create and log in to a new :doc:`Flocker development machine <vagrant>`:
 
    This uses SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
@@ -100,12 +106,6 @@ Preparing For a Release
       cd flocker-${VERSION}
       vagrant up
       vagrant ssh -- -A
-
-#. Export the version number of the release being created as an environment variable for later use:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      export VERSION=0.1.2
 
 #. Export the base branch which the release will be branched from:
 
@@ -320,16 +320,11 @@ Release
       vagrant up
       vagrant ssh -- -A
 
-#. Export the version number of the release being completed as an environment variable for later use:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      export VERSION=0.1.2
-
 #. Tag the version being released:
 
    .. prompt:: bash [vagrant@localhost]$
 
+      cd flocker-${VERSION}
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
