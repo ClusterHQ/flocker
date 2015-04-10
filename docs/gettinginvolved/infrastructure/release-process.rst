@@ -239,6 +239,8 @@ So it is important to check that the code in the release branch is working befor
    It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
    To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
 
+   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1701
+
    In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
    - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
@@ -490,6 +492,8 @@ Post-Release Review Process
 
    It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
    To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
+
+   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1701
 
    In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
