@@ -46,15 +46,10 @@ Software
 Access
 ~~~~~~
 
-- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation.
-  Set up ``gsutil`` authentication by following the instructions from the following command:
+- Access to `Google Cloud Storage`_.
 
-  .. prompt:: bash $
-
-      gsutil config
-
-- Access to Amazon `S3`_ using `gsutil`_ on your workstation.
-  Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
+- Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
+  It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
 
@@ -205,6 +200,14 @@ Preparing For a Release
    - Any ``docker-head`` builders.
    - Any builders in the "Expected failures" section.
 
+#. Set up Google Cloud Storage credentials:
+
+   .. prompt:: bash $
+
+      gsutil config
+
+   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
+
 #. Update the staging documentation.
    (For a maintenance or documentation release ``${VERSION}`` should be the the release receiving the maintenance).
 
@@ -284,8 +287,11 @@ Release
 
 #. Create and log in to a new :doc:`Flocker development machine <vagrant>` using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
-   This copies your local git configuration from `~/.gitconfig`.
+   This copies your local git configuration from ``~/.gitconfig``.
    If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
+
+   This copies your local configuration for `gsutil`_ and `S3`_ from ``~/.boto``.
+   This was created in :ref:`preparing-for-a-release`.
 
    From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
@@ -333,14 +339,6 @@ Release
              Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
 
    Wait for the build to complete successfully.
-
-#. Set up Google Cloud Storage credentials on the Vagrant development machine:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      gsutil config
-
-   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
