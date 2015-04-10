@@ -466,7 +466,7 @@ Release
       cd ~/flocker-${VERSION}
       admin/publish-docs --production
 
-#. Merge the new ``vagrant-flocker`` branch.
+#. If the release is a marketing release, merge the new ``vagrant-flocker`` branch.
 
 #. Submit the release pull request for review again.
 
