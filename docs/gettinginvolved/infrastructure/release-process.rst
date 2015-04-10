@@ -364,29 +364,18 @@ Release
 
    Wait for the build to complete successfully.
 
-#. Build Python packages and upload them to ``archive.clusterhq.com``
+#. Build and upload artifacts:
 
    .. note:: Skip this step for a maintenance or documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
+      # Build Python packages and upload them to ``archive.clusterhq.com``
       python setup.py sdist bdist_wheel
       gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
-
-#. Build RPM packages and upload them to Amazon S3:
-
-   .. note:: Skip this step for a maintenance or documentation release.
-
-   .. prompt:: bash [vagrant@localhost]$
-
+      # Build RPM packages and upload them to Amazon S3
       admin/publish-packages
-
-#. Copy the tutorial box to the final location:
-   
-   .. note:: Skip this step for a maintenance or documentation release.
-
-   .. prompt:: bash [vagrant@localhost]$
-
+      # Copy the tutorial box to the final location
       gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
 #. Add the tutorial box to Atlas:
