@@ -468,6 +468,13 @@ Release
 
 #. If the release is a marketing release, merge the new ``vagrant-flocker`` branch.
 
+   .. prompt:: bash [vagrant@localhost]$
+
+      cd ~/vagrant-flocker
+      git checkout master
+      git merge origin/release/flocker-${VERSION}
+      git push
+
 #. Submit the release pull request for review again.
 
 Post-Release Review Process
