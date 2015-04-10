@@ -525,6 +525,7 @@ Post-Release Review Process
    See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
 
 #. Merge the release pull request.
+   Do not delete the release branch because it may be used as a base branch for future releases.
 
 #. Announce on Zulip's Engineering > Release topic that branches can land on the base branch:
 
