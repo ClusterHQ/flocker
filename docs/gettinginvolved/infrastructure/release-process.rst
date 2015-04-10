@@ -426,8 +426,8 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      cd
-      vi vagrant-flocker/Vagrantfile
+      cd vagrant-flocker
+      vi Vagrantfile
 
    Commit the changes and push the branch:
 
