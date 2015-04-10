@@ -48,7 +48,8 @@ def remove_known_host(reactor, hostname):
     """
     Remove all keys belonging to hostname from a known_hosts file.
 
-    param bytes hostname: Remove all keys belonging to this hostname from
+    :param reactor: Reactor to use.
+    :param bytes hostname: Remove all keys belonging to this hostname from
         known_hosts.
     """
     return run(reactor, ['ssh-keygen', '-R', hostname])
@@ -87,12 +88,18 @@ class INodeRunner(Interface):
         """
         Start nodes for running acceptance tests.
 
-        :return Deferred: List of nodes to run tests against.
+        :param reactor: Reactor to use.
+        :return Deferred: Deferred which fires with a list of nodes to run
+            tests against.
         """
 
     def stop_nodes(reactor):
         """
         Stop the nodes started by `start_nodes`.
+
+        :param reactor: Reactor to use.
+        :return Deferred: Deferred which fires when the nodes have been
+            stopped.
         """
 
 
@@ -351,6 +358,7 @@ class RunOptions(Options):
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
     """
+    :param reactor: Reactor to use.
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.

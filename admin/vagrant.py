@@ -20,7 +20,7 @@ from admin.release import make_rpm_version
 
 def run(command, **kwargs):
     """
-    Echo and run a command..
+    Echo and run a command.
 
     :param list command: Command to run.
     :param kwargs: Extra args to pass to ``subprocess.call``.

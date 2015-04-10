@@ -14,6 +14,7 @@ from twisted.internet.defer import Deferred
 from twisted.protocols.basic import LineOnlyReceiver
 
 
+# LineOnlyReceiver is mutable, so can't use pyrsistent
 @attributes([
     "deferred",
     "output",
@@ -63,8 +64,9 @@ def run(reactor, command, **kwargs):
         try:
             reactor.removeSystemEventTrigger(trigger_id)
         except:
-            # If we can't remove the trigger, presumably
-            # it has already been removed (or run).
+            # If we can't remove the trigger, presumably it has already been
+            # removed (or run). In any case, there is nothing sensible to do
+            # if this fails.
             pass
         return result
 
