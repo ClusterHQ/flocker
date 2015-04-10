@@ -28,6 +28,10 @@ class BuildOptions(usage.Options):
          'Base URL of build server to download RPMs from'],
     ]
 
+    optFlags = [
+        ["keep", "k", "Keep VM around, if the build fails."],
+    ]
+
     def __init__(self, base_path, top_level):
         """
         :param FilePath base_path: The executable being run.
@@ -88,7 +92,7 @@ def box_metadata(name, version, path):
     return metadata
 
 
-def build_box(path, name, version, branch, build_server):
+def build_box(path, name, version, branch, build_server, keep):
     """
     Build a vagrant box.
 
@@ -97,38 +101,46 @@ def build_box(path, name, version, branch, build_server):
     :param bytes version: Version of vagrant box. Used to build filename.
     :param bytes branch: Branch to get flocker RPMs from.
     :param build_server: Base URL of build server to download RPMs from.
+    :param bool keep: Keep VM around, if the build fails.
     """
-    box_path = path.child('%s%s%s.box'
-                          % (name, '-' if version else '', version))
-    json_path = path.child('%s.json' % (name,))
+    try:
+        box_path = path.child('%s%s%s.box'
+                              % (name, '-' if version else '', version))
+        json_path = path.child('%s.json' % (name,))
 
-    # Destroy the box to begin, so that we are guaranteed
-    # a clean build.
-    run(['vagrant', 'destroy', '-f'], cwd=path.path)
+        # Destroy the box to begin, so that we are guaranteed
+        # a clean build.
+        run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
-    # Update the base box to the latest version on Atlas.
-    run(['vagrant', 'box', 'update'], cwd=path.path)
+        # Update the base box to the latest version on Atlas.
+        run(['vagrant', 'box', 'update'], cwd=path.path)
 
-    # Generate the enviroment variables used to pass options down to the
-    # provisioning scripts via the Vagrantfile
-    env = os.environ.copy()
-    rpm_version, rpm_release = make_rpm_version(version)
-    env.update({
-        'FLOCKER_RPM_VERSION': '%s-%s' % (rpm_version, rpm_release),
-        'FLOCKER_BUILD_SERVER': build_server,
-        # branch is None if it isn't passed, but that isn't a legal
-        # environment value.
-        'FLOCKER_BRANCH': branch or ''
-        })
-    # Boot the VM and run the provisioning scripts.
-    run(['vagrant', 'up'], cwd=path.path, env=env)
+        # Generate the enviroment variables used to pass options down to the
+        # provisioning scripts via the Vagrantfile
+        env = os.environ.copy()
+        rpm_version, rpm_release = make_rpm_version(version)
+        env.update({
+            'FLOCKER_RPM_VERSION': '%s-%s' % (rpm_version, rpm_release),
+            'FLOCKER_BUILD_SERVER': build_server,
+            # branch is None if it isn't passed, but that isn't a legal
+            # environment value.
+            'FLOCKER_BRANCH': branch or ''
+            })
+        # Boot the VM and run the provisioning scripts.
+        run(['vagrant', 'up'], cwd=path.path, env=env)
 
-    # Package up running VM.
-    run(['vagrant', 'package', '--output', box_path.path], cwd=path.path)
+        # Package up running VM.
+        run(['vagrant', 'package', '--output', box_path.path], cwd=path.path)
 
-    # And destroy at the end to save space.  If one of the above commands fail,
-    # this will be skipped, so the image can still be debugged.
-    run(['vagrant', 'destroy', '-f'], cwd=path.path)
+    except:
+        # One of the above commands failed, so keep the VM around for debugging
+        # if that was requested.
+        if not keep:
+            run(['vagrant', 'destroy', '-f'], cwd=path.path)
+        raise
+    else:
+        # And destroy at the end to save space.
+        run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
     # Generate metadata needed to add box locally.
     metadata = box_metadata(name, version, box_path)
@@ -159,4 +171,5 @@ def main(args, base_path, top_level):
         version=options['flocker-version'],
         branch=options['branch'],
         build_server=options['build-server'],
+        keep=options['keep']
         )
