@@ -34,7 +34,6 @@ Software
 ~~~~~~~~
 
 - A web browser.
-- `gsutil Python package <https://pypi.python.org/pypi/gsutil>`_ on your workstation.
 - `Vagrant`_ (1.6.2 or newer)
 - `VirtualBox`_
 - `virtualenvwrapper`_
