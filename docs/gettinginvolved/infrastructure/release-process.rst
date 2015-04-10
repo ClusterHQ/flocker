@@ -234,7 +234,7 @@ So it is important to check that the code in the release branch is working befor
 
    Make sure to follow the latest version of this documentation when reviewing a release.
 
-#. Check documentation.
+#. Check that the staging documentation is set up correctly:
 
    In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
