@@ -433,9 +433,14 @@ Release
 
    XXX This process should be automated https://clusterhq.atlassian.net/browse/FLOC-1309
 
+   .. note:: This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps).
+
    Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
-   after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch.
-   This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps).
+   after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch:
+
+   .. prompt:: bash $
+
+      git checkout release/flocker-${VERSION}
 
    Test the client install instructions work on all supported platforms by following the instructions and checking the version:
 
