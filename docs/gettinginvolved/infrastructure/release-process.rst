@@ -440,7 +440,7 @@ Release
 
    Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
    after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch.
-   This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps):
+   This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps).
 
    Test the client install instructions work on all supported platforms by following the instructions and checking the version:
 
