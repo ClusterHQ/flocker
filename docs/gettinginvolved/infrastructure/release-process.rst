@@ -316,15 +316,6 @@ Release
 
    Wait for the build to complete successfully.
 
-#. Set up Google Cloud Storage credentials on the Vagrant development machine:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      gsutil config
-
-   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
-   Custom configuration may cause a problem later because this file is copied to a Vagrant VM automatically.
-
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
    .. note:: Skip this step for a maintenance or documentation release.
