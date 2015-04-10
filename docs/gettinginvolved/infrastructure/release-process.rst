@@ -197,7 +197,7 @@ Preparing For a Release
    Discuss with the team whether the release can continue given any failed tests.
    Some Buildbot builders may have to be run again if temporary issues with external dependencies have caused failures.
 
-   XXX This should be explicit in Buildbot FLOC-XXX.
+   XXX This should be explicit in Buildbot https://clusterhq.atlassian.net/browse/FLOC-1700.
 
    At least the following builders do not have to pass in order to continue with the release process:
 
