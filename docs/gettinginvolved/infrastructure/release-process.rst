@@ -373,7 +373,7 @@ Release
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
-#. Create a version specific ``Homebrew`` recipe for this release:
+#. Create a version specific Homebrew recipe for this release:
 
    .. note:: Skip this step for a maintenance or documentation release.
 
@@ -391,8 +391,10 @@ Release
         git commit -m "New Homebrew recipe"
         git push
 
-   - Test Homebrew on OS X.
-     ClusterHQ has a Mac Mini available with instructions for launching a Virtual Machine to do this with:
+   - Test the Homebrew recipe on OS X:
+
+     ClusterHQ has a Mac Mini available to use for testing.
+     Follow the instructions at ClusterHQ > Infrastructure > OS X Development Machine for launching a Virtual Machine to do this with.
 
      Export the version number of the release being completed as an environment variable:
 
