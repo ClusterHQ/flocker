@@ -46,15 +46,10 @@ Software
 Access
 ~~~~~~
 
-- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation.
-  Set up ``gsutil`` authentication by following the instructions from the following command:
+- Access to `Google Cloud Storage`_.
 
-  .. prompt:: bash $
-
-      gsutil config
-
-- Access to Amazon `S3`_ using `gsutil`_ on your workstation.
-  Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
+- Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
+  It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
 
@@ -193,6 +188,14 @@ Preparing For a Release
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
+
+#. Set up Google Cloud Storage credentials:
+
+   .. prompt:: bash $
+
+      gsutil config
+
+   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
 
 #. Update the staging documentation.
    (For a maintenance or documentation release ``${VERSION}`` should be the the release receiving the maintenance).
