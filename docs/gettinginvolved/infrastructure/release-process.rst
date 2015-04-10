@@ -373,7 +373,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      echo http://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+      echo https://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
