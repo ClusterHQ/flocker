@@ -468,6 +468,9 @@ Release
 
 #. If the release is a marketing release, merge the new ``vagrant-flocker`` branch.
 
+   .. warning:: It takes some time for CloudFront invalidations to propagate.
+      This means that there will be a short period for some users where the documentation will still be for the previous version but the Vagrantfile download the latest tutorial box.
+
    .. prompt:: bash [vagrant@localhost]$
 
       cd ~/vagrant-flocker
@@ -481,6 +484,9 @@ Post-Release Review Process
 ---------------------------
 
 #. Check that the documentation is set up correctly:
+
+   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+   To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
 
    In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
@@ -524,6 +530,7 @@ Post-Release Review Process
 
       @engineering The release from release/flocker-0.3.2 is complete. Branches targeting it can now land.
 
+.. _BrowserStack: https://www.browserstack.com/
 
 Improving the Release Process
 -----------------------------
