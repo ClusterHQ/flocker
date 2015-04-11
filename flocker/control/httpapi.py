@@ -178,8 +178,8 @@ class ConfigurationAPIUserV1(object):
             This is not for easy human use.  For human-friendly identifiers,
             use items in ``metadata``.
 
-        :param maximum_size: Either, the maximum number of bytes the dataset
-            will be capable of storing or ``null`` make the dataset size
+        :param maximum_size: Either the maximum number of bytes the dataset
+            will be capable of storing or ``None`` to make the dataset size
             unlimited. This may be optional or required depending on the
             dataset backend.
 
