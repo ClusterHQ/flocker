@@ -148,8 +148,8 @@ There are empty files at ``/index.html`` and ``/en/index.html`` that redirect to
 
 .. prompt:: bash $
 
-   gsutil -h x-amz-website-redirect-location:/en/${VERSION} cp - s3://clusterhq-docs/index.html </dev/null
-   gsutil -h x-amz-website-redirect-location:/en/${VERSION} cp - s3://clusterhq-docs/en/index.html </dev/null
+   gsutil -h x-amz-website-redirect-location:/en/latest/ cp - s3://clusterhq-docs/index.html </dev/null
+   gsutil -h x-amz-website-redirect-location:/en/latest/ cp - s3://clusterhq-docs/en/index.html </dev/null
 
 .. TODO - Specify where this is versioned. https://clusterhq.atlassian.net/browse/FLOC-1250
 
