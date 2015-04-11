@@ -11,6 +11,7 @@ from pyrsistent import pmap, thaw
 from twisted.python.filepath import FilePath
 from twisted.web.http import (
     CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
+    BAD_REQUEST
 )
 from twisted.web.server import Site
 from twisted.web.resource import Resource
@@ -28,7 +29,9 @@ from . import (
     AttachedVolume, Link
 )
 from ._config import (
-    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
+    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY,
+    model_from_configuration, FigConfiguration, FlockerConfiguration,
+    ConfigurationError
 )
 from .. import __version__
 
@@ -767,6 +770,44 @@ class ConfigurationAPIUserV1(object):
 
         # Didn't find the application:
         raise CONTAINER_NOT_FOUND
+
+    @app.route("/configuration/_compose", methods=['POST'])
+    @user_documentation(
+        """
+        Private API endpoint used by flocker-deploy.
+
+        Please do not use it as it may be removed in the near future.
+        """,
+        examples=[],
+    )
+    @structured(
+        inputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_compose'
+        },
+        outputSchema={},
+        schema_store=SCHEMAS
+    )
+    def replace_configuration(self, applications, deployment):
+        """
+        Replace the existing configuration with one given by flocker-deploy
+        command line tool.
+
+        :param applications: Configuration in Flocker-native or
+            Fig/Compose format.
+
+        :param deployment: Configuration of which applications run on
+            which nodes.
+        """
+        try:
+            configuration = FigConfiguration(applications)
+            if not configuration.is_valid_format():
+                configuration = FlockerConfiguration(applications)
+            return self.persistence_service.save(model_from_configuration(
+                applications=configuration.applications(),
+                deployment_configuration=deployment))
+        except ConfigurationError as e:
+            raise make_bad_request(code=BAD_REQUEST, description=unicode(e))
 
 
 def manifestations_from_deployment(deployment, dataset_id):
