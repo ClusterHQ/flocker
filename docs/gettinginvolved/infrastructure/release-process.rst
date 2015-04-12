@@ -71,16 +71,6 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. Announce on Zulip's Engineering > Release topic not to land anything on the base branch:
-
-   .. note::
-
-      Skip this step for a weekly development release, or the first pre-release for a marketing release.
-
-   ::
-
-      @engineering I am releasing from release/flocker-0.3.2. Please don't land anything on that branch until the release is complete.
-
 #. Export the version number of the release being created as an environment variable for later use:
 
    .. prompt:: bash $
@@ -512,16 +502,6 @@ Post-Release Review Process
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.
-
-#. Announce on Zulip's Engineering > Release topic that branches can land on the base branch:
-
-   .. note::
-
-      Skip this step for a weekly development release, or the first pre-release for a marketing release.
-
-   ::
-
-      @engineering The release from release/flocker-0.3.2 is complete. Branches targeting it can now land.
 
 
 Improving the Release Process
