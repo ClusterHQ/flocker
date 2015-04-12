@@ -10,7 +10,6 @@ from ._install import (
     provision,
     task_install_ssh_key,
     task_upgrade_kernel,
-    task_upgrade_selinux,
     task_upgrade_kernel_centos,
     task_enable_updates_testing
 )
@@ -74,7 +73,7 @@ def provision_aws(node, package_source, distribution, variants):
             package_source=package_source,
             distribution=node.distribution,
             variants=variants,
-        ) + task_upgrade_selinux(),
+        ),
     ))
 
     return sequence(commands)

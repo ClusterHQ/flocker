@@ -13,6 +13,8 @@ v0.4
 * Applications can now be configured with a :ref:`restart policy<restart configuration>`.
 * Volumes can now be configured with a :ref:`maximum size<volume configuration>`.
 * Documentation now includes :ref:`instructions for installing flocker-node on CentOS 7<centos-7-install>`.
+* SELinux must be disabled before installing Flocker.
+  A future version of Flocker may provide a different integration strategy.
 
 v0.3.2
 ======
