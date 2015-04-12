@@ -151,15 +151,6 @@ There are empty files at ``/index.html`` and ``/en/index.html`` that redirect to
    gsutil -h x-amz-website-redirect-location:/en/latest/ cp - s3://clusterhq-docs/index.html </dev/null
    gsutil -h x-amz-website-redirect-location:/en/latest/ cp - s3://clusterhq-docs/en/index.html </dev/null
 
-.. TODO - Specify where this is versioned. https://clusterhq.atlassian.net/browse/FLOC-1250
-
-There is an ``error.html`` uploaded to the root of the bucket. It is uploaded with:
-
-.. prompt:: bash /path/to/website/repo $
-
-   gsutil -m cp 404.html s3://clusterhq-docs/404.html
-
-
 ``clusterhq-staging-docs``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
