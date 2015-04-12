@@ -617,5 +617,4 @@ def create_release_branch(version, repo_dir=None):
         raise BaseBranchDoesNotExist()
 
     base_branch.checkout(b=release_branch_prefix + version)
-    # TODO branch.set_tracking_branch?
     return base_branch

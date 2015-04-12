@@ -1479,6 +1479,17 @@ class CreateReleaseBranchTests(TestCase):
             self.create_release_branch(version='0.3.0dev1').name,
             "master")
 
+    def test_active_branch(self):
+        """
+        Creating a release branch changes the active branch to that branch.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.create_release_branch(version='0.3.0')
+        self.assertEqual(
+            self.repo.active_branch.name,
+            "release/flocker-0.3.0")
+
     def test_first_pre_release(self):
         """
         The first pre-release for a marketing release is created from the
@@ -1488,16 +1499,18 @@ class CreateReleaseBranchTests(TestCase):
             self.create_release_branch(version='0.3.0pre1').name,
             "master")
 
-    def test_second_pre_release(self):
+    def test_uses_previous_pre_release(self):
         """
         The second pre-release for a marketing release is created from the
         previous pre-release release branch.
         """
         self.repo.create_head('release/flocker-0.3.0pre1')
         self.repo.create_tag('0.3.0pre1')
+        self.repo.create_head('release/flocker-0.3.0pre2')
+        self.repo.create_tag('0.3.0pre2')
         self.assertEqual(
-            self.create_release_branch(version='0.3.0pre2').name,
-            "release/flocker-0.3.0pre1")
+            self.create_release_branch(version='0.3.0pre3').name,
+            "release/flocker-0.3.0pre2")
 
     def test_no_pre_releases_fails(self):
         """
