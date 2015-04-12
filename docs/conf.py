@@ -15,7 +15,6 @@ from twisted.python.filepath import FilePath
 
 import sys
 import os
-import re
 
 from flocker.provision._install import DIGITALOCEAN_KERNEL_TITLE
 
