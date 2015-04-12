@@ -17,6 +17,7 @@ from effect import (
     Effect, sync_perform, ComposedDispatcher, base_dispatcher)
 from effect.do import do
 from characteristic import attributes
+from git import Repo
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -26,9 +27,11 @@ import flocker
 
 from flocker.docs import (
     get_doc_version,
+    get_pre_release,
     is_pre_release,
     is_release,
     is_weekly_release,
+    target_release,
 )
 from flocker.provision._install import ARCHIVE_BUCKET
 
@@ -509,3 +512,50 @@ def publish_rpms_main(args, base_path, top_level):
         raise SystemExit(1)
     finally:
         scratch_directory.remove()
+
+def create_release_branch(version, repo_dir):
+    # requires gitpython, is this available?
+    # TODO test with fake git repo
+    # TODO flake8
+    # TODO does this need to be idempotent?
+    repo = Repo()
+
+    if not (is_release(version)
+            or is_weekly_release(version)
+            or is_pre_release(version)):
+        raise NotARelease()
+
+    if is_weekly_release:
+        base_branch_name = 'master'
+    elif is_pre_release(version) and get_pre_release(version) == 1:
+        base_branch_name = 'master'
+    elif get_doc_version(version) != version:
+        base_branch_name = 'release/flocker-' + get_doc_version(version)
+    else:
+        pre_releases = [
+            tag.name for tag in repo.tags if
+            is_pre_release(tag.name) and
+            target_release(version) == target_release(tag.name)]
+
+        if not pre_releases:
+            raise Exception()
+        latest_pre_release = sorted(
+            iterable=pre_releases,
+            key=lambda pre_release: get_pre_release(pre_release))[-1]
+        # If there are no pre-releases raise an error
+        # if the last pre-release is not the one before we want to create, raise an error
+
+        base_branch_name = 'release/flocker-' + latest_pre_release
+
+    # We create a new branch from a branch, not a tag, because a maintenance
+    # or documentation change may have been applied to the branch and not the
+    # tag.
+    try:
+        base_branch = [branch for branch in repo.branches if branch.name == base_branch_name][0]
+    except IndexError:
+        # TODO custom exception
+        raise Exception("Base branch %s does not exist, maybe it was deleted", base_branch_name)
+
+    base_branch.checkout(b="release/flocker-" + version)
+    # TODO branch.set_tracking_branch?
+    return base_branch

@@ -94,41 +94,18 @@ Preparing For a Release
       vagrant up
       vagrant ssh -- -A
 
-#. Export the base branch which the release will be branched from:
-
-   For a weekly development release, or the first pre-release for a marketing release,
-   the base branch should be ``master``:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      export BASE_BRANCH=master
-
-   For a marketing release, or any pre-release which is not the first pre-release for a particular marketing release,
-   the base branch should be the release branch for the most recent pre-release:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      export BASE_BRANCH=release/flocker-0.1.2pre1
-
-   For a maintenance or documentation release,
-   the base branch should be the release receiving the maintenance:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      export BASE_BRANCH=release/flocker-0.1.2
-
 #. Create a release branch, and create and activate a virtual environment:
-
-   .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
 
    .. prompt:: [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/${BASE_BRANCH}
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
+      # This ensures that setuptools is a version that does not normalize
+      # version numbers according to PEP440.
       pip install setuptools==3.6
+      admin/create-release-branch ${VERSION}
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
