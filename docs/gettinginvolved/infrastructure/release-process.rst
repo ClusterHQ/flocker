@@ -138,7 +138,6 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/${BASE_BRANCH}
-      git push --set-upstream origin release/flocker-${VERSION}
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
       pip install setuptools==3.6
@@ -193,7 +192,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      git push
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Ensure all the required tests pass on BuildBot:
 
