@@ -1444,16 +1444,55 @@ class UploadRPMsTests(TestCase):
 
 class CreateReleaseBranchTests(TestCase):
     """
-    Tests for :func:``create_release_branch``.
+    Tests for :func:`create_release_branch`.
     """
 
     def setUp(self):
+        scratch_directory = FilePath(tempfile.mkdtemp())
+        self.addCleanup(scratch_directory.remove)
+        repo_path = scratch_directory.child('repo')
+        self.repo = Repo.init(path=repo_path.path)
+        repo_path.child('README').touch()
+        self.repo.index.add(['README'])
+        self.repo.index.commit('Initial commit')
+        self.repo.create_head('master')
+
+    def create_release_branch(self, version):
+        return create_release_branch(version=version, repo_dir=self.repo.working_dir)
+
+    def test_create_release_branch_for_non_release_fails(self):
+        """
+        Calling :func:`create_release_branch` with a version that isn't a
+        release fails.
+        """
+        self.assertRaises(
+            NotARelease,
+            self.create_release_branch, '0.3.0-444-gf05215b')
+
+    def test_repo_does_not_exist(self):
         pass
 
-    def test_creates_branch(self):
+    def test_weekly_release_base(self):
+        """
+        A weekly release is created from the "master" branch.
+        """
+        self.assertEqual(
+            self.create_release_branch(version='0.3.0dev1').name,
+            "master")
+
+
+    def test_first_pre_release(self):
         """
         """
-        repo_dir = FilePath(tempfile.mkdtemp())
-        Repo.init(path=repo_dir.path, bare=True)
-        create_release_branch(version='0.2.0+)', repo_dir=repo_dir.path)
-        
+        create_release_branch(version='0.2.0+)', repo_dir=self.epo_dir_path)
+
+    def test_second_pre_release(self):
+        """
+        """
+        create_release_branch(version='0.2.0+)', repo_dir=self.repo_dir_path)
+
+    def test_missing_pre_release(self):
+        pass
+
+    def test_base_branch_does_not_exist(self):
+        pass
