@@ -36,11 +36,9 @@ Software
 - A web browser.
 - `Vagrant`_ (1.6.2 or newer)
 - `VirtualBox`_
-- `virtualenvwrapper`_
 
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
-.. _`virtualenvwrapper`: https://virtualenvwrapper.readthedocs.org/en/latest/
 
 Access
 ~~~~~~
