@@ -1484,12 +1484,18 @@ class CreateReleaseBranchTests(TestCase):
     def test_first_pre_release(self):
         """
         """
-        create_release_branch(version='0.2.0+)', repo_dir=self.epo_dir_path)
+        self.assertEqual(
+            self.create_release_branch(version='0.3.0pre1').name,
+            "master")
 
     def test_second_pre_release(self):
         """
         """
-        create_release_branch(version='0.2.0+)', repo_dir=self.repo_dir_path)
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.assertEqual(
+            self.create_release_branch(version='0.3.0pre2').name,
+            "release/flocker-0.3.0pre1")
 
     def test_missing_pre_release(self):
         pass

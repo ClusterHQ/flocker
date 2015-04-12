@@ -534,7 +534,7 @@ def create_release_branch(version, repo_dir=None):
     repo = Repo(repo_dir)
     # TODO raise exception if proposed branch already exists
 
-    if is_weekly_release:
+    if is_weekly_release(version):
         base_branch_name = 'master'
     elif is_pre_release(version) and get_pre_release(version) == 1:
         base_branch_name = 'master'
@@ -546,17 +546,18 @@ def create_release_branch(version, repo_dir=None):
             is_pre_release(tag.name) and
             target_release(version) == target_release(tag.name)]
 
+        import pdb; pdb.set_trace()
         if not pre_releases:
             # TODO custom exception
-            raise Exception()
+            raise Exception("No pre releases")
 
         latest_pre_release = sorted(
-            iterable=pre_releases,
+            pre_releases,
             key=lambda pre_release: get_pre_release(pre_release))[-1]
 
-        if is_pre_release(version) and get_pre_release(version) > latest_pre_release + 1:
+        if is_pre_release(version) and get_pre_release(version) > get_pre_release(latest_pre_release) + 1:
             # TODO raise MissingPreRelease()
-            raise Exception()
+            raise Exception("Missing pre release")
 
         base_branch_name = 'release/flocker-' + latest_pre_release
 
