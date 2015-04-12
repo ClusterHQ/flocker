@@ -1449,18 +1449,17 @@ class CreateReleaseBranchTests(TestCase):
     """
 
     def setUp(self):
-        scratch_directory = FilePath(tempfile.mkdtemp())
-        self.addCleanup(scratch_directory.remove)
-        repo_path = scratch_directory.child('repo')
-        self.repo = Repo.init(path=repo_path.path)
-        repo_path.child('README').touch()
+        repo_directory = FilePath(tempfile.mkdtemp())
+        self.addCleanup(repo_directory.remove)
+        self.repo = Repo.init(path=repo_directory.path)
+        repo_directory.child('README').touch()
         self.repo.index.add(['README'])
         self.repo.index.commit('Initial commit')
         self.repo.create_head('master')
 
     def create_release_branch(self, version):
         return create_release_branch(
-            version=version, repo_dir=self.repo.working_dir)
+            version=version, path=self.repo.working_dir)
 
     def test_create_release_branch_for_non_release_fails(self):
         """
