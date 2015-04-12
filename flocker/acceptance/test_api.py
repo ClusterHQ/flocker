@@ -12,7 +12,7 @@ from json import dumps
 
 from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
-from twisted.web.http import OK, CREATED
+from twisted.web.http import OK, CREATED, BAD_REQUEST
 
 from unittest import SkipTest
 from treq import get, post, delete, json_content
@@ -558,14 +558,15 @@ class ContainerAPITests(TestCase):
         return creating
 
 
-def create_dataset(test_case, nodes=1):
+def create_dataset(test_case, nodes=1,
+                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
     """
     Create a dataset on a cluster.
 
     :param TestCase test_case: The test the API is running on.
-
     :param int nodes: The number of nodes to create. Defaults to 1.
-
+    :param int maximum_size: The size of the dataset to create on the test
+        cluster.
     :return: ``Deferred`` firing with a tuple of (``Cluster``
         instance, dataset dictionary) once the dataset is present in
         actual cluster state.
@@ -583,7 +584,7 @@ def create_dataset(test_case, nodes=1):
         requested_dataset = {
             u"primary": cluster.nodes[0].address,
             u"dataset_id": unicode(uuid4()),
-            u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
+            u"maximum_size": maximum_size,
             u"metadata": {u"name": u"my_volume"},
         }
 
@@ -681,3 +682,111 @@ class DatasetAPITests(TestCase):
             return deleted
         created.addCallback(delete_dataset)
         return created
+
+    def test_dataset_grow(self):
+        """
+        The size of a dataset can be increased.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = REALISTIC_BLOCKDEVICE_SIZE * 2
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            self.assertEqual(new_size, dataset['maximum_size'])
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
+
+    def test_dataset_shrink(self):
+        """
+        The size of a dataset can be decreased.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
+        new_size = REALISTIC_BLOCKDEVICE_SIZE
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            self.assertEqual(new_size, dataset['maximum_size'])
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
+
+    def test_dataset_shrink_not_valid(self):
+        """
+        If the requested maximum_size is smaller than the allowed minimum the
+        response is ``BAD_REQUEST``.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = 67108864 - 1
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            # Reconfigure that dataset to be an invalid size.
+            resizing = cluster.update_dataset(
+                dataset_id=dataset["dataset_id"],
+                dataset_properties={u'maximum_size': new_size}
+            )
+            # Check for expected exception and response code.
+            return self.assertFailure(
+                resizing, ValueError
+            ).addCallback(
+                lambda exception: self.assertEqual(
+                    BAD_REQUEST, exception.args[1]
+                )
+            )
+
+        return creating.addCallback(resize_dataset)
+
+    def test_dataset_remove_size_limit(self):
+        """
+        A dataset with a size limit can have that limit removed.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = None
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            # If there is no maximum_size, the configuration response will not
+            # contain that key
+            self.assertNotIn(u'maximum_size', dataset.keys())
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
