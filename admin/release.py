@@ -546,24 +546,24 @@ def publish_rpms_main(args, base_path, top_level):
         scratch_directory.remove()
 
 
-def create_release_branch(version, repo_dir=None):
+def create_release_branch(version, path=None):
     """
     checkout a new Git branch to make changes on and later tag as a release.
     This branch is created from a different branch which depends on the release
     type and sometimes which pre-releases have preceeded this.
-    """
-    # pip install gitpython==1.0.0
-    # TODO flake8
-    # TODO wrapper for this with options, handles each exception
-    # TODO param docs - none is default, here
-    # TODO separate get_base_branch and create branch
 
+    :param bytes version: The version of Flocker to create a release branch
+        for.
+    :param bytes path: See :func:`git.Repo.init`.
+    :returns: The base branch from which the new release branch was created.
+    """
+    # TODO wrapper for this with options, handles each exception
     if not (is_release(version)
             or is_weekly_release(version)
             or is_pre_release(version)):
         raise NotARelease()
 
-    repo = Repo(repo_dir)
+    repo = Repo(path)
 
     existing_tags = [tag for tag in repo.tags if tag.name == version]
     if existing_tags:
