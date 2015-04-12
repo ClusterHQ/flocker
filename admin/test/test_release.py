@@ -659,6 +659,33 @@ class PublishDocsTests(TestCase):
         self.publish_docs(
             aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
 
+    def test_publish_to_doc_version(self):
+        """
+        Trying to publish to a documentation version publishes to to the
+        version being updated.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/latest/': '',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {},
+                'clusterhq-dev-docs': {},
+            })
+        # Does not raise:
+        self.publish_docs(
+            aws, '0.3.1-444-gf05215b', '0.3.1+doc1',
+            environment=Environments.STAGING)
+
+        self.assertEqual(
+            aws.routing_rules, {
+                'clusterhq-staging-docs': {
+                    'en/latest/': 'en/0.3.1/',
+                },
+            })
+
     def test_production_can_publish_prerelease(self):
         """
         Publishing a pre-release succeeds.

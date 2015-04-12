@@ -259,8 +259,6 @@ Preparing For a Release
 
    This requires the BuildBot step to have finished.
 
-   (For a maintenance or documentation release ``${VERSION}`` should be the the release receiving the maintenance).
-
    .. prompt:: bash [vagrant@localhost]$
 
       ~/flocker-${VERSION}/admin/publish-docs --doc-version ${VERSION}
