@@ -145,8 +145,7 @@ Preparing For a Release
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
-   XXX: Process to be decided.
-   See https://clusterhq.atlassian.net/browse/FLOC-523
+   XXX: Process to be decided, see :issue:`523`.
 
    - The NEWS date format is YYYY-MM-DD.
    - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
@@ -208,7 +207,7 @@ Preparing For a Release
 
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
-   XXX This should be explicit in Buildbot https://clusterhq.atlassian.net/browse/FLOC-1700.
+   XXX This should be explicit in Buildbot, see :issue:`1700`.
 
    At least the following builders do not have to pass in order to continue with the release process:
 
@@ -218,7 +217,7 @@ Preparing For a Release
 
 #. Update the Getting Started Guide ``Vagrantfile`` in a new branch:
 
-   XXX This process should be changed https://clusterhq.atlassian.net/browse/FLOC-1307
+   XXX This process should be changed, see :issue:`1307`.
 
    Change ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released, in a new branch of the ``vagrant-flocker`` repository:
 
@@ -295,7 +294,7 @@ So it is important to check that the code in the release branch is working befor
    It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
    To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
 
-   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1701
+   XXX This should be automated, see :issue:`1701`.
 
    In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
@@ -382,7 +381,7 @@ Release
 
    .. note:: Skip this step for a maintenance or documentation release.
 
-   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
+   XXX This should be automated, see :issue:`943`.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -394,7 +393,7 @@ Release
 
    .. note:: Skip this step for a maintenance or documentation release.
 
-   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
+   XXX This should be automated, see :issue:`1150`.
 
    - Create a recipe file and push it to the `homebrew-tap`_ repository:
 
@@ -429,7 +428,7 @@ Release
 
 #. Test the Getting Started Guide:
 
-   XXX This process should be automated https://clusterhq.atlassian.net/browse/FLOC-1309
+   XXX This process should be automated, see :issue:`1309`.
 
    .. note:: This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps).
 
@@ -486,7 +485,7 @@ Post-Release Review Process
    It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
    To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
 
-   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1701
+   XXX This should be automated, see :issue:`1701`.
 
    In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
 
@@ -512,11 +511,9 @@ Post-Release Review Process
 
    Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`.
 
-   XXX: This step should be documented.
-   See `FLOC-1622 <https://clusterhq.atlassian.net/browse/FLOC-1622>`_.
+   XXX: This step should be documented, see :issue:`1622`.
 
-   XXX: This step should be automated.
-   See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
+   XXX: This step should be automated, see :issue:`1039`.
 
 #. Merge the release pull request.
    Do not delete the release branch because it may be used as a base branch for future releases.

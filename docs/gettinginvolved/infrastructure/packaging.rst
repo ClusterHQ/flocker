@@ -100,7 +100,7 @@ A policy can be set by going to a bucket's "Properties", "Permissions", then "Ad
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
-XXX This should be a Python script with tests which can be run on the :doc:`Flocker development machine <vagrant>` https://clusterhq.atlassian.net/browse/FLOC-1530
+XXX This should be a Python script with tests which can be run on the :doc:`Flocker development machine <vagrant>`, see :issue:`1530`.
 
 To build and upload these packages, on a machine with the operating system which the package is for
 (an easy way to do this is to use the :doc:`Flocker development machine <vagrant>` and an old Fedora 20 version of it),
