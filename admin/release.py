@@ -513,18 +513,23 @@ def publish_rpms_main(args, base_path, top_level):
     finally:
         scratch_directory.remove()
 
-def create_release_branch(version, repo_dir):
+def create_release_branch(version, repo_dir='.'):
+    """
+    checkout a new Git branch to make changes on and later tag as a release.
+    This branch is created from a different branch which depends on the release
+    type and sometimes which pre-releases have preceeded this.
+    """
     # requires gitpython, is this available?
     # TODO test with fake git repo
     # TODO flake8
-    # TODO does this need to be idempotent?
-    repo = Repo()
+    repo = Repo(repo_dir)
 
     if not (is_release(version)
             or is_weekly_release(version)
             or is_pre_release(version)):
         raise NotARelease()
 
+    # TODO raise exception if proposed branch already exists
     if is_weekly_release:
         base_branch_name = 'master'
     elif is_pre_release(version) and get_pre_release(version) == 1:
@@ -538,12 +543,16 @@ def create_release_branch(version, repo_dir):
             target_release(version) == target_release(tag.name)]
 
         if not pre_releases:
+            # TODO custom exception
             raise Exception()
+
         latest_pre_release = sorted(
             iterable=pre_releases,
             key=lambda pre_release: get_pre_release(pre_release))[-1]
-        # If there are no pre-releases raise an error
-        # if the last pre-release is not the one before we want to create, raise an error
+
+        if is_pre_release(version) and get_pre_release(version) != latest_pre_release + 1:
+            # TODO raise MissingPreRelease() - different if is less, or greater
+            raise Exception()
 
         base_branch_name = 'release/flocker-' + latest_pre_release
 

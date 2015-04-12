@@ -7,8 +7,9 @@ Tests for ``admin.release``.
 import os
 from unittest import skipUnless, TestCase
 import tempfile
-from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
+from effect import sync_perform, ComposedDispatcher, base_dispatcher
+from git import Repo
 from requests.exceptions import HTTPError
 
 from twisted.python.filepath import FilePath
@@ -18,6 +19,7 @@ from ..release import (
     rpm_version, make_rpm_version, upload_rpms, update_repo,
     publish_docs, Environments,
     DocumentationRelease, NotTagged, NotARelease,
+    create_release_branch,
 )
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
@@ -1439,3 +1441,19 @@ class UploadRPMsTests(TestCase):
         self.assertTrue(
             expected_files.issubset(set(files_on_s3)),
             "Metadata files for the packages were not created.")
+
+class CreateReleaseBranchTests(TestCase):
+    """
+    Tests for :func:``create_release_branch``.
+    """
+
+    def setUp(self):
+        pass
+
+    def test_creates_branch(self):
+        """
+        """
+        repo_dir = FilePath(tempfile.mkdtemp())
+        Repo.init(path=repo_dir.path, bare=True)
+        create_release_branch(version='0.2.0+)', repo_dir=repo_dir.path)
+        
