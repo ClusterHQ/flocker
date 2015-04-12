@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+"""
+Upload RPMs to S3.
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
+
+if __name__ == '__main__':
+    from admin.release import publish_rpms_main as main
+    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)

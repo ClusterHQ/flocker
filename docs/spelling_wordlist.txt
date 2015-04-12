@@ -43,6 +43,7 @@ lifecycle
 Mesos
 metadata
 microservices
+mountpoint
 multi
 mv
 namespace
@@ -51,6 +52,7 @@ online
 pem
 petabyte
 petabytes
+plugins
 pre
 programmatically
 proxied
@@ -58,11 +60,13 @@ proxying
 Rackspace
 Redis
 redis
+resize
 snapshotting
 stateful
 sysadmin
 terabytes
 timestamp
+username
 versioning
 virtualization
 VMware

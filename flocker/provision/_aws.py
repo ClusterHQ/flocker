@@ -5,50 +5,84 @@ AWS provisioner.
 """
 
 from ._libcloud import LibcloudProvisioner
+from ._common import Variants
 from ._install import (
-    provision, run,
+    provision,
     task_install_ssh_key,
     task_upgrade_kernel,
-    task_upgrade_selinux,
+    task_upgrade_kernel_centos,
+    task_enable_updates_testing
 )
 
+from ._ssh import run_remotely
+from ._effect import sequence
+from effect import Func, Effect
 
-def provision_aws(node, package_source, distribution):
+
+def provision_aws(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
+
+    :param LibcloudNode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param bytes distribution: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
     """
-    run(
-        username='fedora',
+    username = {
+        'fedora-20': 'fedora',
+        'centos-7': 'centos',
+    }[distribution]
+
+    commands = []
+
+    commands.append(run_remotely(
+        username=username,
         address=node.address,
         commands=task_install_ssh_key(),
-    )
-    run(
+    ))
+
+    pre_reboot_commands = []
+    if Variants.DISTRO_TESTING in variants:
+        pre_reboot_commands.append(
+            task_enable_updates_testing(distribution)
+        )
+
+    if distribution in ('centos-7',):
+        pre_reboot_commands.append(
+            task_upgrade_kernel_centos()
+        )
+
+    elif distribution in ('fedora-20',):
+        pre_reboot_commands.append(
+            task_upgrade_kernel(),
+        )
+
+    commands.append(run_remotely(
         username='root',
         address=node.address,
-        commands=task_upgrade_kernel(),
-    )
+        commands=sequence(pre_reboot_commands),
+    ))
 
-    node.reboot()
+    commands.append(Effect(Func(node.reboot)))
 
-    run(
-        username='root',
-        address=node.address,
-        commands=task_upgrade_selinux(),
-    )
-
-    run(
+    commands.append(run_remotely(
         username='root',
         address=node.address,
         commands=provision(
             package_source=package_source,
             distribution=node.distribution,
-        )
-    )
-    return node.address
+            variants=variants,
+        ),
+    ))
+
+    return sequence(commands)
 
 
 IMAGE_NAMES = {
     'fedora-20': 'Fedora-x86_64-20-20140407-sda',
+    'centos-7': 'CentOS 7 x86_64 (2014_09_29) EBS HVM'
+                '-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d2a117ba.2',
 }
 
 
@@ -67,7 +101,7 @@ def aws_provisioner(access_key, secret_access_token, keyname,
         in.
     """
     # Import these here, so that this can be imported without
-    # installng libcloud.
+    # installing libcloud.
     from libcloud.compute.providers import get_driver, Provider
     driver = get_driver(Provider.EC2)(
         key=access_key,

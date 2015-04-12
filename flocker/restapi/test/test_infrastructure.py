@@ -6,19 +6,21 @@ Tests for ``flocker.restapi._infrastructure``.
 from jsonschema.exceptions import ValidationError
 from klein import Klein
 
+from eliot.testing import assertHasAction
+
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.failure import Failure
 from twisted.internet.defer import succeed, fail
 from twisted.web.http_headers import Headers
 from twisted.web.http import (
     BAD_REQUEST, INTERNAL_SERVER_ERROR, PAYMENT_REQUIRED, GONE,
-    NOT_ALLOWED, NOT_FOUND)
+    NOT_ALLOWED, NOT_FOUND, OK)
 
 from twisted.trial.unittest import SynchronousTestCase
 
 from .._infrastructure import (
     EndpointResponse, user_documentation, structured)
-from .._logging import REQUEST
+from .._logging import REQUEST, JSON_REQUEST
 from .._error import (
     ILLEGAL_CONTENT_TYPE_DESCRIPTION, DECODING_ERROR_DESCRIPTION,
     BadRequest)
@@ -38,157 +40,6 @@ class ArbitraryException(Exception):
     An exception with distinct identity and no semantic value, useful at least
     to unit tests which verify proper error logging.
     """
-
-
-class StructuredResultHandlingMixin(object):
-    """
-    A mixin defining tests for the L{structured} decorator's behavior with
-    respect to the return value of the (or exception raised by) decorated
-    function
-    """
-    def application(self, logger, result):
-        """
-        Subclasses should override this to return an object with a C{app}
-        attribute that is a L{Klein} instance.  Tests will issue requests to
-        this app and assert certain things about the response that is
-        generated.
-        """
-        raise NotImplementedError("Subclass must provide an application")
-
-    def render(self, resource, request):
-        """
-        Subclasses should override this to perform the Twisted Web resource
-        rendering dance (mostly, call
-        ``flocker.restapi.testtools.render()``).
-
-        This hook is primarily to support the asynchronous cases where extra
-        steps need to be taken after ``render()`` returns
-        but before rendering is actually complete.
-
-        @return: C{None}
-        """
-
-    @validateLogging(_assertRequestLogged(b"/foo/bar"))
-    def test_encode(self, logger):
-        """
-        The return value of the decorated function is I{JSON} encoded and the
-        result is written as the response body.
-        """
-        objects = {"foo": "bar", "baz": ["quux"]}
-        request = dummyRequest(b"GET", b"/foo/bar", Headers(), b"")
-
-        self.render(self.application(logger, objects).app.resource(), request)
-
-        self.assertEqual(objects, loads(request._responseBody))
-
-    @validateLogging(_assertTracebackLogged(TypeError))
-    # This should be logged but stacking validateLogging decorators seems
-    # to cause problems.
-    # @validateLogging(_assertRequestLogged(b"/foo/exception"))
-    def test_illegalResult(self, logger):
-        """
-        If the return value of the decorated function cannot be I{JSON} encoded
-        then the response generated has the I{INTERNAL SERVER ERROR} code.
-        """
-        objects = {"foo": object()}
-        request = dummyRequest(b"GET", b"/foo/bar", Headers(), b"")
-
-        self.render(self.application(logger, objects).app.resource(), request)
-
-        self.assertEqual(INTERNAL_SERVER_ERROR, request._code)
-
-    @validateLogging(_assertRequestLogged(b"/foo/explicitresponse"))
-    def test_explicitResponseObject(self, logger):
-        """
-        If the return value of the decorated function is an instance of
-        L{EndpointResponse} then the response generated:
-
-            - has the code given by the L{EndpointResponse} instance.
-            - has a I{Content-Type} header set to I{application/json}.
-            - has a JSON-encoded body indicating a successful response and
-              giving the result from the L{EndpointResponse} instance.
-        """
-        application = self.application(logger, {})
-        request = dummyRequest(
-            b"GET", b"/foo/explicitresponse", Headers(), b"")
-        self.render(application.app.resource(), request)
-
-        expected = CloseEnoughJSONResponse(
-            application.EXPLICIT_RESPONSE_CODE,
-            Headers({b"content-type": [b"application/json"]}),
-            application.EXPLICIT_RESPONSE_RESULT)
-        return expected.verify(asResponse(request))
-
-    @validateLogging(_assertRequestLogged(b"/foo/badrequest"))
-    def test_badRequestRaised(self, logger):
-        """
-        If the decorated function raises L{BadRequest} then the generated
-        response:
-
-            - has the code taken from the exception.
-            - has a I{Content-Type} header set to I{application/json}.
-            - has a JSON-encoded body indicating an error response and giving
-              details from the exception.
-        """
-        application = self.application(logger, {})
-        request = dummyRequest(b"GET", b"/foo/badrequest", Headers(), b"")
-        self.render(application.app.resource(), request)
-
-        expected = CloseEnoughJSONResponse(
-            application.BAD_REQUEST_CODE,
-            Headers({b"content-type": [b"application/json"]}),
-            application.BAD_REQUEST_RESULT)
-        return expected.verify(asResponse(request))
-
-    @validateLogging(_assertTracebackLogged(ArbitraryException))
-    # See above
-    # @validateLogging(_assertRequestLogged(b"/foo/exception"))
-    def test_internalServerError(self, logger):
-        """
-        If the decorated function raises an exception, the HTTP response code
-        is I{INTERNAL SERVER ERROR}.
-        """
-        request = dummyRequest(b"GET", b"/foo/exception", Headers(), b"")
-        app = self.application(logger, None)
-        self.render(app.app.resource(), request)
-        self.assertEqual(INTERNAL_SERVER_ERROR, request._code)
-
-    @validateLogging(None)
-    def test_responseResultContainsIncident(self, logger):
-        """
-        If the decorated function raises an exception, the HTTP response body
-        is a json-encoded object with a item set to an incident
-        identifier.
-        """
-        request = dummyRequest(b"GET", b"/foo/exception", Headers(), b"")
-        app = self.application(logger, None)
-        self.render(app.app.resource(), request)
-        logger.flushTracebacks(ArbitraryException)
-        incident = loads(request._responseBody)
-        action = LoggedAction.ofType(logger.messages, REQUEST)[0]
-        # First message in action was action start with task_level /1, so
-        # next task_level is /2:
-        self.assertEqual(
-            u"{}@/2".format(action.startMessage[u"task_uuid"]),
-            incident)
-
-
-class Execution(Names):
-    """
-    @cvar SYNCHRONOUS: The execution mode where application-level results are
-        returned directly, synchronously from methods.
-
-    @cvar SYNCHRONOUS_DEFERRED: The execution mode where application-level
-        results are returned from methods as the result of a L{Deferred} which
-        already has that result at the time of the return.
-
-    @cvar ASYNCHRONOUS: The execution mode where application-level results are
-        returned from methods as the result of a L{Deferred} but the
-        L{Deferred} is only given the result some time after it is returned.
-    """
-    SYNCHRONOUS = NamedConstant()
-    SYNCHRONOUS_DEFERRED = NamedConstant()
-    ASYNCHRONOUS = NamedConstant()
 
 
 class ResultHandlingApplication(object):
@@ -287,6 +138,193 @@ class ResultHandlingApplication(object):
         return self._constructSuccess({})
 
 
+def assertJSONLogged(test, logger, method, path, request, response,
+                     code):
+    """
+    Assert that the a request with given method and path logged a JSON
+    request and JSON response.
+
+    :param TestCase test: The current test.
+    :param MemoryLogger logger: The logger being used in the test.
+    :param method: Expected logged HTTP method.
+    :param path: Expected logged HTTP request path.
+    :param request: Expected logged JSON response.
+    :param response: Expected logged JSON response.
+    :param code: Expected HTTP response code.
+    """
+    parent = _assertRequestLogged(path, method)(test, logger)
+    child = assertHasAction(
+        test, logger, JSON_REQUEST, True, {u"json": request},
+        {u"json": response, u"code": code})
+    test.assertIn(child, parent.children)
+
+
+class StructuredResultHandlingMixin(object):
+    """
+    A mixin defining tests for the L{structured} decorator's behavior with
+    respect to the return value of the (or exception raised by) decorated
+    function
+    """
+    def application(self, logger, result):
+        """
+        Subclasses should override this to return an object with a C{app}
+        attribute that is a L{Klein} instance.  Tests will issue requests to
+        this app and assert certain things about the response that is
+        generated.
+        """
+        raise NotImplementedError("Subclass must provide an application")
+
+    def render(self, resource, request):
+        """
+        Subclasses should override this to perform the Twisted Web resource
+        rendering dance (mostly, call
+        ``flocker.restapi.testtools.render()``).
+
+        This hook is primarily to support the asynchronous cases where extra
+        steps need to be taken after ``render()`` returns
+        but before rendering is actually complete.
+
+        @return: C{None}
+        """
+
+    @validateLogging(
+        assertJSONLogged, b"GET", b"/foo/bar", {},
+        {"foo": "bar", "baz": ["quux"]}, OK)
+    def test_encode(self, logger):
+        """
+        The return value of the decorated function is I{JSON} encoded and the
+        result is written as the response body.
+        """
+        objects = {"foo": "bar", "baz": ["quux"]}
+        request = dummyRequest(b"GET", b"/foo/bar", Headers(), b"")
+
+        self.render(self.application(logger, objects).app.resource(), request)
+
+        self.assertEqual(objects, loads(request._responseBody))
+
+    @validateLogging(_assertTracebackLogged(TypeError))
+    # This should be logged but stacking validateLogging decorators seems
+    # to cause problems.
+    # @validateLogging(_assertRequestLogged(b"/foo/exception"))
+    def test_illegalResult(self, logger):
+        """
+        If the return value of the decorated function cannot be I{JSON} encoded
+        then the response generated has the I{INTERNAL SERVER ERROR} code.
+        """
+        # Workaround the message validation code in @validateLogging,
+        # otherwise the invalid message being logged throws an exception!
+        # See https://github.com/ClusterHQ/eliot/issues/150
+        def cleanup():
+            for message in logger.messages:
+                if message.get("action_type") == "api:json_request":
+                    if message["json"].get("foo"):
+                        message["json"]["foo"] = None
+        self.addCleanup(cleanup)
+
+        objects = {"foo": object()}
+        request = dummyRequest(b"GET", b"/foo/bar", Headers(), b"")
+
+        self.render(self.application(logger, objects).app.resource(), request)
+
+        self.assertEqual(INTERNAL_SERVER_ERROR, request._code)
+
+    @validateLogging(
+        assertJSONLogged, b"GET", b"/foo/explicitresponse", {},
+        ResultHandlingApplication.EXPLICIT_RESPONSE_RESULT,
+        ResultHandlingApplication.EXPLICIT_RESPONSE_CODE)
+    def test_explicitResponseObject(self, logger):
+        """
+        If the return value of the decorated function is an instance of
+        L{EndpointResponse} then the response generated:
+
+            - has the code given by the L{EndpointResponse} instance.
+            - has a I{Content-Type} header set to I{application/json}.
+            - has a JSON-encoded body indicating a successful response and
+              giving the result from the L{EndpointResponse} instance.
+        """
+        application = self.application(logger, {})
+        request = dummyRequest(
+            b"GET", b"/foo/explicitresponse", Headers(), b"")
+        self.render(application.app.resource(), request)
+
+        expected = CloseEnoughJSONResponse(
+            application.EXPLICIT_RESPONSE_CODE,
+            Headers({b"content-type": [b"application/json"]}),
+            application.EXPLICIT_RESPONSE_RESULT)
+        return expected.verify(asResponse(request))
+
+    @validateLogging(_assertRequestLogged(b"/foo/badrequest"))
+    def test_badRequestRaised(self, logger):
+        """
+        If the decorated function raises L{BadRequest} then the generated
+        response:
+
+            - has the code taken from the exception.
+            - has a I{Content-Type} header set to I{application/json}.
+            - has a JSON-encoded body indicating an error response and giving
+              details from the exception.
+        """
+        application = self.application(logger, {})
+        request = dummyRequest(b"GET", b"/foo/badrequest", Headers(), b"")
+        self.render(application.app.resource(), request)
+
+        expected = CloseEnoughJSONResponse(
+            application.BAD_REQUEST_CODE,
+            Headers({b"content-type": [b"application/json"]}),
+            application.BAD_REQUEST_RESULT)
+        return expected.verify(asResponse(request))
+
+    @validateLogging(_assertTracebackLogged(ArbitraryException))
+    # See above
+    # @validateLogging(_assertRequestLogged(b"/foo/exception"))
+    def test_internalServerError(self, logger):
+        """
+        If the decorated function raises an exception, the HTTP response code
+        is I{INTERNAL SERVER ERROR}.
+        """
+        request = dummyRequest(b"GET", b"/foo/exception", Headers(), b"")
+        app = self.application(logger, None)
+        self.render(app.app.resource(), request)
+        self.assertEqual(INTERNAL_SERVER_ERROR, request._code)
+
+    @validateLogging(None)
+    def test_responseResultContainsIncident(self, logger):
+        """
+        If the decorated function raises an exception, the HTTP response body
+        is a json-encoded object with a item set to an incident
+        identifier.
+        """
+        request = dummyRequest(b"GET", b"/foo/exception", Headers(), b"")
+        app = self.application(logger, None)
+        self.render(app.app.resource(), request)
+        logger.flushTracebacks(ArbitraryException)
+        incident = loads(request._responseBody)
+        action = LoggedAction.ofType(logger.messages, REQUEST)[0]
+        # First message in action was action start with task_level /1, so
+        # next task_level is /2:
+        self.assertEqual(
+            u"{}@/2".format(action.startMessage[u"task_uuid"]),
+            incident)
+
+
+class Execution(Names):
+    """
+    @cvar SYNCHRONOUS: The execution mode where application-level results are
+        returned directly, synchronously from methods.
+
+    @cvar SYNCHRONOUS_DEFERRED: The execution mode where application-level
+        results are returned from methods as the result of a L{Deferred} which
+        already has that result at the time of the return.
+
+    @cvar ASYNCHRONOUS: The execution mode where application-level results are
+        returned from methods as the result of a L{Deferred} but the
+        L{Deferred} is only given the result some time after it is returned.
+    """
+    SYNCHRONOUS = NamedConstant()
+    SYNCHRONOUS_DEFERRED = NamedConstant()
+    ASYNCHRONOUS = NamedConstant()
+
+
 class SynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin,
                                                SynchronousTestCase):
     """
@@ -354,7 +392,10 @@ class StructuredJSONTests(SynchronousTestCase):
         application = self.Application(None, None)
         self.assertEqual("foo", application.foo.__name__)
 
-    @validateLogging(_assertRequestLogged(b"/foo/bar"))
+    @validateLogging(
+        assertJSONLogged, b"PUT", b"/foo/bar",
+        {"foo": "bar", "baz": ["quux"]}, None, OK
+    )
     def test_decode(self, logger):
         """
         The I{JSON}-encoded request body is decoded into Python objects and
@@ -394,7 +435,7 @@ class StructuredJSONTests(SynchronousTestCase):
         """
         self.assertNoDecodeLogged(logger, b"GET")
 
-    @validateLogging(_assertRequestLogged(b"/foo/bar"))
+    @validateLogging(_assertRequestLogged(b"/foo/bar", b"DELETE"))
     def test_noDecodeDELETE(self, logger):
         """
         The I{JSON}-encoded request body is ignored when the I{DELETE} method
@@ -402,7 +443,7 @@ class StructuredJSONTests(SynchronousTestCase):
         """
         self.assertNoDecodeLogged(logger, b"DELETE")
 
-    @validateLogging(_assertRequestLogged(b"/foo/bar"))
+    @validateLogging(_assertRequestLogged(b"/foo/bar", b"PUT"))
     def test_malformedRequest(self, logger):
         """
         If the request body cannot be decoded as a I{JSON} blob then the
@@ -423,7 +464,7 @@ class StructuredJSONTests(SynchronousTestCase):
             {u"description": DECODING_ERROR_DESCRIPTION})
         return expected.verify(asResponse(request))
 
-    @validateLogging(_assertRequestLogged(b"/foo/validation"))
+    @validateLogging(_assertRequestLogged(b"/foo/validation", b"PUT"))
     def test_validationError(self, logger):
         """
         If the request body doesn't match the provided schema, then the
@@ -461,7 +502,7 @@ class StructuredJSONTests(SynchronousTestCase):
 
         self.assertEqual(request._code, INTERNAL_SERVER_ERROR)
 
-    @validateLogging(_assertRequestLogged(b"/foo/bar"))
+    @validateLogging(_assertRequestLogged(b"/foo/bar", b"PUT"))
     def test_wrongContentTypeRequest(self, logger):
         """
         If the request does not use the I{GET} method and does not include a
@@ -481,7 +522,7 @@ class StructuredJSONTests(SynchronousTestCase):
             {u"description": ILLEGAL_CONTENT_TYPE_DESCRIPTION})
         return expected.verify(asResponse(request))
 
-    @validateLogging(_assertRequestLogged(b"/baz/quux"))
+    @validateLogging(_assertRequestLogged(b"/baz/quux", b"POST"))
     def test_onlyArgumentsFromRoute(self, logger):
         """
         If an endpoint's route defines additional arguments for the endpoint
@@ -495,7 +536,7 @@ class StructuredJSONTests(SynchronousTestCase):
         render(app.app.resource(), request)
         self.assertEqual({"routingValue": "quux"}, app.kwargs)
 
-    @validateLogging(_assertRequestLogged(b"/baz/quux"))
+    @validateLogging(_assertRequestLogged(b"/baz/quux", b"POST"))
     def test_mixedArgumentsFromRoute(self, logger):
         """
         If an endpoint's route defines additional arguments for the endpoint

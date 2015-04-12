@@ -18,27 +18,59 @@ from docutils.parsers.rst import Directive
 from docutils import nodes
 from docutils.statemachine import StringList
 
+from flocker import __version__ as version
+
+from flocker.docs import get_installable_version
+from flocker.docs.version_extensions import PLACEHOLDER
+
 from . import _tasks as tasks
-from ._install import Run, Sudo, Comment
+from ._ssh import Run, Sudo, Comment, Put
+from ._effect import dispatcher as base_dispatcher, SequenceFailed
+from effect import (
+    sync_perform, sync_performer,
+    ComposedDispatcher, TypeDispatcher,
+    NoPerformerFoundError,
+)
 
 
-def run(command):
-    return [command.command]
+def run_for_docs(effect):
 
+    commands = []
 
-def sudo(command):
-    return ["sudo %s" % (command.command,)]
+    @sync_performer
+    def run(dispatcher, intent):
+        commands.append(intent.command)
 
+    @sync_performer
+    def sudo(dispatcher, intent):
+        commands.append("sudo %s" % (intent.command,))
 
-def comment(command):
-    return ["# %s" % (command.comment)]
+    @sync_performer
+    def comment(dispatcher, intent):
+        commands.append("# %s" % (intent.comment))
 
+    @sync_performer
+    def put(dispatcher, intent):
+        commands.append([
+            "cat <<EOF > %s" % (intent.path,),
+        ] + intent.content.splitlines() + [
+            "EOF",
+        ])
 
-HANDLERS = {
-    Run: run,
-    Sudo: sudo,
-    Comment: comment,
-}
+    sync_perform(
+        ComposedDispatcher([
+            TypeDispatcher({
+                Run: run,
+                Sudo: sudo,
+                Comment: comment,
+                Put: put,
+            }),
+            base_dispatcher,
+        ]),
+        effect,
+    )
+
+    return commands
 
 
 class TaskDirective(Directive):
@@ -46,6 +78,8 @@ class TaskDirective(Directive):
     Implementation of the C{task} directive.
     """
     required_arguments = 1
+    optional_arguments = 1
+    final_argument_whitespace = True
 
     option_spec = {
         'prompt': str
@@ -54,17 +88,36 @@ class TaskDirective(Directive):
     def run(self):
         task = getattr(tasks, 'task_%s' % (self.arguments[0],))
         prompt = self.options.get('prompt', '$')
+        if len(self.arguments) > 1:
+            # Some tasks can include the latest installable version as (part
+            # of) an argument. This replaces a placeholder with that version.
+            arguments = self.arguments[1].split()
+            latest = get_installable_version(version)
+            task_arguments = [item.replace(PLACEHOLDER, latest).encode("utf-8")
+                              for item in arguments]
+        else:
+            task_arguments = []
 
-        commands = task()
-        lines = ['.. prompt:: bash %s' % (prompt,), '']
+        commands = task(*task_arguments)
+        lines = ['.. prompt:: bash %s,> auto' % (prompt,), '']
 
-        for command in commands:
-            try:
-                handler = HANDLERS[type(command)]
-            except KeyError:
-                raise self.error("task: %s not supported"
-                                 % (type(command).__name__,))
-            lines += ['   %s' % (line,) for line in handler(command)]
+        try:
+            command_lines = run_for_docs(commands)
+        except NoPerformerFoundError as e:
+            raise self.error("task: %s not supported"
+                             % (type(e.args[0]).__name__,))
+        except SequenceFailed as e:
+            print e.error
+
+        for command_line in command_lines:
+            # handler can return either a string or a list.  If it returns a
+            # list, treat the elements after the first as continuation lines.
+            if isinstance(command_line, list):
+                lines.append('   %s %s' % (prompt, command_line[0],))
+                lines.extend(['   > %s' % (line,)
+                              for line in command_line[1:]])
+            else:
+                lines.append('   %s %s' % (prompt, command_line,))
 
         # The following three lines record (some?) of the dependencies of the
         # directive, so automatic regeneration happens.  Specifically, it

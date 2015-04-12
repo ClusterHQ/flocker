@@ -84,17 +84,10 @@ Make sure Homebrew has no issues:
 
 Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
 
-Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
+Add the ``ClusterHQ/tap`` tap to Homebrew and install ``flocker``:
 
-.. version-code-block:: console
-
-   alice@mercury:~$ brew tap ClusterHQ/tap
-   ...
-   alice@mercury:~$ brew install flocker-|latest-installable|
-   ...
-   alice@mercury:~$ brew test flocker-|latest-installable|
-   ...
-   alice@mercury:~$
+.. task:: test_homebrew flocker-|latest-installable|
+   :prompt: alice@mercury:~$
 
 You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
@@ -126,9 +119,10 @@ It is also possible to deploy Flocker in the cloud, on a number of different pro
 - :ref:`Using DigitalOcean <digitalocean-install>`
 - :ref:`Using Rackspace <rackspace-install>`
 
-It is also possible to install Flocker on any Fedora 20 machine.
+It is also possible to install Flocker on any Fedora 20 or CentOS 7 machine.
 
 - :ref:`Installing on Fedora 20 <fedora-20-install>`
+- :ref:`Installing on CentOS 7 <centos-7-install>`
 
 
 .. _vagrant-install:
@@ -223,14 +217,6 @@ Using Amazon Web Services
 
       [fedora@aws]$ sudo shutdown -r now
 
-#. Update the SELinux policies.
-
-   Old SELinux policies stop docker from starting containers.
-
-   .. task:: upgrade_selinux
-      :prompt: [root@aws]#
-
-
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 
@@ -260,21 +246,21 @@ You'll probably want to setup at least two nodes.
 #. Install a supported Linux kernel
 
    Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
-   At the time of writing, the only supported Fedora 20 kernel on DigitalOcean is ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64``.
-   To switch to that kernel, follow these steps:
-
-   #. Upgrade the kernel package inside the virtual machine:
-
-      This specific kernel is no-longer available from the standard Fedora 20 repositories, so we install from the ``kojipkgs`` repository directly.
-
-      .. code-block:: sh
-
-         [root@digitalocean]# yum update https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
+   To switch to the newest kernel, follow these steps:
 
    #. Configure the Droplet to boot with the desired kernel:
 
       * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
-      * Choose the ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64`` kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
+      * Choose the newest kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
+
+        At the time of writing, the latest supported kernel is |digitalocean_kernel_title|.
+
+   #. Upgrade the kernel package inside the virtual machine:
+
+      The selected kernel may no-longer be available from the standard Fedora 20 repositories, so we install from ``koji``.
+
+      .. task:: install_digitalocean_kernel
+         :prompt: [root@digitalocean]#
 
    #. Power Cycle the Droplet
 
@@ -288,12 +274,6 @@ You'll probably want to setup at least two nodes.
 
       * On the "Power" administration page, click "Boot".
 
-   #. SSH back in and check the running kernel
-
-      .. code-block:: sh
-
-         [root@digitalocean]# uname -r
-         3.16.6-203.fc20.x86_64
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
@@ -347,21 +327,52 @@ You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
 Paste them into a root console on the target node:
 
-.. task:: install_flocker
+.. task:: install_flocker fedora-20
    :prompt: [root@node]#
 
-Installing ``clusterhq-flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
+Installing on CentOS 7
+----------------------
+
+Flocker requires the latest available kernel.
+
+.. task:: upgrade_kernel_centos
+
+Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
+Thus we need to reboot into the new kernel.
+
+.. prompt:: bash [root@node]#
+
+   shutdown -r now
+
+Now install the ``flocker-node`` package.
+To install ``flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
+You must also install the ZFS package repository.
+The following commands will install the two repositories and the ``flocker-node`` package.
+Paste them into a root console on the target node:
+
+.. task:: install_flocker centos-7
+   :prompt: [root@node]#
+
+
+.. _centos-7-install:
+
+Post installation configuration for Fedora 20 and CentOS 7
+----------------------------------------------------------
+
+First disable SELinux.
+
+.. task:: disable_selinux
+   :prompt: [root@node]#
+
+.. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
+          This prevents Docker containers from accessing those filesystems as volumes.
+          A future version of Flocker may provide a different integration strategy.
+          See https://clusterhq.atlassian.net/browse/FLOC-619.
+
+Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker
-   :prompt: [root@node]#
-
-To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
-On a typical fedora installation, the firewall is configured by `firewalld <https://fedoraproject.org/wiki/FirewallD>`_.
-(Note: The Fedora AWS images don't have firewalld installed, as there is an external firewall configuration.)
-The following commands will configure firewalld to enable forwarding:
-
-.. task:: disable_firewall
    :prompt: [root@node]#
 
 Flocker requires a ZFS pool named ``flocker``.

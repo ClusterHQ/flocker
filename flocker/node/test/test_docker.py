@@ -4,6 +4,8 @@
 
 from zope.interface.verify import verifyObject
 
+from pyrsistent import pset
+
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
@@ -114,12 +116,18 @@ def make_idockerclient_tests(fixture):
                 Volume(node_path=FilePath(b'/tmp'),
                        container_path=FilePath(b'/var/lib/data')),
             )
+            environment = (
+                (u'CUSTOM_ENV_A', u'a value'),
+                (u'CUSTOM_ENV_B', u'another value'),
+            )
+            environment = Environment(variables=frozenset(environment))
             self.addCleanup(client.remove, name)
             d = client.add(
                 name,
                 image,
                 ports=portmaps,
                 volumes=volumes,
+                environment=environment,
                 mem_limit=100000000,
                 cpu_shares=512,
                 restart_policy=RestartAlways(),
@@ -129,7 +137,7 @@ def make_idockerclient_tests(fixture):
             expected = Unit(
                 name=name, container_name=name, activation_state=u"active",
                 container_image=image, ports=frozenset(portmaps),
-                environment=None, volumes=frozenset(volumes),
+                environment=environment, volumes=frozenset(volumes),
                 mem_limit=100000000, cpu_shares=512,
                 restart_policy=RestartAlways(),
             )
@@ -143,7 +151,7 @@ def make_idockerclient_tests(fixture):
                 # known value simply allows us to compare an entire Unit
                 # object instead of individual properties and is therefore
                 # a convenience measure.
-                result.container_name = name
+                result = result.set("container_name", name)
                 self.assertEqual(result, expected)
             d.addCallback(got_list)
             return d
@@ -279,15 +287,6 @@ class PortMapTests(TestCase):
     https://github.com/hynek/characteristic/issues/4 for a proposed solution to
     this.
     """
-    def test_repr(self):
-        """
-        ``PortMap.__repr__`` shows the internal and external ports.
-        """
-        self.assertEqual(
-            "<PortMap(internal_port=5678, external_port=910)>",
-            repr(PortMap(internal_port=5678, external_port=910))
-        )
-
     def test_equal(self):
         """
         ``PortMap`` instances with the same internal and external ports compare
@@ -317,52 +316,18 @@ class UnitInitTests(
                 container_name=u'flocker--site-example.com',
                 activation_state=u'active',
                 container_image=u'flocker/flocker:v1.0.0',
-                ports=(PortMap(internal_port=80, external_port=8080),),
+                ports=pset((PortMap(internal_port=80, external_port=8080),)),
                 environment=Environment(variables={u'foo': u'bar'}),
                 restart_policy=RestartAlways(),
             ),
             expected_defaults=dict(
-                ports=(), container_image=None, environment=None,
+                ports=pset(), container_image=None, environment=None,
                 restart_policy=RestartNever())
         )
 ):
     """
     Tests for ``Unit.__init__``.
     """
-
-
-class UnitTests(TestCase):
-    """
-    Tests for ``Unit``.
-
-    XXX: The equality tests in this case are incomplete. See
-    https://github.com/hynek/characteristic/issues/4 for a proposed solution to
-    this.
-    """
-    def test_repr(self):
-        """
-        ``Unit.__repr__`` shows the name, activation_state, container_image,
-        and ports.
-        """
-        self.assertEqual(
-            "<Unit(name=u'site-example.com', "
-            "container_name=u'flocker--site-example.com', "
-            "activation_state=u'active', "
-            "container_image=u'flocker/flocker:v1.0.0', ports=[], "
-            "environment=None, "
-            "volumes=[<Volume(node_path=FilePath('/tmp'), "
-            "container_path=FilePath('/blah'))>], "
-            "mem_limit=None, cpu_shares=None, "
-            "restart_policy=<RestartNever()>)>",
-
-            repr(Unit(name=u'site-example.com',
-                      container_name=u'flocker--site-example.com',
-                      activation_state=u'active',
-                      container_image=u'flocker/flocker:v1.0.0',
-                      ports=[], environment=None,
-                      volumes=[Volume(node_path=FilePath(b'/tmp'),
-                                      container_path=FilePath(b'/blah'))])),
-        )
 
 
 class EnvironmentInitTests(
@@ -391,16 +356,6 @@ class EnvironmentTests(TestCase):
         environment = Environment(variables=frozenset(variables.items()))
 
         self.assertEqual(environment.to_dict(), variables)
-
-    def test_repr(self):
-        """
-        ``Environment.__repr__`` shows the id and variables.
-        """
-        self.assertEqual(
-            "<Environment("
-            "variables=frozenset([('foo', 'bar')]))>",
-            repr(Environment(variables=frozenset(dict(foo="bar").items())))
-        )
 
 
 class VolumeInitTests(

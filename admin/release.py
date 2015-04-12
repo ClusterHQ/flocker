@@ -3,21 +3,34 @@
 
 """
 Helper utilities for the Flocker release process.
+
+XXX This script is not automatically checked by buildbot. See
+https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
+import os
 import sys
+import tempfile
+
 from collections import namedtuple
 from effect import (
     Effect, sync_perform, ComposedDispatcher, base_dispatcher)
 from effect.do import do
 from characteristic import attributes
 
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
 
 import flocker
 
-from flocker.docs import get_doc_version, is_release, is_weekly_release
+from flocker.docs import (
+    get_doc_version,
+    is_pre_release,
+    is_release,
+    is_weekly_release,
+)
+from flocker.provision._install import ARCHIVE_BUCKET
 
 from .aws import (
     boto_dispatcher,
@@ -26,13 +39,22 @@ from .aws import (
     ListS3Keys,
     DeleteS3Keys,
     CopyS3Keys,
+    DownloadS3KeyRecursively,
+    UploadToS3Recursively,
     CreateCloudFrontInvalidation,
+
+)
+
+from .yum import (
+    yum_dispatcher,
+    CreateRepo,
+    DownloadPackagesFromRepository,
 )
 
 
 __all__ = ['rpm_version', 'make_rpm_version']
 
-# Use characteristic instead.
+# Use characteristic or pyrsistent instead.
 # https://clusterhq.atlassian.net/browse/FLOC-1223
 rpm_version = namedtuple('rpm_version', 'version release')
 
@@ -102,7 +124,14 @@ class NotTagged(Exception):
 
 class NotARelease(Exception):
     """
-    Raised if trying to publish to a version that isn't a release.
+    Raised if trying to publish documentation to, or packages for a version
+    that isn't a release.
+    """
+
+
+class DocumentationRelease(Exception):
+    """
+    Raised if trying to upload packages for a documentation release.
     """
 
 
@@ -159,20 +188,18 @@ def publish_docs(flocker_version, doc_version, environment):
         published version isn't tagged.
     """
     if not (is_release(doc_version)
-            or is_weekly_release(doc_version)):
-        raise NotARelease
+            or is_weekly_release(doc_version)
+            or is_pre_release(doc_version)):
+        raise NotARelease()
 
     if environment == Environments.PRODUCTION:
         if get_doc_version(flocker_version) != doc_version:
-            raise NotTagged
+            raise NotTagged()
     configuration = DOCUMENTATION_CONFIGURATIONS[environment]
 
     dev_prefix = '%s/' % (flocker_version,)
     version_prefix = 'en/%s/' % (doc_version,)
 
-    # This might be clearer as ``is_weekly_release(doc_version)``,
-    # but it is more important to never publish a non-marketing release as
-    # /latest/, so we key off being a marketing release.
     is_dev = not is_release(doc_version)
     if is_dev:
         stable_prefix = "en/devel/"
@@ -309,6 +336,182 @@ def publish_docs_main(args, base_path, top_level):
                          % (base_path.basename(),))
         raise SystemExit(1)
     except NotTagged:
-        sys.stderr.write("%s: Can't publish non-tagged version to production."
+        sys.stderr.write(
+            "%s: Can't publish non-tagged version to production.\n"
+            % (base_path.basename(),))
+        raise SystemExit(1)
+
+
+class UploadOptions(Options):
+    """
+    Options for uploading packages.
+    """
+    optParameters = [
+        ["flocker-version", None, flocker.__version__,
+         "The version of Flocker to upload packages for."],
+        ["target", None, ARCHIVE_BUCKET,
+         "The bucket to upload packages to."],
+        ["build-server", None,
+         b'http://build.clusterhq.com',
+         "The URL of the build-server."],
+    ]
+
+
+FLOCKER_PACKAGES = [
+    b'clusterhq-python-flocker',
+    b'clusterhq-flocker-cli',
+    b'clusterhq-flocker-node',
+]
+
+
+@do
+def update_repo(rpm_directory, target_bucket, target_key, source_repo,
+                packages, flocker_version, distro_name, distro_version):
+    """
+    Update ``target_bucket`` yum repository with ``packages`` from
+    ``source_repo`` repository.
+
+    :param FilePath rpm_directory: Temporary directory to download
+        repository to.
+    :param bytes target_bucket: S3 bucket to upload repository to.
+    :param bytes target_key: Path within S3 bucket to upload repository to.
+    :param bytes source_repo: Repository on the build server to get packages
+        from.
+    :param list packages: List of bytes, each specifying the name of a package
+        to upload to the repository.
+    :param bytes flocker_version: The version of flocker to upload packages
+        for.
+    :param distro_name: The name of the distribution to upload packages for.
+    :param distro_version: The distro_version of the distribution to upload
+        packages for.
+    """
+    rpm_directory.createDirectory()
+
+    yield Effect(DownloadS3KeyRecursively(
+        source_bucket=target_bucket,
+        source_prefix=target_key,
+        target_path=rpm_directory,
+        filter_extensions=('.rpm',)))
+
+    downloaded_packages = yield Effect(DownloadPackagesFromRepository(
+        source_repo=source_repo,
+        target_path=rpm_directory,
+        packages=packages,
+        flocker_version=flocker_version,
+        distro_name=distro_name,
+        distro_version=distro_version,
+        ))
+
+    new_metadata = yield Effect(CreateRepo(repository_path=rpm_directory))
+
+    yield Effect(UploadToS3Recursively(
+        source_path=rpm_directory,
+        target_bucket=target_bucket,
+        target_key=target_key,
+        files=downloaded_packages | new_metadata,
+        ))
+
+
+@do
+def upload_rpms(scratch_directory, target_bucket, version, build_server):
+    """
+    Upload RPMS from build server to yum repository.
+
+    :param FilePath scratch_directory: Temporary directory to download
+        repository to.
+    :param bytes target_bucket: S3 bucket to upload repository to.
+    :param bytes version: Version to download RPMs for.
+    :param bytes build_server: Server to download new RPMs from.
+    """
+    if not (is_release(version)
+            or is_weekly_release(version)
+            or is_pre_release(version)):
+        raise NotARelease()
+
+    if get_doc_version(version) != version:
+        raise DocumentationRelease()
+
+    is_dev = not is_release(version)
+    if is_dev:
+        target_distro_suffix = "-testing"
+    else:
+        target_distro_suffix = ""
+
+
+    operating_systems = [
+        {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
+        {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
+    ]
+
+    for operating_system in operating_systems:
+        yield update_repo(
+            rpm_directory=scratch_directory.child(
+                b'{}-{}-{}'.format(
+                    operating_system['distro'],
+                    operating_system['version'],
+                    operating_system['arch'])),
+            target_bucket=target_bucket,
+            target_key=os.path.join(
+                operating_system['distro'] + target_distro_suffix,
+                operating_system['version'],
+                operating_system['arch']),
+            source_repo=os.path.join(
+                build_server, b'results/omnibus',
+                version,
+                b'{}-{}'.format(
+                    operating_system['distro'],
+                    operating_system['version'])),
+            packages=FLOCKER_PACKAGES,
+            flocker_version=version,
+            distro_name=operating_system['distro'],
+            distro_version=operating_system['version'],
+        )
+
+
+def publish_rpms_main(args, base_path, top_level):
+    """
+    The ClusterHQ yum repository contains packages for Flocker, as well as the
+    dependencies which aren't available in Fedora 20 or CentOS 7. It is
+    currently hosted on Amazon S3. When doing a release, we want to add the
+    new Flocker packages, while preserving the existing packages in the
+    repository. To do this, we download the current repository, add the new
+    package, update the metadata, and then upload the repository.
+
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    options = UploadOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
+                                     base_dispatcher])
+
+    try:
+        scratch_directory = FilePath(tempfile.mkdtemp(
+            prefix=b'flocker-upload-rpm-'))
+
+        sync_perform(
+            dispatcher=dispatcher,
+            effect=upload_rpms(
+                scratch_directory=scratch_directory,
+                target_bucket=options['target'],
+                version=options['flocker-version'],
+                build_server=options['build-server'],
+                ))
+
+    except NotARelease:
+        sys.stderr.write("%s: Can't upload RPMs for a non-release."
                          % (base_path.basename(),))
         raise SystemExit(1)
+    except DocumentationRelease:
+        sys.stderr.write("%s: Can't upload RPMs for a documentation release."
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    finally:
+        scratch_directory.remove()

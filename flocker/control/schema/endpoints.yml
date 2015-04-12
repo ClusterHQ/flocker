@@ -22,37 +22,127 @@ definitions:
         '$ref': 'types.json#/definitions/container_name'
       image:
         '$ref': 'types.json#/definitions/container_image'
+      ports:
+        '$ref': 'types.json#/definitions/ports'
+      environment:
+        '$ref': 'types.json#/definitions/environment'
+      restart_policy:
+        '$ref': 'types.json#/definitions/restart_policy'
+      volumes:
+        title: Volumes to attach to the container
+        description: |
+          Volumes to attach to the container. Required keys are "dataset_id" and
+          "mountpoint". For now only one volume per container is supported.
+        type: array
+        items:
+          '$ref': 'types.json#/definitions/volume'
+        minItems: 0
+        maxItems: 1
+      cpu_shares:
+        '$ref': 'types.json#/definitions/cpu_shares'
+      memory_limit:
+        '$ref': 'types.json#/definitions/memory_limit'
+      links:
+        '$ref': 'types.json#/definitions/container_links'
     required:
       - host
       - name
       - image
     additionalProperties: false
 
-  configuration_dataset:
-    description: "The configuration for a particular dataset."
+  configuration_containers_array:
+    description: "An array of configuration containers."
+    type: array
+    items: {"$ref": "#/definitions/configuration_container" }
+
+  configuration_container_update:
+    description: "The configuration for a named container."
     type: object
     properties:
-      primary:
-        '$ref': 'types.json#/definitions/primary'
-      dataset_id:
-        '$ref': 'types.json#/definitions/dataset_id'
-      deleted:
-        '$ref': 'types.json#/definitions/deleted'
-      metadata:
-        '$ref': 'types.json#/definitions/metadata'
-      maximum_size:
-        '$ref': 'types.json#/definitions/maximum_size'
+      host:
+        '$ref': 'types.json#/definitions/host'
     required:
-      # Temporarily required until volume backends settle down and we know
-      # more about what it means to not have a primary manifestation.
-      - primary
+      - host
     additionalProperties: false
 
-  # A sequence of datasets
-  configuration_datasets_array:
-    description: "An array of configuration datasets."
+  state_container:
+    type: object
+    properties:
+      host:
+        '$ref': 'types.json#/definitions/host'
+      name:
+        '$ref': 'types.json#/definitions/container_name'
+      image:
+        '$ref': 'types.json#/definitions/container_image'
+      ports:
+        '$ref': 'types.json#/definitions/ports'
+      environment:
+        '$ref': 'types.json#/definitions/environment'
+      restart_policy:
+        '$ref': 'types.json#/definitions/restart_policy'
+      volumes:
+        title: Volumes to attach to the container
+        description: |
+          Volumes to attach to the container. Required keys are "dataset_id" and
+          "mountpoint". For now only one volume per container is supported.
+        type: array
+        items:
+          '$ref': 'types.json#/definitions/volume'
+        minItems: 0
+        maxItems: 1
+      cpu_shares:
+        '$ref': 'types.json#/definitions/cpu_shares'
+      memory_limit:
+        '$ref': 'types.json#/definitions/memory_limit'
+      links:
+        '$ref': 'types.json#/definitions/container_links'
+      running:
+        '$ref': 'types.json#/definitions/running'
+    required:
+      - host
+      - name
+      - image
+      - running
+    additionalProperties: false
+
+  state_containers_array:
+    description: "An array of containers actually present on the cluster."
     type: array
-    items: {"$ref": "#/definitions/configuration_dataset" }
+    items: {"$ref": "#/definitions/state_container" }
+
+  configuration_datasets:
+    description: |
+      The output schema for the create_dataset and update_dataset and
+      delete_dataset endpoints.
+    "$ref": "types.json#/definitions/dataset_configuration"
+
+  configuration_datasets_update:
+    description: |
+      The input schema for the update_dataset endpoint.
+    "$ref": "types.json#/definitions/dataset_configuration"
+
+  configuration_datasets_create:
+    # XXX: The publicapi documentation builder currently fails unless the
+    # schema has a ``type`` attribute and a ``properties`` dictionary.
+    # See: https://clusterhq.atlassian.net/browse/FLOC-1697
+    # XXX: Additionally the validation and publicapi documentation builder
+    # don't provide any way of merging the locally defined attributes
+    # and attributes from a remote reference.
+    # See: https://clusterhq.atlassian.net/browse/FLOC-1698
+    type: object
+    description: |
+      The input schema for the create_dataset endpoint
+    properties: {}
+    allOf:
+      - "$ref": "types.json#/definitions/dataset_configuration"
+      - required:
+          - primary
+
+  configuration_datasets_list:
+    description: |
+      The output schema for the get_dataset_configuration endpoint.
+    type: array
+    items: {"$ref": "types.json#/definitions/dataset_configuration" }
 
   state_datasets_array:
     description: "An array of state datasets."
@@ -68,9 +158,28 @@ definitions:
         maximum_size:
           '$ref': 'types.json#/definitions/maximum_size'
         path:
-          '$ref': 'types.json#/definitions/path'
+          '$ref': 'types.json#/definitions/node_path'
       required:
         - primary
         - dataset_id
         - path
       additionalProperties: false
+
+  configuration_compose:
+    description: "Private endpoint for flocker-deploy."
+    type: object
+    properties:
+      applications:
+        type: object
+        title: Application configuration
+        description: |
+          Application configuration in Flocker or Fig/Compose format.
+      deployment:
+        type: object
+        title: Application location configuration
+        description: |
+          Configuration of application locations within the cluster.
+    required:
+      - applications
+      - deployment
+    additionalProperties: false

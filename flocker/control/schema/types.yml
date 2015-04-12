@@ -19,8 +19,8 @@ definitions:
       guaranteed to exist.
     type: boolean
 
-  path:
-    title: "Mount path"
+  node_path:
+    title: "Node mount path"
     description: |
       The filesystem path where the dataset is mounted on a node.
       Can only be present in cluster state, not in configuration.
@@ -45,12 +45,129 @@ definitions:
     maxProperties: 16
     additionalProperties: false
 
+  memory_limit:
+    title: "Container memory limit"
+    description: "A number specifying the maximum memory in bytes available to this container. Minimum 1048576 (1MB)."
+    type: integer
+    minimum: 1048576
+
+  cpu_shares:
+    title: "Container CPU shares"
+    description: |
+        A number specifying the relative weighting of CPU cycles given to a container.
+        See https://docs.docker.com/reference/run/ for more information.
+    type: integer
+    minimum: 1
+    maximum: 1024
+
+  container_links:
+    title: "Container links"
+    description: |
+        A mapping of links between containers, specifying the local and remote ports.
+        This is implemented by injecting a series of environment variables in to the container that map the alias and local port to the remote port.
+        See https://docs.docker.com/userguide/dockerlinks/#environment-variables for more information on the environment created by container links.
+    type: array
+    minItems: 1
+    items:
+      type: object
+      required:
+        - alias
+        - local_port
+        - remote_port
+      additionalProperties: false
+      properties:
+        local_port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        remote_port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        alias:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]+$"
+    uniqueItems: true
+
+  restart_policy:
+    title: "Container restart policy"
+    type: object
+    description: "Policy for whether or not a container should be restarted after exit."
+    oneOf:
+    - additionalProperties: false
+      properties:
+        maximum_retry_count:
+          minimum: 1
+          type: integer
+        name:
+          enum:
+            - "on-failure"
+          type: string
+      type: object
+      required:
+        - name
+    - additionalProperties: false
+      properties:
+        name:
+          enum:
+            - "never"
+            - "always"
+          type: string
+      type: object
+      required:
+        - name
+
+  ports:
+    title: "Container ports"
+    description: "Mapping of internal to external ports."
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      properties:
+        internal:
+          type: integer
+        external:
+          type: integer
+    uniqueItems: true
+
+  environment:
+    title: "Container environment variables"
+    description: "Mapping of label and value pairs for environment variables"
+    type: object
+    patternProperties:
+      "^.+$":
+        type: string
+
+  volume:
+    title: "A volume attached to a container"
+    description: |
+      A dataset that has been mounted inside a container.
+    type: object
+    properties:
+      dataset_id:
+        '$ref': '#/definitions/dataset_id'
+      mountpoint:
+        '$ref': '#/definitions/volume_path'
+    required:
+      - 'dataset_id'
+      - 'mountpoint'
+    additionalProperties: false
+
+  volume_path:
+    title: "Volume mount path"
+    description: |
+      The filesystem path where a volume is mounted inside a container.
+    type: string
+    pattern: "^\\/.*$"
+
   container_name:
     title: "Container name"
     description: "The name of the container."
     type: string
-    pattern: "[a-zA-Z0-9_-]+"
-    
+    pattern: "^[a-zA-Z0-9_-]+$"
+
   container_image:
     title: "Container image"
     description: |
@@ -83,10 +200,35 @@ definitions:
     description: |
       The upper limit on how much data the dataset will be allowed to
       store, as an integer number of bytes.
-    type: number
+    type:
+      - "number"
+      - "null"
     # 64 MiB.  Sort of an arbitrary limit but inspired by the lower bound
     # on what this can be set to for the ZFS backend.  Could probably be
     # considered more carefully.
     minimum: 67108864
     # This is how you require integers, of course.
     divisibleBy: 1
+
+  running:
+    title: "Running"
+    description: |
+      Whether or not the container is currently running.
+    type: boolean
+
+  dataset_configuration:
+    title: "Dataset Configuration"
+    description: "The configuration for a particular dataset."
+    type: object
+    properties:
+      primary:
+        '$ref': '#/definitions/primary'
+      dataset_id:
+        '$ref': '#/definitions/dataset_id'
+      deleted:
+        '$ref': '#/definitions/deleted'
+      metadata:
+        '$ref': '#/definitions/metadata'
+      maximum_size:
+        '$ref': '#/definitions/maximum_size'
+    additionalProperties: false

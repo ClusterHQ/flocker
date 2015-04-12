@@ -71,6 +71,11 @@ dev_requirements = [
     # The cloud acceptance test runner needs these
     "fabric==1.10.0",
     "apache-libcloud==0.16.0",
+    "digitalocean-python==0.1.5",
+
+    # Packages are downloaded from Buildbot
+    "requests==2.4.3",
+    "requests-file==1.0",
 ]
 
 # The test suite uses network namespaces
@@ -125,6 +130,7 @@ setup(
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
             'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
+            'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
             'flocker = flocker.cli.script:flocker_cli_main',
         ],
@@ -150,7 +156,9 @@ setup(
         "docker-py == 0.7.1",
         "jsonschema == 2.4.0",
         "klein == 0.2.3",
-        "pyrsistent == 0.9.0",
+        "pyrsistent == 0.9.1",
+
+        "effect==0.1a13",
         ],
 
     extras_require={
@@ -176,8 +184,10 @@ setup(
             "PyCrypto",
             "pyasn1",
             "tl.eggdeps",
-            "effect==0.1a13",
             "boto==2.30.0",
+            # Packages are downloaded from Buildbot
+            "requests==2.4.3",
+            "requests-file==1.0",
             ],
         },
 

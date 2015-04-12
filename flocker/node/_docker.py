@@ -15,7 +15,7 @@ from docker import Client
 from docker.errors import APIError
 from docker.utils import create_host_config
 
-from characteristic import attributes, Attribute
+from pyrsistent import field, PRecord
 
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
@@ -23,21 +23,23 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
-from ..control._model import RestartNever, RestartAlways, RestartOnFailure
+from ..control._model import (
+    RestartNever, RestartAlways, RestartOnFailure, pset_field)
 
 
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
 
 
-@attributes(["variables"])
-class Environment(object):
+class Environment(PRecord):
     """
     A collection of environment variables.
 
     :ivar frozenset variables: A ``frozenset`` of tuples containing
         key and value pairs representing the environment variables.
     """
+    variables = field(mandatory=True)
+
     def to_dict(self):
         """
         Convert to a dictionary suitable for serialising to JSON and then on to
@@ -48,8 +50,7 @@ class Environment(object):
         return dict(self.variables)
 
 
-@attributes(["node_path", "container_path"])
-class Volume(object):
+class Volume(PRecord):
     """
     A Docker volume.
 
@@ -59,18 +60,23 @@ class Volume(object):
     :ivar FilePath container_path: The volume's path within the
     container.
     """
+    node_path = field(mandatory=True, type=FilePath)
+    container_path = field(mandatory=True, type=FilePath)
 
 
-@attributes(["name", "container_name", "activation_state",
-             Attribute("container_image", default_value=None),
-             Attribute("ports", default_value=()),
-             Attribute("environment", default_value=None),
-             Attribute("volumes", default_value=()),
-             Attribute("mem_limit", default_value=None),
-             Attribute("cpu_shares", default_value=None),
-             Attribute("restart_policy", default_value=RestartNever()),
-             ])
-class Unit(object):
+class PortMap(PRecord):
+    """
+    A record representing the mapping between a port exposed internally by a
+    docker container and the corresponding external port on the host.
+
+    :ivar int internal_port: The port number exposed by the container.
+    :ivar int external_port: The port number exposed by the host.
+    """
+    internal_port = field(mandatory=True, type=int)
+    external_port = field(mandatory=True, type=int)
+
+
+class Unit(PRecord):
     """
     Information about a unit managed by Docker.
 
@@ -92,7 +98,7 @@ class Unit(object):
     :ivar unicode container_image: The docker image name associated with this
         container.
 
-    :ivar frozenset ports: The ``PortMap`` instances which define how
+    :ivar PSet ports: The ``PortMap`` instances which define how
         connections to ports on the host are routed to ports exposed in
         the container.
 
@@ -100,8 +106,7 @@ class Unit(object):
         will be supplied to the Docker container or ``None`` if there are no
         environment variables for this container.
 
-    :ivar volumes: A ``frozenset`` of ``Volume`` instances, the container's
-        volumes.
+    :ivar PSet volumes: ``Volume`` instances, the container's volumes.
 
     :ivar int mem_limit: The number of bytes to which to limit the in-core
         memory allocations of this unit.  Or ``None`` to apply no limits.  The
@@ -117,6 +122,16 @@ class Unit(object):
 
     :ivar IRestartPolicy restart_policy: The restart policy of the container.
     """
+    name = field(mandatory=True)
+    container_name = field(mandatory=True)
+    activation_state = field(mandatory=True)
+    container_image = field(mandatory=True, initial=None)
+    ports = pset_field(PortMap)
+    environment = field(mandatory=True, initial=None)
+    volumes = pset_field(Volume)
+    mem_limit = field(mandatory=True, initial=None)
+    cpu_shares = field(mandatory=True, initial=None)
+    restart_policy = field(mandatory=True, initial=RestartNever())
 
 
 class IDockerClient(Interface):
@@ -253,17 +268,6 @@ class FakeDockerClient(object):
     def list(self):
         units = set(self._units.values())
         return succeed(units)
-
-
-@attributes(['internal_port', 'external_port'])
-class PortMap(object):
-    """
-    A record representing the mapping between a port exposed internally by a
-    docker container and the corresponding external port on the host.
-
-    :ivar int internal_port: The port number exposed by the container.
-    :ivar int external_port: The port number exposed by the host.
-    """
 
 
 # Basic namespace for Flocker containers:
@@ -554,6 +558,21 @@ class DockerClient(object):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
+                # Retrieve environment variables for this container,
+                # disregarding any environment variables that are part
+                # of the image, rather than supplied in the configuration.
+                image_data = self._client.inspect_image(image)
+                unit_environment = []
+                container_environment = data[u"Config"][u"Env"]
+                image_environment = image_data[u"Config"]["Env"]
+                for environment in container_environment:
+                    if environment not in image_environment:
+                        env_key, env_value = environment.split('=', 1)
+                        unit_environment.append((env_key, env_value))
+                unit_environment = (
+                    Environment(variables=frozenset(unit_environment))
+                    if unit_environment else None
+                )
                 # Our Unit model counts None as the value for cpu_shares and
                 # mem_limit in containers without specified limits, however
                 # Docker returns the values in these cases as zero, so we
@@ -571,6 +590,7 @@ class DockerClient(object):
                     container_image=image,
                     ports=frozenset(ports),
                     volumes=frozenset(volumes),
+                    environment=unit_environment,
                     mem_limit=mem_limit,
                     cpu_shares=cpu_shares,
                     restart_policy=restart_policy)

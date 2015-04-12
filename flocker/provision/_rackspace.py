@@ -6,37 +6,58 @@ Rackspace provisioner.
 
 from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import (
-    provision, run,
-    task_disable_firewall, task_open_control_firewall
+    provision,
+    task_open_control_firewall,
+    task_upgrade_kernel_centos,
 )
+from ._ssh import run_remotely
+
+from ._effect import sequence
+from effect import Func, Effect
 
 
-def provision_rackspace(node, package_source, distribution):
+def provision_rackspace(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
+
+    :param LibcloudNode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param bytes distribution: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
     """
-    commands = (
-        provision(
-            package_source=package_source,
-            distribution=node.distribution,
-        )
-        + task_disable_firewall()
-        + task_open_control_firewall()
-    )
-    run(
+    commands = []
+    if distribution in ('centos-7',):
+        commands.append(run_remotely(
+            username='root',
+            address=node.address,
+            commands=sequence([
+                task_upgrade_kernel_centos(),
+                Effect(Func(node.reboot)),
+            ]),
+        ))
+
+    commands.append(run_remotely(
         username='root',
         address=node.address,
-        commands=commands,
-    )
-    return node.address
+        commands=sequence([
+            provision(
+                package_source=package_source,
+                distribution=node.distribution,
+                variants=variants,
+            ),
+            # https://clusterhq.atlassian.net/browse/FLOC-1550
+            # This should be part of ._install.configure_cluster
+            task_open_control_firewall(),
+        ]),
+    ))
 
-    @property
-    def name(self):
-        return self._node.name
+    return sequence(commands)
 
 
 IMAGE_NAMES = {
     'fedora-20': u'Fedora 20 (Heisenbug) (PVHVM)',
+    'centos-7': u'CentOS 7 (PVHVM)',
 }
 
 

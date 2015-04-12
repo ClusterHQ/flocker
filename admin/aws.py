@@ -4,8 +4,10 @@
 Effectful interface to boto.
 """
 
+import os
 from characteristic import attributes, Attribute
-from effect import sync_performer, TypeDispatcher
+from effect import Effect, sync_performer, TypeDispatcher
+from effect.do import do
 
 import boto
 
@@ -218,7 +220,7 @@ class ListS3Keys(object):
 @sync_performer
 def perform_list_s3_keys(dispatcher, intent):
     """
-    see :class:`ListS3Keys`.
+    See :class:`ListS3Keys`.
     """
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
@@ -226,12 +228,152 @@ def perform_list_s3_keys(dispatcher, intent):
             for key in bucket.list(intent.prefix)}
 
 
+@attributes([
+    "source_bucket",
+    "source_prefix",
+    "target_path",
+    "filter_extensions",
+])
+class DownloadS3KeyRecursively(object):
+    """
+    Download the S3 files from a key in a bucket to a given directory.
+
+    :ivar bytes source_bucket: Name of bucket to download keys from.
+    :ivar bytes source_prefix: Download only files with this prefix.
+    :ivar FilePath target_path: Directory to download files to.
+    :ivar tuple filter_extensions: Download only files with extensions in this
+        tuple.
+    """
+
+
+@sync_performer
+@do
+def perform_download_s3_key_recursively(dispatcher, intent):
+    """
+    See :class:`DownloadS3KeyRecursively`.
+    """
+    keys = yield Effect(
+        ListS3Keys(prefix=intent.source_prefix + '/',
+                   bucket=intent.source_bucket))
+    for key in keys:
+        if not key.endswith(intent.filter_extensions):
+            continue
+        path = intent.target_path.preauthChild(key)
+
+        if not path.parent().exists():
+            path.parent().makedirs()
+        source_key = os.path.join(intent.source_prefix, key)
+        yield Effect(
+            DownloadS3Key(source_bucket=intent.source_bucket,
+                          source_key=source_key,
+                          target_path=path))
+
+
+@attributes([
+    "source_bucket",
+    "source_key",
+    "target_path",
+])
+class DownloadS3Key(object):
+    """
+    Download a file from S3.
+
+    :ivar bytes source_bucket: Name of bucket to download key from.
+    :ivar bytes source_key: Name of key to download.
+    :ivar FilePath target_path: Path to download file to.
+    """
+
+
+@sync_performer
+def perform_download_s3_key(dispatcher, intent):
+    """
+    See :class:`DownloadS3Key`.
+    """
+    s3 = boto.connect_s3()
+
+    bucket = s3.get_bucket(intent.source_bucket)
+    key = bucket.get_key(intent.source_key)
+    with intent.target_path.open('w') as target_file:
+        key.get_contents_to_file(target_file)
+
+
+@attributes([
+    "source_path",
+    "target_bucket",
+    "target_key",
+    "files",
+])
+class UploadToS3Recursively(object):
+    """
+    Upload contents of a directory to S3, for given files.
+
+    Note that this returns a list with the prefixes stripped.
+
+    :ivar FilePath source_path: Prefix of files to be uploaded.
+    :ivar bytes target_bucket: Name of bucket to upload file to.
+    :ivar bytes target_key: Name S3 key to upload file to.
+    :ivar list files: List of bytes, relative paths to files to upload.
+    """
+
+
+@sync_performer
+@do
+def perform_upload_s3_key_recursively(dispatcher, intent):
+    """
+    See :class:`UploadToS3Recursively`.
+    """
+    for file in intent.files:
+        path = intent.source_path.preauthChild(file)
+        if path.isfile():
+            yield Effect(
+                UploadToS3(
+                    source_path=intent.source_path,
+                    target_bucket=intent.target_bucket,
+                    target_key=intent.target_key,
+                    file=path,
+                    ))
+
+
+@attributes([
+    "source_path",
+    "target_bucket",
+    "target_key",
+    "file",
+])
+class UploadToS3(object):
+    """
+    Upload a file to S3.
+
+    :ivar FilePath source_path: See :class:`UploadToS3Recursively`.
+    :ivar bytes target_bucket: See :class:`UploadToS3 Recursively`.
+    :ivar bytes target_key: See :class:`UploadToS3Recursively`.
+    :ivar FilePath file: Path to file to upload.
+    """
+
+
+@sync_performer
+def perform_upload_s3_key(dispatcher, intent):
+    """
+    See :class:`UploadToS3`.
+    """
+    s3 = boto.connect_s3()
+    bucket = s3.get_bucket(intent.target_bucket)
+    with intent.file.open() as source_file:
+        key = bucket.new_key(intent.target_key +
+                             intent.file.path[len(intent.source_path.path):])
+        key.set_contents_from_file(source_file)
+        key.make_public()
+
 boto_dispatcher = TypeDispatcher({
     UpdateS3RoutingRule: perform_update_s3_routing_rule,
     UpdateS3ErrorPage: perform_update_s3_error_page,
     ListS3Keys: perform_list_s3_keys,
     DeleteS3Keys: perform_delete_s3_keys,
     CopyS3Keys: perform_copy_s3_keys,
+    DownloadS3KeyRecursively: perform_download_s3_key_recursively,
+    DownloadS3Key: perform_download_s3_key,
+    UploadToS3Recursively: perform_upload_s3_key_recursively,
+    UploadToS3: perform_upload_s3_key,
     CreateCloudFrontInvalidation: perform_create_cloudfront_invalidation,
 })
 
@@ -308,24 +450,49 @@ class FakeAWS(object):
     @sync_performer
     def _perform_list_s3_keys(self, dispatcher, intent):
         """
-        see :class:`ListS3Keys`.
+        See :class:`ListS3Keys`.
         """
         bucket = self.s3_buckets[intent.bucket]
         return {key[len(intent.prefix):]
                 for key in bucket
                 if key.startswith(intent.prefix)}
 
+    @sync_performer
+    def _perform_download_s3_key(self, dispatcher, intent):
+        """
+        See :class:`DownloadS3Key`.
+        """
+        bucket = self.s3_buckets[intent.source_bucket]
+        intent.target_path.setContent(bucket[intent.source_key])
+
+    @sync_performer
+    def _perform_upload_s3_key(self, dispatcher, intent):
+        """
+        See :class:`UploadToS3`.
+        """
+        bucket = self.s3_buckets[intent.target_bucket]
+        with intent.file.open() as source_file:
+            bucket[intent.target_key + intent.file.path[
+                   len(intent.source_path.path):]] = source_file.read()
+
     def get_dispatcher(self):
         """
         Get an :module:`effect` dispatcher for interacting with this
-        :class:`FaleAWS`.
+        :class:`FakeAWS`.
         """
         return TypeDispatcher({
+            # Share implementation with real implementation
+            DownloadS3KeyRecursively: perform_download_s3_key_recursively,
+            UploadToS3Recursively: perform_upload_s3_key_recursively,
+
+            # Fake implementation
             UpdateS3RoutingRule: self._perform_update_s3_routing_rule,
             UpdateS3ErrorPage: self._perform_update_s3_error_page,
             ListS3Keys: self._perform_list_s3_keys,
             DeleteS3Keys: self._perform_delete_s3_keys,
             CopyS3Keys: self._perform_copy_s3_keys,
+            DownloadS3Key: self._perform_download_s3_key,
+            UploadToS3: self._perform_upload_s3_key,
             CreateCloudFrontInvalidation:
                 self._perform_create_cloudfront_invalidation,
         })
