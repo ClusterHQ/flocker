@@ -172,7 +172,6 @@ def is_pre_release(version):
 
 
 def get_pre_release(version):
-    # TODO tests for this
     """
     Return the number of a pre-release.
 
@@ -190,7 +189,6 @@ def get_pre_release(version):
 
 
 def target_release(version):
-    # TODO tests for this
     """
     Return the target final release for a pre-release.
 

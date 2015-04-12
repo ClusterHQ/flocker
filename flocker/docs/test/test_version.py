@@ -8,9 +8,11 @@ Tests for :module:`flocker.docs.version`.
 from twisted.trial.unittest import SynchronousTestCase
 
 from .._version import (
-    parse_version, FlockerVersion, UnparseableVersion,
-    get_doc_version, get_installable_version, is_pre_release, is_release,
-    is_weekly_release,
+    parse_version, FlockerVersion,
+    get_doc_version, get_installable_version, get_pre_release,
+    is_pre_release, is_release, is_weekly_release,
+    target_release,
+    NotAPreRelease, UnparseableVersion,
 )
 
 
@@ -360,3 +362,43 @@ class IsPreReleaseTests(SynchronousTestCase):
         pre-release.
         """
         self.assertFalse(is_pre_release('0.3.2pre1-dirty'))
+
+
+class GetPreReleaseTests(SynchronousTestCase):
+    """
+    Tests for :function:`get_pre_release`.
+    """
+
+    def test_not_pre_release(self):
+        """
+        If a version which is not a pre-release is passed to
+        ``get_pre_release``, ``NotAPreRelease`` is raised.
+        """
+        self.assertRaises(NotAPreRelease, get_pre_release, '0.3.0')
+
+    def test_pre_release(self):
+        """
+        When a pre-release is passed to ``get_pre_release``, the number of the
+        pre-release is returned.
+        """
+        self.assertEqual(get_pre_release('0.3.2pre3'), 3)
+
+
+class TargetReleaseTests(SynchronousTestCase):
+    """
+    Tests for :function:`target_release`.
+    """
+
+    def test_not_pre_release(self):
+        """
+        If a version which is not a pre-release is passed to
+        ``target_release``, ``NotAPreRelease`` is raised.
+        """
+        self.assertRaises(NotAPreRelease, target_release, '0.3.0')
+
+    def test_pre_release(self):
+        """
+        When a pre-release is passed to ``target_release``, target final
+        release is returned.
+        """
+        self.assertEqual(target_release('0.3.2pre3'), '0.3.2')
