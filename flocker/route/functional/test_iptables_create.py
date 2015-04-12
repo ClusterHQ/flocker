@@ -499,8 +499,6 @@ class DeleteOpenPortTests(TestCase):
         action when the requested port has been opened.
         """
         port = self.network.open_port(self.expected_port)
-
-        # Only interested in logging behavior of delete_proxy here.
         self.patch(self.network, "logger", logger)
         self.network.delete_open_port(port)
 
@@ -515,7 +513,6 @@ class DeleteOpenPortTests(TestCase):
         ``HostNetwork.delete_open_port`` logs a failed ``DELETE_OPEN_PORT``
         action when the requested port has not been opened.
         """
-        # Only interested in logging behavior of delete_proxy here.
         self.patch(self.network, "logger", logger)
         self.assertRaises(
             Exception,
