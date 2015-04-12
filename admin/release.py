@@ -145,6 +145,38 @@ class Environments(Names):
     STAGING = NamedConstant()
 
 
+class TagExists(Exception):
+    """
+    Raised if trying to release a version for which a tag already exists.
+    """
+
+
+class BranchExists(Exception):
+    """
+    Raised if trying to release a version for which a branch already exists.
+    """
+
+
+class BaseBranchDoesNotExist(Exception):
+    """
+    Raised if trying to release a version for which the expected base branch
+    does not exist.
+    """
+
+
+class MissingPreRelease(Exception):
+    """
+    Raised if trying to release a pre-release for which the previous expected
+    pre-release does not exist.
+    """
+
+
+class NoPreRelease(Exception):
+    """
+    Raised if trying to release a marketing release if no pre-release exists.
+    """
+
+
 @attributes([
     'documentation_bucket',
     'cloudfront_cname',
@@ -513,17 +545,17 @@ def publish_rpms_main(args, base_path, top_level):
     finally:
         scratch_directory.remove()
 
+
 def create_release_branch(version, repo_dir=None):
     """
     checkout a new Git branch to make changes on and later tag as a release.
     This branch is created from a different branch which depends on the release
     type and sometimes which pre-releases have preceeded this.
     """
-    # requires gitpython, is this available?
-    # TODO test with fake git repo
+    # pip install gitpython==1.0.0
     # TODO flake8
-    # TODO wrapper for this with options
-    # TODO param docs
+    # TODO wrapper for this with options, handles each exception
+    # TODO param docs - none is default, here
     # TODO separate get_base_branch and create branch
 
     if not (is_release(version)
@@ -532,44 +564,58 @@ def create_release_branch(version, repo_dir=None):
         raise NotARelease()
 
     repo = Repo(repo_dir)
-    # TODO raise exception if proposed branch already exists
+
+    existing_tags = [tag for tag in repo.tags if tag.name == version]
+    if existing_tags:
+        raise TagExists()
+
+    release_branch_prefix = 'release/flocker-'
+    existing_branches = [
+        branch for branch in repo.branches if
+        branch.name == release_branch_prefix + version]
+    if existing_branches:
+        raise BranchExists()
 
     if is_weekly_release(version):
         base_branch_name = 'master'
     elif is_pre_release(version) and get_pre_release(version) == 1:
         base_branch_name = 'master'
     elif get_doc_version(version) != version:
-        base_branch_name = 'release/flocker-' + get_doc_version(version)
+        base_branch_name = release_branch_prefix + get_doc_version(version)
     else:
+        if is_pre_release(version):
+            target_version = target_release(version)
+        else:
+            target_version = version
+
         pre_releases = [
             tag.name for tag in repo.tags if
             is_pre_release(tag.name) and
-            target_release(version) == target_release(tag.name)]
+            target_version == target_release(tag.name)]
 
-        import pdb; pdb.set_trace()
         if not pre_releases:
-            # TODO custom exception
-            raise Exception("No pre releases")
+            raise NoPreRelease()
 
         latest_pre_release = sorted(
             pre_releases,
             key=lambda pre_release: get_pre_release(pre_release))[-1]
 
-        if is_pre_release(version) and get_pre_release(version) > get_pre_release(latest_pre_release) + 1:
-            # TODO raise MissingPreRelease()
-            raise Exception("Missing pre release")
+        if (is_pre_release(version) and
+            get_pre_release(version) > get_pre_release(latest_pre_release) + 1):
+            raise MissingPreRelease()
 
-        base_branch_name = 'release/flocker-' + latest_pre_release
+        base_branch_name = release_branch_prefix + latest_pre_release
 
     # We create a new branch from a branch, not a tag, because a maintenance
     # or documentation change may have been applied to the branch and not the
     # tag.
     try:
-        base_branch = [branch for branch in repo.branches if branch.name == base_branch_name][0]
+        base_branch = [
+            branch for branch in repo.branches if
+            branch.name == base_branch_name][0]
     except IndexError:
-        # TODO custom exception
-        raise Exception("Base branch %s does not exist, maybe it was deleted", base_branch_name)
+        raise BaseBranchDoesNotExist()
 
-    base_branch.checkout(b="release/flocker-" + version)
+    base_branch.checkout(b=release_branch_prefix + version)
     # TODO branch.set_tracking_branch?
     return base_branch
