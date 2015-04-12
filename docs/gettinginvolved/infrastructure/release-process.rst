@@ -263,7 +263,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      admin/publish-docs --doc-version ${VERSION}
+      ~/flocker-${VERSION}/admin/publish-docs --doc-version ${VERSION}
 
 #. Make a pull request on GitHub:
 
