@@ -600,8 +600,8 @@ def create_release_branch(version, repo_dir=None):
             pre_releases,
             key=lambda pre_release: get_pre_release(pre_release))[-1]
 
-        if (is_pre_release(version) and
-            get_pre_release(version) > get_pre_release(latest_pre_release) + 1):
+        if (is_pre_release(version) and get_pre_release(version) >
+                get_pre_release(latest_pre_release) + 1):
             raise MissingPreRelease()
 
         base_branch_name = release_branch_prefix + latest_pre_release
