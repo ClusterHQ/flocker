@@ -653,16 +653,9 @@ def create_release_branch_main(args, base_path, top_level):
 
 def create_artifacts(version):
     """
-    Skip this step for a maintenance or documentation release.
-    # Build Python packages and upload them to ``archive.clusterhq.com``
-    python setup.py sdist bdist_wheel
-    gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
-    # Build RPM packages and upload them to Amazon S3
-    admin/publish-packages
-    # Copy the tutorial box to the final location
-    gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+    TODO docstring
     """
-    # TODO add comments
+
     if not (is_release(version)
             or is_weekly_release(version)
             or is_pre_release(version)):
@@ -670,7 +663,7 @@ def create_artifacts(version):
 
     if get_doc_version(version) != version:
         # TODO when this is raised, exit with a friendly error message.
-        # we want Buildbot to run into this.
+        # we want Buildbot to run into this and not fail.
         raise DocumentationRelease()
 
     import pip
@@ -678,13 +671,14 @@ def create_artifacts(version):
     from subprocess import check_call
     from _preamble import TOPLEVEL, BASEPATH
 
-    # TODO Tests can check reverted version in cleanup
-    # TODO < 8, latest version setuptools which works
-    # TODO link to PEP 440
-    # TODO or revert this in a "finally" clause
+    # TODO Tests can check reverted version
     try:
+        # TODO < 8, latest version setuptools which works
+        # XXX This should not be necessary, see
+        # https://clusterhq.atlassian.net/browse/FLOC-1331.
         pip.main(['install', 'setuptools==3.6'])
         check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
+        # Upload python packages to ``archive.clusterhq.com``
         check_call([
             'gsutil', 'cp', '-a', 'public-read',
             'dist/Flocker-%s.tar.gz' % version,
@@ -692,7 +686,9 @@ def create_artifacts(version):
             'gs://archive.clusterhq.com/downloads/flocker/',
         ])
         # TODO get rid of this wrapper?
+        # Build RPM packages and upload them to Amazon S3
         publish_rpms_main(args=[], top_level=TOPLEVEL, base_path=BASEPATH)
+        # Copy the tutorial box to the final location on GCS
         check_call([
             'gsutil', 'cp', '-a', 'public-read',
             'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
