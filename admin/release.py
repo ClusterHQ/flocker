@@ -624,9 +624,11 @@ def create_release_branch_main(args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    options = CreateReleaseBranchOptions()
+    # TODO create Options class
+    # options = CreateReleaseBranchOptions()
 
     try:
+        # TODO use options
         create_release_branch(version='version', path=None)
     except NotARelease:
         sys.stderr.write("%s: Can't create a release branch for non-release.\n"
@@ -648,3 +650,24 @@ def create_release_branch_main(args, base_path, top_level):
         sys.stderr.write("%s: The release branch already exists.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
+
+def create_artifacts():
+    """
+    Skip this step for a maintenance or documentation release.
+    # Build Python packages and upload them to ``archive.clusterhq.com``
+    python setup.py sdist bdist_wheel
+    gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
+    # Build RPM packages and upload them to Amazon S3
+    admin/publish-packages
+    # Copy the tutorial box to the final location
+    gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+    """
+    if not (is_release(version)
+            or is_weekly_release(version)
+            or is_pre_release(version)):
+        raise NotARelease()
+
+    if get_doc_version(version) != version:
+        raise DocumentationRelease()
+
+    

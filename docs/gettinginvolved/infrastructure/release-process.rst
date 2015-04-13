@@ -326,6 +326,7 @@ Release
    Wait for the build to complete successfully.
 
 #. Build and upload artifacts:
+   # TODO remove this once it is automated.
 
    .. note:: Skip this step for a maintenance or documentation release.
 
