@@ -1480,7 +1480,8 @@ class CreateReleaseBranchTests(TestCase):
 
     def test_active_branch(self):
         """
-        Creating a release branch changes the active branch to that branch.
+        Creating a release branch changes the active branch on the specified
+        repository to that branch.
         """
         self.repo.create_head('release/flocker-0.3.0pre1')
         self.repo.create_tag('0.3.0pre1')
@@ -1567,3 +1568,32 @@ class CreateReleaseBranchTests(TestCase):
             BranchExists,
             self.create_release_branch, '0.3.0'
         )
+
+
+class CreateArtifactsTests(TestCase):
+    """
+    Tests for :func:``create_artifacts``.
+    """
+    # TODO test this
+    def test_setuptools_version_remains_same(self):
+        """
+        When :func:``create_artifacts`` finishes the version of ``setuptools``
+        installed before it was run is still installed.
+        """
+
+    def test_setuptools_version_remains_same_after_error(self):
+        """
+        When :func:``create_artifacts`` finishes the version of ``setuptools``
+        installed before it was run is still installed, even if there is an
+        error while running the function.
+        """
+
+    def test_python_packages_uploaded(self):
+        """
+        Source and binary distributions are uploaded to S3.
+        """
+
+    def test_tutorial_box_uploaded(self):
+        """
+        The tutorial box is uploaded to S3.
+        """

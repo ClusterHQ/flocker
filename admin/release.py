@@ -630,6 +630,7 @@ def create_release_branch_main(args, base_path, top_level):
 
     try:
         # TODO use options
+        # TODO this shouldn't be "None" but instead the path of the file
         create_release_branch(version='version', path=None)
     except NotARelease:
         sys.stderr.write("%s: Can't create a release branch for non-release.\n"
@@ -651,6 +652,7 @@ def create_release_branch_main(args, base_path, top_level):
         sys.stderr.write("%s: The release branch already exists.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
+
 
 def create_artifacts(version):
     """
