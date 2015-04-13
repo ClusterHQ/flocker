@@ -10,6 +10,8 @@ from pyrsistent import pmap
 
 from twisted.trial.unittest import TestCase
 
+from ..control.httpapi import container_configuration_response
+
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
                         MONGO_APPLICATION, MONGO_IMAGE, get_mongo_application,
                         require_flocker_cli, require_mongo, create_application,
@@ -78,7 +80,10 @@ class DeploymentTests(TestCase):
 
             def got_state(result):
                 cluster, state = result
-                self.assertEqual(application, state[MONGO_APPLICATION])
+                self.assertEqual(
+                    container_configuration_response(application, node_1),
+                    state[MONGO_APPLICATION]
+                )
 
                 # now we've verified the initial deployment has succeeded
                 # with the expected result, we will redeploy the same
