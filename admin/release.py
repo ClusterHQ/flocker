@@ -655,6 +655,9 @@ def create_artifacts(version):
     """
     TODO docstring
     """
+    # TODO test this
+    # TODO create wrapper so this can be run from shell
+    # TODO run this from Buildbot
 
     if not (is_release(version)
             or is_weekly_release(version)
@@ -669,6 +672,7 @@ def create_artifacts(version):
     import pip
     from setuptools import __version__ as initial_setuptools
     from subprocess import check_call
+    # TODO instead of this, just pass them on
     from _preamble import TOPLEVEL, BASEPATH
 
     # TODO Tests can check reverted version
