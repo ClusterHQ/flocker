@@ -123,9 +123,16 @@ def get_node_state(cluster, hostname):
     """
     d = cluster.current_containers()
     d.addCallback(
-        lambda result: (cluster, {app.name: app for app in result[1]
-                                  if app[u"hostname"] == hostname}))
+        lambda result: (cluster, {app["name"]: app for app in result[1]
+                                  if app[u"host"] == hostname}))
     return d
+
+
+class SSHCommandFailed(Exception):
+    """
+    Exception raised when a command executed via SSH exits with error
+    status code.
+    """
 
 
 def run_SSH(port, user, node, command, input, key=None,
@@ -177,7 +184,7 @@ def run_SSH(port, user, node, command, input, key=None,
 
     result = process.communicate(input)
     if process.returncode != 0:
-        raise Exception('Command Failed', command, process.returncode)
+        raise SSHCommandFailed('Command Failed', command, process.returncode)
 
     return result[0]
 
@@ -202,8 +209,11 @@ def _clean_node(test_case, node):
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
     # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
-    run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
-            [b"flocker"], None)
+    try:
+        run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
+                [b"flocker"], None)
+    except SSHCommandFailed:
+        pass
 
 
 def get_nodes(test_case, num_nodes):
