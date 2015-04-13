@@ -117,11 +117,11 @@ Preparing For a Release
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
-            .. prompt:: bash [vagrant@localhost]$
+      .. prompt:: bash [vagrant@localhost]$
 
-                # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
-                export OLD_VERSION=0.3.0
-                git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+          # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
+          export OLD_VERSION=0.3.0
+          git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
    .. prompt:: bash [vagrant@localhost]$
 
