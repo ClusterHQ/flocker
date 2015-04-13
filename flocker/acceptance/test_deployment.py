@@ -107,7 +107,10 @@ class DeploymentTests(TestCase):
                     # now we verify that the second deployment has moved the
                     # app and flocker-reportstate on the new host gives the
                     # expected maximum size for the deployed app's volume
-                    self.assertEqual(application, state[MONGO_APPLICATION])
+                    self.assertEqual(
+                        container_configuration_response(application, node_2),
+                        state[MONGO_APPLICATION]
+                    )
                 d.addCallback(got_state2)
                 return d
             d.addCallback(got_state)
@@ -169,14 +172,19 @@ class DeploymentTests(TestCase):
 
             def got_state(result):
                 cluster, state = result
-                self.assertEqual(application, state[MONGO_APPLICATION])
+                self.assertEqual(
+                    container_configuration_response(application, node_1),
+                    state[MONGO_APPLICATION]
+                )
                 config_deployment[u"nodes"][node_2] = [MONGO_APPLICATION]
                 config_deployment[u"nodes"][node_1] = []
                 flocker_deploy(self, config_deployment, config_application)
                 return get_node_state(cluster, node_2)
             d.addCallback(got_state)
             d.addCallback(lambda result: self.assertEqual(
-                application, result[1][MONGO_APPLICATION]))
+                container_configuration_response(application, node_2),
+                result[1][MONGO_APPLICATION]
+            ))
             return d
 
         nodes.addCallback(deploy_with_quotas)
