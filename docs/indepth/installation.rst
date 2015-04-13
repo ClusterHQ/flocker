@@ -175,7 +175,7 @@ Using Amazon Web Services
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
-   .. prompt:: bash laptop$
+   .. prompt:: bash alice@mercury:~$
 
       mv ~/Downloads/my-instance.pem ~/.ssh/
       chmod 600 ~/.ssh/my-instance.pem
@@ -183,18 +183,18 @@ Using Amazon Web Services
 
 #. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user "fedora", "centos", or "ubuntu" e.g.:
 
-   .. prompt:: bash laptop$
+   .. prompt:: bash alice@mercury:~$
 
       ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 #. Allow SSH access for the ``root`` user, then log out.
 
    .. task:: install_ssh_key
-      :prompt: [aws]$
+      :prompt: [user@aws]$
 
 #. Log back into the instances as user "root", e.g.:
 
-   .. prompt:: bash laptop$
+   .. prompt:: bash alice@mercury:~$
 
       ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
@@ -206,12 +206,12 @@ Using Amazon Web Services
    On Fedora, run:
 
    .. task:: upgrade_kernel fedora-20
-      :prompt: [root@fedora]#
+      :prompt: [root@aws]#
 
    On CentOS, run:
 
    .. task:: upgrade_kernel centos-7
-      :prompt: [root@centos]#
+      :prompt: [root@aws]#
 
    Reboot the machine to make use of the new kernel.
 
@@ -241,7 +241,7 @@ You'll probably want to setup at least two nodes.
 
    You can find the IP in the Droplet page after it is created, to the left of the green "Active" text near the top.
 
-   .. prompt:: bash laptop$
+   .. prompt:: bash alice@mercury:~$
 
       ssh root@203.0.113.109
 
@@ -300,7 +300,7 @@ You'll probably want to setup at least two nodes.
 
    You can find the IP in the Server Details page after it is created.
 
-   .. prompt:: bash laptop$
+   .. prompt:: bash alice@mercury:~$
 
       ssh root@203.0.113.109
 
@@ -349,7 +349,7 @@ Installing on CentOS 7
 First disable SELinux.
 
 .. task:: disable_selinux
-   :prompt: [root@node]#
+   :prompt: [root@centos]#
 
 .. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
           This prevents Docker containers from accessing those filesystems as volumes.
@@ -385,8 +385,6 @@ Installing on Ubuntu 14.04
    * sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys
    * ssh root@... for each of the node IPs
    * This is similar to following the AWS instructions above but ignoring the "Upgrade the Kernel" step which is different on Ubuntu and SELinux can be ignored I think
-
-.. XXX Maybe say that it needs at least 3.16.4 instead of "latest available", but maybe not, if this is best consistent with CentOS (or change that too?)
 
 Flocker requires recent versions of ZFS and Docker.
 
