@@ -192,6 +192,7 @@ class DeploymentTests(TestCase):
 
             def got_state(result):
                 cluster, state = result
+                state[MONGO_APPLICATION].pop("running")
                 self.assertEqual(
                     container_configuration_response(application, node_1),
                     state[MONGO_APPLICATION]
@@ -201,10 +202,15 @@ class DeploymentTests(TestCase):
                 flocker_deploy(self, config_deployment, config_application)
                 return get_node_state(cluster, node_2)
             d.addCallback(got_state)
-            d.addCallback(lambda result: self.assertEqual(
-                container_configuration_response(application, node_2),
-                result[1][MONGO_APPLICATION]
-            ))
+
+            def got_second_state(result):
+                _, state = result
+                state[MONGO_APPLICATION].pop("running")
+                self.assertEqual(
+                    container_configuration_response(application, node_2),
+                    state[MONGO_APPLICATION]
+                )
+            d.addCallback(got_second_state)
             return d
 
         nodes.addCallback(deploy_with_quotas)
