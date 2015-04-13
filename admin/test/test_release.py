@@ -1560,6 +1560,8 @@ class CreateReleaseBranchTests(TestCase):
         Trying to create a release when a branch already exists for the given
         version fails.
         """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
         self.repo.create_head('release/flocker-0.3.0')
         self.assertRaises(
             BranchExists,
