@@ -3,6 +3,7 @@
 """
 Testing utilities for ``flocker.acceptance``.
 """
+from functools import wraps
 from json import dumps
 from os import environ
 from pipes import quote as shell_quote
@@ -636,6 +637,59 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    def wait_for_container(self, container_properties):
+        """
+        Poll the container state API until a container with all the supplied
+        ``container_properties``.
+
+        :param dict container_properties: The attributes of the dataset that
+            we're waiting for. All the keys, values and those of nested
+            dictionaries must match.
+        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
+            API response when a container with the supplied properties appears
+            in the cluster.
+        """
+        def created():
+            """
+            Check the container state list for the expected container
+            properties.
+            """
+            request = self.current_containers()
+
+            def got_response(result):
+                cluster, containers = result
+                expected_container = container_properties.copy()
+                for container in containers:
+                    if dict_is_subset(superset=container, subset=expected_container):
+                        # Return cluster and container state
+                        return self, container
+                return False
+            request.addCallback(got_response)
+            return request
+
+        return loop_until(created)
+
+
+def dict_is_subset(superset, subset):
+    """
+    :param dict superset: The dictionary containing the superset.
+    :param dict subset: The dictionary containing the subset.
+    :return: ``True`` if the keys and values of ``subset`` (and all its nested
+        ``dict`` values) are present in ``superset`` else ``False``
+    """
+    if type(superset) is not dict:
+        return False
+    for key, value in subset.items():
+        if key not in superset.keys():
+            return False
+        if type(value) is dict:
+            if not dict_is_subset(superset[key], value):
+                return False
+        else:
+            if superset[key] != value:
+                return False
+    return True
+
 
 def get_test_cluster(node_count=0):
     """
@@ -671,3 +725,39 @@ def get_test_cluster(node_count=0):
         control_node=Node(address=control_node),
         nodes=map(lambda address: Node(address=address), agent_nodes),
     ))
+
+
+def require_cluster(num_nodes):
+    """
+    A decorator which will call the supplied test_method when a cluster with
+    the required number of nodes is available.
+
+    :param int num_nodes: The number of nodes that are required in the cluster.
+    """
+    def decorator(test_method):
+        """
+        :param test_method: The test method that will be called when the
+            cluster is available and which will be supplied with the
+            ``cluster``keyword argument.
+        """
+        def call_test_method_with_cluster(cluster, test_case, args, kwargs):
+            kwargs['cluster'] = cluster
+            return test_method(test_case, *args, **kwargs)
+
+        @wraps(test_method)
+        def wrapper(test_case, *args, **kwargs):
+            # get_nodes will check that the required number of nodes are
+            # reachable and clean them up prior to the test.
+            # The nodes must already have been started and their flocker
+            # services started.
+            waiting_for_nodes = get_nodes(test_case, num_nodes)
+            waiting_for_cluster = waiting_for_nodes.addCallback(
+                lambda nodes: get_test_cluster(node_count=num_nodes)
+            )
+            calling_test_method = waiting_for_cluster.addCallback(
+                call_test_method_with_cluster,
+                test_case, args, kwargs
+            )
+            return calling_test_method
+        return wrapper
+    return decorator
