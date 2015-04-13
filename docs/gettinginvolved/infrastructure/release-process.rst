@@ -313,6 +313,8 @@ Release
    .. prompt:: bash [vagrant@localhost]$
 
       cd flocker-${VERSION}
+      # TODO remove this workon when the artifacts section is removed
+      workon flocker-release-${VERSION}
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
@@ -424,6 +426,7 @@ Release
    .. prompt:: bash [vagrant@localhost]$
 
       cd ~/flocker-${VERSION}
+      workon flocker-release-${VERSION}
       admin/publish-docs --production
 
 #. If the release is a marketing release, merge the new ``vagrant-flocker`` branch.
