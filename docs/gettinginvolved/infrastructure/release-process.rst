@@ -368,7 +368,7 @@ Release
         cd
         git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
         cd homebrew-tap-${VERSION}
-        ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
+        wget --output-document=flocker-${VERSION}.rb http://build.clusterhq.com/results/homebrew/${VERSION}/${VERSION}/Flocker${VERSION}.rb
         git add flocker-${VERSION}.rb
         git commit -m "New Homebrew recipe"
         git push
