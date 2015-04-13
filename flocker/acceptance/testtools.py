@@ -660,9 +660,11 @@ class Cluster(PRecord):
                 cluster, containers = result
                 expected_container = container_properties.copy()
                 for container in containers:
-                    if dict_is_subset(
-                        superset=container, subset=expected_container
-                    ):
+                    container_items = container.items()
+                    if all([
+                        item in container_items
+                        for item in expected_container.items()
+                    ]):
                         # Return cluster and container state
                         return self, container
                 return False
@@ -670,27 +672,6 @@ class Cluster(PRecord):
             return request
 
         return loop_until(created)
-
-
-def dict_is_subset(superset, subset):
-    """
-    :param dict superset: The dictionary containing the superset.
-    :param dict subset: The dictionary containing the subset.
-    :return: ``True`` if the keys and values of ``subset`` (and all its nested
-        ``dict`` values) are present in ``superset`` else ``False``
-    """
-    if type(superset) is not dict:
-        return False
-    for key, value in subset.items():
-        if key not in superset.keys():
-            return False
-        if type(value) is dict:
-            if not dict_is_subset(superset[key], value):
-                return False
-        else:
-            if superset[key] != value:
-                return False
-    return True
 
 
 def get_test_cluster(node_count=0):
