@@ -164,14 +164,18 @@ def task_install_digitalocean_kernel():
 
 
 def task_install_requirements(distribution):
+    """
+    Install the pre-requisites for ClusterHQ node.
+    """
     if distribution == 'ubuntu-14.04':
         return sequence([
-            # Add ZFS repo for recent ZFS versions - XXX no minimum
-            # version documented
+            # Ensure add-apt-repository command is available
+            run_from_args([
+                "apt-get", "-y", "install", "software-properties-common"]),
+            # ZFS not available in base Ubuntu - add ZFS repo
             run_from_args([
                 "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
-            # Add Docker repo for recent Docker versions - XXX no
-            # minimum version documented
+            # Add Docker repo for recent Docker versions
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
@@ -181,20 +185,6 @@ def task_install_requirements(distribution):
             # Update to read package info from new repos
             run_from_args([
                 "apt-get", "update"]),
-            # Not clear that an upgrade is required at this point, so
-            # leave it out.
-            # XXX This brings up a prompt about upgrading grub,
-            # somehow work around that, see
-            # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade
-            # run_from_args([
-                # "apt-get", "-y", "upgrade"]),
-            # Package spl-dkms must be installed as a separate step
-            # before installing zfs-dkms
-            run_from_args([
-                "apt-get", "-y", "install", "spl-dkms"]),
-            run_from_args([
-                "apt-get", "-y", "install", "zfs-dkms", "zfsutils",
-                "docker.io"]),
         ])
 
 
