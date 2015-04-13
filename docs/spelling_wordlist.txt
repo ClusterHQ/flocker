@@ -61,6 +61,7 @@ proxying
 Rackspace
 Redis
 redis
+resize
 snapshotting
 stateful
 sysadmin

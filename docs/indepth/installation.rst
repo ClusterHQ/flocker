@@ -219,14 +219,6 @@ Using Amazon Web Services
 
          shutdown -r now
 
-#. Update the SELinux policies.
-
-   Old SELinux policies stop docker from starting containers.
-
-   .. task:: upgrade_selinux
-      :prompt: [root@aws]#
-
-
 #. Follow the operating system specific installation instructions below.
 
 
@@ -353,6 +345,16 @@ Installing on CentOS 7
 ----------------------
 
 .. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
+
+First disable SELinux.
+
+.. task:: disable_selinux
+   :prompt: [root@node]#
+
+.. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
+          This prevents Docker containers from accessing those filesystems as volumes.
+          A future version of Flocker may provide a different integration strategy.
+          See https://clusterhq.atlassian.net/browse/FLOC-619.
 
 Now install the ``flocker-node`` package.
 To install ``flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
