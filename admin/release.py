@@ -651,7 +651,7 @@ def create_release_branch_main(args, base_path, top_level):
                          % (base_path.basename(),))
         raise SystemExit(1)
 
-def create_artifacts():
+def create_artifacts(version):
     """
     Skip this step for a maintenance or documentation release.
     # Build Python packages and upload them to ``archive.clusterhq.com``
@@ -662,12 +662,41 @@ def create_artifacts():
     # Copy the tutorial box to the final location
     gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
     """
+    # TODO add comments
     if not (is_release(version)
             or is_weekly_release(version)
             or is_pre_release(version)):
         raise NotARelease()
 
     if get_doc_version(version) != version:
+        # TODO when this is raised, exit with a friendly error message.
+        # we want Buildbot to run into this.
         raise DocumentationRelease()
 
-    
+    import pip
+    from setuptools import __version__ as initial_setuptools
+    from subprocess import check_call
+    from _preamble import TOPLEVEL, BASEPATH
+
+    # TODO Tests can check reverted version in cleanup
+    # TODO < 8, latest version setuptools which works
+    # TODO link to PEP 440
+    # TODO or revert this in a "finally" clause
+    try:
+        pip.main(['install', 'setuptools==3.6'])
+        check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
+        check_call([
+            'gsutil', 'cp', '-a', 'public-read',
+            'dist/Flocker-%s.tar.gz' % version,
+            'dist/Flocker-%s-py2-none-any.whl' % version,
+            'gs://archive.clusterhq.com/downloads/flocker/',
+        ])
+        # TODO get rid of this wrapper?
+        publish_rpms_main(args=[], top_level=TOPLEVEL, base_path=BASEPATH)
+        check_call([
+            'gsutil', 'cp', '-a', 'public-read',
+            'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
+            'gs://clusterhq-vagrant/flocker-tutorial-%s.box' % version,
+        ])
+    finally:
+        pip.main(['install', 'setuptools==' + initial_setuptools])
