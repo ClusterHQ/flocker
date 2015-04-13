@@ -639,10 +639,10 @@ class Cluster(PRecord):
 
     def wait_for_container(self, container_properties):
         """
-        Poll the container state API until a container with all the supplied
-        ``container_properties``.
+        Poll the container state API until a container exists with all the
+        supplied ``container_properties``.
 
-        :param dict container_properties: The attributes of the dataset that
+        :param dict container_properties: The attributes of the container that
             we're waiting for. All the keys, values and those of nested
             dictionaries must match.
         :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
@@ -660,7 +660,9 @@ class Cluster(PRecord):
                 cluster, containers = result
                 expected_container = container_properties.copy()
                 for container in containers:
-                    if dict_is_subset(superset=container, subset=expected_container):
+                    if dict_is_subset(
+                        superset=container, subset=expected_container
+                    ):
                         # Return cluster and container state
                         return self, container
                 return False

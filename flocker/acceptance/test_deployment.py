@@ -20,12 +20,18 @@ from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
 
 SIZE_100_MB = u"104857600"
 
+
 def api_configuration_to_flocker_deploy_configuration(api_configuration):
+    """
+    Convert a dictionary in a format matching the JSON returned by the HTTP
+    API to a dictionary in a format matching that used as the value of
+    a single application entry in a parsed Flocker configuration.
+    """
     deploy_configuration = {
         # Omit the host key when generating the flocker-deploy
         # compatible configuration dictionary
         k: v
-        for k,v
+        for k, v
         in api_configuration.items()
         if k not in ('host', 'name', 'volumes')
     }
@@ -77,7 +83,10 @@ class DeploymentTests(TestCase):
         config_application_1 = {
             u"version": 1,
             u"applications": {
-                MONGO_APPLICATION: api_configuration_to_flocker_deploy_configuration(expected_container_1)
+                MONGO_APPLICATION:
+                    api_configuration_to_flocker_deploy_configuration(
+                        expected_container_1
+                    )
             }
         }
 
@@ -105,7 +114,10 @@ class DeploymentTests(TestCase):
         config_application_2 = {
             u"version": 1,
             u"applications": {
-                MONGO_APPLICATION: api_configuration_to_flocker_deploy_configuration(expected_container_2)
+                MONGO_APPLICATION:
+                    api_configuration_to_flocker_deploy_configuration(
+                        expected_container_2
+                    )
             }
         }
 
@@ -122,7 +134,8 @@ class DeploymentTests(TestCase):
 
         # Wait for the agent on node1 to create a container with the expected
         # properties.
-        waiting_for_container_1 = cluster.wait_for_container(expected_container_1)
+        waiting_for_container_1 = cluster.wait_for_container(
+            expected_container_1)
 
         def got_container_1(result):
             cluster, actual_container = result
@@ -131,7 +144,8 @@ class DeploymentTests(TestCase):
             flocker_deploy(self, config_deployment_2, config_application_2)
             return cluster.wait_for_container(expected_container_2)
 
-        waiting_for_container_2 = waiting_for_container_1.addCallback(got_container_1)
+        waiting_for_container_2 = waiting_for_container_1.addCallback(
+            got_container_1)
 
         def got_container_2(result):
             cluster, actual_container = result
