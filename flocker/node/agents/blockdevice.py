@@ -1074,7 +1074,13 @@ class BlockDeviceDeployer(PRecord):
         )
 
         deletes = self._calculate_deletes(configured_manifestations)
-#        resizes = self._calculate_resizes(configured_manifestations)
+        # Also supply the local_state here so that the method can figure out
+        # which datasets to resize.
+        # But why don't we supply the local_state to _calculate_deletes (above)
+        # so that it can return StateChanges for only the datasets that are
+        # found to still exist in the cluster?
+        #
+        # resizes = self._calculate_resizes(configured_manifestations, local_state)
 
         return InParallel(changes=creates + deletes) # + resizes)
 
@@ -1102,10 +1108,12 @@ class BlockDeviceDeployer(PRecord):
             in delete_dataset_ids
         ]
 
-    def _calculate_resizes(self, configured_manifestations):
+    def _calculate_resizes(self, configured_manifestations, local_state):
         """
         :param dict configured_manifestations: The manifestations configured
             for this node (like ``Node.manifestations``).
+
+        :param NodeState??? local_state: The current state of this node.
 
         :return: A ``list`` of ``ResizeBlockDeviceDataset`` instances for each
             volume that needs to be resized based on the given
@@ -1130,16 +1138,12 @@ class BlockDeviceDeployer(PRecord):
         #
         # Are just going to return a ResizeBlockDeviceDataset state change for
         # *every* manifestation?
-        # Or shall we also pass in the cluster state here and calculate the
+        # Or shall we also pass in the local node state here and calculate the
         # necessary resizes based on that?
-        # Trouble with that is that the cluster state may be outdated by the
-        # time the state change is actually run...but I suppose that doesn't
-        # matter because the convergence agent will just try again on its next
-        # loop.
-        #
-        # OR stick to the original plan and...
-        #
-        # List volumes using self.api
-        # Loop through each comparing actual size with the configured size of
-        # the corresponding manifestation.
-        # Return ``ResizeBlockDeviceDataset`` for each resize.
+        # That state may be outdated by the time the state change is actually
+        # run...the dataset may already have been resized (I suppose) in which
+        # case, the resize step will have to double check that the size really
+        # doesn't match the desired size.
+        # Or the supplied state may not yet reflect the update size of the
+        # dataset, but I suppose that doesn't matter because the convergence
+        # agent will just try again on its next loop.
