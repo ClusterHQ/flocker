@@ -209,9 +209,18 @@ class BlockDeviceVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
 
 
+# def _blockdevice_volume_from_datasetid(block_device_api, dataset_id):
+#     """
+#     A helper to get the volume for a given dataset_id.
+#     """
+#     for volume in block_device_api.list_volumes():
+#         if volume.dataset_id == dataset_id:
+#             return volume
+
+
 # Replace this with a simpler factory-function based API like:
 #
-#     change = destroy_blockdevice_dataset(volme)
+#     change = destroy_blockdevice_dataset(volume)
 #
 # after FLOC-1591 makes it possible to have reasonable logging with such a
 # solution.
@@ -234,6 +243,7 @@ class DestroyBlockDeviceDataset(PRecord):
         )
 
     def run(self, deployer):
+        # XXX: Use _blockdevice_volume_from_datasetid here...
         for volume in deployer.block_device_api.list_volumes():
             if volume.dataset_id == self.dataset_id:
                 return Sequentially(
@@ -255,36 +265,35 @@ class DestroyBlockDeviceDataset(PRecord):
 
 
 @_logged_statechange
-@with_cmp(["change"])
-class ResizeBlockDeviceDataset(proxyForInterface(IStateChange, "change")):
+@implementer(IStateChange)
+class ResizeBlockDeviceDataset(PRecord):
     """
     Resize the volume for a dataset with a primary manifestation on the node
     where this state change runs.
 
-    :ivar IStateChange change: The real implementation of this state change.
-    :ivar volume: See ``__init__``.
+    :ivar UUID dataset_id: The unique identifier of the dataset to which the
+        volume to be destroyed belongs.
     """
-    def __init__(self, volume, size):
-        """
-        :param BlockDeviceVolume volume: The volume which will be resized.
-        :param int size: The required size of the volume
-        """
-        # self.volume = volume
-        # sequence = Sequentially(changes=[
-        #     UnmountBlockDevice(volume=volume),
-        #     DetachVolume(volume=volume),
-        #     ResizeVolume(volume=volume, size=size),
-        #     AttachVolume(volume=volume),
-        #     MountVolume(volume=volume),
-        # ])
-        # super(ResizeBlockDeviceDataset, self).__init__(sequence)
-        pass
-
+    # dataset_id = field(type=UUID, mandatory=True)
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         # return RESIZE_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
         pass
+
+    def run(self, deployer):
+        # volume = _blockdevice_volume_from_datasetid(self.dataset_id)
+        # return Sequentially(
+        #     changes=[
+        #         UnmountBlockDevice(volume=volume),
+        #         DetachVolume(volume=volume),
+        #         ResizeVolume(volume=volume, size=size),
+        #         AttachVolume(volume=volume),
+        #         MountVolume(volume=volume),
+        #     ]
+        # ).run(deployer)
+        pass
+
 
 def _volume():
     """
