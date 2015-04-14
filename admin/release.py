@@ -615,21 +615,32 @@ def create_release_branch(version, path):
     return base_branch
 
 
+class CreateReleaseBranchOptions(Options):
+    """
+    Arguments for ``create-release-branch`` script.
+    """
+
+    optParameters = [
+        ["flocker-version", None, None,
+         "The version of Flocker to create a release branch for."],
+    ]
+
+
 def create_release_branch_main(args, base_path, top_level):
     """
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    # TODO create Options class
-    # options = CreateReleaseBranchOptions()
+    options = CreateReleaseBranchOptions()
     # TODO wrapper for this so it can be called with shell
     # TODO edit release-process.rst to use this
 
     try:
-        # TODO use options
-        # TODO this shouldn't be "None" but instead the path of the file
-        create_release_branch(version='version', path=None)
+        create_release_branch(
+            version=options['flocker-version'],
+            # This file is in the Git repository we want to change.
+            path=FilePath(__file__).parent().path)
     except NotARelease:
         sys.stderr.write("%s: Can't create a release branch for non-release.\n"
                          % (base_path.basename(),))
