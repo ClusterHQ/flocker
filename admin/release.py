@@ -560,7 +560,7 @@ def create_release_branch(version, path):
             or is_pre_release(version)):
         raise NotARelease()
 
-    repo = Repo(path)
+    repo = Repo(path=path, search_parent_directories=True)
 
     existing_tags = [tag for tag in repo.tags if tag.name == version]
     if existing_tags:
@@ -654,9 +654,7 @@ def create_release_branch_main(args, base_path, top_level):
     try:
         create_release_branch(
             version=options['flocker-version'],
-            # This file is in the Git repository we want to change.
-            # TODO use gitpython option to search parents
-            path=FilePath(__file__).parent().parent().path)
+            path=FilePath(__file__).path)
     except NotARelease:
         sys.stderr.write("%s: Can't create a release branch for non-release.\n"
                          % (base_path.basename(),))

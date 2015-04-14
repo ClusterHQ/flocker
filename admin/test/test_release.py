@@ -1516,6 +1516,18 @@ class CreateReleaseBranchTests(TestCase):
             self.create_release_branch(version='0.3.0pre3').name,
             "release/flocker-0.3.0pre2")
 
+    def test_parent_repository_used(self):
+        """
+        If a path is given as the repository path, the parents of that file
+        are searched until a Git repository is found.
+        """
+        self.assertEqual(
+            create_release_branch(
+                version='0.3.dev1',
+                path=FilePath(self.repo.working_dir).child('README').path,
+            ).name,
+            "master")
+
     def test_no_pre_releases_fails(self):
         """
         Trying to release a marketing release when no pre-release exists for it
