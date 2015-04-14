@@ -9,7 +9,7 @@ from unittest import skipUnless
 import tempfile
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
-from git import Head, Repo
+from git import Repo
 
 from requests.exceptions import HTTPError
 
@@ -1465,21 +1465,20 @@ class CreateReleaseBranchTests(TestCase):
         Trying to create a release when a branch already exists for the given
         version fails.
         """
-        foo = self.repo.create_head('release/flocker-0.3.0')
-        import pdb; pdb.set_trace()
-        branch = Head(repo=self.repo, path="refs/heads/release/flocker-0.3.0")
+        branch = self.repo.create_head('release/flocker-0.3.0')
+
         self.assertRaises(
             BranchExists,
-            create_release_branch, '0.3.0', base_branch=self.branch)
+            create_release_branch, '0.3.0', base_branch=branch)
 
     def test_active_branch(self):
         """
         Creating a release branch changes the active branch on the given
         branch's repository.
         """
-        self.repo.create_head('release/flocker-0.3.0pre1')
-        self.repo.create_tag('0.3.0pre1')
-        create_release_branch(version='0.3.0', branch=self.branch)
+        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+
+        create_release_branch(version='0.3.0', base_branch=branch)
         self.assertEqual(
             self.repo.active_branch.name,
             "release/flocker-0.3.0")
@@ -1488,7 +1487,20 @@ class CreateReleaseBranchTests(TestCase):
         """
         The new branch is created from the given branch.
         """
-        pass
+        master = self.repo.active_branch
+        num_commits = len([commit for commit in self.repo.iter_commits()])
+        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+        branch.checkout()
+        FilePath(self.repo.working_dir).child('NEW_FILE').touch()
+        self.repo.index.add(['NEW_FILE'])
+        self.repo.index.commit('Add NEW_FILE')
+        master.checkout()
+        create_release_branch(version='0.3.0', base_branch=branch)
+
+        # One commit is on this branch which is not on master
+        self.assertEqual(
+            num_commits + 1,
+            len([commit for commit in self.repo.iter_commits()]))
 
 
 class CalculateBaseBranchTests(TestCase):

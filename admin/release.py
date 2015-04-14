@@ -614,6 +614,7 @@ def calculate_base_branch(version, path):
 
     return base_branch
 
+
 def create_release_branch(version, base_branch):
     """
     checkout a new Git branch to make changes on and later tag as a release.
