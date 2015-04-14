@@ -9,6 +9,7 @@ import yaml
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
+from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -66,9 +67,19 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
         API acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
+
+    :return int: The exit-code of trial.
     """
     if not trial_args:
         trial_args = ['flocker.acceptance']
+
+    def check_result(f):
+        f.trap(ProcessTerminated)
+        if f.value.exitCode is not None:
+            return f.value.exitCode
+        else:
+            return f
+
     return run(
         reactor,
         ['trial'] + list(trial_args),
@@ -76,7 +87,10 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes),
             FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node,
             FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(agent_nodes),
-            ))
+        )).addCallbacks(
+            callback=lambda _: 0,
+            errback=check_result,
+            )
 
 
 class INodeRunner(Interface):
