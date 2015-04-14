@@ -7,8 +7,8 @@ Tests for :module:`flocker.docs.version`.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from .._version import (
-    parse_version, FlockerVersion, UnparseableVersion,
+from ..version import (
+    _parse_version, FlockerVersion, UnparseableVersion,
     get_doc_version, get_installable_version, is_pre_release, is_release,
     is_weekly_release,
 )
@@ -16,11 +16,11 @@ from .._version import (
 
 class ParseVersionTests(SynchronousTestCase):
     """
-    Tests for :function:`parse_version`.
+    Tests for :function:`_parse_version`.
     """
     def assertParsedVersion(self, version, **expected_parts):
         """
-        Assert that :function:`parse_version` returns ``expected_parts``.
+        Assert that :function:`_parse_version` returns ``expected_parts``.
         The release is expected to be `0.3.2`.
         """
         parts = {
@@ -29,7 +29,7 @@ class ParseVersionTests(SynchronousTestCase):
             'micro': '2',
         }
         parts.update(expected_parts)
-        self.assertEqual(parse_version(version), FlockerVersion(**parts))
+        self.assertEqual(_parse_version(version), FlockerVersion(**parts))
 
     def test_marketing_release(self):
         """
@@ -91,10 +91,10 @@ class ParseVersionTests(SynchronousTestCase):
 
     def test_invalid_Version(self):
         """
-        If an invalid vesion is passed to ``parse_version``,
+        If an invalid vesion is passed to ``_parse_version``,
         ``UnparseableVersion`` is raised.
         """
-        self.assertRaises(UnparseableVersion, parse_version, 'unparseable')
+        self.assertRaises(UnparseableVersion, _parse_version, 'unparseable')
 
 
 class GetDocVersionTests(SynchronousTestCase):
