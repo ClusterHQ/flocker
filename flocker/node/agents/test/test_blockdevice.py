@@ -1127,6 +1127,11 @@ class IBlockDeviceAPITestsMixin(object):
         host.
 
         XXX: Should there be a similar test for an attempt to destroy an attached volume?
+        XXX: Or as exarkun commented in
+        https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444616
+        some backends will be capable of resizing attached volumes, so an
+        exception is inappropriate. Instead, we need to ensure that we only
+        ever call resize_volume on unattached volumes.
         """
         1/0
 
