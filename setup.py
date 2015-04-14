@@ -178,6 +178,7 @@ setup(
         # This extra is for Flocker release engineers to set up their release
         # environment.
         "release": [
+            "gitpython==1.0.0",
             "gsutil",
             "wheel",
             "virtualenv",

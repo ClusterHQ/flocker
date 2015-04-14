@@ -29,6 +29,12 @@ class UnparseableVersion(Exception):
     """
 
 
+class NotAPreRelease(Exception):
+    """
+    A version was passed that was not a pre-release.
+    """
+
+
 @attributes([
     'major',
     'minor',
@@ -163,3 +169,37 @@ def is_pre_release(version):
             and parsed_version.weekly_release is None
             and parsed_version.commit_count is None
             and parsed_version.dirty is None)
+
+
+def get_pre_release(version):
+    """
+    Return the number of a pre-release.
+
+    :param bytes version: A pre-release version of Flocker.
+    :return int: The number of the pre-release.
+
+    :raises UnparseableVersion: If the version is not a pre-release.
+    """
+    if not is_pre_release(version):
+        raise NotAPreRelease(version)
+
+    parsed_version = parse_version(version)
+
+    return int(parsed_version.pre_release)
+
+
+def target_release(version):
+    """
+    Return the target final release for a pre-release.
+
+    :param bytes version: A pre-release version of Flocker.
+    :return bytes: The final marketing version the pre-release is for.
+
+    :raises UnparseableVersion: If the version is not a pre-release.
+    """
+    if not is_pre_release(version):
+        raise NotAPreRelease(version)
+
+    parsed_version = parse_version(version)
+
+    return parsed_version.release

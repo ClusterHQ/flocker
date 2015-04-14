@@ -17,6 +17,7 @@ from effect import (
     Effect, sync_perform, ComposedDispatcher, base_dispatcher)
 from effect.do import do
 from characteristic import attributes
+from git import GitCommandError, Repo
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -26,9 +27,11 @@ import flocker
 
 from flocker.docs import (
     get_doc_version,
+    get_pre_release,
     is_pre_release,
     is_release,
     is_weekly_release,
+    target_release,
 )
 from flocker.provision._install import ARCHIVE_BUCKET
 
@@ -140,6 +143,38 @@ class Environments(Names):
     """
     PRODUCTION = NamedConstant()
     STAGING = NamedConstant()
+
+
+class TagExists(Exception):
+    """
+    Raised if trying to release a version for which a tag already exists.
+    """
+
+
+class BranchExists(Exception):
+    """
+    Raised if trying to release a version for which a branch already exists.
+    """
+
+
+class BaseBranchDoesNotExist(Exception):
+    """
+    Raised if trying to release a version for which the expected base branch
+    does not exist.
+    """
+
+
+class MissingPreRelease(Exception):
+    """
+    Raised if trying to release a pre-release for which the previous expected
+    pre-release does not exist.
+    """
+
+
+class NoPreRelease(Exception):
+    """
+    Raised if trying to release a marketing release if no pre-release exists.
+    """
 
 
 @attributes([
@@ -506,3 +541,112 @@ def publish_rpms_main(args, base_path, top_level):
         raise SystemExit(1)
     finally:
         scratch_directory.remove()
+
+
+def create_release_branch(version, path):
+    """
+    checkout a new Git branch to make changes on and later tag as a release.
+    This branch is created from a different branch which depends on the release
+    type and sometimes which pre-releases have preceeded this.
+
+    :param bytes version: The version of Flocker to create a release branch
+        for.
+    :param bytes path: See :func:`git.Repo.init`.
+    :returns: The base branch from which the new release branch was created.
+    """
+    if not (is_release(version)
+            or is_weekly_release(version)
+            or is_pre_release(version)):
+        raise NotARelease()
+
+    repo = Repo(path)
+
+    existing_tags = [tag for tag in repo.tags if tag.name == version]
+    if existing_tags:
+        raise TagExists()
+
+    release_branch_prefix = 'release/flocker-'
+
+    if is_weekly_release(version):
+        base_branch_name = 'master'
+    elif is_pre_release(version) and get_pre_release(version) == 1:
+        base_branch_name = 'master'
+    elif get_doc_version(version) != version:
+        base_branch_name = release_branch_prefix + get_doc_version(version)
+    else:
+        if is_pre_release(version):
+            target_version = target_release(version)
+        else:
+            target_version = version
+
+        pre_releases = [
+            tag.name for tag in repo.tags if
+            is_pre_release(tag.name) and
+            target_version == target_release(tag.name)]
+
+        if not pre_releases:
+            raise NoPreRelease()
+
+        latest_pre_release = sorted(
+            pre_releases,
+            key=lambda pre_release: get_pre_release(pre_release))[-1]
+
+        if (is_pre_release(version) and get_pre_release(version) >
+                get_pre_release(latest_pre_release) + 1):
+            raise MissingPreRelease()
+
+        base_branch_name = release_branch_prefix + latest_pre_release
+
+    # We create a new branch from a branch, not a tag, because a maintenance
+    # or documentation change may have been applied to the branch and not the
+    # tag.
+    try:
+        base_branch = [
+            branch for branch in repo.branches if
+            branch.name == base_branch_name][0]
+    except IndexError:
+        raise BaseBranchDoesNotExist()
+
+    try:
+        base_branch.checkout(b=release_branch_prefix + version)
+    except GitCommandError:
+        raise BranchExists()
+
+    return base_branch
+
+
+def create_release_branch_main(args, base_path, top_level):
+    """
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    # TODO create Options class
+    # options = CreateReleaseBranchOptions()
+    # TODO wrapper for this so it can be called with shell
+    # TODO edit release-process.rst to use this
+
+    try:
+        # TODO use options
+        # TODO this shouldn't be "None" but instead the path of the file
+        create_release_branch(version='version', path=None)
+    except NotARelease:
+        sys.stderr.write("%s: Can't create a release branch for non-release.\n"
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    except TagExists:
+        sys.stderr.write("%s: Tag already exists for this release.\n"
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    except NoPreRelease:
+        sys.stderr.write("%s: No (previous) pre-release exists for this "
+                         "release.\n" % (base_path.basename(),))
+        raise SystemExit(1)
+    except BaseBranchDoesNotExist:
+        sys.stderr.write("%s: The expected base branch does not exist.\n"
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    except BranchExists:
+        sys.stderr.write("%s: The release branch already exists.\n"
+                         % (base_path.basename(),))
+        raise SystemExit(1)

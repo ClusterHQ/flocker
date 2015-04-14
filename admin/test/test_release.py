@@ -7,7 +7,9 @@ Tests for ``admin.release``.
 import os
 from unittest import skipUnless, TestCase
 import tempfile
+
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
+from git import Repo
 
 from requests.exceptions import HTTPError
 
@@ -18,6 +20,8 @@ from ..release import (
     rpm_version, make_rpm_version, upload_rpms, update_repo,
     publish_docs, Environments,
     DocumentationRelease, NotTagged, NotARelease,
+    create_release_branch, BranchExists, TagExists, BaseBranchDoesNotExist,
+    MissingPreRelease, NoPreRelease,
 )
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
@@ -1412,3 +1416,125 @@ class UploadRPMsTests(TestCase):
         self.assertTrue(
             expected_files.issubset(set(files_on_s3)),
             "Metadata files for the packages were not created.")
+
+
+class CreateReleaseBranchTests(TestCase):
+    """
+    Tests for :func:`create_release_branch`.
+    """
+
+    def setUp(self):
+        repo_directory = FilePath(tempfile.mkdtemp())
+        self.addCleanup(repo_directory.remove)
+        self.repo = Repo.init(path=repo_directory.path)
+        repo_directory.child('README').touch()
+        self.repo.index.add(['README'])
+        self.repo.index.commit('Initial commit')
+        self.repo.create_head('master')
+
+    def create_release_branch(self, version):
+        return create_release_branch(
+            version=version, path=self.repo.working_dir)
+
+    def test_create_release_branch_for_non_release_fails(self):
+        """
+        Calling :func:`create_release_branch` with a version that isn't a
+        release fails.
+        """
+        self.assertRaises(
+            NotARelease,
+            self.create_release_branch, '0.3.0-444-gf05215b')
+
+    def test_weekly_release_base(self):
+        """
+        A weekly release is created from the "master" branch.
+        """
+        self.assertEqual(
+            self.create_release_branch(version='0.3.0dev1').name,
+            "master")
+
+    def test_active_branch(self):
+        """
+        Creating a release branch changes the active branch on the specified
+        repository to that branch.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.create_release_branch(version='0.3.0')
+        self.assertEqual(
+            self.repo.active_branch.name,
+            "release/flocker-0.3.0")
+
+    def test_first_pre_release(self):
+        """
+        The first pre-release for a marketing release is created from the
+        "master" branch.
+        """
+        self.assertEqual(
+            self.create_release_branch(version='0.3.0pre1').name,
+            "master")
+
+    def test_uses_previous_pre_release(self):
+        """
+        The second pre-release for a marketing release is created from the
+        previous pre-release release branch.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.repo.create_head('release/flocker-0.3.0pre2')
+        self.repo.create_tag('0.3.0pre2')
+        self.assertEqual(
+            self.create_release_branch(version='0.3.0pre3').name,
+            "release/flocker-0.3.0pre2")
+
+    def test_no_pre_releases_fails(self):
+        """
+        Trying to release a marketing release when no pre-release exists for it
+        fails.
+        """
+        self.assertRaises(
+            NoPreRelease,
+            self.create_release_branch, '0.3.0')
+
+    def test_missing_pre_release_fails(self):
+        """
+        Trying to release a pre-release when the previous pre-release does not
+        exist fails.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.assertRaises(
+            MissingPreRelease,
+            self.create_release_branch, '0.3.0pre3')
+
+    def test_base_branch_does_not_exist_fails(self):
+        """
+        Trying to create a release when the base branch does not exist fails.
+        """
+        self.repo.create_tag('0.3.0pre1')
+
+        self.assertRaises(
+            BaseBranchDoesNotExist,
+            self.create_release_branch, '0.3.0')
+
+    def test_tag_exists_fails(self):
+        """
+        Trying to create a release when a tag already exists for the given
+        version fails.
+        """
+        self.repo.create_tag('0.3.0')
+        self.assertRaises(
+            TagExists,
+            self.create_release_branch, '0.3.0')
+
+    def test_branch_exists_fails(self):
+        """
+        Trying to create a release when a branch already exists for the given
+        version fails.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.repo.create_head('release/flocker-0.3.0')
+        self.assertRaises(
+            BranchExists,
+            self.create_release_branch, '0.3.0')
