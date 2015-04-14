@@ -4,6 +4,8 @@
 Tests for deploying applications.
 """
 
+import copy
+
 from uuid import uuid4
 
 from pyrsistent import pmap
@@ -111,15 +113,20 @@ class DeploymentTests(TestCase):
         )
 
         # The second configuration we supply to flocker-deploy
+        container_configuration = (
+            api_configuration_to_flocker_deploy_configuration(
+                expected_container_2)
+        )
         config_application_2 = {
             u"version": 1,
             u"applications": {
                 MONGO_APPLICATION:
-                    api_configuration_to_flocker_deploy_configuration(
-                        expected_container_2
-                    )
+                    copy.deepcopy(container_configuration)
             }
         }
+
+        conf = config_application_2[u'applications'][MONGO_APPLICATION]
+        conf['volume']['maximum_size'] = SIZE_100_MB
 
         config_deployment_2 = {
             u"version": 1,
@@ -149,7 +156,26 @@ class DeploymentTests(TestCase):
 
         def got_container_2(result):
             cluster, actual_container = result
+            dataset_id = actual_container['volumes'][0]['dataset_id']
+            waiting_for_dataset = cluster.wait_for_dataset(
+                {
+                    u"dataset_id": dataset_id,
+                    u"metadata": None,
+                    u"deleted": False,
+                    u"maximum_size": int(SIZE_100_MB),
+                    u"primary": node_2
+                }
+            )
+
+            def got_dataset(result):
+                cluster, dataset = result
+                self.assertEqual(
+                    (dataset[u"dataset_id"], dataset[u"maximum_size"]),
+                    (dataset_id, int(SIZE_100_MB))
+                )
+            waiting_for_dataset.addCallback(got_dataset)
             self.assertTrue(actual_container['running'])
+            return waiting_for_dataset
 
         d = waiting_for_container_2.addCallback(got_container_2)
         return d
