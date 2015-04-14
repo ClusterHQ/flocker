@@ -544,14 +544,12 @@ def publish_rpms_main(args, base_path, top_level):
         scratch_directory.remove()
 
 
-def create_release_branch(version, path):
+def calculate_base_branch(version, path):
     """
-    checkout a new Git branch to make changes on and later tag as a release.
-    This branch is created from a different branch which depends on the release
+    The branch a release branch is created from depends on the release
     type and sometimes which pre-releases have preceeded this.
 
-    :param bytes version: The version of Flocker to create a release branch
-        for.
+    :param bytes version: The version of Flocker to get a base branch for.
     :param bytes path: See :func:`git.Repo.init`.
     :returns: The base branch from which the new release branch was created.
     """
@@ -561,8 +559,8 @@ def create_release_branch(version, path):
         raise NotARelease()
 
     repo = Repo(path=path, search_parent_directories=True)
-
     existing_tags = [tag for tag in repo.tags if tag.name == version]
+
     if existing_tags:
         raise TagExists()
 
@@ -614,12 +612,21 @@ def create_release_branch(version, path):
     except IndexError:
         raise BaseBranchDoesNotExist()
 
+    return base_branch
+
+def create_release_branch(version, base_branch):
+    """
+    checkout a new Git branch to make changes on and later tag as a release.
+
+    :param bytes version: The version of Flocker to create a release branch
+        for.
+    :param base_branch: See :func:`git.Head`. The branch to create the release
+        branch from.
+    """
     try:
-        base_branch.checkout(b=release_branch_prefix + version)
+        base_branch.checkout(b='release/flocker-' + version)
     except GitCommandError:
         raise BranchExists()
-
-    return base_branch
 
 
 class CreateReleaseBranchOptions(Options):
@@ -651,10 +658,12 @@ def create_release_branch_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
+    version = options['flocker-version']
+    path = FilePath(__file__).path
+
     try:
-        create_release_branch(
-            version=options['flocker-version'],
-            path=FilePath(__file__).path)
+        base_branch = calculate_base_branch(version=version, path=path)
+        create_release_branch(version=version, base_branch=base_branch)
     except NotARelease:
         sys.stderr.write("%s: Can't create a release branch for non-release.\n"
                          % (base_path.basename(),))
