@@ -1544,7 +1544,18 @@ class DestroyBlockDeviceDatasetTests(
     """
     def test_dataset_id_required(self):
         """
-        XXX: Move to shared mixin.
+        XXX: The same checks apply to the ResizeBlockDevice class so consider
+        moving this and other tests to shared mixin to that that they can be
+        shared...on the other hand exarkun commented that that may be premature:
+        https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444702
+        ```
+        Maybe not worth doing a lot of refactoring for these composed
+        IStateChange implementations yet. We're going to twiddle the
+        implementation around a bit more before we find the final shape for
+        them, I think. We want something that's both easier to define and more
+        introspectable than what ended up in the FLOC-1582 branch (which I
+        expect will be much the same as what ends up in this branch).
+        ```
 
         If ``dataset_id`` is not supplied when initializing
         ``DestroyBlockDeviceDataset``, ``InvariantException`` is raised.
