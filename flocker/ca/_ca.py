@@ -1,10 +1,9 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Low-level logic for a certificate authority.
 
-Uses ECDSA + SHA256? Or if that turns out to be too difficult RSA 4096-bit
-+ SHA 256.
+Uses RSA 4096-bit + SHA 256.
 """
 
 import os
@@ -15,6 +14,9 @@ from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
 
 
 EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
+
+certificate_filename = b"cluster.crt"
+key_filename = b"cluster.key"
 
 
 class CertificateAlreadyExistsError(Exception):
@@ -39,6 +41,11 @@ class FlockerKeyPair(object):
     """
     KeyPair with added functionality for comparison and signing a request
     object with additional extensions for generating a self-signed CA.
+
+    Written in Twisted-style as these changes should be upstreamed to
+    ``twisted.internet.ssl.KeyPair``
+
+    https://twistedmatrix.com/trac/ticket/7847
     """
     def __init__(self, keypair):
         self.keypair = keypair
@@ -54,6 +61,10 @@ class FlockerKeyPair(object):
     def selfSignedCACertificate(self, dn, request, serial, expiry, digest):
         """
         Sign a CertificateRequest with extensions for use as a CA certificate.
+
+        See
+        https://www.openssl.org/docs/apps/x509v3_config.html#Basic-Constraints
+        for further information.
 
         This code based on ``twisted.internet.ssl.KeyPair.signRequestObject``
 
@@ -97,7 +108,7 @@ class FlockerKeyPair(object):
 
 def generate_keypair():
     """
-    Create a new key pair.
+    Create a new 4096-bit RSA key pair.
     """
     return FlockerKeyPair(
         keypair=KeyPair.generate(crypto.TYPE_RSA, size=4096)
@@ -112,7 +123,7 @@ class CertificateAuthority(PRecord):
     :ivar FilePath path: A ``FilePath`` representing the absolute path of
         a directory containing the CRT and KEY files.
     :ivar Certificate certificate: A signed certificate, populated only by
-        loading from path.
+        loading from ``path``.
     :ivar FlockerKeyPair keypair: A private/public keypair, populated only by
         loading from path.
     """
@@ -131,8 +142,8 @@ class CertificateAuthority(PRecord):
                 b"Path {path} is not a directory.".format(path=path.path)
             )
 
-        certPath = path.child("cluster.crt")
-        keyPath = path.child("cluster.key")
+        certPath = path.child(certificate_filename)
+        keyPath = path.child(key_filename)
 
         if not certPath.isfile():
             raise PathError(
@@ -143,7 +154,7 @@ class CertificateAuthority(PRecord):
         if not keyPath.isfile():
             raise PathError(
                 b"Private key file {path} does not exist.".format(
-                    path=certPath.path)
+                    path=keyPath.path)
             )
 
         try:
@@ -180,7 +191,8 @@ class CertificateAuthority(PRecord):
 
         :param FilePath path: Directory where private key and certificate are
             stored.
-        :param bytes name: The name of the cluster.
+        :param bytes name: The name of the cluster. This is used as the
+            subject and issuer identities of the generated root certificate.
 
         :return CertificateAuthority: Initialized certificate authority.
         """
@@ -189,8 +201,8 @@ class CertificateAuthority(PRecord):
                 b"Path {path} is not a directory.".format(path=path.path)
             )
 
-        certPath = path.child(b"cluster.crt")
-        keyPath = path.child(b"cluster.key")
+        certPath = path.child(certificate_filename)
+        keyPath = path.child(key_filename)
 
         if certPath.exists():
             raise CertificateAlreadyExistsError(

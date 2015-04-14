@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 The command-line certificate authority tool.
@@ -22,7 +22,7 @@ from ._ca import (CertificateAuthority, CertificateAlreadyExistsError,
 
 class InitializeOptions(Options):
     """
-    Command line for ``flocker-ca initialize``.
+    Command line options for ``flocker-ca initialize``.
     """
 
     longdesc = """Create a new certificate authority.
@@ -46,10 +46,12 @@ class InitializeOptions(Options):
         self["path"] = FilePath(os.getcwd())
 
     def run(self):
-        # Check if files already exist in current directory. If they do
-        # error out. Otherwise calling APIs on CertificateAuthority,
-        # create new private/public key pair, self-sign, write out to
-        # files locally.
+        """
+        Check if files already exist in current directory. If they do,
+        error out. Otherwise calling APIs on CertificateAuthority,
+        create new private/public key pair, self-sign, write out to
+        files locally.
+        """
         d = Deferred()
 
         def generateCert(_):
@@ -58,7 +60,7 @@ class InitializeOptions(Options):
                 print (
                     b"Created cluster.key and cluster.crt. "
                     "Please keep cluster.key secret, as anyone who can access "
-                    "will be able to control your cluster."
+                    "it will be able to control your cluster."
                 )
             except CertificateAlreadyExistsError as e:
                 raise UsageError(str(e))

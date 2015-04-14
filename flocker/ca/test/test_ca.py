@@ -1,4 +1,4 @@
-# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for certification logic in ``flocker.ca._ca``
@@ -105,7 +105,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
 
     def test_create_error_on_non_existent_path(self):
         """
-        An ``Exception`` is raised if the path given to
+        A ``PathError`` is raised if the path given to
         ``CertificateAuthority.initialize`` does not exist.
         """
         path = FilePath(self.mktemp())
@@ -117,7 +117,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
 
     def test_load_error_on_non_existent_path(self):
         """
-        An ``Exception`` is raised if the path given to
+        A ``PathError`` is raised if the path given to
         ``CertificateAuthority.from_path`` does not exist.
         """
         path = FilePath(self.mktemp())
@@ -125,6 +125,92 @@ class CertificateAuthorityTests(SynchronousTestCase):
             PathError, CertificateAuthority.from_path, path
         )
         expected = b"Path {path} is not a directory.".format(path=path.path)
+        self.assertEqual(str(e), expected)
+
+    def test_load_error_on_non_existent_certificate_file(self):
+        """
+        A ``PathError`` is raised if the certificate file path given to
+        ``CertificateAuthority.from_path`` does not exist.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        e = self.assertRaises(
+            PathError, CertificateAuthority.from_path, path
+        )
+        expected = b"Certificate file {path} does not exist.".format(
+            path=path.child(b"cluster.crt").path)
+        self.assertEqual(str(e), expected)
+
+    def test_load_error_on_non_existent_key_file(self):
+        """
+        A ``PathError`` is raised if the key file path given to
+        ``CertificateAuthority.from_path`` does not exist.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        crt_path = path.child(b"cluster.crt")
+        crt_file = crt_path.open(b'w')
+        crt_file.write(b"dummy")
+        crt_file.close()
+        e = self.assertRaises(
+            PathError, CertificateAuthority.from_path, path
+        )
+        expected = b"Private key file {path} does not exist.".format(
+            path=path.child(b"cluster.key").path)
+        self.assertEqual(str(e), expected)
+
+    def test_load_error_on_unreadable_certificate_file(self):
+        """
+        A ``PathError`` is raised if the certificate file path given to
+        ``CertificateAuthority.from_path`` cannot be opened for reading.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        crt_path = path.child(b"cluster.crt")
+        crt_file = crt_path.open(b'w')
+        crt_file.write(b"dummy")
+        crt_file.close()
+        # make file unreadable
+        crt_path.chmod(64)
+        key_path = path.child(b"cluster.key")
+        key_file = key_path.open(b'w')
+        key_file.write(b"dummy")
+        key_file.close()
+        # make file unreadable
+        key_path.chmod(64)
+        e = self.assertRaises(
+            PathError, CertificateAuthority.from_path, path
+        )
+        expected = (
+            b"Certificate file {path} could not be opened. "
+            b"Check file permissions."
+        ).format(path=crt_path.path)
+        self.assertEqual(str(e), expected)
+
+    def test_load_error_on_unreadable_key_file(self):
+        """
+        A ``PathError`` is raised if the key file path given to
+        ``CertificateAuthority.from_path`` cannot be opened for reading.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        crt_path = path.child(b"cluster.crt")
+        crt_file = crt_path.open(b'w')
+        crt_file.write(b"dummy")
+        crt_file.close()
+        key_path = path.child(b"cluster.key")
+        key_file = key_path.open(b'w')
+        key_file.write(b"dummy")
+        key_file.close()
+        # make file unreadable
+        key_path.chmod(64)
+        e = self.assertRaises(
+            PathError, CertificateAuthority.from_path, path
+        )
+        expected = (
+            b"Private key file {path} could not be opened. "
+            b"Check file permissions."
+        ).format(path=key_path.path)
         self.assertEqual(str(e), expected)
 
     def test_certificate_is_self_signed(self):

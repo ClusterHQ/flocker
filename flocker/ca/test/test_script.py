@@ -6,14 +6,18 @@ from .._script import CAScript, CAOptions
 
 
 class FlockerCATests(FlockerScriptTestsMixin, TestCase):
-    """Tests for ``flocker-ca`` CLI."""
+    """
+    Tests for ``flocker-ca`` CLI.
+    """
     script = CAScript
     options = CAOptions
     command_name = u'flocker-ca'
 
 
 class CAOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
-    """Tests for :class:`CAOptions`."""
+    """
+    Tests for :class:`CAOptions`.
+    """
     options = CAOptions
 
 
