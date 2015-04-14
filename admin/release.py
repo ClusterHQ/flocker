@@ -24,7 +24,7 @@ from twisted.python.constants import Names, NamedConstant
 
 import flocker
 
-from flocker.docs import (
+from flocker.common.version import (
     get_doc_version,
     is_pre_release,
     is_release,

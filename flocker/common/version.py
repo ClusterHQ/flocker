@@ -84,7 +84,7 @@ class FlockerVersion(object):
         return self.release
 
 
-def parse_version(version):
+def _parse_version(version):
     """
     Parse a version of Flocker.
 
@@ -104,7 +104,7 @@ def get_doc_version(version):
     """
     Get the version string of Flocker to display in documentation.
     """
-    parsed_version = parse_version(version)
+    parsed_version = _parse_version(version)
     if (is_release(version)
             and parsed_version.documentation_revision is not None):
         return parsed_version.release
@@ -117,7 +117,7 @@ def get_installable_version(version):
     Get the version string of the latest version of Flocker which can be
     installed (CLI and node).
     """
-    parsed_version = parse_version(version)
+    parsed_version = _parse_version(version)
     return parsed_version.installable_release
 
 
@@ -130,7 +130,7 @@ def is_release(version):
     :return bool: Whether the version corresponds to a marketing or
         documentation release.
     """
-    parsed_version = parse_version(version)
+    parsed_version = _parse_version(version)
     return (parsed_version.commit_count is None
             and parsed_version.pre_release is None
             and parsed_version.weekly_release is None
@@ -144,7 +144,7 @@ def is_weekly_release(version):
     :param bytes version: A version of flocker.
     :return bool: Whether the version is a weekly release.
     """
-    parsed_version = parse_version(version)
+    parsed_version = _parse_version(version)
     return (parsed_version.weekly_release is not None
             and parsed_version.commit_count is None
             and parsed_version.pre_release is None
@@ -158,7 +158,7 @@ def is_pre_release(version):
     :param bytes version: A version of flocker.
     :return bool: Whether the version is a pre-release.
     """
-    parsed_version = parse_version(version)
+    parsed_version = _parse_version(version)
     return (parsed_version.pre_release is not None
             and parsed_version.weekly_release is None
             and parsed_version.commit_count is None
