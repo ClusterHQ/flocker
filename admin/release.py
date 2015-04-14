@@ -625,6 +625,10 @@ class CreateReleaseBranchOptions(Options):
          "The version of Flocker to create a release branch for."],
     ]
 
+    def parseArgs(self):
+        if self['flocker-version'] is None:
+            raise UsageError("`--flocker-version` must be specified.")
+
 
 def create_release_branch_main(args, base_path, top_level):
     """
@@ -633,6 +637,12 @@ def create_release_branch_main(args, base_path, top_level):
     :param FilePath top_level: The top-level of the flocker repository.
     """
     options = CreateReleaseBranchOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
 
     try:
         create_release_branch(

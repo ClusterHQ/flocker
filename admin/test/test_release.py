@@ -15,13 +15,15 @@ from requests.exceptions import HTTPError
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.python.usage import UsageError
 
 from ..release import (
     rpm_version, make_rpm_version, upload_rpms, update_repo,
     publish_docs, Environments,
     DocumentationRelease, NotTagged, NotARelease,
-    create_release_branch, BranchExists, TagExists, BaseBranchDoesNotExist,
-    MissingPreRelease, NoPreRelease,
+    create_release_branch, CreateReleaseBranchOptions,
+    BranchExists, TagExists, BaseBranchDoesNotExist, MissingPreRelease,
+    NoPreRelease,
 )
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
@@ -1417,6 +1419,20 @@ class UploadRPMsTests(TestCase):
             expected_files.issubset(set(files_on_s3)),
             "Metadata files for the packages were not created.")
 
+
+class CreateReleaseBranchOptionsTests(TestCase):
+    """
+    Tests for :class:`CreateReleaseBranchOptions`.
+    """
+
+    def test_flocker_version_required(self):
+          """
+          The ``--flocker-version`` option is required.
+          """
+          options = CreateReleaseBranchOptions()
+          self.assertRaises(
+              UsageError,
+              options.parseOptions, [])
 
 class CreateReleaseBranchTests(TestCase):
     """

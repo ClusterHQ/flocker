@@ -97,7 +97,7 @@ Preparing For a Release
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      admin/create-release-branch
+      admin/create-release-branch --flocker-version="${VERSION}"
       git push --set-upstream origin release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
