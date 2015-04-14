@@ -633,8 +633,6 @@ def create_release_branch_main(args, base_path, top_level):
     :param FilePath top_level: The top-level of the flocker repository.
     """
     options = CreateReleaseBranchOptions()
-    # TODO wrapper for this so it can be called with shell
-    # TODO edit release-process.rst to use this
 
     try:
         create_release_branch(
