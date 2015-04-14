@@ -32,6 +32,7 @@ from flocker.docs import (
     is_release,
     is_weekly_release,
     target_release,
+    UnparseableVersion,
 )
 from flocker.provision._install import ARCHIVE_BUCKET
 
@@ -579,10 +580,16 @@ def create_release_branch(version, path):
         else:
             target_version = version
 
-        pre_releases = [
-            tag.name for tag in repo.tags if
-            is_pre_release(tag.name) and
-            target_version == target_release(tag.name)]
+        pre_releases = []
+        for tag in repo.tags:
+            try:
+                if (is_pre_release(tag.name) and
+                    target_version == target_release(tag.name)):
+                    pre_releases.append(tag.name)
+            except UnparseableVersion:
+                # The Flocker repository contains versions which are not
+                # currently considered valid versions.
+                pass
 
         if not pre_releases:
             raise NoPreRelease()

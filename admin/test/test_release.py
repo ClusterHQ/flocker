@@ -1503,6 +1503,19 @@ class CreateReleaseBranchTests(TestCase):
             self.create_release_branch(version='0.3.0pre3').name,
             "release/flocker-0.3.0pre2")
 
+    def test_unparseable_tags(self):
+        """
+        There is no error raised if the repository contains a tag which cannot
+        be parsed as a version.
+        """
+        self.repo.create_head('release/flocker-0.3.0unparseable')
+        self.repo.create_tag('0.3.0unparseable')
+        self.repo.create_head('release/flocker-0.3.0pre2')
+        self.repo.create_tag('0.3.0pre2')
+        self.assertEqual(
+            self.create_release_branch(version='0.3.0pre3').name,
+            "release/flocker-0.3.0pre2")
+
     def test_no_pre_releases_fails(self):
         """
         Trying to release a marketing release when no pre-release exists for it

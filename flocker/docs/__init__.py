@@ -13,6 +13,7 @@ from ._version import (
     is_release,
     is_weekly_release,
     target_release,
+    UnparseableVersion,
 )
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     'is_release',
     'is_weekly_release',
     'target_release',
+    'UnparseableVersion',
 ]
