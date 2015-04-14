@@ -89,33 +89,8 @@ def task_upgrade_kernel(distribution):
                 "yum", "install", "-y", "kernel-devel", "kernel"]),
             run_from_args(['sync']),
         ])
-    elif distribution == 'ubuntu-14.04':
-        # When 15.04 is available then the kernel can be backported from that,
-        # similar to `apt-get install linux-image-generic-lts-utopic`.
-        packages_url = "http://kernel.ubuntu.com/~kernel-ppa/mainline/v3.18-vivid/"  # noqa
-        packages = [
-            "linux-headers-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
-            "linux-headers-3.18.0-031800_3.18.0-031800.201412071935_all.deb",  # noqa
-            "linux-image-3.18.0-031800-generic_3.18.0-031800.201412071935_amd64.deb",  # noqa
-        ]
-
-        package_install_commands = [
-            run_from_args(
-                ["wget", packages_url + package]) for package in packages
-        ]
-
-        return sequence([
-            run_from_args([
-                "mkdir", "-p", "/tmp/kernel-packages"]),
-            run_from_args([
-                "cd", "/tmp/kernel-packages"]),
-        ] + package_install_commands + [
-            # XXX This brings up a prompt about upgrading grub,
-            # somehow work around that, see
-            # http://askubuntu.com/questions/187337/unattended-grub-configuration-after-kernel-upgrade  # noqa
-            run(command='dpkg -i linux-*.deb'),
-            run_from_args(['rm', '-r', '/tmp/kernel-packages']),
-        ])
+    else:
+        raise NotImplementedError
 
 
 KOJI_URL_TEMPLATE = (
@@ -163,31 +138,6 @@ def task_install_digitalocean_kernel():
     ])
 
 
-def task_install_requirements(distribution):
-    """
-    Install the pre-requisites for ClusterHQ node.
-    """
-    if distribution == 'ubuntu-14.04':
-        return sequence([
-            # Ensure add-apt-repository command is available
-            run_from_args([
-                "apt-get", "-y", "install", "software-properties-common"]),
-            # ZFS not available in base Ubuntu - add ZFS repo
-            run_from_args([
-                "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
-            # Add Docker repo for recent Docker versions
-            run_from_args([
-                "add-apt-repository", "-y", "ppa:james-page/docker"]),
-            # Add ClusterHQ repo for installation of Flocker packages.
-            run_from_args([
-                "add-apt-repository", "-y",
-                "deb http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04 /"]),  # noqa
-            # Update to read package info from new repos
-            run_from_args([
-                "apt-get", "update"]),
-        ])
-
-
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
@@ -205,29 +155,35 @@ ${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 """)])
 
 
-def task_disable_selinux():
+def task_disable_selinux(distribution):
     """
     Disable SELinux for this session and permanently.
     XXX: Remove this when we work out suitable SELinux settings.
     See https://clusterhq.atlassian.net/browse/FLOC-619.
     """
-    return sequence([
-        run("if selinuxenabled; then setenforce 0; fi"),
-        run("test -e /etc/selinux/config && "
-            "sed --in-place='.preflocker' "
-            "'s/^SELINUX=.*$/SELINUX=disabled/g' "
-            "/etc/selinux/config"),
-    ])
+    if distribution in ('centos-7',):
+        return sequence([
+            run("if selinuxenabled; then setenforce 0; fi"),
+            run("test -e /etc/selinux/config && "
+                "sed --in-place='.preflocker' "
+                "'s/^SELINUX=.*$/SELINUX=disabled/g' "
+                "/etc/selinux/config"),
+        ])
+    else:
+        raise NotImplementedError
 
 
-def task_enable_docker():
+def task_enable_docker(distribution):
     """
     Start docker and configure it to start automatically.
     """
-    return sequence([
-        run_from_args(["systemctl", "enable", "docker.service"]),
-        run_from_args(["systemctl", "start", "docker.service"]),
-    ])
+    if distribution in ('fedora-20', 'centos-7'):
+        return sequence([
+            run_from_args(["systemctl", "enable", "docker.service"]),
+            run_from_args(["systemctl", "start", "docker.service"]),
+        ])
+    else:
+        raise NotImplementedError
 
 
 def configure_firewalld(rule):
@@ -310,9 +266,28 @@ def task_install_flocker(
         package.
     """
     if distribution == 'ubuntu-14.04':
-        return sequence([run_from_args([
-            'apt-get', '-y', '--force-yes', 'install',
-            'clusterhq-python-flocker', 'clusterhq-flocker-node'])])
+        return sequence([
+            # Ensure add-apt-repository command is available
+            run_from_args([
+                "apt-get", "-y", "install", "software-properties-common"]),
+            # ZFS not available in base Ubuntu - add ZFS repo
+            run_from_args([
+                "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
+            # Add Docker repo for recent Docker versions
+            run_from_args([
+                "add-apt-repository", "-y", "ppa:james-page/docker"]),
+            # Add ClusterHQ repo for installation of Flocker packages.
+            run_from_args([
+                "add-apt-repository", "-y",
+                "deb http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04 /"]),  # noqa
+            # Update to read package info from new repos
+            run_from_args([
+                "apt-get", "update"]),
+            # Install Flocker node and all dependencies
+            run_from_args([
+                'apt-get', '-y', '--force-yes', 'install',
+                'clusterhq-flocker-node']),
+            ])
     else:
         commands = [
             run(command="yum install -y " + ZFS_REPO[distribution]),
@@ -465,8 +440,8 @@ def provision(distribution, package_source, variants):
     commands += [
         task_install_flocker(
             package_source=package_source, distribution=distribution),
-        task_disable_selinux(),
-        task_enable_docker(),
+        task_disable_selinux(distribution),
+        task_enable_docker(distribution),
         task_create_flocker_pool_file(),
         task_pull_docker_images(),
     ]

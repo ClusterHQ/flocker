@@ -335,7 +335,7 @@ Paste them into a root console on the target node:
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
-.. task:: enable_docker
+.. task:: enable_docker fedora-20
    :prompt: [root@fedora]#
 
 
@@ -348,7 +348,7 @@ Installing on CentOS 7
 
 First disable SELinux.
 
-.. task:: disable_selinux
+.. task:: disable_selinux centos-7
    :prompt: [root@centos]#
 
 .. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
@@ -368,7 +368,7 @@ Paste them into a root console on the target node:
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
-.. task:: enable_docker
+.. task:: enable_docker centos-7
    :prompt: [root@centos]#
 
 
@@ -386,12 +386,7 @@ Installing on Ubuntu 14.04
    * ssh root@... for each of the node IPs
    * This is similar to following the AWS instructions above but ignoring the "Upgrade the Kernel" step which is different on Ubuntu and SELinux can be ignored I think
 
-Flocker requires recent versions of ZFS and Docker.
-
-.. task:: install_requirements ubuntu-14.04
-   :prompt: [root@ubuntu]#
-
-Now install the ``clusterhq-flocker-node`` package.
+Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` package.
 
 .. task:: install_flocker ubuntu-14.04
    :prompt: [root@ubuntu]#
