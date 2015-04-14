@@ -18,6 +18,7 @@ from effect import (
 from effect.do import do
 from characteristic import attributes
 from git import GitCommandError, Repo
+from setuptools import __version__ as setuptools_version
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -658,7 +659,7 @@ def create_artifacts(version):
     """
     TODO docstring
     """
-    # TODO test this
+
     # TODO create wrapper so this can be run from shell
     # TODO run this from Buildbot
 
@@ -672,34 +673,29 @@ def create_artifacts(version):
         # we want Buildbot to run into this and not fail.
         raise DocumentationRelease()
 
-    import pip
-    from setuptools import __version__ as initial_setuptools
-    from subprocess import check_call
-    # TODO instead of this, just pass them on
-    from _preamble import TOPLEVEL, BASEPATH
+    if setuptools_version != '3.6':
+        # TODO maybe use < 8, latest version setuptools which works
+        # TODO In the future, perhaps check out the necessary version,
+        # and in a finally
+        # TODO does having PyPI as a test dep matter, for the above
+        raise ValueError("setuptools version is not 3.6")
 
-    # TODO Tests can check reverted version
-    try:
-        # TODO < 8, latest version setuptools which works
-        # XXX This should not be necessary, see
-        # https://clusterhq.atlassian.net/browse/FLOC-1331.
-        pip.main(['install', 'setuptools==3.6'])
-        check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
-        # Upload python packages to ``archive.clusterhq.com``
-        check_call([
-            'gsutil', 'cp', '-a', 'public-read',
-            'dist/Flocker-%s.tar.gz' % version,
-            'dist/Flocker-%s-py2-none-any.whl' % version,
-            'gs://archive.clusterhq.com/downloads/flocker/',
-        ])
-        # TODO get rid of this wrapper?
-        # Build RPM packages and upload them to Amazon S3
-        publish_rpms_main(args=[], top_level=TOPLEVEL, base_path=BASEPATH)
-        # Copy the tutorial box to the final location on GCS
-        check_call([
-            'gsutil', 'cp', '-a', 'public-read',
-            'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
-            'gs://clusterhq-vagrant/flocker-tutorial-%s.box' % version,
-        ])
-    finally:
-        pip.main(['install', 'setuptools==' + initial_setuptools])
+    from subprocess import check_call
+    # XXX This should not be necessary, see
+    # https://clusterhq.atlassian.net/browse/FLOC-1331.
+    check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
+    # Upload python packages to ``archive.clusterhq.com``
+    check_call([
+        'gsutil', 'cp', '-a', 'public-read',
+        'dist/Flocker-%s.tar.gz' % version,
+        'dist/Flocker-%s-py2-none-any.whl' % version,
+        'gs://archive.clusterhq.com/downloads/flocker/',
+    ])
+
+    # Build RPM packages and upload them to Amazon S3
+    # Copy the tutorial box to the final location on GCS
+    check_call([
+        'gsutil', 'cp', '-a', 'public-read',
+        'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
+        'gs://clusterhq-vagrant/flocker-tutorial-%s.box' % version,
+    ])
