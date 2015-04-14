@@ -14,10 +14,11 @@ from twisted.trial.unittest import TestCase
 from flocker.control import (
     Application, DockerImage, AttachedVolume, Port, Dataset,
     Manifestation)
+from ..control.httpapi import container_configuration_response
 from flocker.testtools import loop_until
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        require_flocker_cli)
+                        require_flocker_cli, get_test_cluster)
 
 try:
     from pymysql import connect
@@ -151,25 +152,40 @@ class EnvironmentVariableTests(TestCase):
         Raise any exceptions thrown when failing to connect if they indicate
         that MySQL has started.
         """
-        def connect_to_mysql():
-            try:
-                return connect(
-                    host=host,
-                    port=MYSQL_EXTERNAL_PORT,
-                    user=user,
-                    passwd=passwd,
-                    db=db,
-                )
-            except OperationalError as e:
-                # PyMySQL doesn't provided a structured way to get this.
-                # https://github.com/PyMySQL/PyMySQL/issues/274
-                if "Connection refused" in str(e):
-                    return False
-                else:
-                    raise
+        expected_container = container_configuration_response(
+            MYSQL_APPLICATION, self.node_1)
+        waiting_for_cluster = get_test_cluster(node_count=1)
 
-        d = loop_until(connect_to_mysql)
-        return d
+        def got_cluster(cluster):
+            waiting_for_container = cluster.wait_for_container(
+                expected_container
+            )
+
+            def mysql_connect(result):
+                def mysql_can_connect():
+                    try:
+                        return connect(
+                            host=host,
+                            port=MYSQL_EXTERNAL_PORT,
+                            user=user,
+                            passwd=passwd,
+                            db=db,
+                        )
+                    except OperationalError as e:
+                        # PyMySQL doesn't provided a structured way to
+                        # get this.
+                        # https://github.com/PyMySQL/PyMySQL/issues/274
+                        if "Connection refused" in str(e):
+                            return False
+                        else:
+                            raise
+                dl = loop_until(mysql_can_connect)
+                return dl
+            waiting_for_container.addCallback(mysql_connect)
+            return waiting_for_container
+
+        waiting_for_cluster.addCallback(got_cluster)
+        return waiting_for_cluster
 
     @require_pymysql
     def test_environment_variable_used(self):
