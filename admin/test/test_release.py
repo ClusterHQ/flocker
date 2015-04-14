@@ -1523,7 +1523,7 @@ class CreateReleaseBranchTests(TestCase):
         """
         self.assertEqual(
             create_release_branch(
-                version='0.3.dev1',
+                version='0.3.0dev1',
                 path=FilePath(self.repo.working_dir).child('README').path,
             ).name,
             "master")
