@@ -19,7 +19,7 @@ from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
 )
 from ..node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
-from .testtools import get_test_cluster
+from .testtools import get_test_cluster, require_cluster
 
 
 def verify_socket(host, port):
@@ -78,13 +78,15 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
         return d
 
-    def test_create_container_with_ports(self):
+    @require_cluster(1)
+    def test_create_container_with_ports(self, cluster):
         """
         Create a container including port mappings on a single-node cluster.
         """
         return self._create_container()
 
-    def test_create_container_with_environment(self):
+    @require_cluster(1)
+    def test_create_container_with_environment(self, cluster):
         """
         Create a container including environment variables on a single-node
         cluster.
@@ -131,7 +133,8 @@ class ContainerAPITests(TestCase):
         return d
 
     @require_mongo
-    def test_move_container_with_dataset(self):
+    @require_cluster(2)
+    def test_move_container_with_dataset(self, cluster):
         """
         Create a mongodb container with an attached dataset, issue API call
         to move the container. Wait until we can connect to the running
@@ -142,7 +145,7 @@ class ContainerAPITests(TestCase):
         def created_dataset(result):
             cluster, dataset = result
             mongodb = {
-                u"name": "container",
+                u"name": random_name(),
                 u"host": cluster.nodes[0].address,
                 u"image": MONGO_IMAGE,
                 u"ports": [{u"internal": 27017, u"external": 27017}],
@@ -205,7 +208,8 @@ class ContainerAPITests(TestCase):
         return creating_dataset
 
     @require_mongo
-    def test_create_container_with_dataset(self):
+    @require_cluster(1)
+    def test_create_container_with_dataset(self, cluster):
         """
         Create a mongodb container with an attached dataset, insert some data,
         shut it down, create a new container with same dataset, make sure
@@ -256,7 +260,8 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
 
-    def test_current(self):
+    @require_cluster(1)
+    def test_current(self, cluster):
         """
         The current container endpoint includes a currently running container.
         """
