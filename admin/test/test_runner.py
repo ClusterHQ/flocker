@@ -173,7 +173,7 @@ class RunTests(TestCase):
         If the process is killed after shutting down, an error
         isn't raised.
 
-        In particular, remove the killer doesn't cause an error.
+        In particular, removing the killer doesn't cause an error.
         """
 
         reactor = ProcessCoreReactor()

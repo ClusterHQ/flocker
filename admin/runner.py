@@ -24,7 +24,7 @@ class CommandProtocol(LineOnlyReceiver, object):
     Protocol that logs the lines of a remote command.
 
     :ivar Deferred deferred: Deferred to fire when the command finishes
-        If the command finished succesfuly, will fire with ``None``.
+        If the command finished successfully, will fire with ``None``.
         Otherwise, errbacks with the reason.
     :ivar file-like output: For logging.
     """
@@ -74,7 +74,6 @@ def run(reactor, command, **kwargs):
         trigger_id = reactor.addSystemEventTrigger(
             'before', 'shutdown', protocol.transport.signalProcess, 'TERM')
         protocol_done.addBoth(unregister_killer, trigger_id)
-        pass
 
     connected.addCallback(register_killer)
     connected.addCallback(lambda _: protocol_done)
