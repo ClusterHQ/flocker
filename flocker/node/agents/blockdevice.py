@@ -289,7 +289,7 @@ class ResizeBlockDeviceDataset(PRecord):
         #         DetachVolume(volume=volume),
         #         ResizeVolume(volume=volume, size=size),
         #         AttachVolume(volume=volume),
-        #         MountVolume(volume=volume),
+        #         MountBlockDevice(volume=volume),
         #     ]
         # ).run(deployer)
         pass
@@ -321,7 +321,7 @@ class MountBlockDevice(PRecord):
     volume = _volume()
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         # return MOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
         pass
 
@@ -383,7 +383,7 @@ class AttachVolume(PRecord):
     hostname = field(type=unicode)
 
     @property
-    def _action(self):
+    def _eliot_action(self):
         # return ATTACH_VOLUME(_logger, volume=self.volume)
         pass
 
