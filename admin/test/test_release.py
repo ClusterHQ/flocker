@@ -1527,6 +1527,16 @@ class CalculateBaseBranchTests(TestCase):
             self.calculate_base_branch(version='0.3.0dev1').name,
             "master")
 
+    def test_doc_release_base(self):
+        """
+        A documentation release is created from the release which is having
+        its documentation changed.
+        """
+        self.repo.create_head('release/flocker-0.3.0')
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0+doc1').name,
+            "release/flocker-0.3.0")
+
     def test_first_pre_release(self):
         """
         The first pre-release for a marketing release is created from the
