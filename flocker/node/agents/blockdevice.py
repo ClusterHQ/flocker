@@ -576,22 +576,23 @@ class IBlockDeviceAPI(Interface):
         :returns: ``None``
         """
 
-    # def resize_volume(blockdevice_id, size):
-    #     """
-    #     Resize an unattached ``blockdevice_id``.
+    # Add a new method to the IBlockDevice interface...
+    def resize_volume(blockdevice_id, size):
+        """
+        Resize an unattached ``blockdevice_id``.
 
-    #     :param unicode blockdevice_id: The unique identifier for the block
-    #         device being detached.
+        :param unicode blockdevice_id: The unique identifier for the block
+            device being detached.
 
-    #     :param int size: The required size, in bytes, of the volume.
+        :param int size: The required size, in bytes, of the volume.
 
-    #     :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
-    #         exist.
-    #     :raises AlreadyAttached: If the supplied ``blockdevice_id`` is
-    #         already attached.
-    #     :returns: A ``BlockDeviceVolume`` with a ``size`` attribute equal to
-    #         the supplied ``size`` when the volume has been resized.
-    #     """
+        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+            exist.
+        :raises AlreadyAttached: If the supplied ``blockdevice_id`` is
+            already attached.
+        :returns: A ``BlockDeviceVolume`` with a ``size`` attribute equal to
+            the supplied ``size`` when the volume has been resized.
+        """
 
     def list_volumes():
         """
@@ -855,16 +856,16 @@ class LoopbackBlockDeviceAPI(object):
         )
         volume_path.moveTo(new_path)
 
-    # def resize_volume(self, blockdevice_id, size):
-    #     """
-    #     Increase the size of the loopback backing file whilst maintaining its
-    #     sparseness.
+    # And the implementation...
+    def resize_volume(self, blockdevice_id, size):
+        """
+        Increase the size of the loopback backing file whilst maintaining its
+        sparseness.
+        Just call truncate on the backing file with a larger size.
 
-    #     Is that possible?
-
-    #     It should already have been detached, so no need to worry about loop
-    #     devices / losetup operations etc.
-    #     """
+        It should already have been detached, so no need to worry about loop
+        devices / losetup operations etc.
+        """
 
     def list_volumes(self):
         """
