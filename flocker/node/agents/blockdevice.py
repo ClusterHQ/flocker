@@ -1072,9 +1072,9 @@ class BlockDeviceDeployer(PRecord):
             for manifestation
             in manifestations_to_create
         )
-        # XXX: Maybe list volumes here and pass the list to each helper below.
-        deletes = self._calculate_deletes(configured_manifestations) # volumes=volumes)
-#        resizes = self._calculate_resizes(configured_manifestations, volumes=volumes)
+
+        deletes = self._calculate_deletes(configured_manifestations)
+#        resizes = self._calculate_resizes(configured_manifestations)
 
         return InParallel(changes=creates + deletes) # + resizes)
 
