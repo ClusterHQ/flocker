@@ -15,12 +15,15 @@ from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from ..release import (
-    rpm_version, make_rpm_version, upload_rpms, update_repo,
+    upload_rpms, update_repo,
     publish_docs, Environments,
     DocumentationRelease, NotTagged, NotARelease,
 )
+
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
+
+from flocker.common.version import rpm_version, make_rpm_version
 
 
 class MakeRpmVersionTests(TestCase):

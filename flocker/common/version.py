@@ -3,6 +3,8 @@
 
 import re
 
+from collections import namedtuple
+
 from characteristic import attributes, Attribute
 
 _VERSION_RE = re.compile(
