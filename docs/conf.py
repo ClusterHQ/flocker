@@ -32,6 +32,7 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
+    'sphinx.ext.extlinks',
     'sphinx.ext.intersphinx',
     'sphinx.ext.ifconfig',
     'flocker.provision._sphinx',
@@ -62,6 +63,10 @@ master_doc = 'index'
 # General information about the project.
 project = u'Flocker'
 copyright = u'2014, ClusterHQ'
+
+extlinks = {
+    'issue': ('https://clusterhq.atlassian.net/browse/FLOC-%s', 'issue '),
+}
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

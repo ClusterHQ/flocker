@@ -85,7 +85,7 @@ Push and Handoff
 
 Push and handoffs are currently done over SSH between nodes, with ad hoc calls to the ``flocker-volume`` command-line tool.
 In future releases this will be switched to a real protocol and later on to communication between long-running daemons rather than short-lived scripts.
-(See `#154 <https://clusterhq.atlassian.net/browse/FLOC-154>`_\ .)
+(See :issue:`154`.)
 
 When a volume is pushed a ``zfs send`` is used to serialize its data for transmission to the remote machine, which does a ``zfs receive`` to decode the data and create or update the corresponding ZFS dataset.
 
