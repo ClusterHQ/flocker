@@ -11,6 +11,8 @@ from effect import sync_performer, TypeDispatcher
 from subprocess import check_call
 from hashlib import md5
 
+from flocker.common.version import make_rpm_version
+
 
 @attributes([
     "source_repo",
@@ -42,7 +44,6 @@ def perform_download_packages_from_repository(dispatcher, intent):
     """
     # XXX Avoid circular imports when importing these somewhere at the top of
     # the file. See https://clusterhq.atlassian.net/browse/FLOC-1223.
-    from release import make_rpm_version
     from admin.packaging import (PACKAGE_ARCHITECTURE, Distribution,
         package_filename)
 

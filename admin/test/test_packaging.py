@@ -30,7 +30,7 @@ from ..packaging import (
     make_dependencies,
     LintPackage,
 )
-from ..release import rpm_version
+from flocker.common.version import rpm_version
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 

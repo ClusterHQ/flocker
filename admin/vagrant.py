@@ -15,7 +15,7 @@ from twisted.python import usage
 
 import flocker
 
-from admin.release import make_rpm_version
+from flocker.common.version import make_rpm_version
 
 
 def run(command, **kwargs):
