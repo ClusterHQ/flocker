@@ -2063,6 +2063,14 @@ class ResizeBlockDeviceDatasetTests(
         containing the data that was their before the resize.
         """
         # XXX This situation shouldn't be possible, right?
+        # See comment by exarkun https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444702
+        # ```
+        # It may come up. It should probably be handled, maybe not as part of
+        # this branch though. The end state should probably be that the
+        # filesystem is mounted though. We don't currently have any reason to
+        # have a volume attached to a node but the filesystem not mounted (so
+        # this is a state to repair, not restore).
+        # ```
         1/0
 
     def test_resize_unformatted_volume(self):
@@ -2082,6 +2090,13 @@ class ResizeBlockDeviceDatasetTests(
         The result is a larger block device which is unattached and without filesystem.
         """
         # XXX This situation shouldn't be possible, right?
+        # See response by exarkun in https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444702
+        # ```
+        # Hmmm. As long as it's not attached maybe it doesn't matter if it's the
+        # wrong size. As soon as someone actually wants to use it they'll have to
+        # attach it and then it'll get resized. Probably good enough for now, at
+        # least.
+        # ```
         1/0
 
     # XXX More combinations of the situations above??? This sounds tricky.
