@@ -1130,6 +1130,12 @@ class BlockDeviceDeployer(PRecord):
         #
         # Are just going to return a ResizeBlockDeviceDataset state change for
         # *every* manifestation?
+        # Or shall we also pass in the cluster state here and calculate the
+        # necessary resizes based on that?
+        # Trouble with that is that the cluster state may be outdated by the
+        # time the state change is actually run...but I suppose that doesn't
+        # matter because the convergence agent will just try again on its next
+        # loop.
         #
         # OR stick to the original plan and...
         #
