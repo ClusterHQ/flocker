@@ -1488,7 +1488,6 @@ class CreateReleaseBranchTests(TestCase):
         The new branch is created from the given branch.
         """
         master = self.repo.active_branch
-        num_commits = len([commit for commit in self.repo.iter_commits()])
         branch = self.repo.create_head('release/flocker-0.3.0pre1')
         branch.checkout()
         FilePath(self.repo.working_dir).child('NEW_FILE').touch()
@@ -1496,11 +1495,7 @@ class CreateReleaseBranchTests(TestCase):
         self.repo.index.commit('Add NEW_FILE')
         master.checkout()
         create_release_branch(version='0.3.0', base_branch=branch)
-
-        # One commit is on this branch which is not on master
-        self.assertEqual(
-            num_commits + 1,
-            len([commit for commit in self.repo.iter_commits()]))
+        self.assertIn((u'NEW_FILE', 0), self.repo.index.entries)
 
 
 class CalculateBaseBranchTests(TestCase):
