@@ -1447,7 +1447,6 @@ def create_git_repository(test_case):
     directory.child('README').touch()
 
     repository = Repo.init(path=directory.path)
-
     repository.index.add(['README'])
     repository.index.commit('Initial commit')
     repository.create_head('master')
@@ -1466,11 +1465,30 @@ class CreateReleaseBranchTests(TestCase):
         Trying to create a release when a branch already exists for the given
         version fails.
         """
-        self.repo.create_head('release/flocker-0.3.0')
+        foo = self.repo.create_head('release/flocker-0.3.0')
+        import pdb; pdb.set_trace()
         branch = Head(repo=self.repo, path="refs/heads/release/flocker-0.3.0")
         self.assertRaises(
             BranchExists,
-            create_release_branch, '0.3.0', base_branch=branch)
+            create_release_branch, '0.3.0', base_branch=self.branch)
+
+    def test_active_branch(self):
+        """
+        Creating a release branch changes the active branch on the given
+        branch's repository.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        create_release_branch(version='0.3.0', branch=self.branch)
+        self.assertEqual(
+            self.repo.active_branch.name,
+            "release/flocker-0.3.0")
+
+    def test_branch_created_from_base(self):
+        """
+        The new branch is created from the given branch.
+        """
+        pass
 
 
 class CalculateBaseBranchTests(TestCase):
