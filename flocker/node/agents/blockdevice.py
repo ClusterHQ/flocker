@@ -1102,17 +1102,38 @@ class BlockDeviceDeployer(PRecord):
             in delete_dataset_ids
         ]
 
-    # def _calculate_resizes(self, configured_manifestations):
-    #     """
-    #     :param dict configured_manifestations: The manifestations configured
-    #         for this node (like ``Node.manifestations``).
+    def _calculate_resizes(self, configured_manifestations):
+        """
+        :param dict configured_manifestations: The manifestations configured
+            for this node (like ``Node.manifestations``).
 
-    #     :return: A ``list`` of ``ResizeBlockDeviceDataset`` instances for each
-    #         volume that needs to be resized based on the given
-    #         configuration and the actual state of volumes (ie which have a size
-    #         that is different to the configuration)
-    #     """
-    #     # List volumes using self.api
-    #     # Loop through each comparing actual size with the configured size of
-    #     # the corresponding manifestation.
-    #     # Return ``ResizeBlockDeviceDataset`` for each resize.
+        :return: A ``list`` of ``ResizeBlockDeviceDataset`` instances for each
+            volume that needs to be resized based on the given
+            configuration and the actual state of volumes (ie which have a size
+            that is different to the configuration)
+        """
+        # The pattern established in _calculate_deletes is to pass only the
+        # configuration. The reason is outlined by exarkun in this comment:
+        # https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444444
+        # ```
+        # Note that _calculate_deletes changed to not list volumes. This is
+        # because we want to keep calculate_necessary_state_changes as simple as
+        # we can. One way to do that is to only operate on the simple model
+        # objects given as inputs. For now we're accepting some extra complexity
+        # that results from this decision in the IStateChange implementations
+        # (eg, make the resize operation a no-op if the desired size is already
+        # the actual size). Later, we'll fix this up by making local_state and
+        # cluster_state carry all of the extra information we need to make
+        # smarter decisions.
+        # ```
+        # ...but that's not enough to calculate which volumes need resizing.
+        #
+        # Are just going to return a ResizeBlockDeviceDataset state change for
+        # *every* manifestation?
+        #
+        # OR stick to the original plan and...
+        #
+        # List volumes using self.api
+        # Loop through each comparing actual size with the configured size of
+        # the corresponding manifestation.
+        # Return ``ResizeBlockDeviceDataset`` for each resize.
