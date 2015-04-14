@@ -5,7 +5,7 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipUnless, TestCase
+from unittest import skipUnless
 import tempfile
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
@@ -16,6 +16,7 @@ from requests.exceptions import HTTPError
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.python.usage import UsageError
+from twisted.trial.unittest import SynchronousTestCase as TestCase
 
 from ..release import (
     rpm_version, make_rpm_version, upload_rpms, update_repo,
@@ -1440,8 +1441,7 @@ class CreateReleaseBranchTests(TestCase):
     """
 
     def setUp(self):
-        repo_directory = FilePath(tempfile.mkdtemp())
-        self.addCleanup(repo_directory.remove)
+        repo_directory = FilePath(self.mktemp())
         self.repo = Repo.init(path=repo_directory.path)
         repo_directory.child('README').touch()
         self.repo.index.add(['README'])
