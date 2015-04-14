@@ -8,17 +8,40 @@ from os import environ
 import socket
 
 from uuid import uuid4
-from json import dumps, loads
+from json import dumps
 
 from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase
+from twisted.web.http import OK, CREATED, BAD_REQUEST
+
 from unittest import SkipTest
-from treq import get, post, content, delete, json_content
+from treq import get, post, delete, json_content
 from pyrsistent import PRecord, field, CheckedPVector
 
-from ..testtools import loop_until
+from ..testtools import loop_until, random_name
+from .testtools import (
+    MONGO_IMAGE, require_mongo, get_mongo_client,
+)
 from ..node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 from ..control.httpapi import REST_API_PORT
+
+
+def verify_socket(host, port):
+    """
+    Wait until the destionation can be connected to.
+
+    :param bytes host: Host to connect to.
+    :param int port: Port to connect to.
+
+    :return Deferred: Firing when connection is possible.
+    """
+    def can_connect():
+        s = socket.socket()
+        conn = s.connect_ex((host, port))
+        return False if conn else True
+
+    dl = loop_until(can_connect)
+    return dl
 
 
 class Node(PRecord):
@@ -38,6 +61,21 @@ class _NodeList(CheckedPVector):
     idiom combining this with ``field()``.
     """
     __type__ = Node
+
+
+def check_and_decode_json(result, response_code):
+    """
+    Given ``treq`` response object, extract JSON and ensure response code
+    is the expected one.
+
+    :param result: ``treq`` response.
+    :param int response_code: Expected response code.
+
+    :return: ``Deferred`` firing with decoded JSON.
+    """
+    if result.code != response_code:
+        raise ValueError("Unexpected response code:", result.code)
+    return json_content(result)
 
 
 class Cluster(PRecord):
@@ -70,7 +108,7 @@ class Cluster(PRecord):
             the state of the cluster.
         """
         request = get(self.base_url + b"/state/datasets", persistent=False)
-        request.addCallback(json_content)
+        request.addCallback(check_and_decode_json, OK)
         return request
 
     def wait_for_dataset(self, dataset_properties):
@@ -122,8 +160,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(content)
-        request.addCallback(loads)
+        request.addCallback(check_and_decode_json, CREATED)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -146,8 +183,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(content)
-        request.addCallback(loads)
+        request.addCallback(check_and_decode_json, OK)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -168,7 +204,7 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(json_content)
+        request.addCallback(check_and_decode_json, OK)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -189,7 +225,63 @@ class Cluster(PRecord):
             persistent=False
         )
 
-        request.addCallback(json_content)
+        request.addCallback(check_and_decode_json, CREATED)
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    def move_container(self, name, host):
+        """
+        Move a container.
+
+        :param unicode name: The name of the container to move.
+
+        :param unicode host: The host to which the container should be moved.
+
+        :returns: A tuple of (cluster, api_response)
+        """
+        request = post(
+            self.base_url + b"/configuration/containers/" +
+            name.encode("ascii"),
+            data=dumps({u"host": host}),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    def remove_container(self, name):
+        """
+        Remove a container.
+
+        :param unicode name: The name of the container to remove.
+
+        :returns: A tuple of (cluster, api_response)
+        """
+        request = delete(
+            self.base_url + b"/configuration/containers/" +
+            name.encode("ascii"),
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    def current_containers(self):
+        """
+        Get current containers.
+
+        :return: A ``Deferred`` firing with a tuple (cluster instance, API
+            response).
+        """
+        request = get(
+            self.base_url + b"/state/containers",
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
         request.addCallback(lambda response: (self, response))
         return request
 
@@ -235,12 +327,15 @@ class ContainerAPITests(TestCase):
     """
     Tests for the container API.
     """
-    def test_create_container_with_ports(self):
+    def _create_container(self):
         """
-        Create a container including port mappings on a single-node cluster.
+        Create a container listening on port 8080.
+
+        :return: ``Deferred`` firing with a tuple of ``Cluster`` instance
+        and container dictionary once the container is up and running.
         """
         data = {
-            u"name": "my_container",
+            u"name": random_name(),
             u"host": None,
             u"image": "clusterhq/flask:latest",
             u"ports": [{u"internal": 80, u"external": 8080}],
@@ -255,19 +350,22 @@ class ContainerAPITests(TestCase):
         d = waiting_for_cluster.addCallback(create_container, data)
 
         def check_result(result):
-            response = result[1]
+            cluster, response = result
+            self.addCleanup(cluster.remove_container, data[u"name"])
 
-            def can_connect():
-                s = socket.socket()
-                conn = s.connect_ex((data[u"host"], 8080))
-                return False if conn else True
-
-            dl = loop_until(can_connect)
             self.assertEqual(response, data)
+            dl = verify_socket(data[u"host"], 8080)
+            dl.addCallback(lambda _: (cluster, response))
             return dl
 
         d.addCallback(check_result)
         return d
+
+    def test_create_container_with_ports(self):
+        """
+        Create a container including port mappings on a single-node cluster.
+        """
+        return self._create_container()
 
     def test_create_container_with_environment(self):
         """
@@ -275,7 +373,7 @@ class ContainerAPITests(TestCase):
         cluster.
         """
         data = {
-            u"name": "my_env_container",
+            u"name": random_name(),
             u"host": None,
             u"image": "clusterhq/flaskenv:latest",
             u"ports": [{u"internal": 8080, u"external": 8081}],
@@ -291,16 +389,8 @@ class ContainerAPITests(TestCase):
         d = waiting_for_cluster.addCallback(create_container, data)
 
         def check_result((cluster, response)):
+            self.addCleanup(cluster.remove_container, data[u"name"])
             self.assertEqual(response, data)
-
-        def verify_socket(host, port):
-            def can_connect():
-                s = socket.socket()
-                conn = s.connect_ex((host, port))
-                return False if conn else True
-
-            dl = loop_until(can_connect)
-            return dl
 
         def query_environment(host, port):
             """
@@ -323,51 +413,211 @@ class ContainerAPITests(TestCase):
         )
         return d
 
+    @require_mongo
+    def test_move_container_with_dataset(self):
+        """
+        Create a mongodb container with an attached dataset, issue API call
+        to move the container. Wait until we can connect to the running
+        container on the new host and verify the data has moved with it.
+        """
+        creating_dataset = create_dataset(self, nodes=2)
+
+        def created_dataset(result):
+            cluster, dataset = result
+            mongodb = {
+                u"name": "container",
+                u"host": cluster.nodes[0].address,
+                u"image": MONGO_IMAGE,
+                u"ports": [{u"internal": 27017, u"external": 27017}],
+                u'restart_policy': {u'name': u'never'},
+                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                              u"mountpoint": u"/data/db"}],
+            }
+            created = cluster.create_container(mongodb)
+            created.addCallback(lambda _: self.addCleanup(
+                cluster.remove_container, mongodb[u"name"]))
+            created.addCallback(
+                lambda _: get_mongo_client(cluster.nodes[0].address))
+
+            def got_mongo_client(client):
+                database = client.example
+                database.posts.insert({u"the data": u"it moves"})
+                return database.posts.find_one()
+            created.addCallback(got_mongo_client)
+
+            def inserted(record):
+                moved = cluster.move_container(
+                    u"container", cluster.nodes[1].address
+                )
+
+                def destroy_and_recreate(_, record):
+                    """
+                    After moving our container via the API, we then remove the
+                    container on the new host and recreate it, pointing to the
+                    same dataset, but with the new container instance exposing
+                    a different external port. This technique ensures that the
+                    test does not pass by mere accident without the container
+                    having moved; by recreating the container on its new host
+                    after moving, we can be sure that if we can still connect
+                    and read the data, the dataset was successfully moved along
+                    with the container.
+                    """
+                    removed = cluster.remove_container(u"container")
+                    mongodb2 = mongodb.copy()
+                    mongodb2[u"ports"] = [
+                        {u"internal": 27017, u"external": 27018}
+                    ]
+                    mongodb2[u"host"] = cluster.nodes[1].address
+                    removed.addCallback(
+                        lambda _: cluster.create_container(mongodb2))
+                    removed.addCallback(lambda _: record)
+                    return removed
+                moved.addCallback(destroy_and_recreate, record)
+                return moved
+            created.addCallback(inserted)
+
+            def moved(record):
+                d = get_mongo_client(cluster.nodes[1].address, 27018)
+                d.addCallback(lambda client: client.example.posts.find_one())
+                d.addCallback(self.assertEqual, record)
+                return d
+
+            created.addCallback(moved)
+            return created
+        creating_dataset.addCallback(created_dataset)
+        return creating_dataset
+
+    @require_mongo
+    def test_create_container_with_dataset(self):
+        """
+        Create a mongodb container with an attached dataset, insert some data,
+        shut it down, create a new container with same dataset, make sure
+        the data is still there.
+        """
+        creating_dataset = create_dataset(self)
+
+        def created_dataset(result):
+            cluster, dataset = result
+            mongodb = {
+                u"name": random_name(),
+                u"host": cluster.nodes[0].address,
+                u"image": MONGO_IMAGE,
+                u"ports": [{u"internal": 27017, u"external": 27017}],
+                u'restart_policy': {u'name': u'never'},
+                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                              u"mountpoint": u"/data/db"}],
+            }
+            created = cluster.create_container(mongodb)
+            created.addCallback(lambda _: self.addCleanup(
+                cluster.remove_container, mongodb[u"name"]))
+            created.addCallback(
+                lambda _: get_mongo_client(cluster.nodes[0].address))
+
+            def got_mongo_client(client):
+                database = client.example
+                database.posts.insert({u"the data": u"it moves"})
+                return database.posts.find_one()
+            created.addCallback(got_mongo_client)
+
+            def inserted(record):
+                removed = cluster.remove_container(mongodb[u"name"])
+                mongodb2 = mongodb.copy()
+                mongodb2[u"ports"] = [{u"internal": 27017, u"external": 27018}]
+                removed.addCallback(
+                    lambda _: cluster.create_container(mongodb2))
+                removed.addCallback(lambda _: record)
+                return removed
+            created.addCallback(inserted)
+
+            def restarted(record):
+                d = get_mongo_client(cluster.nodes[0].address, 27018)
+                d.addCallback(lambda client: client.example.posts.find_one())
+                d.addCallback(self.assertEqual, record)
+                return d
+            created.addCallback(restarted)
+            return created
+        creating_dataset.addCallback(created_dataset)
+        return creating_dataset
+
+    def test_current(self):
+        """
+        The current container endpoint includes a currently running container.
+        """
+        creating = self._create_container()
+
+        def created(result):
+            cluster, data = result
+            data[u"running"] = True
+
+            def in_current():
+                current = cluster.current_containers()
+                current.addCallback(lambda result: data in result[1])
+                return current
+            return loop_until(in_current)
+        creating.addCallback(created)
+        return creating
+
+
+def create_dataset(test_case, nodes=1,
+                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
+    """
+    Create a dataset on a cluster.
+
+    :param TestCase test_case: The test the API is running on.
+    :param int nodes: The number of nodes to create. Defaults to 1.
+    :param int maximum_size: The size of the dataset to create on the test
+        cluster.
+    :return: ``Deferred`` firing with a tuple of (``Cluster``
+        instance, dataset dictionary) once the dataset is present in
+        actual cluster state.
+    """
+    # Create a cluster
+    waiting_for_cluster = get_test_cluster(
+        test_case=test_case, node_count=nodes
+    )
+
+    # Configure a dataset on node1
+    def configure_dataset(cluster):
+        """
+        Send a dataset creation request on node1.
+        """
+        requested_dataset = {
+            u"primary": cluster.nodes[0].address,
+            u"dataset_id": unicode(uuid4()),
+            u"maximum_size": maximum_size,
+            u"metadata": {u"name": u"my_volume"},
+        }
+
+        d = cluster.create_dataset(requested_dataset)
+
+        def got_result(result):
+            test_case.addCleanup(
+                cluster.delete_dataset, requested_dataset[u"dataset_id"])
+            return result
+        d.addCallback(got_result)
+        return d
+
+    configuring_dataset = waiting_for_cluster.addCallback(
+        configure_dataset
+    )
+
+    # Wait for the dataset to be created
+    waiting_for_create = configuring_dataset.addCallback(
+        lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
+    )
+
+    return waiting_for_create
+
 
 class DatasetAPITests(TestCase):
     """
     Tests for the dataset API.
     """
-    def _create_test(self):
-        """
-        Create a dataset on a single-node cluster.
-
-        :return: ``Deferred`` firing with a tuple of (``Cluster``
-            instance, dataset dictionary) once the dataset is present in
-            actual cluster state.
-        """
-        # Create a 1 node cluster
-        waiting_for_cluster = get_test_cluster(test_case=self, node_count=1)
-
-        # Configure a dataset on node1
-        def configure_dataset(cluster):
-            """
-            Send a dataset creation request on node1.
-            """
-            requested_dataset = {
-                u"primary": cluster.nodes[0].address,
-                u"dataset_id": unicode(uuid4()),
-                u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
-                u"metadata": {u"name": u"my_volume"},
-            }
-
-            return cluster.create_dataset(requested_dataset)
-        configuring_dataset = waiting_for_cluster.addCallback(
-            configure_dataset
-        )
-
-        # Wait for the dataset to be created
-        waiting_for_create = configuring_dataset.addCallback(
-            lambda (cluster, dataset): cluster.wait_for_dataset(dataset)
-        )
-
-        return waiting_for_create
-
     def test_dataset_creation(self):
         """
         A dataset can be created on a specific node.
         """
-        return self._create_test()
+        return create_dataset(self)
 
     def test_dataset_move(self):
         """
@@ -416,7 +666,7 @@ class DatasetAPITests(TestCase):
         """
         A dataset can be deleted, resulting in its removal from the node.
         """
-        created = self._create_test()
+        created = create_dataset(self)
 
         def delete_dataset(result):
             cluster, dataset = result
@@ -433,25 +683,110 @@ class DatasetAPITests(TestCase):
         created.addCallback(delete_dataset)
         return created
 
-    def test_dataset_grow_(self):
+    def test_dataset_grow(self):
         """
-        The maximum size of a dataset can be increased.
-
-        A not quite end-to-end test that the size of a dataset can be increased.
-
-        We can't issue the resize request from the API until
-        https://clusterhq.atlassian.net/browse/FLOC-1599 is resolved.
-
-        So manipulate the control service configuration file directly and
-        restart it....or something.
+        The size of a dataset can be increased.
         """
-        # Create a dataset of REALISTIC_BLOCKDEVICE_SIZE
-        # Wait for it to be created.
-        # Add some data to it somehow.
-        # Stop the dataset agent
-        # Stop the control service
-        # Wipe the configuration file
-        # Start the control service
-        # Create a dataset with the same dataset_id but with maximum_size=REALISTIC_BLOCKDEVICE_SIZE * 2
-        # Wait for the dataset to be resized.
-        # Check that the data (written earlier) is still intact and that the dataset state reports the correct new size.
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = REALISTIC_BLOCKDEVICE_SIZE * 2
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            self.assertEqual(new_size, dataset['maximum_size'])
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
+
+    def test_dataset_shrink(self):
+        """
+        The size of a dataset can be decreased.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
+        new_size = REALISTIC_BLOCKDEVICE_SIZE
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            self.assertEqual(new_size, dataset['maximum_size'])
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
+
+    def test_dataset_shrink_not_valid(self):
+        """
+        If the requested maximum_size is smaller than the allowed minimum the
+        response is ``BAD_REQUEST``.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = 67108864 - 1
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            # Reconfigure that dataset to be an invalid size.
+            resizing = cluster.update_dataset(
+                dataset_id=dataset["dataset_id"],
+                dataset_properties={u'maximum_size': new_size}
+            )
+            # Check for expected exception and response code.
+            return self.assertFailure(
+                resizing, ValueError
+            ).addCallback(
+                lambda exception: self.assertEqual(
+                    BAD_REQUEST, exception.args[1]
+                )
+            )
+
+        return creating.addCallback(resize_dataset)
+
+    def test_dataset_remove_size_limit(self):
+        """
+        A dataset with a size limit can have that limit removed.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = None
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            # If there is no maximum_size, the configuration response will not
+            # contain that key
+            self.assertNotIn(u'maximum_size', dataset.keys())
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking

@@ -209,6 +209,30 @@
 
 -
   id:
+    "update dataset size"
+
+  doc: |
+    Update a dataset with a new maximum_size. This will grow or shrink
+    the filesystem on the dataset.
+
+  requires:
+    - "create dataset with dataset_id"
+
+  request: |
+    POST /v1/configuration/datasets/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
+
+    {"maximum_size": 1073741824}
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+     "maximum_size": 1073741824,
+     "primary": "%(NODE_1)s",
+     "deleted": false}
+
+-
+  id:
     "delete dataset"
 
   doc: |
@@ -268,6 +292,7 @@
 
   requires:
     - "create container"
+    - "create container with attached volume"
 
   request: |
     GET /v1/configuration/containers HTTP/1.1
@@ -283,12 +308,67 @@
         "restart_policy": {"name": "never"}
       },
       {
+        "host": "%(NODE_1)s",
+        "name": "webserver2",
+        "image": "nginx:latest",
+        "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+                     "mountpoint": "/usr/share/nginx/html"}],
+        "restart_policy": {"name": "never"}
+      }
+    ]
+
+-
+  id:
+    "get actual containers"
+
+  doc: |
+    Get a list of all containers that are present in the cluster.
+
+  requires:
+    - "create container"
+
+  request: |
+    GET /v1/state/containers HTTP/1.1
+
+  response: |
+    HTTP/1.0 200 OK
+
+    [
+      {
+        "host": "%(NODE_0)s",
+        "name": "webserver",
+        "image": "nginx:latest",
+        "restart_policy": {"name": "never"},
+        "running": false
+      },
+      {
         "host": "%(NODE_0)s",
         "name": "database",
         "image": "postgres:latest",
-        "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}
+        "restart_policy": {"name": "on-failure", "maximum_retry_count": 5},
+        "running": true
       },
     ]
+
+-
+  id:
+    "move container"
+
+  doc: |
+    Move an existing named container (and any attached datasets) to a new host.
+
+  request: |
+    POST /v1/configuration/containers/webserver HTTP/1.1
+
+    {"host": "%(NODE_1)s"}
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {"host": "%(NODE_1)s",
+     "name": "webserver",
+     "image": "nginx:latest",
+     "restart_policy": {"name": "never"}}
 
 -
   id:
@@ -337,7 +417,7 @@
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "never"},
-     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}     
+     "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}
 
 -
   id:
@@ -400,8 +480,8 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
-     "name": "webserver",
+    {"host": "%(NODE_1)s",
+     "name": "webserver2",
      "image": "nginx:latest",
      "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
                   "mountpoint": "/usr/share/nginx/html"}],
@@ -410,8 +490,8 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
-     "name": "webserver",
+    {"host": "%(NODE_1)s",
+     "name": "webserver2",
      "image": "nginx:latest",
      "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
                   "mountpoint": "/usr/share/nginx/html"}],
@@ -467,7 +547,7 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},    
+     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},
      "restart_policy": {"name": "never"}}
 
 -
@@ -549,4 +629,3 @@
     HTTP/1.1 404 Not Found
 
     {"description": "Container not found."}
-

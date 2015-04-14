@@ -174,13 +174,12 @@ class LibcloudNode(object):
         :param set variants: The set of variant configurations to use when
             provisioning
         """
-        self._provisioner.provision(
+        return self._provisioner.provision(
             node=self,
             package_source=package_source,
             distribution=self.distribution,
             variants=variants,
-        )
-        return self.address
+        ).on(success=lambda _: self.address)
 
     @property
     def name(self):
@@ -244,6 +243,12 @@ class LibcloudProvisioner(object):
             name=name,
             image=get_image(self._driver, image_name),
             size=get_size(self._driver, size),
+            # XXX: ``ex_keyname`` is specific to EC2 and Rackspace
+            # drivers. DigitalOcean supports installation of multiple SSH keys
+            # and uses the alternative ``ex_ssh_key_ids`` arguments. This
+            # should probably be supplied by the driver specific
+            # ``_create_node_arguments`` function rather than hard coded here.
+            # See: https://clusterhq.atlassian.net/browse/FLOC-1228
             ex_keyname=keyname,
             ex_userdata=userdata,
             ex_metadata=metadata,

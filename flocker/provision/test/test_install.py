@@ -7,26 +7,13 @@ Tests for ``flocker.provision._install``.
 from twisted.trial.unittest import SynchronousTestCase
 
 from .. import PackageSource
+from .._common import Kernel
 from .._install import (
     task_install_flocker,
     ZFS_REPO, CLUSTERHQ_REPO,
-    Run, Put,
+    run, put, koji_kernel_url
 )
-
-
-class FakeRunner(object):
-    """
-    Task runner that records the executed commands.
-    """
-
-    def __init__(self):
-        self.commands = []
-
-    def run(self, command):
-        self.commands.append(Run(command=command))
-
-    def put(self, content, path):
-        self.commands.append(Put(content=content, path=path))
+from .._effect import sequence
 
 
 class InstallFlockerTests(SynchronousTestCase):
@@ -41,11 +28,11 @@ class InstallFlockerTests(SynchronousTestCase):
         """
         distribution = 'fedora-20'
         commands = task_install_flocker(distribution=distribution)
-        self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
-            Run(command="yum install -y clusterhq-flocker-node")
-        ])
+        self.assertEqual(commands, sequence([
+            run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
+            run(command="yum install -y clusterhq-flocker-node")
+        ]))
 
     def test_with_version(self):
         """
@@ -58,11 +45,11 @@ class InstallFlockerTests(SynchronousTestCase):
         commands = task_install_flocker(
             package_source=source,
             distribution=distribution)
-        self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
-            Run(command="yum install -y clusterhq-flocker-node-1.2.3-1")
-        ])
+        self.assertEqual(commands, sequence([
+            run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
+            run(command="yum install -y clusterhq-flocker-node-1.2.3-1")
+        ]))
 
     def test_with_branch(self):
         """
@@ -75,10 +62,10 @@ class InstallFlockerTests(SynchronousTestCase):
         commands = task_install_flocker(
             package_source=source,
             distribution=distribution)
-        self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
-            Put(content="""\
+        self.assertEqual(commands, sequence([
+            run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
+            put(content="""\
 [clusterhq-build]
 name=clusterhq-build
 baseurl=http://build.clusterhq.com/results/omnibus/branch/fedora-20
@@ -86,9 +73,9 @@ gpgcheck=0
 enabled=0
 """,
                 path="/etc/yum.repos.d/clusterhq-build.repo"),
-            Run(command="yum install --enablerepo=clusterhq-build "
+            run(command="yum install --enablerepo=clusterhq-build "
                         "-y clusterhq-flocker-node")
-        ])
+        ]))
 
     def test_with_server(self):
         """
@@ -102,10 +89,10 @@ enabled=0
         commands = task_install_flocker(
             package_source=source,
             distribution=distribution)
-        self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
-            Put(content="""\
+        self.assertEqual(commands, sequence([
+            run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
+            put(content="""\
 [clusterhq-build]
 name=clusterhq-build
 baseurl=http://nowhere.example/results/omnibus/branch/fedora-20
@@ -113,9 +100,9 @@ gpgcheck=0
 enabled=0
 """,
                 path="/etc/yum.repos.d/clusterhq-build.repo"),
-            Run(command="yum install --enablerepo=clusterhq-build "
+            run(command="yum install --enablerepo=clusterhq-build "
                         "-y clusterhq-flocker-node")
-        ])
+        ]))
 
     def test_with_branch_and_version(self):
         """
@@ -128,10 +115,10 @@ enabled=0
         commands = task_install_flocker(
             package_source=source,
             distribution=distribution)
-        self.assertEqual(commands, [
-            Run(command="yum install -y %s" % ZFS_REPO[distribution]),
-            Run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
-            Put(content="""\
+        self.assertEqual(commands, sequence([
+            run(command="yum install -y %s" % ZFS_REPO[distribution]),
+            run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
+            put(content="""\
 [clusterhq-build]
 name=clusterhq-build
 baseurl=http://build.clusterhq.com/results/omnibus/branch/fedora-20
@@ -139,6 +126,28 @@ gpgcheck=0
 enabled=0
 """,
                 path="/etc/yum.repos.d/clusterhq-build.repo"),
-            Run(command="yum install --enablerepo=clusterhq-build "
+            run(command="yum install --enablerepo=clusterhq-build "
                         "-y clusterhq-flocker-node-1.2.3-1")
-        ])
+        ]))
+
+
+class KojiKernelUrlTests(SynchronousTestCase):
+    """
+    Tests for ``koji_kernel_url``.
+    """
+    def test_success(self):
+        """
+        ``koji_kernel_url`` returns a URL containing the attributes of the
+        supplied ``Kernel``.
+        """
+        kernel = Kernel(
+            version='3.16.6',
+            release='203',
+            distribution='fc20',
+            architecture='x86_64'
+        )
+        expected_url = b'https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm'  # noqa
+        self.assertEqual(
+            expected_url,
+            koji_kernel_url(kernel)
+        )
