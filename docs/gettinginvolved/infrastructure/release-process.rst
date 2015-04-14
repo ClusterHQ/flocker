@@ -478,7 +478,7 @@ Post-Release Review Process
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
-   Follow the Flocker client installation documentation at https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli.
+   Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
 
    XXX: This step should be documented.
    See `FLOC-1622 <https://clusterhq.atlassian.net/browse/FLOC-1622>`_.
