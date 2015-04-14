@@ -648,7 +648,8 @@ def create_release_branch_main(args, base_path, top_level):
         create_release_branch(
             version=options['flocker-version'],
             # This file is in the Git repository we want to change.
-            path=FilePath(__file__).parent().path)
+            # TODO use gitpython option to search parents
+            path=FilePath(__file__).parent().parent().path)
     except NotARelease:
         sys.stderr.write("%s: Can't create a release branch for non-release.\n"
                          % (base_path.basename(),))
