@@ -9,5 +9,6 @@ from _preamble import TOPLEVEL, BASEPATH
 import sys
 
 if __name__ == '__main__':
+    from twisted.internet.task import react
     from admin.acceptance import main
-    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)
+    react(main, (sys.argv[1:], BASEPATH, TOPLEVEL))
