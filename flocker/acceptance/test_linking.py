@@ -32,8 +32,8 @@ from flocker.control import (
     Manifestation, Link)
 from flocker.testtools import loop_until
 
-from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        require_flocker_cli)
+from .testtools import (assert_expected_deployment, flocker_deploy,
+                        require_flocker_cli, require_cluster)
 
 ELASTICSEARCH_INTERNAL_PORT = 9200
 ELASTICSEARCH_EXTERNAL_PORT = 9200
@@ -121,76 +121,72 @@ class LinkingTests(TestCase):
     http://doc-dev.clusterhq.com/gettingstarted/examples/linking.html
     """
     @require_flocker_cli
-    def setUp(self):
+    @require_cluster(num_nodes=2)
+    def setUp(self, cluster):
         """
         Deploy Elasticsearch, logstash and Kibana to one of two nodes.
         """
-        getting_nodes = get_nodes(self, num_nodes=2)
+        self.node_1, self.node_2 = [node.address for node in cluster.nodes]
 
-        def deploy_elk(node_ips):
-            self.node_1, self.node_2 = node_ips
+        elk_deployment = {
+            u"version": 1,
+            u"nodes": {
+                self.node_1: [
+                    ELASTICSEARCH_APPLICATION_NAME,
+                    LOGSTASH_APPLICATION_NAME,
+                    KIBANA_APPLICATION_NAME,
+                ],
+                self.node_2: [],
+            },
+        }
 
-            elk_deployment = {
-                u"version": 1,
-                u"nodes": {
-                    self.node_1: [
-                        ELASTICSEARCH_APPLICATION_NAME,
-                        LOGSTASH_APPLICATION_NAME,
-                        KIBANA_APPLICATION_NAME,
-                    ],
-                    self.node_2: [],
-                },
-            }
+        self.elk_deployment_moved = {
+            u"version": 1,
+            u"nodes": {
+                self.node_1: [LOGSTASH_APPLICATION_NAME,
+                              KIBANA_APPLICATION_NAME],
+                self.node_2: [ELASTICSEARCH_APPLICATION_NAME],
+            },
+        }
 
-            self.elk_deployment_moved = {
-                u"version": 1,
-                u"nodes": {
-                    self.node_1: [LOGSTASH_APPLICATION_NAME,
-                                  KIBANA_APPLICATION_NAME],
-                    self.node_2: [ELASTICSEARCH_APPLICATION_NAME],
-                },
-            }
-
-            es_dataset_id = ELASTICSEARCH_APPLICATION.volume.dataset.dataset_id
-            self.elk_application = {
-                u"version": 1,
-                u"applications": {
-                    ELASTICSEARCH_APPLICATION_NAME: {
-                        u"image": ELASTICSEARCH_IMAGE,
-                        u"ports": [{
-                            u"internal": ELASTICSEARCH_INTERNAL_PORT,
-                            u"external": ELASTICSEARCH_EXTERNAL_PORT,
-                        }],
-                        u"volume": {
-                            u"dataset_id": es_dataset_id,
-                            u"mountpoint": ELASTICSEARCH_VOLUME_MOUNTPOINT,
-                        },
-                    },
-                    LOGSTASH_APPLICATION_NAME: {
-                        u"image": LOGSTASH_IMAGE,
-                        u"ports": [{
-                            u"internal": LOGSTASH_INTERNAL_PORT,
-                            u"external": LOGSTASH_EXTERNAL_PORT,
-                        }],
-                        u"links": [{
-                            u"local_port": LOGSTASH_LOCAL_PORT,
-                            u"remote_port": LOGSTASH_REMOTE_PORT,
-                            u"alias": u"es",
-                        }],
-                    },
-                    KIBANA_APPLICATION_NAME: {
-                        u"image": KIBANA_IMAGE,
-                        u"ports": [{
-                            u"internal": KIBANA_INTERNAL_PORT,
-                            u"external": KIBANA_EXTERNAL_PORT,
-                        }],
+        es_dataset_id = ELASTICSEARCH_APPLICATION.volume.dataset.dataset_id
+        self.elk_application = {
+            u"version": 1,
+            u"applications": {
+                ELASTICSEARCH_APPLICATION_NAME: {
+                    u"image": ELASTICSEARCH_IMAGE,
+                    u"ports": [{
+                        u"internal": ELASTICSEARCH_INTERNAL_PORT,
+                        u"external": ELASTICSEARCH_EXTERNAL_PORT,
+                    }],
+                    u"volume": {
+                        u"dataset_id": es_dataset_id,
+                        u"mountpoint": ELASTICSEARCH_VOLUME_MOUNTPOINT,
                     },
                 },
-            }
+                LOGSTASH_APPLICATION_NAME: {
+                    u"image": LOGSTASH_IMAGE,
+                    u"ports": [{
+                        u"internal": LOGSTASH_INTERNAL_PORT,
+                        u"external": LOGSTASH_EXTERNAL_PORT,
+                    }],
+                    u"links": [{
+                        u"local_port": LOGSTASH_LOCAL_PORT,
+                        u"remote_port": LOGSTASH_REMOTE_PORT,
+                        u"alias": u"es",
+                    }],
+                },
+                KIBANA_APPLICATION_NAME: {
+                    u"image": KIBANA_IMAGE,
+                    u"ports": [{
+                        u"internal": KIBANA_INTERNAL_PORT,
+                        u"external": KIBANA_EXTERNAL_PORT,
+                    }],
+                },
+            },
+        }
 
-            flocker_deploy(self, elk_deployment, self.elk_application)
-
-        return getting_nodes.addCallback(deploy_elk)
+        return flocker_deploy(self, elk_deployment, self.elk_application)
 
     def test_deploy(self):
         """
