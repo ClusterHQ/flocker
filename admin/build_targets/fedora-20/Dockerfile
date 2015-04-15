@@ -5,7 +5,7 @@
 
 FROM fedora:20
 MAINTAINER ClusterHQ <contact@clusterhq.com>
-RUN ["yum", "install", "--assumeyes", "@buildsys-build", "git", "ruby-devel", "libffi-devel", "python-devel", "python-pip", "rpmlint"]
+RUN ["yum", "install", "--assumeyes", "@buildsys-build", "git", "ruby-devel", "libffi-devel", "openssl-devel", "python-devel", "python-pip", "rpmlint"]
 # Despite being a packaging tool, fpm isn't yet packaged for Fedora.
 # See https://github.com/jordansissel/fpm/issues/611
 RUN ["gem", "install", "fpm"]
