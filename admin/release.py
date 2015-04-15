@@ -546,22 +546,16 @@ def create_artifacts(version, target_bucket, target_key):
     # TODO where is setup.py?
     check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
     # Upload python packages to ``archive.clusterhq.com``
-    # TODO change this to use Boto and S3
+    # TODO choose a new bucket name
 
     yield Effect(UploadToS3Recursively(
         source_path=FilePath("dist"),
         target_bucket=target_bucket,
         target_key=target_key,
-        files={'Flocker-%s.tar.gz' % version, 'Flocker-%s-py2-none-any.whl' % version},
+        files={
+            'Flocker-%s.tar.gz' % version,
+            'Flocker-%s-py2-none-any.whl' % version},
         ))
-
-    # TODO choose a nice bucket name
-    # check_call([
-    #     'gsutil', 'cp', '-a', 'public-read',
-    #     'dist/Flocker-%s.tar.gz' % version,
-    #     'dist/Flocker-%s-py2-none-any.whl' % version,
-    #     'gs://archive.clusterhq.com/downloads/flocker/',
-    # ])
 
     # Build RPM packages and upload them to Amazon S3
     # Copy the tutorial box to the final location on GCS

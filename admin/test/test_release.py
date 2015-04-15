@@ -1474,7 +1474,7 @@ class CreateArtifactsTests(TestCase):
                 """).format(package_version=version)
             )
 
-        # TODO Cleanup
+        self.addCleanup(FilePath("setup.py").remove)
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
@@ -1485,12 +1485,13 @@ class CreateArtifactsTests(TestCase):
             aws=aws,
             version=version,
         )
-
+        self.addCleanup(FilePath('dist').remove)
+        # TODO use something to get rid of output
         aws_keys = aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(
             sorted(aws_keys),
-            [self.target_key + 'Flocker-0.3.0-py2-none-any.whl',
-             self.target_key + 'Flocker-0.3.0.tar.gz'])
+            [self.target_key + '/' 'Flocker-0.3.0-py2-none-any.whl',
+             self.target_key + '/' + 'Flocker-0.3.0.tar.gz'])
 
     def test_setuptools_version_remains_same(self):
         """
