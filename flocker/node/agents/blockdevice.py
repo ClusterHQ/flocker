@@ -1112,43 +1112,18 @@ class BlockDeviceDeployer(PRecord):
 
     def _calculate_resizes(self, configured_manifestations, local_state):
         """
+        Determine what resizes need to be performed.
+
         :param dict configured_manifestations: The manifestations configured
             for this node (like ``Node.manifestations``).
 
-        :param NodeState??? local_state: The current state of this node.
+        :param NodeState local_state: The current state of this node.
 
         :return: An iterator of ``ResizeBlockDeviceDataset`` instances for each
             volume that needs to be resized based on the given configuration
             and the actual state of volumes (ie which have a size that is
             different to the configuration)
         """
-        # The pattern established in _calculate_deletes is to pass only the
-        # configuration. The reason is outlined by exarkun in this comment:
-        # https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444444
-        # ```
-        # Note that _calculate_deletes changed to not list volumes. This is
-        # because we want to keep calculate_necessary_state_changes as simple as
-        # we can. One way to do that is to only operate on the simple model
-        # objects given as inputs. For now we're accepting some extra complexity
-        # that results from this decision in the IStateChange implementations
-        # (eg, make the resize operation a no-op if the desired size is already
-        # the actual size). Later, we'll fix this up by making local_state and
-        # cluster_state carry all of the extra information we need to make
-        # smarter decisions.
-        # ```
-        # ...but that's not enough to calculate which volumes need resizing.
-        #
-        # Are just going to return a ResizeBlockDeviceDataset state change for
-        # *every* manifestation?
-        # Or shall we also pass in the local node state here and calculate the
-        # necessary resizes based on that?
-        # That state may be outdated by the time the state change is actually
-        # run...the dataset may already have been resized (I suppose) in which
-        # case, the resize step will have to double check that the size really
-        # doesn't match the desired size.
-        # Or the supplied state may not yet reflect the update size of the
-        # dataset, but I suppose that doesn't matter because the convergence
-        # agent will just try again on its next loop.
         for (dataset_id, manifestation) in local_state.manifestations.items():
             configured_size = (
                 configured_manifestations[dataset_id].dataset.maximum_size
