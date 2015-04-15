@@ -1412,3 +1412,31 @@ class UploadRPMsTests(TestCase):
         self.assertTrue(
             expected_files.issubset(set(files_on_s3)),
             "Metadata files for the packages were not created.")
+
+
+class CreateArtifactsTests(TestCase):
+    """
+    Tests for :func:``create_artifacts``.
+    """
+    def test_setuptools_version_remains_same(self):
+        """
+        When :func:``create_artifacts`` finishes the version of ``setuptools``
+        installed before it was run is still installed.
+        """
+
+    def test_setuptools_version_remains_same_after_error(self):
+        """
+        When :func:``create_artifacts`` finishes the version of ``setuptools``
+        installed before it was run is still installed, even if there is an
+        error while running the function.
+        """
+
+    def test_python_packages_uploaded(self):
+        """
+        Source and binary distributions are uploaded to S3.
+        """
+
+    def test_tutorial_box_uploaded(self):
+        """
+        The tutorial box is uploaded to S3.
+        """

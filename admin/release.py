@@ -12,6 +12,9 @@ import os
 import sys
 import tempfile
 
+from setuptools import __version__ as setuptools_version
+from subprocess import check_call
+
 from collections import namedtuple
 from effect import (
     Effect, sync_perform, ComposedDispatcher, base_dispatcher)
@@ -506,3 +509,48 @@ def publish_rpms_main(args, base_path, top_level):
         raise SystemExit(1)
     finally:
         scratch_directory.remove()
+
+
+def create_artifacts(version):
+    """
+    TODO docstring
+    """
+
+    # TODO create wrapper so this can be run from shell
+    # TODO run this from Buildbot
+
+    if not (is_release(version)
+            or is_weekly_release(version)
+            or is_pre_release(version)):
+        raise NotARelease()
+
+    if get_doc_version(version) != version:
+        # TODO when this is raised, exit with a friendly error message.
+        # we want Buildbot to run into this and not fail.
+        raise DocumentationRelease()
+
+    if setuptools_version != '3.6':
+        # TODO maybe use < 8, latest version setuptools which works
+        # TODO In the future, perhaps check out the necessary version,
+        # and in a finally
+        # TODO does having PyPI as a test dep matter, for the above
+        raise ValueError("setuptools version is not 3.6")
+
+    # XXX This should not be necessary, see
+    # https://clusterhq.atlassian.net/browse/FLOC-1331.
+    check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
+    # Upload python packages to ``archive.clusterhq.com``
+    check_call([
+        'gsutil', 'cp', '-a', 'public-read',
+        'dist/Flocker-%s.tar.gz' % version,
+        'dist/Flocker-%s-py2-none-any.whl' % version,
+        'gs://archive.clusterhq.com/downloads/flocker/',
+    ])
+
+    # Build RPM packages and upload them to Amazon S3
+    # Copy the tutorial box to the final location on GCS
+    check_call([
+        'gsutil', 'cp', '-a', 'public-read',
+        'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
+        'gs://clusterhq-vagrant/flocker-tutorial-%s.box' % version,
+    ])
