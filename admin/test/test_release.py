@@ -716,24 +716,25 @@ class PublishDocsTests(TestCase):
             error_key=empty_error_keys
         )
 
-        self.publish_docs(
-            aws,
-            flocker_version=doc_version,
-            doc_version=doc_version,
-            environment=Environments.STAGING
-        )
-
         # The value of any updated error_key will include the version that's
         # being published.
         expected_error_path = 'en/{}/error_pages/404.html'.format(doc_version)
         expected_updated_bucket = (
             DOCUMENTATION_CONFIGURATIONS[environment].documentation_bucket
         )
-        expected_error_keys = empty_error_keys.copy()
+        expected_error_keys = aws.error_key.copy()
         if should_update:
-            # And if an error_key is expected to be updated we expect it to be for
-            # the bucket corresponding to the environment that we're publishing to.
+            # And if an error_key is expected to be updated we expect it to be
+            # for the bucket corresponding to the environment that we're
+            # publishing to.
             expected_error_keys[expected_updated_bucket] = expected_error_path
+
+        self.publish_docs(
+            aws,
+            flocker_version=doc_version,
+            doc_version=doc_version,
+            environment=environment
+        )
 
         self.assertEqual(expected_error_keys, aws.error_key)
 
@@ -755,7 +756,7 @@ class PublishDocsTests(TestCase):
         """
         self.assert_error_key_update(
             doc_version='0.4.1dev1',
-            environment=Environments.STAGING,
+            environment=Environments.PRODUCTION,
             should_update=False
         )
 

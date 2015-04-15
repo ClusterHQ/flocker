@@ -232,7 +232,6 @@ def publish_docs(flocker_version, doc_version, environment):
                      prefix=version_prefix,
                      keys=existing_version_keys - new_version_keys))
 
-
     # Update the key used for error pages
     yield Effect(
         UpdateS3ErrorPage(bucket=configuration.documentation_bucket,
