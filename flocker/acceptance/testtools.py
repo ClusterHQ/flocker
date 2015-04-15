@@ -17,6 +17,9 @@ from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
+from eliot import Logger, start_action
+from eliot.twisted import DeferredContext
+
 from treq import get, post, delete, json_content
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
@@ -30,7 +33,7 @@ from flocker.testtools import loop_until
 
 try:
     from pymongo import MongoClient
-    from pymongo.errors import ConnectionFailure
+    from pymongo.errors import PyMongoError
     PYMONGO_INSTALLED = True
 except ImportError:
     PYMONGO_INSTALLED = False
@@ -347,7 +350,7 @@ def get_mongo_client(host, port=27017):
     def create_mongo_client():
         try:
             return MongoClient(host=host, port=port)
-        except ConnectionFailure:
+        except PyMongoError:
             return False
 
     d = loop_until(create_mongo_client)
@@ -432,6 +435,19 @@ def check_and_decode_json(result, response_code):
     return json_content(result)
 
 
+def log_method(function):
+    wraps(function)
+    def wrapper(self, *args, **kwargs):
+        context = start_action(Logger(),
+                               action_type="acceptance:" + function.__name__,
+                               args=args, kwargs=kwargs)
+        with context.context():
+            d = DeferredContext(function(self, *args, **kwargs))
+            d.addActionFinish()
+            return d.result
+    return wrapper
+
+
 class Cluster(PRecord):
     """
     A record of the control service and the nodes in a cluster for acceptance
@@ -454,6 +470,7 @@ class Cluster(PRecord):
             self.control_node.address, REST_API_PORT
         )
 
+    @log_method
     def datasets_state(self):
         """
         Return the actual dataset state of the cluster.
@@ -465,6 +482,7 @@ class Cluster(PRecord):
         request.addCallback(check_and_decode_json, OK)
         return request
 
+    @log_method
     def wait_for_dataset(self, dataset_properties):
         """
         Poll the dataset state API until the supplied dataset exists.
@@ -497,6 +515,7 @@ class Cluster(PRecord):
         waiting.addCallback(lambda ignored: (self, dataset_properties))
         return waiting
 
+    @log_method
     def create_dataset(self, dataset_properties):
         """
         Create a dataset with the supplied ``dataset_properties``.
@@ -519,6 +538,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def update_dataset(self, dataset_id, dataset_properties):
         """
         Update a dataset with the supplied ``dataset_properties``.
@@ -542,6 +562,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def delete_dataset(self, dataset_id):
         """
         Delete a dataset.
@@ -563,6 +584,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def create_container(self, properties):
         """
         Create a container with the specified properties.
@@ -583,6 +605,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def move_container(self, name, host):
         """
         Move a container.
@@ -603,6 +626,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def remove_container(self, name):
         """
         Remove a container.
@@ -621,6 +645,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def current_containers(self):
         """
         Get current containers.
@@ -637,6 +662,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def wait_for_container(self, container_properties):
         """
         Poll the container state API until a container exists with all the
