@@ -1492,9 +1492,6 @@ class CreateArtifactsTests(TestCase):
             [self.target_key + 'Flocker-0.3.0-py2-none-any.whl',
              self.target_key + 'Flocker-0.3.0.tar.gz'])
 
-    def test_distributions_uploaded(self):
-        pass
-
     def test_setuptools_version_remains_same(self):
         """
         When :func:``create_artifacts`` finishes the version of ``setuptools``
@@ -1506,11 +1503,6 @@ class CreateArtifactsTests(TestCase):
         When :func:``create_artifacts`` finishes the version of ``setuptools``
         installed before it was run is still installed, even if there is an
         error while running the function.
-        """
-
-    def test_python_packages_uploaded(self):
-        """
-        Source and binary distributions are uploaded to S3.
         """
 
     def test_tutorial_box_uploaded(self):
