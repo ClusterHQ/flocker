@@ -167,7 +167,7 @@ class ContainerAPITests(TestCase):
 
             def inserted(record):
                 moved = cluster.move_container(
-                    u"container", cluster.nodes[1].address
+                    mongodb[u"name"], cluster.nodes[1].address
                 )
 
                 def destroy_and_recreate(_, record):
@@ -182,7 +182,7 @@ class ContainerAPITests(TestCase):
                     and read the data, the dataset was successfully moved along
                     with the container.
                     """
-                    removed = cluster.remove_container(u"container")
+                    removed = cluster.remove_container(mongodb[u"name"])
                     mongodb2 = mongodb.copy()
                     mongodb2[u"ports"] = [
                         {u"internal": 27017, u"external": 27018}
