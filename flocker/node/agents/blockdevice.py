@@ -67,6 +67,14 @@ class UnattachedVolume(VolumeException):
     requires the volume to be attached.
     """
 
+OLD_SIZE = Field(
+    u"old_size", [int], u"The size of a volume prior to a resize operation."
+)
+
+NEW_SIZE = Field(
+    u"new_size", [int],
+    u"The intended size of a volume aftyer resize operation."
+)
 
 DATASET = Field(
     u"dataset",
@@ -140,6 +148,20 @@ UNMOUNT_BLOCK_DEVICE = ActionType(
     u"A block-device-backed dataset is being unmounted.",
 )
 
+MOUNT_BLOCK_DEVICE = ActionType(
+    u"agent:blockdevice:mount",
+    [VOLUME],
+    [],
+    u"A block-device-backed dataset is being mounted.",
+)
+
+ATTACH_VOLUME = ActionType(
+    u"agent:blockdevice:attach_volume",
+    [VOLUME],
+    [],
+    u"The volume for a block-device-backed dataset is being attached."
+)
+
 DETACH_VOLUME = ActionType(
     u"agent:blockdevice:detach_volume",
     [VOLUME],
@@ -154,10 +176,26 @@ DESTROY_VOLUME = ActionType(
     u"The volume for a block-device-backed dataset is being destroyed."
 )
 
-# Add new Eliot actions for:
-# RESIZE_BLOCK_DEVICE_DATASET
-# MOUNT_VOLUME
-# ATTACH_VOLUME
+RESIZE_VOLUME = ActionType(
+    u"agent:blockdevice:resize_volume",
+    [VOLUME],
+    [],
+    u"The volume for a block-device-backed dataset is being resizeed."
+)
+
+RESIZE_FILESYSTEM = ActionType(
+    u"agent:blockdevice:resize_filesystem",
+    [VOLUME, OLD_SIZE, NEW_SIZE],
+    [],
+    u"The filesystem on a block-device-backed dataset is being resized."
+)
+
+RESIZE_BLOCK_DEVICE_DATASET = ActionType(
+    u"agent:blockdevice:resize",
+    [DATASET_ID],
+    [],
+    u"A block-device-backed dataset is being resized.",
+)
 
 
 def _logged_statechange(cls):

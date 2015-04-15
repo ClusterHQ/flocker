@@ -33,6 +33,9 @@ from ..blockdevice import (
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
+
+    RESIZE_BLOCK_DEVICE_DATASET, RESIZE_VOLUME, ATTACH_VOLUME,
+    RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE,
 )
 
 from ... import InParallel, IStateChange
@@ -1598,6 +1601,18 @@ def _make_destroy_dataset():
     )
 
 
+def multistep_change_log(parent, children):
+    def verify(self, logger):
+        [parent_action] = LoggedAction.of_type(logger.messages, parent)
+        children_actions = [
+            LoggedAction.of_type(logger.messages, child_action)[0]
+            for child_action
+            in children
+        ]
+        self.assertEqual(children_actions, parent.children)
+    return verify
+
+
 class DestroyBlockDeviceDatasetTests(
         make_state_change_tests(_make_destroy_dataset)
 ):
@@ -1660,6 +1675,10 @@ class DestroyBlockDeviceDatasetTests(
         b = DestroyBlockDeviceDataset(dataset_id=uuid4())
         self.assertTrue(a != b)
 
+    _verify_destroy_log = multistep_change_log(
+        DESTROY_BLOCK_DEVICE_DATASET,
+        [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, DESTROY_VOLUME]
+    )
     def verify_run_log(self, logger):
         # XXX: This should probably be refactored and shared with the tests for
         # parent and child actions logged by ``ResizeBlockDeviceDataset``.
@@ -1674,7 +1693,7 @@ class DestroyBlockDeviceDatasetTests(
         [destroy] = LoggedAction.of_type(logger.messages, DESTROY_VOLUME)
         self.assertEqual([unmount, detach, destroy], action.children)
 
-    @validate_logging(verify_run_log)
+    @validate_logging(_verify_destroy_log)
     def test_run(self, logger):
         """
         After running ``DestroyBlockDeviceDataset``, its volume has been
@@ -1991,85 +2010,87 @@ class ResizeBlockDeviceDatasetTests(
     # Lots of tests that are very similar to those for DestroyBlockDeviceDataset tests.
     # We should probably refactor these in to a test mixin class.
 
-    def test_volume_required(self):
+    def test_dataset_id_required(self):
         """
-        If ``volume`` is not supplied when initializing
+        If ``dataset_id`` is not supplied when initializing
         ``ResizeBlockDeviceDataset``, ``TypeError`` is raised.
         """
-        # self.assertRaises(TypeError, ResizeBlockDeviceDataset)
-        1/0
+        self.assertRaises(
+            TypeError,
+            ResizeBlockDeviceDataset, size=REALISTIC_BLOCKDEVICE_SIZE
+        )
 
-    def test_volume_must_be_volume(self):
+    def test_size_required(self):
         """
-        If the value given for ``volume`` is not an instance of
-        ``BlockDeviceVolume`` when initializing ``ResizeBlockDeviceDataset``,
-        ``TypeError`` is raised. (XXX wth pyrsistent, pick an exception type)
+        If ``size`` is not supplied when initializing
+        ``ResizeBlockDeviceDataset``, ``TypeError`` is raised.
         """
-        # self.assertRaises(
-        #     TypeError, ResizeBlockDeviceDataset, volume=object()
-        # )
-        1/0
+        self.assertRaises(
+            TypeError,
+            ResizeBlockDeviceDataset, dataset_id=uuid4()
+        )
+
+    def test_dataset_id_must_be_uuid(self):
+        """
+        If the value given for ``dataset_id`` is not an instance of ``UUID``
+        when initializing ``ResizeBlockDeviceDataset``, ``TypeError`` is
+        raised.
+        """
+        self.assertRaises(
+            TypeError,
+            ResizeBlockDeviceDataset,
+            dataset_id=object(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+
+    def test_size_must_be_int(self):
+        """
+        If the value given for ``size`` is not an instance of ``int`` when
+        initializing ``ResizeBlockDeviceDataset``, ``TypeError`` is raised.
+        """
+        self.assertRaises(
+            TypeError,
+            ResizeBlockDeviceDataset,
+            dataset_id=uuid4(), size=object()
+        )
 
     def test_equal(self):
         """
         Two ``ResizeBlockDeviceDataset`` instances compare as equal if they
         are initialized with the same volume.
         """
-        # dataset_id = uuid4()
+        dataset_id = uuid4()
 
-        # def volume():
-        #     # Avoid using the same instance, just provide the same data.
-        #     return BlockDeviceVolume(
-        #         blockdevice_id=u"abcd",
-        #         size=REALISTIC_BLOCKDEVICE_SIZE,
-        #         dataset_id=dataset_id,
-        #     )
-        # a = ResizeBlockDeviceDataset(volume=volume())
-        # b = ResizeBlockDeviceDataset(volume=volume())
-        # self.assertTrue(a == b)
-        1/0
+        def resize():
+            # Avoid using the same instance, just provide the same data.
+            return ResizeBlockDeviceDataset(
+                dataset_id=dataset_id,
+                size=REALISTIC_BLOCKDEVICE_SIZE,
+            )
+        a = resize()
+        b = resize()
+        self.assertTrue(a == b)
 
     def test_not_equal(self):
         """
         Two ``ResizeBlockDeviceDataset`` instances compare as not equal if
-        they are initialized with different volumes.
+        they are initialized with different values.
         """
-        # a = ResizeBlockDeviceDataset(volume=BlockDeviceVolume(
-        #     blockdevice_id=u"abcd",
-        #     size=REALISTIC_BLOCKDEVICE_SIZE,
-        #     dataset_id=uuid4(),
-        # ))
-        # b = ResizeBlockDeviceDataset(volume=BlockDeviceVolume(
-        #     blockdevice_id=u"dcba",
-        #     size=REALISTIC_BLOCKDEVICE_SIZE,
-        #     dataset_id=uuid4(),
-        # ))
-        # self.assertTrue(a != b)
-        1/0
+        a = ResizeBlockDeviceDataset(
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=uuid4(),
+        )
+        b = ResizeBlockDeviceDataset(
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=uuid4(),
+        )
+        self.assertTrue(a != b)
 
-    def verify_run_log(self, logger):
-        """
-        Verify that ``ResizeBlockDeviceDataset`` logs a top level action and
-        all the expected sub actions.
-
-        XXX: this can probably be shared with the similar test for
-        ``DestroyBlockDeviceDataset``.
-        """
-        # action = assertHasAction(
-        #     self, logger, RESIZE_BLOCK_DEVICE_DATASET, succeeded=True)
-        # all_such_actions = LoggedAction.of_type(
-        #     logger.messages, RESIZE_BLOCK_DEVICE_DATASET)
-        # self.assertEqual([action], all_such_actions)
-        # # Child actions are logged
-        # [unmount] = LoggedAction.of_type(logger.messages, UNMOUNT_BLOCK_DEVICE)
-        # [detach] = LoggedAction.of_type(logger.messages, DETACH_VOLUME)
-        # [resize] = LoggedAction.of_type(logger.messages, RESIZE_VOLUME)
-        # [attach] = LoggedAction.of_type(logger.messages, ATTACH_VOLUME)
-        # [mount] = LoggedAction.of_type(logger.messages, MOUNT_VOLUME)
-        # self.assertEqual([unmount, detach, resize], action.children)
-        1/0
-
-    @validate_logging(verify_run_log)
+    _verify_grow_log = multistep_change_log(
+        RESIZE_BLOCK_DEVICE_DATASET,
+        [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, RESIZE_VOLUME, ATTACH_VOLUME,
+         RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE]
+    )
+    @validate_logging(_verify_grow_log)
     def test_run_grow(self, logger):
         """
         After running ``ResizeBlockDeviceDataset``, its volume has been
@@ -2108,7 +2129,7 @@ class ResizeBlockDeviceDatasetTests(
         # self.assertEqual([expected_volume], api.list_volumes())
         1/0
 
-    def test_run_shrink(self, logger):
+    def test_run_shrink(self):
         """
         After running ``ResizeBlockDeviceDataset``, its volume has been
         shrunk.
