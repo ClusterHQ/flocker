@@ -1418,6 +1418,9 @@ class CreateArtifactsTests(TestCase):
     """
     Tests for :func:``create_artifacts``.
     """
+    def test_not_a_release(self):
+        pass
+
     def test_setuptools_version_remains_same(self):
         """
         When :func:``create_artifacts`` finishes the version of ``setuptools``

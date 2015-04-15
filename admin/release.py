@@ -534,12 +534,13 @@ def create_artifacts(version):
         # TODO In the future, perhaps check out the necessary version,
         # and in a finally
         # TODO does having PyPI as a test dep matter, for the above
+        # XXX This should not be necessary, see
+        # https://clusterhq.atlassian.net/browse/FLOC-1331.
         raise ValueError("setuptools version is not 3.6")
 
-    # XXX This should not be necessary, see
-    # https://clusterhq.atlassian.net/browse/FLOC-1331.
     check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
     # Upload python packages to ``archive.clusterhq.com``
+    # TODO change this to use Boto and S3
     check_call([
         'gsutil', 'cp', '-a', 'public-read',
         'dist/Flocker-%s.tar.gz' % version,
@@ -549,6 +550,7 @@ def create_artifacts(version):
 
     # Build RPM packages and upload them to Amazon S3
     # Copy the tutorial box to the final location on GCS
+    # TODO change this to use Boto and S3
     check_call([
         'gsutil', 'cp', '-a', 'public-read',
         'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
