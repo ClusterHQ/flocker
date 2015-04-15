@@ -689,6 +689,21 @@ class PublishDocsTests(TestCase):
             environment=Environments.STAGING)
 
     def assert_error_key_update(self, doc_version, environment, should_update):
+        """
+        Call ``publish_docs`` and assert that only the expected buckets have an
+        updated error_key property.
+
+        :param unicode doc_version: The version of the documentation that is
+            being published.
+        :param NamedConstant environment: One of the ``NamedConstants`` in
+            ``Environments``.
+        :param bool should_update: A flag indicating whether the error_key for
+            the bucket associated with ``environment`` is expected to be
+            updated.
+        :raises: ``FailTest`` if an error_key in any of the S3 buckets has been
+            updated unexpectedly.
+        """
+        # Get a set of all known S3 buckets.
         bucket_names = set()
         for e in Environments.iterconstants():
             bucket_names.add(
@@ -697,8 +712,8 @@ class PublishDocsTests(TestCase):
             bucket_names.add(
                 DOCUMENTATION_CONFIGURATIONS[e].dev_bucket
             )
-        # Pretend that all both devel and latest are currently pointing to an
-        # older version.
+        # Pretend that both devel and latest aliases are currently pointing to
+        # an older version.
         empty_routes = {
             'en/devel/': 'en/0.0.0/',
             'en/latest/': 'en/0.0.0/',
@@ -722,6 +737,7 @@ class PublishDocsTests(TestCase):
         expected_updated_bucket = (
             DOCUMENTATION_CONFIGURATIONS[environment].documentation_bucket
         )
+        # Grab a copy of the current error_key before it gets mutated.
         expected_error_keys = aws.error_key.copy()
         if should_update:
             # And if an error_key is expected to be updated we expect it to be
@@ -738,9 +754,9 @@ class PublishDocsTests(TestCase):
 
         self.assertEqual(expected_error_keys, aws.error_key)
 
-    def test_error_key_nonmarketing_staging(self):
+    def test_error_key_dev_staging(self):
         """
-        Publishing documentation for a non-marketing release to the staging
+        Publishing documentation for a development release to the staging
         bucket, updates the error_key in that bucket only.
         """
         self.assert_error_key_update(
@@ -749,13 +765,35 @@ class PublishDocsTests(TestCase):
             should_update=True
         )
 
-    def test_error_key_nonmarketing_production(self):
+    def test_error_key_dev_production(self):
         """
-        Publishing documentation for a non-marketing release to the production
-        bucket, does not update the error_key in that bucket.
+        Publishing documentation for a development release to the production
+        bucket, does not update the error_key in any of the buckets.
         """
         self.assert_error_key_update(
             doc_version='0.4.1dev1',
+            environment=Environments.PRODUCTION,
+            should_update=False
+        )
+
+    def test_error_key_pre_staging(self):
+        """
+        Publishing documentation for a pre-release to the staging
+        bucket, updates the error_key in that bucket only.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1pre1',
+            environment=Environments.STAGING,
+            should_update=True
+        )
+
+    def test_error_key_pre_production(self):
+        """
+        Publishing documentation for a pre-release to the production
+        bucket, does not update the error_key in any of the buckets.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1pre1',
             environment=Environments.PRODUCTION,
             should_update=False
         )
