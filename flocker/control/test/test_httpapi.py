@@ -37,8 +37,12 @@ from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
     api_dataset_from_dataset_and_node, container_configuration_response
 )
+from ...node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
+from .._config import (
+    FlockerConfiguration, FigConfiguration, model_from_configuration)
+from .test_config import COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML
 from ... import __version__
 
 
@@ -1655,6 +1659,24 @@ class CreateDatasetTestsMixin(APITestsMixin):
             }
         )
 
+    def test_missing_primary(self):
+        """
+        If a ``POST`` request made to the endpoint includes a body which
+        doesn't include a primary address, the response is an error indication
+        a validation failure.
+        """
+        return self.assertResult(
+            b"POST", b"/configuration/datasets",
+            {},
+            BAD_REQUEST, {
+                u'description':
+                    u"The provided JSON doesn't match the required schema.",
+                u'errors': [
+                    u"'primary' is a required property"
+                ]
+            }
+        )
+
     def _dataset_id_collision_test(self, primary, modifier=lambda uuid: uuid):
         """
         Assert that an attempt to create a dataset with a dataset_id that is
@@ -1919,10 +1941,52 @@ class CreateDatasetTestsMixin(APITestsMixin):
         creating.addCallback(created)
         return creating
 
+    def test_create_with_maximum_size_null(self):
+        """
+        A maximum size of ``null`` included with the creation of a dataset
+        results in a persisted configuration which excludes the maximum_size
+        attribute.
+        """
+        dataset_id = unicode(uuid4())
+        maximum_size = None
+        dataset = {
+            u"primary": self.NODE_A,
+            u"dataset_id": dataset_id,
+            u"maximum_size": maximum_size,
+        }
+        response = dataset.copy()
+        response[u"metadata"] = {}
+        response[u"deleted"] = False
+        del response[u"maximum_size"]
+        creating = self.assertResult(
+            b"POST", b"/configuration/datasets", dataset, CREATED, response
+        )
 
-class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
+        def created(ignored):
+            deployment = self.persistence_service.get()
+            self.assertEqual(
+                Deployment(nodes=frozenset({
+                    Node(
+                        hostname=self.NODE_A,
+                        manifestations={
+                            dataset_id: Manifestation(
+                                dataset=Dataset(
+                                    dataset_id=dataset_id,
+                                ),
+                                primary=True
+                            )
+                        }
+                    )
+                })),
+                deployment
+            )
+        creating.addCallback(created)
+        return creating
+
+
+class UpdateDatasetGeneralTestsMixin(APITestsMixin):
     """
-    Tests for the dataset modification endpoint at
+    Tests for the general behaviour of the dataset modification endpoint at
     ``/configuration/datasets/<dataset_id>``.
     """
     def test_unknown_dataset(self):
@@ -1932,13 +1996,27 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         unknown_dataset_id = unicode(uuid4())
         return self.assertResult(
-            b"POST",
-            b"/configuration/datasets/%s" % (
+            method=b"POST",
+            path=b"/configuration/datasets/%s" % (
                 unknown_dataset_id.encode('ascii'),),
-            {u'primary': self.NODE_A},
-            NOT_FOUND,
-            {u"description": u'Dataset not found.'})
+            request_body={},
+            expected_code=NOT_FOUND,
+            expected_result={u"description": u'Dataset not found.'}
+        )
 
+
+RealTestsUpdateGeneralDataset, MemoryTestsUpdateDatasetGeneral = (
+    buildIntegrationTests(
+        UpdateDatasetGeneralTestsMixin, "UpdateDatasetGeneral", _build_app)
+)
+
+
+class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
+    """
+    Tests for the behaviour of the dataset modification endpoint at
+    ``/configuration/datasets/<dataset_id>`` when supplied with a ``primary``
+    value.
+    """
     def _test_change_primary(self, dataset, deployment, origin, target):
         """
         Helper method which pre-populates the persistence_service with the
@@ -2168,42 +2246,128 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         saving.addCallback(saved)
         return saving
 
-    def test_no_primary(self):
-        """
-        An update request without a primary address is allowed.
-        """
-        expected_manifestation = _manifestation()
-        node_a = Node(
-            hostname=self.NODE_A,
-            applications=frozenset(),
-            manifestations={expected_manifestation.dataset_id:
-                            expected_manifestation},
-        )
-        deployment = Deployment(nodes=frozenset([node_a]))
-        saving = self.persistence_service.save(deployment)
-
-        def saved(ignored):
-            creating = self.assertResponseCode(
-                b"POST",
-                b"/configuration/datasets/%s" % (
-                    expected_manifestation.dataset.dataset_id.encode('ascii')
-                ),
-                {},
-                OK,
-            )
-            return creating
-        saving.addCallback(saved)
-        return saving
-    test_no_primary.todo = (
-        'It should be possible to submit a dataset update request without a '
-        'primary address, but the input schema currently requires the primary '
-        'attribute. This will need to be addressed before or as part of '
-        'https://clusterhq.atlassian.net/browse/FLOC-1404'
-    )
 
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
     buildIntegrationTests(
         UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
+)
+
+
+class UpdateSizeDatasetTestsMixin(APITestsMixin):
+    """
+    Tests for the behaviour of the dataset modification endpoint at
+    ``/configuration/datasets/<dataset_id>`` when supplied with a maximum_size
+    value.
+    """
+    def assert_dataset_resize(self, original_size, new_size,
+                              expected_code=OK, expected_result=None):
+        """
+        Check that a request to resize a dataset results in an `OK` response
+        and that the returned dataset has the expected new size.
+
+        This function first creates and persists a deployment containing a
+        dataset with ``original_size``.  It then issues a dataset update
+        request for that dataset with ``new_size`` and checks that the the
+        response code is ``expected_code`` and that the decoded response body
+        is ``expected_result``.
+
+        ``expected_code`` and ``expected_result`` can be overridden to test
+        cases where the supplied ``new_size`` is invalid.
+
+        :param int original_size: The initial size in bytes of the dataset.
+        :param int new_size: The new size in bytes of the dataset.
+        :param int expected_code: The HTTP status code that is expected in the
+            response.
+        :param dict expected_result: The dictionary of dataset attributes that
+            is expected in the response body.
+
+        :returns: A ``Deferred`` which fires when all assertions have been
+            performed on the result of the dataset update request.
+        """
+        expected_manifestation = _manifestation(
+            maximum_size=original_size
+        )
+
+        if expected_result is None:
+            expected_result = {
+                u'dataset_id': expected_manifestation.dataset_id,
+                u'primary': self.NODE_A,
+                u'deleted': False,
+                u'metadata': {},
+                u'maximum_size': new_size,
+            }
+
+            if new_size is None:
+                del expected_result[u'maximum_size']
+
+        current_primary_node = Node(
+            hostname=self.NODE_A,
+            applications=[],
+            manifestations={expected_manifestation.dataset_id:
+                            expected_manifestation}
+        )
+        deployment = Deployment(nodes=[current_primary_node])
+        saving = self.persistence_service.save(deployment)
+
+        def resize(result):
+            return self.assertResult(
+                method=b"POST",
+                path=b"/configuration/datasets/%s" % (
+                    bytes(expected_manifestation.dataset_id),
+                ),
+                request_body={u'maximum_size': new_size},
+                expected_code=expected_code,
+                expected_result=expected_result,
+            )
+        return saving.addCallback(resize)
+
+    def test_grow(self):
+        """
+        A dataset maximum_size can be increased.
+        """
+        return self.assert_dataset_resize(
+            original_size=REALISTIC_BLOCKDEVICE_SIZE,
+            new_size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
+
+    def test_shrink(self):
+        """
+        A dataset maximum_size can be decreased.
+        """
+        return self.assert_dataset_resize(
+            original_size=REALISTIC_BLOCKDEVICE_SIZE * 2,
+            new_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+
+    def test_too_small(self):
+        """
+        A dataset must be at least 67108864 bytes.
+        """
+        return self.assert_dataset_resize(
+            original_size=67108864,
+            new_size=67108864 - 1,
+            expected_code=BAD_REQUEST,
+            expected_result={
+                u'description':
+                u"The provided JSON doesn't match the required schema.",
+                u'errors':
+                [u'67108863 is less than the minimum of 67108864']
+            }
+        )
+
+    def test_remove_limit(self):
+        """
+        A dataset maximum_size can be removed.
+        """
+        return self.assert_dataset_resize(
+            original_size=REALISTIC_BLOCKDEVICE_SIZE,
+            new_size=None
+        )
+
+
+RealTestsUpdateSizeDataset, MemoryTestsUpdateSizeDataset = (
+    buildIntegrationTests(
+        UpdateSizeDatasetTestsMixin, "UpdateSizeDataset", _build_app)
 )
 
 
@@ -2597,14 +2761,14 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_manifestation = Manifestation(
             dataset=expected_dataset, primary=True)
         expected_hostname = u"192.0.2.101"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
                 manifestations={expected_dataset.dataset_id:
                                 expected_manifestation},
                 paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
             )
-        )
+        ])
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
@@ -2628,22 +2792,20 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_manifestation2 = Manifestation(
             dataset=expected_dataset2, primary=True)
         expected_hostname2 = u"192.0.2.102"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname1,
                 manifestations={expected_dataset1.dataset_id:
                                 expected_manifestation1},
                 paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
-            )
-        )
-        self.cluster_state_service.update_node_state(
+            ),
             NodeState(
                 hostname=expected_hostname2,
                 manifestations={expected_dataset2.dataset_id:
                                 expected_manifestation2},
                 paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
             )
-        )
+        ])
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
             primary=expected_hostname1,
@@ -2943,13 +3105,13 @@ class ContainerStateTestsMixin(APITestsMixin):
             restart_policy=RestartAlways(),
         )
         expected_hostname = u"192.0.2.101"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
                 applications={expected_application},
                 manifestations={manifestation.dataset_id: manifestation},
             )
-        )
+        ])
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
@@ -2988,13 +3150,13 @@ class ContainerStateTestsMixin(APITestsMixin):
                                   mountpoint=FilePath(b"/xxx/yyy")),
         )
         expected_hostname = u"192.0.2.101"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
                 applications={expected_application},
                 manifestations={manifestation.dataset_id: manifestation},
             )
-        )
+        ])
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
@@ -3019,12 +3181,12 @@ class ContainerStateTestsMixin(APITestsMixin):
             name=u"myapp", image=DockerImage.from_string(u"busybox"),
             running=False)
         expected_hostname = u"192.0.2.101"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
                 applications={expected_application},
             )
-        )
+        ])
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
@@ -3048,18 +3210,16 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_application2 = Application(
             name=u"myapp2", image=DockerImage.from_string(u"busybox2"))
         expected_hostname2 = u"192.0.2.102"
-        self.cluster_state_service.update_node_state(
+        self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname1,
                 applications={expected_application1},
-            )
-        )
-        self.cluster_state_service.update_node_state(
+            ),
             NodeState(
                 hostname=expected_hostname2,
                 applications={expected_application2},
             )
-        )
+        ])
         expected_dict1 = dict(
             name=u"myapp",
             host=expected_hostname1,
@@ -3081,4 +3241,132 @@ class ContainerStateTestsMixin(APITestsMixin):
 
 RealTestsContainerStateAPI, MemoryTestsContainerStateAPI = (
     buildIntegrationTests(ContainerStateTestsMixin, "ContainerStateAPI",
+                          _build_app))
+
+
+class ConfigurationComposeTestsMixin(APITestsMixin):
+    """
+    Tests for the container configuration endpoint at
+    ``/configuration/_compose``.
+    """
+    def configuration_test(self):
+        """
+        POSTing to ``/configuration/_compose`` in Flocker's custom
+        configuration format changes the deployment configuration by
+        parsing the given JSON in Flocker's custom configuration format
+        and using it to replace the existing configuration.
+        """
+        configuration = {u"applications": COMPLEX_APPLICATION_YAML,
+                         u"deployment": COMPLEX_DEPLOYMENT_YAML}
+        setting = self.assertResponseCode(
+            b"POST", b"/configuration/_compose", configuration, OK
+        )
+
+        def configuration_set(_):
+            actual = self.persistence_service.get()
+            apps = FlockerConfiguration(
+                COMPLEX_APPLICATION_YAML).applications()
+            expected = model_from_configuration(
+                applications=apps,
+                deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+            self.assertEqual(actual, expected)
+        setting.addCallback(configuration_set)
+        return setting
+
+    def test_flocker_configuration_format(self):
+        """
+        POSTing to ``/configuration/_compose`` in Flocker's custom
+        configuration format changes the deployment configuration
+        appropriately.
+        """
+        return self.configuration_test()
+
+    def test_fig_configuration_format(self):
+        """
+        POSTing to ``/configuration/_compose`` in Fig/Docker Compose
+        configuration format changes the deployment configuration
+        appropriately.
+        """
+        fig_config = {
+            u'wordpress': {
+                u'environment': {u'WORDPRESS_ADMIN_PASSWORD': u'admin'},
+                u'volumes': [u'/var/www/wordpress'],
+                u'image': u'sample/wordpress',
+                u'ports': [u'8080:80'],
+                u'links': [u'mysql:db'],
+            },
+            u'mysql': {
+                u'image': u'sample/mysql',
+                u'ports': [u'3306:3306', u'3307:3307'],
+            }
+        }
+
+        configuration = {u"applications": fig_config,
+                         u"deployment": COMPLEX_DEPLOYMENT_YAML}
+        setting = self.assertResponseCode(
+            b"POST", b"/configuration/_compose", configuration, OK
+        )
+
+        def configuration_set(_):
+            actual = self.persistence_service.get()
+            apps = FigConfiguration(fig_config).applications()
+            expected = model_from_configuration(
+                applications=apps,
+                deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+            self.assertEqual(actual, expected)
+        setting.addCallback(configuration_set)
+        return setting
+
+    def test_overwrite_existing(self):
+        """
+        Any existing configuration is wiped by ``/configuration/_compose``.
+        """
+        application = Application(
+            name=u"myapp", image=DockerImage.from_string(u"busybox"),
+            running=False)
+        dataset = Dataset(dataset_id=unicode(uuid4()))
+        manifestation = Manifestation(dataset=dataset, primary=True)
+        expected_hostname = u"192.0.2.101"
+        saved = self.persistence_service.save(Deployment(nodes=[
+            Node(
+                hostname=expected_hostname,
+                applications={application},
+                manifestations={manifestation.dataset_id: manifestation}
+            )
+        ]))
+        saved.addCallback(lambda _: self.configuration_test())
+        return saved
+
+    def error_test(self, application_config, deployment_config,
+                   message):
+        """
+        POSTing to ``/configuration/_compose`` in Flocker's custom
+        configuration format changes returns parsing errors appropriately
+        """
+        configuration = {u"applications": application_config,
+                         u"deployment": deployment_config}
+        return self.assertResult(
+            b"POST", b"/configuration/_compose", configuration, BAD_REQUEST,
+            {u"description": message}
+        )
+
+    def test_bad_applications(self):
+        """
+        A bad applications configuration results in a useful error.
+        """
+        return self.error_test({u"lalala": u"lololo"}, COMPLEX_DEPLOYMENT_YAML,
+                               u"Application configuration has an error. " +
+                               u"Missing 'applications' key.")
+
+    def test_bad_deployment(self):
+        """
+        A bad deployment configuration results in a useful error.
+        """
+        return self.error_test(
+            COMPLEX_APPLICATION_YAML, {u"lalala": u"lololo"},
+            u"Deployment configuration has an error. Missing 'nodes' key.")
+
+
+RealTestsConfigurationAPI, MemoryTestsConfigurationAPI = (
+    buildIntegrationTests(ConfigurationComposeTestsMixin, "ConfigurationAPI",
                           _build_app))

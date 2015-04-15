@@ -21,7 +21,7 @@ By the end of the release process we will have:
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
 
-For a documentation release, we will have:
+For a maintenance or documentation release, we will have:
 
 - a tag in version control,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
@@ -60,7 +60,7 @@ Access
 
 - An OS X (most recent release) system.
 
-.. note:: For a documentation release, access to Google Cloud Storage and Atlas is not required.
+.. note:: For a maintenance or documentation release, access to Google Cloud Storage and Atlas is not required.
 
 .. _preparing-for-a-release:
 
@@ -80,12 +80,35 @@ Preparing For a Release
 
       export VERSION=0.1.2
 
+#. Export the base branch which the release will be branched from:
+
+   For a weekly development release, or the first pre-release for a marketing release,
+   the base branch should be ``master``:
+
+   .. prompt:: bash $
+
+      export BASE_BRANCH=master
+
+   For a marketing release, or any pre-release which is not the first pre-release for a particular marketing release,
+   the base branch should be the release branch for the most recent pre-release:
+
+   .. prompt:: bash $
+
+      export BASE_BRANCH=release/flocker-0.1.2pre1
+
+   For a maintenance or documentation release,
+   the base branch should be the release receiving the maintenance:
+
+   .. prompt:: bash $
+
+      export BASE_BRANCH=release/flocker-0.1.2
+
 #. Create an issue in JIRA:
 
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that a maintenance release is in progress.
+#. If this is a maintenance or documentation release, announce on Zulip's Engineering > Maintenance Release topic that a maintenance or documentation release is in progress.
 
    ::
 
@@ -93,16 +116,11 @@ Preparing For a Release
 
 #. Create a clean, local Flocker release branch with no modifications:
 
-   .. note::
-
-      For a maintenance release, replace ``origin/master`` below with ``origin/flocker-${BASE_VERSION}``,
-      where ``${BASE_VERSION}`` is the release receiving the maintenance.
-
    .. prompt:: bash $
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/master
+      git checkout -b release/flocker-${VERSION} origin/${BASE_BRANCH}
       git push --set-upstream origin release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
@@ -119,8 +137,7 @@ Preparing For a Release
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
-   XXX: Process to be decided.
-   See https://clusterhq.atlassian.net/browse/FLOC-523
+   XXX: Process to be decided, see :issue:`523`.
 
    - The NEWS date format is YYYY-MM-DD.
    - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
@@ -177,7 +194,7 @@ Preparing For a Release
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Update the staging documentation.
-   (For a documentation release ``${VERSION}`` should be the base release version in this step).
+   (For a maintenance or documentation release ``${VERSION}`` should be the the release receiving the maintenance).
 
    .. prompt:: bash $
 
@@ -302,7 +319,7 @@ Release
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -311,7 +328,7 @@ Release
 
 #. Build RPM packages and upload them to Amazon S3:
 
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -319,7 +336,7 @@ Release
 
 #. Copy the tutorial box to the final location:
    
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -327,9 +344,9 @@ Release
 
 #. Add the tutorial box to Atlas:
 
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
-   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
+   XXX This should be automated, see :issue:`943`.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -339,9 +356,9 @@ Release
 
 #. Create a version specific ``Homebrew`` recipe for this release:
 
-   .. note:: Skip this step for a documentation release.
+   .. note:: Skip this step for a maintenance or documentation release.
 
-   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
+   XXX This should be automated, see :issue:`1150`.
 
    - Create a recipe file and push it to the `homebrew-tap`_ repository:
 
@@ -372,12 +389,64 @@ Release
      If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
      The release process should not continue until the tests pass.
 
+#. Update and test the Getting Started Guide:
+
+   XXX This process should be changed, see :issue:`1307`.
+
+   Create a branch in the ``vagrant-flocker`` repository:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      cd
+      git clone git@github.com:ClusterHQ/vagrant-flocker.git
+      cd vagrant-flocker
+      git checkout -b release/flocker-${VERSION} origin/master
+
+   Change ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      cd
+      vi vagrant-flocker/Vagrantfile
+
+   Commit the changes and push the branch:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      git commit -am "Updated Vagrantfile"
+      git push
+
+   XXX This process should be automated, see :issue:`1309`.
+
+   Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
+   after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch.
+   This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps):
+
+   Test the client install instructions work on all supported platforms by following the instructions and checking the version:
+
+   .. prompt:: bash $
+
+      flocker-deploy --version
+
+   The expected version is the version being released.
+
 #. Update the documentation.
+
+   This should be done from the :doc:`Flocker development machine <vagrant>`.
+
+   If this machine is no longer connected to, go to the clone of ``flocker-${VERSION}`` and SSH into the machine:
+
+   .. prompt:: bash $
+
+      vagrant up
+      vagrant ssh -- -A
 
    .. prompt:: bash [vagrant@localhost]$
 
       cd ~/flocker-${VERSION}
       admin/publish-docs --production
+
+#. Merge the new ``vagrant-flocker`` branch.
 
 #. Submit the release pull request for review again.
 
@@ -408,17 +477,15 @@ Post-Release Review Process
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
-   Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`.
+   Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
 
-   XXX: This step should be documented.
-   See `FLOC-1622 <https://clusterhq.atlassian.net/browse/FLOC-1622>`_.
+   XXX: This step should be documented, see :issue:`1622`.
 
-   XXX: This step should be automated.
-   See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
+   XXX: This step should be automated, see :issue:`1039`.
 
 #. Merge the release pull request.
 
-#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release topic that the maintenance release is in complete.
+#. If this is a maintenance or documentation release, announce on Zulip's Engineering > Maintenance Release topic that the maintenance or documentation release is in complete.
 
    ::
 
@@ -440,7 +507,7 @@ The issue(s) for the planned improvements should be put into the next sprint.
 Appendix: Back Porting Changes From Master
 ------------------------------------------
 
-XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/FLOC-877
+XXX: This process needs documenting, see :issue:`877`.
 
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil

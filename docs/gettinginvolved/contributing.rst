@@ -1,5 +1,7 @@
 .. include:: ../../CONTRIBUTING.rst
 
+.. _maintenance-branches:
+
 Maintenance Branches
 ====================
 
@@ -12,7 +14,8 @@ Maintenance Branches
 Occasionally, issues will be discovered that want to be fixed before the next full release.
 The following is the procedure for fixing them.
 
-#. File an issue in JIRA_. For example, "FLOC-1234: Fix a bug.".
+#. File an issue in JIRA_.
+   For example, "FLOC-1234: Fix a bug.".
    If the issue affects in multiple versions (including master),
    create a sub-task for each affected, supported version:
 
@@ -67,3 +70,12 @@ The following is the procedure for fixing them.
       git push origin --set-upstream fix-a-bug-FLOC-1236
 
 #. Delete all the merged branches.
+
+
+Pre-release Branches
+====================
+
+Similarly to `maintenance-branches`_, bug fixes and improvements may need to be applied to pre-releases.
+These changes should be the only changes between pre-releases for the same marketing release, and the only changes between the last pre-release and the final marketing release.
+
+Follow the procedure for merging fixes into maintenance branches, merging fixes into the last pre-release.

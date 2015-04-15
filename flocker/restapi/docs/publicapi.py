@@ -104,6 +104,10 @@ def _parseSchema(schema, schema_store):
     single kind of object. If your schema is more complex you may need to
     expand this code to address that.
 
+    See:
+     * https://clusterhq.atlassian.net/browse/FLOC-1697
+     * https://clusterhq.atlassian.net/browse/FLOC-1698
+
     @param schema: L{dict} representing a JSON Schema.
 
     @param dict schema_store: A mapping between schema paths

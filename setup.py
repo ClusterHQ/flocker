@@ -76,9 +76,6 @@ dev_requirements = [
     # Packages are downloaded from Buildbot
     "requests==2.4.3",
     "requests-file==1.0",
-
-    # Functional programming is used in the release process.
-    "effect==0.1a13",
 ]
 
 # The test suite uses network namespaces
@@ -148,7 +145,7 @@ setup(
         "zope.interface >= 4.0.5",
         "pytz",
         "characteristic >= 14.1.0",
-        "Twisted == 15.0.0",
+        "Twisted == 15.1.0",
 
         "PyYAML == 3.10",
 
@@ -162,6 +159,7 @@ setup(
         "klein == 0.2.3",
         "pyrsistent == 0.9.1",
         "pyOpenSSL == 0.14",
+        "effect==0.1a13",
         ],
 
     extras_require={
@@ -187,7 +185,6 @@ setup(
             "PyCrypto",
             "pyasn1",
             "tl.eggdeps",
-            "effect==0.1a13",
             "boto==2.30.0",
             # Packages are downloaded from Buildbot
             "requests==2.4.3",

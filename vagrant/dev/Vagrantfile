@@ -45,6 +45,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Cleanup
   config.vm.provision :shell, :path => "../cleanup.sh", :privileged => true
 
+  # Don't use a shared folder.
+  # - It isn't used during the build.
+  # - The vguest plugin tries to compile a new vboxsf module, but
+  #   fails on the first boot, since it can't install the corresponding
+  #   kernel-devel headers.
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
   end

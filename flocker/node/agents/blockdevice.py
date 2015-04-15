@@ -18,11 +18,13 @@ from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
 
+import psutil
+
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
 from .. import IDeployer, IStateChange, Sequentially, InParallel
-from ...control import NodeState, Manifestation, Dataset
+from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
@@ -785,8 +787,8 @@ class BlockDeviceDeployer(PRecord):
     """
     An ``IDeployer`` that operates on ``IBlockDeviceAPI`` providers.
 
-    :param unicode hostname: The IP address of the node that has this deployer.
-    :param IBlockDeviceAPI block_device_api: The block device API that will be
+    :ivar unicode hostname: The IP address of the node that has this deployer.
+    :ivar IBlockDeviceAPI block_device_api: The block device API that will be
         called upon to perform block device operations.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
@@ -795,34 +797,92 @@ class BlockDeviceDeployer(PRecord):
     block_device_api = field(mandatory=True)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
 
-    def discover_local_state(self):
+    def _get_system_mounts(self, volumes):
+        """
+        Load information about mounted filesystems related to the given
+        volumes.
+
+        :param list volumes: The ``BlockDeviceVolumes`` known to exist.  They
+            may or may not be attached to this host.  Only system mounts that
+            related to these volumes will be returned.
+
+        :return: A ``dict`` mapping mount points (directories represented using
+            ``FilePath``) to dataset identifiers (as ``UUID``\ s) representing
+            all of the mounts on this system that were discovered and related
+            to ``volumes``.
+        """
+        partitions = psutil.disk_partitions()
+        device_to_dataset_id = {
+            self.block_device_api.get_device_path(volume.blockdevice_id):
+                volume.dataset_id
+            for volume
+            in volumes
+            if volume.host == self.hostname
+        }
+        return {
+            FilePath(partition.mountpoint):
+                device_to_dataset_id[FilePath(partition.device)]
+            for partition
+            in partitions
+            if FilePath(partition.device) in device_to_dataset_id
+        }
+
+    def discover_state(self, node_state):
         """
         Find all block devices that are currently associated with this host and
         return a ``NodeState`` containing only ``Manifestation`` instances and
         their mount paths.
         """
         volumes = self.block_device_api.list_volumes()
+        manifestations = {}
+        nonmanifest = {}
 
-        manifestations = {
-            m.dataset_id: m for m in (
-                _manifestation_from_volume(v) for v in volumes
-                if v.host == self.hostname)
-        }
+        for volume in volumes:
+            dataset_id = unicode(volume.dataset_id)
+            if volume.host == self.hostname:
+                manifestations[dataset_id] = _manifestation_from_volume(
+                    volume
+                )
+            elif volume.host is None:
+                nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
+
+        system_mounts = self._get_system_mounts(volumes)
 
         paths = {}
         for manifestation in manifestations.values():
             dataset_id = manifestation.dataset.dataset_id
-            # TODO This assumes things are actually mounted.  Maybe they
-            # aren't.  FLOC-1498 and FLOC-1499 need correct information here.
-            # Probably other folks won't mind it either.
             mountpath = self._mountpath_for_manifestation(manifestation)
-            paths[dataset_id] = mountpath
 
-        state = NodeState(
-            hostname=self.hostname,
-            manifestations=manifestations,
-            paths=paths,
+            # If the expected mount point doesn't actually have the device
+            # mounted where we expected to find this manifestation, the
+            # manifestation doesn't really exist here.
+            properly_mounted = system_mounts.get(mountpath) == UUID(dataset_id)
+
+            # In the future it would be nice to be able to represent
+            # intermediate states (at least internally, if not exposed via the
+            # API).  This makes certain IStateChange implementations easier
+            # (for example, we could know something is attached and has a
+            # filesystem, so we can just mount it - instead of doing something
+            # about those first two state changes like trying them and handling
+            # failure or doing more system inspection to try to see what's up).
+            # But ... the future.
+
+            if properly_mounted:
+                paths[dataset_id] = mountpath
+            else:
+                del manifestations[dataset_id]
+                nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
+
+        state = (
+            NodeState(
+                hostname=self.hostname,
+                manifestations=manifestations,
+                paths=paths,
+            ),
         )
+
+        if nonmanifest:
+            state += (NonManifestDatasets(datasets=nonmanifest),)
         return succeed(state)
 
     def _mountpath_for_manifestation(self, manifestation):
@@ -837,18 +897,12 @@ class BlockDeviceDeployer(PRecord):
             manifestation.dataset.dataset_id.encode("ascii")
         )
 
-    def calculate_necessary_state_changes(self, local_state,
-                                          desired_configuration,
-                                          current_cluster_state):
-        potential_configs = list(
-            node for node in desired_configuration.nodes
-            if node.hostname == self.hostname
-        )
-        if len(potential_configs) == 0:
-            configured_manifestations = {}
-        else:
-            [this_node_config] = potential_configs
-            configured_manifestations = this_node_config.manifestations
+    def calculate_changes(self, configuration, cluster_state):
+        # Eventually use the Datasets to avoid creating things that exist
+        # already (https://clusterhq.atlassian.net/browse/FLOC-1575) and to
+        # avoid deleting things that don't exist.
+        this_node_config = configuration.get_node(self.hostname)
+        configured_manifestations = this_node_config.manifestations
 
         configured_dataset_ids = set(
             manifestation.dataset.dataset_id
@@ -857,6 +911,7 @@ class BlockDeviceDeployer(PRecord):
             if not manifestation.dataset.deleted
         )
 
+        local_state = cluster_state.get_node(self.hostname)
         local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set(
