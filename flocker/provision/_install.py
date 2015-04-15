@@ -90,7 +90,7 @@ def task_upgrade_kernel(distribution):
             run_from_args(['sync']),
         ])
     else:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 KOJI_URL_TEMPLATE = (
@@ -170,7 +170,7 @@ def task_disable_selinux(distribution):
                 "/etc/selinux/config"),
         ])
     else:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 def task_enable_docker(distribution):
@@ -183,7 +183,8 @@ def task_enable_docker(distribution):
             run_from_args(["systemctl", "start", "docker.service"]),
         ])
     else:
-        raise NotImplementedError
+        # Ubuntu enables docker service during installation
+        return sequence([])
 
 
 def configure_firewalld(rule):
@@ -283,6 +284,9 @@ def task_install_flocker(
             # Update to read package info from new repos
             run_from_args([
                 "apt-get", "update"]),
+            # Package spl-dkms sometimes does not have libc6-dev as a
+            # dependency, add it before ZFS installation requires it.
+            run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
             # Install Flocker node and all dependencies
             run_from_args([
                 'apt-get', '-y', '--force-yes', 'install',
@@ -361,7 +365,7 @@ def task_enable_updates_testing(distribution):
                 'yum-config-manager', '--enable', 'updates-testing'])
         ])
     else:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 def task_enable_docker_head_repository(distribution):
@@ -392,7 +396,7 @@ def task_enable_docker_head_repository(distribution):
                 path="/etc/yum.repos.d/virt7-testing.repo")
         ])
     else:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 def task_enable_zfs_testing(distribution):
@@ -408,7 +412,7 @@ def task_enable_zfs_testing(distribution):
                 'yum-config-manager', '--enable', 'zfs-testing'])
         ])
     else:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 def provision(distribution, package_source, variants):
@@ -437,14 +441,14 @@ def provision(distribution, package_source, variants):
     if distribution in ('fedora-20',):
         commands.append(task_install_kernel_devel())
 
-    commands += [
+    commands.append(
         task_install_flocker(
-            package_source=package_source, distribution=distribution),
-        task_disable_selinux(distribution),
-        task_enable_docker(distribution),
-        task_create_flocker_pool_file(),
-        task_pull_docker_images(),
-    ]
+            package_source=package_source, distribution=distribution))
+    if distribution in ('centos-7'):
+        commands.append(task_disable_selinux(distribution))
+    commands.append(task_enable_docker(distribution))
+    commands.append(task_create_flocker_pool_file())
+    commands.append(task_pull_docker_images())
     return sequence(commands)
 
 
