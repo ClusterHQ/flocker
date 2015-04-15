@@ -587,6 +587,9 @@ IGNORED_WARNINGS = {
         'only-non-binary-in-usr-lib',
         # We don't allow configuring ufw firewall applications.
         'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
+
+        # Cryptography hazmat bindings
+        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
