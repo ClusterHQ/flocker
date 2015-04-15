@@ -549,10 +549,10 @@ def create_artifacts(version, target_bucket, target_key):
     # TODO change this to use Boto and S3
 
     yield Effect(UploadToS3Recursively(
-        source_path="dist",
+        source_path=FilePath("dist"),
         target_bucket=target_bucket,
         target_key=target_key,
-        files={'Flocker-%s.tar.gz', 'Flocker-%s-py2-none-any.whl'},
+        files={'Flocker-%s.tar.gz' % version, 'Flocker-%s-py2-none-any.whl' % version},
         ))
 
     # TODO choose a nice bucket name

@@ -5,7 +5,7 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipUnless, TestCase
+from unittest import skipUnless
 import tempfile
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
@@ -13,9 +13,10 @@ from requests.exceptions import HTTPError
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.trial.unittest import SynchronousTestCase as TestCase
 
 from ..release import (
-    rpm_version, make_rpm_version, upload_rpms, update_repo,
+    create_artifacts, rpm_version, make_rpm_version, upload_rpms, update_repo,
     publish_docs, Environments,
     DocumentationRelease, NotTagged, NotARelease,
 )
@@ -1418,6 +1419,30 @@ class CreateArtifactsTests(TestCase):
     """
     Tests for :func:``create_artifacts``.
     """
+
+    def setUp(self):
+        self.target_bucket = 'test-target-bucket'
+        self.target_key = 'test/target/key'
+
+    def create_artifacts(self, aws, version):
+        """
+        Call :func:``create_artifacts``.
+
+        :param FakeAWS aws: Fake AWS to interact with.
+        :param FakeYum yum: Fake yum utilities to interact with.
+
+        See :py:func:`update_repo` for other parameter documentation.
+        """
+        dispatchers = [aws.get_dispatcher(), base_dispatcher]
+        sync_perform(
+            ComposedDispatcher(dispatchers),
+            create_artifacts(
+                version=version,
+                target_bucket=self.target_bucket,
+                target_key=self.target_key,
+            )
+        )
+
     def test_not_a_release_fails(self):
         pass
 
@@ -1427,10 +1452,45 @@ class CreateArtifactsTests(TestCase):
     def test_not_in_flocker_directory_fails(self):
         pass
 
-    def test_distributions_created(self):
+    def test_distributions_uploaded(self):
+        """
+        Source and binary distributions of Flocker are uploaded to S3.
+        """
         # create minimal setup.py
         # maybe - create something so this thinks we're in the flocker directory - flocker/_version.py?
+        # this might make wheel a dev requirement - for bdist
         # assert that sdist and bdist files exist
+        version = '0.3.0'
+        from textwrap import dedent
+        with FilePath("setup.py").open("w") as setup_py:
+            setup_py.write(dedent("""
+                from setuptools import setup
+
+                setup(
+                    name="Flocker",
+                    version="{package_version}",
+                    py_modules=["Flocker"],
+                )
+                """).format(package_version=version)
+            )
+
+        # TODO Cleanup
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            })
+
+        self.create_artifacts(
+            aws=aws,
+            version=version,
+        )
+
+        aws_keys = aws.s3_buckets[self.target_bucket].keys()
+        self.assertEqual(
+            sorted(aws_keys),
+            [self.target_key + 'Flocker-0.3.0-py2-none-any.whl',
+             self.target_key + 'Flocker-0.3.0.tar.gz'])
 
     def test_distributions_uploaded(self):
         pass
