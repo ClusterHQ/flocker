@@ -135,7 +135,7 @@ def perform_create_repository(dispatcher, intent):
                 gzip_file.write(metadata)
         return {'Packages.gz', 'Release'}
     else:
-        raise NotImplementedError("Unknwon package type: %s"
+        raise NotImplementedError("Unknown package type: %s"
                                   % (package_type,))
 
 
@@ -197,7 +197,7 @@ class FakeYum(object):
                 "Origin: ClusterHQ\n")
             return {'Packages.gz', 'Release'}
         else:
-            raise NotImplementedError("Unknwon package type: %s"
+            raise NotImplementedError("Unknown package type: %s"
                                       % (package_type,))
 
     def get_dispatcher(self):

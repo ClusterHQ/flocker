@@ -5,7 +5,7 @@ Tests for ``admin.release``.
 """
 
 import os
-from twisted.trial.unittest import SynchronousTestCase as TestCase
+from twisted.trial.unittest import SynchronousTestCase
 from unittest import skipUnless
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
@@ -25,7 +25,7 @@ from ..yum import FakeYum, yum_dispatcher
 from hashlib import sha256
 
 
-class MakeRpmVersionTests(TestCase):
+class MakeRpmVersionTests(SynchronousTestCase):
     """
     Tests for ``make_rpm_version``.
     """
@@ -72,7 +72,7 @@ class MakeRpmVersionTests(TestCase):
         )
 
 
-class PublishDocsTests(TestCase):
+class PublishDocsTests(SynchronousTestCase):
     """
     Tests for :func:``publish_docs``.
     """
@@ -691,7 +691,7 @@ class PublishDocsTests(TestCase):
             environment=Environments.STAGING)
 
 
-class UpdateRepoTests(TestCase):
+class UpdateRepoTests(SynchronousTestCase):
     """
     Tests for :func:``update_repo``.
     """
@@ -736,7 +736,7 @@ class UpdateRepoTests(TestCase):
         Calling :func:`update_repo` downloads the new RPMs, creates the
         metadata, and uploads it to S3.
 
-        - Existing package on S3 are preserved in the metadata.
+        - Existing packages on S3 are preserved in the metadata.
         - Other packages on the buildserver are not downloaded.
         - Existing metadata files are left untouched.
         """
@@ -811,7 +811,7 @@ class UpdateRepoTests(TestCase):
         Calling :func:`update_repo` downloads the new DEBs, creates the
         metadata, and uploads it to S3.
 
-        - Existing package on S3 are preserved in the metadata.
+        - Existing packages on S3 are preserved in the metadata.
         - Other packages on the buildserver are not downloaded.
         """
         existing_s3_keys = {
@@ -982,7 +982,7 @@ class UpdateRepoTests(TestCase):
         self.assertEqual(expected_files, set(files_on_s3.keys()))
 
 
-class UploadRPMsTests(TestCase):
+class UploadRPMsTests(SynchronousTestCase):
     """
     Tests for :func:``upload_rpms``.
     """
