@@ -193,7 +193,7 @@ def loop_until(predicate):
         ``predicate``.
     """
     msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
-                                    getsourcelines(predicate)[1]))
+                                   getsourcelines(predicate)[1]))
     d = maybeDeferred(predicate)
 
     def loop(result):

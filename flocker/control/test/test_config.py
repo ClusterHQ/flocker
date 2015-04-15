@@ -6,7 +6,6 @@ Tests for ``flocker.node._config``.
 
 from __future__ import unicode_literals, absolute_import
 
-import copy
 from uuid import uuid4, UUID
 
 from pyrsistent import pmap

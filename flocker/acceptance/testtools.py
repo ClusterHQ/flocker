@@ -440,7 +440,10 @@ def check_and_decode_json(result, response_code):
 
 
 def log_method(function):
-    wraps(function)
+    """
+    Decorator that log calls to the given function.
+    """
+    @wraps(function)
     def wrapper(self, *args, **kwargs):
         context = start_action(Logger(),
                                action_type="acceptance:" + function.__name__,
