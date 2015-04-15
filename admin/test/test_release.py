@@ -16,7 +16,7 @@ from twisted.python.procutils import which
 
 from ..release import (
     rpm_version, make_rpm_version, upload_rpms, update_repo,
-    publish_docs, Environments,
+    publish_docs, Environments, DOCUMENTATION_CONFIGURATIONS,
     DocumentationRelease, NotTagged, NotARelease,
 )
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -688,57 +688,97 @@ class PublishDocsTests(TestCase):
             aws, '0.3.0-444-gf05215b', '0.3.0-444-gf05215b',
             environment=Environments.STAGING)
 
-    def test_updates_error_key_devel(self):
-        """
-        Calling :func:`publish_docs` for a development version updates the
-        website configuration `error_key` to point at
-        ``en/<doc_version>/error_pages/404.html``.
-        """
+    def assert_error_key_update(self, doc_version, environment, should_update):
+        bucket_names = set()
+        for e in Environments.iterconstants():
+            bucket_names.add(
+                DOCUMENTATION_CONFIGURATIONS[e].documentation_bucket
+            )
+            bucket_names.add(
+                DOCUMENTATION_CONFIGURATIONS[e].dev_bucket
+            )
+        # Pretend that all both devel and latest are currently pointing to an
+        # older version.
+        empty_routes = {
+            'en/devel/': 'en/0.0.0/',
+            'en/latest/': 'en/0.0.0/',
+        }
+        # In all the S3 buckets.
+        empty_routing_rules = {bucket_name: empty_routes.copy() for bucket_name in bucket_names}
+        # And that all the buckets themselves are empty.
+        empty_buckets = {bucket_name: {} for bucket_name in bucket_names}
+        # And that all the buckets have an empty error_key
+        empty_error_keys = {bucket_name: {} for bucket_name in bucket_names}
+
         aws = FakeAWS(
-            routing_rules={
-                'clusterhq-staging-docs': {
-                    'en/devel/': 'en/0.3.0/',
-                },
-            },
-            s3_buckets={
-                'clusterhq-staging-docs': {},
-                'clusterhq-dev-docs': {},
-            }
-        )
-        expected_version = '0.3.1dev5'
-        expected_error_key = 'en/{}/error_pages/404.html'.format(
-            expected_version)
-        self.publish_docs(aws, '0.3.0-444-gf01215b', expected_version,
-                          environment=Environments.STAGING)
-        self.assertEqual(
-            {'clusterhq-staging-docs': expected_error_key},
-            aws.error_key
+            routing_rules=empty_routing_rules,
+            s3_buckets=empty_buckets,
+            error_key=empty_error_keys
         )
 
-    def test_updates_error_key_stable(self):
-        """
-        Calling :func:`publish_docs` for a production version updates the
-        website configuration `error_key` to point at
-        ``en/<doc_version>/error_pages/404.html``.
-        """
-        aws = FakeAWS(
-            routing_rules={
-                'clusterhq-docs': {
-                    'en/devel/': 'en/0.3.0/',
-                },
-            },
-            s3_buckets={
-                'clusterhq-docs': {},
-                'clusterhq-dev-docs': {},
-            }
+        self.publish_docs(
+            aws,
+            flocker_version=doc_version,
+            doc_version=doc_version,
+            environment=Environments.STAGING
         )
-        expected_version = '0.3.1dev5'
-        expected_error_key = 'en/{}/error_pages/404.html'.format(expected_version)
-        self.publish_docs(aws, '0.3.1dev5', expected_version,
-                          environment=Environments.PRODUCTION)
-        self.assertEqual(
-            {'clusterhq-docs': expected_error_key},
-            aws.error_key
+
+        # The value of any updated error_key will include the version that's
+        # being published.
+        expected_error_path = 'en/{}/error_pages/404.html'.format(doc_version)
+        expected_updated_bucket = (
+            DOCUMENTATION_CONFIGURATIONS[environment].documentation_bucket
+        )
+        expected_error_keys = empty_error_keys.copy()
+        if should_update:
+            # And if an error_key is expected to be updated we expect it to be for
+            # the bucket corresponding to the environment that we're publishing to.
+            expected_error_keys[expected_updated_bucket] = expected_error_path
+
+        self.assertEqual(expected_error_keys, aws.error_key)
+
+    def test_error_key_nonmarketing_staging(self):
+        """
+        Publishing documentation for a non-marketing release to the staging
+        bucket, updates the error_key in that bucket only.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1dev1',
+            environment=Environments.STAGING,
+            should_update=True
+        )
+
+    def test_error_key_nonmarketing_production(self):
+        """
+        Publishing documentation for a non-marketing release to the production
+        bucket, does not update the error_key in that bucket.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1dev1',
+            environment=Environments.STAGING,
+            should_update=False
+        )
+
+    def test_error_key_marketing_staging(self):
+        """
+        Publishing documentation for a marketing release to the staging
+        bucket, updates the error_key in that bucket.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1',
+            environment=Environments.STAGING,
+            should_update=True
+        )
+
+    def test_error_key_marketing_production(self):
+        """
+        Publishing documentation for a marketing release to the production
+        bucket, updates the error_key in that bucket.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1',
+            environment=Environments.PRODUCTION,
+            should_update=True
         )
 
 
