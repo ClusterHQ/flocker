@@ -1428,7 +1428,9 @@ class CreateArtifactsTests(TestCase):
         pass
 
     def test_distributions_created(self):
-        pass
+        # create minimal setup.py
+        # maybe - create something so this thinks we're in the flocker directory - flocker/_version.py?
+        # assert that sdist and bdist files exist
 
     def test_distributions_uploaded(self):
         pass
