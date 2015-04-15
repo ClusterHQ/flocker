@@ -1736,10 +1736,9 @@ def _make_mount():
 
     # A state change to check for interface adherence etc.
     """
-    # return MountBlockDevice(
-    #     volume=_ARBITRARY_VOLUME,
-    # )
-    pass
+    return MountBlockDevice(
+        volume=_ARBITRARY_VOLUME,
+    )
 
 
 class MountBlockDeviceTests(make_state_change_tests(_make_mount)):
