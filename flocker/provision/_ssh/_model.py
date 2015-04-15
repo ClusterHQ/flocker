@@ -10,24 +10,27 @@ class RunRemotely(PRecord):
     :ivar bytes address: The address of the remote host to connect to.
     :ivar bytes username: The user to connect as.
     :ivar Effect commands: The commands to run.
+    :ivar int port: The port of the ssh server to connect to.
     """
     username = field(type=bytes, mandatory=True)
     address = field(type=bytes, mandatory=True)
     commands = field(type=Effect, mandatory=True)
+    port = field(type=int, initial=22)
 
 
-def run_remotely(username, address, commands):
+def run_remotely(username, address, commands, port=22):
     """
     Run some commands on a remote host.
 
     :param bytes address: The address of the remote host to connect to.
     :param bytes username: The user to connect as.
     :param Effect commands: The commands to run.
+    :param int port: The port of the ssh server to connect to.
 
     :return Effect:
     """
     return Effect(RunRemotely(
-        username=username, address=address, commands=commands))
+        username=username, address=address, commands=commands, port=port))
 
 
 class Run(PRecord):

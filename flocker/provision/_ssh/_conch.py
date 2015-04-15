@@ -115,13 +115,14 @@ def get_ssh_dispatcher(connection, username, address):
     })
 
 
-def get_connection_helper(address, username):
+def get_connection_helper(address, username, port):
     """
     Get a :class:`twisted.conch.endpoints._ISSHConnectionCreator` to connect to
     the given remote.
 
     :param bytes address: The address of the remote host to connect to.
     :param bytes username: The user to connect as.
+    :param int port: The port of the ssh server to connect to.
 
     :return _ISSHConnectionCreator:
     """
@@ -137,7 +138,7 @@ def get_connection_helper(address, username):
         agentEndpoint = None
 
     return _NewConnectionHelper(
-        reactor, address, 22, None, username,
+        reactor, address, port, None, username,
         keys=keys,
         password=None,
         agentEndpoint=agentEndpoint,
@@ -148,7 +149,7 @@ def get_connection_helper(address, username):
 @inlineCallbacks
 def perform_run_remotely(base_dispatcher, intent):
     connection_helper = get_connection_helper(
-        username=intent.username, address=intent.address)
+        username=intent.username, address=intent.address, port=intent.port)
 
     def connect():
         connection = connection_helper.secureConnection()
