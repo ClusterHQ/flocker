@@ -232,10 +232,13 @@ def publish_docs(flocker_version, doc_version, environment):
                      prefix=version_prefix,
                      keys=existing_version_keys - new_version_keys))
 
-    # Update the key used for error pages
-    yield Effect(
-        UpdateS3ErrorPage(bucket=configuration.documentation_bucket,
-                          target_prefix=version_prefix))
+    # Update the key used for error pages if we're publishing to staging or if
+    # we're publishing a marketing release to production.
+    if ((environment is Environments.STAGING) or
+        (environment is Environments.PRODUCTION and not is_dev)):
+        yield Effect(
+            UpdateS3ErrorPage(bucket=configuration.documentation_bucket,
+                              target_prefix=version_prefix))
 
     # Update the redirect for the stable URL (en/latest/ or en/devel/)
     # to point to the new version. Returns the old target.
