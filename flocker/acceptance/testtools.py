@@ -282,9 +282,11 @@ def get_nodes(test_case, num_nodes):
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
-    # Remove all existing containers:
+    # Remove all existing containers; we make sure to pass in node
+    # hostnames since we still rely on flocker-deploy to distribute SSH
+    # keys for now.
     clean_deploy = {u"version": 1,
-                    u"nodes": {}}
+                    u"nodes": {node: [] for node in reachable_nodes}}
     clean_applications = {u"version": 1,
                           u"applications": {}}
     flocker_deploy(test_case, clean_deploy, clean_applications)
@@ -349,7 +351,9 @@ def get_mongo_client(host, port=27017):
     """
     def create_mongo_client():
         try:
-            return MongoClient(host=host, port=port)
+            client = MongoClient(host=host, port=port)
+            client.areyoualive.posts.insert({"ping": 1})
+            return client
         except PyMongoError:
             return False
 
