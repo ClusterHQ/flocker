@@ -511,6 +511,10 @@ def publish_rpms_main(args, base_path, top_level):
         scratch_directory.remove()
 
 
+admin/publish-release
+
+admin/publish-artifacts
+
 @do
 def create_artifacts(version, target_bucket, target_key):
     """
@@ -539,14 +543,33 @@ def create_artifacts(version, target_bucket, target_key):
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
         raise ValueError("setuptools version is not 3.6")
 
+    # TODO replace this with a parameter to check_call of where this wants to be run
     if not "in flocker top level directory":
         # TODO custom exception
         raise Exception("You have to be in the top level flocker directory")
 
     # TODO where is setup.py?
+
     check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
     # Upload python packages to ``archive.clusterhq.com``
-    # TODO choose a new bucket name
+    # TODO choose a new bucket name, old was gs://archive.clusterhq.com/downloads/flocker/
+    # Don't worry about breaking archive.clusterhq.com
+
+    """
+    Refactor publish-packages to call a sequence
+    Factor out check that X is not a release
+    Factor the call out of main
+    cwd=None param in Popen
+
+    Each of these should be in archive bucket with key:
+    * distributions - python:
+        generate an index.html here with links to all the files at it
+    * rpm/deb packages - centos / fedora
+    * S3 tutorial box - vagrant.py, but code will take existing metadata, add a new version, upload the metadata
+    * change vagrantfiles to use box URLs - `vagrant/tutorial` directory in the archive bucket with box files
+
+    """
+
 
     yield Effect(UploadToS3Recursively(
         source_path=FilePath("dist"),
@@ -560,6 +583,8 @@ def create_artifacts(version, target_bucket, target_key):
     # Build RPM packages and upload them to Amazon S3
     # Copy the tutorial box to the final location on GCS
     # TODO change this to use Boto and S3
+
+    # TODO change buildbot to upload to S3
     # check_call([
     #     'gsutil', 'cp', '-a', 'public-read',
     #     'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
