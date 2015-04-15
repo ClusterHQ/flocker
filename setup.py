@@ -161,6 +161,7 @@ setup(
         "jsonschema == 2.4.0",
         "klein == 0.2.3",
         "pyrsistent == 0.9.1",
+        "pyOpenSSL == 0.15.1",
         ],
 
     extras_require={
