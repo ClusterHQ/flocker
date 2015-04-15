@@ -1418,7 +1418,19 @@ class CreateArtifactsTests(TestCase):
     """
     Tests for :func:``create_artifacts``.
     """
-    def test_not_a_release(self):
+    def test_not_a_release_fails(self):
+        pass
+
+    def test_documentation_release_fails(self):
+        pass
+
+    def test_not_in_flocker_directory_fails(self):
+        pass
+
+    def test_distributions_created(self):
+        pass
+
+    def test_distributions_uploaded(self):
         pass
 
     def test_setuptools_version_remains_same(self):
