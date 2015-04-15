@@ -158,6 +158,7 @@ setup(
         "jsonschema == 2.4.0",
         "klein == 0.2.3",
         "pyrsistent == 0.9.1",
+        "pycrypto == 2.6.1",
         "pyOpenSSL == 0.14",
         "effect==0.1a13",
         ],
