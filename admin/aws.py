@@ -273,7 +273,7 @@ class UploadToS3Recursively(object):
     :ivar FilePath source_path: Prefix of files to be uploaded.
     :ivar bytes target_bucket: Name of bucket to upload file to.
     :ivar bytes target_key: Name S3 key to upload file to.
-    :ivar list files: List of bytes, relative paths to files to upload.
+    :ivar set files: Set of bytes, relative paths to files to upload.
     """
 
 

@@ -511,7 +511,8 @@ def publish_rpms_main(args, base_path, top_level):
         scratch_directory.remove()
 
 
-def create_artifacts(version):
+@do
+def create_artifacts(version, target_bucket, target_key):
     """
     TODO docstring
     """
@@ -538,21 +539,35 @@ def create_artifacts(version):
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
         raise ValueError("setuptools version is not 3.6")
 
+    if not "in flocker top level directory":
+        # TODO custom exception
+        raise Exception("You have to be in the top level flocker directory")
+
+    # TODO where is setup.py?
     check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
     # Upload python packages to ``archive.clusterhq.com``
     # TODO change this to use Boto and S3
-    check_call([
-        'gsutil', 'cp', '-a', 'public-read',
-        'dist/Flocker-%s.tar.gz' % version,
-        'dist/Flocker-%s-py2-none-any.whl' % version,
-        'gs://archive.clusterhq.com/downloads/flocker/',
-    ])
+
+    yield Effect(UploadToS3Recursively(
+        source_path="dist",
+        target_bucket=target_bucket,
+        target_key=target_key,
+        files={'Flocker-%s.tar.gz', 'Flocker-%s-py2-none-any.whl'},
+        ))
+
+    # TODO choose a nice bucket name
+    # check_call([
+    #     'gsutil', 'cp', '-a', 'public-read',
+    #     'dist/Flocker-%s.tar.gz' % version,
+    #     'dist/Flocker-%s-py2-none-any.whl' % version,
+    #     'gs://archive.clusterhq.com/downloads/flocker/',
+    # ])
 
     # Build RPM packages and upload them to Amazon S3
     # Copy the tutorial box to the final location on GCS
     # TODO change this to use Boto and S3
-    check_call([
-        'gsutil', 'cp', '-a', 'public-read',
-        'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
-        'gs://clusterhq-vagrant/flocker-tutorial-%s.box' % version,
-    ])
+    # check_call([
+    #     'gsutil', 'cp', '-a', 'public-read',
+    #     'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
+    #     'gs://clusterhq-vagrant/flocker-tutorial-%s.box' % version,
+    # ])
