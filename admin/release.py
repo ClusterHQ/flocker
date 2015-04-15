@@ -210,8 +210,6 @@ def publish_docs(flocker_version, doc_version, environment):
     new_version_keys = yield Effect(
         ListS3Keys(bucket=configuration.dev_bucket,
                    prefix=dev_prefix))
-
-
     # Get the list of keys already existing for the given version.
     # This should only be non-empty for documentation releases.
     existing_version_keys = yield Effect(
