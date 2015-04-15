@@ -13,7 +13,7 @@ import psutil
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
-from pyrsistent import InvariantException
+from pyrsistent import InvariantException, ny as match_anything
 
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
@@ -320,12 +320,24 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
 @implementer(IBlockDeviceAPI)
 class UnusableAPI(object):
     """
-    A non-implemnentation of ``IBlockDeviceAPI`` where it is explicitly
-    required that the object not be used for anything.
+    A non-implementation of ``IBlockDeviceAPI`` where it is explicitly required
+    that the object not be used for anything.
     """
 
 
-def assertChanges(case, node_state, node_config, expected_changes):
+def assert_calculated_changes(case, node_state, node_config, expected_changes):
+    """
+    Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
+    changes when it is invoked with the given state and configuration.
+
+    :param TestCase case: The ``TestCase`` to use to make assertions (typically
+        the one being run at the moment).
+    :param NodeState node_state: The ``BlockDeviceDeployer`` will be asked to
+        calculate changes for a node that has this state.
+    :param Node node_config: The ``BlockDeviceDeployer`` will be asked to
+        calculate changes for a node with this desired configuration.
+    :param expected_changes: The ``IStateChange`` expected to be returned.
+    """
     cluster_state = DeploymentState(nodes={node_state})
     cluster_configuration = Deployment(nodes={node_config})
 
@@ -383,7 +395,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state)
 
-        assertChanges(
+        assert_calculated_changes(
             self, local_state, local_config,
             InParallel(changes=[])
         )
@@ -659,7 +671,7 @@ class BlockDeviceDeployerResizeCalculateNecessaryStateChangesTests(
             REALISTIC_BLOCKDEVICE_SIZE * 2
         )
 
-        assertChanges(
+        assert_calculated_changes(
             self, local_state, local_config,
             InParallel(changes=[
                 ResizeBlockDeviceDataset(
@@ -680,12 +692,40 @@ class BlockDeviceDeployerResizeCalculateNecessaryStateChangesTests(
 
     def test_multiple_resize(self):
         """
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` returns a
+        ``BlockDeviceDeployer.calculate_changes`` returns a
         ``ResizeBlockDeviceDataset`` state change operation for each configured
         dataset which has a different maximum_size in the local state.
         ``maximum_size`` of the configured ``Dataset`` is larger than the size
         """
-        1/0
+        dataset_id = uuid4()
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
+        manifestation = Manifestation(dataset=dataset, primary=True)
+        # Put another dataset into the state.
+        local_state = self.ONE_DATASET_STATE.transform(
+            ["manifestations", unicode(dataset_id)], manifestation
+        )
+        local_config = to_node(local_state).transform(
+            ["manifestations", match_anything, "dataset"],
+            lambda dataset: dataset.set(maximum_size=dataset.maximum_size * 2)
+        )
+
+        assert_calculated_changes(
+            self, local_state, local_config,
+            InParallel(changes=[
+                ResizeBlockDeviceDataset(
+                    dataset_id=dataset_id,
+                    size=REALISTIC_BLOCKDEVICE_SIZE * 4,
+                ),
+                ResizeBlockDeviceDataset(
+                    dataset_id=self.DATASET_ID,
+                    size=REALISTIC_BLOCKDEVICE_SIZE * 2,
+                ),
+            ])
+        )
+
 
 
 class IBlockDeviceAPITestsMixin(object):
