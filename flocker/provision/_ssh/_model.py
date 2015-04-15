@@ -11,9 +11,9 @@ class RunRemotely(PRecord):
     :ivar bytes username: The user to connect as.
     :ivar Effect commands: The commands to run.
     """
-    username = field(type=bytes)
-    address = field(type=bytes)
-    commands = field(type=Effect)
+    username = field(type=bytes, mandatory=True)
+    address = field(type=bytes, mandatory=True)
+    commands = field(type=Effect, mandatory=True)
 
 
 def run_remotely(username, address, commands):
@@ -36,7 +36,7 @@ class Run(PRecord):
 
     :ivar bytes command: The command to run.
     """
-    command = field(type=bytes)
+    command = field(type=bytes, mandatory=True)
 
     @classmethod
     def from_args(cls, command_args):
@@ -49,7 +49,7 @@ class Sudo(PRecord):
 
     :ivar bytes command: The command to run.
     """
-    command = field(type=bytes)
+    command = field(type=bytes, mandatory=True)
 
     @classmethod
     def from_args(cls, command_args):
@@ -63,8 +63,8 @@ class Put(PRecord):
     :ivar bytes content: The desired contents.
     :ivar bytes path: The remote path to create.
     """
-    content = field(type=bytes)
-    path = field(type=bytes)
+    content = field(type=bytes, mandatory=True)
+    path = field(type=bytes, mandatory=True)
 
 
 class Comment(PRecord):
@@ -73,7 +73,7 @@ class Comment(PRecord):
 
     :ivar bytes comment: The desired comment.
     """
-    comment = field(type=bytes)
+    comment = field(type=bytes, mandatory=True)
 
 
 def run(command):
