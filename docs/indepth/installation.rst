@@ -367,7 +367,7 @@ First disable SELinux.
 .. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
           This prevents Docker containers from accessing those filesystems as volumes.
           A future version of Flocker may provide a different integration strategy.
-          See https://clusterhq.atlassian.net/browse/FLOC-619.
+          See :issue:`619`.
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
