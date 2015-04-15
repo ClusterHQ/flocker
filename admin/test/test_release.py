@@ -661,6 +661,24 @@ class PublishDocsTests(TestCase):
         self.publish_docs(
             aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
 
+    def test_production_can_publish_prerelease(self):
+        """
+        Publishing a pre-release succeeds.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-docs': {
+                    'en/devel/': 'en/0.3.1.dev4/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-docs': {},
+                'clusterhq-dev-docs': {},
+            })
+        # Does not raise:
+        self.publish_docs(
+            aws, '0.3.2pre1', '0.3.2pre1', environment=Environments.PRODUCTION)
+
     def test_publish_non_release_fails(self):
         """
         Trying to publish to version that isn't a release fails.
@@ -1096,6 +1114,61 @@ class UploadRPMsTests(TestCase):
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(expected_files, set(files_on_s3))
+
+    def test_development_repositories_created_for_pre_release(self):
+        """
+        Calling :func:`upload_rpms` creates development repositories for
+        CentOS 7 and Fedora 20 for a pre-release.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        repo_contents = {
+            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/centos-7/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-flocker-cli_0.3.0-0.pre.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-flocker-node_0.3.0-0.pre.1_all.deb': '',  # noqa
+            'results/omnibus/0.3.0pre1/ubuntu-14.04/clusterhq-python-flocker_0.3.0-0.pre.1_amd64.deb': '',  # noqa
+        }
+
+        self.upload_rpms(
+            aws=aws,
+            yum=FakeYum(),
+            scratch_directory=self.scratch_directory,
+            target_bucket=self.target_bucket,
+            version='0.3.0pre1',
+            build_server=create_fake_repository(self, files=repo_contents),
+        )
+
+        expected_files = [
+            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
+            'fedora-testing/20/x86_64/repodata/repomod.xml',
+            'fedora-testing/20/x86_64/repodata/<newhash>-metadata.xml',
+            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
+            'centos-testing/7/x86_64/repodata/repomod.xml',
+            'centos-testing/7/x86_64/repodata/<newhash>-metadata.xml',
+            'ubuntu-testing/14.04/amd64/clusterhq-flocker-cli_0.3.0-0.pre.1_all.deb',  # noqa
+            'ubuntu-testing/14.04/amd64/clusterhq-flocker-node_0.3.0-0.pre.1_all.deb',  # noqa
+            'ubuntu-testing/14.04/amd64/clusterhq-python-flocker_0.3.0-0.pre.1_amd64.deb',  # noqa
+            'ubuntu-testing/14.04/amd64/Packages.gz',
+            'ubuntu-testing/14.04/amd64/Release',
+        ]
+
+        self.assertEqual(
+            sorted(expected_files),
+            sorted(aws.s3_buckets[self.target_bucket].keys()))
 
     def test_marketing_repositories_created(self):
         """

@@ -1,5 +1,5 @@
-Flocker 0.3.3dev8 (2015-03-17)
-==============================
+Flocker 0.4.0 (2015-04-07)
+==========================
 
 - New getting started guide. (FLOC-1261)
 - Updated to Twisted 15.0. (FLOC-1302)
@@ -13,7 +13,9 @@ Flocker 0.3.3dev8 (2015-03-17)
 - Flocker no longer conflicts with Homebrew's Python. (FLOC-660)
 - Flocker is now supported on Fedora 20 on Rackspace Cloud Servers, AWS and DigitalOcean. (FLOC-965, FLOC-958)
 - Flocker development machine now uses CentOS 7. (FLOC-1497)
+- Added instructions for installing ``flocker-node`` on CentOS 7. (FLOC-999)
 - Flocker documentation is now hosted on Amazon S3. (FLOC-561)
+- SELinux must be disabled before installing Flocker. (FLOC-1643)
 
 Flocker 0.3.2 (2014-11-19)
 ==========================

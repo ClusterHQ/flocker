@@ -24,7 +24,12 @@ from twisted.python.constants import Names, NamedConstant
 
 import flocker
 
-from flocker.docs import get_doc_version, is_release, is_weekly_release
+from flocker.docs import (
+    get_doc_version,
+    is_pre_release,
+    is_release,
+    is_weekly_release,
+)
 from flocker.provision._install import ARCHIVE_BUCKET
 
 from .aws import (
@@ -182,7 +187,8 @@ def publish_docs(flocker_version, doc_version, environment):
         published version isn't tagged.
     """
     if not (is_release(doc_version)
-            or is_weekly_release(doc_version)):
+            or is_weekly_release(doc_version)
+            or is_pre_release(doc_version)):
         raise NotARelease()
 
     if environment == Environments.PRODUCTION:
@@ -193,9 +199,6 @@ def publish_docs(flocker_version, doc_version, environment):
     dev_prefix = '%s/' % (flocker_version,)
     version_prefix = 'en/%s/' % (doc_version,)
 
-    # This might be clearer as ``is_weekly_release(doc_version)``,
-    # but it is more important to never publish a non-marketing release as
-    # /latest/, so we key off being a marketing release.
     is_dev = not is_release(doc_version)
     if is_dev:
         stable_prefix = "en/devel/"
@@ -320,12 +323,13 @@ def publish_docs_main(args, base_path, top_level):
                 environment=options.environment,
                 ))
     except NotARelease:
-        sys.stderr.write("%s: Can't publish non-release."
+        sys.stderr.write("%s: Can't publish non-release.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
     except NotTagged:
-        sys.stderr.write("%s: Can't publish non-tagged version to production."
-                         % (base_path.basename(),))
+        sys.stderr.write(
+            "%s: Can't publish non-tagged version to production.\n"
+            % (base_path.basename(),))
         raise SystemExit(1)
 
 
@@ -422,16 +426,18 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     :param bytes build_server: Server to download new RPMs from.
     """
     if not (is_release(version)
-            or is_weekly_release(version)):
+            or is_weekly_release(version)
+            or is_pre_release(version)):
         raise NotARelease()
 
     if get_doc_version(version) != version:
         raise DocumentationRelease()
 
-    if is_release(version):
-        target_distro_suffix = ""
-    elif is_weekly_release(version):
+    is_dev = not is_release(version)
+    if is_dev:
         target_distro_suffix = "-testing"
+    else:
+        target_distro_suffix = ""
 
     operating_systems = [
         {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},

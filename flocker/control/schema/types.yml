@@ -200,7 +200,9 @@ definitions:
     description: |
       The upper limit on how much data the dataset will be allowed to
       store, as an integer number of bytes.
-    type: number
+    type:
+      - "number"
+      - "null"
     # 64 MiB.  Sort of an arbitrary limit but inspired by the lower bound
     # on what this can be set to for the ZFS backend.  Could probably be
     # considered more carefully.
@@ -213,3 +215,20 @@ definitions:
     description: |
       Whether or not the container is currently running.
     type: boolean
+
+  dataset_configuration:
+    title: "Dataset Configuration"
+    description: "The configuration for a particular dataset."
+    type: object
+    properties:
+      primary:
+        '$ref': '#/definitions/primary'
+      dataset_id:
+        '$ref': '#/definitions/dataset_id'
+      deleted:
+        '$ref': '#/definitions/deleted'
+      metadata:
+        '$ref': '#/definitions/metadata'
+      maximum_size:
+        '$ref': '#/definitions/maximum_size'
+    additionalProperties: false
