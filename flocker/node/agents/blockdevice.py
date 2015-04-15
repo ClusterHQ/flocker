@@ -615,7 +615,6 @@ class IBlockDeviceAPI(Interface):
         :returns: ``None``
         """
 
-    # Add a new method to the IBlockDevice interface...
     def resize_volume(blockdevice_id, size):
         """
         Resize an unattached ``blockdevice_id``.
@@ -894,7 +893,6 @@ class LoopbackBlockDeviceAPI(object):
         )
         volume_path.moveTo(new_path)
 
-    # And the implementation...
     def resize_volume(self, blockdevice_id, size):
         """
         Increase the size of the loopback backing file whilst maintaining its
@@ -904,6 +902,7 @@ class LoopbackBlockDeviceAPI(object):
         It should already have been detached, so no need to worry about loop
         devices / losetup operations etc.
         """
+        1/0
 
     def list_volumes(self):
         """
