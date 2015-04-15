@@ -68,7 +68,7 @@ class UpdateS3ErrorPage(object):
     def error_key(self):
         """
         """
-        return '{}error_pages/4XX.html'.format(self.target_prefix)
+        return '{}error_pages/404.html'.format(self.target_prefix)
 
 @sync_performer
 def perform_update_s3_error_page(dispatcher, intent):
