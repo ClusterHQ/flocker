@@ -23,7 +23,7 @@ from ..release import (
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 
-from flocker.common.version import rpm_version, make_rpm_version
+from flocker.common.version import RPMVersion, make_rpm_version
 
 
 class MakeRpmVersionTests(TestCase):
@@ -32,19 +32,20 @@ class MakeRpmVersionTests(TestCase):
     """
     def test_good(self):
         """
-        ``make_rpm_version`` gives the expected ``rpm_version`` instances when
+        ``make_rpm_version`` gives the expected ``RPMVersion`` instances when
         supplied with valid ``flocker_version_number``s.
         """
         expected = {
-            '0.1.0': rpm_version('0.1.0', '1'),
-            '0.1.0-99-g3d644b1': rpm_version('0.1.0', '1.99.g3d644b1'),
-            '0.1.1pre1': rpm_version('0.1.1', '0.pre.1'),
-            '0.1.1': rpm_version('0.1.1', '1'),
-            '0.2.0dev1': rpm_version('0.2.0', '0.dev.1'),
+            '0.1.0': RPMVersion(version='0.1.0', release='1'),
+            '0.1.0-99-g3d644b1': RPMVersion(
+                version='0.1.0', release='1.99.g3d644b1'),
+            '0.1.1pre1': RPMVersion(version='0.1.1', release='0.pre.1'),
+            '0.1.1': RPMVersion(version='0.1.1', release='1'),
+            '0.2.0dev1': RPMVersion(version='0.2.0', release='0.dev.1'),
             '0.2.0dev2-99-g3d644b1':
-                rpm_version('0.2.0', '0.dev.2.99.g3d644b1'),
-            '0.2.0dev3-100-g3d644b2-dirty': rpm_version(
-                '0.2.0', '0.dev.3.100.g3d644b2.dirty'),
+                RPMVersion(version='0.2.0', release='0.dev.2.99.g3d644b1'),
+            '0.2.0dev3-100-g3d644b2-dirty': RPMVersion(
+                version='0.2.0', release='0.dev.3.100.g3d644b2.dirty'),
         }
         unexpected_results = []
         for supplied_version, expected_rpm_version in expected.items():
