@@ -9,6 +9,7 @@ import yaml
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
+from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.python import log
@@ -49,7 +50,8 @@ def remove_known_host(reactor, hostname):
     """
     Remove all keys belonging to hostname from a known_hosts file.
 
-    param bytes hostname: Remove all keys belonging to this hostname from
+    :param reactor: Reactor to use.
+    :param bytes hostname: Remove all keys belonging to this hostname from
         known_hosts.
     """
     return run(reactor, ['ssh-keygen', '-R', hostname])
@@ -66,9 +68,19 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
         API acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
+
+    :return int: The exit-code of trial.
     """
     if not trial_args:
         trial_args = ['flocker.acceptance']
+
+    def check_result(f):
+        f.trap(ProcessTerminated)
+        if f.value.exitCode is not None:
+            return f.value.exitCode
+        else:
+            return f
+
     return run(
         reactor,
         ['trial'] + list(trial_args),
@@ -76,7 +88,10 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes),
             FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node,
             FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(agent_nodes),
-            ))
+        )).addCallbacks(
+            callback=lambda _: 0,
+            errback=check_result,
+            )
 
 
 class INodeRunner(Interface):
@@ -88,12 +103,18 @@ class INodeRunner(Interface):
         """
         Start nodes for running acceptance tests.
 
-        :return Deferred: List of nodes to run tests against.
+        :param reactor: Reactor to use.
+        :return Deferred: Deferred which fires with a list of nodes to run
+            tests against.
         """
 
     def stop_nodes(reactor):
         """
         Stop the nodes started by `start_nodes`.
+
+        :param reactor: Reactor to use.
+        :return Deferred: Deferred which fires when the nodes have been
+            stopped.
         """
 
 
@@ -352,6 +373,7 @@ class RunOptions(Options):
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
     """
+    :param reactor: Reactor to use.
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.

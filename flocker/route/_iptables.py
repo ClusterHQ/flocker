@@ -251,7 +251,7 @@ def delete_open_port(logger, port):
     :see: ``HostNetwork.delete_open_port``
     """
     action = DELETE_OPEN_PORT(
-        logger=logger, target_port=port)
+        logger=logger, target_port=port.port)
 
     with action:
         encoded_port = unicode(port.port).encode("ascii")

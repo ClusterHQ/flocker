@@ -3,6 +3,7 @@
 Tests for ``admin.runner``.
 """
 
+import sys
 import os
 
 from twisted.trial.unittest import TestCase
@@ -48,7 +49,9 @@ class RunTests(TestCase):
              CommandProtocol])
 
     def test_writes_output(self):
-        import sys
+        """
+        Output of the spawned process is written to standard output.
+        """
         output = StringIO()
         self.patch(sys, 'stdout', output)
         reactor = ProcessCoreReactor()
@@ -170,7 +173,7 @@ class RunTests(TestCase):
         If the process is killed after shutting down, an error
         isn't raised.
 
-        In particular, remove the killer doesn't cause an error.
+        In particular, removing the killer doesn't cause an error.
         """
 
         reactor = ProcessCoreReactor()
