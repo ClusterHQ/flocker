@@ -130,7 +130,7 @@ def build_box(path, name, version, branch, build_server):
     # provisioning scripts via the Vagrantfile
     env = os.environ.copy()
     rpm_version = make_rpm_version(version).version
-    rpm_release =  make_rpm_version(version).release
+    rpm_release = make_rpm_version(version).release
     env.update({
         'FLOCKER_RPM_VERSION': '%s-%s' % (rpm_version, rpm_release),
         'FLOCKER_BUILD_SERVER': build_server,
