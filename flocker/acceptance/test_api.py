@@ -18,11 +18,10 @@ from unittest import SkipTest
 from treq import get, post, delete, json_content
 from pyrsistent import PRecord, field, CheckedPVector
 
-from ..testtools import loop_until, random_name
+from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
 )
-from ..node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 from ..control.httpapi import REST_API_PORT
 
 

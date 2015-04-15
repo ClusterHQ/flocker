@@ -274,7 +274,8 @@ class ResizeBlockDeviceDataset(PRecord):
     :ivar UUID dataset_id: The unique identifier of the dataset to which the
         volume to be destroyed belongs.
     """
-    # dataset_id = field(type=UUID, mandatory=True)
+    dataset_id = field(type=UUID, mandatory=True)
+    size = field(type=int, mandatory=True)
 
     @property
     def _eliot_action(self):
@@ -1079,9 +1080,11 @@ class BlockDeviceDeployer(PRecord):
         # so that it can return StateChanges for only the datasets that are
         # found to still exist in the cluster?
         #
-        # resizes = self._calculate_resizes(configured_manifestations, local_state)
+        resizes = list(self._calculate_resizes(
+            configured_manifestations, local_state
+        ))
 
-        return InParallel(changes=creates + deletes) # + resizes)
+        return InParallel(changes=creates + deletes + resizes)
 
     def _calculate_deletes(self, configured_manifestations):
         """
@@ -1114,10 +1117,10 @@ class BlockDeviceDeployer(PRecord):
 
         :param NodeState??? local_state: The current state of this node.
 
-        :return: A ``list`` of ``ResizeBlockDeviceDataset`` instances for each
-            volume that needs to be resized based on the given
-            configuration and the actual state of volumes (ie which have a size
-            that is different to the configuration)
+        :return: An iterator of ``ResizeBlockDeviceDataset`` instances for each
+            volume that needs to be resized based on the given configuration
+            and the actual state of volumes (ie which have a size that is
+            different to the configuration)
         """
         # The pattern established in _calculate_deletes is to pass only the
         # configuration. The reason is outlined by exarkun in this comment:
@@ -1146,3 +1149,12 @@ class BlockDeviceDeployer(PRecord):
         # Or the supplied state may not yet reflect the update size of the
         # dataset, but I suppose that doesn't matter because the convergence
         # agent will just try again on its next loop.
+        for (dataset_id, manifestation) in local_state.manifestations.items():
+            configured_size = (
+                configured_manifestations[dataset_id].dataset.maximum_size
+            )
+            if manifestation.dataset.maximum_size != configured_size:
+                yield ResizeBlockDeviceDataset(
+                    dataset_id=UUID(dataset_id),
+                    size=configured_size,
+                )

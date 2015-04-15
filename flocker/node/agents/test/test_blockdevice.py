@@ -10,6 +10,7 @@ from subprocess import STDOUT, PIPE, Popen, check_output
 
 import psutil
 
+from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import InvariantException
@@ -27,6 +28,7 @@ from ..blockdevice import (
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
+    ResizeBlockDeviceDataset,
     DestroyVolume,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
@@ -35,14 +37,12 @@ from ..blockdevice import (
 
 from ... import InParallel, IStateChange
 from ...testtools import ideployer_tests_factory, to_node
-from ....testtools import run_process
+from ....testtools import REALISTIC_BLOCKDEVICE_SIZE, run_process
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
     NonManifestDatasets,
 )
 
-GIBIBYTE = 2 ** 30
-REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
 LOOPBACK_BLOCKDEVICE_SIZE = 1024 * 1024 * 64
 
 if not platform.isLinux():
@@ -317,13 +317,33 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
 
 
-class BlockDeviceDeployerDestructionCalculateChangesTests(
-        SynchronousTestCase
-):
+@implementer(IBlockDeviceAPI)
+class UnusableAPI(object):
     """
-    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
-    to dataset destruction.
+    A non-implemnentation of ``IBlockDeviceAPI`` where it is explicitly
+    required that the object not be used for anything.
     """
+
+
+def assertChanges(case, node_state, node_config, expected_changes):
+    cluster_state = DeploymentState(nodes={node_state})
+    cluster_configuration = Deployment(nodes={node_config})
+
+    api = UnusableAPI()
+
+    deployer = BlockDeviceDeployer(
+        hostname=node_state.hostname,
+        block_device_api=api,
+    )
+
+    changes = deployer.calculate_changes(
+        cluster_configuration, cluster_state,
+    )
+
+    case.assertEqual(expected_changes, changes)
+
+
+class ScenarioMixin(object):
     DATASET_ID = uuid4()
     NODE = u"192.0.2.1"
 
@@ -335,6 +355,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             unicode(DATASET_ID): Manifestation(
                 dataset=Dataset(
                     dataset_id=unicode(DATASET_ID),
+                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
                 ),
                 primary=True,
             ),
@@ -345,43 +366,36 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         },
     )
 
-    def test_undeleted_dataset_not_deleted(self):
+
+class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
+        SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
+    changes are necessary because the local state already matches the desired
+    configuration.
+    """
+    def test_no_changes(self):
         """
-        ``BlockDeviceDeployer.calculate_changes`` does not calculate a change
-        to destroy datasets that are not marked as deleted in the
-        configuration.
+        ``BlockDeviceDeployer.calculate_changes`` calculates no changes when the
+        local state is already converged with the desired configuration.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state)
 
-        cluster_state = DeploymentState(
-            nodes={local_state}
+        assertChanges(
+            self, local_state, local_config,
+            InParallel(changes=[])
         )
 
-        cluster_configuration = Deployment(
-            nodes={local_config}
-        )
 
-        api = loopbackblockdeviceapi_for_test(self)
-        volume = api.create_volume(
-            dataset_id=self.DATASET_ID, size=REALISTIC_BLOCKDEVICE_SIZE
-        )
-        api.attach_volume(volume.blockdevice_id, self.NODE)
-
-        deployer = BlockDeviceDeployer(
-            hostname=self.NODE,
-            block_device_api=api,
-        )
-
-        changes = deployer.calculate_changes(
-            cluster_configuration, cluster_state,
-        )
-
-        self.assertEqual(
-            InParallel(changes=[]),
-            changes
-        )
-
+class BlockDeviceDeployerDestructionCalculateChangesTests(
+        SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to dataset destruction.
+    """
     def test_deleted_dataset_volume_exists(self):
         """
         If the configuration indicates a dataset with a primary manifestation
@@ -625,27 +639,35 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
 
 
 class BlockDeviceDeployerResizeCalculateNecessaryStateChangesTests(
-        SynchronousTestCase
+        SynchronousTestCase, ScenarioMixin
 ):
     """
-    Tests for ``BlockDeviceDeployer.calculate_necessary_state_changes``
-    in the cases relating to resizing a dataset.
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to resizing a dataset.
     """
-    def test_maximum_size_unchanged(self):
-        """
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` does not
-        calculate a change to shrink or grow datasets if the maximum_size of
-        the dataset has not changed.
-        """
-
     def test_maximum_size_increased(self):
         """
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` returns a
+        ``BlockDeviceDeployer.calculate_changes`` returns a
         ``ResizeBlockDeviceDataset`` state change operation if the
         ``maximum_size`` of the configured ``Dataset`` is larger than the size
         reported in the local node state.
         """
-        1/0
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset",
+             "maximum_size"],
+            REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
+
+        assertChanges(
+            self, local_state, local_config,
+            InParallel(changes=[
+                ResizeBlockDeviceDataset(
+                    dataset_id=self.DATASET_ID,
+                    size=REALISTIC_BLOCKDEVICE_SIZE * 2,
+                )]
+            )
+        )
 
     def test_maximum_size_decreased(self):
         """
@@ -1910,14 +1932,14 @@ class CreateBlockDeviceDatasetTests(make_state_change_tests(_make_create)):
         )
 
 
-# def _make_resize_dataset():
-#     """
-#     Make a ``ResizeBlockDeviceDataset`` instance for
-#     ``make_state_change_tests``.
-#     """
-#     return ResizeBlockDeviceDataset(
-#         volume=_ARBITRARY_VOLUME,
-#     )
+def _make_resize_dataset():
+    """
+    Make a ``ResizeBlockDeviceDataset`` instance for
+    ``make_state_change_tests``.
+    """
+    return ResizeBlockDeviceDataset(
+        volume=_ARBITRARY_VOLUME,
+    )
 
 
 class ResizeBlockDeviceDatasetTests(
