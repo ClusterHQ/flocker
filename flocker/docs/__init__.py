@@ -4,5 +4,3 @@
 Sphinx extensions for flocker.
 Components for Flocker documentation.
 """
-
-__all__ = []
