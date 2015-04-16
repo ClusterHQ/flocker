@@ -189,6 +189,7 @@ def make_rpm_version(flocker_version):
     """
     tag = flocker_version.split('-')[0]
     parsed_version = _parse_version(flocker_version)
+    import pdb; pdb.set_trace()
 
     # Given pre or dev number X create a 0 prefixed, `.` separated
     # string of version labels. E.g.
