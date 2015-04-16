@@ -187,34 +187,34 @@ def make_rpm_version(flocker_version):
     :param flocker_version: The versioneer style Flocker version string.
     :return: An ``RPMVersion``.
     """
-    # E.g. 0.1.2-69-gd2ff20c-dirty
-    # tag+distance+shortid+dirty
-    parts = flocker_version.split('-')
-    tag, remainder = parts[0], parts[1:]
-
-    parsed_tag = _parse_version(tag)
+    tag = flocker_version.split('-')[0]
+    parsed_version = _parse_version(flocker_version)
 
     # Given pre or dev number X create a 0 prefixed, `.` separated
     # string of version labels. E.g.
     # 0.1.2pre2  becomes
     # 0.1.2-0.pre.2
     if is_pre_release(tag):
-        release = ['0', 'pre', parsed_tag.pre_release]
+        release = ['0', 'pre', parsed_version.pre_release]
     elif is_weekly_release(tag):
-        release = ['0', 'dev', parsed_tag.weekly_release]
+        release = ['0', 'dev', parsed_version.weekly_release]
     else:
         release = ['1']
 
-    if remainder:
-        # The version may also contain a distance, shortid which
-        # means that there have been changes since the last
-        # tag. Additionally there may be a ``dirty`` suffix which
-        # indicates that there are uncommitted changes in the
-        # working directory.  We probably don't want to release
-        # untagged RPM versions, and this branch should probably
-        # trigger and error or a warning. But for now we'll add
-        # that extra information to the end of release number.
-        # See https://clusterhq.atlassian.net/browse/FLOC-833
-        release.extend(remainder)
+    # The version may also contain a distance, shortid which
+    # means that there have been changes since the last
+    # tag. Additionally there may be a ``dirty`` suffix which
+    # indicates that there are uncommitted changes in the
+    # working directory.  We probably don't want to release
+    # untagged RPM versions, and this branch should probably
+    # trigger and error or a warning. But for now we'll add
+    # that extra information to the end of release number.
+    # See https://clusterhq.atlassian.net/browse/FLOC-833
+    if parsed_version.commit_count is not None:
+        release += [
+            parsed_version.commit_count, 'g' + parsed_version.commit_hash]
+    if parsed_version.dirty:
+        release.append('dirty')
 
-    return RPMVersion(version=parsed_tag.release, release='.'.join(release))
+    return RPMVersion(
+        version=parsed_version.release, release='.'.join(release))
