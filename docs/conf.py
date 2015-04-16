@@ -73,7 +73,7 @@ extlinks = {
 # built documents.
 #
 from flocker import __version__
-from flocker.docs import get_doc_version, is_release
+from flocker.common.version import get_doc_version, is_release
 # The short X.Y version.
 version = get_doc_version(__version__)
 

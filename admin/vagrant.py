@@ -15,7 +15,7 @@ from twisted.python import usage
 
 import flocker
 
-from admin.release import make_rpm_version
+from flocker.common.version import make_rpm_version
 
 
 def run(command, **kwargs):
@@ -129,7 +129,8 @@ def build_box(path, name, version, branch, build_server):
     # Generate the enviroment variables used to pass options down to the
     # provisioning scripts via the Vagrantfile
     env = os.environ.copy()
-    rpm_version, rpm_release = make_rpm_version(version)
+    rpm_version = make_rpm_version(version).version
+    rpm_release = make_rpm_version(version).release
     env.update({
         'FLOCKER_RPM_VERSION': '%s-%s' % (rpm_version, rpm_release),
         'FLOCKER_BUILD_SERVER': build_server,

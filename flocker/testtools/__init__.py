@@ -682,8 +682,9 @@ def assertContainsAll(haystack, needles, test_case):
         )
 
 
-# Skip decorator for tests:
+# Skip decorators for tests:
 if_root = skipIf(os.getuid() != 0, "Must run as root.")
+not_root = skipIf(os.getuid() == 0, "Must not run as root.")
 
 
 # TODO: This should be provided by Twisted (also it should be more complete
