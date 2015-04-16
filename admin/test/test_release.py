@@ -725,7 +725,7 @@ class PublishDocsTests(TestCase):
         # Including the dev bucket
         empty_buckets['clusterhq-dev-docs'] = {}
         # And that all the buckets have an empty error_key
-        empty_error_keys = {bucket_name: {} for bucket_name in bucket_names}
+        empty_error_keys = {bucket_name: b'' for bucket_name in bucket_names}
 
         aws = FakeAWS(
             routing_rules=empty_routing_rules,
