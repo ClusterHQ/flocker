@@ -191,31 +191,18 @@ def make_rpm_version(flocker_version):
     # tag+distance+shortid+dirty
     parts = flocker_version.split('-')
     tag, remainder = parts[0], parts[1:]
-    for suffix in ('pre', 'dev'):
-        parts = tag.rsplit(suffix, 1)
-        if len(parts) == 2:
-            # A pre or dev suffix was present. ``version`` is the part before
-            # the pre and ``suffix_number`` is the part after the pre, but
-            # before the first dash.
-            version = parts.pop(0)
-            suffix_number = parts[0]
-            if suffix_number.isdigit():
-                # Given pre or dev number X create a 0 prefixed, `.` separated
-                # string of version labels. E.g.
-                # 0.1.2pre2  becomes
-                # 0.1.2-0.pre.2
-                release = ['0', suffix, suffix_number]
-            else:
-                # Non-integer pre or dev number found.
-                raise Exception(
-                    'Non-integer value "{}" for "{}". '
-                    'Supplied version {}'.format(
-                        suffix_number, suffix, flocker_version))
-            break
+
+    parsed_tag = _parse_version(tag)
+
+    # Given pre or dev number X create a 0 prefixed, `.` separated
+    # string of version labels. E.g.
+    # 0.1.2pre2  becomes
+    # 0.1.2-0.pre.2
+    if is_pre_release(tag):
+        release = ['0', 'pre', parsed_tag.pre_release]
+    elif is_weekly_release(tag):
+        release = ['0', 'dev', parsed_tag.weekly_release]
     else:
-        # Neither of the expected suffixes was found, the tag can be used as
-        # the RPM version
-        version = tag
         release = ['1']
 
     if remainder:
@@ -230,4 +217,4 @@ def make_rpm_version(flocker_version):
         # See https://clusterhq.atlassian.net/browse/FLOC-833
         release.extend(remainder)
 
-    return RPMVersion(version=version, release='.'.join(release))
+    return RPMVersion(version=parsed_tag.release, release='.'.join(release))

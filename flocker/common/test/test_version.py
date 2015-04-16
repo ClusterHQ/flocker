@@ -53,16 +53,11 @@ class MakeRpmVersionTests(SynchronousTestCase):
 
     def test_non_integer_suffix(self):
         """
-        ``make_rpm_version`` raises ``Exception`` when supplied with a version
-        with a non-integer pre or dev suffix number.
+        ``make_rpm_version`` raises ``UnparseableVersion`` when supplied with a
+        version with a non-integer pre or dev suffix number.
         """
-        with self.assertRaises(Exception) as exception:
+        with self.assertRaises(UnparseableVersion):
             make_rpm_version('0.1.2preX')
-
-        self.assertEqual(
-            u'Non-integer value "X" for "pre". Supplied version 0.1.2preX',
-            unicode(exception.exception),
-        )
 
 
 class ParseVersionTests(SynchronousTestCase):
