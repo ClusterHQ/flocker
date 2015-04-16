@@ -89,7 +89,7 @@ class ControlCertificateTests(SynchronousTestCase):
         A keypair file written by ``ControlCertificate.initialize`` has
         the correct permissions (0600).
         """
-        cc = ControlCertificate.initialize(self.path, self.ca)
+        ControlCertificate.initialize(self.path, self.ca)
         keyPath = self.path.child(CONTROL_KEY_FILENAME)
         st = os.stat(keyPath.path)
         self.assertEqual(b'0600', oct(st.st_mode & 0777))
@@ -99,7 +99,7 @@ class ControlCertificateTests(SynchronousTestCase):
         A certificate file written by ``ControlCertificate.initialize`` has
         the correct access mode set (0600).
         """
-        cc = ControlCertificate.initialize(self.path, self.ca)
+        ControlCertificate.initialize(self.path, self.ca)
         keyPath = self.path.child(CONTROL_CERTIFICATE_FILENAME)
         st = os.stat(keyPath.path)
         self.assertEqual(b'0600', oct(st.st_mode & 0777))

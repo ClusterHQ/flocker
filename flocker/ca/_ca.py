@@ -8,8 +8,6 @@ Uses RSA 4096-bit + SHA 256.
 
 import os
 
-from uuid import uuid4
-
 from OpenSSL import crypto
 from pyrsistent import PRecord, field
 from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
