@@ -66,16 +66,16 @@ Preparing For a Release
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-#. Create an issue in JIRA:
-
-   This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
-   The issue does not need a design, so move the issue to the "Coding" state.
-
 #. Export the version number of the release being created as an environment variable for later use:
 
    .. prompt:: bash $
 
       export VERSION=0.1.2
+
+#. Create an issue in JIRA:
+
+   This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
+   The issue does not need a design, so move the issue to the "Coding" state.
 
 #. Create and log in to a new :doc:`Flocker development machine <vagrant>`:
 
@@ -91,8 +91,8 @@ Preparing For a Release
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      vagrant up
-      vagrant ssh -- -A
+      admin/create-release-branch --flocker-version="${VERSION}"
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Create a release branch, and create and activate a virtual environment:
 
@@ -393,12 +393,16 @@ Release
 
 #. Test the Getting Started Guide:
 
+   XXX This process should be changed, see :issue:`1307`.
+
    XXX This process should be automated, see :issue:`1309`.
 
    .. note:: This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps).
 
    Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
    after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch:
+
+   XXX This process should be automated, see :issue:`1309`.
 
    .. prompt:: bash $
 
@@ -475,7 +479,7 @@ Post-Release Review Process
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
-   Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`.
+   Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
 
    XXX: This step should be documented, see :issue:`1622`.
 

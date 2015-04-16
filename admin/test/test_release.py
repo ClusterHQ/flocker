@@ -5,8 +5,11 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipUnless, TestCase
+from unittest import skipUnless
 import tempfile
+
+from effect import sync_perform, ComposedDispatcher, base_dispatcher
+from git import Repo
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import Repo
@@ -14,66 +17,23 @@ from requests.exceptions import HTTPError
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.python.usage import UsageError
+from twisted.trial.unittest import SynchronousTestCase
 
 from ..release import (
-    rpm_version, make_rpm_version, upload_rpms, update_repo,
-    publish_docs, Environments,
+    upload_rpms, update_repo,
+    publish_docs, Environments, DOCUMENTATION_CONFIGURATIONS,
     DocumentationRelease, NotTagged, NotARelease,
-    create_release_branch, BranchExists, TagExists, BaseBranchDoesNotExist,
-    MissingPreRelease, NoPreRelease,
+    calculate_base_branch, create_release_branch,
+    CreateReleaseBranchOptions, BranchExists, TagExists,
+    BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
 )
+
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 
 
-class MakeRpmVersionTests(TestCase):
-    """
-    Tests for ``make_rpm_version``.
-    """
-    def test_good(self):
-        """
-        ``make_rpm_version`` gives the expected ``rpm_version`` instances when
-        supplied with valid ``flocker_version_number``s.
-        """
-        expected = {
-            '0.1.0': rpm_version('0.1.0', '1'),
-            '0.1.0-99-g3d644b1': rpm_version('0.1.0', '1.99.g3d644b1'),
-            '0.1.1pre1': rpm_version('0.1.1', '0.pre.1'),
-            '0.1.1': rpm_version('0.1.1', '1'),
-            '0.2.0dev1': rpm_version('0.2.0', '0.dev.1'),
-            '0.2.0dev2-99-g3d644b1':
-                rpm_version('0.2.0', '0.dev.2.99.g3d644b1'),
-            '0.2.0dev3-100-g3d644b2-dirty': rpm_version(
-                '0.2.0', '0.dev.3.100.g3d644b2.dirty'),
-        }
-        unexpected_results = []
-        for supplied_version, expected_rpm_version in expected.items():
-            actual_rpm_version = make_rpm_version(supplied_version)
-            if actual_rpm_version != expected_rpm_version:
-                unexpected_results.append((
-                    supplied_version,
-                    actual_rpm_version,
-                    expected_rpm_version,
-                ))
-
-        if unexpected_results:
-            self.fail(unexpected_results)
-
-    def test_non_integer_suffix(self):
-        """
-        ``make_rpm_version`` raises ``Exception`` when supplied with a version
-        with a non-integer pre or dev suffix number.
-        """
-        with self.assertRaises(Exception) as exception:
-            make_rpm_version('0.1.2preX')
-
-        self.assertEqual(
-            u'Non-integer value "X" for "pre". Supplied version 0.1.2preX',
-            unicode(exception.exception),
-        )
-
-
-class PublishDocsTests(TestCase):
+class PublishDocsTests(SynchronousTestCase):
     """
     Tests for :func:``publish_docs``.
     """
@@ -718,8 +678,141 @@ class PublishDocsTests(TestCase):
             aws, '0.3.0-444-gf05215b', '0.3.0-444-gf05215b',
             environment=Environments.STAGING)
 
+    def assert_error_key_update(self, doc_version, environment, should_update):
+        """
+        Call ``publish_docs`` and assert that only the expected buckets have an
+        updated error_key property.
 
-class UploadRPMsTests(TestCase):
+        :param unicode doc_version: The version of the documentation that is
+            being published.
+        :param NamedConstant environment: One of the ``NamedConstants`` in
+            ``Environments``.
+        :param bool should_update: A flag indicating whether the error_key for
+            the bucket associated with ``environment`` is expected to be
+            updated.
+        :raises: ``FailTest`` if an error_key in any of the S3 buckets has been
+            updated unexpectedly.
+        """
+        # Get a set of all target S3 buckets.
+        bucket_names = set()
+        for e in Environments.iterconstants():
+            bucket_names.add(
+                DOCUMENTATION_CONFIGURATIONS[e].documentation_bucket
+            )
+        # Pretend that both devel and latest aliases are currently pointing to
+        # an older version.
+        empty_routes = {
+            'en/devel/': 'en/0.0.0/',
+            'en/latest/': 'en/0.0.0/',
+        }
+        # In all the S3 buckets.
+        empty_routing_rules = {
+            bucket_name: empty_routes.copy()
+            for bucket_name in bucket_names
+        }
+        # And that all the buckets themselves are empty.
+        empty_buckets = {bucket_name: {} for bucket_name in bucket_names}
+        # Including the dev bucket
+        empty_buckets['clusterhq-dev-docs'] = {}
+        # And that all the buckets have an empty error_key
+        empty_error_keys = {bucket_name: b'' for bucket_name in bucket_names}
+
+        aws = FakeAWS(
+            routing_rules=empty_routing_rules,
+            s3_buckets=empty_buckets,
+            error_key=empty_error_keys
+        )
+        # The value of any updated error_key will include the version that's
+        # being published.
+        expected_error_path = 'en/{}/error_pages/404.html'.format(doc_version)
+        expected_updated_bucket = (
+            DOCUMENTATION_CONFIGURATIONS[environment].documentation_bucket
+        )
+        # Grab a copy of the current error_key before it gets mutated.
+        expected_error_keys = aws.error_key.copy()
+        if should_update:
+            # And if an error_key is expected to be updated we expect it to be
+            # for the bucket corresponding to the environment that we're
+            # publishing to.
+            expected_error_keys[expected_updated_bucket] = expected_error_path
+
+        self.publish_docs(
+            aws,
+            flocker_version=doc_version,
+            doc_version=doc_version,
+            environment=environment
+        )
+
+        self.assertEqual(expected_error_keys, aws.error_key)
+
+    def test_error_key_dev_staging(self):
+        """
+        Publishing documentation for a development release to the staging
+        bucket, updates the error_key in that bucket only.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1dev1',
+            environment=Environments.STAGING,
+            should_update=True
+        )
+
+    def test_error_key_dev_production(self):
+        """
+        Publishing documentation for a development release to the production
+        bucket, does not update the error_key in any of the buckets.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1dev1',
+            environment=Environments.PRODUCTION,
+            should_update=False
+        )
+
+    def test_error_key_pre_staging(self):
+        """
+        Publishing documentation for a pre-release to the staging
+        bucket, updates the error_key in that bucket only.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1pre1',
+            environment=Environments.STAGING,
+            should_update=True
+        )
+
+    def test_error_key_pre_production(self):
+        """
+        Publishing documentation for a pre-release to the production
+        bucket, does not update the error_key in any of the buckets.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1pre1',
+            environment=Environments.PRODUCTION,
+            should_update=False
+        )
+
+    def test_error_key_marketing_staging(self):
+        """
+        Publishing documentation for a marketing release to the staging
+        bucket, updates the error_key in that bucket.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1',
+            environment=Environments.STAGING,
+            should_update=True
+        )
+
+    def test_error_key_marketing_production(self):
+        """
+        Publishing documentation for a marketing release to the production
+        bucket, updates the error_key in that bucket.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1',
+            environment=Environments.PRODUCTION,
+            should_update=True
+        )
+
+
+class UploadRPMsTests(SynchronousTestCase):
     """
     Tests for :func:``upload_rpms``.
     """
@@ -1443,51 +1536,121 @@ class UploadRPMsTests(TestCase):
             expected_files.issubset(set(files_on_s3)),
             "Metadata files for the packages were not created.")
 
-class CreateReleaseBranchTests(TestCase):
+
+class CreateReleaseBranchOptionsTests(SynchronousTestCase):
+    """
+    Tests for :class:`CreateReleaseBranchOptions`.
+    """
+
+    def test_flocker_version_required(self):
+          """
+          The ``--flocker-version`` option is required.
+          """
+          options = CreateReleaseBranchOptions()
+          self.assertRaises(
+              UsageError,
+              options.parseOptions, [])
+
+
+def create_git_repository(test_case):
+    """
+    Create a git repository with a ``master`` branch and ``README``.
+
+    :param test_case: The ``TestCase`` calling this.
+    """
+    directory = FilePath(test_case.mktemp())
+    directory.child('README').makedirs()
+    directory.child('README').touch()
+
+    repository = Repo.init(path=directory.path)
+    repository.index.add(['README'])
+    repository.index.commit('Initial commit')
+    repository.create_head('master')
+    return repository
+
+
+class CreateReleaseBranchTests(SynchronousTestCase):
     """
     Tests for :func:`create_release_branch`.
     """
+    def setUp(self):
+        self.repo = create_git_repository(test_case=self)
+
+    def test_branch_exists_fails(self):
+        """
+        Trying to create a release when a branch already exists for the given
+        version fails.
+        """
+        branch = self.repo.create_head('release/flocker-0.3.0')
+
+        self.assertRaises(
+            BranchExists,
+            create_release_branch, '0.3.0', base_branch=branch)
+
+    def test_active_branch(self):
+        """
+        Creating a release branch changes the active branch on the given
+        branch's repository.
+        """
+        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+
+        create_release_branch(version='0.3.0', base_branch=branch)
+        self.assertEqual(
+            self.repo.active_branch.name,
+            "release/flocker-0.3.0")
+
+    def test_branch_created_from_base(self):
+        """
+        The new branch is created from the given branch.
+        """
+        master = self.repo.active_branch
+        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+        branch.checkout()
+        FilePath(self.repo.working_dir).child('NEW_FILE').touch()
+        self.repo.index.add(['NEW_FILE'])
+        self.repo.index.commit('Add NEW_FILE')
+        master.checkout()
+        create_release_branch(version='0.3.0', base_branch=branch)
+        self.assertIn((u'NEW_FILE', 0), self.repo.index.entries)
+
+
+class CalculateBaseBranchTests(SynchronousTestCase):
+    """
+    Tests for :func:`calculate_base_branch`.
+    """
 
     def setUp(self):
-        repo_directory = FilePath(tempfile.mkdtemp())
-        self.addCleanup(repo_directory.remove)
-        self.repo = Repo.init(path=repo_directory.path)
-        repo_directory.child('README').touch()
-        self.repo.index.add(['README'])
-        self.repo.index.commit('Initial commit')
-        self.repo.create_head('master')
+        self.repo = create_git_repository(test_case=self)
 
-    def create_release_branch(self, version):
-        return create_release_branch(
+    def calculate_base_branch(self, version):
+        return calculate_base_branch(
             version=version, path=self.repo.working_dir)
 
-    def test_create_release_branch_for_non_release_fails(self):
+    def test_calculate_base_branch_for_non_release_fails(self):
         """
-        Calling :func:`create_release_branch` with a version that isn't a
+        Calling :func:`calculate_base_branch` with a version that isn't a
         release fails.
         """
         self.assertRaises(
             NotARelease,
-            self.create_release_branch, '0.3.0-444-gf05215b')
+            self.calculate_base_branch, '0.3.0-444-gf05215b')
 
     def test_weekly_release_base(self):
         """
         A weekly release is created from the "master" branch.
         """
         self.assertEqual(
-            self.create_release_branch(version='0.3.0dev1').name,
+            self.calculate_base_branch(version='0.3.0dev1').name,
             "master")
 
-    def test_active_branch(self):
+    def test_doc_release_base(self):
         """
-        Creating a release branch changes the active branch on the specified
-        repository to that branch.
+        A documentation release is created from the release which is having
+        its documentation changed.
         """
-        self.repo.create_head('release/flocker-0.3.0pre1')
-        self.repo.create_tag('0.3.0pre1')
-        self.create_release_branch(version='0.3.0')
+        self.repo.create_head('release/flocker-0.3.0')
         self.assertEqual(
-            self.repo.active_branch.name,
+            self.calculate_base_branch(version='0.3.0+doc1').name,
             "release/flocker-0.3.0")
 
     def test_first_pre_release(self):
@@ -1496,7 +1659,7 @@ class CreateReleaseBranchTests(TestCase):
         "master" branch.
         """
         self.assertEqual(
-            self.create_release_branch(version='0.3.0pre1').name,
+            self.calculate_base_branch(version='0.3.0pre1').name,
             "master")
 
     def test_uses_previous_pre_release(self):
@@ -1509,8 +1672,33 @@ class CreateReleaseBranchTests(TestCase):
         self.repo.create_head('release/flocker-0.3.0pre2')
         self.repo.create_tag('0.3.0pre2')
         self.assertEqual(
-            self.create_release_branch(version='0.3.0pre3').name,
+            self.calculate_base_branch(version='0.3.0pre3').name,
             "release/flocker-0.3.0pre2")
+
+    def test_unparseable_tags(self):
+        """
+        There is no error raised if the repository contains a tag which cannot
+        be parsed as a version.
+        """
+        self.repo.create_head('release/flocker-0.3.0unparseable')
+        self.repo.create_tag('0.3.0unparseable')
+        self.repo.create_head('release/flocker-0.3.0pre2')
+        self.repo.create_tag('0.3.0pre2')
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0pre3').name,
+            "release/flocker-0.3.0pre2")
+
+    def test_parent_repository_used(self):
+        """
+        If a path is given as the repository path, the parents of that file
+        are searched until a Git repository is found.
+        """
+        self.assertEqual(
+            calculate_base_branch(
+                version='0.3.0dev1',
+                path=FilePath(self.repo.working_dir).child('README').path,
+            ).name,
+            "master")
 
     def test_no_pre_releases_fails(self):
         """
@@ -1519,8 +1707,7 @@ class CreateReleaseBranchTests(TestCase):
         """
         self.assertRaises(
             NoPreRelease,
-            self.create_release_branch, '0.3.0'
-        )
+            self.calculate_base_branch, '0.3.0')
 
     def test_missing_pre_release_fails(self):
         """
@@ -1531,10 +1718,9 @@ class CreateReleaseBranchTests(TestCase):
         self.repo.create_tag('0.3.0pre1')
         self.assertRaises(
             MissingPreRelease,
-            self.create_release_branch, '0.3.0pre3'
-        )
+            self.calculate_base_branch, '0.3.0pre3')
 
-    def test_base_branch_does_not_exist(self):
+    def test_base_branch_does_not_exist_fails(self):
         """
         Trying to create a release when the base branch does not exist fails.
         """
@@ -1542,10 +1728,9 @@ class CreateReleaseBranchTests(TestCase):
 
         self.assertRaises(
             BaseBranchDoesNotExist,
-            self.create_release_branch, '0.3.0'
-        )
+            self.calculate_base_branch, '0.3.0')
 
-    def test_tag_exists(self):
+    def test_tag_exists_fails(self):
         """
         Trying to create a release when a tag already exists for the given
         version fails.
@@ -1553,47 +1738,4 @@ class CreateReleaseBranchTests(TestCase):
         self.repo.create_tag('0.3.0')
         self.assertRaises(
             TagExists,
-            self.create_release_branch, '0.3.0'
-        )
-
-    def test_branch_exists(self):
-        """
-        Trying to create a release when a branch already exists for the given
-        version fails.
-        """
-        self.repo.create_head('release/flocker-0.3.0pre1')
-        self.repo.create_tag('0.3.0pre1')
-        self.repo.create_head('release/flocker-0.3.0')
-        self.assertRaises(
-            BranchExists,
-            self.create_release_branch, '0.3.0'
-        )
-
-
-class CreateArtifactsTests(TestCase):
-    """
-    Tests for :func:``create_artifacts``.
-    """
-    # TODO test this
-    def test_setuptools_version_remains_same(self):
-        """
-        When :func:``create_artifacts`` finishes the version of ``setuptools``
-        installed before it was run is still installed.
-        """
-
-    def test_setuptools_version_remains_same_after_error(self):
-        """
-        When :func:``create_artifacts`` finishes the version of ``setuptools``
-        installed before it was run is still installed, even if there is an
-        error while running the function.
-        """
-
-    def test_python_packages_uploaded(self):
-        """
-        Source and binary distributions are uploaded to S3.
-        """
-
-    def test_tutorial_box_uploaded(self):
-        """
-        The tutorial box is uploaded to S3.
-        """
+            self.calculate_base_branch, '0.3.0')
