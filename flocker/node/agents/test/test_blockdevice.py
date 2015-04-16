@@ -30,7 +30,7 @@ from ..blockdevice import (
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
-    ResizeBlockDeviceDataset, ResizeVolume, AttachVolume,
+    ResizeBlockDeviceDataset, ResizeVolume, AttachVolume, CreateFilesystem,
     DestroyVolume, MountBlockDevice,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
@@ -1759,33 +1759,76 @@ class DestroyBlockDeviceDatasetTests(
         self.assertEqual([], api.list_volumes())
 
 
-def _make_mount():
+def _make_create_filesystem():
+    return CreateFilesystem(volume=_ARBITRARY_VOLUME, filesystem=u"ext4")
+
+
+class CreateFilesystemTests(make_state_change_tests(_make_create_filesystem)):
+    """
+    Tests for ``CreateFilesystem``\ 's ``IStateChange`` implementation.
+
+    See ``MountBlockDeviceTests`` for more ``CreateFilesystem`` tests.
+    """
+
+
+def _make_mount_block_device():
     """
     Make an ``MountBlockDevice`` instance for ``make_state_change_tests``.
-
-    # A state change to check for interface adherence etc.
     """
     return MountBlockDevice(
         volume=_ARBITRARY_VOLUME,
+        mountpoint=FilePath(b"/flocker-testing/abcdefgh"),
     )
 
 
-class MountBlockDeviceTests(make_state_change_tests(_make_mount)):
+class MountBlockDeviceTests(
+        make_state_change_tests(_make_mount_block_device)
+):
     """
-    Tests for ``MountBlockDevice``.
+    Tests for ``MountBlockDevice``\ 's ``IStateChange`` implementation.
     """
     def test_run(self):
         """
-        ``MountBlockDevice.run`` mounts the filesystem / block device
-        associated with the volume passed to it (association as determined by
-        the deployer's ``IBlockDeviceAPI`` provider).
+        ``CreateFilesystem.run`` initializes a block device with a filesystem
+        which ``MountBlockDevice.run`` can then mount.
         """
-        # Create volume
-        # Attach volume
-        # Manually format the volume
-        # Attempt to mount it
-        # Assert that the volume device path is listed by get_mounts
-        pass
+        host = u"192.0.7.8"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        attached = api.attach_volume(volume.blockdevice_id, host)
+
+        mountroot = mountroot_for_test(self)
+        deployer = BlockDeviceDeployer(
+            hostname=host,
+            block_device_api=api,
+            mountroot=mountroot,
+        )
+
+        filesystem = u"ext4"
+        self.successResultOf(
+            CreateFilesystem(volume=volume, filesystem=filesystem).run(
+                deployer
+            )
+        )
+
+        mountpoint = mountroot.child(b"mount-test")
+        mountpoint.makedirs()
+        change = MountBlockDevice(volume=volume, mountpoint=mountpoint)
+        self.successResultOf(change.run(deployer))
+
+        expected = (
+            api.get_device_path(volume.blockdevice_id).path,
+            mountpoint.path,
+            filesystem,
+        )
+        mounted = list(
+            (part.device, part.mountpoint, part.fstype)
+            for part in psutil.disk_partitions()
+        )
+        self.assertIn(expected, mounted)
 
 
 def _make_unmount():

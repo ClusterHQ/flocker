@@ -340,6 +340,24 @@ class ResizeVolume(PRecord):
 
 
 @implementer(IStateChange)
+class CreateFilesystem(PRecord):
+    """
+    Create a filesystem on a block device.
+    """
+    volume = _volume()
+    filesystem = field(type=unicode, mandatory=True)
+
+    def run(self, deployer):
+        device = deployer.block_device_api.get_device_path(
+            self.volume.blockdevice_id
+        )
+        check_output([
+            "mkfs", "-t", self.filesystem.encode("ascii"), device.path
+        ])
+        return succeed(None)
+
+
+@implementer(IStateChange)
 class ResizeBlockDeviceDataset(PRecord):
     """
     Resize the volume for a dataset with a primary manifestation on the node
@@ -362,10 +380,10 @@ class ResizeBlockDeviceDataset(PRecord):
         )
         return Sequentially(
             changes=[
-        #         UnmountBlockDevice(volume=volume),
-        #         DetachVolume(volume=volume),
+                UnmountBlockDevice(volume=volume),
+                DetachVolume(volume=volume),
                 ResizeVolume(volume=volume, size=self.size),
-        #         AttachVolume(volume=volume),
+                AttachVolume(volume=volume, hostname=deployer.hostname),
         #         ResizeFilesystem(...),
         #         MountBlockDevice(volume=volume),
             ]
@@ -383,6 +401,7 @@ class MountBlockDevice(PRecord):
         which will be unmounted.
     """
     volume = _volume()
+    mountpoint = field(type=FilePath, mandatory=True)
 
     @property
     def _eliot_action(self):
@@ -394,14 +413,13 @@ class MountBlockDevice(PRecord):
         Run the system ``mount`` tool to mount this change's volume's block
         device.  The volume must be attached to this node.
         """
-        # device = deployer.block_device_api.get_device_path(
-        #     self.volume.blockdevice_id
-        # )
-        # # This should be asynchronous.  Do it as part of FLOC-1499.  Make sure
-        # # to fix _logged_statechange to handle Deferreds too.
-        # check_output([b"mount", device.path])
-        # return succeed(None)
-        pass
+        device = deployer.block_device_api.get_device_path(
+            self.volume.blockdevice_id
+        )
+        # This should be asynchronous.  Do it as part of FLOC-1499.  Make sure
+        # to fix _logged_statechange to handle Deferreds too.
+        check_output([b"mount", device.path, self.mountpoint.path])
+        return succeed(None)
 
 
 @_logged_statechange
@@ -443,7 +461,7 @@ class AttachVolume(PRecord):
     :ivar BlockDeviceVolume volume: The volume to attach.
     """
     volume = _volume()
-    hostname = field(type=unicode)
+    hostname = field(type=unicode, mandatory=True)
 
     @property
     def _eliot_action(self):
