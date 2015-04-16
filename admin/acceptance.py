@@ -24,6 +24,7 @@ from flocker.provision._install import (
     task_pull_docker_images,
     configure_cluster,
 )
+from flocker.provision._libcloud import INode
 
 from flocker.provision._ssh._fabric import dispatcher
 from flocker.provision._effect import sequence
@@ -116,7 +117,7 @@ class INodeRunner(Interface):
         """
         Start nodes for running acceptance tests.
 
-        :return list: List of nodes to run tests against.
+        :return list: List of INode's to run tests against.
         """
 
     def stop_nodes(self):
@@ -128,6 +129,14 @@ class INodeRunner(Interface):
 RUNNER_ATTRIBUTES = [
     'distribution', 'top_level', 'config', 'package_source', 'variants'
 ]
+
+
+@implementer(INode)
+@attributes('address', 'distribution', apply_immutable=True)
+class VagrantNode(object):
+    """
+    Node run using VagrantRunner
+    """
 
 
 @implementer(INodeRunner)
@@ -180,7 +189,10 @@ class VagrantRunner(object):
                     commands=task_pull_docker_images()
                 ),
             )
-        return self.NODE_ADDRESSES
+        return [
+            VagrantNode(address=address, distribution=self.distribution)
+            for address in self.NODE_ADDRESSES
+            ]
 
     def stop_nodes(self):
         check_safe_call(
@@ -248,7 +260,7 @@ class LibcloudRunner(object):
         ])
         perform(dispatcher, commands)
 
-        return [node.address for node in self.nodes]
+        return self.nodes
 
     def stop_nodes(self):
         """
@@ -262,6 +274,7 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
+DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
 PROVIDERS = tuple(sorted(['vagrant'] + CLOUD_PROVIDERS.keys()))
 
 
@@ -271,19 +284,19 @@ class RunOptions(Options):
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
-         'One of fedora-20.'],
+         'One of {}.'.format(', '.join(DISTRIBUTIONS))],
         ['provider', None, 'vagrant',
          'The target provider to test against. '
          'One of {}.'.format(', '.join(PROVIDERS))],
         ['config-file', None, None,
          'Configuration for providers.'],
-        ['branch', None, None, 'Branch to grab RPMS from'],
+        ['branch', None, None, 'Branch to grab packages from'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
-         'Base URL of build server to download RPMs from'],
+         'Base URL of build server for package downloads'],
     ]
 
     optFlags = [

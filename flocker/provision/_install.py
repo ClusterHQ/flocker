@@ -199,14 +199,32 @@ def configure_firewalld(rule):
                         ['firewall-cmd']]])
 
 
-def task_enable_flocker_control():
+def task_enable_flocker_control(distribution):
     """
     Enable flocker-control service.
     """
-    return sequence([
-        run_from_args(['systemctl', 'enable', 'flocker-control']),
-        run_from_args(['systemctl', 'start', 'flocker-control']),
-    ])
+    if distribution in ('centos-7', 'fedora-20'):
+        return sequence([
+            run_from_args(['systemctl', 'enable', 'flocker-control']),
+            run_from_args(['systemctl', 'start', 'flocker-control']),
+        ])
+    elif distribution == 'ubuntu-14.04':
+        # Since the flocker-control service is currently installed
+        # alongside the flocker-agent service, the default control
+        # service configuration does not automatically start the
+        # service.  Here, we provide an override file to start it.
+        return sequence([
+            put(
+                path='/etc/init/flocker-control.override',
+                content=dedent('''\
+                    start on runlevel [2345]
+                    stop on runlevel [016]
+                    '''),
+            ),
+            run_from_args(['service', 'flocker-control', 'start']),
+        ])
+    else:
+        raise NotImplementedError()
 
 
 def task_open_control_firewall():
@@ -220,29 +238,43 @@ def task_open_control_firewall():
 
 
 AGENT_CONFIG = """\
-FLOCKER_NODE_NAME = %(node_name)s
-FLOCKER_CONTROL_NODE = %(control_node)s
+FLOCKER_NODE_NAME=%(node_name)s
+FLOCKER_CONTROL_NODE=%(control_node)s
 """
 
 
-def task_enable_flocker_agent(node_name, control_node):
+def task_enable_flocker_agent(agent_node, control_node):
     """
     Configure and enable flocker-agent.
 
-    :param bytes node_name: The name this node is known by.
+    :param INode agent_node: The flocker-agent node.
     :param bytes control_node: The address of the control agent.
     """
-    return sequence([
-        put(
-            path='/etc/sysconfig/flocker-agent',
-            content=AGENT_CONFIG % {
-                'node_name': node_name,
-                'control_node': control_node
-            },
-        ),
-        run_from_args(['systemctl', 'enable', 'flocker-agent']),
-        run_from_args(['systemctl', 'start', 'flocker-agent']),
-    ])
+    if agent_node.distribution in ('centos-7', 'fedora-20'):
+        return sequence([
+            put(
+                path='/etc/sysconfig/flocker-agent',
+                content=AGENT_CONFIG % {
+                    'node_name': agent_node.address,
+                    'control_node': control_node
+                },
+            ),
+            run_from_args(['systemctl', 'enable', 'flocker-agent']),
+            run_from_args(['systemctl', 'start', 'flocker-agent']),
+        ])
+    elif agent_node.distribution == 'ubuntu-14.04':
+        return sequence([
+            put(
+                path='/etc/default/flocker-agent.conf',
+                content=AGENT_CONFIG % {
+                    'node_name': agent_node.address,
+                    'control_node': control_node
+                },
+            ),
+            run_from_args(['service', 'flocker-agent', 'start']),
+        ])
+    else:
+        raise NotImplementedError()
 
 
 def task_create_flocker_pool_file():
@@ -456,24 +488,24 @@ def configure_cluster(control_node, agent_nodes):
     """
     Configure flocker-control and flocker-agent on a collection of nodes.
 
-    :param bytes control_node: The address of the control node.
-    :param list agent_nodes: List of addresses of agent nodes.
+    :param INode control_node: The control node.
+    :param INode agent_nodes: List of agent nodes.
     """
     return sequence([
         run_remotely(
             username='root',
-            address=control_node,
-            commands=task_enable_flocker_control(),
+            address=control_node.address,
+            commands=task_enable_flocker_control(control_node.distribution),
         ),
         sequence([
             sequence([
-                Effect(Func(lambda node=node: configure_ssh(node, 22))),
+                Effect(
+                    Func(lambda node=node: configure_ssh(node.address, 22))),
                 run_remotely(
                     username='root',
-                    address=node,
+                    address=node.address,
                     commands=task_enable_flocker_agent(
-                        node_name=node,
-                        control_node=control_node,
+                        agent_node=node, control_node=control_node.address,
                     ),
                 ),
             ]) for node in agent_nodes
