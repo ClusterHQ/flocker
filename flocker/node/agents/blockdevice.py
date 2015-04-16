@@ -366,6 +366,19 @@ class ResizeFilesystem(PRecord):
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
+        # resize2fs gets angry at us without an e2fsck pass first.  This is
+        # unfortunate because we don't really want to make random filesystem
+        # fixes at this point (there should really be nothing to fix).  This
+        # may merit further consideration.
+        #
+        # -f forces the check to run even if the filesystem appears "clean"
+        #     (which it ought to because we haven't corrupted it, just resized
+        #     the block device).
+        #
+        # -y automatically answers yes to every question.  There should be no
+        #     questions since the filesystem isn't corrupt.  Without this,
+        #     e2fsck refuses to run non-interactively, though.
+        check_output([b"e2fsck", b"-f", b"-y", device.path])
         # When passed no explicit size argument, resize2fs resizes the
         # filesystem to the size of the device it lives on.
         check_output([b"resize2fs", device.path])

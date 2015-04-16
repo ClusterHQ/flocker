@@ -2305,40 +2305,38 @@ class ResizeFilesystemTests(make_state_change_tests(_make_resize_filesystem)):
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
         )
         mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(b"resized-filesystem")
+        filesystem = u"ext4"
         deployer = BlockDeviceDeployer(
             hostname=host,
             block_device_api=api,
             mountroot=mountroot,
         )
         attach = AttachVolume(volume=volume, hostname=host)
-        self.successResultOf(attach.run(deployer))
+        createfs = CreateFilesystem(volume=volume, filesystem=filesystem)
+        mount = MountBlockDevice(volume=volume, mountpoint=mountpoint)
 
-        device = api.get_device_path(volume.blockdevice_id)
-        blocks = statvfs(device.path).f_blocks
-
-        filesystem = u"ext4"
-        create = CreateFilesystem(volume=volume, filesystem=filesystem)
-        self.successResultOf(create.run(deployer))
-
+        unmount = UnmountBlockDevice(volume=volume)
         detach = DetachVolume(volume=volume)
-        self.successResultOf(detach.run(deployer))
-
         resize = ResizeVolume(
             volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2
         )
-        self.successResultOf(resize.run(deployer))
+        resizefs = ResizeFilesystem(volume=volume)
 
-        self.successResultOf(attach.run(deployer))
+        for change in [attach, createfs, mount]:
+            self.successResultOf(change.run(deployer))
 
-        change = ResizeFilesystem(volume=volume)
-        self.successResultOf(change.run(deployer))
+        before = statvfs(mountpoint.path)
 
-        mountpoint = mountroot.child(b"resized-filesystem")
-        mount = MountBlockDevice(volume=volume, mountpoint=mountpoint)
-        self.successResultOf(mount.run(deployer))
+        for change in [unmount, detach, resize, attach, resizefs, mount]:
+            self.successResultOf(change.run(deployer))
+
+        after = statvfs(mountpoint.path)
 
         self.assertEqual(
-            blocks * 2,
-            statvfs(mountpoint.path).f_blocks,
+            before.f_favail / 10,
+            after.f_favail / 2 / 10,
+            "Available inodes before ({}) is not roughly half available "
+            "inodes after".format(before.f_favail, after.f_favail)
         )
 
