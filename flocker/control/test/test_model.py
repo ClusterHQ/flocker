@@ -688,6 +688,14 @@ class PSetFieldTests(SynchronousTestCase):
             value = pset_field(int)
         assert Record() == Record(value=[])
 
+    def test_custom_initial(self):
+        """
+        A custom initial value can be passed in.
+        """
+        class Record(PRecord):
+            value = pset_field(int, initial=(1, 2))
+        assert Record() == Record(value=[1, 2])
+
     def test_factory(self):
         """
         ``pset_field`` has a factory that creates a ``PSet``.
@@ -781,6 +789,14 @@ class PVectorFieldTests(SynchronousTestCase):
         class Record(PRecord):
             value = pvector_field(int)
         assert Record() == Record(value=[])
+
+    def test_custom_initial(self):
+        """
+        A custom initial value can be passed in.
+        """
+        class Record(PRecord):
+            value = pvector_field(int, initial=(1, 2))
+        assert Record() == Record(value=[1, 2])
 
     def test_factory(self):
         """

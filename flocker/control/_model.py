@@ -26,7 +26,7 @@ from pyrsistent import (
 from zope.interface import Interface, implementer
 
 
-def _sequence_field(checked_class, suffix, item_type, optional):
+def _sequence_field(checked_class, suffix, item_type, optional, initial):
     """
     Create checked field for either ``PSet`` or ``PVector``.
 
@@ -35,6 +35,7 @@ def _sequence_field(checked_class, suffix, item_type, optional):
     :param item_type: The required type for the items in the set.
     :param bool optional: If true, ``None`` can be used as a value for
         this field.
+    :param initial: Initial value to pass to factory.
 
     :return: A ``field`` containing a checked class.
     """
@@ -52,33 +53,39 @@ def _sequence_field(checked_class, suffix, item_type, optional):
         factory = TheType
     return field(type=optional_type(TheType) if optional else TheType,
                  factory=factory, mandatory=True,
-                 initial=TheType())
+                 initial=factory(initial))
 
 
-def pset_field(item_type, optional=False):
+def pset_field(item_type, optional=False, initial=()):
     """
     Create checked ``PSet`` field.
 
     :param item_type: The required type for the items in the set.
     :param bool optional: If true, ``None`` can be used as a value for
         this field.
+    :param initial: Initial value to pass to factory if no value is given
+        for the field.
 
     :return: A ``field`` containing a ``CheckedPSet`` of the given type.
     """
-    return _sequence_field(CheckedPSet, "PSet", item_type, optional)
+    return _sequence_field(CheckedPSet, "PSet", item_type, optional,
+                           initial)
 
 
-def pvector_field(item_type, optional=False):
+def pvector_field(item_type, optional=False, initial=()):
     """
     Create checked ``PVector`` field.
 
     :param item_type: The required type for the items in the vector.
     :param bool optional: If true, ``None`` can be used as a value for
         this field.
+    :param initial: Initial value to pass to factory if no value is given
+        for the field.
 
     :return: A ``field`` containing a ``CheckedPVector`` of the given type.
     """
-    return _sequence_field(CheckedPVector, "PVector", item_type, optional)
+    return _sequence_field(CheckedPVector, "PVector", item_type, optional,
+                           initial)
 
 
 _valid = lambda item: (True, "")
