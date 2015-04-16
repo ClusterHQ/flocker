@@ -643,7 +643,7 @@ IGNORED_WARNINGS = {
 
         # We don't allow configuring ufw firewall applications.
         ('file-in-etc-not-marked-as-conffile '
-         'etc/ufw/applications.d/flocker-control')
+         'etc/ufw/applications.d/flocker-control'),
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
