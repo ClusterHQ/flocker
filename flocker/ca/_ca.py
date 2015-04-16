@@ -192,29 +192,12 @@ class FlockerCertificate(PRecord):
     certificate = field(mandatory=True, initial=None)
     keypair = field(mandatory=True, initial=None)
 
-    @classmethod
-    def from_path(path):
-        return cls(
-            path=path, keypair=keypair, certificate=certificate
-        )
-
 
 class ControlCertificate(FlockerCertificate):
     """
     A certificate for a control service, signed by a supplied certificate
     authority.
-
-    :ivar FilePath path: A ``FilePath`` representing the absolute path of
-        a directory containing the certificate and key files.
-    :ivar Certificate certificate: A signed certificate, populated only by
-        loading from ``path``.
-    :ivar FlockerKeyPair keypair: A private/public keypair, populated only by
-        loading from ``path``.
     """
-    path = field(mandatory=True)
-    certificate = field(mandatory=True, initial=None)
-    keypair = field(mandatory=True, initial=None)
-
     @classmethod
     def from_path(cls, path):
         keypair, certificate = load_certificate_from_path(
@@ -290,18 +273,7 @@ class ControlCertificate(FlockerCertificate):
 class CertificateAuthority(FlockerCertificate):
     """
     A self-signed certificate authority.
-
-    :ivar FilePath path: A ``FilePath`` representing the absolute path of
-        a directory containing the certificate and key files.
-    :ivar Certificate certificate: A signed certificate, populated only by
-        loading from ``path``.
-    :ivar FlockerKeyPair keypair: A private/public keypair, populated only by
-        loading from ``path``.
     """
-    path = field(mandatory=True)
-    certificate = field(mandatory=True, initial=None)
-    keypair = field(mandatory=True, initial=None)
-
     @classmethod
     def from_path(cls, path):
         keypair, certificate = load_certificate_from_path(
