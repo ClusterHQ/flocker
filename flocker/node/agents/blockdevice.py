@@ -328,6 +328,7 @@ class ResizeBlockDeviceDataset(PRecord):
         #         DetachVolume(volume=volume),
         #         ResizeVolume(volume=volume, size=size),
         #         AttachVolume(volume=volume),
+        #         ResizeFilesystem(...),
         #         MountBlockDevice(volume=volume),
         #     ]
         # ).run(deployer)
