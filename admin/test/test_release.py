@@ -628,33 +628,6 @@ class PublishDocsTests(SynchronousTestCase):
                 },
             })
 
-    def test_publish_to_doc_version2(self):
-        """
-        Trying to publish to a documentation version publishes to to the
-        version being updated.
-        """
-        aws = FakeAWS(
-            routing_rules={
-                'clusterhq-docs': {
-                    'en/latest/': '',
-                },
-            },
-            s3_buckets={
-                'clusterhq-docs': {},
-                'clusterhq-dev-docs': {},
-            })
-
-        self.publish_docs(
-            aws, '0.3.1+doc1', '0.3.1+doc1',
-            environment=Environments.PRODUCTION)
-
-        self.assertEqual(
-            aws.routing_rules, {
-                'clusterhq-staging-docs': {
-                    'en/latest/': 'en/0.3.1/',
-                },
-            })
-
     def test_production_can_publish_doc_version(self):
         """
         Publishing a documentation version to the version of the latest full
