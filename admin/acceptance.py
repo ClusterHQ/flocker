@@ -12,7 +12,6 @@ from characteristic import attributes
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
-from twisted.python import log
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from admin.vagrant import vagrant_version
@@ -387,8 +386,6 @@ def main(reactor, args, base_path, top_level):
         raise SystemExit(1)
 
     runner = options.runner
-
-    log.startLogging(sys.stdout)
 
     try:
         nodes = yield runner.start_nodes(reactor)
