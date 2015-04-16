@@ -159,6 +159,7 @@ setup(
         "pyrsistent == 0.9.1",
 
         "effect==0.1a13",
+        "pyrax==1.9.3",
         ],
 
     extras_require={
