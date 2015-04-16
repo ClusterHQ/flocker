@@ -1649,19 +1649,6 @@ class DestroyBlockDeviceDatasetTests(
         DESTROY_BLOCK_DEVICE_DATASET,
         [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, DESTROY_VOLUME]
     )
-    def verify_run_log(self, logger):
-        # XXX: This should probably be refactored and shared with the tests for
-        # parent and child actions logged by ``ResizeBlockDeviceDataset``.
-
-        # One action is logged
-        [action] = LoggedAction.of_type(
-            logger.messages, DESTROY_BLOCK_DEVICE_DATASET
-        )
-        # Child actions are logged
-        [unmount] = LoggedAction.of_type(logger.messages, UNMOUNT_BLOCK_DEVICE)
-        [detach] = LoggedAction.of_type(logger.messages, DETACH_VOLUME)
-        [destroy] = LoggedAction.of_type(logger.messages, DESTROY_VOLUME)
-        self.assertEqual([unmount, detach, destroy], action.children)
 
     @validate_logging(_verify_destroy_log)
     def test_run(self, logger):
