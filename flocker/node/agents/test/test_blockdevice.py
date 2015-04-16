@@ -1579,7 +1579,7 @@ def multistep_change_log(parent, children):
             for child_action
             in children
         ]
-        self.assertEqual(children_actions, parent.children)
+        self.assertEqual(children_actions, parent_action.children)
     return verify
 
 
