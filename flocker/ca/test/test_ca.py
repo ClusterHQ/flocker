@@ -18,7 +18,7 @@ from .. import (CertificateAuthority, ControlCertificate,
                 AUTHORITY_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME,
                 CONTROL_KEY_FILENAME)
 
-from ...testtools import not_root
+from ...testtools import not_root, skip_on_broken_permissions
 
 
 class ControlCertificateTests(SynchronousTestCase):
@@ -161,6 +161,7 @@ class ControlCertificateTests(SynchronousTestCase):
         self.assertEqual(str(e), expected)
 
     @not_root
+    @skip_on_broken_permissions
     def test_load_error_on_unreadable_certificate_file(self):
         """
         A ``PathError`` is raised if the certificate file path given to
@@ -190,6 +191,7 @@ class ControlCertificateTests(SynchronousTestCase):
         self.assertEqual(str(e), expected)
 
     @not_root
+    @skip_on_broken_permissions
     def test_load_error_on_unreadable_key_file(self):
         """
         A ``PathError`` is raised if the key file path given to
@@ -423,6 +425,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         self.assertEqual(str(e), expected)
 
     @not_root
+    @skip_on_broken_permissions
     def test_load_error_on_unreadable_certificate_file(self):
         """
         A ``PathError`` is raised if the certificate file path given to
@@ -452,6 +455,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         self.assertEqual(str(e), expected)
 
     @not_root
+    @skip_on_broken_permissions
     def test_load_error_on_unreadable_key_file(self):
         """
         A ``PathError`` is raised if the key file path given to
