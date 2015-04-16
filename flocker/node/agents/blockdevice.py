@@ -895,14 +895,22 @@ class LoopbackBlockDeviceAPI(object):
 
     def resize_volume(self, blockdevice_id, size):
         """
-        Increase the size of the loopback backing file whilst maintaining its
-        sparseness.
-        Just call truncate on the backing file with a larger size.
+        Change the size of the loopback backing file.
 
-        It should already have been detached, so no need to worry about loop
-        devices / losetup operations etc.
+        Sparseness is maintained by using ``truncate`` on the backing file.
         """
-        1/0
+        backing_path = self._unattached_directory.child(
+            blockdevice_id.encode("ascii")
+        )
+        try:
+            backing_file = backing_path.open("r+")
+        except IOError:
+            raise UnknownVolume(blockdevice_id)
+        else:
+            try:
+                backing_file.truncate(size)
+            finally:
+                backing_file.close()
 
     def list_volumes(self):
         """
@@ -1162,9 +1170,10 @@ class BlockDeviceDeployer(PRecord):
             different to the configuration)
         """
         for (dataset_id, manifestation) in local_state.manifestations.items():
-            configured_size = (
-                configured_manifestations[dataset_id].dataset.maximum_size
-            )
+            dataset_config = configured_manifestations[dataset_id].dataset
+            if dataset_config.deleted:
+                continue
+            configured_size = dataset_config.maximum_size
             if manifestation.dataset.maximum_size != configured_size:
                 yield ResizeBlockDeviceDataset(
                     dataset_id=UUID(dataset_id),
