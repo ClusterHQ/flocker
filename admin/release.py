@@ -511,10 +511,8 @@ def publish_rpms_main(args, base_path, top_level):
         scratch_directory.remove()
 
 
-admin/publish-release
-
-admin/publish-artifacts
-
+# TODO rename to publish_artifacts
+# Create wrapper which should also call publish_rpms
 @do
 def create_artifacts(version, target_bucket, target_key):
     """
@@ -522,7 +520,6 @@ def create_artifacts(version, target_bucket, target_key):
     """
 
     # TODO create wrapper so this can be run from shell
-    # TODO run this from Buildbot
 
     if not (is_release(version)
             or is_weekly_release(version)
@@ -543,12 +540,8 @@ def create_artifacts(version, target_bucket, target_key):
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
         raise ValueError("setuptools version is not 3.6")
 
-    # TODO replace this with a parameter to check_call of where this wants to be run
-    if not "in flocker top level directory":
-        # TODO custom exception
-        raise Exception("You have to be in the top level flocker directory")
-
-    # TODO where is setup.py?
+    # TODO replace this with a parameter to check_call of where this wants to be run - cwd=None param in Popen
+    # use git to figure out repo root in caller
 
     check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
     # Upload python packages to ``archive.clusterhq.com``
@@ -559,17 +552,7 @@ def create_artifacts(version, target_bucket, target_key):
     Refactor publish-packages to call a sequence
     Factor out check that X is not a release
     Factor the call out of main
-    cwd=None param in Popen
-
-    Each of these should be in archive bucket with key:
-    * distributions - python:
-        generate an index.html here with links to all the files at it
-    * rpm/deb packages - centos / fedora
-    * S3 tutorial box - vagrant.py, but code will take existing metadata, add a new version, upload the metadata
-    * change vagrantfiles to use box URLs - `vagrant/tutorial` directory in the archive bucket with box files
-
     """
-
 
     yield Effect(UploadToS3Recursively(
         source_path=FilePath("dist"),
@@ -579,14 +562,3 @@ def create_artifacts(version, target_bucket, target_key):
             'Flocker-%s.tar.gz' % version,
             'Flocker-%s-py2-none-any.whl' % version},
         ))
-
-    # Build RPM packages and upload them to Amazon S3
-    # Copy the tutorial box to the final location on GCS
-    # TODO change this to use Boto and S3
-
-    # TODO change buildbot to upload to S3
-    # check_call([
-    #     'gsutil', 'cp', '-a', 'public-read',
-    #     'gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-%s.box' % version,
-    #     'gs://clusterhq-vagrant/flocker-tutorial-%s.box' % version,
-    # ])
