@@ -73,7 +73,7 @@ OLD_SIZE = Field(
 
 NEW_SIZE = Field(
     u"new_size", [int],
-    u"The intended size of a volume aftyer resize operation."
+    u"The intended size of a volume after resize operation."
 )
 
 DATASET = Field(
@@ -180,7 +180,7 @@ RESIZE_VOLUME = ActionType(
     u"agent:blockdevice:resize_volume",
     [VOLUME],
     [],
-    u"The volume for a block-device-backed dataset is being resizeed."
+    u"The volume for a block-device-backed dataset is being resized."
 )
 
 RESIZE_FILESYSTEM = ActionType(
