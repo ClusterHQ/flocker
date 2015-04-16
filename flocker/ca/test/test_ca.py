@@ -19,6 +19,18 @@ from .. import (CertificateAuthority, ControlCertificate,
 from ...testtools import not_root
 
 
+class FlockerCertificateTests(SynchronousTestCase):
+    """
+    Tests for ``flocker.ca._ca.FlockerCertificate``.
+    """
+
+
+class ControlCertificateTests(SynchronousTestCase):
+    """
+    Tests for ``flocker.ca._ca.ControlCertificate``.
+    """
+
+
 class CertificateAuthorityTests(SynchronousTestCase):
     """
     Tests for ``flocker.ca._ca.CertificateAuthority``.
