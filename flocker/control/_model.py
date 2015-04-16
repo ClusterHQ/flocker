@@ -20,10 +20,39 @@ from twisted.python.filepath import FilePath
 
 from pyrsistent import (
     pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
-    optional as optional_type
+    optional as optional_type, CheckedPVector
     )
 
 from zope.interface import Interface, implementer
+
+
+def _sequence_field(checked_class, suffix, item_type, optional):
+    """
+    Create checked field for either ``PSet`` or ``PVector``.
+
+    :param checked_class: ``CheckedPSet`` or ``CheckedPVector``.
+    :param suffix: Suffix for new type name.
+    :param item_type: The required type for the items in the set.
+    :param bool optional: If true, ``None`` can be used as a value for
+        this field.
+
+    :return: A ``field`` containing a checked class.
+    """
+    class TheType(checked_class):
+        __type__ = item_type
+    TheType.__name__ = item_type.__name__.capitalize() + suffix
+
+    if optional:
+        def factory(argument):
+            if argument is None:
+                return None
+            else:
+                return TheType(argument)
+    else:
+        factory = TheType
+    return field(type=optional_type(TheType) if optional else TheType,
+                 factory=factory, mandatory=True,
+                 initial=TheType())
 
 
 def pset_field(item_type, optional=False):
@@ -36,21 +65,20 @@ def pset_field(item_type, optional=False):
 
     :return: A ``field`` containing a ``CheckedPSet`` of the given type.
     """
-    class TheSet(CheckedPSet):
-        __type__ = item_type
-    TheSet.__name__ = item_type.__name__.capitalize() + "PSet"
+    return _sequence_field(CheckedPSet, "PSet", item_type, optional)
 
-    if optional:
-        def factory(argument):
-            if argument is None:
-                return None
-            else:
-                return TheSet(argument)
-    else:
-        factory = TheSet
-    return field(type=optional_type(TheSet) if optional else TheSet,
-                 factory=factory, mandatory=True,
-                 initial=TheSet())
+
+def pvector_field(item_type, optional=False):
+    """
+    Create checked ``PVector`` field.
+
+    :param item_type: The required type for the items in the vector.
+    :param bool optional: If true, ``None`` can be used as a value for
+        this field.
+
+    :return: A ``field`` containing a ``CheckedPVector`` of the given type.
+    """
+    return _sequence_field(CheckedPVector, "PVector", item_type, optional)
 
 
 _valid = lambda item: (True, "")

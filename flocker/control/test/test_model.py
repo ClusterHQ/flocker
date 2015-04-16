@@ -7,7 +7,8 @@ Tests for ``flocker.node._model``.
 from uuid import uuid4
 
 from pyrsistent import (
-    InvariantException, pset, PRecord, PSet, pmap, PMap, thaw
+    InvariantException, pset, PRecord, PSet, pmap, PMap, thaw, PVector,
+    pvector
 )
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -16,7 +17,7 @@ from twisted.python.filepath import FilePath
 from zope.interface.verify import verifyObject
 
 from ...testtools import make_with_init_tests
-from .._model import pset_field, pmap_field
+from .._model import pset_field, pmap_field, pvector_field
 from .. import (
     IClusterStateChange,
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
@@ -764,6 +765,100 @@ class PSetFieldTests(SynchronousTestCase):
         assert ((Record().value.__class__.__name__,
                  Record().value2.__class__.__name__) ==
                 ("SomethingPSet", "IntPSet"))
+
+
+class PVectorFieldTests(SynchronousTestCase):
+    """
+    Tests for ``pvector_field``.
+
+    This will hopefully be contributed upstream to pyrsistent, thus the
+    slightly different testing style.
+    """
+    def test_initial_value(self):
+        """
+        ``pvector_field`` results in initial value that is empty.
+        """
+        class Record(PRecord):
+            value = pvector_field(int)
+        assert Record() == Record(value=[])
+
+    def test_factory(self):
+        """
+        ``pvector_field`` has a factory that creates a ``PVector``.
+        """
+        class Record(PRecord):
+            value = pvector_field(int)
+        record = Record(value=[1, 2])
+        assert isinstance(record.value, PVector)
+
+    def test_checked_set(self):
+        """
+        ``pvector_field`` results in a set that enforces its type.
+        """
+        class Record(PRecord):
+            value = pvector_field(int)
+        record = Record(value=[1, 2])
+        self.assertRaises(TypeError, record.value.append, "hello")
+
+    def test_type(self):
+        """
+        ``pvector_field`` enforces its type.
+        """
+        class Record(PRecord):
+            value = pvector_field(int)
+        record = Record()
+        self.assertRaises(TypeError, record.set, "value", None)
+
+    def test_mandatory(self):
+        """
+        ``pvector_field`` is a mandatory field.
+        """
+        class Record(PRecord):
+            value = pvector_field(int)
+        record = Record(value=[1])
+        self.assertRaises(InvariantException, record.remove, "value")
+
+    def test_default_non_optional(self):
+        """
+        By default ``pvector_field`` is non-optional, i.e. does not allow
+        ``None``.
+        """
+        class Record(PRecord):
+            value = pvector_field(int)
+        self.assertRaises(TypeError, Record, value=None)
+
+    def test_explicit_non_optional(self):
+        """
+        If ``optional`` argument is ``False`` then ``pvector_field`` is
+        non-optional, i.e. does not allow ``None``.
+        """
+        class Record(PRecord):
+            value = pvector_field(int, optional=False)
+        self.assertRaises(TypeError, Record, value=None)
+
+    def test_optional(self):
+        """
+        If ``optional`` argument is true, ``None`` is acceptable alternative
+        to a sequence.
+        """
+        class Record(PRecord):
+            value = pvector_field(int, optional=True)
+        assert ((Record(value=[1, 2]).value, Record(value=None).value) ==
+                (pvector([1, 2]), None))
+
+    def test_name(self):
+        """
+        The created set class name is based on the type of items in the set.
+        """
+        class Something(object):
+            pass
+
+        class Record(PRecord):
+            value = pvector_field(Something)
+            value2 = pvector_field(int)
+        assert ((Record().value.__class__.__name__,
+                 Record().value2.__class__.__name__) ==
+                ("SomethingPVector", "IntPVector"))
 
 
 class PMapFieldTests(SynchronousTestCase):
