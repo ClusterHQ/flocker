@@ -22,7 +22,7 @@ from twisted.python import usage, log
 from characteristic import attributes, Attribute
 import virtualenv
 
-from .release import make_rpm_version
+from flocker.common.version import make_rpm_version
 
 
 class PackageTypes(Values):

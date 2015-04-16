@@ -2,6 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    {% if pagename == 'error_pages/404' %}
+    <!--
+         The 404 error page may be served at any depth in the URL hierarchy.
+         So we include a base that points to the ``latest`` version of the docs.
+         This means that links in a 404 page served from the ``devel`` documentation directory,
+         will actually link to the ``latest`` version of those docs.
+         XXX: Ideally, we'd use the actual version in this base-href.
+         See https://clusterhq.atlassian.net/browse/FLOC-1710
+      -->
+    <base href="/en/latest/error_pages/404.html">
+    {% endif %}
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title|striptags|e }}{{ titlesuffix }}</title>
