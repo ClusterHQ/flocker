@@ -17,6 +17,9 @@ class SequenceFailed(Exception, object):
     :ivar error: The error result of the last run effect.
     """
 
+    def __str__(self):
+        return repr(self)
+
 
 @attributes(["effects"], apply_with_init=False, apply_immutable=True)
 class Sequence(object):

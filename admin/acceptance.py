@@ -9,6 +9,7 @@ import yaml
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
+from eliot import add_destination
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
@@ -370,6 +371,13 @@ class RunOptions(Options):
             )
 
 
+def eliot_output(message):
+    if message['message_type'] == "flocker.provision.ssh:run":
+        print "[%(username)s@%(address)s]: Running %(command)s" % message
+    elif message['message_type'] == "flocker.provision.ssh:run:output":
+        print "[%(username)s@%(address)s]: Running %(line)s" % message
+
+
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
     """
@@ -380,6 +388,7 @@ def main(reactor, args, base_path, top_level):
     """
     options = RunOptions(top_level=top_level)
 
+    add_destination(eliot_output)
     try:
         options.parseOptions(args)
     except UsageError as e:

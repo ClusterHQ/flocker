@@ -1,7 +1,8 @@
 from pipes import quote as shell_quote
-from twisted.python import log
 
 from characteristic import attributes
+
+from eliot import Logger, Message
 
 from effect import (
     sync_performer, TypeDispatcher, ComposedDispatcher, Effect,
@@ -31,10 +32,12 @@ from ._model import Run, Sudo, Put, Comment, RunRemotely
 from .._effect import dispatcher as base_dispatcher
 
 
+logger = Logger()
+
+
 @attributes([
     "deferred",
-    "address",
-    "username",
+    "context",
 ])
 class CommandProtocol(LineOnlyReceiver, object):
     """
@@ -58,9 +61,10 @@ class CommandProtocol(LineOnlyReceiver, object):
             self.deferred.errback(reason)
 
     def lineReceived(self, line):
-        log.msg(format="%(line)s",
-                system="SSH[%s@%s]" % (self.username, self.address),
-                username=self.username, address=self.address, line=line)
+        self.context.bind(
+            message_type="flocker.provision.ssh:run:output",
+            line=line,
+        ).write(logger)
 
 
 @sync_performer
@@ -88,7 +92,7 @@ def perform_comment(dispatcher, intent):
     """
 
 
-def get_ssh_dispatcher(connection, username, address):
+def get_ssh_dispatcher(connection, context):
     """
     :ivar bytes username: For logging.
     :ivar bytes address: For logging.
@@ -97,15 +101,15 @@ def get_ssh_dispatcher(connection, username, address):
 
     @deferred_performer
     def perform_run(dispatcher, intent):
-        log.msg(format="%(command)s",
-                system="SSH[%s@%s]" % (username, address),
-                username=username, address=address,
-                command=intent.command)
+        context.bind(
+            message_type="flocker.provision.ssh:run",
+            command=intent.command,
+        ).write(logger)
         endpoint = SSHCommandClientEndpoint.existingConnection(
             connection, intent.command)
         d = Deferred()
         connectProtocol(endpoint, CommandProtocol(
-            deferred=d, username=username, address=address))
+            deferred=d, context=context))
         return d
 
     return TypeDispatcher({
@@ -153,6 +157,9 @@ def perform_run_remotely(base_dispatcher, intent):
     connection_helper = get_connection_helper(
         username=intent.username, address=intent.address, port=intent.port)
 
+    context = Message.new(
+        username=intent.username, address=intent.address, port=intent.port)
+
     def connect():
         connection = connection_helper.secureConnection()
         connection.addErrback(lambda _: False)
@@ -163,7 +170,7 @@ def perform_run_remotely(base_dispatcher, intent):
     dispatcher = ComposedDispatcher([
         get_ssh_dispatcher(
             connection=connection,
-            username=intent.username, address=intent.address,
+            context=context,
         ),
         base_dispatcher,
     ])
