@@ -703,14 +703,11 @@ class PublishDocsTests(TestCase):
         :raises: ``FailTest`` if an error_key in any of the S3 buckets has been
             updated unexpectedly.
         """
-        # Get a set of all known S3 buckets.
+        # Get a set of all target S3 buckets.
         bucket_names = set()
         for e in Environments.iterconstants():
             bucket_names.add(
                 DOCUMENTATION_CONFIGURATIONS[e].documentation_bucket
-            )
-            bucket_names.add(
-                DOCUMENTATION_CONFIGURATIONS[e].dev_bucket
             )
         # Pretend that both devel and latest aliases are currently pointing to
         # an older version.
@@ -719,7 +716,10 @@ class PublishDocsTests(TestCase):
             'en/latest/': 'en/0.0.0/',
         }
         # In all the S3 buckets.
-        empty_routing_rules = {bucket_name: empty_routes.copy() for bucket_name in bucket_names}
+        empty_routing_rules = {
+            bucket_name: empty_routes.copy()
+            for bucket_name in bucket_names
+        }
         # And that all the buckets themselves are empty.
         empty_buckets = {bucket_name: {} for bucket_name in bucket_names}
         # And that all the buckets have an empty error_key
@@ -730,7 +730,6 @@ class PublishDocsTests(TestCase):
             s3_buckets=empty_buckets,
             error_key=empty_error_keys
         )
-
         # The value of any updated error_key will include the version that's
         # being published.
         expected_error_path = 'en/{}/error_pages/404.html'.format(doc_version)
