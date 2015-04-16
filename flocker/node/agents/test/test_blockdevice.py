@@ -13,7 +13,9 @@ import psutil
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
-from pyrsistent import InvariantException, ny as match_anything
+from pyrsistent import (
+    InvariantException, PRecord, field, ny as match_anything, discard
+)
 
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
@@ -392,11 +394,34 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
     """
     def test_no_changes(self):
         """
-        ``BlockDeviceDeployer.calculate_changes`` calculates no changes when the
-        local state is already converged with the desired configuration.
+        ``BlockDeviceDeployer.calculate_changes`` calculates no changes when
+        the local state is already converged with the desired configuration.
         """
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state)
+
+        assert_calculated_changes(
+            self, local_state, local_config,
+            InParallel(changes=[])
+        )
+
+    def test_deleted_ignored(self):
+        """
+        Deleted datasets for which no corresponding volumes exist do not result
+        in any convergence operations.
+        """
+        local_state = self.ONE_DATASET_STATE.transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset"],
+            lambda d: d.set(
+                deleted=True,
+                # Change a bunch of other things too.  They shouldn't matter.
+                maximum_size=d.maximum_size * 2,
+            )
+        )
+        local_config = to_node(local_state).transform(
+            # Remove the dataset.  This reflects its deletedness.
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
 
         assert_calculated_changes(
             self, local_state, local_config,
