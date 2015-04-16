@@ -187,17 +187,16 @@ def make_rpm_version(flocker_version):
     :param flocker_version: The versioneer style Flocker version string.
     :return: An ``RPMVersion``.
     """
-    tag = flocker_version.split('-')[0]
     parsed_version = _parse_version(flocker_version)
-    import pdb; pdb.set_trace()
+    installable = parsed_version.installable_release
 
     # Given pre or dev number X create a 0 prefixed, `.` separated
     # string of version labels. E.g.
     # 0.1.2pre2  becomes
     # 0.1.2-0.pre.2
-    if is_pre_release(tag):
+    if is_pre_release(installable):
         release = ['0', 'pre', parsed_version.pre_release]
-    elif is_weekly_release(tag):
+    elif is_weekly_release(installable):
         release = ['0', 'dev', parsed_version.weekly_release]
     else:
         release = ['1']
