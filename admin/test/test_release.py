@@ -603,8 +603,8 @@ class PublishDocsTests(SynchronousTestCase):
 
     def test_publish_to_doc_version(self):
         """
-        Trying to publish to a documentation version publishes to to the
-        version being updated.
+        Trying to publish to a documentation version in a staging environment
+        publishes to to the version being updated.
         """
         aws = FakeAWS(
             routing_rules={
