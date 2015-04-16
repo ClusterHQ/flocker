@@ -15,7 +15,7 @@ from twisted.python.filepath import FilePath
 
 from .. import CertificateAuthority, PathError, EXPIRY_20_YEARS
 
-from ...testtools import not_root
+from ...testtools import not_root, skip_on_broken_permissions
 
 
 class CertificateAuthorityTests(SynchronousTestCase):
@@ -162,6 +162,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         self.assertEqual(str(e), expected)
 
     @not_root
+    @skip_on_broken_permissions
     def test_load_error_on_unreadable_certificate_file(self):
         """
         A ``PathError`` is raised if the certificate file path given to
@@ -191,6 +192,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         self.assertEqual(str(e), expected)
 
     @not_root
+    @skip_on_broken_permissions
     def test_load_error_on_unreadable_key_file(self):
         """
         A ``PathError`` is raised if the key file path given to
