@@ -247,13 +247,21 @@ class BlockDeviceVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
 
 
-# def _blockdevice_volume_from_datasetid(block_device_api, dataset_id):
-#     """
-#     A helper to get the volume for a given dataset_id.
-#     """
-#     for volume in block_device_api.list_volumes():
-#         if volume.dataset_id == dataset_id:
-#             return volume
+def _blockdevice_volume_from_datasetid(block_device_api, dataset_id):
+    """
+    A helper to get the volume for a given dataset_id.
+
+    :param IBlockDeviceAPI block_device_api: The backend to use to find the
+        volume.
+    :param UUID dataset_id: The identifier of the dataset the volume of which
+        to find.
+
+    :return: Either a ``BlockDeviceVolume`` matching the given ``dataset_id``
+        or ``None`` if no such volume can be found.
+    """
+    for volume in block_device_api.list_volumes():
+        if volume.dataset_id == dataset_id:
+            return volume
 
 
 # Replace this with a simpler factory-function based API like:
@@ -281,17 +289,19 @@ class DestroyBlockDeviceDataset(PRecord):
         )
 
     def run(self, deployer):
-        # XXX: Use _blockdevice_volume_from_datasetid here...
-        for volume in deployer.block_device_api.list_volumes():
-            if volume.dataset_id == self.dataset_id:
-                return Sequentially(
-                    changes=[
-                        UnmountBlockDevice(volume=volume),
-                        DetachVolume(volume=volume),
-                        DestroyVolume(volume=volume),
-                    ]
-                ).run(deployer)
-        return succeed(None)
+        volume = _blockdevice_volume_from_datasetid(
+            deployer.block_device_api, self.dataset_id
+        )
+        if volume is None:
+            return succeed(None)
+
+        return Sequentially(
+            changes=[
+                UnmountBlockDevice(volume=volume),
+                DetachVolume(volume=volume),
+                DestroyVolume(volume=volume),
+            ]
+        ).run(deployer)
 
 
 # Implement:

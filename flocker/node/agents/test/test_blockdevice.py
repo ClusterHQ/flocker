@@ -733,7 +733,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         ``maximum_size`` of the configured ``Dataset`` is smalled than the size
         reported in the local node state.
         """
-        sel.fail("")
+        self.fail("")
     test_maximum_size_decreased.todo = "FLOC-1503"
 
     def test_multiple_resize(self):
@@ -771,7 +771,6 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
                 ),
             ])
         )
-
 
 
 class IBlockDeviceAPITestsMixin(object):
@@ -2120,45 +2119,49 @@ class ResizeBlockDeviceDatasetTests(
         [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, RESIZE_VOLUME, ATTACH_VOLUME,
          RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE]
     )
+
     @validate_logging(_verify_grow_log)
     def test_run_grow(self, logger):
         """
         After running ``ResizeBlockDeviceDataset``, its volume has been
         resized.
-
-        XXX: We manually format and mount the created volume to avoid also
-        exercising the ``CreateBlockDeviceDataset`` state change in the same
-        unit test.
         """
-        # self.patch(blockdevice, "_logger", logger)
+        self.patch(blockdevice, "_logger", logger)
 
-        # node = u"192.0.2.3"
-        # dataset_id = uuid4()
-        # api = loopbackblockdeviceapi_for_test(self)
-        # volume = api.create_volume(
-        #     dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
-        # )
-        # volume = api.attach_volume(volume.blockdevice_id, node)
-        # device = api.get_device_path(volume.blockdevice_id)
-        # mountroot = mountroot_for_test(self)
-        # mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
-        # mountpoint.makedirs()
-        # check_output([b"mkfs", b"-t", b"ext4", device.path])
-        # check_output([b"mount", device.path, mountpoint.path])
+        node = u"192.0.2.3"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
 
-        # deployer = BlockDeviceDeployer(
-        #     hostname=node,
-        #     block_device_api=api,
-        #     mountroot=mountroot,
-        # )
-        # change = ResizeBlockDeviceDataset(volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2)
-        # self.successResultOf(change.run(deployer))
+        mountroot = mountroot_for_test(self)
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+            mountroot=mountroot,
+        )
 
-        # expected_volume = volume.set(size=REALISTIC_BLOCKDEVICE_SIZE * 2)
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        creating = CreateBlockDeviceDataset(
+            dataset=dataset,
+            mountpoint=deployer._mountpath_for_manifestation(
+                Manifestation(dataset=dataset, primary=True),
+            ),
+        ).run(deployer)
 
-        # self.assertEqual([expected_volume], api.list_volumes())
-        1/0
-    test_run_grow.todo = "FLOC-1591"
+        def created(ignored):
+            return ResizeBlockDeviceDataset(
+                dataset_id=dataset_id,
+                size=REALISTIC_BLOCKDEVICE_SIZE * 2,
+            ).run(deployer)
+        resizing = creating.addCallback(created)
+
+        def resized(ignored):
+            [volume] = api.list_volumes()
+            self.assertEqual(REALISTIC_BLOCKDEVICE_SIZE * 2, volume.size)
+        resizing.addCallback(resized)
+        return resizing
 
     def test_run_shrink(self):
         """
