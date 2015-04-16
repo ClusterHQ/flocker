@@ -151,6 +151,10 @@ There are empty files at ``/index.html`` and ``/en/index.html`` that redirect to
    gsutil -h x-amz-website-redirect-location:/en/latest/ cp - s3://clusterhq-docs/index.html </dev/null
    gsutil -h x-amz-website-redirect-location:/en/latest/ cp - s3://clusterhq-docs/en/index.html </dev/null
 
+There is an ``error_pages/404.rst`` file which is rendered to HTML and uploaded with the rest of the documentation.
+The ``publish-docs`` tool will update the ``Error Document`` property of the target documentation bucket.
+The value of the property is the path ``en/{VERSION}/error_pages/404.html`` where ``VERSION`` is the most recently published version of the documentation.
+
 ``clusterhq-staging-docs``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
