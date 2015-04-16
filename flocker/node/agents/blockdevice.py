@@ -296,7 +296,6 @@ class DestroyBlockDeviceDataset(PRecord):
 
 # Implement:
 #     AttachVolume(volume=volume),
-#     MountVolume(volume=volume),
 # in order to carry out the sequence below.
 # Maybe use those in the CreateBlockDeviceDataset state change or paste in some
 # followup issues, or maybe do those issues first??
@@ -348,7 +347,7 @@ def _volume():
     )
 
 
-@_logged_statechange
+# @_logged_statechange
 @implementer(IStateChange)
 class MountBlockDevice(PRecord):
     """

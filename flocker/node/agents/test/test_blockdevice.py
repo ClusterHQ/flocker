@@ -29,7 +29,7 @@ from ..blockdevice import (
     CreateBlockDeviceDataset, UnattachedVolume,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     ResizeBlockDeviceDataset,
-    DestroyVolume,
+    DestroyVolume, MountBlockDevice,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
