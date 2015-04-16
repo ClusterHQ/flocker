@@ -6,7 +6,6 @@ Tests for ``flocker.node._config``.
 
 from __future__ import unicode_literals, absolute_import
 
-import copy
 from uuid import uuid4, UUID
 
 from pyrsistent import pmap
@@ -76,17 +75,6 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
     """
     Tests for ``applications_to_flocker_yaml``.
     """
-    def test_returns_valid_yaml(self):
-        """
-        The YAML returned by ``applications_to_flocker_yaml" can be
-        successfully parsed as YAML.
-        """
-        expected = COMPLEX_APPLICATION_YAML
-        config = copy.deepcopy(expected)
-        applications = FlockerConfiguration(config).applications()
-        yaml = safe_load(applications_to_flocker_yaml(applications))
-        self.assertEqual(yaml, expected)
-
     def test_not_fig_yaml(self):
         """
         Parsed YAML returned by ``applications_to_flocker_yaml`` is
@@ -315,7 +303,8 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
         parsed = safe_load(yaml)
         self.assertEqual(
             parsed['applications']['postgres']['volume'],
-            {'mountpoint': '/var/lib/data'}
+            {'mountpoint': '/var/lib/data',
+             'dataset_id': dataset_id_from_name('postgres')}
         )
 
 
@@ -2952,7 +2941,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': '/var/mysql/data'},
+                    'volume': {'mountpoint': '/var/mysql/data',
+                               'dataset_id':
+                               dataset_id_from_name('mysql-hybridcluster')},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }
@@ -2992,7 +2983,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': '/var/mysql/data',
-                               'maximum_size': unicode(EXPECTED_MAX_SIZE)},
+                               'maximum_size': unicode(EXPECTED_MAX_SIZE),
+                               'dataset_id':
+                               dataset_id_from_name('mysql-hybridcluster')},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }
