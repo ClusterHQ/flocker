@@ -152,6 +152,8 @@ def publish_docs(flocker_version, doc_version, environment):
     :param bytes flocker_version: The version of flocker to publish the
         documentation for.
     :param bytes doc_version: The version to publish the documentation as.
+        Attempting to publish documentation as a documentation version
+        publishes it as the version being updated.
     :param Environments environment: The environment to publish the
         documentation to.
     :raises NotARelease: Raised if trying to publish to a version that isn't a
@@ -170,7 +172,7 @@ def publish_docs(flocker_version, doc_version, environment):
     configuration = DOCUMENTATION_CONFIGURATIONS[environment]
 
     dev_prefix = '%s/' % (flocker_version,)
-    version_prefix = 'en/%s/' % (doc_version,)
+    version_prefix = 'en/%s/' % (get_doc_version(doc_version),)
 
     is_dev = not is_release(doc_version)
     if is_dev:
@@ -263,8 +265,9 @@ class PublishDocsOptions(Options):
          "The version of flocker from which the documentation was built."],
         ["doc-version", None, None,
          "The version to publish the documentation as.\n"
-         "This will differ from \"flocker-version\" for staging uploads and "
-         "documentation releases."],
+         "This will differ from \"flocker-version\" for staging uploads\n"
+         "Attempting to publish documentation as a documentation version "
+         "publishes it as the version being updated.\n"],
     ]
 
     optFlags = [
