@@ -8,6 +8,8 @@ Uses RSA 4096-bit + SHA 256.
 
 import os
 
+from uuid import uuid4
+
 from OpenSSL import crypto
 from pyrsistent import PRecord, field
 from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
@@ -17,6 +19,8 @@ EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
 
 certificate_filename = b"cluster.crt"
 key_filename = b"cluster.key"
+control_certificate_filename = b"control-service.crt"
+control_key_filename = b"control-service.key"
 
 
 class CertificateAlreadyExistsError(Exception):
@@ -57,6 +61,15 @@ class FlockerKeyPair(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    @classmethod
+    def generate(cls):
+        """
+        Create a new 4096-bit RSA key pair.
+        """
+        return cls(
+            keypair=KeyPair.generate(crypto.TYPE_RSA, size=4096)
+        )
 
     def selfSignedCACertificate(self, dn, request, serial, expiry, digest):
         """
@@ -106,42 +119,37 @@ class FlockerKeyPair(object):
         return Certificate(cert)
 
 
-def generate_keypair():
+class FlockerCertificate(PRecord):
     """
-    Create a new 4096-bit RSA key pair.
-    """
-    return FlockerKeyPair(
-        keypair=KeyPair.generate(crypto.TYPE_RSA, size=4096)
-    )
-
-
-class CertificateAuthority(PRecord):
-    """
-    A certificate authority whose configuration is stored in a specified
-    directory.
+    Base class for Flocker certificates.
 
     :ivar FilePath path: A ``FilePath`` representing the absolute path of
-        a directory containing the CRT and KEY files.
+        a directory containing the certificate and key files.
     :ivar Certificate certificate: A signed certificate, populated only by
         loading from ``path``.
     :ivar FlockerKeyPair keypair: A private/public keypair, populated only by
-        loading from path.
+        loading from ``path``.
     """
+    path = field(mandatory=True)
     certificate = field(mandatory=True, initial=None)
     keypair = field(mandatory=True, initial=None)
-    path = field(mandatory=True)
 
     @classmethod
-    def from_path(cls, path):
+    def from_path(cls, path, names):
         """
-        :param FilePath path: Directory where private key and certificate are
-            stored.
+        Load a control certificate from a specified path.
+
+        :param FilePath path: Directory where certificate is stored.
+        :param tuple names: A ``tuple`` of byte strings representing the
+            certificate and key file names, e.g.
+            (b"cluster.crt", b"cluster.key")
         """
         if not path.isdir():
             raise PathError(
                 b"Path {path} is not a directory.".format(path=path.path)
             )
 
+        certificate_filename, key_filename = names
         certPath = path.child(certificate_filename)
         keyPath = path.child(key_filename)
 
@@ -181,8 +189,15 @@ class CertificateAuthority(PRecord):
             keypair=KeyPair.load(keyFile.read(), format=crypto.FILETYPE_PEM)
         )
 
-        return cls(path=path, certificate=certificate, keypair=keypair)
+        return cls(
+            path=path, keypair=keypair, certificate=certificate
+        )
 
+
+class CertificateAuthority(FlockerCertificate):
+    """
+    A self-signed certificate authority.
+    """
     @classmethod
     def initialize(cls, path, name):
         """
@@ -216,7 +231,7 @@ class CertificateAuthority(PRecord):
             )
 
         dn = DistinguishedName(commonName=name)
-        keypair = generate_keypair()
+        keypair = FlockerKeyPair.generate()
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
@@ -234,4 +249,4 @@ class CertificateAuthority(PRecord):
         ), b'w') as keyFile:
             keyFile.write(keypair.keypair.dump(crypto.FILETYPE_PEM))
         os.umask(original_umask)
-        return cls.from_path(path)
+        return cls.from_path(path, (certificate_filename, key_filename))
