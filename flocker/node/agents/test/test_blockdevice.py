@@ -4,7 +4,7 @@
 Tests for ``flocker.node.agents.blockdevice``.
 """
 
-import os
+from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
@@ -31,7 +31,7 @@ from ..blockdevice import (
     CreateBlockDeviceDataset, UnattachedVolume,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
     ResizeBlockDeviceDataset, ResizeVolume, AttachVolume, CreateFilesystem,
-    DestroyVolume, MountBlockDevice,
+    DestroyVolume, MountBlockDevice, ResizeFilesystem,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
@@ -78,7 +78,8 @@ def get_size_info(api, volume):
     )
     # Get actual number of 512 byte blocks used by the file.  See
     # http://stackoverflow.com/a/3212102
-    actual = os.stat(backing_file.path).st_blocks * 512
+    backing_file.restat()
+    actual = backing_file.statinfo.st_blocks * 512
     reported = backing_file.getsize()
     return _SizeInfo(actual=actual, reported=reported)
 
@@ -1307,7 +1308,7 @@ def loopbackblockdeviceapi_for_test(test_case):
     :returns: A ``LoopbackBlockDeviceAPI`` with a temporary root directory
         created for the supplied ``test_case``.
     """
-    user_id = os.getuid()
+    user_id = getuid()
     if user_id != 0:
         raise SkipTest(
             "``LoopbackBlockDeviceAPI`` uses ``losetup``, "
@@ -1815,7 +1816,6 @@ class MountBlockDeviceTests(
         )
 
         mountpoint = mountroot.child(b"mount-test")
-        mountpoint.makedirs()
         change = MountBlockDevice(volume=volume, mountpoint=mountpoint)
         self.successResultOf(change.run(deployer))
 
@@ -2282,4 +2282,63 @@ class AttachVolumeTests(
 
         expected_volume = volume.set(host=host)
         self.assertEqual([expected_volume], api.list_volumes())
+
+
+def _make_resize_filesystem():
+    return ResizeFilesystem(volume=_ARBITRARY_VOLUME)
+
+
+class ResizeFilesystemTests(make_state_change_tests(_make_resize_filesystem)):
+    """
+    Tests for ``ResizeFilesystem``\ 's ``IStateChange`` implementation.
+    """
+    def test_grow(self):
+        """
+        ``ResizeFilesystem.run`` increases the size of the filesystem on a
+        block device to the size of that block device.
+        """
+        host = u"192.0.7.8"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        mountroot = mountroot_for_test(self)
+        deployer = BlockDeviceDeployer(
+            hostname=host,
+            block_device_api=api,
+            mountroot=mountroot,
+        )
+        attach = AttachVolume(volume=volume, hostname=host)
+        self.successResultOf(attach.run(deployer))
+
+        device = api.get_device_path(volume.blockdevice_id)
+        blocks = statvfs(device.path).f_blocks
+
+        filesystem = u"ext4"
+        create = CreateFilesystem(volume=volume, filesystem=filesystem)
+        self.successResultOf(create.run(deployer))
+
+        detach = DetachVolume(volume=volume)
+        self.successResultOf(detach.run(deployer))
+
+        resize = ResizeVolume(
+            volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
+        self.successResultOf(resize.run(deployer))
+
+        self.successResultOf(attach.run(deployer))
+
+        change = ResizeFilesystem(volume=volume)
+        self.successResultOf(change.run(deployer))
+
+        mountpoint = mountroot.child(b"resized-filesystem")
+        mount = MountBlockDevice(volume=volume, mountpoint=mountpoint)
+        self.successResultOf(mount.run(deployer))
+
+        self.assertEqual(
+            blocks * 2,
+            statvfs(mountpoint.path).f_blocks,
+        )
 

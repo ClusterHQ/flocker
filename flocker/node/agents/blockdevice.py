@@ -7,6 +7,7 @@ convergence agent that can be re-used against many different kinds of block
 devices.
 """
 
+from errno import EEXIST
 from uuid import UUID
 from subprocess import check_output
 from functools import wraps
@@ -352,8 +353,22 @@ class CreateFilesystem(PRecord):
             self.volume.blockdevice_id
         )
         check_output([
-            "mkfs", "-t", self.filesystem.encode("ascii"), device.path
+            b"mkfs", b"-t", self.filesystem.encode("ascii"), device.path
         ])
+        return succeed(None)
+
+
+@implementer(IStateChange)
+class ResizeFilesystem(PRecord):
+    volume = _volume()
+
+    def run(self, deployer):
+        device = deployer.block_device_api.get_device_path(
+            self.volume.blockdevice_id
+        )
+        # When passed no explicit size argument, resize2fs resizes the
+        # filesystem to the size of the device it lives on.
+        check_output([b"resize2fs", device.path])
         return succeed(None)
 
 
@@ -384,8 +399,8 @@ class ResizeBlockDeviceDataset(PRecord):
                 DetachVolume(volume=volume),
                 ResizeVolume(volume=volume, size=self.size),
                 AttachVolume(volume=volume, hostname=deployer.hostname),
-        #         ResizeFilesystem(...),
-        #         MountBlockDevice(volume=volume),
+                ResizeFilesystem(volume=volume),
+                MountBlockDevice(volume=volume),
             ]
         ).run(deployer)
 
@@ -418,6 +433,12 @@ class MountBlockDevice(PRecord):
         )
         # This should be asynchronous.  Do it as part of FLOC-1499.  Make sure
         # to fix _logged_statechange to handle Deferreds too.
+        try:
+            self.mountpoint.makedirs()
+        except OSError as e:
+            if EEXIST != e.errno:
+                # XXX test
+                raise
         check_output([b"mount", device.path, self.mountpoint.path])
         return succeed(None)
 
