@@ -152,8 +152,8 @@ def publish_docs(flocker_version, doc_version, environment):
     :param bytes flocker_version: The version of flocker to publish the
         documentation for.
     :param bytes doc_version: The version to publish the documentation as.
-        Attempting to publish documentation to a staging environment as a
-        documentation version publishes it as the version being updated.
+        Attempting to publish documentation as a documentation version
+        publishes it as the version being updated.
     :param Environments environment: The environment to publish the
         documentation to.
     :raises NotARelease: Raised if trying to publish to a version that isn't a
