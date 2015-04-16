@@ -2704,7 +2704,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': '/var/mysql/data'},
+                    'volume': {'mountpoint': '/var/mysql/data',
+                               'dataset_id':
+                               dataset_id_from_name('mysql-hybridcluster')},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }
@@ -2744,7 +2746,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': '/var/mysql/data',
-                               'maximum_size': unicode(EXPECTED_MAX_SIZE)},
+                               'maximum_size': unicode(EXPECTED_MAX_SIZE),
+                               'dataset_id':
+                               dataset_id_from_name('mysql-hybridcluster')},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }

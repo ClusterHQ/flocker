@@ -6,6 +6,8 @@ Tools for interacting with vagrant.
 
 import sys
 import os
+from pipes import quote
+from subprocess import check_call, CalledProcessError
 
 import json
 
@@ -13,8 +15,23 @@ from twisted.python import usage
 
 import flocker
 
-from admin.runner import run
-from admin.release import make_rpm_version
+from flocker.common.version import make_rpm_version
+
+
+def run(command, **kwargs):
+    """
+    Echo and run a command.
+
+    :param list command: Command to run.
+    :param kwargs: Extra args to pass to ``subprocess.call``.
+    """
+    sys.stdout.write("Running %s\n" % (b' '.join(map(quote, command))))
+    try:
+        check_call(command, **kwargs)
+    except CalledProcessError as e:
+        sys.stderr.write('Failed %d: %s\n'
+                         % (e.returncode, ' '.join(map(quote, command))))
+        raise SystemExit(e.returncode)
 
 
 class BuildOptions(usage.Options):
@@ -112,7 +129,8 @@ def build_box(path, name, version, branch, build_server):
     # Generate the enviroment variables used to pass options down to the
     # provisioning scripts via the Vagrantfile
     env = os.environ.copy()
-    rpm_version, rpm_release = make_rpm_version(version)
+    rpm_version = make_rpm_version(version).version
+    rpm_release = make_rpm_version(version).release
     env.update({
         'FLOCKER_RPM_VERSION': '%s-%s' % (rpm_version, rpm_release),
         'FLOCKER_BUILD_SERVER': build_server,

@@ -32,6 +32,7 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
+    'sphinx.ext.extlinks',
     'sphinx.ext.intersphinx',
     'sphinx.ext.ifconfig',
     'flocker.provision._sphinx',
@@ -63,12 +64,16 @@ master_doc = 'index'
 project = u'Flocker'
 copyright = u'2014, ClusterHQ'
 
+extlinks = {
+    'issue': ('https://clusterhq.atlassian.net/browse/FLOC-%s', 'issue '),
+}
+
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 from flocker import __version__
-from flocker.docs import get_doc_version, is_release
+from flocker.common.version import get_doc_version, is_release
 # The short X.Y version.
 version = get_doc_version(__version__)
 

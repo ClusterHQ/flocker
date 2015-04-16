@@ -209,6 +209,30 @@
 
 -
   id:
+    "update dataset size"
+
+  doc: |
+    Update a dataset with a new maximum_size. This will grow or shrink
+    the filesystem on the dataset.
+
+  requires:
+    - "create dataset with dataset_id"
+
+  request: |
+    POST /v1/configuration/datasets/886ed03a-5606-453a-94a9-a1cbaf35164c HTTP/1.1
+
+    {"maximum_size": 1073741824}
+
+  response: |
+    HTTP/1.1 200 OK
+
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
+     "maximum_size": 1073741824,
+     "primary": "%(NODE_1)s",
+     "deleted": false}
+
+-
+  id:
     "delete dataset"
 
   doc: |
@@ -523,7 +547,7 @@
     {"host": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
-     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},    
+     "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},
      "restart_policy": {"name": "never"}}
 
 -
@@ -605,4 +629,3 @@
     HTTP/1.1 404 Not Found
 
     {"description": "Container not found."}
-

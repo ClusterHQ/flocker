@@ -193,7 +193,7 @@ def loop_until(predicate):
         ``predicate``.
     """
     msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
-                                    getsourcelines(predicate)[1]))
+                                   getsourcelines(predicate)[1]))
     d = maybeDeferred(predicate)
 
     def loop(result):
@@ -682,8 +682,9 @@ def assertContainsAll(haystack, needles, test_case):
         )
 
 
-# Skip decorator for tests:
+# Skip decorators for tests:
 if_root = skipIf(os.getuid() != 0, "Must run as root.")
+not_root = skipIf(os.getuid() == 0, "Must not run as root.")
 
 
 # TODO: This should be provided by Twisted (also it should be more complete
@@ -703,10 +704,12 @@ class MemoryCoreReactor(MemoryReactor):
 
     def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
         event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
-        event.addTrigger(phase, callable, *args, **kw)
-        # removeSystemEventTrigger isn't implemented so the return value here
-        # isn't useful.
-        return object()
+        return eventType, event.addTrigger(phase, callable, *args, **kw)
+
+    def removeSystemEventTrigger(self, triggerID):
+        eventType, handle = triggerID
+        event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
+        event.removeTrigger(handle)
 
     def fireSystemEvent(self, eventType):
         event = self._triggers.get(eventType)

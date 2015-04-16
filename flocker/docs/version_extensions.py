@@ -11,7 +11,7 @@ from sphinx.directives.code import CodeBlock, LiteralInclude
 from sphinx.roles import XRefRole
 
 from flocker import __version__ as version
-from flocker.docs import get_installable_version
+from flocker.common.version import get_installable_version
 
 from sphinx import addnodes
 from sphinx.util import ws_re

@@ -3,6 +3,7 @@
 """
 Testing utilities for ``flocker.acceptance``.
 """
+from functools import wraps
 from json import dumps
 from os import environ
 from pipes import quote as shell_quote
@@ -15,6 +16,9 @@ from twisted.web.http import OK, CREATED
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+
+from eliot import Logger, start_action
+from eliot.twisted import DeferredContext
 
 from treq import get, post, delete, json_content
 from pyrsistent import PRecord, field, CheckedPVector, pmap
@@ -29,7 +33,7 @@ from flocker.testtools import loop_until
 
 try:
     from pymongo import MongoClient
-    from pymongo.errors import ConnectionFailure
+    from pymongo.errors import PyMongoError
     PYMONGO_INSTALLED = True
 except ImportError:
     PYMONGO_INSTALLED = False
@@ -123,9 +127,16 @@ def get_node_state(cluster, hostname):
     """
     d = cluster.current_containers()
     d.addCallback(
-        lambda result: (cluster, {app.name: app for app in result[1]
-                                  if app[u"hostname"] == hostname}))
+        lambda result: (cluster, {app["name"]: app for app in result[1]
+                                  if app[u"host"] == hostname}))
     return d
+
+
+class SSHCommandFailed(Exception):
+    """
+    Exception raised when a command executed via SSH exits with error
+    status code.
+    """
 
 
 def run_SSH(port, user, node, command, input, key=None,
@@ -177,7 +188,7 @@ def run_SSH(port, user, node, command, input, key=None,
 
     result = process.communicate(input)
     if process.returncode != 0:
-        raise Exception('Command Failed', command, process.returncode)
+        raise SSHCommandFailed('Command Failed', command, process.returncode)
 
     return result[0]
 
@@ -202,8 +213,11 @@ def _clean_node(test_case, node):
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
     # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
-    run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
-            [b"flocker"], None)
+    try:
+        run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
+                [b"flocker"], None)
+    except SSHCommandFailed:
+        pass
 
 
 def get_nodes(test_case, num_nodes):
@@ -268,9 +282,11 @@ def get_nodes(test_case, num_nodes):
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
-    # Remove all existing containers:
+    # Remove all existing containers; we make sure to pass in node
+    # hostnames since we still rely on flocker-deploy to distribute SSH
+    # keys for now.
     clean_deploy = {u"version": 1,
-                    u"nodes": {}}
+                    u"nodes": {node: [] for node in reachable_nodes}}
     clean_applications = {u"version": 1,
                           u"applications": {}}
     flocker_deploy(test_case, clean_deploy, clean_applications)
@@ -335,8 +351,10 @@ def get_mongo_client(host, port=27017):
     """
     def create_mongo_client():
         try:
-            return MongoClient(host=host, port=port)
-        except ConnectionFailure:
+            client = MongoClient(host=host, port=port)
+            client.areyoualive.posts.insert({"ping": 1})
+            return client
+        except PyMongoError:
             return False
 
     d = loop_until(create_mongo_client)
@@ -421,6 +439,22 @@ def check_and_decode_json(result, response_code):
     return json_content(result)
 
 
+def log_method(function):
+    """
+    Decorator that log calls to the given function.
+    """
+    @wraps(function)
+    def wrapper(self, *args, **kwargs):
+        context = start_action(Logger(),
+                               action_type="acceptance:" + function.__name__,
+                               args=args, kwargs=kwargs)
+        with context.context():
+            d = DeferredContext(function(self, *args, **kwargs))
+            d.addActionFinish()
+            return d.result
+    return wrapper
+
+
 class Cluster(PRecord):
     """
     A record of the control service and the nodes in a cluster for acceptance
@@ -443,6 +477,7 @@ class Cluster(PRecord):
             self.control_node.address, REST_API_PORT
         )
 
+    @log_method
     def datasets_state(self):
         """
         Return the actual dataset state of the cluster.
@@ -454,6 +489,7 @@ class Cluster(PRecord):
         request.addCallback(check_and_decode_json, OK)
         return request
 
+    @log_method
     def wait_for_dataset(self, dataset_properties):
         """
         Poll the dataset state API until the supplied dataset exists.
@@ -486,6 +522,7 @@ class Cluster(PRecord):
         waiting.addCallback(lambda ignored: (self, dataset_properties))
         return waiting
 
+    @log_method
     def create_dataset(self, dataset_properties):
         """
         Create a dataset with the supplied ``dataset_properties``.
@@ -508,6 +545,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def update_dataset(self, dataset_id, dataset_properties):
         """
         Update a dataset with the supplied ``dataset_properties``.
@@ -531,6 +569,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def delete_dataset(self, dataset_id):
         """
         Delete a dataset.
@@ -552,6 +591,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def create_container(self, properties):
         """
         Create a container with the specified properties.
@@ -572,6 +612,28 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
+    def move_container(self, name, host):
+        """
+        Move a container.
+
+        :param unicode name: The name of the container to move.
+        :param unicode host: The host to which the container should be moved.
+        :returns: A tuple of (cluster, api_response)
+        """
+        request = post(
+            self.base_url + b"/configuration/containers/" +
+            name.encode("ascii"),
+            data=dumps({u"host": host}),
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    @log_method
     def remove_container(self, name):
         """
         Remove a container.
@@ -590,6 +652,7 @@ class Cluster(PRecord):
         request.addCallback(lambda response: (self, response))
         return request
 
+    @log_method
     def current_containers(self):
         """
         Get current containers.
@@ -605,6 +668,43 @@ class Cluster(PRecord):
         request.addCallback(check_and_decode_json, OK)
         request.addCallback(lambda response: (self, response))
         return request
+
+    @log_method
+    def wait_for_container(self, container_properties):
+        """
+        Poll the container state API until a container exists with all the
+        supplied ``container_properties``.
+
+        :param dict container_properties: The attributes of the container that
+            we're waiting for. All the keys, values and those of nested
+            dictionaries must match.
+        :returns: A ``Deferred`` which fires with a 2-tuple of ``Cluster`` and
+            API response when a container with the supplied properties appears
+            in the cluster.
+        """
+        def created():
+            """
+            Check the container state list for the expected container
+            properties.
+            """
+            request = self.current_containers()
+
+            def got_response(result):
+                cluster, containers = result
+                expected_container = container_properties.copy()
+                for container in containers:
+                    container_items = container.items()
+                    if all([
+                        item in container_items
+                        for item in expected_container.items()
+                    ]):
+                        # Return cluster and container state
+                        return self, container
+                return False
+            request.addCallback(got_response)
+            return request
+
+        return loop_until(created)
 
 
 def get_test_cluster(node_count=0):
@@ -641,3 +741,39 @@ def get_test_cluster(node_count=0):
         control_node=Node(address=control_node),
         nodes=map(lambda address: Node(address=address), agent_nodes),
     ))
+
+
+def require_cluster(num_nodes):
+    """
+    A decorator which will call the supplied test_method when a cluster with
+    the required number of nodes is available.
+
+    :param int num_nodes: The number of nodes that are required in the cluster.
+    """
+    def decorator(test_method):
+        """
+        :param test_method: The test method that will be called when the
+            cluster is available and which will be supplied with the
+            ``cluster``keyword argument.
+        """
+        def call_test_method_with_cluster(cluster, test_case, args, kwargs):
+            kwargs['cluster'] = cluster
+            return test_method(test_case, *args, **kwargs)
+
+        @wraps(test_method)
+        def wrapper(test_case, *args, **kwargs):
+            # get_nodes will check that the required number of nodes are
+            # reachable and clean them up prior to the test.
+            # The nodes must already have been started and their flocker
+            # services started.
+            waiting_for_nodes = get_nodes(test_case, num_nodes)
+            waiting_for_cluster = waiting_for_nodes.addCallback(
+                lambda nodes: get_test_cluster(node_count=num_nodes)
+            )
+            calling_test_method = waiting_for_cluster.addCallback(
+                call_test_method_with_cluster,
+                test_case, args, kwargs
+            )
+            return calling_test_method
+        return wrapper
+    return decorator
