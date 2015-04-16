@@ -243,31 +243,31 @@ FLOCKER_CONTROL_NODE=%(control_node)s
 """
 
 
-def task_enable_flocker_agent(agent_node, control_node):
+def task_enable_flocker_agent(distribution, agent_node, control_node):
     """
     Configure and enable flocker-agent.
 
     :param INode agent_node: The flocker-agent node.
     :param bytes control_node: The address of the control agent.
     """
-    if agent_node.distribution in ('centos-7', 'fedora-20'):
+    if distribution in ('centos-7', 'fedora-20'):
         return sequence([
             put(
                 path='/etc/sysconfig/flocker-agent',
                 content=AGENT_CONFIG % {
-                    'node_name': agent_node.address,
+                    'node_name': agent_node,
                     'control_node': control_node
                 },
             ),
             run_from_args(['systemctl', 'enable', 'flocker-agent']),
             run_from_args(['systemctl', 'start', 'flocker-agent']),
         ])
-    elif agent_node.distribution == 'ubuntu-14.04':
+    elif distribution == 'ubuntu-14.04':
         return sequence([
             put(
                 path='/etc/default/flocker-agent.conf',
                 content=AGENT_CONFIG % {
-                    'node_name': agent_node.address,
+                    'node_name': agent_node,
                     'control_node': control_node
                 },
             ),
@@ -505,7 +505,9 @@ def configure_cluster(control_node, agent_nodes):
                     username='root',
                     address=node.address,
                     commands=task_enable_flocker_agent(
-                        agent_node=node, control_node=control_node.address,
+                        distribution=node.distribution,
+                        agent_node=node.address,
+                        control_node=control_node.address,
                     ),
                 ),
             ]) for node in agent_nodes
