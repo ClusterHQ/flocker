@@ -76,6 +76,8 @@ dev_requirements = [
     # Packages are downloaded from Buildbot
     "requests==2.4.3",
     "requests-file==1.0",
+
+    "gitpython==1.0.0",
 ]
 
 # The test suite uses network namespaces
@@ -178,6 +180,7 @@ setup(
         # This extra is for Flocker release engineers to set up their release
         # environment.
         "release": [
+            "gitpython==1.0.0",
             "gsutil",
             "wheel",
             "virtualenv",
