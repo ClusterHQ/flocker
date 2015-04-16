@@ -409,7 +409,12 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
 @do
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
-    Upload RPMS from build server to yum repository.
+    The ClusterHQ yum repository contains packages for Flocker, as well as the
+    dependencies which aren't available in Fedora 20 or CentOS 7. It is
+    currently hosted on Amazon S3. When doing a release, we want to add the
+    new Flocker packages, while preserving the existing packages in the
+    repository. To do this, we download the current repository, add the new
+    package, update the metadata, and then upload the repository.
 
     :param FilePath scratch_directory: Temporary directory to download
         repository to.
@@ -462,19 +467,16 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         )
 
 
+# TODO rename to publish_artifacts
 def publish_rpms_main(args, base_path, top_level):
     """
-    The ClusterHQ yum repository contains packages for Flocker, as well as the
-    dependencies which aren't available in Fedora 20 or CentOS 7. It is
-    currently hosted on Amazon S3. When doing a release, we want to add the
-    new Flocker packages, while preserving the existing packages in the
-    repository. To do this, we download the current repository, add the new
-    package, update the metadata, and then upload the repository.
+
 
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
+    # TODO change UploadOptions to be more generic
     options = UploadOptions()
 
     try:
@@ -511,7 +513,6 @@ def publish_rpms_main(args, base_path, top_level):
         scratch_directory.remove()
 
 
-# TODO rename to publish_artifacts
 # Create wrapper which should also call publish_rpms
 @do
 def create_artifacts(version, target_bucket, target_key):
@@ -541,8 +542,10 @@ def create_artifacts(version, target_bucket, target_key):
         raise ValueError("setuptools version is not 3.6")
 
     # TODO replace this with a parameter to check_call of where this wants to be run - cwd=None param in Popen
-    # use git to figure out repo root in caller
+    # use TOP_LEVEL_DIR to figure out top level.
 
+    # TODO This outputs stuff, direct that somewhere?
+    # use wheel.archive.archive_wheelfile?
     check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
     # Upload python packages to ``archive.clusterhq.com``
     # TODO choose a new bucket name, old was gs://archive.clusterhq.com/downloads/flocker/
@@ -554,6 +557,9 @@ def create_artifacts(version, target_bucket, target_key):
     Factor the call out of main
     """
 
+    # --dist-dir=[differentdir] on python setup.py then can use the directory
+    # here
+    # use scratch directory for these files
     yield Effect(UploadToS3Recursively(
         source_path=FilePath("dist"),
         target_bucket=target_bucket,
