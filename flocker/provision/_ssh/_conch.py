@@ -14,6 +14,7 @@ from effect.twisted import (
 from twisted.conch.endpoints import (
     SSHCommandClientEndpoint, _NewConnectionHelper, _ReadFile, ConsoleUI)
 
+from twisted.conch.client.knownhosts import KnownHostsFile
 from twisted.conch.ssh.keys import Key
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
@@ -142,7 +143,8 @@ def get_connection_helper(address, username, port):
         keys=keys,
         password=None,
         agentEndpoint=agentEndpoint,
-        knownHosts=None, ui=ConsoleUI(lambda: _ReadFile(b"yes")))
+        knownHosts=KnownHostsFile.fromPath(FilePath("/dev/null")),
+        ui=ConsoleUI(lambda: _ReadFile(b"yes")))
 
 
 @deferred_performer
