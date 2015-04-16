@@ -80,29 +80,6 @@ Preparing For a Release
 
       export VERSION=0.1.2
 
-#. Export the base branch which the release will be branched from:
-
-   For a weekly development release, or the first pre-release for a marketing release,
-   the base branch should be ``master``:
-
-   .. prompt:: bash $
-
-      export BASE_BRANCH=master
-
-   For a marketing release, or any pre-release which is not the first pre-release for a particular marketing release,
-   the base branch should be the release branch for the most recent pre-release:
-
-   .. prompt:: bash $
-
-      export BASE_BRANCH=release/flocker-0.1.2pre1
-
-   For a maintenance or documentation release,
-   the base branch should be the release receiving the maintenance:
-
-   .. prompt:: bash $
-
-      export BASE_BRANCH=release/flocker-0.1.2
-
 #. Create an issue in JIRA:
 
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
@@ -120,7 +97,7 @@ Preparing For a Release
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/${BASE_BRANCH}
+      admin/create-release-branch --flocker-version="${VERSION}"
       git push --set-upstream origin release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
