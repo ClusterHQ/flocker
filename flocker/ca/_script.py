@@ -16,8 +16,76 @@ from zope.interface import implementer
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 
-from ._ca import (CertificateAuthority, CertificateAlreadyExistsError,
-                  KeyAlreadyExistsError)
+from ._ca import (CertificateAuthority, ControlCertificate,
+                  CertificateAlreadyExistsError, KeyAlreadyExistsError,
+                  PathError)
+
+
+class ControlCertificateOptions(Options):
+    """
+    Command line options for ``flocker-ca create-control-certificate``.
+    """
+
+    longdesc = """Create a new certificate for the control service.
+
+    Creates a certificate signed by a previously generated certificate
+    authority (see flocker-ca initialize command for more information).
+
+    The certificate will be stored in the current working directory.
+
+    Parameters:
+
+    * authoritypath: Path to the root certificate's private key. Defaults to
+    ./cluster.key
+    * certfile: path to the root certificate file. Defaults to ./cluster.crt
+    """
+
+    synopsis = "<authoritypath>"
+
+    def parseArgs(self, *args):
+        self["path"] = FilePath(os.getcwd())
+        self["rootpath"] = FilePath(os.getcwd())
+        if len(args) == 1:
+            self["rootpath"] = FilePath(args[0])
+        if len(args) > 1:
+            raise UsageError(
+                ("Invalid number of arguments. Run with --help for more "
+                 "information.")
+            )
+
+    def run(self):
+        """
+        Check if control service certificate already exist in current
+        directory. If it does, error out. Also check if root key and
+        certificate files (either default or as specified on the command line)
+        exist in the path and error out if they do not. If there are no path
+        errors, create a new control service certificate signed by the root
+        and write it out to the current directory.
+        """
+        d = Deferred()
+
+        def generateCert(_):
+            try:
+                ca = CertificateAuthority.from_path(self["rootpath"])
+                ControlCertificate.initialize(ca, self["path"])
+                print (
+                    b"Created control-service.crt. Copy it over to "
+                    "/etc/flocker/control-service.crt on your control service "
+                    "machine and make sure to chmod 0600 it."
+                )
+            except CertificateAlreadyExistsError as e:
+                raise UsageError(str(e))
+            except PathError as e:
+                raise UsageError(str(e))
+
+        def generateError(failure):
+            print b"Error: {error}".format(error=str(failure.value))
+            sys.exit(1)
+
+        d.addCallback(generateCert)
+        d.addErrback(generateError)
+        d.callback(None)
+        return d
 
 
 class InitializeOptions(Options):
@@ -93,7 +161,9 @@ class CAOptions(Options):
     subCommands = [
         ["initialize", None, InitializeOptions,
          ("Initialize a certificate authority in the "
-          "current working directory.")]
+          "current working directory.")],
+        ["create-control-certificate", None, ControlCertificateOptions,
+         "Create a certificate for the control service."],
         ]
 
 
