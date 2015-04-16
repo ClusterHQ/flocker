@@ -67,7 +67,7 @@ class ControlCertificateOptions(Options):
         def generateCert(_):
             try:
                 ca = CertificateAuthority.from_path(self["rootpath"])
-                ControlCertificate.initialize(ca, self["path"])
+                ControlCertificate.initialize(self["path"], ca)
                 print (
                     b"Created control-service.crt. Copy it over to "
                     "/etc/flocker/control-service.crt on your control service "
