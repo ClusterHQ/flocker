@@ -1201,9 +1201,12 @@ class IBlockDeviceAPITestsMixin(object):
         )
         new_size = REALISTIC_BLOCKDEVICE_SIZE ** 2
         self.api.resize_volume(original_volume.blockdevice_id, new_size)
-        larger_volume = original_volume.set(size=newsize)
+        larger_volume = original_volume.set(size=new_size)
 
-        self.assertEqual([unrelated_volume, larger_volume], self.api.list_volumes())
+        self.assertEqual(
+            [unrelated_volume, larger_volume],
+            self.api.list_volumes()
+        )
 
     def test_resize_destroyed_volume(self):
         """
