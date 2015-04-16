@@ -587,6 +587,9 @@ IGNORED_WARNINGS = {
         'only-non-binary-in-usr-lib',
         # We don't allow configuring ufw firewall applications.
         'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
+
+        # Cryptography hazmat bindings
+        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
@@ -640,7 +643,10 @@ IGNORED_WARNINGS = {
 
         # We don't allow configuring ufw firewall applications.
         ('file-in-etc-not-marked-as-conffile '
-         'etc/ufw/applications.d/flocker-control')
+         'etc/ufw/applications.d/flocker-control'),
+
+        # Cryptography hazmat bindings
+        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
     ),
 }
 
@@ -848,6 +854,8 @@ def omnibus_package_builder(
                     (FilePath('/opt/flocker/bin/flocker-deploy'),
                      flocker_cli_path),
                     (FilePath('/opt/flocker/bin/flocker'),
+                     flocker_cli_path),
+                    (FilePath('/opt/flocker/bin/flocker-ca'),
                      flocker_cli_path),
                 ]
             ),
