@@ -395,6 +395,9 @@ class ResizeBlockDeviceDataset(PRecord):
         volume to be destroyed belongs.
     """
     dataset_id = field(type=UUID, mandatory=True)
+
+    # XXX size might be optional.  We can grow to fill a block device without
+    # specifying it.  Shrink does need it though.
     size = field(type=int, mandatory=True)
 
     @property
@@ -413,7 +416,12 @@ class ResizeBlockDeviceDataset(PRecord):
                 ResizeVolume(volume=volume, size=self.size),
                 AttachVolume(volume=volume, hostname=deployer.hostname),
                 ResizeFilesystem(volume=volume),
-                MountBlockDevice(volume=volume),
+                MountBlockDevice(
+                    volume=volume,
+                    mountpoint=deployer._mountpath_for_dataset_id(
+                        unicode(self.dataset_id)
+                    )
+                ),
             ]
         ).run(deployer)
 
@@ -1157,9 +1165,10 @@ class BlockDeviceDeployer(PRecord):
             will be mounted.
         :returns: A ``FilePath`` of the mount point.
         """
-        return self.mountroot.child(
-            manifestation.dataset.dataset_id.encode("ascii")
-        )
+        return self._mountpath_for_dataset_id(manifestation.dataset_id)
+
+    def _mountpath_for_dataset_id(self, dataset_id):
+        return self.mountroot.child(dataset_id.encode("ascii"))
 
     def calculate_changes(self, configuration, cluster_state):
         # Eventually use the Datasets to avoid creating things that exist
