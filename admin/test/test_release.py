@@ -16,7 +16,7 @@ from requests.exceptions import HTTPError
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.python.usage import UsageError
-from twisted.trial.unittest import SynchronousTestCase as TestCase
+from twisted.trial.unittest import SynchronousTestCase
 
 from ..release import (
     upload_rpms, update_repo,
@@ -31,7 +31,7 @@ from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 
 
-class PublishDocsTests(TestCase):
+class PublishDocsTests(SynchronousTestCase):
     """
     Tests for :func:``publish_docs``.
     """
@@ -783,7 +783,7 @@ class PublishDocsTests(TestCase):
         )
 
 
-class UploadRPMsTests(TestCase):
+class UploadRPMsTests(SynchronousTestCase):
     """
     Tests for :func:``upload_rpms``.
     """
@@ -1508,7 +1508,7 @@ class UploadRPMsTests(TestCase):
             "Metadata files for the packages were not created.")
 
 
-class CreateReleaseBranchOptionsTests(TestCase):
+class CreateReleaseBranchOptionsTests(SynchronousTestCase):
     """
     Tests for :class:`CreateReleaseBranchOptions`.
     """
@@ -1540,7 +1540,7 @@ def create_git_repository(test_case):
     return repository
 
 
-class CreateReleaseBranchTests(TestCase):
+class CreateReleaseBranchTests(SynchronousTestCase):
     """
     Tests for :func:`create_release_branch`.
     """
@@ -1585,7 +1585,7 @@ class CreateReleaseBranchTests(TestCase):
         self.assertIn((u'NEW_FILE', 0), self.repo.index.entries)
 
 
-class CalculateBaseBranchTests(TestCase):
+class CalculateBaseBranchTests(SynchronousTestCase):
     """
     Tests for :func:`calculate_base_branch`.
     """
