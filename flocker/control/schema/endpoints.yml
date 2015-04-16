@@ -65,6 +65,17 @@ definitions:
       - host
     additionalProperties: false
 
+  # This will be improved and tested in
+  # https://clusterhq.atlassian.net/browse/FLOC-1632
+  nodes_array:
+    description: "An array of nodes in the cluster."
+    type: array
+    items:
+      type: object
+      properties:
+        hostname:
+          '$ref': 'types.json#/definitions/host'
+
   state_container:
     type: object
     properties:
