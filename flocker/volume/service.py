@@ -17,7 +17,6 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import maybeDeferred
-from twisted.internet.task import deferLater
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.defer import fail

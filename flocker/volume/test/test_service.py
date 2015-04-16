@@ -22,7 +22,7 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from ..service import (
     VolumeService, CreateConfigurationError, Volume, VolumeName,
-    WAIT_FOR_VOLUME_INTERVAL, VolumeScript, ICommandLineVolumeScript,
+    VolumeScript, ICommandLineVolumeScript,
     VolumeSize,
     )
 from ..script import VolumeOptions
