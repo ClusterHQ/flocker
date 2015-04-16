@@ -7,8 +7,7 @@ This should be installed on a machine with SSH credentials to control the cluste
 (e.g., if you use our Vagrant setup then the machine which is running Vagrant).
 
 There is also a ``clusterhq-flocker-node`` package which is installed on each node in the cluster.
-It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities.
-These utilities are called by ``flocker-deploy`` (via SSH) to install and migrate Docker containers and their data volumes.
+It contains the services that need to run on each node.
 
 .. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
 
