@@ -296,13 +296,7 @@ class ApplicationMarshaller(object):
                 u'mountpoint': self._application.volume.mountpoint.path
             }
             dataset = self._application.volume.dataset
-            # Don't include dataset id in generated config if it's
-            # same as the one we are going to generate anyway. Not
-            # strictly necessary, just have some overly specific tests
-            # that depend on this. Feel free to remove if necessary.
-            if dataset.dataset_id != dataset_id_from_name(
-                    self._application.name):
-                volume_dict[u'dataset_id'] = dataset.dataset_id
+            volume_dict[u'dataset_id'] = dataset.dataset_id
             if dataset.maximum_size is not None:
                 volume_dict[u'maximum_size'] = (
                     unicode(dataset.maximum_size)

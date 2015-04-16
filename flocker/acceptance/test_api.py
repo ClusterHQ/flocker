@@ -10,6 +10,8 @@ from uuid import uuid4
 
 from twisted.trial.unittest import TestCase
 
+from twisted.web.http import BAD_REQUEST
+
 from treq import get, json_content
 
 from ..testtools import loop_until, random_name
@@ -17,7 +19,7 @@ from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
 )
 from ..node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
-from .testtools import get_test_cluster
+from .testtools import get_test_cluster, require_cluster
 
 
 def verify_socket(host, port):
@@ -76,13 +78,15 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
         return d
 
-    def test_create_container_with_ports(self):
+    @require_cluster(1)
+    def test_create_container_with_ports(self, cluster):
         """
         Create a container including port mappings on a single-node cluster.
         """
         return self._create_container()
 
-    def test_create_container_with_environment(self):
+    @require_cluster(1)
+    def test_create_container_with_environment(self, cluster):
         """
         Create a container including environment variables on a single-node
         cluster.
@@ -129,7 +133,8 @@ class ContainerAPITests(TestCase):
         return d
 
     @require_mongo
-    def test_move_container_with_dataset(self):
+    @require_cluster(2)
+    def test_move_container_with_dataset(self, cluster):
         """
         Create a mongodb container with an attached dataset, issue API call
         to move the container. Wait until we can connect to the running
@@ -140,7 +145,7 @@ class ContainerAPITests(TestCase):
         def created_dataset(result):
             cluster, dataset = result
             mongodb = {
-                u"name": "container",
+                u"name": random_name(),
                 u"host": cluster.nodes[0].address,
                 u"image": MONGO_IMAGE,
                 u"ports": [{u"internal": 27017, u"external": 27017}],
@@ -162,7 +167,7 @@ class ContainerAPITests(TestCase):
 
             def inserted(record):
                 moved = cluster.move_container(
-                    u"container", cluster.nodes[1].address
+                    mongodb[u"name"], cluster.nodes[1].address
                 )
 
                 def destroy_and_recreate(_, record):
@@ -177,7 +182,7 @@ class ContainerAPITests(TestCase):
                     and read the data, the dataset was successfully moved along
                     with the container.
                     """
-                    removed = cluster.remove_container(u"container")
+                    removed = cluster.remove_container(mongodb[u"name"])
                     mongodb2 = mongodb.copy()
                     mongodb2[u"ports"] = [
                         {u"internal": 27017, u"external": 27018}
@@ -203,7 +208,8 @@ class ContainerAPITests(TestCase):
         return creating_dataset
 
     @require_mongo
-    def test_create_container_with_dataset(self):
+    @require_cluster(1)
+    def test_create_container_with_dataset(self, cluster):
         """
         Create a mongodb container with an attached dataset, insert some data,
         shut it down, create a new container with same dataset, make sure
@@ -254,7 +260,8 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
 
-    def test_current(self):
+    @require_cluster(1)
+    def test_current(self, cluster):
         """
         The current container endpoint includes a currently running container.
         """
@@ -273,14 +280,15 @@ class ContainerAPITests(TestCase):
         return creating
 
 
-def create_dataset(test_case, nodes=1):
+def create_dataset(test_case, nodes=1,
+                   maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
     """
     Create a dataset on a cluster.
 
     :param TestCase test_case: The test the API is running on.
-
     :param int nodes: The number of nodes to create. Defaults to 1.
-
+    :param int maximum_size: The size of the dataset to create on the test
+        cluster.
     :return: ``Deferred`` firing with a tuple of (``Cluster``
         instance, dataset dictionary) once the dataset is present in
         actual cluster state.
@@ -296,7 +304,7 @@ def create_dataset(test_case, nodes=1):
         requested_dataset = {
             u"primary": cluster.nodes[0].address,
             u"dataset_id": unicode(uuid4()),
-            u"maximum_size": REALISTIC_BLOCKDEVICE_SIZE,
+            u"maximum_size": maximum_size,
             u"metadata": {u"name": u"my_volume"},
         }
 
@@ -394,3 +402,111 @@ class DatasetAPITests(TestCase):
             return deleted
         created.addCallback(delete_dataset)
         return created
+
+    def test_dataset_grow(self):
+        """
+        The size of a dataset can be increased.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = REALISTIC_BLOCKDEVICE_SIZE * 2
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            self.assertEqual(new_size, dataset['maximum_size'])
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
+
+    def test_dataset_shrink(self):
+        """
+        The size of a dataset can be decreased.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
+        new_size = REALISTIC_BLOCKDEVICE_SIZE
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            self.assertEqual(new_size, dataset['maximum_size'])
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking
+
+    def test_dataset_shrink_not_valid(self):
+        """
+        If the requested maximum_size is smaller than the allowed minimum the
+        response is ``BAD_REQUEST``.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = 67108864 - 1
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            # Reconfigure that dataset to be an invalid size.
+            resizing = cluster.update_dataset(
+                dataset_id=dataset["dataset_id"],
+                dataset_properties={u'maximum_size': new_size}
+            )
+            # Check for expected exception and response code.
+            return self.assertFailure(
+                resizing, ValueError
+            ).addCallback(
+                lambda exception: self.assertEqual(
+                    BAD_REQUEST, exception.args[1]
+                )
+            )
+
+        return creating.addCallback(resize_dataset)
+
+    def test_dataset_remove_size_limit(self):
+        """
+        A dataset with a size limit can have that limit removed.
+        """
+        creating = create_dataset(
+            test_case=self, maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        new_size = None
+
+        def resize_dataset(result):
+            cluster, dataset = result
+            return cluster.update_dataset(
+                dataset["dataset_id"], {u'maximum_size': new_size}
+            )
+
+        resizing = creating.addCallback(resize_dataset)
+
+        def check_dataset_size(result):
+            cluster, dataset = result
+            # If there is no maximum_size, the configuration response will not
+            # contain that key
+            self.assertNotIn(u'maximum_size', dataset.keys())
+            return cluster.wait_for_dataset(dataset)
+
+        checking = resizing.addCallback(check_dataset_size)
+
+        return checking

@@ -137,8 +137,7 @@ Preparing For a Release
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
-   XXX: Process to be decided.
-   See https://clusterhq.atlassian.net/browse/FLOC-523
+   XXX: Process to be decided, see :issue:`523`.
 
    - The NEWS date format is YYYY-MM-DD.
    - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
@@ -347,7 +346,7 @@ Release
 
    .. note:: Skip this step for a maintenance or documentation release.
 
-   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-943
+   XXX This should be automated, see :issue:`943`.
 
    .. prompt:: bash [vagrant@localhost]$
 
@@ -359,7 +358,7 @@ Release
 
    .. note:: Skip this step for a maintenance or documentation release.
 
-   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
+   XXX This should be automated, see :issue:`1150`.
 
    - Create a recipe file and push it to the `homebrew-tap`_ repository:
 
@@ -392,7 +391,7 @@ Release
 
 #. Update and test the Getting Started Guide:
 
-   XXX This process should be changed https://clusterhq.atlassian.net/browse/FLOC-1307
+   XXX This process should be changed, see :issue:`1307`.
 
    Create a branch in the ``vagrant-flocker`` repository:
 
@@ -417,7 +416,7 @@ Release
       git commit -am "Updated Vagrantfile"
       git push
 
-   XXX This process should be automated https://clusterhq.atlassian.net/browse/FLOC-1309
+   XXX This process should be automated, see :issue:`1309`.
 
    Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
    after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch.
@@ -478,13 +477,11 @@ Post-Release Review Process
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
-   Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`.
+   Follow the Flocker client installation documentation at ``https://docs.clusterhq.com/en/${VERSION}/indepth/installation.html#installing-flocker-cli``.
 
-   XXX: This step should be documented.
-   See `FLOC-1622 <https://clusterhq.atlassian.net/browse/FLOC-1622>`_.
+   XXX: This step should be documented, see :issue:`1622`.
 
-   XXX: This step should be automated.
-   See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
+   XXX: This step should be automated, see :issue:`1039`.
 
 #. Merge the release pull request.
 
@@ -510,7 +507,7 @@ The issue(s) for the planned improvements should be put into the next sprint.
 Appendix: Back Porting Changes From Master
 ------------------------------------------
 
-XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/FLOC-877
+XXX: This process needs documenting, see :issue:`877`.
 
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
