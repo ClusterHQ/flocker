@@ -17,8 +17,8 @@ from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
 
 EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
 
-certificate_filename = b"cluster.crt"
-key_filename = b"cluster.key"
+authority_certificate_filename = b"cluster.crt"
+authority_key_filename = b"cluster.key"
 control_certificate_filename = b"control-service.crt"
 control_key_filename = b"control-service.key"
 
@@ -119,6 +119,64 @@ class FlockerKeyPair(object):
         return Certificate(cert)
 
 
+def load_certificate_from_path(path, key_filename, cert_filename):
+    """
+    Load a certificate and keypair from a specified path.
+
+    :param FilePath path: Directory where certificate and key files
+        are stored.
+    :param bytes key_filename: The file name of the private key.
+    :param bytes cert_filename: The file name of the certificate.
+
+    :return: A ``tuple`` containing the loaded key and certificate
+        instances.
+    """
+    if not path.isdir():
+        raise PathError(
+            b"Path {path} is not a directory.".format(path=path.path)
+        )
+
+    certPath = path.child(cert_filename)
+    keyPath = path.child(key_filename)
+
+    if not certPath.isfile():
+        raise PathError(
+            b"Certificate file {path} does not exist.".format(
+                path=certPath.path)
+        )
+
+    if not keyPath.isfile():
+        raise PathError(
+            b"Private key file {path} does not exist.".format(
+                path=keyPath.path)
+        )
+
+    try:
+        certFile = certPath.open()
+    except IOError:
+        raise PathError(
+            (b"Certificate file {path} could not be opened. "
+             b"Check file permissions.").format(
+                path=certPath.path)
+        )
+
+    try:
+        keyFile = keyPath.open()
+    except IOError:
+        raise PathError(
+            (b"Private key file {path} could not be opened. "
+             b"Check file permissions.").format(
+                path=keyPath.path)
+        )
+
+    certificate = Certificate.load(
+        certFile.read(), format=crypto.FILETYPE_PEM)
+    keypair = FlockerKeyPair(
+        keypair=KeyPair.load(keyFile.read(), format=crypto.FILETYPE_PEM)
+    )
+    return (keypair, certificate)
+
+
 class FlockerCertificate(PRecord):
     """
     Base class for Flocker certificates.
@@ -135,69 +193,124 @@ class FlockerCertificate(PRecord):
     keypair = field(mandatory=True, initial=None)
 
     @classmethod
-    def from_path(cls, path, names):
-        """
-        Load a control certificate from a specified path.
+    def from_path(path):
+        return cls(
+            path=path, keypair=keypair, certificate=certificate
+        )
 
-        :param FilePath path: Directory where certificate is stored.
-        :param tuple names: A ``tuple`` of byte strings representing the
-            certificate and key file names, e.g.
-            (b"cluster.crt", b"cluster.key")
+
+class ControlCertificate(FlockerCertificate):
+    """
+    A certificate for a control service, signed by a supplied certificate
+    authority.
+
+    :ivar FilePath path: A ``FilePath`` representing the absolute path of
+        a directory containing the certificate and key files.
+    :ivar Certificate certificate: A signed certificate, populated only by
+        loading from ``path``.
+    :ivar FlockerKeyPair keypair: A private/public keypair, populated only by
+        loading from ``path``.
+    """
+    path = field(mandatory=True)
+    certificate = field(mandatory=True, initial=None)
+    keypair = field(mandatory=True, initial=None)
+
+    @classmethod
+    def from_path(cls, path):
+        keypair, certificate = load_certificate_from_path(
+            path, control_key_filename, control_certificate_filename
+        )
+        return cls(
+            path=path, keypair=keypair, certificate=certificate
+        )
+
+    @classmethod
+    def initialize(cls, authority, path):
+        """
+        Generate a certificate signed by the supplied root certificate.
+
+        :param CertificateAuthority authority: The certificate authority with
+            which this certificate will be signed.
+        :param FilePath path: Directory where the certificate will be stored.
         """
         if not path.isdir():
             raise PathError(
                 b"Path {path} is not a directory.".format(path=path.path)
             )
 
-        certificate_filename, key_filename = names
-        certPath = path.child(certificate_filename)
-        keyPath = path.child(key_filename)
+        certPath = path.child(control_certificate_filename)
+        keyPath = path.child(control_key_filename)
 
-        if not certPath.isfile():
-            raise PathError(
-                b"Certificate file {path} does not exist.".format(
+        if certPath.exists():
+            raise CertificateAlreadyExistsError(
+                b"Certificate file {path} already exists.".format(
                     path=certPath.path)
             )
-
-        if not keyPath.isfile():
-            raise PathError(
-                b"Private key file {path} does not exist.".format(
+        if keyPath.exists():
+            raise KeyAlreadyExistsError(
+                b"Private key file {path} already exists.".format(
                     path=keyPath.path)
             )
 
-        try:
-            certFile = certPath.open()
-        except IOError:
-            raise PathError(
-                (b"Certificate file {path} could not be opened. "
-                 b"Check file permissions.").format(
-                    path=certPath.path)
-            )
-
-        try:
-            keyFile = keyPath.open()
-        except IOError:
-            raise PathError(
-                (b"Private key file {path} could not be opened. "
-                 b"Check file permissions.").format(
-                    path=keyPath.path)
-            )
-
-        certificate = Certificate.load(
-            certFile.read(), format=crypto.FILETYPE_PEM)
-        keypair = FlockerKeyPair(
-            keypair=KeyPair.load(keyFile.read(), format=crypto.FILETYPE_PEM)
+        # The common name for the control service certificate.
+        # This is used to distinguish between control service and node
+        # certificates.
+        name = b"control-service"
+        # The organizational unit is set to the common name of the
+        # authority, which in our case is a byte string identifying
+        # the cluster.
+        organizational_unit = authority.certificate.getSubject().CN
+        dn = DistinguishedName(
+            commonName=name, organizationalUnitName=organizational_unit
         )
-
-        return cls(
-            path=path, keypair=keypair, certificate=certificate
+        keypair = FlockerKeyPair.generate()
+        request = keypair.keypair.requestObject(dn)
+        serial = os.urandom(16).encode(b"hex")
+        serial = int(serial, 16)
+        cert = authority.keypair.keypair.signRequestObject(
+            authority.certificate.getSubject(), request,
+            serial, EXPIRY_20_YEARS, 'sha256'
+        )
+        original_umask = os.umask(0)
+        mode = 0o600
+        with os.fdopen(os.open(
+            certPath.path, os.O_WRONLY | os.O_CREAT, mode
+        ), b'w') as certFile:
+            certFile.write(cert.dumpPEM())
+        with os.fdopen(os.open(
+            keyPath.path, os.O_WRONLY | os.O_CREAT, mode
+        ), b'w') as keyFile:
+            keyFile.write(keypair.keypair.dump(crypto.FILETYPE_PEM))
+        os.umask(original_umask)
+        return cls.from_path(
+            path, (control_certificate_filename, control_key_filename)
         )
 
 
 class CertificateAuthority(FlockerCertificate):
     """
     A self-signed certificate authority.
+
+    :ivar FilePath path: A ``FilePath`` representing the absolute path of
+        a directory containing the certificate and key files.
+    :ivar Certificate certificate: A signed certificate, populated only by
+        loading from ``path``.
+    :ivar FlockerKeyPair keypair: A private/public keypair, populated only by
+        loading from ``path``.
     """
+    path = field(mandatory=True)
+    certificate = field(mandatory=True, initial=None)
+    keypair = field(mandatory=True, initial=None)
+
+    @classmethod
+    def from_path(cls, path):
+        keypair, certificate = load_certificate_from_path(
+            path, authority_key_filename, authority_certificate_filename
+        )
+        return cls(
+            path=path, keypair=keypair, certificate=certificate
+        )
+
     @classmethod
     def initialize(cls, path, name):
         """
@@ -216,8 +329,8 @@ class CertificateAuthority(FlockerCertificate):
                 b"Path {path} is not a directory.".format(path=path.path)
             )
 
-        certPath = path.child(certificate_filename)
-        keyPath = path.child(key_filename)
+        certPath = path.child(authority_certificate_filename)
+        keyPath = path.child(authority_key_filename)
 
         if certPath.exists():
             raise CertificateAlreadyExistsError(
@@ -249,4 +362,4 @@ class CertificateAuthority(FlockerCertificate):
         ), b'w') as keyFile:
             keyFile.write(keypair.keypair.dump(crypto.FILETYPE_PEM))
         os.umask(original_umask)
-        return cls.from_path(path, (certificate_filename, key_filename))
+        return cls.from_path(path)
