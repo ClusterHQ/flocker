@@ -20,39 +20,57 @@ from docutils.statemachine import StringList
 
 from flocker import __version__ as version
 
-from flocker.docs import get_installable_version
+from flocker.common.version import get_installable_version
 from flocker.docs.version_extensions import PLACEHOLDER
 
 from . import _tasks as tasks
-from ._install import Run, Sudo, Comment, Put
+from ._ssh import Run, Sudo, Comment, Put
+from ._effect import dispatcher as base_dispatcher, SequenceFailed
+from effect import (
+    sync_perform, sync_performer,
+    ComposedDispatcher, TypeDispatcher,
+    NoPerformerFoundError,
+)
 
 
-def run(command):
-    return command.command
+def run_for_docs(effect):
 
+    commands = []
 
-def sudo(command):
-    return "sudo %s" % (command.command,)
+    @sync_performer
+    def run(dispatcher, intent):
+        commands.append(intent.command)
 
+    @sync_performer
+    def sudo(dispatcher, intent):
+        commands.append("sudo %s" % (intent.command,))
 
-def comment(command):
-    return "# %s" % (command.comment)
+    @sync_performer
+    def comment(dispatcher, intent):
+        commands.append("# %s" % (intent.comment))
 
+    @sync_performer
+    def put(dispatcher, intent):
+        commands.append([
+            "cat <<EOF > %s" % (intent.path,),
+        ] + intent.content.splitlines() + [
+            "EOF",
+        ])
 
-def put(command):
-    return [
-        "cat <<EOF > %s" % (command.path,),
-    ] + command.content.splitlines() + [
-        "EOF",
-    ]
+    sync_perform(
+        ComposedDispatcher([
+            TypeDispatcher({
+                Run: run,
+                Sudo: sudo,
+                Comment: comment,
+                Put: put,
+            }),
+            base_dispatcher,
+        ]),
+        effect,
+    )
 
-
-HANDLERS = {
-    Run: run,
-    Sudo: sudo,
-    Comment: comment,
-    Put: put,
-}
+    return commands
 
 
 class TaskDirective(Directive):
@@ -73,24 +91,27 @@ class TaskDirective(Directive):
         if len(self.arguments) > 1:
             # Some tasks can include the latest installable version as (part
             # of) an argument. This replaces a placeholder with that version.
+            arguments = self.arguments[1].split()
             latest = get_installable_version(version)
-            task_arguments = [item.replace(PLACEHOLDER, latest) for
-                              item in self.arguments[1].split()]
+            task_arguments = [item.replace(PLACEHOLDER, latest).encode("utf-8")
+                              for item in arguments]
         else:
             task_arguments = []
 
         commands = task(*task_arguments)
         lines = ['.. prompt:: bash %s,> auto' % (prompt,), '']
 
-        for command in commands:
-            try:
-                handler = HANDLERS[type(command)]
-            except KeyError:
-                raise self.error("task: %s not supported"
-                                 % (type(command).__name__,))
+        try:
+            command_lines = run_for_docs(commands)
+        except NoPerformerFoundError as e:
+            raise self.error("task: %s not supported"
+                             % (type(e.args[0]).__name__,))
+        except SequenceFailed as e:
+            print e.error
+
+        for command_line in command_lines:
             # handler can return either a string or a list.  If it returns a
             # list, treat the elements after the first as continuation lines.
-            command_line = handler(command)
             if isinstance(command_line, list):
                 lines.append('   %s %s' % (prompt, command_line[0],))
                 lines.extend(['   > %s' % (line,)

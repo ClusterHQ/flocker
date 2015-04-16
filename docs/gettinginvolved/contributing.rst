@@ -14,7 +14,8 @@ Maintenance Branches
 Occasionally, issues will be discovered that want to be fixed before the next full release.
 The following is the procedure for fixing them.
 
-#. File an issue in JIRA_. For example, "FLOC-1234: Fix a bug.".
+#. File an issue in JIRA_.
+   For example, "FLOC-1234: Fix a bug.".
    If the issue affects in multiple versions (including master),
    create a sub-task for each affected, supported version:
 
