@@ -198,6 +198,19 @@ RESIZE_BLOCK_DEVICE_DATASET = ActionType(
 )
 
 
+def _volume():
+    """
+    Create and return a ``PRecord`` ``field`` to hold a ``BlockDeviceVolume``.
+    """
+    return field(
+        type=BlockDeviceVolume, mandatory=True,
+        # Disable the automatic PRecord.create factory.  Callers can just
+        # supply the right type, we don't need the magic coercion behavior
+        # supplied by default.
+        factory=lambda x: x
+    )
+
+
 def _logged_statechange(cls):
     """
     Decorate an ``IStateChange.run`` implementation with partially automatic
@@ -312,6 +325,21 @@ class DestroyBlockDeviceDataset(PRecord):
 
 
 @implementer(IStateChange)
+class ResizeVolume(PRecord):
+    """
+    Change the size of a volume.
+    """
+    volume = _volume()
+    size = field(type=int, mandatory=True)
+
+    def run(self, deployer):
+        deployer.block_device_api.resize_volume(
+            self.volume.blockdevice_id, self.size
+        )
+        return succeed(None)
+
+
+@implementer(IStateChange)
 class ResizeBlockDeviceDataset(PRecord):
     """
     Resize the volume for a dataset with a primary manifestation on the node
@@ -329,31 +357,19 @@ class ResizeBlockDeviceDataset(PRecord):
         pass
 
     def run(self, deployer):
-        # volume = _blockdevice_volume_from_datasetid(self.dataset_id)
-        # return Sequentially(
-        #     changes=[
+        volume = _blockdevice_volume_from_datasetid(
+            deployer.block_device_api, self.dataset_id
+        )
+        return Sequentially(
+            changes=[
         #         UnmountBlockDevice(volume=volume),
         #         DetachVolume(volume=volume),
-        #         ResizeVolume(volume=volume, size=size),
+                ResizeVolume(volume=volume, size=self.size),
         #         AttachVolume(volume=volume),
         #         ResizeFilesystem(...),
         #         MountBlockDevice(volume=volume),
-        #     ]
-        # ).run(deployer)
-        pass
-
-
-def _volume():
-    """
-    Create and return a ``PRecord`` ``field`` to hold a ``BlockDeviceVolume``.
-    """
-    return field(
-        type=BlockDeviceVolume, mandatory=True,
-        # Disable the automatic PRecord.create factory.  Callers can just
-        # supply the right type, we don't need the magic coercion behavior
-        # supplied by default.
-        factory=lambda x: x
-    )
+            ]
+        ).run(deployer)
 
 
 # @_logged_statechange
@@ -419,7 +435,6 @@ class UnmountBlockDevice(PRecord):
         return succeed(None)
 
 
-@_logged_statechange
 @implementer(IStateChange)
 class AttachVolume(PRecord):
     """
@@ -441,9 +456,10 @@ class AttachVolume(PRecord):
         """
         # Make this asynchronous after FLOC-1549, probably as part of
         # FLOC-1593.
-        # deployer.block_device_api.attach_volume(self.volume.blockdevice_id, self.hostname)
-        # return succeed(None)
-        pass
+        deployer.block_device_api.attach_volume(
+            self.volume.blockdevice_id, self.hostname
+        )
+        return succeed(None)
 
 
 @_logged_statechange

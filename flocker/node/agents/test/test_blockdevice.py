@@ -30,7 +30,7 @@ from ..blockdevice import (
     BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     CreateBlockDeviceDataset, UnattachedVolume,
     DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
-    ResizeBlockDeviceDataset,
+    ResizeBlockDeviceDataset, ResizeVolume, AttachVolume,
     DestroyVolume, MountBlockDevice,
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
@@ -2170,3 +2170,73 @@ class ResizeBlockDeviceDatasetTests(
         """
         self.fail("")
     test_run_shrink.todo = "FLOC-1503"
+
+
+def _make_resize_volume():
+    return ResizeVolume(
+        volume=_ARBITRARY_VOLUME,
+        size=REALISTIC_BLOCKDEVICE_SIZE * 8,
+    )
+
+
+class ResizeVolumeTests(
+        make_state_change_tests(_make_resize_volume)
+):
+    """
+    Tests for ``ResizeVolume``\ 's ``IStateChange`` implementation.
+    """
+    def test_run_grow(self):
+        """
+        ``ResizeVolume.run`` increases the size of the volume it refers to when
+        its ``size`` is greater than the volume's current size.
+        """
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        deployer = BlockDeviceDeployer(
+            hostname=u"192.0.7.8",
+            block_device_api=api,
+            mountroot=mountroot_for_test(self),
+        )
+        change = ResizeVolume(
+            volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        )
+        self.successResultOf(change.run(deployer))
+
+        expected_volume = volume.set(size=REALISTIC_BLOCKDEVICE_SIZE * 2)
+        self.assertEqual([expected_volume], api.list_volumes())
+
+
+def _make_attach_volume():
+    return AttachVolume(volume=_ARBITRARY_VOLUME, hostname=u"127.0.0.1")
+
+
+class AttachVolumeTests(
+        make_state_change_tests(_make_attach_volume)
+):
+    """
+    Tests for ``AttachVolume``\ 's ``IStateChange`` implementation.
+    """
+    def test_run(self):
+        """
+        ``AttachVolume.run`` attaches a volume to a host.
+        """
+        host = u"192.0.7.8"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        deployer = BlockDeviceDeployer(
+            hostname=host,
+            block_device_api=api,
+            mountroot=mountroot_for_test(self),
+        )
+        change = AttachVolume(volume=volume, hostname=host)
+        self.successResultOf(change.run(deployer))
+
+        expected_volume = volume.set(host=host)
+        self.assertEqual([expected_volume], api.list_volumes())
+
