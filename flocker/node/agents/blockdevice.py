@@ -311,7 +311,6 @@ class DestroyBlockDeviceDataset(PRecord):
 # followup issues, or maybe do those issues first??
 
 
-@_logged_statechange
 @implementer(IStateChange)
 class ResizeBlockDeviceDataset(PRecord):
     """
