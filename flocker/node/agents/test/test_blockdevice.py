@@ -653,7 +653,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         self.assertEqual(expected_changes, actual_changes)
 
 
-class BlockDeviceDeployerResizeCalculateNecessaryStateChangesTests(
+class BlockDeviceDeployerResizeCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
 ):
     """
@@ -686,12 +686,13 @@ class BlockDeviceDeployerResizeCalculateNecessaryStateChangesTests(
 
     def test_maximum_size_decreased(self):
         """
-        ``BlockDeviceDeployer.calculate_necessary_state_changes`` returns a
+        ``BlockDeviceDeployer.calculate_changes`` returns a
         ``ResizeBlockDeviceDataset`` state change operation if the
         ``maximum_size`` of the configured ``Dataset`` is smalled than the size
         reported in the local node state.
         """
-        1/0
+        sel.fail("")
+    test_maximum_size_decreased.todo = "FLOC-1503"
 
     def test_multiple_resize(self):
         """
@@ -1174,46 +1175,15 @@ class IBlockDeviceAPITestsMixin(object):
 
     def test_resize_unknown_volume(self):
         """
-        ``resize_volume`` raises ``UnknownVolume`` if the supplied
+        ``resize_volume`` raises ``UnknownVolume`` if passed a
         ``blockdevice_id`` does not exist.
         """
-        # blockdevice_id = unicode(uuid4)
-        # exception = self.assertRaises(
-        #     UnknownVolume,
-        #     self.api.resize_volume, blockdevice_id=blockdevice_id
-        # )
-        # self.assertEqual(exception.args, (blockdevice_id,))
-        1/0
-
-    def test_resize_attached_volume(self):
-        """
-        ``resize_volume`` raises ``AlreadyAttached`` if the supplied
-        ``blockdevice_id`` is for a ``BlockDeviceVolume`` that is attached to a
-        host.
-
-        XXX: Should there be a similar test for an attempt to destroy an attached volume?
-        XXX: Or as exarkun commented in
-        https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444616
-        some backends will be capable of resizing attached volumes, so an
-        exception is inappropriate. Instead, we need to ensure that we only
-        ever call resize_volume on unattached volumes.
-        """
-        1/0
-
-    def test_resize_volume_returns_updated_volume(self):
-        """
-        ``resize_volume`` returns a ``BlockDeviceVolume`` with an updated
-        ``size`` attribute when supplied with the ``blockdevice_id`` of an
-        unattached ``BlockDeviceVolume``.
-        """
-        # original_volume = self.api.create_volume(
-        #     dataset_id=uuid4(),
-        #     size=REALISTIC_BLOCKDEVICE_SIZE,
-        # )
-        # expected_size = REALISTIC_BLOCKDEVICE_SIZE ** 2
-        # larger_volume = self.api.resize_volume(volume.blockdevice_id, expected_size)
-        # self.assertEqual(expected_size, larger_volume)
-        1/0
+        blockdevice_id = unicode(uuid4())
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.resize_volume, blockdevice_id=blockdevice_id
+        )
+        self.assertEqual(exception.args, (blockdevice_id,))
 
     def test_resize_volume_listed(self):
         """
@@ -1221,19 +1191,19 @@ class IBlockDeviceAPITestsMixin(object):
         resized and ``list_volumes`` then reports the ``BlockDeviceVolume``
         with the new size.
         """
-        # unrelated_volume = self.api.create_volume(
-        #     dataset_id=uuid4(),
-        #     size=REALISTIC_BLOCKDEVICE_SIZE,
-        # )
+        unrelated_volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        original_volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        new_size = REALISTIC_BLOCKDEVICE_SIZE ** 2
+        self.api.resize_volume(original_volume.blockdevice_id, new_size)
+        larger_volume = original_volume.set(size=newsize)
 
-        # original_volume = self.api.create_volume(
-        #     dataset_id=uuid4(),
-        #     size=REALISTIC_BLOCKDEVICE_SIZE,
-        # )
-        # larger_volume = self.api.resize_volume(original_volume.blockdevice_id, REALISTIC_BLOCKDEVICE_SIZE ** 2)
-
-        # self.assertEqual([unrelated_volume, larger_volume], self.api.list_volumes())
-        1/0
+        self.assertEqual([unrelated_volume, larger_volume], self.api.list_volumes())
 
     def test_resize_destroyed_volume(self):
         """
@@ -1241,13 +1211,13 @@ class IBlockDeviceAPITestsMixin(object):
         ``blockdevice_id`` was associated with a volume but that volume has
         been destroyed.
         """
-        # volume = self._destroyed_volume()
-        # exception = self.assertRaises(
-        #     UnknownVolume,
-        #     self.api.resize_volume, blockdevice_id=volume.blockdevice_id, size=REALISTIC_BLOCKDEVICE_SIZE,
-        # )
-        # self.assertEqual(exception.args, (volume.blockdevice_id,))
-        1/0
+        volume = self._destroyed_volume()
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.resize_volume,
+            blockdevice_id=volume.blockdevice_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
 
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
@@ -1996,7 +1966,8 @@ def _make_resize_dataset():
     ``make_state_change_tests``.
     """
     return ResizeBlockDeviceDataset(
-        volume=_ARBITRARY_VOLUME,
+        dataset_id=uuid4(),
+        size=REALISTIC_BLOCKDEVICE_SIZE * 3,
     )
 
 
@@ -2127,58 +2098,12 @@ class ResizeBlockDeviceDatasetTests(
 
         # self.assertEqual([expected_volume], api.list_volumes())
         1/0
+    test_run_grow.todo = "FLOC-1591"
 
     def test_run_shrink(self):
         """
-        After running ``ResizeBlockDeviceDataset``, its volume has been
-        shrunk.
-
-        XXX: This can be marked TODO and implemented later in FLOC-1503.
+        After running ``ResizeBlockDeviceDataset``, its filesystem and volume
+        have been shrunk.
         """
-        1/0
-
-    def test_resize_unmounted_volume(self):
-        """
-        ``ResizeBlockDeviceDataset`` can resize an attached but unmounted volume.
-
-        The result is a larger block device with an expanded filesystem
-        containing the data that was their before the resize.
-        """
-        # XXX This situation shouldn't be possible, right?
-        # See comment by exarkun https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444702
-        # ```
-        # It may come up. It should probably be handled, maybe not as part of
-        # this branch though. The end state should probably be that the
-        # filesystem is mounted though. We don't currently have any reason to
-        # have a volume attached to a node but the filesystem not mounted (so
-        # this is a state to repair, not restore).
-        # ```
-        1/0
-
-    def test_resize_unformatted_volume(self):
-        """
-        ``ResizeBlockDeviceDataset`` can resize an unformatted volume.
-
-        The result is a larger block device which is attached to the host but
-        which does not yet have a filesystem.
-        """
-        # XXX This situation shouldn't be possible, right?
-        1/0
-
-    def test_resize_unattached_volume(self):
-        """
-        ``ResizeBlockDeviceDataset`` can resize an unattached, unformatted volume.
-
-        The result is a larger block device which is unattached and without filesystem.
-        """
-        # XXX This situation shouldn't be possible, right?
-        # See response by exarkun in https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444702
-        # ```
-        # Hmmm. As long as it's not attached maybe it doesn't matter if it's the
-        # wrong size. As soon as someone actually wants to use it they'll have to
-        # attach it and then it'll get resized. Probably good enough for now, at
-        # least.
-        # ```
-        1/0
-
-    # XXX More combinations of the situations above??? This sounds tricky.
+        self.fail("")
+    test_run_shrink.todo = "FLOC-1503"
