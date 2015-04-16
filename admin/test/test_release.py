@@ -722,6 +722,8 @@ class PublishDocsTests(TestCase):
         }
         # And that all the buckets themselves are empty.
         empty_buckets = {bucket_name: {} for bucket_name in bucket_names}
+        # Including the dev bucket
+        empty_buckets['clusterhq-dev-docs'] = {}
         # And that all the buckets have an empty error_key
         empty_error_keys = {bucket_name: {} for bucket_name in bucket_names}
 
