@@ -17,10 +17,10 @@ from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
 
 EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
 
-authority_certificate_filename = b"cluster.crt"
-authority_key_filename = b"cluster.key"
-control_certificate_filename = b"control-service.crt"
-control_key_filename = b"control-service.key"
+AUTHORITY_CERTIFICATE_FILENAME = b"cluster.crt"
+AUTHORITY_KEY_FILENAME = b"cluster.key"
+CONTROL_CERTIFICATE_FILENAME = b"control-service.crt"
+CONTROL_KEY_FILENAME = b"control-service.key"
 
 
 class CertificateAlreadyExistsError(Exception):
@@ -201,28 +201,28 @@ class ControlCertificate(FlockerCertificate):
     @classmethod
     def from_path(cls, path):
         keypair, certificate = load_certificate_from_path(
-            path, control_key_filename, control_certificate_filename
+            path, CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME
         )
         return cls(
             path=path, keypair=keypair, certificate=certificate
         )
 
     @classmethod
-    def initialize(cls, authority, path):
+    def initialize(cls, path, authority):
         """
         Generate a certificate signed by the supplied root certificate.
 
+        :param FilePath path: Directory where the certificate will be stored.
         :param CertificateAuthority authority: The certificate authority with
             which this certificate will be signed.
-        :param FilePath path: Directory where the certificate will be stored.
         """
         if not path.isdir():
             raise PathError(
                 b"Path {path} is not a directory.".format(path=path.path)
             )
 
-        certPath = path.child(control_certificate_filename)
-        keyPath = path.child(control_key_filename)
+        certPath = path.child(CONTROL_CERTIFICATE_FILENAME)
+        keyPath = path.child(CONTROL_KEY_FILENAME)
 
         if certPath.exists():
             raise CertificateAlreadyExistsError(
@@ -265,9 +265,7 @@ class ControlCertificate(FlockerCertificate):
         ), b'w') as keyFile:
             keyFile.write(keypair.keypair.dump(crypto.FILETYPE_PEM))
         os.umask(original_umask)
-        return cls.from_path(
-            path, (control_certificate_filename, control_key_filename)
-        )
+        return cls.from_path(path)
 
 
 class CertificateAuthority(FlockerCertificate):
@@ -277,7 +275,7 @@ class CertificateAuthority(FlockerCertificate):
     @classmethod
     def from_path(cls, path):
         keypair, certificate = load_certificate_from_path(
-            path, authority_key_filename, authority_certificate_filename
+            path, AUTHORITY_KEY_FILENAME, AUTHORITY_CERTIFICATE_FILENAME
         )
         return cls(
             path=path, keypair=keypair, certificate=certificate
@@ -301,8 +299,8 @@ class CertificateAuthority(FlockerCertificate):
                 b"Path {path} is not a directory.".format(path=path.path)
             )
 
-        certPath = path.child(authority_certificate_filename)
-        keyPath = path.child(authority_key_filename)
+        certPath = path.child(AUTHORITY_CERTIFICATE_FILENAME)
+        keyPath = path.child(AUTHORITY_KEY_FILENAME)
 
         if certPath.exists():
             raise CertificateAlreadyExistsError(
