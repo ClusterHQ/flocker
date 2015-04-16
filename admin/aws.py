@@ -49,6 +49,45 @@ def perform_update_s3_routing_rule(dispatcher, intent):
         return old_prefix
 
 
+
+@attributes([
+    "bucket",
+    "target_prefix",
+])
+class UpdateS3ErrorPage(object):
+    """
+    Update the error_key for an S3 bucket website endpoint to point to a new
+    path.
+
+    If the key is changed, return the old key.
+
+    :ivar bytes bucket: Name of bucket to change routing rule for.
+    :ivar bytes target_prefix: Target prefix to redirect to.
+    """
+    @property
+    def error_key(self):
+        """
+        """
+        return '{}error_pages/404.html'.format(self.target_prefix)
+
+@sync_performer
+def perform_update_s3_error_page(dispatcher, intent):
+    """
+    See :class:`UpdateS3ErrorPage`.
+    """
+    s3 = boto.connect_s3()
+    bucket = s3.get_bucket(intent.bucket)
+    config = bucket.get_website_configuration_obj()
+    new_error_key = intent.error_key
+    old_error_key = config.error_key
+    if old_error_key == new_error_key:
+        return None
+    else:
+        config.error_key = new_error_key
+        bucket.set_website_configuration(config)
+        return old_error_key
+
+
 @attributes([
     "cname",
     "paths",
@@ -327,6 +366,7 @@ def perform_upload_s3_key(dispatcher, intent):
 
 boto_dispatcher = TypeDispatcher({
     UpdateS3RoutingRule: perform_update_s3_routing_rule,
+    UpdateS3ErrorPage: perform_update_s3_error_page,
     ListS3Keys: perform_list_s3_keys,
     DeleteS3Keys: perform_delete_s3_keys,
     CopyS3Keys: perform_copy_s3_keys,
@@ -341,6 +381,7 @@ boto_dispatcher = TypeDispatcher({
 @attributes([
     Attribute('routing_rules'),
     Attribute('s3_buckets'),
+    Attribute('error_key', default_factory=dict)
 ])
 class FakeAWS(object):
     """
@@ -366,6 +407,18 @@ class FakeAWS(object):
         old_target = self.routing_rules[intent.bucket][intent.prefix]
         self.routing_rules[intent.bucket][intent.prefix] = intent.target_prefix
         return old_target
+
+    @sync_performer
+    def _perform_update_s3_error_page(self, dispatcher, intent):
+        """
+        See :class:`UpdateS3ErrorPage`.
+        """
+        new_error_key = intent.error_key
+        old_error_key = self.error_key.get(intent.bucket)
+        self.error_key[intent.bucket] = new_error_key
+        if old_error_key == new_error_key:
+            return None
+        return old_error_key
 
     @sync_performer
     def _perform_create_cloudfront_invalidation(self, dispatcher, intent):
@@ -434,6 +487,7 @@ class FakeAWS(object):
 
             # Fake implementation
             UpdateS3RoutingRule: self._perform_update_s3_routing_rule,
+            UpdateS3ErrorPage: self._perform_update_s3_error_page,
             ListS3Keys: self._perform_list_s3_keys,
             DeleteS3Keys: self._perform_delete_s3_keys,
             CopyS3Keys: self._perform_copy_s3_keys,

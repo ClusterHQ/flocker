@@ -7,20 +7,68 @@ Tests for :module:`flocker.docs.version`.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from .._version import (
-    parse_version, FlockerVersion, UnparseableVersion,
-    get_doc_version, get_installable_version, is_pre_release, is_release,
-    is_weekly_release,
+from ..version import (
+    _parse_version, FlockerVersion,
+    get_doc_version, get_installable_version, get_pre_release,
+    is_pre_release, is_release, is_weekly_release,
+    target_release,
+    NotAPreRelease, UnparseableVersion,
+
 )
+
+from flocker.common.version import RPMVersion, make_rpm_version
+
+
+class MakeRpmVersionTests(SynchronousTestCase):
+    """
+    Tests for ``make_rpm_version``.
+    """
+    def test_good(self):
+        """
+        ``make_rpm_version`` gives the expected ``RPMVersion`` instances when
+        supplied with valid ``flocker_version_number``s.
+        """
+        expected = {
+            '0.1.0': RPMVersion(version='0.1.0', release='1'),
+            '0.1.0-99-g3d644b1': RPMVersion(
+                version='0.1.0', release='1.99.g3d644b1'),
+            '0.1.1pre1': RPMVersion(version='0.1.1', release='0.pre.1'),
+            '0.1.1': RPMVersion(version='0.1.1', release='1'),
+            '0.2.0dev1': RPMVersion(version='0.2.0', release='0.dev.1'),
+            '0.2.0dev2-99-g3d644b1':
+                RPMVersion(version='0.2.0', release='0.dev.2.99.g3d644b1'),
+            '0.2.0dev3-100-g3d644b2-dirty': RPMVersion(
+                version='0.2.0', release='0.dev.3.100.g3d644b2.dirty'),
+        }
+        unexpected_results = []
+        for supplied_version, expected_rpm_version in expected.items():
+            actual_rpm_version = make_rpm_version(supplied_version)
+            if actual_rpm_version != expected_rpm_version:
+                unexpected_results.append((
+                    supplied_version,
+                    actual_rpm_version,
+                    expected_rpm_version,
+                ))
+
+        if unexpected_results:
+            self.fail(unexpected_results)
+
+    def test_non_integer_suffix(self):
+        """
+        ``make_rpm_version`` raises ``UnparseableVersion`` when supplied with a
+        version with a non-integer pre or dev suffix number.
+        """
+        with self.assertRaises(UnparseableVersion):
+            make_rpm_version('0.1.2preX')
 
 
 class ParseVersionTests(SynchronousTestCase):
     """
-    Tests for :function:`parse_version`.
+    Tests for :function:`_parse_version`.
     """
     def assertParsedVersion(self, version, **expected_parts):
         """
-        Assert that :function:`parse_version` returns ``expected_parts``.
+        Assert that :function:`_parse_version` returns ``expected_parts``.
         The release is expected to be `0.3.2`.
         """
         parts = {
@@ -29,7 +77,7 @@ class ParseVersionTests(SynchronousTestCase):
             'micro': '2',
         }
         parts.update(expected_parts)
-        self.assertEqual(parse_version(version), FlockerVersion(**parts))
+        self.assertEqual(_parse_version(version), FlockerVersion(**parts))
 
     def test_marketing_release(self):
         """
@@ -91,10 +139,10 @@ class ParseVersionTests(SynchronousTestCase):
 
     def test_invalid_Version(self):
         """
-        If an invalid vesion is passed to ``parse_version``,
+        If an invalid vesion is passed to ``_parse_version``,
         ``UnparseableVersion`` is raised.
         """
-        self.assertRaises(UnparseableVersion, parse_version, 'unparseable')
+        self.assertRaises(UnparseableVersion, _parse_version, 'unparseable')
 
 
 class GetDocVersionTests(SynchronousTestCase):
@@ -360,3 +408,43 @@ class IsPreReleaseTests(SynchronousTestCase):
         pre-release.
         """
         self.assertFalse(is_pre_release('0.3.2pre1-dirty'))
+
+
+class GetPreReleaseTests(SynchronousTestCase):
+    """
+    Tests for :function:`get_pre_release`.
+    """
+
+    def test_not_pre_release(self):
+        """
+        If a version which is not a pre-release is passed to
+        ``get_pre_release``, ``NotAPreRelease`` is raised.
+        """
+        self.assertRaises(NotAPreRelease, get_pre_release, '0.3.0')
+
+    def test_pre_release(self):
+        """
+        When a pre-release is passed to ``get_pre_release``, the number of the
+        pre-release is returned.
+        """
+        self.assertEqual(get_pre_release('0.3.2pre3'), 3)
+
+
+class TargetReleaseTests(SynchronousTestCase):
+    """
+    Tests for :function:`target_release`.
+    """
+
+    def test_not_pre_release(self):
+        """
+        If a version which is not a pre-release is passed to
+        ``target_release``, ``NotAPreRelease`` is raised.
+        """
+        self.assertRaises(NotAPreRelease, target_release, '0.3.0')
+
+    def test_pre_release(self):
+        """
+        When a pre-release is passed to ``target_release``, target final
+        release is returned.
+        """
+        self.assertEqual(target_release('0.3.2pre3'), '0.3.2')

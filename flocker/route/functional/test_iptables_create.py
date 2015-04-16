@@ -20,8 +20,10 @@ from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 
 from ...testtools import if_root
-from .. import make_host_network
-from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
+from .. import make_host_network, OpenPort
+from .._logging import (
+    CREATE_PROXY_TO, DELETE_PROXY, IPTABLES, DELETE_OPEN_PORT
+)
 from .networktests import make_network_tests
 
 try:
@@ -471,3 +473,48 @@ class UsedPortsTests(TestCase):
 
         self.assertIn(
             client.getsockname()[1], network.enumerate_used_ports())
+
+
+class DeleteOpenPortTests(TestCase):
+    """
+    Tests for ``HostNetwork.delete_open_port``.
+    """
+    expected_port = 12345
+
+    @_dependency_skip
+    @_environment_skip
+    def setUp(self):
+        self.addCleanup(create_network_namespace().restore)
+        self.network = make_host_network()
+
+    @validateLogging(
+        assertHasAction,
+        DELETE_OPEN_PORT,
+        succeeded=True,
+        startFields={'target_port': expected_port}
+    )
+    def test_success(self, logger):
+        """
+        ``HostNetwork.delete_open_port`` logs a successful ``DELETE_OPEN_PORT``
+        action when the requested port has been opened.
+        """
+        port = self.network.open_port(self.expected_port)
+        self.patch(self.network, "logger", logger)
+        self.network.delete_open_port(port)
+
+    @validateLogging(
+        assertHasAction,
+        DELETE_OPEN_PORT,
+        succeeded=False,
+        startFields={'target_port': expected_port}
+    )
+    def test_failure(self, logger):
+        """
+        ``HostNetwork.delete_open_port`` logs a failed ``DELETE_OPEN_PORT``
+        action when the requested port has not been opened.
+        """
+        self.patch(self.network, "logger", logger)
+        self.assertRaises(
+            Exception,
+            self.network.delete_open_port, OpenPort(port=self.expected_port)
+        )
