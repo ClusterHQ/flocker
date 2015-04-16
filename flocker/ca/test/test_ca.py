@@ -13,7 +13,8 @@ from OpenSSL import crypto
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from .. import CertificateAuthority, PathError, EXPIRY_20_YEARS
+from .. import (CertificateAuthority, ControlCertificate,
+                PathError, EXPIRY_20_YEARS)
 
 from ...testtools import not_root
 
@@ -22,6 +23,8 @@ class CertificateAuthorityTests(SynchronousTestCase):
     """
     Tests for ``flocker.ca._ca.CertificateAuthority``.
     """
+    def setUp(self):
+        self.names = (b"cluster.crt", b"cluster.key")
 
     def test_written_keypair_exists(self):
         """
@@ -78,7 +81,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         ca1 = CertificateAuthority.initialize(path, b"mycluster")
-        ca2 = CertificateAuthority.from_path(path)
+        ca2 = CertificateAuthority.from_path(path, self.names)
         self.assertEqual(ca1, ca2)
 
     def test_keypair_correct_umask(self):
@@ -124,7 +127,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         e = self.assertRaises(
-            PathError, CertificateAuthority.from_path, path
+            PathError, CertificateAuthority.from_path, path, self.names
         )
         expected = b"Path {path} is not a directory.".format(path=path.path)
         self.assertEqual(str(e), expected)
@@ -137,7 +140,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         e = self.assertRaises(
-            PathError, CertificateAuthority.from_path, path
+            PathError, CertificateAuthority.from_path, path, self.names
         )
         expected = b"Certificate file {path} does not exist.".format(
             path=path.child(b"cluster.crt").path)
@@ -155,7 +158,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         crt_file.write(b"dummy")
         crt_file.close()
         e = self.assertRaises(
-            PathError, CertificateAuthority.from_path, path
+            PathError, CertificateAuthority.from_path, path, self.names
         )
         expected = b"Private key file {path} does not exist.".format(
             path=path.child(b"cluster.key").path)
@@ -182,7 +185,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         # make file unreadable
         key_path.chmod(64)
         e = self.assertRaises(
-            PathError, CertificateAuthority.from_path, path
+            PathError, CertificateAuthority.from_path, path, self.names
         )
         expected = (
             b"Certificate file {path} could not be opened. "
@@ -209,7 +212,7 @@ class CertificateAuthorityTests(SynchronousTestCase):
         # make file unreadable
         key_path.chmod(64)
         e = self.assertRaises(
-            PathError, CertificateAuthority.from_path, path
+            PathError, CertificateAuthority.from_path, path, self.names
         )
         expected = (
             b"Private key file {path} could not be opened. "
