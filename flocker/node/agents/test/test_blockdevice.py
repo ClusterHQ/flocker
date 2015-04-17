@@ -675,7 +675,7 @@ class IBlockDeviceAPITestsMixin(object):
 
     def test_created_is_listed(self):
         """
-        ``create_volume`` returns a ``BlockVolume`` that is returned by
+        ``create_volume`` returns a ``BlockDeviceVolume`` that is returned by
         ``list_volumes``.
         """
         dataset_id = uuid4()
@@ -686,10 +686,8 @@ class IBlockDeviceAPITestsMixin(object):
 
     def test_listed_volume_attributes(self):
         """
-        ``list_volumes`` returns ``BlockVolume`` s that have a dataset_id.
-
-        XXX: Update this test to also check that the listed volume has the same
-        size as was supplied when it was created.
+        ``list_volumes`` returns ``BlockDeviceVolume`` s that have the same
+        dataset_id and size as was passed to ``create_volume``.
         """
         expected_dataset_id = uuid4()
         self.api.create_volume(
@@ -697,21 +695,25 @@ class IBlockDeviceAPITestsMixin(object):
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
         [listed_volume] = self.api.list_volumes()
-        self.assertEqual(expected_dataset_id, listed_volume.dataset_id)
+        self.assertEqual(
+            (expected_dataset_id, REALISTIC_BLOCKDEVICE_SIZE),
+            (listed_volume.dataset_id, listed_volume.size)
+        )
 
     def test_created_volume_attributes(self):
         """
-        ``create_volume`` returns a ``BlockVolume`` that has a dataset_id
-
-        XXX: Update this test to also check that the created volume has the
-        same size as was supplied.
+        ``create_volume`` returns a ``BlockDeviceVolume`` that has a dataset_id
+        and a size.
         """
         expected_dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=expected_dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        self.assertEqual(expected_dataset_id, new_volume.dataset_id)
+        self.assertEqual(
+            (expected_dataset_id, REALISTIC_BLOCKDEVICE_SIZE),
+            (new_volume.dataset_id, new_volume.size)
+        )
 
     def test_attach_unknown_volume(self):
         """
@@ -779,7 +781,8 @@ class IBlockDeviceAPITestsMixin(object):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
+            size=REALISTIC_BLOCKDEVICE_SIZE
+        )
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
@@ -800,7 +803,8 @@ class IBlockDeviceAPITestsMixin(object):
         expected_host = u'192.0.2.123'
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
+            size=REALISTIC_BLOCKDEVICE_SIZE
+        )
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
