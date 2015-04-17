@@ -12,7 +12,7 @@ import psutil
 
 from zope.interface.verify import verifyObject
 
-from pyrsistent import InvariantException
+from pyrsistent import InvariantException, PRecord, field
 
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
