@@ -1335,6 +1335,36 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
 
         self.assertEqual(expected_data, data_after_resize)
 
+    def test_resize_data_preserved(self):
+        """
+        ``resize_volume`` does not modify the data contained inside the backing
+        file.
+        """
+        start_size = 1024 * 64
+        end_size = start_size * 2
+        volume = self.api.create_volume(dataset_id=uuid4(), size=start_size)
+        backing_file = self.api._root_path.descendant(
+            ['unattached', volume.blockdevice_id]
+        )
+        # Make up a bit pattern that seems kind of interesting.  Not being
+        # particularly rigorous here.  Assuming any failures will be pretty
+        # obvious.
+        pattern = b"\x00\x0f\xf0\xff"
+        expected_data = pattern * (start_size / len(pattern))
+
+        # Make sure we didn't do something insane:
+        self.assertEqual(len(expected_data), start_size)
+
+        with backing_file.open("w") as fObj:
+            fObj.write(expected_data)
+
+        self.api.resize_volume(volume.blockdevice_id, end_size)
+
+        with backing_file.open("r") as fObj:
+            data_after_resize = fObj.read(start_size)
+
+        self.assertEqual(expected_data, data_after_resize)
+
     def test_list_unattached_volumes(self):
         """
         ``list_volumes`` returns a ``BlockVolume`` for each unattached volume
