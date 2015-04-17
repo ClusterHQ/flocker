@@ -79,7 +79,7 @@ dev_requirements = [
     "requests==2.4.3",
     "requests-file==1.0",
 
-    "wheel=0.24.0",
+    "wheel==0.24.0",
     "gitpython==1.0.0",
 ]
 
@@ -185,7 +185,7 @@ setup(
         "release": [
             "gitpython==1.0.0",
             "gsutil",
-            "wheel=0.24.0",
+            "wheel==0.24.0",
             "virtualenv",
             "PyCrypto",
             "pyasn1",
