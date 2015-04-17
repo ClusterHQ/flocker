@@ -416,14 +416,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     :param bytes version: Version to download RPMs for.
     :param bytes build_server: Server to download new RPMs from.
     """
-    if not (is_release(version)
-            or is_weekly_release(version)
-            or is_pre_release(version)):
-        raise NotARelease()
-
-    if get_doc_version(version) != version:
-        raise DocumentationRelease()
-
     is_dev = not is_release(version)
     if is_dev:
         target_distro_suffix = "-testing"
@@ -511,12 +503,7 @@ def publish_artifacts_main(args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    # TODO change UploadOptions to be more generic
-    # Check in UploadOptions whether NotARelease() etc
-    # When a documentation release, exit with a friendly error message.
-    # we want Buildbot to run into this and not fail, so maybe
     # SystemExit(None).
-    # Test this.
     options = UploadOptions()
 
     try:
@@ -524,6 +511,16 @@ def publish_artifacts_main(args, base_path, top_level):
     except UsageError as e:
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
+    except NotARelease:
+        sys.stderr.write("%s: Can't publish artifacts for a non-release."
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    except DocumentationRelease:
+        # This should not raise 1 because the release process should continue
+        # for a documentation release without publishing artifacts.
+        sys.stderr.write("%s: Can't publish artifacts for a documentation "
+                         "release." % (base_path.basename(),))
+        return
 
     dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
                                      base_dispatcher])
@@ -541,15 +538,6 @@ def publish_artifacts_main(args, base_path, top_level):
                 version=options['flocker-version'],
                 build_server=options['build-server'],
                 ))
-
-    except NotARelease:
-        sys.stderr.write("%s: Can't upload RPMs for a non-release."
-                         % (base_path.basename(),))
-        raise SystemExit(1)
-    except DocumentationRelease:
-        sys.stderr.write("%s: Can't upload RPMs for a documentation release."
-                         % (base_path.basename(),))
-        raise SystemExit(1)
     finally:
         scratch_directory.remove()
 
