@@ -3,8 +3,9 @@
 Tests for ``admin.runner``.
 """
 
-import sys
 import os
+
+from eliot.testing import MemoryLogger, assertHasMessage
 
 from twisted.trial.unittest import TestCase
 from twisted.python.failure import Failure
@@ -14,9 +15,9 @@ from flocker.testtools import (
     MemoryCoreReactor, FakeProcessReactor,
 )
 
-from StringIO import StringIO
+from ..runner import run, CommandProtocol, RUN_OUTPUT_MESSAGE
 
-from ..runner import run, CommandProtocol
+from .. import runner
 
 
 class ProcessCoreReactor(MemoryCoreReactor, FakeProcessReactor):
@@ -32,6 +33,9 @@ class RunTests(TestCase):
     """
     Tests for ``run``.
     """
+    def setUp(self):
+        self.logger = MemoryLogger()
+        self.patch(runner, 'logger', self.logger)
 
     def test_spawns_process(self):
         """
@@ -52,14 +56,13 @@ class RunTests(TestCase):
         """
         Output of the spawned process is written to standard output.
         """
-        output = StringIO()
-        self.patch(sys, 'stdout', output)
         reactor = ProcessCoreReactor()
         run(reactor, ['command', 'and', 'args'])
         [process] = reactor.processes
         process.processProtocol.childDataReceived(1, "hello\n")
 
-        self.assertEqual(output.getvalue(), "hello\n")
+        assertHasMessage(self, self.logger, RUN_OUTPUT_MESSAGE,
+                         {'line': 'hello'})
 
     def test_registers_killer(self):
         """

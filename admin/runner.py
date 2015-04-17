@@ -6,7 +6,7 @@ Tools for running commands.
 import os
 
 from characteristic import attributes
-from eliot import startAction, Message, Logger
+from eliot import Logger, MessageType, ActionType, Field
 from eliot.twisted import DeferredContext
 
 from twisted.internet.error import ConnectionDone
@@ -17,6 +17,23 @@ from twisted.protocols.basic import LineOnlyReceiver
 
 
 logger = Logger()
+
+
+RUN_ACTION = ActionType(
+    action_type="admin.runner:run",
+    startFields=[
+        Field.for_types(u"command", [list], u"The command.")
+    ],
+    successFields=[],
+    description="Run a command.",
+)
+RUN_OUTPUT_MESSAGE = MessageType(
+    message_type="admin.runner:run:output",
+    fields=[
+        Field.for_types(u"line", [bytes], u"The output."),
+    ],
+    description=u"A line of command output.",
+)
 
 
 # LineOnlyReceiver is mutable, so can't use pyrsistent
@@ -45,8 +62,7 @@ class CommandProtocol(LineOnlyReceiver, object):
             self.deferred.errback(reason)
 
     def lineReceived(self, line):
-        Message.new(
-            message_type="admin.runner:run:output",
+        RUN_OUTPUT_MESSAGE(
             line=line,
         ).write(logger, action=self.action)
 
@@ -63,8 +79,7 @@ def run(reactor, command, **kwargs):
     if 'env' not in kwargs:
         kwargs['env'] = os.environ
 
-    action = startAction(logger, "admin.runner:run",
-                         command=command)
+    action = RUN_ACTION(logger, command=command)
 
     endpoint = ProcessEndpoint(reactor, command[0], command, **kwargs)
     protocol_done = Deferred()
