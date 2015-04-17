@@ -318,18 +318,31 @@ def publish_docs_main(args, base_path, top_level):
 
 
 class UploadOptions(Options):
+    # TODO make everything which uses this catch this, and not look for
+    # release types elsewhere.
     """
-    Options for uploading packages.
+    Options for uploading artifacts.
     """
     optParameters = [
         ["flocker-version", None, flocker.__version__,
-         "The version of Flocker to upload packages for."],
+         "The version of Flocker to upload artifacts for."],
         ["target", None, ARCHIVE_BUCKET,
-         "The bucket to upload packages to."],
+         "The bucket to upload artifacts to."],
         ["build-server", None,
          b'http://build.clusterhq.com',
          "The URL of the build-server."],
     ]
+
+    def parseArgs(self):
+        version = self['flocker-version']
+
+        if not (is_release(version)
+                or is_weekly_release(version)
+                or is_pre_release(version)):
+            raise NotARelease()
+
+        if get_doc_version(version) != version:
+            raise DocumentationRelease()
 
 
 FLOCKER_PACKAGES = [

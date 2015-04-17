@@ -20,13 +20,13 @@ from twisted.python.usage import UsageError
 from twisted.trial.unittest import SynchronousTestCase
 
 from ..release import (
-    upload_python_packages, upload_rpms,
-    update_repo,
+    upload_python_packages, upload_rpms, update_repo,
     publish_docs, Environments,
     DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
+    UploadOptions,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1586,6 +1586,34 @@ class UploadPythonPackagesTests(SynchronousTestCase):
         """
         When setuptools' version is too new, a ValueError is raised.
         """
+
+
+class UploadOptionsTests(SynchronousTestCase):
+    """
+    Tests for :class:`UploadOptions`.
+    """
+
+    def test_must_be_release_version(self):
+          """
+          Trying to upload artifacts for a version which is not a release
+          fails.
+          """
+          options = UploadOptions()
+          options['flocker-version'] = '0.3.0-444-gf05215b'
+          self.assertRaises(
+              NotARelease,
+              options.parseOptions, [])
+
+
+    def test_documentation_release_fails(self):
+          """
+          Trying to upload artifacts for a documentation version fails.
+          """
+          options = UploadOptions()
+          options['flocker-version'] = '0.3.0+doc1'
+          self.assertRaises(
+              DocumentationRelease,
+              options.parseOptions, [])
 
 
 class CreateReleaseBranchOptionsTests(SynchronousTestCase):
