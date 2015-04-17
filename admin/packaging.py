@@ -589,8 +589,8 @@ IGNORED_WARNINGS = {
         'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
 
         # Upstart control files are not installed as conffiles.
-        'file-in-etc-not-marked-as-conffile etc/init/flocker-agent.conf',
-        'file-in-etc-not-marked-as-conffile etc/init/flocker-control.conf',
+        'file-in-etc-not-marked-as-conffile /etc/init/flocker-agent.conf',
+        'file-in-etc-not-marked-as-conffile /etc/init/flocker-control.conf',
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
