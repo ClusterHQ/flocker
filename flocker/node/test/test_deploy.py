@@ -17,7 +17,7 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
-    P2PNodeDeployer, ApplicationNodeDeployer, P2PManifestationDeployer,
+    ApplicationNodeDeployer, P2PManifestationDeployer,
 )
 from ..testtools import (
     ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
@@ -699,32 +699,6 @@ MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
 # Placeholder in case at some point discovered application is different
 # than requested application:
 DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
-
-
-class DeployerDiscoverStateTests(SynchronousTestCase):
-    """
-    Tests for ``P2PNodeDeployer.discover_state``.
-    """
-    def test_adapted_local_state(self):
-        """
-        ``P2PNodeDeployer.discover_state`` adapts the return value of
-        ``P2PNodeDeployer.discover_local_state`` to the type required by the
-        interface.
-        """
-        api = P2PNodeDeployer(
-            u"example.com",
-            create_volume_service(self),
-            docker_client=FakeDockerClient(units={}),
-            network=make_memory_network(),
-        )
-        known_local_state = NodeState(hostname=api.hostname)
-
-        old_result = api.discover_local_state(known_local_state)
-        new_result = api.discover_state(known_local_state)
-        self.assertEqual(
-            (self.successResultOf(old_result),),
-            self.successResultOf(new_result)
-        )
 
 
 APP_NAME = u"site-example.com"
@@ -2681,16 +2655,6 @@ class PushVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)
-
-
-class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
-        lambda test: P2PNodeDeployer(u"localhost",
-                                     create_volume_service(test),
-                                     FakeDockerClient(),
-                                     make_memory_network()))):
-    """
-    ``IDeployer`` tests for ``P2PNodeDeployer``.
-    """
 
 
 class ControllableDeployerInterfaceTests(
