@@ -34,6 +34,8 @@ if os.path.abspath(__file__).split(os.path.sep)[1] == 'vagrant':
 with open("README.rst") as readme:
     description = readme.read()
 
+# TODO setup_requires old setuptools
+
 dev_requirements = [
     # flake8 is pretty critical to have around to help point out
     # obvious mistakes. It depends on PEP8, pyflakes and mccabe.
@@ -77,11 +79,8 @@ dev_requirements = [
     "requests==2.4.3",
     "requests-file==1.0",
 
-<<<<<<< HEAD
     "wheel=0.24.0",
-=======
     "gitpython==1.0.0",
->>>>>>> origin/master
 ]
 
 # The test suite uses network namespaces
