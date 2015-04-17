@@ -824,28 +824,6 @@ class ApplicationNodeDeployer(_OldToNewDeployer):
         return Sequentially(changes=phases)
 
 
-def change_node_state(deployer, desired_configuration,  current_cluster_state):
-    """
-    Change the local state to match the given desired state.
-
-    :param IDeployer deployer: Deployer to discover local state and
-        calculate changes.
-    :param Deployment desired_configuration: The intended configuration of all
-        nodes.
-    :param Deployment current_cluster_state: The current configuration
-        of all nodes.
-
-    :return: ``Deferred`` that fires when the necessary changes are done.
-    """
-    node = current_cluster_state.get_node(deployer.hostname)
-    d = deployer.discover_local_state(node)
-    d.addCallback(deployer.calculate_necessary_state_changes,
-                  desired_configuration=desired_configuration,
-                  current_cluster_state=current_cluster_state)
-    d.addCallback(lambda change: change.run(deployer))
-    return d
-
-
 def find_dataset_changes(hostname, current_state, desired_state):
     """
     Find what actions need to be taken to deal with changes in dataset

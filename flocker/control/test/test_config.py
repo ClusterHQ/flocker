@@ -6,19 +6,18 @@ Tests for ``flocker.node._config``.
 
 from __future__ import unicode_literals, absolute_import
 
-import copy
 from uuid import uuid4, UUID
 
 from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
-from yaml import safe_load
+
 from .._config import (
     ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
-    applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
+    parse_storage_string, ApplicationMarshaller,
     FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
     _parse_restart_policy, dataset_id_from_name
 )
@@ -70,253 +69,6 @@ COMPLEX_DEPLOYMENT_YAML = {
         'node2.example.com': ['mysql'],
     }
 }
-
-
-class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
-    """
-    Tests for ``applications_to_flocker_yaml``.
-    """
-    def test_returns_valid_yaml(self):
-        """
-        The YAML returned by ``applications_to_flocker_yaml" can be
-        successfully parsed as YAML.
-        """
-        expected = COMPLEX_APPLICATION_YAML
-        config = copy.deepcopy(expected)
-        applications = FlockerConfiguration(config).applications()
-        yaml = safe_load(applications_to_flocker_yaml(applications))
-        self.assertEqual(yaml, expected)
-
-    def test_not_fig_yaml(self):
-        """
-        Parsed YAML returned by ``applications_to_flocker_yaml`` is
-        identified as non-fig by ``FigConfiguration.is_valid_format``.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'postgres':
-                    {'image': 'sample/postgres'}
-            }
-        }
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        parser = FigConfiguration(parsed)
-        self.assertFalse(parser.is_valid_format())
-
-    def test_valid_flocker_yaml(self):
-        """
-        Parsed YAML returned by `applications_to_flocker_yaml`` is
-        validated by ``Configuration.is_valid_format``.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'postgres':
-                    {'image': 'sample/postgres'}
-            }
-        }
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        parser = FlockerConfiguration(parsed)
-        self.assertTrue(parser.is_valid_format())
-
-    def test_applications_from_converted_flocker(self):
-        """
-        Parsed YAML returned by ``applications_to_flocker_yaml`` is
-        translated to a ``dict`` of ``Application`` instances by
-        ``FlockerConfiguration.applications``.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'postgres':
-                    {'image': 'sample/postgres'}
-            }
-        }
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        parser = FlockerConfiguration(parsed)
-        expected = {
-            'postgres': Application(
-                name='postgres',
-                image=DockerImage(repository='sample/postgres', tag='latest'),
-                ports=frozenset(),
-                links=frozenset(),
-                environment=None,
-                volume=None
-            )
-        }
-        applications = parser.applications()
-        self.assertEqual(applications, expected)
-
-    def test_has_version(self):
-        """
-        The YAML returned by ``applications_to_flocker_yaml`` contains
-        a version entry.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'postgres':
-                    {'image': 'sample/postgres'}
-            }
-        }
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        self.assertTrue('version' in parsed)
-
-    def test_has_applications(self):
-        """
-        The YAML returned by ``applications_to_flocker_yaml`` contains
-        an applications entry.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'postgres':
-                    {'image': 'sample/postgres'}
-            }
-        }
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        self.assertTrue('applications' in parsed)
-
-    def test_has_image(self):
-        """
-        The YAML for a single application entry returned by
-        ``applications_to_flocker_yaml`` contains an image entry
-        that holds the image name in image:tag format.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'postgres':
-                    {'image': 'sample/postgres'}
-            }
-        }
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        self.assertEqual(
-            parsed['applications']['postgres']['image'],
-            'sample/postgres:latest'
-        )
-
-    def test_has_links(self):
-        """
-        The YAML for a single application entry returned by
-        ``applications_to_flocker_yaml`` contains a links entry.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'wordpress': {
-                    'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
-                    'volume': {'mountpoint': '/var/www/wordpress'},
-                    'image': 'sample/wordpress',
-                    'ports': [{'internal': 80, 'external': 8080}],
-                    'links': [
-                        {'alias': 'db', 'local_port': 3306,
-                         'remote_port': 3306},
-                        {'alias': 'db', 'local_port': 3307,
-                         'remote_port': 3307}
-                    ],
-                },
-                'mysql': {
-                    'image': 'sample/mysql',
-                    'ports': [
-                        {'internal': 3306, 'external': 3306},
-                        {'internal': 3307, 'external': 3307}
-                    ],
-                }
-            }
-        }
-        expected_links = [
-            {'alias': 'db', 'local_port': 3306, 'remote_port': 3306},
-            {'alias': 'db', 'local_port': 3307, 'remote_port': 3307}
-        ]
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        self.assertEqual(
-            parsed['applications']['wordpress']['links'],
-            expected_links
-        )
-
-    def test_has_ports(self):
-        """
-        The YAML for a single application entry returned by
-        ``applications_to_flocker_yaml`` contains a ports entry,
-        mapping ports to the format used by Flocker.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'postgres':
-                    {'image': 'sample/postgres',
-                     'ports': [{'internal': 5432, 'external': 5433}]}
-            }
-        }
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        self.assertEqual(
-            parsed['applications']['postgres']['ports'],
-            [{'external': 5433, 'internal': 5432}]
-        )
-
-    def test_has_environment(self):
-        """
-        The YAML for a single application entry returned by
-        ``applications_to_flocker_yaml`` contains an environment entry.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'postgres': {
-                    'image': 'sample/postgres',
-                    'ports': [{'internal': 5432, 'external': 5432}],
-                    'environment': {'PGSQL_USER_PASSWORD': 'clusterhq'},
-                }
-            }
-        }
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        self.assertEqual(
-            parsed['applications']['postgres']['environment'],
-            {'PGSQL_USER_PASSWORD': 'clusterhq'}
-        )
-
-    def test_has_volume(self):
-        """
-        The YAML for a single application entry returned by
-        ``applications_to_flocker_yaml`` contains a volume entry
-        that matches the Flocker-format.
-        """
-        config = {
-            'version': 1,
-            'applications': {
-                'postgres': {
-                    'image': 'sample/postgres',
-                    'ports': [{'internal': 5432, 'external': 5432}],
-                    'volume': {'mountpoint': '/var/lib/data'},
-                }
-            }
-        }
-        applications = FlockerConfiguration(config).applications()
-        yaml = applications_to_flocker_yaml(applications)
-        parsed = safe_load(yaml)
-        self.assertEqual(
-            parsed['applications']['postgres']['volume'],
-            {'mountpoint': '/var/lib/data'}
-        )
 
 
 class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
@@ -2952,7 +2704,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': '/var/mysql/data'},
+                    'volume': {'mountpoint': '/var/mysql/data',
+                               'dataset_id':
+                               dataset_id_from_name('mysql-hybridcluster')},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }
@@ -2992,7 +2746,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': '/var/mysql/data',
-                               'maximum_size': unicode(EXPECTED_MAX_SIZE)},
+                               'maximum_size': unicode(EXPECTED_MAX_SIZE),
+                               'dataset_id':
+                               dataset_id_from_name('mysql-hybridcluster')},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }

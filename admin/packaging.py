@@ -892,10 +892,6 @@ def omnibus_package_builder(
             # change this you may also want to change entry_points in setup.py.
             CreateLinks(
                 links=[
-                    (FilePath('/opt/flocker/bin/flocker-reportstate'),
-                     flocker_node_path),
-                    (FilePath('/opt/flocker/bin/flocker-changestate'),
-                     flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-volume'),
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-control'),

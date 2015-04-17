@@ -13,7 +13,7 @@ they match that configuration.
 
 from ._config import (
     FlockerConfiguration, ConfigurationError, FigConfiguration,
-    applications_to_flocker_yaml, model_from_configuration,
+    model_from_configuration,
     current_from_configuration,
     )
 from ._model import (
@@ -27,7 +27,6 @@ __all__ = [
     'IClusterStateChange',
     'FlockerConfiguration',
     'ConfigurationError',
-    'applications_to_flocker_yaml',
     'current_from_configuration',
     'model_from_configuration',
     'Application',
