@@ -522,10 +522,12 @@ class P2PManifestationDeployer(object):
         dataset_changes = find_dataset_changes(
             self.hostname, cluster_state, configuration)
 
-        if dataset_changes.resizing:
+        resizing = [dataset for dataset in dataset_changes.resizing
+                    if dataset.dataset_id not in in_use_datasets]
+        if resizing:
             phases.append(InParallel(changes=[
                 ResizeDataset(dataset=dataset)
-                for dataset in dataset_changes.resizing]))
+                for dataset in resizing]))
 
         going = [handoff for handoff in dataset_changes.going
                  if handoff.dataset.dataset_id not in in_use_datasets]

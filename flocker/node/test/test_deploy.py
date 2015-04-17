@@ -1880,6 +1880,36 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         changes = api.calculate_changes(desired, current)
         self.assertEqual(Sequentially(changes=[]), changes)
 
+    def test_no_resize_if_in_use(self):
+        """
+        ``P2PManifestationDeployer.calculate_changes`` ensures dataset
+        deletion happens only if there is no application using the deleted
+        dataset.
+
+        This will eventually be switched to use a lease system, rather
+        than inspecting application configuration.
+        """
+        current_node = NodeState(
+            hostname=u"node1.example.com",
+            manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
+            applications={APPLICATION_WITH_VOLUME},
+        )
+        desired_node = Node(
+            hostname=u"node1.example.com",
+            manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
+                            MANIFESTATION_WITH_SIZE},
+        )
+
+        current = DeploymentState(nodes=[current_node])
+        desired = Deployment(nodes=[desired_node])
+        api = P2PManifestationDeployer(current_node.hostname,
+                                       create_volume_service(self))
+
+        changes = api.calculate_changes(desired, current)
+
+        expected = Sequentially(changes=[])
+        self.assertEqual(expected, changes)
+
     def test_no_handoff_if_in_use(self):
         """
         ``P2PManifestationDeployer.calculate_changes`` ensures dataset handoff
