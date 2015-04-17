@@ -497,11 +497,14 @@ class P2PManifestationDeployer(object):
 
     def calculate_changes(self, configuration, cluster_state):
         """
-        Calculate changes to peer-to-peer manifestations.
+        Calculate necessary changes to peer-to-peer manifestations.
+
+        Datasets that are in use by applications (eventually leases)
+        cannot be deleted, handed-off or resized.
         """
         local_state = cluster_state.get_node(self.hostname)
         # We need to know applications (for now) to see if we should delay
-        # deletion or handoffs.
+        # deletion or handoffs. Eventually this will rely on leases instead.
         if local_state.applications is None:
             return Sequentially(changes=[])
         phases = []
@@ -583,7 +586,7 @@ class ApplicationNodeDeployer(object):
         dataset agent. See
         https://clusterhq.atlassian.net/browse/FLOC-1646.
 
-        :return: A ``Deferred`` which fires with alist containing a
+        :return: A ``Deferred`` which fires with a list containing a
             ``NodeState`` instance with information only about
             ``Application`` and ports. ``NodeState.manifestations`` and
             ``NodeState.paths`` will not be filled in.
@@ -695,28 +698,15 @@ class ApplicationNodeDeployer(object):
         1. Change proxies to point to new addresses (should really be
            last, see https://clusterhq.atlassian.net/browse/FLOC-380)
         2. Stop all relevant containers.
-        3. Handoff volumes.
-        4. Wait for volumes.
-        5. Create volumes.
-        6. Start and restart any relevant containers.
-
-        :param NodeState local_state: The local state of the node.
-        :param Deployment desired_configuration: The intended
-            configuration of all nodes.
-        :param Deployment current_cluster_state: The current configuration
-            of all nodes. While technically this also includes the current
-            node's state, this information may be out of date so we check
-            again to ensure we have absolute latest information.
-        :param unicode hostname: The hostname of the node that this is running
-            on.
-
-        :return: A ``IStateChange`` provider.
+        3. Start and restart any containers that should be running
+           locally, so long as their required datasets are available.
         """
         # We are a node-specific IDeployer:
         current_node_state = current_cluster_state.get_node(self.hostname)
         if current_node_state.applications is None:
             # We don't know current application state, so can't calculate
-            # anything...
+            # anything. This will be the case if we don't know the local
+            # datasets' state yet; see notes in discover_state().
             return Sequentially(changes=[])
 
         phases = []
