@@ -508,7 +508,9 @@ class DockerClient(object):
                     break
 
             try:
-                print self._client.inspect_container(container_name)['State']
+                while (self._client.inspect_container(container_name)
+                        ['State']['Running']):
+                    sleep(0.1)
                 self._client.remove_container(container_name)
             except APIError as e:
                 # If the container doesn't exist, we swallow the error,
