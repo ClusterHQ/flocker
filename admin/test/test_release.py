@@ -5,7 +5,7 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipIf, skipUnless
+from unittest import skipUnless
 from setuptools import __version__ as setuptools_version
 import tempfile
 from textwrap import dedent
@@ -19,6 +19,8 @@ from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import SynchronousTestCase
+
+from .. import release
 
 from ..release import (
     upload_python_packages, upload_rpms, update_repo,
@@ -1546,11 +1548,12 @@ class UploadPythonPackagesTests(SynchronousTestCase):
         What happens when creating packages fails?.
         """
 
-    @skipIf(setuptools_version == "3.6", "setuptools must not be version 3.6")
     def test_setuptools_version_requirement(self):
         """
         When setuptools' version is not 3.6, a ValueError is raised.
         """
+        self.patch(
+            release, 'setuptools_version', '15.1')
         self.assertRaises(
             ValueError,
             self.upload_python_packages, self.version)
