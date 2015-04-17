@@ -467,7 +467,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
 
-class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
+class BlockDeviceDeployerCreationCalculateChangesTests(
         SynchronousTestCase
 ):
     """
