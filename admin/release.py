@@ -466,6 +466,11 @@ def upload_python_packages(scratch_directory, target_bucket, version,
     # TODO document where the packages are
     # TODO change all docs and other things (Homebrew too!) which use these
     # Python packages
+    # TODO put an index.html in front of this bucket
+    # Add comment at the top saying it is an index for pip
+    # Look at last command in Wheelhouse section in buildbot README
+    # TODO create a testing bucket - have a --production command line option
+
     if setuptools_version != '3.6':
         # XXX Use PEP440 version system so new setuptools can be used.
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
@@ -477,7 +482,6 @@ def upload_python_packages(scratch_directory, target_bucket, version,
         'bdist_wheel', '--dist-dir={}'.format(scratch_directory.path)],
         cwd=top_level.path, stdout=output, stderr=error)
 
-    # TODO put an index.html in front of this bucket
     yield Effect(UploadToS3Recursively(
         source_path=scratch_directory,
         target_bucket=target_bucket,
