@@ -1003,7 +1003,7 @@ class UpdateRepoTests(SynchronousTestCase):
         source_repo = FilePath(self.mktemp())
         source_repo.createDirectory()
 
-        FilePath(__file__).sibling('test-repo').copyTo(source_repo)
+        FilePath(__file__).sibling('yum-repo').copyTo(source_repo)
         repo_uri = 'file://' + source_repo.path
 
         aws = FakeAWS(
@@ -1067,6 +1067,59 @@ class UpdateRepoTests(SynchronousTestCase):
                 expected_files.add(
                     os.path.join(
                         repodata_path, '<missing>-' + metadata_file))
+
+        # The original source repository contains no metadata.
+        # This tests that CreateRepo creates the expected metadata files from
+        # given RPMs, not that any metadata files are copied.
+        self.assertEqual(expected_files, set(files_on_s3.keys()))
+
+    @skipUnless(which('dpkg-scanpackages'),
+                "Tests require the ``dpkg-scanpackages`` command.")
+    def test_real_dpkg_utils(self):
+        """
+        Calling :func:`update_repo` with real dpkg utilities creates a
+        repository in S3.
+        """
+        source_repo = FilePath(self.mktemp())
+        source_repo.createDirectory()
+
+        FilePath(__file__).sibling('apt-repo').copyTo(source_repo)
+        repo_uri = 'file://' + source_repo.path
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        class RealYum(object):
+            def get_dispatcher(self):
+                return yum_dispatcher
+
+        self.update_repo(
+            aws=aws,
+            yum=RealYum(),
+            package_directory=self.package_directory,
+            target_bucket=self.target_bucket,
+            target_key=self.target_key,
+            source_repo=repo_uri,
+            packages=self.packages,
+            flocker_version='0.3.3dev7',
+            distro_name='ubuntu',
+            distro_version='14.04',
+        )
+
+        expected_files = {
+            os.path.join(self.target_key, file)
+            for file in [
+                'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb',
+                'clusterhq-flocker-node_0.3.3-0.dev.7_all.deb',
+                'Packages.gz',
+                'Release',
+            ]
+        }
+        files_on_s3 = aws.s3_buckets[self.target_bucket]
 
         # The original source repository contains no metadata.
         # This tests that CreateRepo creates the expected metadata files from
