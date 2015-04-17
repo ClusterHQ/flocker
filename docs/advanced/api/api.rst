@@ -1,8 +1,8 @@
 .. _api:
 
-================
-Flocker REST API
-================
+=============================
+REST API Installation & Usage
+=============================
 
 We are currently in the process of developing an external HTTP-based REST API for Flocker.
 While this API is not yet directly accessible in a standard Flocker setup, the documentation below will give a sense of what will eventually be available.

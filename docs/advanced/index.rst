@@ -9,7 +9,7 @@ Advanced Documentation
    usage
    configuration
    architecture
-   api
+   api/index
    volume/index
    clustering
    routing/index
