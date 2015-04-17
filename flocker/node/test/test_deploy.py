@@ -2007,7 +2007,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[])
         self.assertEqual(expected, changes)
 
-    def test_metadata_does_not_cause_restarts(self):
+    def test_metadata_does_not_cause_changes(self):
         """
         ``P2PManifestationDeployer.calculate_changes`` indicates no
         action necessary if the configuration has metadata for a dataset
