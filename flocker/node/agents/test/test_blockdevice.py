@@ -68,6 +68,17 @@ class _SizeInfo(PRecord):
 
 
 def get_size_info(api, volume):
+    """
+    Retrieve information about the size of the backing file for the given
+    volume.
+
+    :param LoopbackBlockDeviceAPI api: The loopback backend to use to retrieve
+        the size information.
+    :param BlockDeviceVolume volume: The volume the size of which to look up.
+
+    :return: A ``_SizeInfo`` giving information about actual storage and
+        reported size of the backing file for the given volume.
+    """
     backing_file = api._root_path.descendant(
         ['unattached', volume.blockdevice_id]
     )
