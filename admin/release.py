@@ -490,8 +490,6 @@ def upload_python_packages(scratch_directory, target_bucket, version,
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
         raise ValueError("setuptools version is not 3.6")
 
-    # TODO replace this with a parameter to check_call of where this wants to be run - cwd=None param in Popen
-
     # TODO This outputs stuff, direct that somewhere?
     check_call(['python', 'setup.py', 'sdist',
                 '--dist-dir={}'.format(scratch_directory.path)],
@@ -500,16 +498,7 @@ def upload_python_packages(scratch_directory, target_bucket, version,
                 '--dist-dir={}'.format(scratch_directory.path)],
                 cwd=top_level.path)
 
-    # Upload python packages to ``archive.clusterhq.com``
-    # TODO choose a new bucket name, old was gs://archive.clusterhq.com/downloads/flocker/
-    # Don't worry about breaking archive.clusterhq.com
-
-    """
-    Refactor publish-packages to call a sequence
-    Factor out check that X is not a release
-    Factor the call out of main
-    """
-
+    # TODO put an index.html in front of this bucket
     yield Effect(UploadToS3Recursively(
         source_path=scratch_directory,
         target_bucket=target_bucket,
@@ -534,6 +523,7 @@ def publish_rpms_main(args, base_path, top_level):
     # When a documentation release, exit with a friendly error message.
     # we want Buildbot to run into this and not fail, so maybe
     # SystemExit(None).
+    # Test this.
     options = UploadOptions()
 
     try:
