@@ -16,12 +16,84 @@ from zope.interface import implementer
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 
-from ._ca import (CertificateAuthority, ControlCertificate,
+from ._ca import (CertificateAuthority, ControlCertificate, NodeCertificate,
                   CertificateAlreadyExistsError, KeyAlreadyExistsError,
                   PathError)
 
 
-class ControlCertificateOptions(Options):
+class CreateCertificateOptions(Options):
+    """
+    Command line options for ``flocker-ca`` commands that generate
+    certificates signed by the authority certificate.
+    """
+
+    synopsis = "<authoritypath>"
+
+    def parseArgs(self, *args):
+        self["path"] = FilePath(os.getcwd())
+        self["rootpath"] = FilePath(os.getcwd())
+        if len(args) == 1:
+            self["rootpath"] = FilePath(args[0])
+        if len(args) > 1:
+            raise UsageError(
+                ("Invalid number of arguments. Run with --help for more "
+                 "information.")
+            )
+
+
+class NodeCertificateOptions(CreateCertificateOptions):
+    """
+    Command line options for ``flocker-ca create-control-certificate``.
+    """
+
+    longdesc = """Create a new certificate for a node agent.
+
+    Creates a certificate signed by a previously generated certificate
+    authority (see flocker-ca initialize command for more information).
+
+    The certificate will be stored in the current working directory.
+
+    Parameters:
+
+    * authoritypath: Path to the root certificate's private key. Defaults to
+    ./cluster.key
+    """
+
+    def run(self):
+        """
+        Check if root key and certificate files (either default or as
+        specified on the command line) exist in the path and error out if
+        they do not. If there are no path errors, create a new node
+        certificate signed by the root and write it out to the current
+        directory.
+        """
+        d = Deferred()
+
+        def generateCert(_):
+            try:
+                ca = CertificateAuthority.from_path(self["rootpath"])
+                nc = NodeCertificate.initialize(self["path"], ca)
+                print (
+                    b"Created {uuid}.crt. Copy it over to "
+                    "/etc/flocker/node.crt on your node "
+                    "machine and make sure to chmod 0600 it.".format(
+                        uuid=nc.uuid
+                    )
+                )
+            except PathError as e:
+                raise UsageError(str(e))
+
+        def generateError(failure):
+            print b"Error: {error}".format(error=str(failure.value))
+            sys.exit(1)
+
+        d.addCallback(generateCert)
+        d.addErrback(generateError)
+        d.callback(None)
+        return d
+
+
+class ControlCertificateOptions(CreateCertificateOptions):
     """
     Command line options for ``flocker-ca create-control-certificate``.
     """
@@ -37,21 +109,7 @@ class ControlCertificateOptions(Options):
 
     * authoritypath: Path to the root certificate's private key. Defaults to
     ./cluster.key
-    * certfile: path to the root certificate file. Defaults to ./cluster.crt
     """
-
-    synopsis = "<authoritypath>"
-
-    def parseArgs(self, *args):
-        self["path"] = FilePath(os.getcwd())
-        self["rootpath"] = FilePath(os.getcwd())
-        if len(args) == 1:
-            self["rootpath"] = FilePath(args[0])
-        if len(args) > 1:
-            raise UsageError(
-                ("Invalid number of arguments. Run with --help for more "
-                 "information.")
-            )
 
     def run(self):
         """
@@ -164,6 +222,8 @@ class CAOptions(Options):
           "current working directory.")],
         ["create-control-certificate", None, ControlCertificateOptions,
          "Create a certificate for the control service."],
+        ["create-node-certificate", None, NodeCertificateOptions,
+         "Create a certificate for a node agent."],
         ]
 
 
