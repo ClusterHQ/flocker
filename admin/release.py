@@ -436,7 +436,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     else:
         target_distro_suffix = ""
 
-
     operating_systems = [
         {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
         {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
@@ -468,7 +467,8 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
 
 
 @do
-def upload_python_packages(scratch_directory, target_bucket, version):
+def upload_python_packages(scratch_directory, target_bucket, version,
+                           top_level):
     """
     The repository contains source distributions and binary distributions
     (wheels) for Flocker. It is currently hosted on Amazon S3.
@@ -477,7 +477,10 @@ def upload_python_packages(scratch_directory, target_bucket, version):
         in.
     :param bytes target_bucket: S3 bucket to upload packages to.
     :param bytes version: Version to upload packages as.
+    :param FilePath top_level: The top-level of the flocker repository.
     """
+    # TODO change all docs and other things (Homebrew too!) which use these
+    # Python packages
     if setuptools_version != '3.6':
         # TODO maybe use < 8, latest version setuptools which works
         # TODO In the future, perhaps check out the necessary version,
@@ -488,13 +491,14 @@ def upload_python_packages(scratch_directory, target_bucket, version):
         raise ValueError("setuptools version is not 3.6")
 
     # TODO replace this with a parameter to check_call of where this wants to be run - cwd=None param in Popen
-    # use TOP_LEVEL_DIR to figure out top level.
 
     # TODO This outputs stuff, direct that somewhere?
     check_call(['python', 'setup.py', 'sdist',
-                '--dist-dir={}'.format(scratch_directory.path)])
+                '--dist-dir={}'.format(scratch_directory.path)],
+                cwd=top_level.path)
     check_call(['python', 'setup.py', 'bdist_wheel',
-                '--dist-dir={}'.format(scratch_directory.path)])
+                '--dist-dir={}'.format(scratch_directory.path)],
+                cwd=top_level.path)
 
     # Upload python packages to ``archive.clusterhq.com``
     # TODO choose a new bucket name, old was gs://archive.clusterhq.com/downloads/flocker/
@@ -519,7 +523,7 @@ def upload_python_packages(scratch_directory, target_bucket, version):
 # TODO rename to publish_artifacts
 def publish_rpms_main(args, base_path, top_level):
     """
-
+    Publish release artifacts.
 
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
@@ -576,6 +580,7 @@ def publish_rpms_main(args, base_path, top_level):
                 scratch_directory=scratch_directory,
                 target_bucket=options['target'],
                 version=options['flocker-version'],
+                top_level=top_level,
                 ))
     except ValueError:
         sys.stderr.write("%s: setuptools version must be 3.6."
@@ -583,4 +588,3 @@ def publish_rpms_main(args, base_path, top_level):
         raise SystemExit(1)
     finally:
         scratch_directory.remove()
-

@@ -7,6 +7,8 @@ Tests for ``admin.release``.
 import os
 from unittest import skipUnless
 import tempfile
+from textwrap import dedent
+
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
 from requests.exceptions import HTTPError
@@ -1424,6 +1426,8 @@ class UploadPythonPackagesTests(TestCase):
     def setUp(self):
         self.target_bucket = 'test-target-bucket'
         self.scratch_directory = FilePath(self.mktemp())
+        self.top_level = FilePath(self.mktemp())
+        self.top_level.makedirs()
 
     def upload_python_packages(self, aws, version):
         """
@@ -1441,6 +1445,7 @@ class UploadPythonPackagesTests(TestCase):
                 scratch_directory=self.scratch_directory,
                 version=version,
                 target_bucket=self.target_bucket,
+                top_level=self.top_level,
             )
         )
 
@@ -1448,14 +1453,16 @@ class UploadPythonPackagesTests(TestCase):
         """
         Source and binary distributions of Flocker are uploaded to S3.
         """
-        # maybe - create something so this thinks we're in the flocker directory - flocker/_version.py?
-        # this might make wheel a dev requirement - for bdist
-        # assert that sdist and bdist files exist
-        # use self.mkdtemp() and pass a directory to upload_python_packages
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            })
+
         version = '0.3.0'
-        from textwrap import dedent
-        with FilePath("setup.py").open("w") as setup_py:
-            setup_py.write(dedent("""
+
+        self.top_level.child('setup.py').setContent(
+            dedent("""
                 from setuptools import setup
 
                 setup(
@@ -1464,14 +1471,8 @@ class UploadPythonPackagesTests(TestCase):
                     py_modules=["Flocker"],
                 )
                 """).format(package_version=version)
-            )
+        )
 
-        self.addCleanup(FilePath("setup.py").remove)
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            })
 
         self.upload_python_packages(
             aws=aws,
