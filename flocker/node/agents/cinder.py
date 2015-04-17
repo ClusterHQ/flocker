@@ -3,23 +3,27 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
+
 import pyrax
+
+from zope.interface import implementer
 
 from .blockdevice import IBlockDeviceAPI
 
 
+@implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
     in an OpenStack cluster.
     """
-    def __init__(self, cluster_id, volume_driver, compute_driver):
+    def __init__(self, cluster_id, region):
         """
         :param UUID cluster_id: An ID that will be included in the names of
             Cinder block devices in order to associate them with a particular
             Flocker cluster.
-        :param volume_driver: A pyrax volume driver (locked to a specific region)
-        :param compute_driver: A pyrax compute driver (locked to a specific region)
+        :param unicode region: A provider specific region identifier string.
+        :param pyrax_context: An authenticated pyrax context.
         """
         # Assign the volume and compute drivers to instance variables.
         # Maybe we'll need the pyrax context too? So perhaps we should just
@@ -60,6 +64,8 @@ class CinderBlockDeviceAPI(object):
         Extract the dataset_id from the metadata.
 
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html
+
+
         """
 
 
@@ -73,6 +79,4 @@ def authenticated_cinder_api(cluster_id, username, api_key, region, id_type="rac
         id_type=id_type, username=username, api_key=api_key
     )
     pyrax_context.authenticate()
-    volume_driver = pyrax_context.get_client('volume', region)
-    compute_driver = pyrax_context.get_client('compute', region)
-    return CinderBlockDeviceAPI(cluster_id, volume_driver, compute_driver)
+    return CinderBlockDeviceAPI(cluster_id, region, pyrax_context)
