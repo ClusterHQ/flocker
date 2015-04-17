@@ -65,14 +65,13 @@ To enable yum to find them, put the `repo file <https://copr.fedoraproject.org/c
 Package Hosting
 ===============
 
-Some packages are hosted on Google Cloud Storage and others are hosted on Amazon S3.
+New packages are hosted on Amazon S3 in directories in the ``clusterhq-archive`` bucket.
+There is a staging bucket, ``clusterhq-staging-archive``.
 
-The Homebrew installation script for OS X downloads packages from `Google Cloud Storage <https://console.developers.google.com/project/hybridcluster-docker/storage/browser/archive.clusterhq.com/downloads/flocker/?authuser=1>`_.
+The Homebrew installation script for OS X downloads packages from the ``python`` directory.
 
-Fedora 20 and CentOS client and node packages are hosted on Amazon S3.
-These are in the `clusterhq-archive` bucket.
-Within this bucket there are `development` and `marketing` keys.
-Within each of these are keys for each supported operating system.
+Fedora 20 and CentOS client and node packages in the ``fedora`` and ``centos`` directories.
+There are also ``fedora-testing`` and ``centos-testing`` directories used for weekly development releases.
 
 `clusterhq-archive`
 -------------------
@@ -121,3 +120,5 @@ Legacy
 
 Old versions of Flocker for Fedora 20 (until 0.3.2) are hosted on Google Cloud Storage.
 The legacy ClusterHQ release package creation files and other packages which were formerly necessary are in https://github.com/ClusterHQ/fedora-packages.
+
+Old versions of Flocker source and binary distributions are hosted on Google Cloud Storage.
