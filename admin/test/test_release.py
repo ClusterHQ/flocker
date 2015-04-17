@@ -1448,7 +1448,6 @@ class UploadPythonPackagesTests(TestCase):
         """
         Source and binary distributions of Flocker are uploaded to S3.
         """
-        # create minimal setup.py
         # maybe - create something so this thinks we're in the flocker directory - flocker/_version.py?
         # this might make wheel a dev requirement - for bdist
         # assert that sdist and bdist files exist
@@ -1479,7 +1478,6 @@ class UploadPythonPackagesTests(TestCase):
             version=version,
         )
 
-        # TODO use something to get rid of output
         aws_keys = aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(
             sorted(aws_keys),
