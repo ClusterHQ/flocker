@@ -7,7 +7,7 @@ Docker API client.
 
 from __future__ import absolute_import
 
-from time import sleep
+from time import time, sleep
 
 from zope.interface import Interface, implementer
 
@@ -446,10 +446,18 @@ class DockerClient(object):
             # stop on this container Docker might well complain it knows
             # not the container of which we speak. To prevent this we poll
             # until it does exist.
-            while not self._blocking_exists(container_name):
-                sleep(0.001)
-                continue
+            self._blocking_wait(5, self._blocking_exists, container_name)
+
             self._client.start(container_name)
+            # Tests fail intermittently because containers cannot be
+            # removed after being stopped.  It may be that the stop
+            # command sees the container before it is fully started,
+            # and responds with OK, since the container is not running.
+            # This would match with the experience above, where create
+            # returns before the container is fully created.
+            # This is currently only a theory, as the error only occurs
+            # on Buildbot, and cannot be reliably re-created.
+            self._blocking_wait(10, self._blocking_started, container_name)
         d = deferToThread(_add)
 
         def _extract_error(failure):
@@ -460,6 +468,20 @@ class DockerClient(object):
             return failure
         d.addErrback(_extract_error)
         return d
+
+    def _blocking_wait(self, timeout, is_ready, arg):
+        """
+        Wait until a condition is satisfied.
+
+        :param function is_ready: Function testing whether condition is
+            satisfied.
+        :param unicode arg: An argument to pass to the is_ready function.
+        """
+        time_limit = time() + timeout
+        while not is_ready(arg):
+            if time() > time_limit:
+                raise RuntimeError('Timeout > %s seconds' % timeout)
+            sleep(0.01)
 
     def _blocking_exists(self, container_name):
         """
@@ -475,6 +497,18 @@ class DockerClient(object):
             return True
         except APIError:
             return False
+
+    def _blocking_started(self, container_name):
+        """
+        Blocking API to check if container has started.
+
+        :param unicode container_name: The name of the container whose
+            existence we're checking.
+
+        :return: ``True`` if unit is running, otherwise ``False``.
+        """
+        container = self._client.inspect_container(container_name)
+        return container[u'State'][u'Running']
 
     def exists(self, unit_name):
         container_name = self._to_container_name(unit_name)
