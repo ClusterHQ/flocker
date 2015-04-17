@@ -4,6 +4,8 @@
 AWS provisioner.
 """
 
+from textwrap import dedent
+
 from ._libcloud import LibcloudProvisioner
 from ._common import Variants
 from ._install import (
@@ -117,6 +119,10 @@ def aws_provisioner(access_key, secret_access_token, keyname,
                          "DeleteOnTermination": True,
                          "VolumeType": "gp2"}}
             ],
+            "ex_userdata": dedent("""\
+                #!/bin/sh
+                sed -i '/Defaults *requiretty/d' /etc/sudoers
+                """)
         }
 
     provisioner = LibcloudProvisioner(
