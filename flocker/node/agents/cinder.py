@@ -30,7 +30,8 @@ class CinderBlockDeviceAPI(object):
         Create the block device using the volume_driver.
         Store the dataset_id as metadata
         Store the cluster_id as metadata
-        Assign a Human readable name and description? Eg FLOCKER: Block device for dataset {dataset_id} in cluster {cluster_id}
+        Assign a Human readable name and description?
+        Eg FLOCKER: Block device for dataset {dataset_id} in cluster {cluster_id}
 
         Return a BlockDeviceVolume.
 
@@ -38,13 +39,18 @@ class CinderBlockDeviceAPI(object):
 
         Discussion:
          * Rackspace (maybe cinder in general) supports a block device type, eg SSD or SATA.
-           I guess we'll use SATA here to start with and maybe expand the API or make the disk type configurable.
-         * pyrax.volume.create expects a size in GB and the minimum is 100GB.
-           How do we enforce that? And what (if any) errors should we raise if the user requests something smaller?
+           I guess we'll hardcode SATA here to start with
+           Maybe expand the API later to make the disk type configurable?
+
+         * pyrax.volume.create expects a size in GB
+           The minimum SATA disk size on Rackspace is 100GB.
+           How do we enforce that?
+           And what (if any) errors should we raise if the user requests something smaller?
+           Is this an OpenStack limit or something specific to Rackspace?
+
          * Rackspace will assign its own unique ID to the volume.
-           If we store that as an attribute of the returned BlockDeviceVolume,
-           then it'll be possible to attach that block device without having to
-           list all block devices again.
+           Should that be the value of ``BlockDeviceVolume.blockdevice_id`` ?
+           That field type is unicode rather than UUID which was (I think) chosen so as to support provider specific volume ID strings.
         """
 
     def list_volumes(self):
