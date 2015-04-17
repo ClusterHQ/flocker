@@ -20,7 +20,7 @@ from ..volume.script import flocker_volume_options
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
-from . import P2PManifestationDeployer
+from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 
@@ -120,10 +120,22 @@ class DatasetAgentOptions(_AgentOptions):
     synopsis = _AgentOptions.synopsis.format("flocker-dataset-agent")
 
 
+class ContainerAgentOptions(_AgentOptions):
+    """
+    Command line options for ``flocker-container-agent``.
+    """
+    longdesc = """\
+    flocker-container-agent runs a container convergence agent on a node.
+    """
+
+    synopsis = _AgentOptions.synopsis.format("flocker-container-agent")
+
+
 @implementer(ICommandLineScript)
 class AgentScript(PRecord):
     """
-    Implement top-level logic for the ``flocker-dataset-agent`` script.
+    Implement top-level logic for the ``flocker-dataset-agent`` and
+    ``flocker-container-agent`` scripts.
 
     :ivar service_factory: A two-argument callable that returns an ``IService``
         provider that will get run when this script is run.  The arguments
@@ -199,4 +211,20 @@ def flocker_dataset_agent_main():
     return FlockerScriptRunner(
         script=agent_script,
         options=DatasetAgentOptions()
+    ).main()
+
+
+def flocker_container_agent_main():
+    """
+    Implementation of the ``flocker-container-agent`` command line script.
+
+    This starts a Docker-based container convergence agent.
+    """
+    service_factory = AgentServiceFactory(
+        deployer_factory=ApplicationNodeDeployer
+    ).get_service
+    agent_script = AgentScript(service_factory=service_factory)
+    return FlockerScriptRunner(
+        script=agent_script,
+        options=ContainerAgentOptions()
     ).main()

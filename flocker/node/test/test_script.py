@@ -13,7 +13,7 @@ from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 
 from ..script import (
-    ZFSAgentOptions, ZFSAgentScript, AgentScript,
+    ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
@@ -264,7 +264,15 @@ class DatasetAgentOptionsTests(
         make_amp_agent_options_tests(DatasetAgentOptions)
 ):
     """
-    Tests for ``AgentOptions``.
+    Tests for ``DatasetAgentOptions``.
+    """
+
+
+class ContainerAgentOptionsTests(
+        make_amp_agent_options_tests(ContainerAgentOptions)
+):
+    """
+    Tests for ``ContainerAgentOptions``.
     """
 
 

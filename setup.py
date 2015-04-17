@@ -130,6 +130,7 @@ setup(
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
+            'flocker-container-agent = flocker.node.script:flocker_container_agent_main',
             'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
             'flocker-ca = flocker.ca._script:flocker_ca_main',
