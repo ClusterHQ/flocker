@@ -34,8 +34,6 @@ if os.path.abspath(__file__).split(os.path.sep)[1] == 'vagrant':
 with open("README.rst") as readme:
     description = readme.read()
 
-# TODO setup_requires old setuptools
-
 dev_requirements = [
     # flake8 is pretty critical to have around to help point out
     # obvious mistakes. It depends on PEP8, pyflakes and mccabe.
@@ -141,7 +139,10 @@ setup(
     },
 
     install_requires=[
-        "setuptools >= 1.4",
+        # This is necessary for a release because our version scheme does not
+        # adhere to PEP440.
+        # See https://clusterhq.atlassian.net/browse/FLOC-1373
+        "setuptools==3.6",
 
         "eliot == 0.6.0",
         "machinist == 0.2.0",
