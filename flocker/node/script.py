@@ -20,7 +20,7 @@ from ..volume.script import flocker_volume_options
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
-from . import P2PNodeDeployer
+from . import P2PManifestationDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 
@@ -67,8 +67,8 @@ class ZFSAgentScript(object):
     def main(self, reactor, options, volume_service):
         host = options["destination-host"]
         port = options["destination-port"]
-        deployer = P2PNodeDeployer(options["hostname"].decode("ascii"),
-                                   volume_service)
+        deployer = P2PManifestationDeployer(
+            options["hostname"].decode("ascii"), volume_service)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
         volume_service.setServiceParent(loop)

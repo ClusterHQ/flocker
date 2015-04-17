@@ -16,7 +16,7 @@ from ..script import (
     ZFSAgentOptions, ZFSAgentScript, DatasetAgentScript,
     DatasetAgentServiceFactory, DatasetAgentOptions)
 from .._loop import AgentLoopService
-from .._deploy import P2PNodeDeployer
+from .._deploy import P2PManifestationDeployer
 from ...testtools import MemoryCoreReactor
 
 
@@ -55,8 +55,8 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
-        # P2PNodeDeployer is difficult to compare automatically, so do so
-        # manually:
+        # P2PManifestationDeployer is difficult to compare automatically,
+        # so do so manually:
         deployer = parent_service.deployer
         parent_service.deployer = None
         self.assertEqual((parent_service, deployer.__class__,
@@ -66,7 +66,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                                            deployer=None,
                                            host=u"example.com",
                                            port=1234),
-                          P2PNodeDeployer, b"1.2.3.4", service, True))
+                          P2PManifestationDeployer, b"1.2.3.4", service, True))
 
 
 class DatasetAgentServiceFactoryTests(SynchronousTestCase):
