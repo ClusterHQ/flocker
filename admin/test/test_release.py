@@ -6,6 +6,7 @@ Tests for ``admin.release``.
 
 import os
 from unittest import skipUnless
+from setuptools import __version__ as setuptools_version
 import tempfile
 from textwrap import dedent
 
@@ -1509,6 +1510,7 @@ class UploadPythonPackagesTests(SynchronousTestCase):
             )
         )
 
+    @skipUnless(setuptools_version == "3.6", "setuptools must be version 3.6")
     def test_distributions_uploaded(self):
         """
         Source and binary distributions of Flocker are uploaded to S3.
