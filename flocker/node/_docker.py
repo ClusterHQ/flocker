@@ -507,6 +507,7 @@ class DockerClient(object):
                 else:
                     break
 
+            print self._client.inspect_container(container_name)['State']
             try:
                 self._client.remove_container(container_name)
             except APIError as e:
