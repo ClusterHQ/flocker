@@ -2,10 +2,11 @@
 """
 Tools for running commands.
 """
-import sys
 import os
 
 from characteristic import attributes
+from eliot import startAction, Message, Logger
+from eliot.twisted import DeferredContext
 
 from twisted.internet.error import ConnectionDone
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
@@ -14,10 +15,13 @@ from twisted.internet.defer import Deferred
 from twisted.protocols.basic import LineOnlyReceiver
 
 
+logger = Logger()
+
+
 # LineOnlyReceiver is mutable, so can't use pyrsistent
 @attributes([
     "deferred",
-    "output",
+    "action",
 ])
 class CommandProtocol(LineOnlyReceiver, object):
     """
@@ -26,7 +30,7 @@ class CommandProtocol(LineOnlyReceiver, object):
     :ivar Deferred deferred: Deferred to fire when the command finishes
         If the command finished successfully, will fire with ``None``.
         Otherwise, errbacks with the reason.
-    :ivar file-like output: For logging.
+    :ivar Action action: For logging.
     """
     delimiter = b'\n'
 
@@ -40,7 +44,10 @@ class CommandProtocol(LineOnlyReceiver, object):
             self.deferred.errback(reason)
 
     def lineReceived(self, line):
-        self.output.write(line + "\n")
+        Message.new(
+            message_type="admin.runner:run:output",
+            line=line,
+        ).write(logger, action=self.action)
 
 
 def run(reactor, command, **kwargs):
@@ -54,11 +61,16 @@ def run(reactor, command, **kwargs):
     """
     if 'env' not in kwargs:
         kwargs['env'] = os.environ
+
+    action = startAction(logger, "admin.runner:run",
+                         command=command)
+
     endpoint = ProcessEndpoint(reactor, command[0], command, **kwargs)
     protocol_done = Deferred()
-    protocol = CommandProtocol(deferred=protocol_done, output=sys.stdout)
+    protocol = CommandProtocol(deferred=protocol_done, action=action)
 
-    connected = connectProtocol(endpoint, protocol)
+    with action.context():
+        connected = DeferredContext(connectProtocol(endpoint, protocol))
 
     def unregister_killer(result, trigger_id):
         try:
@@ -77,4 +89,4 @@ def run(reactor, command, **kwargs):
 
     connected.addCallback(register_killer)
     connected.addCallback(lambda _: protocol_done)
-    return connected
+    return connected.addActionFinish()

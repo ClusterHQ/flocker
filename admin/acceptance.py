@@ -375,7 +375,12 @@ def eliot_output(message):
     if message['message_type'] == "flocker.provision.ssh:run":
         print "[%(username)s@%(address)s]: Running %(command)s" % message
     elif message['message_type'] == "flocker.provision.ssh:run:output":
-        print "[%(username)s@%(address)s]: Running %(line)s" % message
+        print "[%(username)s@%(address)s]: %(line)s" % message
+    elif message['message_type'] == "admin.runner:run":
+        print "Running %(command)s" % message
+    elif message['message_type'] == "admin.runner:run:output":
+        print "%(line)s" % message
+    sys.stdout.flush()
 
 
 @inlineCallbacks
