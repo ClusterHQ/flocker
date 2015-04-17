@@ -30,7 +30,7 @@ from ..packaging import (
     make_dependencies,
     LintPackage,
 )
-from ..release import rpm_version
+from flocker.common.version import RPMVersion
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
@@ -601,7 +601,7 @@ class BuildPackageTests(TestCase):
         ])
         expected_name = 'FooBar'
         expected_epoch = b'3'
-        expected_rpm_version = rpm_version('0.3', '0.dev.1')
+        expected_rpm_version = RPMVersion(version='0.3', release='0.dev.1')
         expected_license = 'My Test License'
         expected_url = 'https://www.example.com/foo/bar'
         expected_vendor = 'Acme Corporation'
@@ -675,7 +675,7 @@ class BuildPackageTests(TestCase):
         ])
         expected_name = 'FooBar'.lower()
         expected_epoch = b'3'
-        expected_rpm_version = rpm_version('0.3', '0.dev.1')
+        expected_rpm_version = RPMVersion(version='0.3', release='0.dev.1')
         expected_license = 'My Test License'
         expected_url = 'https://www.example.com/foo/bar'
         expected_vendor = 'Acme Corporation'
@@ -762,7 +762,7 @@ class LintPackageTests(TestCase):
             name="package-name",
             prefix=FilePath('/'),
             epoch=b'3',
-            rpm_version=rpm_version('0.3', '0.dev.1'),
+            rpm_version=RPMVersion(version='0.3', release='0.dev.1'),
             license="Example",
             url="https://package.example/",
             vendor="Acme Corporation",
@@ -777,7 +777,7 @@ class LintPackageTests(TestCase):
             package_type=package_type,
             destination_path=destination_path,
             epoch=b'3',
-            rpm_version=rpm_version('0.3', '0.dev.1'),
+            rpm_version=RPMVersion(version='0.3', release='0.dev.1'),
             package='package-name',
             architecture='all'
         )
@@ -941,6 +941,8 @@ class OmnibusPackageBuilderTests(TestCase):
                          flocker_cli_path),
                         (FilePath('/opt/flocker/bin/flocker'),
                          flocker_cli_path),
+                        (FilePath('/opt/flocker/bin/flocker-ca'),
+                         flocker_cli_path),
                     ]
                 ),
                 BuildPackage(
@@ -972,10 +974,6 @@ class OmnibusPackageBuilderTests(TestCase):
                 # clusterhq-flocker-node steps
                 CreateLinks(
                     links=[
-                        (FilePath('/opt/flocker/bin/flocker-reportstate'),
-                         flocker_node_path),
-                        (FilePath('/opt/flocker/bin/flocker-changestate'),
-                         flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-volume'),
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-control'),

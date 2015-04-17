@@ -20,7 +20,7 @@ from docutils.statemachine import StringList
 
 from flocker import __version__ as version
 
-from flocker.docs import get_installable_version
+from flocker.common.version import get_installable_version
 from flocker.docs.version_extensions import PLACEHOLDER
 
 from . import _tasks as tasks
