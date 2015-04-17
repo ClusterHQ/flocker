@@ -298,8 +298,14 @@ def task_install_flocker(
     :param PackageSource package_source: The source from which to install the
         package.
     """
+    if package_source.branch:
+        result_path = posixpath.join(
+            '/results/omnibus/', package_source.branch, distribution)
+        base_url = urljoin(package_source.build_server, result_path)
+    else:
+        base_url = None
     if distribution == 'ubuntu-14.04':
-        return sequence([
+        commands = [
             # Ensure add-apt-repository command is available
             run_from_args([
                 "apt-get", "-y", "install", "software-properties-common"]),
@@ -309,10 +315,14 @@ def task_install_flocker(
             # Add Docker repo for recent Docker versions
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
-            # Add ClusterHQ repo for installation of Flocker packages.
-            run_from_args([
-                "add-apt-repository", "-y",
-                "deb http://build.clusterhq.com/results/omnibus/master/ubuntu-14.04 /"]),  # noqa
+            ]
+
+        # Add ClusterHQ repo for installation of Flocker packages.
+        if base_url:
+            commands.append(run_from_args([
+                "add-apt-repository", "-y", "deb {} /".format(base_url)]))
+
+        commands += [
             # Update to read package info from new repos
             run_from_args([
                 "apt-get", "update"]),
@@ -323,7 +333,8 @@ def task_install_flocker(
             run_from_args([
                 'apt-get', '-y', '--force-yes', 'install',
                 'clusterhq-flocker-node']),
-            ])
+            ]
+        return sequence(commands)
     else:
         commands = [
             run(command="yum install -y " + ZFS_REPO[distribution]),
@@ -334,10 +345,7 @@ def task_install_flocker(
             commands.append(
                 run_from_args(["yum", "install", "-y", "epel-release"]))
 
-        if package_source.branch:
-            result_path = posixpath.join(
-                '/results/omnibus/', package_source.branch, distribution)
-            base_url = urljoin(package_source.build_server, result_path)
+        if base_url:
             repo = dedent(b"""\
                 [clusterhq-build]
                 name=clusterhq-build
