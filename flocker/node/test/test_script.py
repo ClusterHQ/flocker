@@ -13,8 +13,8 @@ from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 
 from ..script import (
-    ZFSAgentOptions, ZFSAgentScript, DatasetAgentScript,
-    DatasetAgentServiceFactory, DatasetAgentOptions)
+    ZFSAgentOptions, ZFSAgentScript, AgentScript,
+    AgentServiceFactory, DatasetAgentOptions)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
 from ...testtools import MemoryCoreReactor
@@ -69,13 +69,13 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                           P2PManifestationDeployer, b"1.2.3.4", service, True))
 
 
-class DatasetAgentServiceFactoryTests(SynchronousTestCase):
+class AgentServiceFactoryTests(SynchronousTestCase):
     """
-    Tests for ``DatasetAgentServiceFactory``.
+    Tests for ``AgentServiceFactory``.
     """
     def test_get_service(self):
         """
-        ``DatasetAgentServiceFactory.get_service`` creates ``AgentLoopService``
+        ``AgentServiceFactory.get_service`` creates ``AgentLoopService``
         configured with the destination given by the options.
         """
         deployer = object()
@@ -90,7 +90,7 @@ class DatasetAgentServiceFactoryTests(SynchronousTestCase):
         options.parseOptions([
             b"--destination-port", b"1234", b"10.0.0.1", b"10.0.0.2",
         ])
-        service_factory = DatasetAgentServiceFactory(
+        service_factory = AgentServiceFactory(
             deployer_factory=factory
         )
         self.assertEqual(
@@ -105,7 +105,7 @@ class DatasetAgentServiceFactoryTests(SynchronousTestCase):
 
     def test_deployer_factory_called_with_hostname(self):
         """
-        ``DatasetAgentServiceFactory.main`` calls its ``deployer_factory`` with
+        ``AgentServiceFactory.main`` calls its ``deployer_factory`` with
         the hostname given by the options.
         """
         spied = []
@@ -117,14 +117,14 @@ class DatasetAgentServiceFactoryTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"10.0.0.1", b"10.0.0.2"])
-        agent = DatasetAgentServiceFactory(deployer_factory=deployer_factory)
+        agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
         self.assertEqual([b"10.0.0.1"], spied)
 
 
-class DatasetAgentScriptTests(SynchronousTestCase):
+class AgentScriptTests(SynchronousTestCase):
     """
-    Tests for ``DatasetAgentScript``.
+    Tests for ``AgentScript``.
     """
     def setUp(self):
         self.reactor = MemoryCoreReactor()
@@ -132,12 +132,12 @@ class DatasetAgentScriptTests(SynchronousTestCase):
 
     def test_interface(self):
         """
-        ``DatasetAgentScript`` instances provide ``ICommandLineScript``.
+        ``AgentScript`` instances provide ``ICommandLineScript``.
         """
         self.assertTrue(
             verifyObject(
                 ICommandLineScript,
-                DatasetAgentScript(
+                AgentScript(
                     service_factory=lambda reactor, options: Service()
                 )
             )
@@ -145,8 +145,8 @@ class DatasetAgentScriptTests(SynchronousTestCase):
 
     def test_service_factory_called_with_main_arguments(self):
         """
-        ``DatasetAgentScript`` calls the ``service_factory`` with the reactor
-        and options passed to ``DatasetAgentScript.main``.
+        ``AgentScript`` calls the ``service_factory`` with the reactor
+        and options passed to ``AgentScript.main``.
         """
         args = []
         service = Service()
@@ -155,17 +155,17 @@ class DatasetAgentScriptTests(SynchronousTestCase):
             args.append((reactor, options))
             return service
 
-        agent = DatasetAgentScript(service_factory=service_factory)
+        agent = AgentScript(service_factory=service_factory)
         agent.main(self.reactor, self.options)
         self.assertEqual([(self.reactor, self.options)], args)
 
     def test_main_starts_service(self):
         """
-        ```DatasetAgentScript.main`` starts the service created by its
+        ```AgentScript.main`` starts the service created by its
         ``service_factory`` .
         """
         service = Service()
-        agent = DatasetAgentScript(
+        agent = AgentScript(
             service_factory=lambda reactor, options: service
         )
         agent.main(self.reactor, self.options)
@@ -173,11 +173,11 @@ class DatasetAgentScriptTests(SynchronousTestCase):
 
     def test_main_stops_service(self):
         """
-        When the reactor passed to ``DatasetAgentScript.main`` shuts down, the
+        When the reactor passed to ``AgentScript.main`` shuts down, the
         service created by the ``service_factory`` is stopped.
         """
         service = Service()
-        agent = DatasetAgentScript(
+        agent = AgentScript(
             service_factory=lambda reactor, options: service
         )
         agent.main(self.reactor, self.options)
@@ -186,7 +186,7 @@ class DatasetAgentScriptTests(SynchronousTestCase):
 
     def test_main_deferred_fires_after_service_stop(self):
         """
-        The ``Deferred`` returned by ``DatasetAgentScript.main`` doesn't fire
+        The ``Deferred`` returned by ``AgentScript.main`` doesn't fire
         until after the ``Deferred`` returned by the ``stopService`` method of
         the service created by ``service_factory``.
         """
@@ -197,7 +197,7 @@ class DatasetAgentScriptTests(SynchronousTestCase):
                 return shutdown_deferred
 
         service = SlowShutdown()
-        agent = DatasetAgentScript(
+        agent = AgentScript(
             service_factory=lambda reactor, options: service
         )
         stop_deferred = agent.main(self.reactor, self.options)
@@ -224,8 +224,8 @@ def make_amp_agent_options_tests(options_type):
 
         def test_default_port(self):
             """
-            The default AMP destination port configured by ``ZFSAgentOptions``
-            is 4524.
+            The default AMP destination port configured by the command line
+            options is 4524.
             """
             self.options.parseOptions([b"1.2.3.4", b"example.com"])
             self.assertEqual(self.options["destination-port"], 4524)
@@ -264,7 +264,7 @@ class DatasetAgentOptionsTests(
         make_amp_agent_options_tests(DatasetAgentOptions)
 ):
     """
-    Tests for ``DatasetAgentOptions``.
+    Tests for ``AgentOptions``.
     """
 
 
