@@ -16,7 +16,8 @@ from twisted.python.procutils import which
 from twisted.trial.unittest import SynchronousTestCase as TestCase
 
 from ..release import (
-    create_artifacts, rpm_version, make_rpm_version, upload_rpms, update_repo,
+    upload_python_packages, rpm_version, make_rpm_version, upload_rpms,
+    update_repo,
     publish_docs, Environments,
     DocumentationRelease, NotTagged, NotARelease,
 )
@@ -1415,18 +1416,17 @@ class UploadRPMsTests(TestCase):
             "Metadata files for the packages were not created.")
 
 
-class CreateArtifactsTests(TestCase):
+class UploadPythonPackagesTests(TestCase):
     """
-    Tests for :func:``create_artifacts``.
+    Tests for :func:``upload_python_packages``.
     """
 
     def setUp(self):
         self.target_bucket = 'test-target-bucket'
-        self.target_key = 'test/target/key'
 
-    def create_artifacts(self, aws, version):
+    def upload_python_packages(self, aws, version):
         """
-        Call :func:``create_artifacts``.
+        Call :func:``upload_python_packages``.
 
         :param FakeAWS aws: Fake AWS to interact with.
         :param FakeYum yum: Fake yum utilities to interact with.
@@ -1436,21 +1436,12 @@ class CreateArtifactsTests(TestCase):
         dispatchers = [aws.get_dispatcher(), base_dispatcher]
         sync_perform(
             ComposedDispatcher(dispatchers),
-            create_artifacts(
+            upload_python_packages(
+                scratch_directory='TODO',
                 version=version,
                 target_bucket=self.target_bucket,
-                target_key=self.target_key,
             )
         )
-
-    def test_not_a_release_fails(self):
-        pass
-
-    def test_documentation_release_fails(self):
-        pass
-
-    def test_not_in_flocker_directory_fails(self):
-        pass
 
     def test_distributions_uploaded(self):
         """
@@ -1460,6 +1451,7 @@ class CreateArtifactsTests(TestCase):
         # maybe - create something so this thinks we're in the flocker directory - flocker/_version.py?
         # this might make wheel a dev requirement - for bdist
         # assert that sdist and bdist files exist
+        # use self.mkdtemp() and pass a directory to upload_python_packages
         version = '0.3.0'
         from textwrap import dedent
         with FilePath("setup.py").open("w") as setup_py:
@@ -1481,7 +1473,7 @@ class CreateArtifactsTests(TestCase):
                 self.target_bucket: {},
             })
 
-        self.create_artifacts(
+        self.upload_python_packages(
             aws=aws,
             version=version,
         )
@@ -1490,23 +1482,15 @@ class CreateArtifactsTests(TestCase):
         aws_keys = aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(
             sorted(aws_keys),
-            [self.target_key + '/' 'Flocker-0.3.0-py2-none-any.whl',
-             self.target_key + '/' + 'Flocker-0.3.0.tar.gz'])
+            ['python/Flocker-0.3.0-py2-none-any.whl',
+             'python/Flocker-0.3.0.tar.gz'])
 
-    def test_setuptools_version_remains_same(self):
+    def test_packaging_fails(self):
         """
-        When :func:``create_artifacts`` finishes the version of ``setuptools``
-        installed before it was run is still installed.
-        """
-
-    def test_setuptools_version_remains_same_after_error(self):
-        """
-        When :func:``create_artifacts`` finishes the version of ``setuptools``
-        installed before it was run is still installed, even if there is an
-        error while running the function.
+        Source and binary distributions of Flocker are uploaded to S3.
         """
 
-    def test_tutorial_box_uploaded(self):
+    def test_setuptools_version_requirement(self):
         """
-        The tutorial box is uploaded to S3.
+        When setuptools' version is too new, a ValueError is raised.
         """

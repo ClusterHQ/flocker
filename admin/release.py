@@ -467,71 +467,17 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         )
 
 
-# TODO rename to publish_artifacts
-def publish_rpms_main(args, base_path, top_level):
-    """
-
-
-    :param list args: The arguments passed to the script.
-    :param FilePath base_path: The executable being run.
-    :param FilePath top_level: The top-level of the flocker repository.
-    """
-    # TODO change UploadOptions to be more generic
-    options = UploadOptions()
-
-    try:
-        options.parseOptions(args)
-    except UsageError as e:
-        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
-        raise SystemExit(1)
-
-    dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
-                                     base_dispatcher])
-
-    try:
-        scratch_directory = FilePath(tempfile.mkdtemp(
-            prefix=b'flocker-upload-rpm-'))
-
-        sync_perform(
-            dispatcher=dispatcher,
-            effect=upload_rpms(
-                scratch_directory=scratch_directory,
-                target_bucket=options['target'],
-                version=options['flocker-version'],
-                build_server=options['build-server'],
-                ))
-
-    except NotARelease:
-        sys.stderr.write("%s: Can't upload RPMs for a non-release."
-                         % (base_path.basename(),))
-        raise SystemExit(1)
-    except DocumentationRelease:
-        sys.stderr.write("%s: Can't upload RPMs for a documentation release."
-                         % (base_path.basename(),))
-        raise SystemExit(1)
-    finally:
-        scratch_directory.remove()
-
-
-# Create wrapper which should also call publish_rpms
 @do
-def create_artifacts(version, target_bucket, target_key):
+def upload_python_packages(scratch_directory, target_bucket, version):
     """
-    TODO docstring
+    The repository contains source distributions and binary distributions
+    (wheels) for Flocker. It is currently hosted on Amazon S3.
+
+    :param FilePath scratch_directory: Temporary directory to create packages
+        in.
+    :param bytes target_bucket: S3 bucket to upload packages to.
+    :param bytes version: Version to upload packages as.
     """
-
-    # TODO create wrapper so this can be run from shell
-
-    if not (is_release(version)
-            or is_weekly_release(version)
-            or is_pre_release(version)):
-        raise NotARelease()
-
-    if get_doc_version(version) != version:
-        # TODO when this is raised, exit with a friendly error message.
-        # we want Buildbot to run into this and not fail.
-        raise DocumentationRelease()
-
     if setuptools_version != '3.6':
         # TODO maybe use < 8, latest version setuptools which works
         # TODO In the future, perhaps check out the necessary version,
@@ -563,8 +509,78 @@ def create_artifacts(version, target_bucket, target_key):
     yield Effect(UploadToS3Recursively(
         source_path=FilePath("dist"),
         target_bucket=target_bucket,
-        target_key=target_key,
+        target_key='python',
         files={
             'Flocker-%s.tar.gz' % version,
             'Flocker-%s-py2-none-any.whl' % version},
         ))
+
+
+# TODO rename to publish_artifacts
+def publish_rpms_main(args, base_path, top_level):
+    """
+
+
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    # TODO change UploadOptions to be more generic
+    # Check in UploadOptions whether NotARelease() etc
+    # When a documentation release, exit with a friendly error message.
+    # we want Buildbot to run into this and not fail, so maybe
+    # SystemExit(None).
+    options = UploadOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
+                                     base_dispatcher])
+
+    # TODO use Sequence not just multiple effects?
+    try:
+        scratch_directory = FilePath(tempfile.mkdtemp(
+            prefix=b'flocker-upload-rpm-'))
+
+        sync_perform(
+            dispatcher=dispatcher,
+            effect=upload_rpms(
+                scratch_directory=scratch_directory,
+                target_bucket=options['target'],
+                version=options['flocker-version'],
+                build_server=options['build-server'],
+                ))
+
+    except NotARelease:
+        sys.stderr.write("%s: Can't upload RPMs for a non-release."
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    except DocumentationRelease:
+        sys.stderr.write("%s: Can't upload RPMs for a documentation release."
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    finally:
+        scratch_directory.remove()
+
+    try:
+        scratch_directory = FilePath(tempfile.mkdtemp(
+            prefix=b'flocker-upload-python-'))
+
+        sync_perform(
+            dispatcher=dispatcher,
+            effect=upload_python_packages(
+                scratch_directory=scratch_directory,
+                target_bucket=options['target'],
+                version=options['flocker-version'],
+                ))
+    except ValueError:
+        sys.stderr.write("%s: setuptools version must be 3.6."
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    finally:
+        scratch_directory.remove()
+
