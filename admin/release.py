@@ -509,12 +509,11 @@ def upload_python_packages(scratch_directory, target_bucket, version,
         ))
 
 
-# TODO rename to publish_artifacts
-def publish_rpms_main(args, base_path, top_level):
+def publish_artifacts_main(args, base_path, top_level):
     """
     Publish release artifacts.
 
-    :param list args: The arguments passed to the script.
+    :param list args: The arguments passed to the scripts.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
