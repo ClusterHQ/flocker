@@ -8,6 +8,8 @@ Uses RSA 4096-bit + SHA 256.
 
 import os
 
+from uuid import uuid4
+
 from OpenSSL import crypto
 from pyrsistent import PRecord, field
 from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
@@ -189,6 +191,93 @@ class FlockerCertificate(PRecord):
     path = field(mandatory=True)
     certificate = field(mandatory=True, initial=None)
     keypair = field(mandatory=True, initial=None)
+
+
+class NodeCertificate(FlockerCertificate):
+    """
+    A certificate for a node agent, signed by a supplied certificate
+    authority.
+
+    :ivar bytes uuid: A unique identifier for the node this certificate
+        identifies, in the form of a version 4 UUID.
+    """
+    uuid = field(mandatory=True, initial=None)
+
+    @classmethod
+    def from_path(cls, path, uuid):
+        """
+        Load a node certificate from a specified path.
+        """
+        key_filename = b"{uuid}.key".format(uuid=uuid)
+        cert_filename = b"{uuid}.crt".format(uuid=uuid)
+        keypair, certificate = load_certificate_from_path(
+            path, key_filename, cert_filename
+        )
+        return cls(
+            path=path, keypair=keypair, certificate=certificate, uuid=uuid
+        )
+
+    @classmethod
+    def initialize(cls, path, authority):
+        """
+        Generate a certificate signed by the supplied root certificate.
+
+        :param FilePath path: Directory where the certificate will be stored.
+        :param CertificateAuthority authority: The certificate authority with
+            which this certificate will be signed.
+        """
+        if not path.isdir():
+            raise PathError(
+                b"Path {path} is not a directory.".format(path=path.path)
+            )
+
+        node_uuid = str(uuid4())
+        key_filename = b"{uuid}.key".format(uuid=node_uuid)
+        cert_filename = b"{uuid}.crt".format(uuid=node_uuid)
+
+        cert_path = path.child(cert_filename)
+        key_path = path.child(key_filename)
+
+        if cert_path.exists():
+            raise CertificateAlreadyExistsError(
+                b"Certificate file {path} already exists.".format(
+                    path=cert_path.path)
+            )
+        if key_path.exists():
+            raise KeyAlreadyExistsError(
+                b"Private key file {path} already exists.".format(
+                    path=key_path.path)
+            )
+
+        # The common name for the node certificate.
+        name = b"node-{uuid}".format(uuid=node_uuid)
+        # The organizational unit is set to the common name of the
+        # authority, which in our case is a byte string identifying
+        # the cluster.
+        organizational_unit = authority.certificate.getSubject().CN
+        dn = DistinguishedName(
+            commonName=name, organizationalUnitName=organizational_unit
+        )
+        keypair = FlockerKeyPair.generate()
+        request = keypair.keypair.requestObject(dn)
+        serial = os.urandom(16).encode(b"hex")
+        serial = int(serial, 16)
+        cert = authority.keypair.keypair.signRequestObject(
+            authority.certificate.getSubject(), request,
+            serial, EXPIRY_20_YEARS, 'sha256'
+        )
+        original_umask = os.umask(0)
+        mode = 0o600
+        with os.fdopen(os.open(
+            cert_path.path, os.O_WRONLY | os.O_CREAT, mode
+        ), b'w') as cert_file:
+            cert_file.write(cert.dumpPEM())
+        with os.fdopen(os.open(
+            key_path.path, os.O_WRONLY | os.O_CREAT, mode
+        ), b'w') as key_file:
+            key_file.write(keypair.keypair.dump(crypto.FILETYPE_PEM))
+        os.umask(original_umask)
+        return cls.from_path(path, node_uuid)
 
 
 class ControlCertificate(FlockerCertificate):
