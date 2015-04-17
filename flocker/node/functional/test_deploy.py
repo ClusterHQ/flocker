@@ -34,7 +34,7 @@ def change_node_state(deployer, desired_configuration):
         nodes.
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
-    def _converge():
+    def converge():
         d = deployer.discover_state(NodeState(hostname=deployer.hostname))
 
         def got_changes(changes):
@@ -47,9 +47,9 @@ def change_node_state(deployer, desired_configuration):
         d.addCallback(lambda change: change.run(deployer))
         return d
     # Repeat a few times until things settle down:
-    result = _converge()
-    result.addCallback(lambda _: _converge())
-    result.addCallback(lambda _: _converge())
+    result = converge()
+    result.addCallback(lambda _: converge())
+    result.addCallback(lambda _: converge())
     return result
 
 
