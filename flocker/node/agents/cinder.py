@@ -25,9 +25,6 @@ class CinderBlockDeviceAPI(object):
         :param unicode region: A provider specific region identifier string.
         :param pyrax_context: An authenticated pyrax context.
         """
-        # Assign the volume and compute drivers to instance variables.
-        # Maybe we'll need the pyrax context too? So perhaps we should just
-        # store that instead.
 
     def create_volume(self, dataset_id, size):
         """
@@ -37,7 +34,20 @@ class CinderBlockDeviceAPI(object):
         Assign a Human readable name and description?
         Eg FLOCKER: Block device for dataset {dataset_id} in cluster {cluster_id}
 
-        Return a BlockDeviceVolume.
+        ```
+        In [10]: volume.create('richardw-test-2', 100, 'SATA', metadata={"flocker_dataset_id": unicode(uuid.uuid4())})
+        Out[10]: <CloudBlockStorageVolume attachments=[], availability_zone=nova, bootable=false, created_at=2015-04-17T11:59:48.475838, display_description=, display_name=richardw-test-2, id=c7b08f98-f363-484d-83fb-410927c69159, metadata={u'flocker_dataset_id': u'b816da15-063e-47a4-843d-275ffa37ecec'}, size=100, snapshot_id=None, source_volid=None, status=creating, volume_type=SATA>
+        ```
+
+        ONLY TROUBLE IS...that the metadata I supplied doesn't seem to be returned when I then call ``list()`` :-(
+
+        Not sure if that's a problem with pyrax or whether it's simply not possible to store custom metadata for volumes on Rackspace.
+
+        TODO: Tom suggested asking Rackspace directly.
+
+        If it's not possible, we can maybe store the dataset_id etc as JSON in the volume description field...but that sounds awful.
+
+        Return a BlockDeviceVolume via _blockdevicevolume_from_pyrax_volume
 
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html
 
@@ -56,17 +66,27 @@ class CinderBlockDeviceAPI(object):
            Should that be the value of ``BlockDeviceVolume.blockdevice_id`` ?
            That field type is unicode rather than UUID which was (I think) chosen so as to support provider specific volume ID strings.
         """
+        # pyrax.volume.create(...)
+        # ...then block until the volume status is "available"
 
     def list_volumes(self):
         """
-        Issue a ``detail`` volumes query which will include metadata
-        Return ``BlockDeviceVolume`` instances for all the Cinder devices that have the expected ``cluster_id`` in their name.
-        Extract the dataset_id from the metadata.
+        Issue a ``detail`` volumes query which will include metadata.
+        Return ``BlockDeviceVolume`` instances for all the Cinder devices that have the expected ``cluster_id`` among the metadata.
+        Use ``_blockdevicevolume_from_pyrax_volume`` to convert the object returned by the pyrax list method.
 
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html
 
-
+        See comment above about how pyrax.volume.list doesn't seem to return the metadata that you supply when creating a volume.
         """
+
+
+def _blockdevicevolume_from_pyrax_volume(blockdevice_id, pyrax_volume):
+    """
+    ```
+    :param CloudBlockStorageVolume pyrax_volume: The pyrax volume object returned by pyrax.volume.list.
+    :returns: A ``BlockDeviceVolume`` based on values found in the supplied instance.
+    """
 
 
 def authenticated_cinder_api(cluster_id, username, api_key, region, id_type="rackspace"):
