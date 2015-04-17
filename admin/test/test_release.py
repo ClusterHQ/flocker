@@ -5,7 +5,7 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipUnless
+from unittest import skipIf, skipUnless
 from setuptools import __version__ as setuptools_version
 import tempfile
 from textwrap import dedent
@@ -1489,17 +1489,22 @@ class UploadPythonPackagesTests(SynchronousTestCase):
         self.scratch_directory = FilePath(self.mktemp())
         self.top_level = FilePath(self.mktemp())
         self.top_level.makedirs()
+        self.version = '0.3.0'
+        self.aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            })
 
-    def upload_python_packages(self, aws, version):
+    def upload_python_packages(self, version):
         """
         Call :func:``upload_python_packages``.
 
-        :param FakeAWS aws: Fake AWS to interact with.
-        :param FakeYum yum: Fake yum utilities to interact with.
-
-        See :py:func:`update_repo` for other parameter documentation.
+        :param bytes version: Version to upload packages for.
+        See :py:func:`upload_python_packages` for other parameter
+        documentation.
         """
-        dispatchers = [aws.get_dispatcher(), base_dispatcher]
+        dispatchers = [self.aws.get_dispatcher(), base_dispatcher]
         sync_perform(
             ComposedDispatcher(dispatchers),
             upload_python_packages(
@@ -1515,14 +1520,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
         """
         Source and binary distributions of Flocker are uploaded to S3.
         """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                self.target_bucket: {},
-            })
-
-        version = '0.3.0'
-
         self.top_level.child('setup.py').setContent(
             dedent("""
                 from setuptools import setup
@@ -1532,16 +1529,13 @@ class UploadPythonPackagesTests(SynchronousTestCase):
                     version="{package_version}",
                     py_modules=["Flocker"],
                 )
-                """).format(package_version=version)
+                """).format(package_version=self.version)
         )
 
 
-        self.upload_python_packages(
-            aws=aws,
-            version=version,
-        )
+        self.upload_python_packages(version=self.version)
 
-        aws_keys = aws.s3_buckets[self.target_bucket].keys()
+        aws_keys = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(
             sorted(aws_keys),
             ['python/Flocker-0.3.0-py2-none-any.whl',
@@ -1552,10 +1546,16 @@ class UploadPythonPackagesTests(SynchronousTestCase):
         What happens when creating packages fails?.
         """
 
+    @skipIf(setuptools_version == "3.6", "setuptools must not be version 3.6")
     def test_setuptools_version_requirement(self):
         """
-        When setuptools' version is too new, a ValueError is raised.
+        When setuptools' version is not 3.6, a ValueError is raised.
         """
+        self.assertRaises(
+            ValueError,
+            self.upload_python_packages, self.version)
+
+
 
 
 class UploadOptionsTests(SynchronousTestCase):
