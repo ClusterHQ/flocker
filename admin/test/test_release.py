@@ -1500,22 +1500,26 @@ class UploadPythonPackagesTests(SynchronousTestCase):
 
     def upload_python_packages(self, version):
         """
-        Call :func:``upload_python_packages``.
+        Call :func:``upload_python_packages``, discarding output.
 
         :param bytes version: Version to upload packages for.
         See :py:func:`upload_python_packages` for other parameter
         documentation.
         """
         dispatchers = [self.aws.get_dispatcher(), base_dispatcher]
-        sync_perform(
-            ComposedDispatcher(dispatchers),
-            upload_python_packages(
-                scratch_directory=self.scratch_directory,
-                version=version,
-                target_bucket=self.target_bucket,
-                top_level=self.top_level,
+
+        with open(os.devnull, "w") as discard:
+            sync_perform(
+                ComposedDispatcher(dispatchers),
+                upload_python_packages(
+                    scratch_directory=self.scratch_directory,
+                    version=version,
+                    target_bucket=self.target_bucket,
+                    top_level=self.top_level,
+                    output=discard,
+                    error=discard,
+                )
             )
-        )
 
     @skipUnless(setuptools_version == "3.6", "setuptools must be version 3.6")
     def test_distributions_uploaded(self):

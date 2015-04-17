@@ -452,7 +452,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
 
 @do
 def upload_python_packages(scratch_directory, target_bucket, version,
-                           top_level):
+                           top_level, output, error):
     """
     The repository contains source distributions and binary distributions
     (wheels) for Flocker. It is currently hosted on Amazon S3.
@@ -471,12 +471,11 @@ def upload_python_packages(scratch_directory, target_bucket, version,
         raise ValueError("setuptools version is not 3.6")
 
     # TODO This outputs stuff, direct that somewhere?
-    check_call(['python', 'setup.py', 'sdist',
-                '--dist-dir={}'.format(scratch_directory.path)],
-                cwd=top_level.path)
-    check_call(['python', 'setup.py', 'bdist_wheel',
-                '--dist-dir={}'.format(scratch_directory.path)],
-                cwd=top_level.path)
+    check_call([
+        'python', 'setup.py',
+        'sdist', '--dist-dir={}'.format(scratch_directory.path),
+        'bdist_wheel', '--dist-dir={}'.format(scratch_directory.path)],
+        cwd=top_level.path, stdout=output, stderr=error)
 
     # TODO put an index.html in front of this bucket
     yield Effect(UploadToS3Recursively(
@@ -545,6 +544,8 @@ def publish_artifacts_main(args, base_path, top_level):
                 target_bucket=options['target'],
                 version=options['flocker-version'],
                 top_level=top_level,
+                output=sys.stdout,
+                error=sys.stderr,
                 ))
     except ValueError:
         sys.stderr.write("%s: setuptools version must be 3.6."
