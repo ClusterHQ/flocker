@@ -4,11 +4,11 @@
 Testing utilities for ``flocker.node``.
 """
 
-import errno
 import os
 import pwd
 import socket
-from unittest import skipUnless
+from unittest import skipIf
+from contextlib import closing
 
 from zope.interface import implementer
 
@@ -33,27 +33,25 @@ def docker_accessible():
 
     This may address https://clusterhq.atlassian.net/browse/FLOC-85.
 
-    :return: ``True`` if the current user has permission to connect, else
-        ``False``.
+    :return: A ``unicode`` string describing the reason Docker is not
+        accessible or ``None`` if it appears to be accessible.
     """
     try:
-        socket.socket(family=socket.AF_UNIX).connect(DOCKER_SOCKET_PATH)
+        with closing(socket.socket(family=socket.AF_UNIX)) as docker_socket:
+            docker_socket.connect(DOCKER_SOCKET_PATH)
     except socket.error as e:
-        if e.errno == errno.EACCES:
-            return False
-        if e.errno == errno.ENOENT:
-            # Docker is not installed
-            return False
-        raise
-    else:
-        return True
+        return os.strerror(e.errno)
+    return None
 
-if_docker_configured = skipUnless(
-    docker_accessible(),
-    "User '{}' does not have permission "
-    "to access the Docker server socket '{}'".format(
+_docker_reason = docker_accessible()
+
+if_docker_configured = skipIf(
+    _docker_reason,
+    "User {!r} cannot access Docker via {!r}: {}".format(
         pwd.getpwuid(os.geteuid()).pw_name,
-        DOCKER_SOCKET_PATH))
+        DOCKER_SOCKET_PATH,
+        _docker_reason,
+    ))
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
