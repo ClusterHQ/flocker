@@ -1534,7 +1534,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
                 """).format(package_version=self.version)
         )
 
-
         self.upload_python_packages(version=self.version)
 
         aws_keys = self.aws.s3_buckets[self.target_bucket].keys()
