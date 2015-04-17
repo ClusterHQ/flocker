@@ -14,7 +14,6 @@ from requests.exceptions import HTTPError
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from ..packaging import Distribution
 from ..release import (
     rpm_version, make_rpm_version, upload_rpms, update_repo,
     publish_docs, Environments,
@@ -744,7 +743,7 @@ class UpdateRepoTests(SynchronousTestCase):
             os.path.join(self.target_key, 'existing_package.rpm'): '',
             os.path.join(self.target_key,
                          'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm'):
-                'existing-content-to-be-replaced',
+                'existing-content-to-be-replaced',  # noqa
             os.path.join(self.target_key, 'repodata', 'repomod.xml'):
                 '<oldhash>-metadata.xml',
             os.path.join(self.target_key, 'repodata',
@@ -818,7 +817,7 @@ class UpdateRepoTests(SynchronousTestCase):
             os.path.join(self.target_key, 'existing_package.deb'): '',
             os.path.join(self.target_key,
                          'clusterhq-flocker-cli_0.3.3-0.dev.7_all.deb'):
-                'existing-content-to-be-replaced',
+                'existing-content-to-be-replaced',  # noqa
             os.path.join(self.target_key, 'Packages.gz'):
                 'metadata for: existing_package.deb',
         }
@@ -1014,20 +1013,6 @@ class UploadRPMsTests(SynchronousTestCase):
         self.scratch_directory.createDirectory()
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.example'
-        self.alternative_bucket = 'bucket-with-existing-package'
-        alt_scratch_directory = FilePath(self.mktemp())
-        alt_scratch_directory.createDirectory()
-        self.alternative_package_directory = alt_scratch_directory.child(
-            b'distro-version-arch')
-        self.operating_systems = [
-            Distribution(name='fedora', version='20'),
-            Distribution(name='centos', version='7'),
-            Distribution(name='ubuntu', version='14.04'),
-        ]
-        self.repo_contents = {
-            'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm': 'cli-package',
-            'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
-        }
 
     def test_upload_non_release_fails(self):
         """
@@ -1229,6 +1214,8 @@ def create_fake_repository(test_case, files):
     """
     Create files in a directory to mimic a repository of packages.
 
+    :param TestCase test_case: The test case to use for creating a temporary
+        directory.
     :param dict source_repo: Dictionary mapping names of files to create to
         contents.
     :return: FilePath of directory containing fake package files.
