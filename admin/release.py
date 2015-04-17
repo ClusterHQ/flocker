@@ -318,8 +318,6 @@ def publish_docs_main(args, base_path, top_level):
 
 
 class UploadOptions(Options):
-    # TODO make everything which uses this catch this, and not look for
-    # release types elsewhere.
     """
     Options for uploading artifacts.
     """
@@ -503,7 +501,6 @@ def publish_artifacts_main(args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    # SystemExit(None).
     options = UploadOptions()
 
     try:
