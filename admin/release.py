@@ -492,7 +492,10 @@ def upload_python_packages(scratch_directory, target_bucket, version):
 
     # TODO This outputs stuff, direct that somewhere?
     # use wheel.archive.archive_wheelfile?
-    check_call(['python', 'setup.py', 'sdist', 'bdist_wheel'])
+    check_call(['python', 'setup.py', 'sdist', '--dist-dir={}'.format(scratch_directory.path)])
+    check_call(['python', 'setup.py', 'bdist_wheel', '--dist-dir={}'.format(scratch_directory.path)])
+
+    import pdb; pdb.set_trace()
     # Upload python packages to ``archive.clusterhq.com``
     # TODO choose a new bucket name, old was gs://archive.clusterhq.com/downloads/flocker/
     # Don't worry about breaking archive.clusterhq.com
@@ -507,7 +510,7 @@ def upload_python_packages(scratch_directory, target_bucket, version):
     # here
     # use scratch directory for these files
     yield Effect(UploadToS3Recursively(
-        source_path=FilePath("dist"),
+        source_path=scratch_directory,
         target_bucket=target_bucket,
         target_key='python',
         files={

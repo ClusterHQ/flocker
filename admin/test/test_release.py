@@ -1423,6 +1423,7 @@ class UploadPythonPackagesTests(TestCase):
 
     def setUp(self):
         self.target_bucket = 'test-target-bucket'
+        self.scratch_directory = FilePath(self.mktemp())
 
     def upload_python_packages(self, aws, version):
         """
@@ -1437,7 +1438,7 @@ class UploadPythonPackagesTests(TestCase):
         sync_perform(
             ComposedDispatcher(dispatchers),
             upload_python_packages(
-                scratch_directory='TODO',
+                scratch_directory=self.scratch_directory,
                 version=version,
                 target_bucket=self.target_bucket,
             )
@@ -1477,7 +1478,7 @@ class UploadPythonPackagesTests(TestCase):
             aws=aws,
             version=version,
         )
-        self.addCleanup(FilePath('dist').remove)
+
         # TODO use something to get rid of output
         aws_keys = aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(
@@ -1487,7 +1488,7 @@ class UploadPythonPackagesTests(TestCase):
 
     def test_packaging_fails(self):
         """
-        Source and binary distributions of Flocker are uploaded to S3.
+        What happens when creating packages fails?.
         """
 
     def test_setuptools_version_requirement(self):
