@@ -22,7 +22,7 @@ from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
 
 try:
     from pymysql import connect
-    from pymysql.err import OperationalError
+    from pymysql.err import Error
     PYMYSQL_INSTALLED = True
 except ImportError:
     PYMYSQL_INSTALLED = False
@@ -175,14 +175,8 @@ class EnvironmentVariableTests(TestCase):
                             passwd=passwd,
                             db=db,
                         )
-                    except OperationalError as e:
-                        # PyMySQL doesn't provided a structured way to
-                        # get this.
-                        # https://github.com/PyMySQL/PyMySQL/issues/274
-                        if "Connection refused" in str(e):
-                            return False
-                        else:
-                            raise
+                    except Error:
+                        return False
                 dl = loop_until(mysql_can_connect)
                 return dl
             waiting_for_container.addCallback(mysql_connect)
