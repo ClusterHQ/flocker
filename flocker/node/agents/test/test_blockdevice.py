@@ -33,7 +33,7 @@ from ..blockdevice import (
     DESTROY_VOLUME,
 )
 
-from ... import IStateChange, in_parallel
+from ... import IStateChange, run_state_change, in_parallel
 from ...testtools import ideployer_tests_factory, to_node
 from ....testtools import run_process
 from ....control import (
@@ -1468,7 +1468,7 @@ class DestroyBlockDeviceDatasetTests(
             mountroot=mountroot,
         )
         change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
-        self.successResultOf(change.run(deployer))
+        self.successResultOf(run_state_change(change, deployer))
 
         # It's only possible to destroy a volume that's been detached.  It's
         # only possible to detach a volume that's been unmounted.  If the

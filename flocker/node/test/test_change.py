@@ -21,9 +21,11 @@ DEPLOYER = ControllableDeployer(u"192.168.1.1", (), ())
 
 
 SequentiallyIStateChangeTests = make_istatechange_tests(
-    sequentially, dict(changes=[1]), dict(changes=[2]))
+    sequentially, dict(changes=[1]), dict(changes=[2])
+)
 InParallelIStateChangeTests = make_istatechange_tests(
-    in_parallel, dict(changes=[1]), dict(changes=[2]))
+    in_parallel, dict(changes=[1]), dict(changes=[2])
+)
 
 
 def _test_nested_change(case, outer_factory, inner_factory):
