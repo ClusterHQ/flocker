@@ -170,7 +170,7 @@ class EnvironmentVariableTests(TestCase):
                     try:
                         return connect(
                             host=host,
-                            port=MYSQL_EXTERNAL_PORT,
+                            port=port,
                             user=user,
                             passwd=passwd,
                             db=db,
