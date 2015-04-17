@@ -5,6 +5,8 @@ Tests for movement of data across nodes.
 """
 from twisted.trial.unittest import TestCase
 
+from pyrsistent import thaw, freeze
+
 from .testtools import (flocker_deploy, get_mongo_client, get_nodes,
                         MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
                         require_mongo)
