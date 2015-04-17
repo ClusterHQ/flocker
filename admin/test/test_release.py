@@ -5,26 +5,33 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipUnless, TestCase
+from unittest import skipUnless
 import tempfile
+
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
+from git import Repo
 
 from requests.exceptions import HTTPError
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.python.usage import UsageError
+from twisted.trial.unittest import SynchronousTestCase
 
 from ..release import (
     upload_rpms, update_repo,
     publish_docs, Environments, DOCUMENTATION_CONFIGURATIONS,
     DocumentationRelease, NotTagged, NotARelease,
+    calculate_base_branch, create_release_branch,
+    CreateReleaseBranchOptions, BranchExists, TagExists,
+    BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 
 
-class PublishDocsTests(TestCase):
+class PublishDocsTests(SynchronousTestCase):
     """
     Tests for :func:``publish_docs``.
     """
@@ -776,7 +783,7 @@ class PublishDocsTests(TestCase):
         )
 
 
-class UploadRPMsTests(TestCase):
+class UploadRPMsTests(SynchronousTestCase):
     """
     Tests for :func:``upload_rpms``.
     """
@@ -1499,3 +1506,207 @@ class UploadRPMsTests(TestCase):
         self.assertTrue(
             expected_files.issubset(set(files_on_s3)),
             "Metadata files for the packages were not created.")
+
+
+class CreateReleaseBranchOptionsTests(SynchronousTestCase):
+    """
+    Tests for :class:`CreateReleaseBranchOptions`.
+    """
+
+    def test_flocker_version_required(self):
+          """
+          The ``--flocker-version`` option is required.
+          """
+          options = CreateReleaseBranchOptions()
+          self.assertRaises(
+              UsageError,
+              options.parseOptions, [])
+
+
+def create_git_repository(test_case):
+    """
+    Create a git repository with a ``master`` branch and ``README``.
+
+    :param test_case: The ``TestCase`` calling this.
+    """
+    directory = FilePath(test_case.mktemp())
+    directory.child('README').makedirs()
+    directory.child('README').touch()
+
+    repository = Repo.init(path=directory.path)
+    repository.index.add(['README'])
+    repository.index.commit('Initial commit')
+    repository.create_head('master')
+    return repository
+
+
+class CreateReleaseBranchTests(SynchronousTestCase):
+    """
+    Tests for :func:`create_release_branch`.
+    """
+    def setUp(self):
+        self.repo = create_git_repository(test_case=self)
+
+    def test_branch_exists_fails(self):
+        """
+        Trying to create a release when a branch already exists for the given
+        version fails.
+        """
+        branch = self.repo.create_head('release/flocker-0.3.0')
+
+        self.assertRaises(
+            BranchExists,
+            create_release_branch, '0.3.0', base_branch=branch)
+
+    def test_active_branch(self):
+        """
+        Creating a release branch changes the active branch on the given
+        branch's repository.
+        """
+        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+
+        create_release_branch(version='0.3.0', base_branch=branch)
+        self.assertEqual(
+            self.repo.active_branch.name,
+            "release/flocker-0.3.0")
+
+    def test_branch_created_from_base(self):
+        """
+        The new branch is created from the given branch.
+        """
+        master = self.repo.active_branch
+        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+        branch.checkout()
+        FilePath(self.repo.working_dir).child('NEW_FILE').touch()
+        self.repo.index.add(['NEW_FILE'])
+        self.repo.index.commit('Add NEW_FILE')
+        master.checkout()
+        create_release_branch(version='0.3.0', base_branch=branch)
+        self.assertIn((u'NEW_FILE', 0), self.repo.index.entries)
+
+
+class CalculateBaseBranchTests(SynchronousTestCase):
+    """
+    Tests for :func:`calculate_base_branch`.
+    """
+
+    def setUp(self):
+        self.repo = create_git_repository(test_case=self)
+
+    def calculate_base_branch(self, version):
+        return calculate_base_branch(
+            version=version, path=self.repo.working_dir)
+
+    def test_calculate_base_branch_for_non_release_fails(self):
+        """
+        Calling :func:`calculate_base_branch` with a version that isn't a
+        release fails.
+        """
+        self.assertRaises(
+            NotARelease,
+            self.calculate_base_branch, '0.3.0-444-gf05215b')
+
+    def test_weekly_release_base(self):
+        """
+        A weekly release is created from the "master" branch.
+        """
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0dev1').name,
+            "master")
+
+    def test_doc_release_base(self):
+        """
+        A documentation release is created from the release which is having
+        its documentation changed.
+        """
+        self.repo.create_head('release/flocker-0.3.0')
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0+doc1').name,
+            "release/flocker-0.3.0")
+
+    def test_first_pre_release(self):
+        """
+        The first pre-release for a marketing release is created from the
+        "master" branch.
+        """
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0pre1').name,
+            "master")
+
+    def test_uses_previous_pre_release(self):
+        """
+        The second pre-release for a marketing release is created from the
+        previous pre-release release branch.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.repo.create_head('release/flocker-0.3.0pre2')
+        self.repo.create_tag('0.3.0pre2')
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0pre3').name,
+            "release/flocker-0.3.0pre2")
+
+    def test_unparseable_tags(self):
+        """
+        There is no error raised if the repository contains a tag which cannot
+        be parsed as a version.
+        """
+        self.repo.create_head('release/flocker-0.3.0unparseable')
+        self.repo.create_tag('0.3.0unparseable')
+        self.repo.create_head('release/flocker-0.3.0pre2')
+        self.repo.create_tag('0.3.0pre2')
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0pre3').name,
+            "release/flocker-0.3.0pre2")
+
+    def test_parent_repository_used(self):
+        """
+        If a path is given as the repository path, the parents of that file
+        are searched until a Git repository is found.
+        """
+        self.assertEqual(
+            calculate_base_branch(
+                version='0.3.0dev1',
+                path=FilePath(self.repo.working_dir).child('README').path,
+            ).name,
+            "master")
+
+    def test_no_pre_releases_fails(self):
+        """
+        Trying to release a marketing release when no pre-release exists for it
+        fails.
+        """
+        self.assertRaises(
+            NoPreRelease,
+            self.calculate_base_branch, '0.3.0')
+
+    def test_missing_pre_release_fails(self):
+        """
+        Trying to release a pre-release when the previous pre-release does not
+        exist fails.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.assertRaises(
+            MissingPreRelease,
+            self.calculate_base_branch, '0.3.0pre3')
+
+    def test_base_branch_does_not_exist_fails(self):
+        """
+        Trying to create a release when the base branch does not exist fails.
+        """
+        self.repo.create_tag('0.3.0pre1')
+
+        self.assertRaises(
+            BaseBranchDoesNotExist,
+            self.calculate_base_branch, '0.3.0')
+
+    def test_tag_exists_fails(self):
+        """
+        Trying to create a release when a tag already exists for the given
+        version fails.
+        """
+        self.repo.create_tag('0.3.0')
+        self.assertRaises(
+            TagExists,
+            self.calculate_base_branch, '0.3.0')

@@ -941,6 +941,8 @@ class OmnibusPackageBuilderTests(TestCase):
                          flocker_cli_path),
                         (FilePath('/opt/flocker/bin/flocker'),
                          flocker_cli_path),
+                        (FilePath('/opt/flocker/bin/flocker-ca'),
+                         flocker_cli_path),
                     ]
                 ),
                 BuildPackage(
@@ -972,10 +974,6 @@ class OmnibusPackageBuilderTests(TestCase):
                 # clusterhq-flocker-node steps
                 CreateLinks(
                     links=[
-                        (FilePath('/opt/flocker/bin/flocker-reportstate'),
-                         flocker_node_path),
-                        (FilePath('/opt/flocker/bin/flocker-changestate'),
-                         flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-volume'),
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-control'),
