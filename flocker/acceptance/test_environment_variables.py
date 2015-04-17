@@ -6,7 +6,7 @@ Tests for environment variables.
 from unittest import skipUnless
 from uuid import uuid4
 
-from pyrsistent import pmap
+from pyrsistent import pmap, freeze, thaw
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -111,6 +111,10 @@ class EnvironmentVariableTests(TestCase):
                 },
             }
 
+            self.mysql_application_different_port = thaw(freeze(
+                self.mysql_application).transform(
+                    [u"applications", MYSQL_APPLICATION_NAME, u"ports", 0,
+                     u"external"], MYSQL_EXTERNAL_PORT + 1))
             flocker_deploy(self, mysql_deployment, self.mysql_application)
 
         deploying_mysql = getting_nodes.addCallback(deploy_mysql)
@@ -199,7 +203,7 @@ class EnvironmentVariableTests(TestCase):
             user=b'root',
             passwd=MYSQL_PASSWORD,
         )
-        # No assetion, since _get_mysql_connection will fire with a failure,
+        # No assertion, since _get_mysql_connection will fire with a failure,
         # if the credentials are incorrect.
 
     @require_pymysql
@@ -247,12 +251,15 @@ class EnvironmentVariableTests(TestCase):
             Move MySQL to ``node_2`` and return a ``Deferred`` which fires
             with a connection to the previously created database on ``node_2``.
             """
+            # Listen on different port so it's clear we're connecting to
+            # newly moved container as opposed to being routed to one that
+            # is about to moved:
             flocker_deploy(self, self.mysql_deployment_moved,
-                           self.mysql_application)
+                           self.mysql_application_different_port)
 
             getting_mysql = self._get_mysql_connection(
                 host=self.node_2,
-                port=MYSQL_EXTERNAL_PORT,
+                port=MYSQL_EXTERNAL_PORT + 1,
                 user=user,
                 passwd=MYSQL_PASSWORD,
                 db=database,
