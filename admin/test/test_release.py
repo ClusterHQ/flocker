@@ -1543,11 +1543,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
             ['python/Flocker-0.3.0-py2-none-any.whl',
              'python/Flocker-0.3.0.tar.gz'])
 
-    def test_packaging_fails(self):
-        """
-        What happens when creating packages fails?.
-        """
-
     def test_setuptools_version_requirement(self):
         """
         When setuptools' version is not 3.6, a ValueError is raised.
@@ -1557,8 +1552,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
         self.assertRaises(
             ValueError,
             self.upload_python_packages, self.version)
-
-
 
 
 class UploadOptionsTests(SynchronousTestCase):
