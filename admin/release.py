@@ -467,7 +467,7 @@ def upload_python_packages(scratch_directory, target_bucket, version,
     # TODO change all docs and other things (Homebrew too!) which use these
     # Python packages
     if setuptools_version != '3.6':
-        # TODO This should not be necessary, see
+        # XXX Use PEP440 version system so new setuptools can be used.
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
         raise ValueError("setuptools version is not 3.6")
 
