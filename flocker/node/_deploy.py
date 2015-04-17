@@ -499,8 +499,10 @@ class P2PManifestationDeployer(object):
         """
         Calculate necessary changes to peer-to-peer manifestations.
 
-        Datasets that are in use by applications (eventually leases)
-        cannot be deleted, handed-off or resized.
+        Datasets that are in use by applications cannot be deleted,
+        handed-off or resized. See
+        https://clusterhq.atlassian.net/browse/FLOC-1425 for leases, a
+        better solution.
         """
         local_state = cluster_state.get_node(self.hostname)
         # We need to know applications (for now) to see if we should delay
