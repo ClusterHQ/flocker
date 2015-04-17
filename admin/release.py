@@ -532,6 +532,7 @@ def publish_artifacts_main(args, base_path, top_level):
                                      base_dispatcher])
 
     # TODO separate sequence into another, tested function
+    # TODO use eliot logging instead of sys.stdout / stderr
     scratch_directory = FilePath(tempfile.mkdtemp(
         prefix=b'flocker-upload-'))
     scratch_directory.child('rpm').createDirectory()
