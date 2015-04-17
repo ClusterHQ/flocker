@@ -882,38 +882,6 @@ class UploadRPMsTests(SynchronousTestCase):
             'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm': 'node-package',
         }
 
-    def test_upload_non_release_fails(self):
-        """
-        Calling :func:`upload_rpms` with a version that isn't a release fails.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={},
-        )
-        yum = FakeYum()
-
-        self.assertRaises(
-            NotARelease,
-            self.upload_rpms, aws, yum,
-            self.rpm_directory, self.target_bucket, '0.3.0-444-gf05215b',
-            self.build_server)
-
-    def test_upload_doc_release_fails(self):
-        """
-        Calling :func:`upload_rpms` with a documentation release version fails.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={},
-        )
-        yum = FakeYum()
-
-        self.assertRaises(
-            DocumentationRelease,
-            self.upload_rpms, aws, yum,
-            self.rpm_directory, self.target_bucket, '0.3.0+doc1',
-            self.build_server)
-
     def test_packages_uploaded(self):
         """
         Calling :func:`update_repo` uploads packages from a source repository
