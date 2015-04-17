@@ -77,7 +77,11 @@ dev_requirements = [
     "requests==2.4.3",
     "requests-file==1.0",
 
+<<<<<<< HEAD
     "wheel=0.24.0",
+=======
+    "gitpython==1.0.0",
+>>>>>>> origin/master
 ]
 
 # The test suite uses network namespaces
@@ -129,11 +133,10 @@ setup(
         'console_scripts': [
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
-            'flocker-changestate = flocker.node.script:flocker_changestate_main',
-            'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
             'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
             'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
+            'flocker-ca = flocker.ca._script:flocker_ca_main',
             'flocker = flocker.cli.script:flocker_cli_main',
         ],
     },
@@ -159,7 +162,8 @@ setup(
         "jsonschema == 2.4.0",
         "klein == 0.2.3",
         "pyrsistent == 0.9.1",
-
+        "pycrypto == 2.6.1",
+        "pyOpenSSL == 0.14",
         "effect==0.1a13",
         ],
 
@@ -180,6 +184,7 @@ setup(
         # This extra is for Flocker release engineers to set up their release
         # environment.
         "release": [
+            "gitpython==1.0.0",
             "gsutil",
             "wheel=0.24.0",
             "virtualenv",

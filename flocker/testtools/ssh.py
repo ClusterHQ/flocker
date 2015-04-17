@@ -45,7 +45,7 @@ class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
         Validate some SSH key credentials.
 
         Access is granted only to root since that is the user we expect
-        for connections from ``flocker-cli`` and ``flocker-changestate``.
+        for connections from ZFS agents.
         """
         return (self._key.blob() == credentials.blob and
                 credentials.username == b"root")

@@ -15,7 +15,7 @@ from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from admin.vagrant import vagrant_version
-from admin.release import make_rpm_version
+from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
 from flocker.provision._ssh import (
@@ -321,7 +321,8 @@ class RunOptions(Options):
             self['config'] = {}
 
         if self['flocker-version']:
-            os_version = "%s-%s" % make_rpm_version(self['flocker-version'])
+            rpm_version = make_rpm_version(self['flocker-version'])
+            os_version = "%s-%s" % (rpm_version.version, rpm_version.release)
             if os_version.endswith('.dirty'):
                 os_version = os_version[:-len('.dirty')]
         else:

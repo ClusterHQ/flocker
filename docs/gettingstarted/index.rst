@@ -234,7 +234,7 @@ Getting started with Flocker
            ports:
             - "80:80"
          redis:
-           image: dockerfile/redis
+           image: redis
            ports:
             - "6379:6379"
            volumes: ["/data"]
