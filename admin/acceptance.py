@@ -85,9 +85,10 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
         reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
-            FLOCKER_ACCEPTANCE_NODES=':'.join(nodes),
-            FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node,
-            FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(agent_nodes),
+            FLOCKER_ACCEPTANCE_NODES=':'.join(node.address for node in nodes),
+            FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node.address,
+            FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
+                node.address for node in agent_nodes),
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
