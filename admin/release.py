@@ -473,7 +473,6 @@ def upload_python_packages(scratch_directory, target_bucket, version,
     :param bytes version: Version to upload packages as.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    # TODO document where the packages are
     # TODO change all docs and other things (Homebrew too!) which use these
     # Python packages
     # TODO put an index.html in front of this bucket
