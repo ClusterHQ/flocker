@@ -22,7 +22,8 @@ from ._deploy import _OldToNewDeployer
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
 from ..testtools import loop_until
-from ..control import IClusterStateChange, Node, NodeState, Deployment
+from ..control import (
+    IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -119,6 +120,7 @@ class ControllableDeployer(_OldToNewDeployer):
 
 # A deployment with no information:
 EMPTY = Deployment(nodes=[])
+EMPTY_STATE = DeploymentState()
 
 
 def ideployer_tests_factory(fixture):
