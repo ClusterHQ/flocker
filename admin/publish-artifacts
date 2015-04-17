@@ -10,4 +10,5 @@ import sys
 
 if __name__ == '__main__':
     from admin.release import publish_artifacts_main as main
-    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)
+    from twisted.internet.task import react
+    react(lambda: main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH))

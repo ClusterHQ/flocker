@@ -18,6 +18,8 @@ from subprocess import check_call
 from effect import (
     Effect, sync_perform, ComposedDispatcher, base_dispatcher)
 from effect.do import do
+from effect.twisted import perform
+
 from characteristic import attributes
 from git import GitCommandError, Repo
 
@@ -26,6 +28,7 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
 
 import flocker
+from flocker.provision._effect import sequence
 
 from flocker.common.version import (
     get_doc_version,
@@ -115,6 +118,13 @@ class MissingPreRelease(Exception):
 class NoPreRelease(Exception):
     """
     Raised if trying to release a marketing release if no pre-release exists.
+    """
+
+
+class IncorrectSetuptoolsVersion(Exception):
+    """
+    Raised if trying to create packages which require a specific version of
+    setuptools to be installed.
     """
 
 
@@ -521,42 +531,47 @@ def publish_artifacts_main(args, base_path, top_level):
     dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
                                      base_dispatcher])
 
-    # TODO use Sequence not just multiple effects?
-    try:
-        scratch_directory = FilePath(tempfile.mkdtemp(
-            prefix=b'flocker-upload-rpm-'))
+    # TODO separate sequence into another, tested function
+    scratch_directory = FilePath(tempfile.mkdtemp(
+        prefix=b'flocker-upload-'))
+    scratch_directory.child('rpm').createDirectory()
+    scratch_directory.child('python').createDirectory()
 
-        sync_perform(
-            dispatcher=dispatcher,
-            effect=upload_rpms(
-                scratch_directory=scratch_directory,
+    d = perform(
+        dispatcher=dispatcher,
+        effect=sequence([
+            upload_rpms(
+                scratch_directory=scratch_directory.child('rpm'),
                 target_bucket=options['target'],
                 version=options['flocker-version'],
                 build_server=options['build-server'],
-                ))
-    finally:
-        scratch_directory.remove()
-
-    try:
-        scratch_directory = FilePath(tempfile.mkdtemp(
-            prefix=b'flocker-upload-python-'))
-
-        sync_perform(
-            dispatcher=dispatcher,
-            effect=upload_python_packages(
-                scratch_directory=scratch_directory,
+            ),
+            upload_python_packages(
+                scratch_directory=scratch_directory.child('python'),
                 target_bucket=options['target'],
                 version=options['flocker-version'],
                 top_level=top_level,
                 output=sys.stdout,
                 error=sys.stderr,
-                ))
-    except ValueError:
-        sys.stderr.write("%s: setuptools version must be 3.6."
-                         % (base_path.basename(),))
-        raise SystemExit(1)
-    finally:
+            ),
+        ]),
+    )
+
+    def report_errors(f):
+        if f.check(IncorrectSetuptoolsVersion):
+            sys.stderr.write("%s: setuptools version must be 3.6."
+                % (base_path.basename(),))
+            raise SystemExit(1)
+        return f
+
+    d.addErrback(report_errors)
+
+    def cleanup(result):
         scratch_directory.remove()
+        return result
+
+    d.addBoth(cleanup)
+    return d
 
 
 def calculate_base_branch(version, path):
