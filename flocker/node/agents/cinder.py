@@ -2,6 +2,18 @@
 
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
+
+Notes:
+* I couldn't get shade working. It's documentation is out of date and when I'd figured out acceptable arguments to supply, I only got authentication failures.
+  https://github.com/openstack-infra/shade/
+* It uses third party libraries for parsing a "standard" clouds.yaml configuration file and then performing "keystone" authentication.
+  But the format of the clouds.yaml file is far from standard and I haven't yet figured out how to debug problems with the keystone authentication step.
+* pyrax on the other hand does authenticate, but may not be compatible with non-rackspace OpenStack installations (although it claims to be compatible...I haven't tried)
+* I experimented to see if could programatically create Rackspace volumes with metadata. Pyrax allows me to supply the metadata, but it doesn't seem to get saved. (see below)
+* I also tried using curl to issue REST API requests directly, but couldn't get the authentication working there either.
+* I don't understand OpenStack API authentication mechanism...that's probably the root problem.
+* I haven't tried the standard docs.openstack.org/developer/python-cinderclient library, but I guess that *should* be the best option.
+  It might be worth experimenting with that a little, especially to see how it handle volume metadata.
 """
 
 import pyrax
