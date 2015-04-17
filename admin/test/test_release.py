@@ -1599,10 +1599,10 @@ class UploadOptionsTests(SynchronousTestCase):
           fails.
           """
           options = UploadOptions()
-          options['flocker-version'] = '0.3.0-444-gf05215b'
           self.assertRaises(
               NotARelease,
-              options.parseOptions, [])
+              options.parseOptions,
+              ['--flocker-version', '0.3.0-444-gf05215b'])
 
 
     def test_documentation_release_fails(self):
@@ -1610,10 +1610,10 @@ class UploadOptionsTests(SynchronousTestCase):
           Trying to upload artifacts for a documentation version fails.
           """
           options = UploadOptions()
-          options['flocker-version'] = '0.3.0+doc1'
           self.assertRaises(
               DocumentationRelease,
-              options.parseOptions, [])
+              options.parseOptions,
+              ['--flocker-version', '0.3.0+doc1'])
 
 
 class CreateReleaseBranchOptionsTests(SynchronousTestCase):
