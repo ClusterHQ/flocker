@@ -76,6 +76,8 @@ dev_requirements = [
     # Packages are downloaded from Buildbot
     "requests==2.4.3",
     "requests-file==1.0",
+
+    "wheel=0.24.0",
 ]
 
 # The test suite uses network namespaces
@@ -179,7 +181,7 @@ setup(
         # environment.
         "release": [
             "gsutil",
-            "wheel",
+            "wheel=0.24.0",
             "virtualenv",
             "PyCrypto",
             "pyasn1",
