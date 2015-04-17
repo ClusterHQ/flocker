@@ -54,6 +54,8 @@ from .yum import (
     DownloadPackagesFromRepository,
 )
 
+from .packaging import Distribution
+
 
 class NotTagged(Exception):
     """
@@ -359,7 +361,6 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
     """
     package_directory.createDirectory()
 
-    from .packaging import Distribution
     distribution = Distribution(
         name=distro_name,
         version=distro_version,

@@ -15,7 +15,9 @@ from flocker.common.version import make_rpm_version
 
 from admin.packaging import (
     PACKAGE_ARCHITECTURE, Distribution,
-    package_filename)
+    PackageTypes,
+    package_filename,
+)
 
 
 @attributes([
@@ -101,8 +103,6 @@ def perform_create_repository(dispatcher, intent):
     """
     See :class:`CreateRepo`.
     """
-    from .packaging import PackageTypes, Distribution
-
     distribution = Distribution(
         name=intent.distro_name,
         version=intent.distro_version,
@@ -166,8 +166,6 @@ class FakeYum(object):
         """
         See :class:`CreateRepo`.
         """
-        from .packaging import PackageTypes, Distribution
-
         distribution = Distribution(
             name=intent.distro_name,
             version=intent.distro_version,
