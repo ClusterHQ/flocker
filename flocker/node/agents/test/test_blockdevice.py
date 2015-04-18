@@ -8,6 +8,8 @@ import os
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
+import psutil
+
 from zope.interface.verify import verifyObject
 
 from pyrsistent import InvariantException
@@ -33,6 +35,7 @@ from ..blockdevice import (
 
 from ... import IStateChange, in_parallel
 from ...testtools import ideployer_tests_factory, to_node
+from ....testtools import run_process
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
     NonManifestDatasets,
@@ -40,6 +43,7 @@ from ....control import (
 
 GIBIBYTE = 2 ** 30
 REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
+LOOPBACK_BLOCKDEVICE_SIZE = 1024 * 1024 * 64
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -47,6 +51,59 @@ if not platform.isLinux():
     # platforms.  Rather than skipping each test module individually it would
     # be nice to have some single global solution.  FLOC-1560, FLOC-1205
     skip = "flocker.node.agents.blockdevice is only supported on Linux"
+
+
+def make_filesystem(device, block_device):
+    """
+    Synchronously initialize a device file with an ext4 filesystem.
+
+    :param FilePath device: The path to the file onto which to put the
+        filesystem.  Anything accepted by ``mkfs`` is acceptable (including a
+        regular file instead of a device file).
+    :param bool block_device: If ``True`` then the device is expected to be a
+        block device and the ``-F`` flag will not be passed to ``mkfs``.  If
+        ``False`` then the device is expected to be a regular file rather than
+        an actual device and ``-F`` will be passed to ``mkfs`` to force it to
+        create the filesystem.  It's possible to detect whether the given file
+        is a device file or not.  This flag is required anyway because it's
+        about what the caller *expects*.  This is meant to provide an extra
+        measure of safety (these tests run as root, this function potentially
+        wipes the filesystem from the device specified, this could have bad
+        consequences if it goes wrong).
+    """
+    options = []
+    if block_device and not device.isBlockDevice():
+        raise Exception(
+            "{} is not a block device but it was expected to be".format(
+                device.path
+            )
+        )
+    elif device.isBlockDevice() and not block_device:
+        raise Exception(
+            "{} is a block device but it was not expected to be".format(
+                device.path
+            )
+        )
+    if not block_device:
+        options.extend([
+            # Force mkfs to make the filesystem even though the target is not a
+            # block device.
+            b"-F",
+        ])
+    command = [b"mkfs"] + options + [b"-t", b"ext4", device.path]
+    run_process(command)
+
+
+def mount(device, mountpoint):
+    """
+    Synchronously mount a filesystem.
+
+    :param FilePath device: The path to the device file containing the
+        filesystem.
+    :param mountpoint device: The path to an existing directory at which to
+        mount the filesystem.
+    """
+    run_process([b"mount", device.path, mountpoint.path])
 
 
 class BlockDeviceDeployerTests(
@@ -71,7 +128,8 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api = loopbackblockdeviceapi_for_test(self)
         self.deployer = BlockDeviceDeployer(
             hostname=self.expected_hostname,
-            block_device_api=self.api
+            block_device_api=self.api,
+            mountroot=mountroot_for_test(self),
         )
 
     def assertDiscoveredState(self, deployer, expected_manifestations,
@@ -122,10 +180,90 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         self.assertDiscoveredState(self.deployer, [])
 
+    def test_attached_unmounted_device(self):
+        """
+        If a volume is attached but not mounted, it is included as a
+        non-manifest dataset returned by ``BlockDeviceDeployer.discover_state``
+        and not as a manifestation on the ``NodeState``.
+        """
+        unmounted = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.api.attach_volume(
+            unmounted.blockdevice_id, self.expected_hostname
+        )
+        self.assertDiscoveredState(
+            self.deployer, expected_manifestations=[],
+            expected_nonmanifest_datasets=[unmounted.dataset_id]
+        )
+
+    def test_attached_and_mismounted(self):
+        """
+        If a volume is attached and mounted but not mounted at the location
+        ``BlockDeviceDeployer`` expects, it is included as a non-manifest
+        dataset returned by ``BlockDeviceDeployer.discover_state`` and not as a
+        manifestation on the ``NodeState``.
+        """
+        unexpected = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=LOOPBACK_BLOCKDEVICE_SIZE,
+        )
+
+        self.api.attach_volume(
+            unexpected.blockdevice_id, self.expected_hostname
+        )
+
+        device = self.api.get_device_path(unexpected.blockdevice_id)
+        make_filesystem(device, block_device=True)
+
+        # Mount it somewhere beneath the expected mountroot (so that it is
+        # cleaned up automatically) but not at the expected place beneath it.
+        mountpoint = self.deployer.mountroot.child(b"nonsense")
+        mountpoint.makedirs()
+        mount(device, mountpoint)
+
+        self.assertDiscoveredState(
+            self.deployer,
+            expected_manifestations=[],
+            expected_nonmanifest_datasets=[unexpected.dataset_id]
+        )
+
+    def test_unrelated_mounted(self):
+        """
+        If a volume is attached but an unrelated filesystem is mounted at the
+        expected location for that volume, it is included as a non-manifest
+        dataset returned by ``BlockDeviceDeployer.discover_state`` and not as a
+        manifestation on the ``NodeState``.
+        """
+        unrelated_device = FilePath(self.mktemp())
+        with unrelated_device.open("w") as unrelated_file:
+            unrelated_file.truncate(LOOPBACK_BLOCKDEVICE_SIZE)
+
+        unmounted = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        mountpoint = self.deployer.mountroot.child(bytes(unmounted.dataset_id))
+        mountpoint.makedirs()
+        self.api.attach_volume(
+            unmounted.blockdevice_id, self.expected_hostname
+        )
+
+        make_filesystem(unrelated_device, block_device=False)
+        mount(unrelated_device, mountpoint)
+
+        self.assertDiscoveredState(
+            self.deployer,
+            expected_manifestations=[],
+            expected_nonmanifest_datasets=[unmounted.dataset_id]
+        )
+
     def test_one_device(self):
         """
         ``BlockDeviceDeployer.discover_state`` returns a ``NodeState`` with one
-        ``manifestations`` if the ``api`` reports one locally attached volumes.
+        ``manifestations`` if the ``api`` reports one locally attached volume
+        and the volume's filesystem is mounted in the right place.
         """
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
@@ -135,6 +273,11 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api.attach_volume(
             new_volume.blockdevice_id, self.expected_hostname
         )
+        device = self.api.get_device_path(new_volume.blockdevice_id)
+        mountpoint = self.deployer.mountroot.child(bytes(dataset_id))
+        mountpoint.makedirs()
+        make_filesystem(device, block_device=True)
+        mount(device, mountpoint)
         expected_dataset = Dataset(
             dataset_id=dataset_id,
             maximum_size=REALISTIC_BLOCKDEVICE_SIZE
@@ -167,7 +310,11 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api.create_volume(
             dataset_id=dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE)
-        self.assertDiscoveredState(self.deployer, [], [dataset_id])
+        self.assertDiscoveredState(
+            self.deployer,
+            expected_manifestations=[],
+            expected_nonmanifest_datasets=[dataset_id]
+        )
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
@@ -320,7 +467,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
 
-class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
+class BlockDeviceDeployerCreationCalculateChangesTests(
         SynchronousTestCase
 ):
     """
@@ -1172,13 +1319,13 @@ def umount_all(root_path):
 
     :param FilePath root_path: A directory in which to search for mount points.
     """
-    for device_file, mountpoint_directory, filesystem_type in get_mounts():
+    for partition in psutil.disk_partitions():
         try:
-            mountpoint_directory.segmentsFrom(root_path)
+            FilePath(partition.mountpoint).segmentsFrom(root_path)
         except ValueError:
             pass
         else:
-            umount(device_file)
+            umount(FilePath(partition.device))
 
 
 def mountroot_for_test(test_case):
@@ -1312,8 +1459,8 @@ class DestroyBlockDeviceDatasetTests(
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
         mountpoint.makedirs()
-        check_output([b"mkfs", b"-t", b"ext4", device.path])
-        check_output([b"mount", device.path, mountpoint.path])
+        make_filesystem(device, block_device=True)
+        mount(device, mountpoint)
 
         deployer = BlockDeviceDeployer(
             hostname=node,
@@ -1360,7 +1507,7 @@ class UnmountBlockDeviceTests(make_state_change_tests(_make_unmount)):
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(unicode(dataset_id).encode("ascii"))
         mountpoint.makedirs()
-        check_output([b"mkfs", b"-t", b"ext4", device.path])
+        make_filesystem(device, block_device=True)
         check_output([b"mount", device.path, mountpoint.path])
 
         deployer = BlockDeviceDeployer(
@@ -1373,7 +1520,11 @@ class UnmountBlockDeviceTests(make_state_change_tests(_make_unmount)):
         self.successResultOf(change.run(deployer))
         self.assertNotIn(
             device,
-            [device_path for (device_path, ignored, ignored) in get_mounts()]
+            list(
+                FilePath(partition.device)
+                for partition
+                in psutil.disk_partitions()
+            )
         )
 
 
@@ -1548,17 +1699,10 @@ class CreateBlockDeviceDatasetTests(make_state_change_tests(_make_create)):
         )
 
         self.assertIn(
-            (device_path, expected_mountpoint, b"ext4"),
-            list(get_mounts())
+            (device_path.path, expected_mountpoint.path, b"ext4"),
+            list(
+                (partition.device, partition.mountpoint, partition.fstype)
+                for partition
+                in psutil.disk_partitions()
+            )
         )
-
-
-def get_mounts():
-    """
-    :returns: A generator 3-tuple(device_path, mountpoint, filesystem_type) for
-        each currently mounted filesystem reported in ``/proc/self/mounts``.
-    """
-    with open("/proc/self/mounts") as mounts:
-        for mount in mounts:
-            device_path, mountpoint, filesystem_type = mount.split()[:3]
-            yield FilePath(device_path), FilePath(mountpoint), filesystem_type

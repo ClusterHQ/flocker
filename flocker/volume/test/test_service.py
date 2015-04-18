@@ -22,7 +22,7 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from ..service import (
     VolumeService, CreateConfigurationError, Volume, VolumeName,
-    WAIT_FOR_VOLUME_INTERVAL, VolumeScript, ICommandLineVolumeScript,
+    VolumeScript, ICommandLineVolumeScript,
     VolumeSize,
     )
 from ..script import VolumeOptions
@@ -890,97 +890,6 @@ class VolumeOwnerChangeTests(TestCase):
             volume.change_owner(self.other_node_id))
         volumes = set(self.successResultOf(self.service.enumerate()))
         self.assertEqual({new_volume}, volumes)
-
-
-class WaitForVolumeTests(TestCase):
-    """"
-    Tests for ``VolumeService.wait_for_volume``.
-    """
-
-    def setUp(self):
-        """
-        Create a ``VolumeService`` pointing at a new pool.
-        """
-        self.clock = Clock()
-        self.pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        self.service = VolumeService(FilePath(self.mktemp()), self.pool,
-                                     reactor=self.clock)
-        self.service.startService()
-
-    def test_existing_volume(self):
-        """
-        If the volume already exists, the ``Deferred`` returned by
-        ``VolumeService.wait_for_volume`` has already fired with the
-        corresponding ``Volume``.
-        """
-        volume = self.successResultOf(
-            self.service.create(self.service.get(MY_VOLUME))
-        )
-        wait = self.service.wait_for_volume(MY_VOLUME)
-        self.assertEqual(self.successResultOf(wait), volume)
-
-    def test_created_named_volume(self):
-        """
-        ``VolumeService.wait_for_volume`` fires with a ``Volume`` of matching
-        name to the name passed as a parameter.
-        """
-        wait = self.service.wait_for_volume(MY_VOLUME)
-        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
-        volume = self.successResultOf(
-            self.service.create(self.service.get(MY_VOLUME))
-        )
-        volume2 = self.successResultOf(
-            self.service.create(self.service.get(MY_VOLUME2))
-        )
-        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
-        found_volume = self.successResultOf(wait)
-        self.assertEqual(found_volume, volume)
-        self.assertNotEqual(found_volume, volume2)
-
-    def test_created_volume(self):
-        """
-        The ``Deferred`` returned by ``VolumeService.wait_for_volume`` fires
-        with the corresponding ``Volume`` after the volume has been created.
-        """
-        wait = self.service.wait_for_volume(MY_VOLUME)
-        volume = self.successResultOf(
-            self.service.create(self.service.get(MY_VOLUME))
-        )
-        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
-        self.assertEqual(self.successResultOf(wait), volume)
-
-    def test_late_created_volume(self):
-        """
-        The ``Deferred`` returned by ``VolumeService.wait_for_volume`` fires
-        with the corresponding ``Volume`` after the volume has been created,
-        even if the volume is unavailable after the first iteration.
-        """
-        wait = self.service.wait_for_volume(MY_VOLUME)
-        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
-        volume = self.successResultOf(
-            self.service.create(self.service.get(MY_VOLUME))
-        )
-        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
-        self.assertEqual(self.successResultOf(wait), volume)
-
-    def test_no_volume(self):
-        """
-        If the volume doesn't exist, the ``Deferred`` returned by
-        ``VolumeService.wait_for_volume`` has not fired.
-        """
-        self.assertNoResult(self.service.wait_for_volume(MY_VOLUME))
-
-    def test_remote_volume(self):
-        """
-        The ``Deferred`` returned by ``VolumeService.wait_for_volume`` does not
-        fire when a remote volume with the same name is received.
-        """
-        other_node_id = unicode(uuid4())
-        remote_volume = Volume(node_id=other_node_id, name=MY_VOLUME,
-                               service=self.service)
-        self.successResultOf(self.pool.create(remote_volume))
-
-        self.assertNoResult(self.service.wait_for_volume(MY_VOLUME))
 
 
 class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):

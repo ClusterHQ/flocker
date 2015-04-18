@@ -15,7 +15,7 @@ control service, and sends inputs to the ConvergenceLoop state machine.
 
 from zope.interface import implementer
 
-from eliot import ActionType, Field
+from eliot import ActionType, Field, writeFailure
 from eliot.twisted import DeferredContext
 
 from characteristic import attributes
@@ -299,6 +299,9 @@ class ConvergenceLoop(object):
             )
             return run_state_change(action, self.deployer)
         d.addCallback(got_local_state)
+        # If an error occurred we just want to log it and then try
+        # converging again; hopefully next time we'll have more success.
+        d.addErrback(writeFailure, self.fsm.logger, u"")
 
         # It would be better to have a "quiet time" state in the FSM and
         # transition to that next, then have a timeout input kick the machine
@@ -313,8 +316,6 @@ class ConvergenceLoop(object):
                     1.0, self.fsm.receive, ConvergenceLoopInputs.ITERATION_DONE
                 )
         )
-        # This needs error handling:
-        # https://clusterhq.atlassian.net/browse/FLOC-1357
 
 
 def build_convergence_loop_fsm(reactor, deployer):

@@ -77,8 +77,7 @@ dev_requirements = [
     "requests==2.4.3",
     "requests-file==1.0",
 
-    # Functional programming is used in the release process.
-    "effect==0.1a13",
+    "gitpython==1.0.0",
 ]
 
 # The test suite uses network namespaces
@@ -130,11 +129,10 @@ setup(
         'console_scripts': [
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
-            'flocker-changestate = flocker.node.script:flocker_changestate_main',
-            'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
             'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
             'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
+            'flocker-ca = flocker.ca._script:flocker_ca_main',
             'flocker = flocker.cli.script:flocker_cli_main',
         ],
     },
@@ -147,7 +145,7 @@ setup(
         "zope.interface >= 4.0.5",
         "pytz",
         "characteristic >= 14.1.0",
-        "Twisted == 15.0.0",
+        "Twisted == 15.1.0",
 
         "PyYAML == 3.10",
 
@@ -160,6 +158,9 @@ setup(
         "jsonschema == 2.4.0",
         "klein == 0.2.3",
         "pyrsistent == 0.9.1",
+        "pycrypto == 2.6.1",
+        "pyOpenSSL == 0.14",
+        "effect==0.1a13",
         ],
 
     extras_require={
@@ -179,13 +180,13 @@ setup(
         # This extra is for Flocker release engineers to set up their release
         # environment.
         "release": [
+            "gitpython==1.0.0",
             "gsutil",
             "wheel",
             "virtualenv",
             "PyCrypto",
             "pyasn1",
             "tl.eggdeps",
-            "effect==0.1a13",
             "boto==2.30.0",
             # Packages are downloaded from Buildbot
             "requests==2.4.3",
