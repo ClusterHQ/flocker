@@ -22,7 +22,7 @@ To enable the Flocker control service.
 The control service needs to accessible remotely.
 To configure firewalld to allow access to the control service REST API, and for agent connections,
 
-.. task:: open_control_firewall
+.. task:: open_control_firewall fedora-20
    :prompt: [root@control-node]#
 
 (On AWS, an external firewall is used instead, which will need to be configured similarity).
