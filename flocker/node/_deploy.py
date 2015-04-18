@@ -136,8 +136,7 @@ def _eliot_system(part):
 
 
 @implementer(IStateChange)
-@attributes(["application", "node_state"])
-class StartApplication(object):
+class StartApplication(PRecord):
     """
     Launch the supplied application as a container.
 
@@ -147,6 +146,8 @@ class StartApplication(object):
     :ivar NodeState node_state: The state of the node the ``Application``
         is running on.
     """
+    application = field(type=Application, mandatory=True)
+    node_state = field(type=NodeState, mandatory=True)
 
     @property
     def eliot_action(self):
@@ -230,13 +231,14 @@ def _link_environment(protocol, alias, local_port, hostname, remote_port):
 
 
 @implementer(IStateChange)
-@attributes(["application"])
-class StopApplication(object):
+class StopApplication(PRecord):
     """
     Stop and disable the given application.
 
     :ivar Application application: The ``Application`` to stop.
     """
+    application = field(type=Application, mandatory=True)
+
     @property
     def eliot_action(self):
         return start_action(
@@ -251,13 +253,14 @@ class StopApplication(object):
 
 
 @implementer(IStateChange)
-@attributes(["dataset"])
-class CreateDataset(object):
+class CreateDataset(PRecord):
     """
     Create a new locally-owned dataset.
 
     :ivar Dataset dataset: Dataset to create.
     """
+    dataset = field(type=Dataset, mandatory=True)
+
     @property
     def eliot_action(self):
         return start_action(
@@ -311,6 +314,15 @@ class HandoffDataset(object):
     :ivar bytes hostname: The hostname of the node to which the dataset is
          meant to be handed off.
     """
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"handoff"),
+            dataset_id=self.dataset.dataset_id,
+            hostname=self.hostname,
+        )
+
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
@@ -332,6 +344,15 @@ class PushDataset(object):
     :ivar bytes hostname: The hostname of the node to which the dataset is
          meant to be pushed.
     """
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"push"),
+            dataset_id=self.dataset.dataset_id,
+            hostname=self.hostname,
+        )
+
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
@@ -355,6 +376,13 @@ class DeleteDataset(PRecord):
     """
     dataset = field(mandatory=True, type=Dataset)
 
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system("delete"),
+            dataset_id=self.dataset.dataset_id,
+        )
+
     def run(self, deployer):
         service = deployer.volume_service
         d = service.enumerate()
@@ -371,13 +399,21 @@ class DeleteDataset(PRecord):
 
 
 @implementer(IStateChange)
-@attributes(["ports"])
-class SetProxies(object):
+class SetProxies(PRecord):
     """
     Set the ports which will be forwarded to other nodes.
 
-    :ivar proxy: A collection of ``Port`` objects.
+    :ivar ports: A collection of ``Proxy`` objects.
     """
+    ports = pset_field(Proxy)
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system("setproxies"),
+            addresses=list(dict(port) for port in self.ports),
+        )
+
     def run(self, deployer):
         results = []
         # XXX: The proxy manipulation operations are blocking. Convert to a
@@ -402,8 +438,14 @@ class OpenPorts(PRecord):
 
     :ivar ports: A list of :class:`OpenPort`s.
     """
-
     ports = pset_field(OpenPort)
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system("openports"),
+            ports=list(port.port for port in self.ports),
+        )
 
     def run(self, deployer):
         results = []

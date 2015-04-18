@@ -8,6 +8,8 @@ from uuid import uuid4
 
 from eliot.testing import validate_logging
 
+from ipaddr import IPAddress
+
 from pyrsistent import pset
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
@@ -47,6 +49,45 @@ from ...volume.testtools import create_volume_service
 from ...volume._ipc import RemoteVolumeManager, standard_node
 
 from .istatechange import make_istatechange_tests
+
+
+# This models an application that has a volume.
+APPLICATION_WITH_VOLUME_NAME = u"psql-clusterhq"
+DATASET_ID = unicode(uuid4())
+DATASET = Dataset(dataset_id=DATASET_ID)
+APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
+APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
+APPLICATION_WITH_VOLUME = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+    volume=AttachedVolume(
+        manifestation=Manifestation(dataset=DATASET, primary=True),
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    ),
+    links=frozenset(),
+)
+MANIFESTATION = APPLICATION_WITH_VOLUME.volume.manifestation
+
+DATASET_WITH_SIZE = Dataset(dataset_id=DATASET_ID,
+                            metadata=DATASET.metadata,
+                            maximum_size=1024 * 1024 * 100)
+
+APPLICATION_WITH_VOLUME_SIZE = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+    volume=AttachedVolume(
+        manifestation=Manifestation(dataset=DATASET_WITH_SIZE,
+                                    primary=True),
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    ),
+    links=frozenset(),
+)
+
+MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
+
+# Placeholder in case at some point discovered application is different
+# than requested application:
+DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
 
 class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):
@@ -98,26 +139,51 @@ class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):
         )
 
 
+_DATASET_A = Dataset(dataset_id=unicode(uuid4()))
+_DATASET_B = Dataset(dataset_id=unicode(uuid4()))
+
+
 StartApplicationIStateChangeTests = make_istatechange_tests(
     StartApplication,
-    dict(application=1, node_state=NodeState(hostname="node1.example.com")),
-    dict(application=2, node_state=NodeState(hostname="node2.example.com")))
+    dict(
+        application=APPLICATION_WITH_VOLUME,
+        node_state=NodeState(hostname="node1.example.com")
+    ),
+    dict(
+        application=APPLICATION_WITH_VOLUME.set(name=u"throwaway-app"),
+        node_state=NodeState(hostname="node2.example.com")
+    )
+)
 StopApplicationIStageChangeTests = make_istatechange_tests(
-    StopApplication, dict(application=1), dict(application=2))
+    StopApplication,
+    dict(application=APPLICATION_WITH_VOLUME),
+    dict(application=APPLICATION_WITH_VOLUME.set(name=u"throwaway-app")),
+)
 SetProxiesIStateChangeTests = make_istatechange_tests(
-    SetProxies, dict(ports=[1]), dict(ports=[2]))
-CreateVolumeIStateChangeTests = make_istatechange_tests(
-    CreateDataset, dict(dataset=1), dict(dataset=2))
+    SetProxies,
+    dict(ports=[Proxy(ip=IPAddress("10.0.0.1"), port=1000)]),
+    dict(ports=[Proxy(ip=IPAddress("10.0.0.2"), port=2000)]),
+)
+CreateDatasetIStateChangeTests = make_istatechange_tests(
+    CreateDataset,
+    dict(dataset=_DATASET_A),
+    dict(dataset=_DATASET_B),
+)
 HandoffVolumeIStateChangeTests = make_istatechange_tests(
-    HandoffDataset, dict(dataset=1, hostname=b"123"),
-    dict(dataset=2, hostname=b"123"))
+    HandoffDataset,
+    dict(dataset=_DATASET_A, hostname=b"123"),
+    dict(dataset=_DATASET_B, hostname=b"123")
+)
 PushVolumeIStateChangeTests = make_istatechange_tests(
-    PushDataset, dict(dataset=1, hostname=b"123"),
-    dict(dataset=2, hostname=b"123"))
+    PushDataset,
+    dict(dataset=_DATASET_A, hostname=b"123"),
+    dict(dataset=_DATASET_B, hostname=b"123")
+)
 DeleteDatasetTests = make_istatechange_tests(
     DeleteDataset,
-    dict(dataset=Dataset(dataset_id=unicode(uuid4()))),
-    dict(dataset=Dataset(dataset_id=unicode(uuid4()))))
+    dict(dataset=_DATASET_A),
+    dict(dataset=_DATASET_B),
+)
 
 
 class ControllableActionIStateChangeTests(
@@ -471,46 +537,6 @@ class StopApplicationTests(SynchronousTestCase):
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
-
-
-# This models an application that has a volume.
-
-APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
-DATASET_ID = unicode(uuid4())
-DATASET = Dataset(dataset_id=DATASET_ID)
-APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
-APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
-APPLICATION_WITH_VOLUME = Application(
-    name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-    volume=AttachedVolume(
-        manifestation=Manifestation(dataset=DATASET, primary=True),
-        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    ),
-    links=frozenset(),
-)
-MANIFESTATION = APPLICATION_WITH_VOLUME.volume.manifestation
-
-DATASET_WITH_SIZE = Dataset(dataset_id=DATASET_ID,
-                            metadata=DATASET.metadata,
-                            maximum_size=1024 * 1024 * 100)
-
-APPLICATION_WITH_VOLUME_SIZE = Application(
-    name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-    volume=AttachedVolume(
-        manifestation=Manifestation(dataset=DATASET_WITH_SIZE,
-                                    primary=True),
-        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    ),
-    links=frozenset(),
-)
-
-MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
-
-# Placeholder in case at some point discovered application is different
-# than requested application:
-DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
 
 class DeployerDiscoverStateTests(SynchronousTestCase):
