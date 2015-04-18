@@ -18,6 +18,8 @@ from eliot import write_failure, Logger
 from twisted.internet.defer import gatherResults, fail, succeed
 
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
+from . import IStateChange, in_parallel, sequentially
+
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
     NodeState, DockerImage, Port, Link, Manifestation, Dataset,
@@ -45,33 +47,6 @@ def _to_volume_name(dataset_id):
     :return: ``VolumeName`` with default namespace.
     """
     return VolumeName(namespace=u"default", dataset_id=dataset_id)
-
-
-class IStateChange(Interface):
-    """
-    An operation that changes local state.
-    """
-    def run(deployer):
-        """
-        Apply the change to local state.
-
-        :param IDeployer deployer: The ``IDeployer`` to use. Specific
-            ``IStateChange`` providers may require specific ``IDeployer``
-            providers that provide relevant functionality for applying the
-            change.
-
-        :return: ``Deferred`` firing when the change is done.
-        """
-
-    def __eq__(other):
-        """
-        Return whether this change is equivalent to another.
-        """
-
-    def __ne__(other):
-        """
-        Return whether this change is not equivalent to another.
-        """
 
 
 class IDeployer(Interface):
@@ -154,34 +129,6 @@ class _OldToNewDeployer(object):
         local_state = cluster_state.get_node(self.hostname)
         return self.calculate_necessary_state_changes(
             local_state, configuration, cluster_state)
-
-
-@implementer(IStateChange)
-@attributes(["changes"])
-class Sequentially(object):
-    """
-    Run a series of changes in sequence, one after the other.
-
-    Failures in earlier changes stop later changes.
-    """
-    def run(self, deployer):
-        d = succeed(None)
-        for change in self.changes:
-            d.addCallback(lambda _, change=change: change.run(deployer))
-        return d
-
-
-@implementer(IStateChange)
-@attributes(["changes"])
-class InParallel(object):
-    """
-    Run a series of changes in parallel.
-
-    Failures in one change do not prevent other changes from continuing.
-    """
-    def run(self, deployer):
-        return gather_deferreds(
-            [change.run(deployer) for change in self.changes])
 
 
 @implementer(IStateChange)
@@ -508,7 +455,7 @@ class P2PManifestationDeployer(object):
         # We need to know applications (for now) to see if we should delay
         # deletion or handoffs. Eventually this will rely on leases instead.
         if local_state.applications is None:
-            return Sequentially(changes=[])
+            return sequentially(changes=[])
         phases = []
 
         # For now we delay deletion and handoffs until we know application
@@ -527,31 +474,31 @@ class P2PManifestationDeployer(object):
         resizing = [dataset for dataset in dataset_changes.resizing
                     if dataset.dataset_id not in in_use_datasets]
         if resizing:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 ResizeDataset(dataset=dataset)
                 for dataset in resizing]))
 
         going = [handoff for handoff in dataset_changes.going
                  if handoff.dataset.dataset_id not in in_use_datasets]
         if going:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 HandoffDataset(dataset=handoff.dataset,
                                hostname=handoff.hostname)
                 for handoff in going]))
 
         if dataset_changes.creating:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 CreateDataset(dataset=dataset)
                 for dataset in dataset_changes.creating]))
 
         deleting = [dataset for dataset in dataset_changes.deleting
                     if dataset.dataset_id not in in_use_datasets]
         if deleting:
-            phases.append(InParallel(changes=[
+            phases.append(in_parallel(changes=[
                 DeleteDataset(dataset=dataset)
                 for dataset in deleting
                 ]))
-        return Sequentially(changes=phases)
+        return sequentially(changes=phases)
 
 
 @implementer(IDeployer)
@@ -711,7 +658,7 @@ class ApplicationNodeDeployer(object):
             # We don't know current application state, so can't calculate
             # anything. This will be the case if we don't know the local
             # datasets' state yet; see notes in discover_state().
-            return Sequentially(changes=[])
+            return sequentially(changes=[])
 
         phases = []
 
@@ -775,7 +722,7 @@ class ApplicationNodeDeployer(object):
         ]
 
         restart_containers = [
-            Sequentially(changes=[
+            sequentially(changes=[
                 StopApplication(application=app),
                 StartApplication(application=app,
                                  node_state=current_node_state)])
@@ -805,16 +752,16 @@ class ApplicationNodeDeployer(object):
                     StartApplication(application=inspect_desired,
                                      node_state=current_node_state),
                 ]
-                sequence = Sequentially(changes=changes)
+                sequence = sequentially(changes=changes)
                 if sequence not in restart_containers:
                     restart_containers.append(sequence)
 
         if stop_containers:
-            phases.append(InParallel(changes=stop_containers))
+            phases.append(in_parallel(changes=stop_containers))
         start_restart = start_containers + restart_containers
         if start_restart:
-            phases.append(InParallel(changes=start_restart))
-        return Sequentially(changes=phases)
+            phases.append(in_parallel(changes=start_restart))
+        return sequentially(changes=phases)
 
 
 def find_dataset_changes(hostname, current_state, desired_state):
@@ -944,7 +891,7 @@ class P2PNodeDeployer(_OldToNewDeployer):
         """
         Combine changes from the application and ZFS agents.
         """
-        return Sequentially(changes=[
+        return sequentially(changes=[
             self.applications_deployer.calculate_changes(
                 configuration, cluster_state),
             self.manifestations_deployer.calculate_changes(
