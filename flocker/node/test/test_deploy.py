@@ -25,7 +25,7 @@ from ...control import (
     Application, DockerImage, Deployment, Node, Port, Link,
     NodeState, DeploymentState, RestartAlways)
 
-from .. import IStateChange, sequentially, in_parallel
+from .. import sequentially, in_parallel
 
 from .._deploy import (
     StartApplication, StopApplication,
