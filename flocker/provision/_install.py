@@ -227,14 +227,19 @@ def task_enable_flocker_control(distribution):
         raise NotImplementedError()
 
 
-def task_open_control_firewall():
+def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
-    return sequence([
-        configure_firewalld(['--add-service', service])
-        for service in ['flocker-control-api', 'flocker-control-agent']
-    ])
+    if distribution in ('centos-7', 'fedora-20'):
+        return sequence([
+            configure_firewalld(['--add-service', service])
+            for service in ['flocker-control-api', 'flocker-control-agent']
+        ])
+    elif distribution == 'ubuntu-14.04':
+        return sequence([])
+    else:
+        raise NotImplementedError()
 
 
 AGENT_CONFIG = """\
