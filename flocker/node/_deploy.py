@@ -18,7 +18,7 @@ from eliot import write_failure, Logger
 from twisted.internet.defer import gatherResults, fail, succeed
 
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
-from . import in_parallel, sequentially
+from . import IStateChange, in_parallel, sequentially
 
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
@@ -47,33 +47,6 @@ def _to_volume_name(dataset_id):
     :return: ``VolumeName`` with default namespace.
     """
     return VolumeName(namespace=u"default", dataset_id=dataset_id)
-
-
-class IStateChange(Interface):
-    """
-    An operation that changes local state.
-    """
-    def run(deployer):
-        """
-        Apply the change to local state.
-
-        :param IDeployer deployer: The ``IDeployer`` to use. Specific
-            ``IStateChange`` providers may require specific ``IDeployer``
-            providers that provide relevant functionality for applying the
-            change.
-
-        :return: ``Deferred`` firing when the change is done.
-        """
-
-    def __eq__(other):
-        """
-        Return whether this change is equivalent to another.
-        """
-
-    def __ne__(other):
-        """
-        Return whether this change is not equivalent to another.
-        """
 
 
 class IDeployer(Interface):
