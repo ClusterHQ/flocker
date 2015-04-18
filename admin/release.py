@@ -461,6 +461,22 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
 
 
 @do
+def upload_pip_index(scratch_directory, target_bucket, version):
+    """
+    # TODO, this
+    """
+    # TODO put an index.html in front of this bucket
+    # Add comment at the top saying it is an index for pip
+    # Look at last command in Wheelhouse section in buildbot README for a
+    # way to do this
+
+    # TODO target key is "python", shared with upload_python_packages so
+    # factor that out
+
+    # TODO call this from _main
+
+
+@do
 def upload_python_packages(scratch_directory, target_bucket, version,
                            top_level, output, error):
     """
@@ -475,10 +491,8 @@ def upload_python_packages(scratch_directory, target_bucket, version,
     """
     # TODO change all docs and other things (Homebrew too!) which use these
     # Python packages
-    # TODO put an index.html in front of this bucket
-    # Add comment at the top saying it is an index for pip
-    # Look at last command in Wheelhouse section in buildbot README
-    # TODO create a testing bucket - have a --production command line option
+
+    # TODO create a staging bucket - have a --production command line option
 
     if setuptools_version != '3.6':
         # XXX Use PEP440 version system so new setuptools can be used.
