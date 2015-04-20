@@ -456,7 +456,7 @@ Release
 
    Copy the configuration file to your home directory:
 
-   .. prompt:: bash [vagrant@localhost]$
+   .. prompt:: bash $
 
       cp .boto ~/
 
