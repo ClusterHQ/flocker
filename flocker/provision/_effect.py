@@ -18,6 +18,10 @@ class SequenceFailed(Exception, object):
     """
 
     def __str__(self):
+        # Exception has a custom __str__ that looks at arguments pass to it's
+        # init.  Since we don't pass any, it is useless. The following will
+        # duplicate the class name in the traceback, but is better than
+        # otherwise.
         return repr(self)
 
 
