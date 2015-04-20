@@ -196,6 +196,8 @@ class DestroyBlockDeviceDataset(PRecord):
     """
     dataset_id = field(type=UUID, mandatory=True)
 
+    # This can be replaced with a regular attribute when the `_logger` argument
+    # is no longer required by Eliot.
     @property
     def eliot_action(self):
         return DESTROY_BLOCK_DEVICE_DATASET(

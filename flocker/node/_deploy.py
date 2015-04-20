@@ -149,6 +149,11 @@ class StartApplication(PRecord):
     application = field(type=Application, mandatory=True)
     node_state = field(type=NodeState, mandatory=True)
 
+    # This (and other eliot_action implementations) uses `start_action` because
+    # it was easier than defining a new `ActionType` with a bunch of fields.
+    # It might be worth doing that work eventually, though.  Also, this can
+    # turn into a regular attribute when the `_logger` argument is no longer
+    # required by Eliot.
     @property
     def eliot_action(self):
         return start_action(
