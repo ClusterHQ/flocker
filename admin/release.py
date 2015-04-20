@@ -522,8 +522,6 @@ def upload_python_packages(scratch_directory, target_bucket, version,
     # TODO change all docs and other things (Homebrew too!) which use these
     # Python packages
 
-    # TODO create a staging bucket
-
     if setuptools_version != '3.6':
         # XXX Use PEP440 version system so new setuptools can be used.
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
@@ -561,14 +559,14 @@ def publish_artifacts_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
     except NotARelease:
-        sys.stderr.write("%s: Can't publish artifacts for a non-release."
+        sys.stderr.write("%s: Can't publish artifacts for a non-release.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
     except DocumentationRelease:
         # This should not raise 1 because the release process should continue
         # for a documentation release without publishing artifacts.
         sys.stderr.write("%s: Can't publish artifacts for a documentation "
-                         "release." % (base_path.basename(),))
+                         "release.\n" % (base_path.basename(),))
         return
 
     dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
