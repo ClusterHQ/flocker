@@ -1662,6 +1662,11 @@ class CreateReleaseBranchTests(SynchronousTestCase):
         self.assertIn((u'NEW_FILE', 0), self.repo.index.entries)
 
 
+class UploadPipIndexTests(SynchronousTestCase):
+    """
+    Tests for :func:`upload_pip_index`.
+    """
+
 class CalculateBaseBranchTests(SynchronousTestCase):
     """
     Tests for :func:`calculate_base_branch`.

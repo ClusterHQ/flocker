@@ -11,6 +11,7 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 import os
 import sys
 import tempfile
+from xml.sax.saxutils import quoteattr, escape
 
 from setuptools import __version__ as setuptools_version
 from subprocess import check_call
@@ -49,6 +50,7 @@ from .aws import (
     DeleteS3Keys,
     CopyS3Keys,
     DownloadS3KeyRecursively,
+    UploadToS3,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
 
@@ -459,12 +461,50 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
             distro_version=operating_system['version'],
         )
 
+def create_pip_index(packages, scratch_directory):
+    """
+    TODO
+    """
+    index_file = scratch_directory.child('index')
+    with index_file.open('w') as f:
+        f.write('<!--This is an index for pip-->\n')
+        for package in packages:
+            if package.endswith('.whl'):
+                f.write('<a href={destination}>{title}</a><br/>\n'.format(
+                    destination=quoteattr(package),
+                    title=escape(package)))
+    return index_file
+
 
 @do
 def upload_pip_index(scratch_directory, target_bucket, version):
     """
-    # TODO, this
+    # TODO this
+
+    Create an index for pip.
+
+    :param FilePath scratch_directory: Temporary directory to create packages
+        in.
+    :param bytes target_bucket: S3 bucket to upload packages to.
+    :param bytes version: Version to upload packages as.
+    :param FilePath top_level: The top-level of the flocker repository.
     """
+    packages = yield Effect(
+        ListS3Keys(bucket=target_bucket,
+                   prefix='python'))
+
+    index_path = create_pip_index(packages, scratch_directory)
+
+    yield Effect(
+        UploadToS3(
+            source_path=scratch_directory,
+            target_bucket=target_bucket,
+            target_key='python',
+            file=index_path.basename(),
+        ))
+
+    # )
+
     # TODO put an index.html in front of this bucket
     # Add comment at the top saying it is an index for pip
     # Look at last command in Wheelhouse section in buildbot README for a
@@ -472,6 +512,8 @@ def upload_pip_index(scratch_directory, target_bucket, version):
 
     # TODO target key is "python", shared with upload_python_packages so
     # factor that out
+
+    # Should be publically available
 
     # TODO call this from _main
 
