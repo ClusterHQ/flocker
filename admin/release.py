@@ -533,13 +533,12 @@ def upload_python_packages(scratch_directory, target_bucket, version,
         'bdist_wheel', '--dist-dir={}'.format(scratch_directory.path)],
         cwd=top_level.path, stdout=output, stderr=error)
 
+    files = set([file.basename() for file in scratch_directory.children()])
     yield Effect(UploadToS3Recursively(
         source_path=scratch_directory,
         target_bucket=target_bucket,
         target_key='python',
-        files={
-            'Flocker-%s.tar.gz' % version,
-            'Flocker-%s-py2-none-any.whl' % version},
+        files=files,
         ))
 
 
@@ -581,12 +580,12 @@ def publish_artifacts_main(args, base_path, top_level):
     d = perform(
         dispatcher=dispatcher,
         effect=sequence([
-            upload_rpms(
-                scratch_directory=scratch_directory.child('rpm'),
-                target_bucket=options['target'],
-                version=options['flocker-version'],
-                build_server=options['build-server'],
-            ),
+            # upload_rpms(
+            #     scratch_directory=scratch_directory.child('rpm'),
+            #     target_bucket=options['target'],
+            #     version=options['flocker-version'],
+            #     build_server=options['build-server'],
+            # ),
             upload_python_packages(
                 scratch_directory=scratch_directory.child('python'),
                 target_bucket=options['target'],
@@ -596,7 +595,7 @@ def publish_artifacts_main(args, base_path, top_level):
                 error=sys.stderr,
             ),
             upload_pip_index(
-                scratch_directory=scratch_directory.child('python'),
+                scratch_directory=scratch_directory.child('pip'),
                 target_bucket=options['target'],
             ),
         ]),
