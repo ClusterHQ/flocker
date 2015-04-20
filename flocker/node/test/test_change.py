@@ -22,6 +22,36 @@ InParallelIStateChangeTests = make_istatechange_tests(
     in_parallel, dict(changes=[1]), dict(changes=[2]))
 
 
+def _test_nested_change(case, outer_factory, inner_factory):
+    """
+    Assert that ``IChangeState`` providers wrapped inside ``inner_factory``
+    wrapped inside ``outer_factory`` are run with the same deployer argument as
+    is passed to ``run_state_change``.
+
+    :param TestCase case: A running test.
+    :param outer_factory: Either ``sequentially`` or ``in_parallel`` to
+        construct the top-level change to pass to ``run_state_change``.
+    :param inner_factory: Either ``sequentially`` or ``in_parallel`` to
+        construct a change to include the top-level change passed to
+        ``run_state_change``.
+
+    :raise: A test failure if the inner change is not run with the same
+        deployer as is passed to ``run_state_change``.
+    """
+    inner_action = ControllableAction(result=succeed(None))
+    subchanges = [
+        ControllableAction(result=succeed(None)),
+        inner_factory(changes=[inner_action]),
+        ControllableAction(result=succeed(None))
+    ]
+    change = outer_factory(changes=subchanges)
+    run_state_change(change, DEPLOYER)
+    case.assertEqual(
+        (True, DEPLOYER),
+        (inner_action.called, inner_action.deployer)
+    )
+
+
 class SequentiallyTests(SynchronousTestCase):
     """
     Tests for handling of ``sequentially`` by ``run_state_changes``.
@@ -97,6 +127,20 @@ class SequentiallyTests(SynchronousTestCase):
         called.extend([subchanges[1].called,
                        self.failureResultOf(result).value])
         self.assertEqual(called, [False, False, exception])
+
+    def test_nested_sequentially(self):
+        """
+        ``run_state_changes`` executes all of the changes in a ``sequentially``
+        nested within another ``sequentially``.
+        """
+        _test_nested_change(self, sequentially, sequentially)
+
+    def test_nested_in_parallel(self):
+        """
+        ``run_state_changes`` executes all of the changes in an ``in_parallel``
+        nested within a ``sequentially``.
+        """
+        _test_nested_change(self, sequentially, in_parallel)
 
 
 class InParallelTests(SynchronousTestCase):
@@ -179,3 +223,17 @@ class InParallelTests(SynchronousTestCase):
             len(subchanges),
             len(self.flushLoggedErrors(ZeroDivisionError))
         )
+
+    def test_nested_in_parallel(self):
+        """
+        ``run_state_changes`` executes all of the changes in an ``in_parallel``
+        nested within another ``in_parallel``.
+        """
+        _test_nested_change(self, in_parallel, in_parallel)
+
+    def test_nested_sequentially(self):
+        """
+        ``run_state_changes`` executes all of the changes in a ``sequentially``
+        nested within an ``in_parallel``.
+        """
+        _test_nested_change(self, in_parallel, sequentially)
