@@ -461,6 +461,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
             distro_version=operating_system['version'],
         )
 
+
 def create_pip_index(scratch_directory, packages):
     """
     Create an index file for pip.
@@ -504,9 +505,6 @@ def upload_pip_index(scratch_directory, target_bucket):
             file=index_path,
         ))
 
-    # )
-
-    # TODO Should this be index or index.html?
 
 @do
 def upload_python_packages(scratch_directory, target_bucket, version,
