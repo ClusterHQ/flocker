@@ -576,6 +576,7 @@ def publish_artifacts_main(args, base_path, top_level):
         prefix=b'flocker-upload-'))
     scratch_directory.child('rpm').createDirectory()
     scratch_directory.child('python').createDirectory()
+    scratch_directory.child('pip').createDirectory()
 
     d = perform(
         dispatcher=dispatcher,
