@@ -169,6 +169,9 @@ def task_disable_selinux(distribution):
                 "'s/^SELINUX=.*$/SELINUX=disabled/g' "
                 "/etc/selinux/config"),
         ])
+    elif distribution in ('fedora-20', 'ubuntu-14.04'):
+        # Fedora and Ubuntu do not have SELinux enabled
+        return sequence([])
     else:
         raise NotImplementedError()
 
@@ -182,9 +185,11 @@ def task_enable_docker(distribution):
             run_from_args(["systemctl", "enable", "docker.service"]),
             run_from_args(["systemctl", "start", "docker.service"]),
         ])
-    else:
+    elif distribution == 'ubuntu-14.04':
         # Ubuntu enables docker service during installation
         return sequence([])
+    else:
+        raise NotImplementedError()
 
 
 def configure_firewalld(rule):

@@ -61,11 +61,12 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
     """
     Run the acceptance tests.
 
-    :param list nodes: The list of nodes to run the acceptance tests against.
-    :param bytes control_node: The address of the control node to run API
-        acceptance tests against.
-    :param list agent_nodes: The list of nodes running flocker agent, to run
-        API acceptance tests against.
+    :param list nodes: The list of INode nodes to run the acceptance
+        tests against.
+    :param INode control_node: The control node to run API acceptance
+        tests against.
+    :param list agent_nodes: The list of INode nodes running flocker
+        agent, to run API acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
 

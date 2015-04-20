@@ -54,8 +54,8 @@ class InstallFlockerTests(SynchronousTestCase):
     def test_with_branch(self):
         """
         With a ``PackageSource`` containing just a branch,
-        ``task_install_flocker`` installs the latest build of the
-        branch from our build server.
+        ``task_install_flocker`` installs the latest build of the branch from
+        our build server.
         """
         distribution = 'fedora-20'
         source = PackageSource(branch="branch")
