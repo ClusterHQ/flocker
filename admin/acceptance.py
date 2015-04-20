@@ -146,8 +146,7 @@ class VagrantRunner(object):
                              % (self.distribution,))
 
         if self.variants:
-            raise UsageError("Unsupored varianta: %s."
-                             % (', '.join(self.variants),))
+            raise UsageError("Variants unsupported on vagrant.")
 
     @inlineCallbacks
     def start_nodes(self, reactor):
@@ -158,13 +157,18 @@ class VagrantRunner(object):
             ['vagrant', 'destroy', '-f'],
             path=self.vagrant_path.path)
 
-        box_version = vagrant_version(self.package_source.version)
+        if self.package_source.version:
+            env = extend_environ(
+                FLOCKER_BOX_VERSION=vagrant_version(
+                    self.package_source.version))
+        else:
+            env = os.environ
         # Boot the VMs
         yield run(
             reactor,
             ['vagrant', 'up'],
             path=self.vagrant_path.path,
-            env=extend_environ(FLOCKER_BOX_VERSION=box_version))
+            env=env)
 
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
