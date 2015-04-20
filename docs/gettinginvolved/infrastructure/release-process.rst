@@ -171,7 +171,6 @@ Preparing For a Release
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Update the staging documentation.
-   (For a maintenance or documentation release ``${VERSION}`` should be the the release receiving the maintenance).
 
    .. prompt:: bash $
 
