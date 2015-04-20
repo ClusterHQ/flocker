@@ -294,22 +294,13 @@ Release
 
    Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
 
-#. Build Python packages and upload them to ``archive.clusterhq.com``
+#. Build Python and RPM packages and upload them to ``archive.clusterhq.com``
 
    .. note:: Skip this step for a maintenance or documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
-      python setup.py sdist bdist_wheel
-      gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
-
-#. Build RPM packages and upload them to Amazon S3:
-
-   .. note:: Skip this step for a maintenance or documentation release.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      admin/publish-packages
+      admin/publish-artifacts
 
 #. Copy the tutorial box to the final location:
    
