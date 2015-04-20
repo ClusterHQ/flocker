@@ -16,48 +16,31 @@ from zope.interface import implementer
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 
-from ._ca import (CertificateAuthority, ControlCertificate, NodeCertificate,
+from ._ca import (RootCredential, ControlCredential, NodeCredential,
                   CertificateAlreadyExistsError, KeyAlreadyExistsError,
                   PathError)
 
 
-class CreateCertificateOptions(Options):
+@flocker_standard_options
+class NodeCertificateOptions(Options):
     """
-    Command line options for ``flocker-ca`` commands that generate
-    certificates signed by the authority certificate.
-    """
-
-    synopsis = "<authoritypath>"
-
-    def parseArgs(self, *args):
-        self["path"] = FilePath(os.getcwd())
-        self["rootpath"] = FilePath(os.getcwd())
-        if len(args) == 1:
-            self["rootpath"] = FilePath(args[0])
-        if len(args) > 1:
-            raise UsageError(
-                ("Invalid number of arguments. Run with --help for more "
-                 "information.")
-            )
-
-
-class NodeCertificateOptions(CreateCertificateOptions):
-    """
-    Command line options for ``flocker-ca create-control-certificate``.
+    Command line options for ``flocker-ca create-node-certificate``.
     """
 
     longdesc = """Create a new certificate for a node agent.
 
     Creates a certificate signed by a previously generated certificate
     authority (see flocker-ca initialize command for more information).
-
-    The certificate will be stored in the current working directory.
-
-    Parameters:
-
-    * authoritypath: Path to the root certificate's private key. Defaults to
-    ./cluster.key
     """
+
+    synopsis = "[OPTIONS]"
+
+    optParameters = [
+        ['inputpath', 'i', os.getcwd(),
+         'Path to directory containing root certificate.'],
+        ['outputpath', 'o', os.getcwd(),
+         'Path to directory to write control service certificate.'],
+    ]
 
     def run(self):
         """
@@ -67,12 +50,15 @@ class NodeCertificateOptions(CreateCertificateOptions):
         certificate signed by the root and write it out to the current
         directory.
         """
+        self["inputpath"] = FilePath(self["inputpath"])
+        self["outputpath"] = FilePath(self["outputpath"])
+
         d = Deferred()
 
         def generateCert(_):
             try:
-                ca = CertificateAuthority.from_path(self["rootpath"])
-                nc = NodeCertificate.initialize(self["path"], ca)
+                ca = RootCredential.from_path(self["inputpath"])
+                nc = NodeCredential.initialize(self["outputpath"], ca)
                 print (
                     b"Created {uuid}.crt. Copy it over to "
                     "/etc/flocker/node.crt on your node "
@@ -93,7 +79,8 @@ class NodeCertificateOptions(CreateCertificateOptions):
         return d
 
 
-class ControlCertificateOptions(CreateCertificateOptions):
+@flocker_standard_options
+class ControlCertificateOptions(Options):
     """
     Command line options for ``flocker-ca create-control-certificate``.
     """
@@ -103,13 +90,18 @@ class ControlCertificateOptions(CreateCertificateOptions):
     Creates a certificate signed by a previously generated certificate
     authority (see flocker-ca initialize command for more information).
 
-    The certificate will be stored in the current working directory.
-
-    Parameters:
-
-    * authoritypath: Path to the root certificate's private key. Defaults to
-    ./cluster.key
+    The certificate will be stored in the specified output directory
+    (defaults to current working directory).
     """
+
+    synopsis = "[OPTIONS]"
+
+    optParameters = [
+        ['inputpath', 'i', os.getcwd(),
+         'Path to directory containing root certificate.'],
+        ['outputpath', 'o', os.getcwd(),
+         'Path to directory to write control service certificate.'],
+    ]
 
     def run(self):
         """
@@ -120,20 +112,23 @@ class ControlCertificateOptions(CreateCertificateOptions):
         errors, create a new control service certificate signed by the root
         and write it out to the current directory.
         """
+        self["inputpath"] = FilePath(self["inputpath"])
+        self["outputpath"] = FilePath(self["outputpath"])
+
         d = Deferred()
 
         def generateCert(_):
             try:
-                ca = CertificateAuthority.from_path(self["rootpath"])
-                ControlCertificate.initialize(self["path"], ca)
+                ca = RootCredential.from_path(self["inputpath"])
+                ControlCredential.initialize(self["outputpath"], ca)
                 print (
                     b"Created control-service.crt. Copy it over to "
                     "/etc/flocker/control-service.crt on your control service "
                     "machine and make sure to chmod 0600 it."
                 )
-            except CertificateAlreadyExistsError as e:
-                raise UsageError(str(e))
-            except PathError as e:
+            except (
+                CertificateAlreadyExistsError, KeyAlreadyExistsError, PathError
+            ) as e:
                 raise UsageError(str(e))
 
         def generateError(failure):
@@ -146,6 +141,7 @@ class ControlCertificateOptions(CreateCertificateOptions):
         return d
 
 
+@flocker_standard_options
 class InitializeOptions(Options):
     """
     Command line options for ``flocker-ca initialize``.
@@ -165,7 +161,7 @@ class InitializeOptions(Options):
       e.g. "mycluster".
     """
 
-    synoposis = "<name>"
+    synopsis = "<name>"
 
     def parseArgs(self, name):
         self["name"] = name
@@ -182,7 +178,7 @@ class InitializeOptions(Options):
 
         def generateCert(_):
             try:
-                CertificateAuthority.initialize(self["path"], self["name"])
+                RootCredential.initialize(self["path"], self["name"])
                 print (
                     b"Created cluster.key and cluster.crt. "
                     "Please keep cluster.key secret, as anyone who can access "
@@ -214,7 +210,7 @@ class CAOptions(Options):
     API clients within a Flocker cluster.
     """
 
-    synopsis = "Usage: flocker-ca <command> [OPTIONS]"
+    synopsis = "Usage: flocker-ca"
 
     subCommands = [
         ["initialize", None, InitializeOptions,
