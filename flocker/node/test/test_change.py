@@ -7,7 +7,11 @@ Tests for ``flocker.node._change``.
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import FirstError, Deferred, succeed, fail
 
-from ..testtools import ControllableAction, ControllableDeployer
+from eliot.testing import validate_logging, assertHasAction
+
+from ..testtools import (
+    CONTROLLABLE_ACTION_TYPE, ControllableAction, ControllableDeployer
+)
 
 from .. import sequentially, in_parallel, run_state_change
 
@@ -17,9 +21,11 @@ DEPLOYER = ControllableDeployer(u"192.168.1.1", (), ())
 
 
 SequentiallyIStateChangeTests = make_istatechange_tests(
-    sequentially, dict(changes=[1]), dict(changes=[2]))
+    sequentially, dict(changes=[1]), dict(changes=[2])
+)
 InParallelIStateChangeTests = make_istatechange_tests(
-    in_parallel, dict(changes=[1]), dict(changes=[2]))
+    in_parallel, dict(changes=[1]), dict(changes=[2])
+)
 
 
 def _test_nested_change(case, outer_factory, inner_factory):
@@ -237,3 +243,49 @@ class InParallelTests(SynchronousTestCase):
         nested within an ``in_parallel``.
         """
         _test_nested_change(self, in_parallel, sequentially)
+
+
+class RunStateChangeTests(SynchronousTestCase):
+    """
+    Direct unit tests for ``run_state_change``.
+    """
+    def test_run(self):
+        """
+        ``run_state_change`` calls the ``run`` method of the ``IStateChange``
+        passed to it and passes along the same deployer it was called with.
+        """
+        action = ControllableAction(result=succeed(None))
+        run_state_change(action, DEPLOYER)
+        self.assertTrue(
+            (True, DEPLOYER),
+            (action.called, action.deployer)
+        )
+
+    @validate_logging(
+        assertHasAction, CONTROLLABLE_ACTION_TYPE, succeeded=True,
+    )
+    def test_succeed(self, logger):
+        """
+        If the change passed to ``run_state_change`` returns a ``Deferred``
+        that succeeds, the ``Deferred`` returned by ``run_state_change``
+        succeeds.
+        """
+        action = ControllableAction(result=succeed(None))
+        action._logger = logger
+        self.assertIs(
+            None, self.successResultOf(run_state_change(action, DEPLOYER))
+        )
+
+    @validate_logging(
+        assertHasAction, CONTROLLABLE_ACTION_TYPE, succeeded=False,
+    )
+    def test_failed(self, logger):
+        """
+        If the change passed to ``run_state_change`` returns a ``Deferred``
+        that fails, the ``Deferred`` returned by ``run_state_change`` fails the
+        same way.
+        """
+        action = ControllableAction(result=fail(Exception("Oh no")))
+        action._logger = logger
+        failure = self.failureResultOf(run_state_change(action, DEPLOYER))
+        self.assertEqual(failure.getErrorMessage(), "Oh no")
