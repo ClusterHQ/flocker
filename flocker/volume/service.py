@@ -17,7 +17,6 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import maybeDeferred
-from twisted.internet.task import deferLater
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.defer import fail
@@ -209,37 +208,6 @@ class VolumeService(Service):
         :return: A ``Volume``.
         """
         return Volume(node_id=self.node_id, name=name, service=self, **kwargs)
-
-    def wait_for_volume(self, name):
-        """
-        Wait for a volume by the given name, owned by thus service, to exist.
-
-        Polls the storage pool for the specified volume to appear.
-
-        :param VolumeName name: The name of the volume.
-
-        :return: A ``Deferred`` that fires with a :class:`Volume`.
-        """
-        def check_for_volume(node_id, name):
-            d = self.enumerate()
-            d.addCallback(compare_volumes_by_name_node_id, node_id, name)
-            return d
-
-        def compare_volumes_by_name_node_id(volumes, node_id, name):
-            """
-            Iterate the volumes managed by this service and compare the
-            node ID and the ``VolumeName`` to determine if we have found the
-            ``Volume`` instance requested by name.
-            """
-            for volume in volumes:
-                if volume.node_id == node_id and volume.name == name:
-                    return volume
-            return deferLater(
-                self._reactor, WAIT_FOR_VOLUME_INTERVAL,
-                check_for_volume, node_id, name
-            )
-
-        return check_for_volume(self.node_id, name)
 
     def enumerate(self):
         """Get a listing of all volumes managed by this service.
