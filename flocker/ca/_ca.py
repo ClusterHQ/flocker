@@ -37,6 +37,19 @@ class PathError(Exception):
     """
     Error raised when the directory for certificate files does not exist.
     """
+    def __init__(self, message, filename=None, code=None, failure=None):
+        super(PathError, self).__init__(message)
+        self.filename = filename
+        self.code = code
+        self.failure = failure
+
+    def __str__(self):
+        error = self.message
+        if self.failure:
+            error = error + b" " + self.failure
+        if self.filename:
+            error = error + b" " + self.filename
+        return error
 
 
 class ComparableKeyPair(object):
@@ -138,17 +151,19 @@ def load_certificate_from_path(path, key_filename, cert_filename):
     try:
         certFile = certPath.open()
     except IOError as e:
+        code, failure = e
         raise PathError(
-            (b"Certificate file could not be opened. "
-             b"{error}").format(error=str(e))
+            b"Certificate file could not be opened.",
+            e.filename, code, failure
         )
 
     try:
         keyFile = keyPath.open()
     except IOError as e:
+        code, failure = e
         raise PathError(
-            (b"Private key file could not be opened. "
-             b"{error}").format(error=str(e))
+            b"Private key file could not be opened.",
+            e.filename, code, failure
         )
 
     certificate = Certificate.load(
@@ -201,14 +216,16 @@ class FlockerCredential(PRecord):
                     key_file.write(
                         self.keypair.keypair.dump(crypto.FILETYPE_PEM))
             except (IOError, OSError) as e:
+                code, failure = e
                 raise PathError(
-                    (b"Unable to write private key file. "
-                     b"{error}").format(error=str(e))
+                    b"Unable to write private key file.",
+                    e.filename, code, failure
                 )
         except (IOError, OSError) as e:
+            code, failure = e
             raise PathError(
-                (b"Unable to write certificate file. "
-                 b"{error}").format(error=str(e))
+                b"Unable to write certificate file.",
+                e.filename, code, failure
             )
         finally:
             os.umask(original_umask)
@@ -268,9 +285,17 @@ class RootCredential(FlockerCredential):
     """
     @classmethod
     def from_path(cls, path):
-        keypair, certificate = load_certificate_from_path(
-            path, AUTHORITY_KEY_FILENAME, AUTHORITY_CERTIFICATE_FILENAME
-        )
+        try:
+            keypair, certificate = load_certificate_from_path(
+                path, AUTHORITY_KEY_FILENAME, AUTHORITY_CERTIFICATE_FILENAME
+            )
+        except PathError as e:
+            # Re-raise, but with a more specific message.
+            error = b"Unable to load certificate authority file."
+            if e.code == 2:
+                error = error + (b" Please run `flocker-ca initialize` to "
+                                 b"generate a new certificate authority.")
+            raise PathError(error, e.filename, e.code, e.failure)
         return cls(
             path=path, keypair=keypair, certificate=certificate
         )
