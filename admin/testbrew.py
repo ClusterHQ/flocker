@@ -17,17 +17,19 @@ The guest virtual machine must have:
 import os
 import sys
 import urllib2
-from subprocess import check_output, CalledProcessError
 
+from twisted.internet.deferred import inlineCallbacks
+from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
 from flocker.provision._install import task_test_homebrew
 from flocker.provision._ssh import run_remotely
-from flocker.provision._ssh._fabric import dispatcher
+from flocker.provision._ssh._conch import make_dispatcher
 from effect import sync_perform as perform
 from flocker import __version__
 
+from .runner import run
 
 YOSEMITE_VMX_PATH = os.path.expanduser((
     "~/Documents/Virtual Machines.localized/"
@@ -73,7 +75,8 @@ class TestBrewOptions(Options):
         sys.exit(0)
 
 
-def main(args):
+@inlineCallbacks
+def main(reactor, args):
     try:
         options = TestBrewOptions()
         try:
@@ -86,33 +89,29 @@ def main(args):
         # Open the recipe URL just to validate and verify that it exists.
         # We do not need to read its content.
         urllib2.urlopen(recipe_url)
-        check_output([
+        yield run([
             "vmrun", "revertToSnapshot",
             options['vmpath'].path, options['vmsnapshot'],
         ])
-        check_output([
+        yield run([
             "vmrun", "start", options['vmpath'].path, "nogui",
         ])
-        perform(
-            dispatcher,
+        yield perform(
+            make_dispatcher(reactor),
             run_remotely(
                 username=options['vmuser'],
                 address=options['vmhost'],
                 commands=task_test_homebrew(recipe_url)
             ),
         )
-        check_output([
+        yield run([
             "vmrun", "stop", options['vmpath'].path, "hard",
         ])
         print "Done."
-    except CalledProcessError as e:
+    except ProcessTerminated as e:
         sys.stderr.write(
             (
-                "Error: Command {cmd} terminated with exit status {code}.\n"
-            ).format(cmd=" ".join(e.cmd), code=e.returncode)
+                "Error: Command terminated with exit status {code}.\n"
+            ).format(code=e.exitCode)
         )
         raise
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
