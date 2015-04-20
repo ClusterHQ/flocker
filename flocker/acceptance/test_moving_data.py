@@ -51,7 +51,7 @@ class MovingDataTests(TestCase):
         volume_application_different_port = thaw(freeze(
             volume_application).transform(
                 [u"applications", MONGO_APPLICATION, u"ports", 0,
-                 u"external", 27018]))
+                 u"external"], 27018))
 
         def deploy_data_application(node_ips):
             self.node_1, self.node_2 = node_ips

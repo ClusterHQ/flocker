@@ -109,7 +109,7 @@ class PostgresTests(TestCase):
             self.postgres_application_different_port = thaw(freeze(
                 self.postgres_application).transform(
                     [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
-                     u"external", POSTGRES_EXTERNAL_PORT + 1]))
+                     u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
             flocker_deploy(self, postgres_deployment,
                            self.postgres_application)
