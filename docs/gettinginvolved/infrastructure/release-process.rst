@@ -313,7 +313,6 @@ Release
    .. prompt:: bash [vagrant@localhost]$
 
       cd flocker-${VERSION}
-      # TODO remove this workon when the artifacts section is removed
       workon flocker-release-${VERSION}
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
@@ -328,7 +327,6 @@ Release
    Wait for the build to complete successfully.
 
 #. Build and upload artifacts:
-   # TODO remove this once it is automated.
 
    .. note:: Skip this step for a maintenance or documentation release.
 
