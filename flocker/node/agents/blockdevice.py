@@ -10,7 +10,7 @@ devices.
 from uuid import UUID
 from subprocess import check_output
 
-from eliot import ActionType, Field, Logger
+from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
@@ -120,9 +120,15 @@ BLOCK_DEVICE_HOST = Field(
 CREATE_BLOCK_DEVICE_DATASET = ActionType(
     u"agent:blockdevice:create",
     [DATASET, MOUNTPOINT],
+    [],
+    u"A block-device-backed dataset is being created.",
+)
+
+BLOCK_DEVICE_DATASET_CREATED = MessageType(
+    u"agent:blockdevice:created",
     [DEVICE_PATH, BLOCK_DEVICE_ID, DATASET_ID, BLOCK_DEVICE_SIZE,
      BLOCK_DEVICE_HOST],
-    u"A block-device-backed dataset is being created.",
+    u"A block-device-backed dataset has been created.",
 )
 
 DESTROY_BLOCK_DEVICE_DATASET = ActionType(
@@ -354,13 +360,13 @@ class CreateBlockDeviceDataset(PRecord):
         self.mountpoint.makedirs()
         check_output(["mount", device.path, self.mountpoint.path])
 
-        # action.add_success_fields(
-        #     block_device_path=device,
-        #     block_device_id=volume.blockdevice_id,
-        #     dataset_id=volume.dataset_id,
-        #     block_device_size=volume.size,
-        #     block_device_host=volume.host,
-        # )
+        BLOCK_DEVICE_DATASET_CREATED(
+            block_device_path=device,
+            block_device_id=volume.blockdevice_id,
+            dataset_id=volume.dataset_id,
+            block_device_size=volume.size,
+            block_device_host=volume.host,
+        ).write(_logger)
         return succeed(None)
 
 
