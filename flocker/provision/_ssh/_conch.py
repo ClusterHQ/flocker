@@ -16,7 +16,6 @@ from twisted.conch.endpoints import (
     SSHCommandClientEndpoint, _NewConnectionHelper, _ReadFile, ConsoleUI)
 
 from twisted.conch.client.knownhosts import KnownHostsFile
-from twisted.conch.ssh.keys import Key
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
@@ -129,11 +128,6 @@ def get_connection_helper(address, username, port):
 
     :return _ISSHConnectionCreator:
     """
-    key_path = FilePath(os.path.expanduser('~/.ssh/id_rsa'))
-    if key_path.exists():
-        keys = [Key.fromString(key_path.getContent())]
-    else:
-        keys = None
     try:
         agentEndpoint = UNIXClientEndpoint(
             reactor, os.environ["SSH_AUTH_SOCK"])
@@ -142,7 +136,7 @@ def get_connection_helper(address, username, port):
 
     return _NewConnectionHelper(
         reactor, address, port, None, username,
-        keys=keys,
+        keys=None,
         password=None,
         agentEndpoint=agentEndpoint,
         knownHosts=KnownHostsFile.fromPath(FilePath("/dev/null")),
