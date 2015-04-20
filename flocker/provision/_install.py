@@ -294,9 +294,6 @@ def task_install_flocker(
 
 
 ACCEPTANCE_IMAGES = [
-    "clusterhq/elasticsearch",
-    "clusterhq/logstash",
-    "clusterhq/kibana",
     "postgres:latest",
     "clusterhq/mongodb:latest",
 ]
