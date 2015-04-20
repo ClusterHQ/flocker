@@ -1748,6 +1748,30 @@ class UploadPipIndexTests(SynchronousTestCase):
     """
     Tests for :func:`upload_pip_index`.
     """
+    def test_index_uploaded(self):
+        """
+        An index file is uploaded to S3.
+        """
+        bucket = 'clusterhq-archive'
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                bucket: {
+                    'python/Flocker-0.3.1-py2-none-any.whl': '',
+                },
+            })
+
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+
+        sync_perform(
+            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
+            upload_pip_index(
+                scratch_directory=scratch_directory,
+                target_bucket=bucket))
+        self.assertEqual(
+            aws.s3_buckets[bucket].keys(),
+            ['python/index', 'python/Flocker-0.3.1-py2-none-any.whl'])
 
 
 class CalculateBaseBranchTests(SynchronousTestCase):

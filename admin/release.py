@@ -477,43 +477,37 @@ def create_pip_index(scratch_directory, packages):
 
 
 @do
-def upload_pip_index(scratch_directory, target_bucket, version):
+def upload_pip_index(scratch_directory, target_bucket):
     """
     # TODO this
 
     Create an index for pip.
 
-    :param FilePath scratch_directory: Temporary directory to create packages
-        in.
-    :param bytes target_bucket: S3 bucket to upload packages to.
-    :param bytes version: Version to upload packages as.
-    :param FilePath top_level: The top-level of the flocker repository.
+    :param FilePath scratch_directory: Temporary directory to create index in.
+    :param bytes target_bucket: S3 bucket to upload index to.
     """
     packages = yield Effect(
         ListS3Keys(bucket=target_bucket,
                    prefix='python'))
 
-    index_path = create_pip_index(packages, scratch_directory)
+    index_path = create_pip_index(
+        scratch_directory=scratch_directory,
+        packages=packages)
 
     yield Effect(
         UploadToS3(
             source_path=scratch_directory,
             target_bucket=target_bucket,
             target_key='python',
-            file=index_path.basename(),
+            file=index_path,
         ))
 
     # )
 
-    # TODO put an index.html in front of this bucket
-    # Add comment at the top saying it is an index for pip
-    # Look at last command in Wheelhouse section in buildbot README for a
-    # way to do this
+    # TODO Should this be index or index.html?
 
     # TODO target key is "python", shared with upload_python_packages so
     # factor that out
-
-    # Should be publically available
 
     # TODO call this from _main
 
