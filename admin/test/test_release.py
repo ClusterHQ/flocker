@@ -1671,6 +1671,9 @@ class CreatePipIndexTests(SynchronousTestCase):
         self.scratch_directory.makedirs()
 
     def test_index_created(self):
+        """
+        A pip index file is created for all wheel files.
+        """
         index = create_pip_index(
             scratch_directory=self.scratch_directory,
             packages=[
@@ -1687,13 +1690,58 @@ class CreatePipIndexTests(SynchronousTestCase):
         self.assertEqual(expected, index.getContent())
 
     def test_only_wheels_included(self):
-        pass
+        """
+        The pip index file created only references wheel files.
+        """
+        index = create_pip_index(
+            scratch_directory=self.scratch_directory,
+            packages=[
+                'Flocker-0.3.0-py2-none-any.whl',
+                'Flocker-0.3.1-py2-none-any.whl',
+                'Flocker-0.3.2-py2-none-any.not-a-whl',
+            ]
+        )
+
+        expected = dedent(
+            "<!--This is an index for pip-->\n"
+            '<a href="Flocker-0.3.0-py2-none-any.whl">Flocker-0.3.0-py2-none-any.whl</a><br/>\n'  # noqa
+            '<a href="Flocker-0.3.1-py2-none-any.whl">Flocker-0.3.1-py2-none-any.whl</a><br/>\n'  # noqa
+        )
+        self.assertEqual(expected, index.getContent())
 
     def test_quoted_destination(self):
-        pass
+        """
+        Destination links are quoted.
+        """
+        index = create_pip_index(
+            scratch_directory=self.scratch_directory,
+            packages=[
+                '"Flocker-0.3.0-py2-none-any.whl',
+            ]
+        )
+
+        expected = dedent(
+            "<!--This is an index for pip-->\n"
+            '''<a href='"Flocker-0.3.0-py2-none-any.whl'>"Flocker-0.3.0-py2-none-any.whl</a><br/>\n'''  # noqa
+        )
+        self.assertEqual(expected, index.getContent())
 
     def test_escaped_title(self):
-        pass
+        """
+        Link titles are escaped.
+        """
+        index = create_pip_index(
+            scratch_directory=self.scratch_directory,
+            packages=[
+                '>Flocker-0.3.0-py2-none-any.whl',
+            ]
+        )
+
+        expected = dedent(
+            "<!--This is an index for pip-->\n"
+            '''<a href="&gt;Flocker-0.3.0-py2-none-any.whl">&gt;Flocker-0.3.0-py2-none-any.whl</a><br/>\n'''  # noqa
+        )
+        self.assertEqual(expected, index.getContent())
 
 
 class UploadPipIndexTests(SynchronousTestCase):
