@@ -335,12 +335,13 @@ class UploadOptions(Options):
     """
     optParameters = [
         ["flocker-version", None, flocker.__version__,
-         "The version of Flocker to upload artifacts for."],
+         "The version of Flocker to upload RPMs for."
+         "Python packages for " + flocker.__version__ + "will be uploaded.\n"],
         ["target", None, ARCHIVE_BUCKET,
-         "The bucket to upload artifacts to."],
+         "The bucket to upload artifacts to.\n"],
         ["build-server", None,
          b'http://build.clusterhq.com',
-         "The URL of the build-server."],
+         "The URL of the build-server.\n"],
     ]
 
     def parseArgs(self):
