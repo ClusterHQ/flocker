@@ -519,9 +519,6 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
     :param bytes target_bucket: S3 bucket to upload packages to.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    # TODO change all docs and other things (Homebrew too!) which use these
-    # Python packages
-
     if setuptools_version != '3.6':
         # XXX Use PEP440 version system so new setuptools can be used.
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
