@@ -581,12 +581,12 @@ def publish_artifacts_main(args, base_path, top_level):
     d = perform(
         dispatcher=dispatcher,
         effect=sequence([
-            # upload_rpms(
-            #     scratch_directory=scratch_directory.child('rpm'),
-            #     target_bucket=options['target'],
-            #     version=options['flocker-version'],
-            #     build_server=options['build-server'],
-            # ),
+            upload_rpms(
+                scratch_directory=scratch_directory.child('rpm'),
+                target_bucket=options['target'],
+                version=options['flocker-version'],
+                build_server=options['build-server'],
+            ),
             upload_python_packages(
                 scratch_directory=scratch_directory.child('python'),
                 target_bucket=options['target'],
