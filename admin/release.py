@@ -463,7 +463,11 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
 
 def create_pip_index(scratch_directory, packages):
     """
-    TODO
+    Create an index file for pip.
+
+    :param FilePath scratch_directory: Temporary directory to create index in.
+    :param list packages: List of bytes, filenames of packages to be in the
+        index.
     """
     index_file = scratch_directory.child('index')
     with index_file.open('w') as f:
@@ -479,9 +483,7 @@ def create_pip_index(scratch_directory, packages):
 @do
 def upload_pip_index(scratch_directory, target_bucket):
     """
-    # TODO this
-
-    Create an index for pip.
+    Upload an index file for pip to S3.
 
     :param FilePath scratch_directory: Temporary directory to create index in.
     :param bytes target_bucket: S3 bucket to upload index to.
@@ -598,7 +600,7 @@ def publish_artifacts_main(args, base_path, top_level):
             upload_pip_index(
                 scratch_directory=scratch_directory.child('python'),
                 target_bucket=options['target'],
-            )
+            ),
         ]),
     )
 
