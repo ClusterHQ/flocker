@@ -746,6 +746,9 @@ class LoopbackBlockDeviceAPI(object):
         Change the size of the loopback backing file.
 
         Sparseness is maintained by using ``truncate`` on the backing file.
+
+        This implementation is limited to being able to resize volumes only if
+        they are unattached.
         """
         backing_path = self._unattached_directory.child(
             blockdevice_id.encode("ascii")
