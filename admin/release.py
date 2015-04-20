@@ -147,9 +147,14 @@ DOCUMENTATION_CONFIGURATIONS = {
 @do
 def publish_docs(flocker_version, doc_version, environment):
     """
-    Publish the flocker documentation.
+    Publish the Flocker documentation. The documentation for each version of
+    Flocker is uploaded to a development bucket on S3 by the build server and
+    this copies the documentation for a particular ``flocker_version`` and
+    publishes it as ``doc_version``. Attempting to publish documentation to a
+    staging environment as a documentation version publishes it as the version
+    being updated.
 
-    :param bytes flocker_version: The version of flocker to publish the
+    :param bytes flocker_version: The version of Flocker to publish the
         documentation for.
     :param bytes doc_version: The version to publish the documentation as.
         Attempting to publish documentation as a documentation version
@@ -267,7 +272,9 @@ class PublishDocsOptions(Options):
          "The version to publish the documentation as.\n"
          "This will differ from \"flocker-version\" for staging uploads.\n"
          "Attempting to publish documentation as a documentation version "
-         "publishes it as the version being updated.\n"],
+         "publishes it as the version being updated. That is, if "
+         "``doc-version`` is set to 0.3.0+doc1 the documentation will be "
+         "published as 0.3.0.\n"],
     ]
 
     optFlags = [

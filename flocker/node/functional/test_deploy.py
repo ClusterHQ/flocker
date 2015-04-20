@@ -11,10 +11,10 @@ from pyrsistent import pmap
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from .. import P2PNodeDeployer, change_node_state
+from .. import P2PNodeDeployer
 from ...control._model import (
     Deployment, Application, DockerImage, Node, AttachedVolume, Link,
-    Manifestation, Dataset)
+    Manifestation, Dataset, DeploymentState, NodeState)
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
@@ -22,6 +22,35 @@ from ...testtools import (
     run_process)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
+
+
+def change_node_state(deployer, desired_configuration):
+    """
+    Change the local state to match the given desired state.
+
+    :param IDeployer deployer: Deployer to discover local state and
+        calculate changes.
+    :param Deployment desired_configuration: The intended configuration of all
+        nodes.
+    :return: ``Deferred`` that fires when the necessary changes are done.
+    """
+    def converge():
+        d = deployer.discover_state(NodeState(hostname=deployer.hostname))
+
+        def got_changes(changes):
+            cluster_state = DeploymentState()
+            for change in changes:
+                cluster_state = change.update_cluster_state(cluster_state)
+            return deployer.calculate_changes(
+                desired_configuration, cluster_state)
+        d.addCallback(got_changes)
+        d.addCallback(lambda change: change.run(deployer))
+        return d
+    # Repeat a few times until things settle down:
+    result = converge()
+    result.addCallback(lambda _: converge())
+    result.addCallback(lambda _: converge())
+    return result
 
 
 class DeployerTests(TestCase):
@@ -32,7 +61,7 @@ class DeployerTests(TestCase):
     def test_restart(self):
         """
         Stopped applications that are supposed to be running are restarted
-        when ``Deployer.change_node_state`` is run.
+        when the calcualted actions are run.
         """
         name = random_name()
         docker_client = DockerClient()
@@ -51,8 +80,7 @@ class DeployerTests(TestCase):
                      links=frozenset(),
                      )]))]))
 
-        d = change_node_state(deployer, desired_state,
-                              Deployment(nodes=frozenset()))
+        d = change_node_state(deployer, desired_state)
         d.addCallback(lambda _: wait_for_unit_state(docker_client, name,
                                                     [u'active']))
 
@@ -66,7 +94,7 @@ class DeployerTests(TestCase):
 
         def stopped(_):
             # Redeploy, which should restart it:
-            return change_node_state(deployer, desired_state, desired_state)
+            return change_node_state(deployer, desired_state)
         d.addCallback(stopped)
         d.addCallback(lambda _: wait_for_unit_state(docker_client, name,
                                                     [u'active']))
@@ -118,8 +146,7 @@ class DeployerTests(TestCase):
                      )]),
                  manifestations={manifestation.dataset_id: manifestation})]))
 
-        d = change_node_state(deployer, desired_state,
-                              Deployment(nodes=frozenset()))
+        d = change_node_state(deployer, desired_state)
         d.addCallback(lambda _: volume_service.enumerate())
         d.addCallback(lambda volumes:
                       list(volumes)[0].get_filesystem().get_path().child(
@@ -191,8 +218,7 @@ class DeployerTests(TestCase):
                      )]),
                  manifestations={manifestation.dataset_id: manifestation})]))
 
-        d = change_node_state(deployer, desired_state,
-                              Deployment(nodes=frozenset()))
+        d = change_node_state(deployer, desired_state)
         d.addCallback(lambda _: volume_service.enumerate())
         d.addCallback(lambda volumes:
                       list(volumes)[0].get_filesystem().get_path().child(
@@ -242,8 +268,7 @@ class DeployerTests(TestCase):
                      memory_limit=EXPECTED_MEMORY_LIMIT
                      )]))]))
 
-        d = change_node_state(deployer, desired_state,
-                              Deployment(nodes=frozenset()))
+        d = change_node_state(deployer, desired_state)
         d.addCallback(lambda _: wait_for_unit_state(
             docker_client,
             application_name,
@@ -290,8 +315,7 @@ class DeployerTests(TestCase):
                      cpu_shares=EXPECTED_CPU_SHARES
                      )]))]))
 
-        d = change_node_state(deployer, desired_state,
-                              Deployment(nodes=frozenset()))
+        d = change_node_state(deployer, desired_state)
         d.addCallback(lambda _: wait_for_unit_state(
             docker_client,
             application_name,
