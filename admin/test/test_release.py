@@ -36,6 +36,24 @@ from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 
 
+def hard_linking_possible():
+    """
+    Return True if hard linking is possible in the current directory, else
+    return False.
+    """
+    scratch_directory = FilePath(tempfile.mkdtemp())
+    file = scratch_directory.child('src')
+    file.touch()
+    try:
+        os.link(file.path, 'dst')
+        return True
+    except:
+        return False
+    finally:
+        scratch_directory.remove()
+
+
+
 class PublishDocsTests(SynchronousTestCase):
     """
     Tests for :func:``publish_docs``.
@@ -1522,6 +1540,8 @@ class UploadPythonPackagesTests(SynchronousTestCase):
             )
 
     @skipUnless(setuptools_version == "3.6", "setuptools must be version 3.6")
+    @skipUnless(hard_linking_possible(),
+                "Hard linking is not possible in the current directory.")
     def test_distributions_uploaded(self):
         """
         Source and binary distributions of Flocker are uploaded to S3.
