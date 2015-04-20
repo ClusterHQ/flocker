@@ -261,14 +261,11 @@ Release
       git checkout release/flocker-${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
-   
-   .. note:: The final command ensures that setuptools is a version that does not normalize version numbers according to PEP440.
 
    .. prompt:: bash [vagrant@localhost]$
 
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
-      pip install setuptools==3.6
 
 #. Tag the version being released:
 
@@ -295,8 +292,6 @@ Release
    Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
 
 #. Build Python and RPM packages and upload them to ``archive.clusterhq.com``
-
-   .. note:: Skip this step for a maintenance or documentation release.
 
    .. prompt:: bash [vagrant@localhost]$
 
