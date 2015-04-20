@@ -1788,8 +1788,10 @@ class UploadPipIndexTests(SynchronousTestCase):
                 scratch_directory=scratch_directory,
                 target_bucket=bucket))
         self.assertEqual(
-            aws.s3_buckets[bucket].keys(),
-            ['python/index', 'python/Flocker-0.3.1-py2-none-any.whl'])
+            aws.s3_buckets[bucket]['python/index'],
+            '<!--This is an index for pip-->\n'
+            '<a href="Flocker-0.3.1-py2-none-any.whl">'
+            'Flocker-0.3.1-py2-none-any.whl</a><br/>\n')
 
 
 class CalculateBaseBranchTests(SynchronousTestCase):
