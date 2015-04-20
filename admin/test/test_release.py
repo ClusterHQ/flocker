@@ -1509,14 +1509,13 @@ class UploadPythonPackagesTests(SynchronousTestCase):
         self.scratch_directory = FilePath(self.mktemp())
         self.top_level = FilePath(self.mktemp())
         self.top_level.makedirs()
-        self.version = '0.3.0'
         self.aws = FakeAWS(
             routing_rules={},
             s3_buckets={
                 self.target_bucket: {},
             })
 
-    def upload_python_packages(self, version):
+    def upload_python_packages(self):
         """
         Call :func:``upload_python_packages``, discarding output.
 
@@ -1531,7 +1530,6 @@ class UploadPythonPackagesTests(SynchronousTestCase):
                 ComposedDispatcher(dispatchers),
                 upload_python_packages(
                     scratch_directory=self.scratch_directory,
-                    version=version,
                     target_bucket=self.target_bucket,
                     top_level=self.top_level,
                     output=discard,
@@ -1555,10 +1553,10 @@ class UploadPythonPackagesTests(SynchronousTestCase):
                     version="{package_version}",
                     py_modules=["Flocker"],
                 )
-                """).format(package_version=self.version)
+                """).format(package_version='0.3.0')
         )
 
-        self.upload_python_packages(version=self.version)
+        self.upload_python_packages()
 
         aws_keys = self.aws.s3_buckets[self.target_bucket].keys()
         self.assertEqual(
@@ -1574,7 +1572,7 @@ class UploadPythonPackagesTests(SynchronousTestCase):
             release, 'setuptools_version', '15.1')
         self.assertRaises(
             ValueError,
-            self.upload_python_packages, self.version)
+            self.upload_python_packages)
 
 
 class UploadOptionsTests(SynchronousTestCase):

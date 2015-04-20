@@ -507,8 +507,8 @@ def upload_pip_index(scratch_directory, target_bucket):
 
 
 @do
-def upload_python_packages(scratch_directory, target_bucket, version,
-                           top_level, output, error):
+def upload_python_packages(scratch_directory, target_bucket, top_level,
+                           output, error):
     """
     The repository contains source distributions and binary distributions
     (wheels) for Flocker. It is currently hosted on Amazon S3.
@@ -516,7 +516,6 @@ def upload_python_packages(scratch_directory, target_bucket, version,
     :param FilePath scratch_directory: Temporary directory to create packages
         in.
     :param bytes target_bucket: S3 bucket to upload packages to.
-    :param bytes version: Version to upload packages as.
     :param FilePath top_level: The top-level of the flocker repository.
     """
     # TODO change all docs and other things (Homebrew too!) which use these
@@ -589,7 +588,6 @@ def publish_artifacts_main(args, base_path, top_level):
             upload_python_packages(
                 scratch_directory=scratch_directory.child('python'),
                 target_bucket=options['target'],
-                version=options['flocker-version'],
                 top_level=top_level,
                 output=sys.stdout,
                 error=sys.stderr,
