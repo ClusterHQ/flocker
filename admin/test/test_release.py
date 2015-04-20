@@ -29,7 +29,7 @@ from ..release import (
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
-    UploadOptions,
+    UploadOptions, create_pip_index, upload_pip_index,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1662,10 +1662,45 @@ class CreateReleaseBranchTests(SynchronousTestCase):
         self.assertIn((u'NEW_FILE', 0), self.repo.index.entries)
 
 
+class CreatePipIndexTests(SynchronousTestCase):
+    """
+    Tests for :func:`create_pip_index`.
+    """
+    def setUp(self):
+        self.scratch_directory = FilePath(self.mktemp())
+        self.scratch_directory.makedirs()
+
+    def test_index_created(self):
+        index = create_pip_index(
+            scratch_directory=self.scratch_directory,
+            packages=[
+                'Flocker-0.3.0-py2-none-any.whl',
+                'Flocker-0.3.1-py2-none-any.whl'
+            ]
+        )
+
+        expected = dedent(
+            "<!--This is an index for pip-->\n"
+            '<a href="Flocker-0.3.0-py2-none-any.whl">Flocker-0.3.0-py2-none-any.whl</a><br/>\n'  # noqa
+            '<a href="Flocker-0.3.1-py2-none-any.whl">Flocker-0.3.1-py2-none-any.whl</a><br/>\n'  # noqa
+        )
+        self.assertEqual(expected, index.getContent())
+
+    def test_only_wheels_included(self):
+        pass
+
+    def test_quoted_destination(self):
+        pass
+
+    def test_escaped_title(self):
+        pass
+
+
 class UploadPipIndexTests(SynchronousTestCase):
     """
     Tests for :func:`upload_pip_index`.
     """
+
 
 class CalculateBaseBranchTests(SynchronousTestCase):
     """

@@ -461,7 +461,7 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
             distro_version=operating_system['version'],
         )
 
-def create_pip_index(packages, scratch_directory):
+def create_pip_index(scratch_directory, packages):
     """
     TODO
     """
