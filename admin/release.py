@@ -17,7 +17,7 @@ from setuptools import __version__ as setuptools_version
 from subprocess import check_call
 
 from effect import (
-    Effect, sync_perform, ComposedDispatcher, base_dispatcher)
+    Effect, sync_perform, ComposedDispatcher)
 from effect.do import do
 from effect.twisted import perform
 
@@ -29,7 +29,7 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
 
 import flocker
-from flocker.provision._effect import sequence
+from flocker.provision._effect import sequence, dispatcher as base_dispatcher
 
 from flocker.common.version import (
     get_doc_version,
