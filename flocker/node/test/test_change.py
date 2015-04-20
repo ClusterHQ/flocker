@@ -58,36 +58,6 @@ def _test_nested_change(case, outer_factory, inner_factory):
     )
 
 
-def _test_nested_change(case, outer_factory, inner_factory):
-    """
-    Assert that ``IChangeState`` providers wrapped inside ``inner_factory``
-    wrapped inside ``outer_factory`` are run with the same deployer argument as
-    is passed to ``run_state_change``.
-
-    :param TestCase case: A running test.
-    :param outer_factory: Either ``sequentially`` or ``in_parallel`` to
-        construct the top-level change to pass to ``run_state_change``.
-    :param inner_factory: Either ``sequentially`` or ``in_parallel`` to
-        construct a change to include the top-level change passed to
-        ``run_state_change``.
-
-    :raise: A test failure if the inner change is not run with the same
-        deployer as is passed to ``run_state_change``.
-    """
-    inner_action = ControllableAction(result=succeed(None))
-    subchanges = [
-        ControllableAction(result=succeed(None)),
-        inner_factory(changes=[inner_action]),
-        ControllableAction(result=succeed(None))
-    ]
-    change = outer_factory(changes=subchanges)
-    run_state_change(change, DEPLOYER)
-    case.assertEqual(
-        (True, DEPLOYER),
-        (inner_action.called, inner_action.deployer)
-    )
-
-
 class SequentiallyTests(SynchronousTestCase):
     """
     Tests for handling of ``sequentially`` by ``run_state_changes``.
