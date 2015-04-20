@@ -300,4 +300,3 @@ class RootCredential(FlockerCredential):
         instance.write_credential_files(
             AUTHORITY_KEY_FILENAME, AUTHORITY_CERTIFICATE_FILENAME)
         return instance
-

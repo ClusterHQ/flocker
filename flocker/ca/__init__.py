@@ -5,7 +5,7 @@ A minimal certificate authority.
 """
 
 __all__ = [
-    "CertificateAuthority", "ControlCertificate",
+    "RootCredential", "ControlCredential",
     "ComparableKeyPair", "PathError", "CertificateAlreadyExistsError",
     "KeyAlreadyExistsError", "EXPIRY_20_YEARS",
     "AUTHORITY_CERTIFICATE_FILENAME", "AUTHORITY_KEY_FILENAME",

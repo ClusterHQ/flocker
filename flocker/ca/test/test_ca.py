@@ -193,8 +193,8 @@ class ControlCredentialTests(SynchronousTestCase):
             PathError, ControlCredential.from_path, path
         )
         expected = (
-           b"Certificate file could not be opened. "
-           b"[Errno 13] Permission denied: '{path}'"
+            b"Certificate file could not be opened. "
+            b"[Errno 13] Permission denied: '{path}'"
         ).format(path=crt_path.path)
         self.assertEqual(str(e), expected)
 
@@ -221,8 +221,8 @@ class ControlCredentialTests(SynchronousTestCase):
             PathError, ControlCredential.from_path, path
         )
         expected = (
-           b"Private key file could not be opened. "
-           b"[Errno 13] Permission denied: '{path}'"
+            b"Private key file could not be opened. "
+            b"[Errno 13] Permission denied: '{path}'"
         ).format(path=key_path.path)
         self.assertEqual(str(e), expected)
 
@@ -492,8 +492,8 @@ class RootCredentialTests(SynchronousTestCase):
             PathError, RootCredential.from_path, path
         )
         expected = (
-           b"Private key file could not be opened. "
-           b"[Errno 13] Permission denied: '{path}'"
+            b"Private key file could not be opened. "
+            b"[Errno 13] Permission denied: '{path}'"
         ).format(path=key_path.path)
         self.assertEqual(str(e), expected)
 
