@@ -443,6 +443,23 @@ Release
       git merge origin/release/flocker-${VERSION}
       git push
 
+#. Copy the ``boto`` configuration to your workstation.
+   If the ``boto`` configuration is on your workstation it will not have to be recreated next time you do a release.
+
+   Copy the configuration file to a synced folder:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      cp ~/.boto /vagrant
+
+   Exit the VM using :kbd:`Control-d`.
+
+   Copy the configuration file to your home directory:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      cp .boto ~/
+
 #. Submit the release pull request for review again.
 
 Post-Release Review Process
