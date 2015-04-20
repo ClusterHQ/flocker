@@ -29,21 +29,31 @@ class Tests(TestCase):
         self.agent = create_ssh_agent(self.server.key_path)
         self.addCleanup(self.agent.restore)
 
-    def test_stuff(self):
+    def test_run(self):
+        """
+        The ``Run`` intent runs the specified command via ssh.
+        """
         command = run_remotely(
             username="root",
             address=str(self.server.ip),
             port=self.server.port,
-            commands=run("echo hello"),
+            commands=run("touch hello"),
         )
 
         d = perform(
             make_dispatcher(reactor),
             command,
         )
+
+        def check(_):
+            self.assertEqual(self.server.home.child('hello').getContent(),
+                             "")
         return d
 
     def test_put(self):
+        """
+        The ``Put`` intent puts the provided contents in the specified file.
+        """
 
         command = run_remotely(
             username="root",

@@ -44,10 +44,9 @@ class CommandProtocol(LineOnlyReceiver, object):
     Protocol that logs the lines of a remote command.
 
     :ivar Deferred deferred: Deferred to fire when the command finishes
-        If the command finished succesfuly, will fire with ``None``.
+        If the command finished successfully, will fire with ``None``.
         Otherwise, errbacks with the reason.
-    :ivar bytes username: For logging.
-    :ivar bytes address: For logging.
+    :ivar Message context: The eliot message context to log.
     """
     delimiter = b'\n'
 
@@ -94,8 +93,7 @@ def perform_comment(dispatcher, intent):
 
 def get_ssh_dispatcher(connection, context):
     """
-    :ivar bytes username: For logging.
-    :ivar bytes address: For logging.
+    :ivar Message context: The eliot message context to log.
     :ivar connection: The SSH connection run commands on.
     """
 
