@@ -119,6 +119,9 @@ def aws_provisioner(access_key, secret_access_token, keyname,
                          "DeleteOnTermination": True,
                          "VolumeType": "gp2"}}
             ],
+            # On some operating systems, a tty is requried for sudo.
+            # Since AWS systems have a non-root user as the login,
+            # disable this, so we can use sudo with conch.
             "ex_userdata": dedent("""\
                 #!/bin/sh
                 sed -i '/Defaults *requiretty/d' /etc/sudoers

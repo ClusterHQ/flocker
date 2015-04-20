@@ -374,16 +374,20 @@ class RunOptions(Options):
                 variants=self['variants'],
             )
 
+MESSAGE_FORMATS = {
+    "flocker.provision.ssh:run":
+        "[%(username)s@%(address)s]: Running %(command)s",
+    "flocker.provision.ssh:run:output":
+        "[%(username)s@%(address)s]: %(line)s",
+    "admin.runner:run":
+        "Running %(command)s",
+    "admin.runner:run:output":
+        "%(line)s",
+}
+
 
 def eliot_output(message):
-    if message['message_type'] == "flocker.provision.ssh:run":
-        print "[%(username)s@%(address)s]: Running %(command)s" % message
-    elif message['message_type'] == "flocker.provision.ssh:run:output":
-        print "[%(username)s@%(address)s]: %(line)s" % message
-    elif message['message_type'] == "admin.runner:run":
-        print "Running %(command)s" % message
-    elif message['message_type'] == "admin.runner:run:output":
-        print "%(line)s" % message
+    sys.stdout.write(MESSAGE_FORMATS[message['message_type']] % message)
     sys.stdout.flush()
 
 

@@ -16,7 +16,7 @@ from twisted.internet.defer import Deferred
 from twisted.protocols.basic import LineOnlyReceiver
 
 
-logger = Logger()
+_logger = Logger()
 
 
 RUN_ACTION = ActionType(
@@ -64,7 +64,7 @@ class CommandProtocol(LineOnlyReceiver, object):
     def lineReceived(self, line):
         RUN_OUTPUT_MESSAGE(
             line=line,
-        ).write(logger, action=self.action)
+        ).write(_logger, action=self.action)
 
 
 def run(reactor, command, **kwargs):
@@ -79,7 +79,7 @@ def run(reactor, command, **kwargs):
     if 'env' not in kwargs:
         kwargs['env'] = os.environ
 
-    action = RUN_ACTION(logger, command=command)
+    action = RUN_ACTION(_logger, command=command)
 
     endpoint = ProcessEndpoint(reactor, command[0], command, **kwargs)
     protocol_done = Deferred()

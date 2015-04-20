@@ -12,8 +12,14 @@ from effect.twisted import (
 )
 from effect.twisted import (
     perform, deferred_performer)
+
 from twisted.conch.endpoints import (
-    SSHCommandClientEndpoint, _NewConnectionHelper, _ReadFile, ConsoleUI)
+    SSHCommandClientEndpoint,
+    # https://twistedmatrix.com/trac/ticket/7861
+    _NewConnectionHelper,
+    # https://twistedmatrix.com/trac/ticket/7862
+    _ReadFile, ConsoleUI,
+)
 
 from twisted.conch.client.knownhosts import KnownHostsFile
 from twisted.internet import reactor
@@ -31,7 +37,7 @@ from ._model import Run, Sudo, Put, Comment, RunRemotely
 from .._effect import dispatcher as base_dispatcher
 
 
-logger = Logger()
+_logger = Logger()
 
 
 @attributes([
@@ -62,7 +68,7 @@ class CommandProtocol(LineOnlyReceiver, object):
         self.context.bind(
             message_type="flocker.provision.ssh:run:output",
             line=line,
-        ).write(logger)
+        ).write(_logger)
 
 
 @sync_performer
@@ -92,8 +98,8 @@ def perform_comment(dispatcher, intent):
 
 def get_ssh_dispatcher(connection, context):
     """
-    :ivar Message context: The eliot message context to log.
-    :ivar connection: The SSH connection run commands on.
+    :param Message context: The eliot message context to log.
+    :param connection: The SSH connection run commands on.
     """
 
     @deferred_performer
@@ -101,7 +107,7 @@ def get_ssh_dispatcher(connection, context):
         context.bind(
             message_type="flocker.provision.ssh:run",
             command=intent.command,
-        ).write(logger)
+        ).write(_logger)
         endpoint = SSHCommandClientEndpoint.existingConnection(
             connection, intent.command)
         d = Deferred()
