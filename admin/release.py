@@ -492,7 +492,7 @@ def upload_pip_index(scratch_directory, target_bucket):
     """
     packages = yield Effect(
         ListS3Keys(bucket=target_bucket,
-                   prefix='python'))
+                   prefix='python/'))
 
     index_path = create_pip_index(
         scratch_directory=scratch_directory,
