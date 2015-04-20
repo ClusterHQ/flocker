@@ -387,6 +387,9 @@ MESSAGE_FORMATS = {
 
 
 def eliot_output(message):
+    """
+    Write pretty versions of eliot log messages to stdout.
+    """
     sys.stdout.write(MESSAGE_FORMATS[message['message_type']] % message)
     sys.stdout.flush()
 
