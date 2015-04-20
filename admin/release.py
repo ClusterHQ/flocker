@@ -506,12 +506,6 @@ def upload_pip_index(scratch_directory, target_bucket):
 
     # TODO Should this be index or index.html?
 
-    # TODO target key is "python", shared with upload_python_packages so
-    # factor that out
-
-    # TODO call this from _main
-
-
 @do
 def upload_python_packages(scratch_directory, target_bucket, version,
                            top_level, output, error):
@@ -528,7 +522,7 @@ def upload_python_packages(scratch_directory, target_bucket, version,
     # TODO change all docs and other things (Homebrew too!) which use these
     # Python packages
 
-    # TODO create a staging bucket - have a --production command line option
+    # TODO create a staging bucket
 
     if setuptools_version != '3.6':
         # XXX Use PEP440 version system so new setuptools can be used.
@@ -580,7 +574,6 @@ def publish_artifacts_main(args, base_path, top_level):
     dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
                                      base_dispatcher])
 
-    # TODO separate sequence into another, tested function
     # TODO use eliot logging instead of sys.stdout / stderr
     scratch_directory = FilePath(tempfile.mkdtemp(
         prefix=b'flocker-upload-'))
@@ -604,6 +597,10 @@ def publish_artifacts_main(args, base_path, top_level):
                 output=sys.stdout,
                 error=sys.stderr,
             ),
+            upload_pip_index(
+                scratch_directory=scratch_directory.child('python'),
+                target_bucket=options['target'],
+            )
         ]),
     )
 
