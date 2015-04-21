@@ -27,6 +27,9 @@ from ...route import make_memory_network
 class P2PNodeDeployer(object):
     """
     Combination of ZFS and container deployer.
+
+    Should really be gotten rid of:
+    https://clusterhq.atlassian.net/browse/FLOC-1732
     """
     def __init__(self, hostname, volume_service, docker_client=None,
                  network=None):
