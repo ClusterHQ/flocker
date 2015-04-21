@@ -320,6 +320,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
+      # TODO Should this be /vagrant/tutorial ?
       echo https://s3.amazonaws.com/clusterhq-archive/vagrant/flocker-tutorial-${VERSION}.box
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
