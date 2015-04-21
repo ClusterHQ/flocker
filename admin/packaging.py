@@ -473,7 +473,6 @@ class BuildPackage(object):
             '--name', self.name,
             '--prefix', self.prefix.path,
             '--version', self.rpm_version.version,
-            '--epoch', self.epoch,
             '--iteration', self.rpm_version.release,
             '--license', self.license,
             '--url', self.url,
@@ -483,6 +482,10 @@ class BuildPackage(object):
             '--description', self.description,
             '--category', self.category,
         ]
+
+        if not (self.package_type is PackageTypes.DEB and self.epoch == '0'):
+            # Leave epoch unset for deb's with epoch 0
+            command.extend('--epoch', self.epoch)
 
         for requirement in self.dependencies:
             command.extend(
