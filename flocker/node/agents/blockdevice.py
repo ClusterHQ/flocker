@@ -438,6 +438,23 @@ class IBlockDeviceAPI(Interface):
         :returns: ``None``
         """
 
+    def resize_volume(blockdevice_id, size):
+        """
+        Resize an unattached ``blockdevice_id``.
+
+        This changes the amount of storage available.  It does not change the
+        data on the volume (including the filesystem).
+
+        :param unicode blockdevice_id: The unique identifier for the block
+            device being detached.
+        :param int size: The required size, in bytes, of the volume.
+
+        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+            exist.
+
+        :returns: ``None``
+        """
+
     def list_volumes():
         """
         List all the block devices available via the back end API.
@@ -699,6 +716,28 @@ class LoopbackBlockDeviceAPI(object):
             volume.blockdevice_id.encode("ascii")
         )
         volume_path.moveTo(new_path)
+
+    def resize_volume(self, blockdevice_id, size):
+        """
+        Change the size of the loopback backing file.
+
+        Sparseness is maintained by using ``truncate`` on the backing file.
+
+        This implementation is limited to being able to resize volumes only if
+        they are unattached.
+        """
+        backing_path = self._unattached_directory.child(
+            blockdevice_id.encode("ascii")
+        )
+        try:
+            backing_file = backing_path.open("r+")
+        except IOError:
+            raise UnknownVolume(blockdevice_id)
+        else:
+            try:
+                backing_file.truncate(size)
+            finally:
+                backing_file.close()
 
     def list_volumes(self):
         """
