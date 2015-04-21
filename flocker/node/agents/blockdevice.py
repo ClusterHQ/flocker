@@ -475,8 +475,7 @@ class IBlockDeviceAPI(Interface):
         :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
             exist.
 
-        :returns: A ``BlockDeviceVolume`` with a ``size`` attribute equal to
-            the supplied ``size`` when the volume has been resized.
+        :returns: ``None``
         """
 
     def list_volumes():
