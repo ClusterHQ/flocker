@@ -192,16 +192,27 @@ def task_enable_docker(distribution):
         raise NotImplementedError()
 
 
-def configure_firewalld(rule):
+def open_firewalld(service):
     """
-    Configure firewalld with a given rule.
+    Open firewalld port for a service.
 
-    :param list rule: List of `firewall-cmd` arguments.
+    :param str service: Name of service.
     """
     return sequence([
-        run_from_args(command + rule)
-        for command in [['firewall-cmd', '--permanent'],
-                        ['firewall-cmd']]])
+        run_from_args(command + [service])
+        for command in [['firewall-cmd', '--permanent', '--add-service'],
+                        ['firewall-cmd', '--add-service']]])
+
+
+def open_ufw(service):
+    """
+    Open ufw port for a service.
+
+    :param str service: Name of service.
+    """
+    return sequence([
+        run_from_args(['ufw', 'allow', service])
+        ])
 
 
 def task_enable_flocker_control(distribution):
@@ -226,6 +237,8 @@ def task_enable_flocker_control(distribution):
                     stop on runlevel [016]
                     '''),
             ),
+            run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
+            run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
             run_from_args(['service', 'flocker-control', 'start']),
         ])
     else:
@@ -237,14 +250,16 @@ def task_open_control_firewall(distribution):
     Open the firewall for flocker-control.
     """
     if distribution in ('centos-7', 'fedora-20'):
-        return sequence([
-            configure_firewalld(['--add-service', service])
-            for service in ['flocker-control-api', 'flocker-control-agent']
-        ])
+        open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
-        return sequence([])
+        open_firewall = open_ufw
     else:
         raise NotImplementedError()
+
+    return sequence([
+        open_firewall(service)
+        for service in ['flocker-control-api', 'flocker-control-agent']
+    ])
 
 
 AGENT_CONFIG = """\
