@@ -33,7 +33,7 @@ from ..blockdevice import (
     DESTROY_VOLUME,
 )
 
-from ... import InParallel, IStateChange
+from ... import IStateChange, run_state_change, in_parallel
 from ...testtools import ideployer_tests_factory, to_node
 from ....testtools import run_process
 from ....control import (
@@ -378,7 +378,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[]),
+            in_parallel(changes=[]),
             changes
         )
 
@@ -418,7 +418,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[
+            in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ]),
             changes
@@ -462,7 +462,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[]),
+            in_parallel(changes=[]),
             changes
         )
 
@@ -500,7 +500,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             block_device_api=api,
         )
         changes = deployer.calculate_changes(configuration, state)
-        self.assertEqual(InParallel(changes=[]), changes)
+        self.assertEqual(in_parallel(changes=[]), changes)
 
     def test_no_devices_one_dataset(self):
         """
@@ -530,7 +530,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         changes = deployer.calculate_changes(configuration, state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         self.assertEqual(
-            InParallel(
+            in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
                         dataset=dataset, mountpoint=mountpoint
@@ -612,7 +612,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             desired_configuration
         )
 
-        expected_changes = InParallel(changes=[])
+        expected_changes = in_parallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
 
@@ -1468,7 +1468,7 @@ class DestroyBlockDeviceDatasetTests(
             mountroot=mountroot,
         )
         change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
-        self.successResultOf(change.run(deployer))
+        self.successResultOf(run_state_change(change, deployer))
 
         # It's only possible to destroy a volume that's been detached.  It's
         # only possible to detach a volume that's been unmounted.  If the

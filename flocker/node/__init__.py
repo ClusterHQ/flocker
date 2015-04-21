@@ -4,14 +4,19 @@
 Local node manager for Flocker.
 """
 
+from ._change import (
+    IStateChange, in_parallel, sequentially, run_state_change
+)
+
 from ._deploy import (
-    IDeployer, IStateChange,
-    InParallel, Sequentially, P2PManifestationDeployer,
-    ApplicationNodeDeployer
+    IDeployer,
+    P2PManifestationDeployer,
+    ApplicationNodeDeployer,
 )
 
 __all__ = [
     'IDeployer', 'IStateChange',
-    'InParallel', 'Sequentially', 'P2PManifestationDeployer',
-    'ApplicationNodeDeployer'
+    'P2PManifestationDeployer',
+    'ApplicationNodeDeployer',
+    'run_state_change', 'in_parallel', 'sequentially',
 ]
