@@ -9,7 +9,7 @@ import sys
 
 import textwrap
 
-from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
@@ -125,9 +125,7 @@ class ControlCertificateOptions(PrettyOptions):
         self["inputpath"] = FilePath(self["inputpath"])
         self["outputpath"] = FilePath(self["outputpath"])
 
-        d = Deferred()
-
-        def generateCert(_):
+        try:
             try:
                 ca = RootCredential.from_path(self["inputpath"])
                 ControlCredential.initialize(self["outputpath"], ca)
@@ -140,15 +138,10 @@ class ControlCertificateOptions(PrettyOptions):
                 CertificateAlreadyExistsError, KeyAlreadyExistsError, PathError
             ) as e:
                 raise UsageError(str(e))
-
-        def generateError(failure):
-            print b"Error: {error}".format(error=str(failure.value))
+        except UsageError as e:
+            print b"Error: {error}".format(error=str(e))
             sys.exit(1)
-
-        d.addCallback(generateCert)
-        d.addErrback(generateError)
-        d.callback(None)
-        return d
+        return succeed(None)
 
 
 @flocker_standard_options
