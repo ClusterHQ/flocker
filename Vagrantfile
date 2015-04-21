@@ -29,13 +29,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.provision "file", source: File.join(Dir.home, ".boto"), destination: ".boto"
   end
 
-  if ENV.has_key?('VERSION')
-    config.vm.provision "shell" do |s|
-      s.inline = "echo export VERSION=$1 >> .bashrc"
-      s.args   = ENV['VERSION']
-    end
-  end
-
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
   end

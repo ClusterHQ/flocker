@@ -91,8 +91,9 @@ Preparing For a Release
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      admin/create-release-branch --flocker-version="${VERSION}"
-      git push --set-upstream origin release/flocker-${VERSION}
+      vagrant up
+      vagrant ssh -c "echo export VERSION=${VERSION} >> .bashrc"
+      vagrant ssh
 
 #. Create a release branch, and create and activate a virtual environment:
 
@@ -105,7 +106,8 @@ Preparing For a Release
       # This ensures that setuptools is a version that does not normalize
       # version numbers according to PEP440.
       pip install setuptools==3.6
-      admin/create-release-branch ${VERSION}
+      admin/create-release-branch --flocker-version="${VERSION}"
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
@@ -157,7 +159,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      git push --set-upstream origin release/flocker-${VERSION}
+      git push
 
 #. Ensure all the required tests pass on BuildBot:
 
