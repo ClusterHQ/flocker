@@ -20,7 +20,6 @@ from zope.interface.verify import verifyObject
 
 from eliot import Logger, ActionType
 
-from ._deploy import _OldToNewDeployer
 from ._docker import BASE_DOCKER_API_URL
 from . import IDeployer, IStateChange
 from ..testtools import loop_until
@@ -108,7 +107,7 @@ class ControllableAction(object):
 
 
 @implementer(IDeployer)
-class ControllableDeployer(_OldToNewDeployer):
+class ControllableDeployer(object):
     """
     ``IDeployer`` whose results can be controlled.
     """
@@ -118,14 +117,13 @@ class ControllableDeployer(_OldToNewDeployer):
         self.calculated_actions = calculated_actions
         self.calculate_inputs = []
 
-    def discover_local_state(self, node_state):
-        return self.local_states.pop(0)
+    def discover_state(self, node_state):
+        return self.local_states.pop(0).addCallback(lambda val: (val,))
 
-    def calculate_necessary_state_changes(self, local_state,
-                                          desired_configuration,
-                                          cluster_state):
+    def calculate_changes(self, desired_configuration, cluster_state):
         self.calculate_inputs.append(
-            (local_state, desired_configuration, cluster_state))
+            (cluster_state.get_node(self.hostname),
+             desired_configuration, cluster_state))
         return self.calculated_actions.pop(0)
 
 

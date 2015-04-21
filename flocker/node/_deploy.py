@@ -93,44 +93,6 @@ class IDeployer(Interface):
         """
 
 
-@implementer(IDeployer)
-class _OldToNewDeployer(object):
-    """
-    Base class to help update implementations of the old ``IDeployer`` to the
-    current version of the interface.
-
-    Subclass this and the existing ``hostname`` attribute and
-    ``discover_local_state`` and ``calculate_necessary_state_changes`` methods
-    will be adapted to the new interface (and this would be cleaner as an
-    adapter but that would require updating more code that's soon to be thrown
-    away).
-
-    This is a transitional helper until we can update the old ``IDeployer``
-    implementations properly.
-
-    Don't use this in any new code.
-    """
-    def discover_state(self, known_local_state):
-        """
-        Discover only local state.
-
-        :return: A ``Deferred`` that fires with a one-tuple consisting of the
-            result of ``discover_local_state``.
-        """
-        discovering = self.discover_local_state(known_local_state)
-        discovering.addCallback(lambda local_state: (local_state,))
-        return discovering
-
-    def calculate_changes(self, configuration, cluster_state):
-        """
-        Extract the local state from ``cluster_state`` and delegate calculation
-        to ``calculate_necessary_state_changes``.
-        """
-        local_state = cluster_state.get_node(self.hostname)
-        return self.calculate_necessary_state_changes(
-            local_state, configuration, cluster_state)
-
-
 def _eliot_system(part):
     return u"flocker:p2pdeployer:" + part
 
