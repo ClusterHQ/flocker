@@ -33,7 +33,7 @@ def docker_accessible():
 
     This may address https://clusterhq.atlassian.net/browse/FLOC-85.
 
-    :return: A ``unicode`` string describing the reason Docker is not
+    :return: A ``bytes`` string describing the reason Docker is not
         accessible or ``None`` if it appears to be accessible.
     """
     try:
