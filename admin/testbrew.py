@@ -18,7 +18,7 @@ import os
 import sys
 import urllib2
 
-from twisted.internet.deferred import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -76,7 +76,7 @@ class TestBrewOptions(Options):
 
 
 @inlineCallbacks
-def main(reactor, args):
+def main(reactor, args, base_path, top_level):
     try:
         options = TestBrewOptions()
         try:
