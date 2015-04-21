@@ -753,6 +753,19 @@ class ConfigurationAPIUserV1(object):
         # Didn't find the application:
         raise CONTAINER_NOT_FOUND
 
+    @app.route("/state/nodes", methods=['GET'])
+    # To be done in https://clusterhq.atlassian.net/browse/FLOC-1632
+    # @user_documentation(...)
+    @structured(
+        inputSchema={},
+        outputSchema={"$ref":
+                      '/v1/endpoints.json#/definitions/nodes_array'},
+        schema_store=SCHEMAS
+    )
+    def list_current_nodes(self):
+        return [{u"hostname": node.hostname} for node in
+                self.cluster_state_service.as_deployment().nodes]
+
     @app.route("/configuration/_compose", methods=['POST'])
     @user_documentation(
         """

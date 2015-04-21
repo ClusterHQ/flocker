@@ -5,6 +5,7 @@ Tests for ``flocker.control.httpapi``.
 
 from io import BytesIO
 from uuid import uuid4
+from copy import deepcopy
 
 from pyrsistent import pmap, thaw
 
@@ -3244,6 +3245,39 @@ RealTestsContainerStateAPI, MemoryTestsContainerStateAPI = (
                           _build_app))
 
 
+class NodesStateTestsMixin(APITestsMixin):
+    """
+    Tests for the nodes state endpoint at ``/state/nodes``.
+    """
+    def test_empty(self):
+        """
+        When no nodes are known, the endpoint returns an empty list.
+        """
+        response = []
+        return self.assertResult(
+            b"GET", b"/state/nodes", None, OK, response
+        )
+
+    def test_nodes(self):
+        """
+        All nodes in the current cluster state are returned.
+        """
+        hostname1 = u"192.0.2.101"
+        hostname2 = u"192.0.2.102"
+        self.cluster_state_service.apply_changes(
+            [NodeState(hostname=hostname1),
+             NodeState(hostname=hostname2)])
+        return self.assertResultItems(
+            b"GET", b"/state/nodes", None, OK,
+            [{u"hostname": hostname1}, {u"hostname": hostname2}],
+        )
+
+
+RealTestsNodesStateAPI, MemoryTestsNodesStateAPI = (
+    buildIntegrationTests(NodesStateTestsMixin, "NodesStateAPI",
+                          _build_app))
+
+
 class ConfigurationComposeTestsMixin(APITestsMixin):
     """
     Tests for the container configuration endpoint at
@@ -3265,10 +3299,10 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         def configuration_set(_):
             actual = self.persistence_service.get()
             apps = FlockerConfiguration(
-                COMPLEX_APPLICATION_YAML).applications()
+                deepcopy(COMPLEX_APPLICATION_YAML)).applications()
             expected = model_from_configuration(
                 applications=apps,
-                deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+                deployment_configuration=deepcopy(COMPLEX_DEPLOYMENT_YAML))
             self.assertEqual(actual, expected)
         setting.addCallback(configuration_set)
         return setting
