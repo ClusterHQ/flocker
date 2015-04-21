@@ -11,7 +11,7 @@ from pyrsistent import pmap
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from .. import P2PManifestationDeployer, ApplicationNodeDeployer, Sequentially
+from .. import P2PManifestationDeployer, ApplicationNodeDeployer, sequentially
 from ...control._model import (
     Deployment, Application, DockerImage, Node, AttachedVolume, Link,
     Manifestation, Dataset, DeploymentState, NodeState)
@@ -59,7 +59,7 @@ class P2PNodeDeployer(object):
         """
         Combine changes from the application and ZFS agents.
         """
-        return Sequentially(changes=[
+        return sequentially(changes=[
             self.applications_deployer.calculate_changes(
                 configuration, cluster_state),
             self.manifestations_deployer.calculate_changes(
