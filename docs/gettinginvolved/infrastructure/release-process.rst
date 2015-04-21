@@ -33,9 +33,9 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- A web browser.
-- `Vagrant`_ (1.6.2 or newer)
-- `VirtualBox`_
+- A web browser,
+- `Vagrant`_ (1.6.2 or newer),
+- `VirtualBox`_.
 
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
