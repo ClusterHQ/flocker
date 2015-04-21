@@ -19,7 +19,6 @@ from subprocess import check_call
 from effect import (
     Effect, sync_perform, ComposedDispatcher)
 from effect.do import do
-from effect.twisted import perform
 
 from characteristic import attributes
 from git import GitCommandError, Repo
@@ -522,7 +521,7 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
     if setuptools_version != '3.6':
         # XXX Use PEP440 version system so new setuptools can be used.
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
-        raise ValueError("setuptools version is not 3.6")
+        raise IncorrectSetuptoolsVersion()
 
     # XXX This has a side effect so it should be an Effect
     # https://clusterhq.atlassian.net/browse/FLOC-1731
@@ -570,51 +569,41 @@ def publish_artifacts_main(args, base_path, top_level):
     dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
                                      base_dispatcher])
 
-    # TODO use eliot logging instead of sys.stdout / stderr
     scratch_directory = FilePath(tempfile.mkdtemp(
         prefix=b'flocker-upload-'))
     scratch_directory.child('rpm').createDirectory()
     scratch_directory.child('python').createDirectory()
     scratch_directory.child('pip').createDirectory()
 
-    d = perform(
-        dispatcher=dispatcher,
-        effect=sequence([
-            upload_rpms(
-                scratch_directory=scratch_directory.child('rpm'),
-                target_bucket=options['target'],
-                version=options['flocker-version'],
-                build_server=options['build-server'],
-            ),
-            upload_python_packages(
-                scratch_directory=scratch_directory.child('python'),
-                target_bucket=options['target'],
-                top_level=top_level,
-                output=sys.stdout,
-                error=sys.stderr,
-            ),
-            upload_pip_index(
-                scratch_directory=scratch_directory.child('pip'),
-                target_bucket=options['target'],
-            ),
-        ]),
-    )
-
-    def report_errors(f):
-        if f.check(IncorrectSetuptoolsVersion):
-            sys.stderr.write("%s: setuptools version must be 3.6."
-                % (base_path.basename(),))
-            raise SystemExit(1)
-        return f
-
-    d.addErrback(report_errors)
-
-    def cleanup(result):
+    try:
+        sync_perform(
+            dispatcher=dispatcher,
+            effect=sequence([
+                upload_rpms(
+                    scratch_directory=scratch_directory.child('rpm'),
+                    target_bucket=options['target'],
+                    version=options['flocker-version'],
+                    build_server=options['build-server'],
+                ),
+                upload_python_packages(
+                    scratch_directory=scratch_directory.child('python'),
+                    target_bucket=options['target'],
+                    top_level=top_level,
+                    output=sys.stdout,
+                    error=sys.stderr,
+                ),
+                upload_pip_index(
+                    scratch_directory=scratch_directory.child('pip'),
+                    target_bucket=options['target'],
+                ),
+            ]),
+        )
+    except IncorrectSetuptoolsVersion:
+        sys.stderr.write("%s: setuptools version must be 3.6.\n"
+            % (base_path.basename(),))
+        raise SystemExit(1)
+    finally:
         scratch_directory.remove()
-        return result
-
-    d.addBoth(cleanup)
-    return d
 
 
 def calculate_base_branch(version, path):
