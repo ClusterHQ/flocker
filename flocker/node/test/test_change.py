@@ -10,22 +10,86 @@ from twisted.internet.defer import FirstError, Deferred, succeed, fail
 from eliot.testing import validate_logging, assertHasAction
 
 from ..testtools import (
-    CONTROLLABLE_ACTION_TYPE, ControllableAction, ControllableDeployer
+    CONTROLLABLE_ACTION_TYPE, ControllableAction, ControllableDeployer,
+    DummyDeployer
 )
 
 from .. import sequentially, in_parallel, run_state_change
 
-from .istatechange import make_istatechange_tests
+from .istatechange import (
+    DummyStateChange, RunSpyStateChange, make_istatechange_tests,
+)
 
 DEPLOYER = ControllableDeployer(u"192.168.1.1", (), ())
 
 
-SequentiallyIStateChangeTests = make_istatechange_tests(
-    sequentially, dict(changes=[1]), dict(changes=[2])
-)
-InParallelIStateChangeTests = make_istatechange_tests(
-    in_parallel, dict(changes=[1]), dict(changes=[2])
-)
+class DummyStateChangeIStateChangeTests(
+        make_istatechange_tests(
+            DummyStateChange, dict(value=1), dict(value=2)
+        )
+):
+    """
+    Tests for the ``DummyStateChange`` ``IStateChange`` implementation.
+    """
+
+
+class RunSpyStateChangeIStateChangeTests(
+        make_istatechange_tests(
+            RunSpyStateChange, dict(value=1), dict(value=2)
+        )
+):
+    """
+    Tests for the ``RunSpyStateChange`` ``IStateChange`` implementation.
+    """
+
+
+class SequentiallyIStateChangeTests(
+        make_istatechange_tests(
+            sequentially, dict(changes=[1]), dict(changes=[2])
+        )
+):
+    """
+    Tests for the ``IStateChange`` implementation provided by the object
+    returned by ``sequentially``.
+    """
+
+
+class InParallelIStateChangeTests(
+        make_istatechange_tests(
+            in_parallel, dict(changes=[1]), dict(changes=[2])
+        )
+):
+    """
+    Tests for the ``IStateChange`` implementation provided by the object
+    returned by ``in_parallel``.
+    """
+    def test_change_order_equality(self):
+        """
+        If the same changes are passed to ``in_parallel`` but in a different
+        order, the resulting ``IStateChange`` providers still compare as equal
+        to each other.
+        """
+        first_change = DummyStateChange(value=1)
+        second_change = DummyStateChange(value=2)
+        first_parallel = in_parallel(changes=[first_change, second_change])
+        second_parallel = in_parallel(changes=[second_change, first_change])
+
+        self.assertEqual(
+            (True, False),
+            (first_parallel == second_parallel,
+             first_parallel != second_parallel)
+        )
+
+    def test_duplicates_run(self):
+        """
+        If the same change is passed to ``in_parallel`` twice then it is run
+        twice then the resulting ``IStateChange`` is run.
+        """
+        deployer = DummyDeployer()
+        the_change = RunSpyStateChange(value=0)
+        parallel = in_parallel(changes=[the_change, the_change])
+        self.successResultOf(parallel.run(deployer))
+        self.assertEqual(2, the_change.value)
 
 
 def _test_nested_change(case, outer_factory, inner_factory):
