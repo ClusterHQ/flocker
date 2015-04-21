@@ -6,6 +6,7 @@ The command-line ``flocker-*-agent`` tools.
 """
 
 from functools import partial
+from socket import socket
 
 from pyrsistent import PRecord, field
 
@@ -50,12 +51,14 @@ class ZFSAgentOptions(Options):
          "The port on the control service to connect to.", int],
     ]
 
-    def parseArgs(self, hostname, host):
-        # Passing in the 'hostname' (really node identity) via command
-        # line is a hack.  See
-        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution.
-        self["hostname"] = unicode(hostname, "ascii")
+    def parseArgs(self, host):
         self["destination-host"] = unicode(host, "ascii")
+
+
+def _get_external_ip(host, port):
+    sock = socket()
+    sock.connect_ex((host, port))
+    return sock.getaddr()[1]  # XXX approximately
 
 
 @implementer(ICommandLineVolumeScript)
@@ -67,8 +70,8 @@ class ZFSAgentScript(object):
     def main(self, reactor, options, volume_service):
         host = options["destination-host"]
         port = options["destination-port"]
-        deployer = P2PManifestationDeployer(
-            options["hostname"].decode("ascii"), volume_service)
+        ip = _get_external_ip(host, port)
+        deployer = P2PManifestationDeployer(ip, volume_service)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
         volume_service.setServiceParent(loop)
@@ -91,21 +94,14 @@ class _AgentOptions(Options):
     common options with ``ZFSAgentOptions``.
     """
     # Use as basis for subclass' synopsis:
-    synopsis = (
-        "Usage: {} [OPTIONS] <local-hostname> "
-        "<control-service-hostname>")
+    synopsis = "Usage: {} [OPTIONS] <control-service-hostname>"
 
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
     ]
 
-    def parseArgs(self, hostname, host):
-        # Passing in the 'hostname' (really node identity) via command
-        # line is a hack.  See
-        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution,
-        # or perhaps https://clusterhq.atlassian.net/browse/FLOC-1631.
-        self["hostname"] = unicode(hostname, "ascii")
+    def parseArgs(self, host):
         self["destination-host"] = unicode(host, "ascii")
 
 
@@ -177,10 +173,12 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
+        host = options["destination-host"]
+        port = options["destination-port"]
         return AgentLoopService(
             reactor=reactor,
-            deployer=self.deployer_factory(hostname=options["hostname"]),
-            host=options["destination-host"], port=options["destination-port"],
+            deployer=self.deployer_factory(_get_external_ip()),
+            host=host, port=port,
         )
 
 
