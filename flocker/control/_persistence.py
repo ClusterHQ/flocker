@@ -5,6 +5,7 @@ Persistence of cluster configuration.
 """
 
 from json import dumps, loads, JSONEncoder
+from uuid import UUID
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
@@ -37,6 +38,8 @@ class _ConfigurationEncoder(JSONEncoder):
         elif isinstance(obj, FilePath):
             return {_CLASS_MARKER: u"FilePath",
                     u"path": obj.path.decode("utf-8")}
+        # elif isinstance(obj, UUID):
+        #    return unicode(obj)
         return JSONEncoder.default(self, obj)
 
 

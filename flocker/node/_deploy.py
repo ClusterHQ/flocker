@@ -58,7 +58,8 @@ class IDeployer(Interface):
     :ivar unicode hostname: The hostname of the node this deployer is
         managing.
     """
-    hostname = Attribute("The hostname for this node.")
+    uuid = Attribute("The UUID of thise node, a ``UUID`` instance.")
+    hostname = Attribute("The public IP address of this node.")
 
     def discover_state(local_state):
         """
@@ -440,7 +441,8 @@ class P2PManifestationDeployer(object):
     :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
     """
-    def __init__(self, hostname, volume_service):
+    def __init__(self, uuid, hostname, volume_service):
+        self.uuid = uuid
         self.hostname = hostname
         self.volume_service = volume_service
 
@@ -476,6 +478,7 @@ class P2PManifestationDeployer(object):
                 available_manifestations.values())
 
             return [NodeState(
+                # XXX uuid=self.uuid,
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,
@@ -557,7 +560,8 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, hostname, docker_client=None, network=None):
+    def __init__(self, uuid, hostname, docker_client=None, network=None):
+        self.uuid = uuid
         self.hostname = hostname
         if docker_client is None:
             docker_client = DockerClient()
@@ -594,6 +598,7 @@ class ApplicationNodeDeployer(object):
             # convergence agent for datasets will discover the information
             # and then we can proceed.
             return succeed([NodeState(
+                # XXX uuid=self.uuid,
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,

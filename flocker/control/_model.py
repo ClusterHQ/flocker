@@ -15,6 +15,7 @@ There are different categories of classes:
 """
 
 from characteristic import attributes
+from uuid import UUID
 
 from twisted.python.filepath import FilePath
 
@@ -552,7 +553,8 @@ class NodeState(PRecord):
     """
     The current state of a node.
 
-    :ivar unicode hostname: The hostname of the node.
+    :ivar UUID uuid: The node's UUID.
+    :ivar unicode hostname: The IP of the node.
     :ivar applications: A ``PSet`` of ``Application`` instances on this
         node, or ``None`` if the information is not known.
     :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
@@ -573,6 +575,7 @@ class NodeState(PRecord):
                 return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
+    uuid = field(type=UUID, factory=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = pset_field(int, optional=True)
     applications = pset_field(Application, optional=True)

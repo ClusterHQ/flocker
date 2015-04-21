@@ -7,6 +7,7 @@ The command-line ``flocker-*-agent`` tools.
 
 from functools import partial
 from socket import socket
+from uuid import UUID
 
 from pyrsistent import PRecord, field
 
@@ -61,6 +62,12 @@ def _get_external_ip(host, port):
     return sock.getaddr()[1]  # XXX approximately
 
 
+def _get_node_uuid():
+    # Soon we'll extract this from TLS certificate for node.
+    # Until then we'll just do a temporary hack of some sort, e.g.:
+    pass #return UUID(FilePath(b"/etc/machine-id").getContent())
+
+
 @implementer(ICommandLineVolumeScript)
 class ZFSAgentScript(object):
     """
@@ -71,7 +78,8 @@ class ZFSAgentScript(object):
         host = options["destination-host"]
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
-        deployer = P2PManifestationDeployer(ip, volume_service)
+        node_uuid = _get_node_uuid()
+        deployer = P2PManifestationDeployer(node_uuid, ip, volume_service)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
         volume_service.setServiceParent(loop)
@@ -155,9 +163,10 @@ class AgentServiceFactory(PRecord):
     Possibly ``ICommandLineScript`` should be replaced by something that is
     inherently more easily tested so that this separation isn't required.
 
-    :ivar deployer_factory: A one-argument callable to create an ``IDeployer``
-        provider for this script.  The one argument is the ``hostname`` keyword
-        argument (it must be passed by keyword).
+    :ivar deployer_factory: A two-argument callable to create an
+        ``IDeployer`` provider for this script.  The arguments are a
+        ``hostname`` keyword argument and a ``uuid`` keyword
+        argument. They must be passed by keyword.
     """
     deployer_factory = field(mandatory=True)
 
@@ -177,7 +186,8 @@ class AgentServiceFactory(PRecord):
         port = options["destination-port"]
         return AgentLoopService(
             reactor=reactor,
-            deployer=self.deployer_factory(_get_external_ip()),
+            deployer=self.deployer_factory(uuid=_get_node_uuid(),
+                                           hostname=_get_external_ip()),
             host=host, port=port,
         )
 

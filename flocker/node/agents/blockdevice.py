@@ -808,6 +808,7 @@ class BlockDeviceDeployer(PRecord):
         mounted.
     """
     hostname = field(type=unicode, mandatory=True)
+    uuid = field(type=UUID, mandatory=True)
     block_device_api = field(mandatory=True)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
 
@@ -889,6 +890,7 @@ class BlockDeviceDeployer(PRecord):
 
         state = (
             NodeState(
+                # XXX uuid=self.uuid,
                 hostname=self.hostname,
                 manifestations=manifestations,
                 paths=paths,
