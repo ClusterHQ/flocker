@@ -1,3 +1,5 @@
+.. _release-process:
+
 Release Process
 ===============
 
