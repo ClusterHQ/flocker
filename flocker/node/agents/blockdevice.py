@@ -385,7 +385,7 @@ class ResizeBlockDeviceDataset(PRecord):
         volume = _blockdevice_volume_from_datasetid(
             deployer.block_device_api, self.dataset_id
         )
-        return Sequentially(
+        return sequentially(
             changes=[
                 UnmountBlockDevice(volume=volume),
                 DetachVolume(volume=volume),

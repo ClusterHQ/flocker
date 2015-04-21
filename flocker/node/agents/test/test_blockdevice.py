@@ -439,7 +439,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
 
         assert_calculated_changes(
             self, local_state, local_config,
-            InParallel(changes=[])
+            in_parallel(changes=[])
         )
 
     def test_deleted_ignored(self):
@@ -551,7 +551,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
         assert_calculated_changes(
             self, local_state, local_config,
-            InParallel(changes=[
+            in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ])
         )
@@ -730,7 +730,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
 
         assert_calculated_changes(
             self, local_state, local_config,
-            InParallel(changes=[
+            in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=self.DATASET_ID,
                     size=REALISTIC_BLOCKDEVICE_SIZE * 2,
@@ -772,7 +772,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
 
         assert_calculated_changes(
             self, local_state, local_config,
-            InParallel(changes=[
+            in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=dataset_id,
                     size=REALISTIC_BLOCKDEVICE_SIZE * 4,
