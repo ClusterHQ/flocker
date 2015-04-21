@@ -522,6 +522,11 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
     if setuptools_version != '3.6':
         # XXX Use PEP440 version system so new setuptools can be used.
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
+        # TODO I think that installing old setuptools causes package building
+        # failure:
+        # clusterhq-python-flocker.x86_64: E: backup-file-in-package
+        # /opt/flocker/lib/python2.7/site-packages/setuptools-3.6.dist-info/
+        # requires.txt.orig
         raise ValueError("setuptools version is not 3.6")
 
     check_call([
