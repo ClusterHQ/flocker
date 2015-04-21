@@ -467,9 +467,11 @@ class IBlockDeviceAPI(Interface):
         """
         Resize an unattached ``blockdevice_id``.
 
+        This changes the amount of storage available.  It does not change the
+        data on the volume (including the filesystem).
+
         :param unicode blockdevice_id: The unique identifier for the block
             device being detached.
-
         :param int size: The required size, in bytes, of the volume.
 
         :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
