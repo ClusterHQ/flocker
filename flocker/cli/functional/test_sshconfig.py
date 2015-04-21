@@ -51,6 +51,7 @@ class ConfigureSSHTests(TestCase):
         self.config.create_keypair()
         self.configure_ssh = self.config.configure_ssh
         self.agent = create_ssh_agent(self.server.key_path)
+        self.addCleanup(self.agent.restore)
 
     def test_connection_failed(self):
         """
