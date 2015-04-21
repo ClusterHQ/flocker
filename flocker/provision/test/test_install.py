@@ -67,7 +67,6 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
 
-
     def test_ubuntu_with_version(self):
         """
         With a ``PackageSource`` containing just a version,
