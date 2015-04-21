@@ -516,7 +516,7 @@ class P2PManifestationDeployer(object):
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.
         dataset_changes = find_dataset_changes(
-            self.hostname, cluster_state, configuration)
+            self.uuid, cluster_state, configuration)
 
         resizing = [dataset for dataset in dataset_changes.resizing
                     if dataset.dataset_id not in in_use_datasets]
@@ -813,7 +813,7 @@ class ApplicationNodeDeployer(object):
         return sequentially(changes=phases)
 
 
-def find_dataset_changes(hostname, current_state, desired_state):
+def find_dataset_changes(uuid, current_state, desired_state):
     """
     Find what actions need to be taken to deal with changes in dataset
     manifestations between current state and desired state of the cluster.
@@ -827,7 +827,7 @@ def find_dataset_changes(hostname, current_state, desired_state):
     coverage for those situations is not implemented. See
     https://clusterhq.atlassian.net/browse/FLOC-352 for more details.
 
-    :param unicode hostname: The name of the node for which to find changes.
+    :param UUID uuid: The uuid of the node for which to find changes.
 
     :param Deployment current_state: The old state of the cluster on which the
         changes are based.
@@ -838,22 +838,22 @@ def find_dataset_changes(hostname, current_state, desired_state):
     :return DatasetChanges: Changes to datasets that will be needed in
          order to match desired configuration.
     """
-    desired_datasets = {node.hostname:
+    desired_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             in node.manifestations.values())
                         for node in desired_state.nodes}
-    current_datasets = {node.hostname:
+    current_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             in node.manifestations.values())
                         for node in current_state.nodes}
-    local_desired_datasets = desired_datasets.get(hostname, set())
+    local_desired_datasets = desired_datasets.get(uuid, set())
     local_desired_dataset_ids = set(dataset.dataset_id for dataset in
                                     local_desired_datasets)
     local_current_dataset_ids = set(dataset.dataset_id for dataset in
-                                    current_datasets.get(hostname, set()))
+                                    current_datasets.get(uuid, set()))
     remote_current_dataset_ids = set()
-    for dataset_hostname, current in current_datasets.items():
-        if dataset_hostname != hostname:
+    for dataset_uuid, current in current_datasets.items():
+        if dataset_uuid != uuid:
             remote_current_dataset_ids |= set(
                 dataset.dataset_id for dataset in current)
 
@@ -865,7 +865,7 @@ def find_dataset_changes(hostname, current_state, desired_state):
     for desired in desired_datasets.values():
         for new_dataset in desired:
             if new_dataset.dataset_id in local_current_dataset_ids:
-                for cur_dataset in current_datasets[hostname]:
+                for cur_dataset in current_datasets[uuid]:
                     if cur_dataset.dataset_id != new_dataset.dataset_id:
                         continue
                     if cur_dataset.maximum_size != new_dataset.maximum_size:
@@ -874,12 +874,12 @@ def find_dataset_changes(hostname, current_state, desired_state):
     # Look at each dataset that is going to be running elsewhere and is
     # currently running here, and add a DatasetHandoff for it to `going`.
     going = set()
-    for dataset_hostname, desired in desired_datasets.items():
-        if dataset_hostname != hostname:
+    for dataset_uuid, desired in desired_datasets.items():
+        if dataset_uuid != uuid:
             for dataset in desired:
                 if dataset.dataset_id in local_current_dataset_ids:
                     going.add(DatasetHandoff(dataset=dataset,
-                                             hostname=dataset_hostname))
+                                             uuid=dataset_uuid))
 
     # Look at each dataset that is going to be hosted on this node.  If it
     # was running somewhere else, we want that dataset to be in `coming`.

@@ -377,7 +377,14 @@ class Node(PRecord):
                     return (False, '%r manifestation is not on node' % (app,))
         return (True, "")
 
-    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    def __init__(self, hostname=None, **kwargs):
+        # Hostname argument will go away in future once tests are ported
+        # to pass in correct arguments.
+        if "uuid" not in kwargs:
+            kwargs["uuid"] = ip_to_uuid(hostname)
+        PRecord.__init__(self, **kwargs)
+
+    uuid = field(type=UUID, factory=UUID, mandatory=True)
     applications = pset_field(Application)
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
@@ -389,22 +396,22 @@ def _get_node(default_factory):
     Create a helper function for getting a node from a deployment.
 
     :param default_factory: A one-argument callable which is called with the
-        requested hostname when no matching node is found in the deployment.
+        requested UUID when no matching node is found in the deployment.
         The return value is used as the result.
 
     :return: A two-argument callable which accepts a ``Deployment`` or a
              ``DeploymentState`` as the first argument and a ``unicode`` string
              giving a node hostname as the second argument.  It will return a
-             node from the deployment object with a matching hostname or it
+             node from the deployment object with a matching UUID or it
              will return a value from ``default_factory`` if no matching node
              is found.
     """
-    def get_node(deployment, hostname):
+    def get_node(deployment, uuid, **defaults):
         nodes = list(
-            node for node in deployment.nodes if node.hostname == hostname
+            node for node in deployment.nodes if node.uuid == uuid
         )
         if len(nodes) == 0:
-            return default_factory(hostname=hostname)
+            return default_factory(uuid=uuid, **defaults)
         return nodes[0]
     return get_node
 
@@ -443,7 +450,7 @@ class Deployment(PRecord):
         :return Deployment: Updated with new ``Node``.
         """
         return Deployment(nodes=frozenset(
-            list(n for n in self.nodes if n.hostname != node.hostname) +
+            list(n for n in self.nodes if n.uuid != node.uuid) +
             [node]))
 
     def move_application(self, application, target_node):
@@ -464,7 +471,7 @@ class Deployment(PRecord):
                 if container.name == application.name:
                     # We only need to perform a move if the node currently
                     # hosting the container is not the node it's moving to.
-                    if node.hostname != target_node.hostname:
+                    if node.uuid != target_node.uuid:
                         # If the container has a volume, we need to add the
                         # manifestation to the new host first.
                         if application.volume is not None:
@@ -649,7 +656,7 @@ class DeploymentState(PRecord):
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
-        nodes = {n for n in self.nodes if n.hostname == node_state.hostname}
+        nodes = {n for n in self.nodes if n.uuid == node_state.uuid}
         if not nodes:
             return self.transform(["nodes"], lambda s: s.add(node_state))
         [original_node] = nodes
