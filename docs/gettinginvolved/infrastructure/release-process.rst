@@ -36,9 +36,11 @@ Software
 - A web browser,
 - `Vagrant`_ (1.6.2 or newer),
 - `VirtualBox`_,
-- ``vagrant-scp`` plugin::
+- ``vagrant-scp`` plugin:
 
-   $ vagrant plugin install vagrant-scp
+  .. prompt:: bash $
+
+     vagrant plugin install vagrant-scp
 
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
