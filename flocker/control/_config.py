@@ -18,7 +18,6 @@ from pyrsistent import pmap, InvariantException
 
 from twisted.python.filepath import FilePath
 
-from yaml import safe_dump
 from zope.interface import Interface, implementer
 
 from ._model import (
@@ -304,25 +303,6 @@ class ApplicationMarshaller(object):
                 )
             return volume_dict
         return None
-
-
-def applications_to_flocker_yaml(applications):
-    """
-    Converts a ``dict`` of ``Application`` instances to Flocker's
-    application configuration YAML.
-
-    :param applications: A ``dict`` mapping application names to
-        ``Application`` instances.
-
-    :returns: ``unicode`` representation of a complete Flocker
-        application configuration YAML.
-    """
-    config = {'version': 1, 'applications': dict()}
-    for application_name, application in applications.items():
-        converter = ApplicationMarshaller(application)
-        value = converter.convert()
-        config['applications'][application_name] = value
-    return safe_dump(config)
 
 
 def dataset_id_from_name(name):

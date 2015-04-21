@@ -892,21 +892,18 @@ def omnibus_package_builder(
             # change this you may also want to change entry_points in setup.py.
             CreateLinks(
                 links=[
-                    (FilePath('/opt/flocker/bin/flocker-reportstate'),
-                     flocker_node_path),
-                    (FilePath('/opt/flocker/bin/flocker-changestate'),
-                     flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-volume'),
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-control'),
                      flocker_node_path),
+                    (FilePath('/opt/flocker/bin/flocker-container-agent'),
+                     flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
                      flocker_node_path),
-                    # When the ZFS convergence agent is separated from the
-                    # container convergence agent, we'll be able to get rid of
-                    # flocker-zfs-agent and make that functionality part of
+                    # Eventually we'll get rid of flocker-zfs-agent and
+                    # make that functionality part of
                     # flocker-dataset-agent, controlled by a command line
-                    # argument or some such.  FLOC-1443
+                    # argument or some such. See FLOC-1721.
                     (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
                      flocker_node_path),
                 ]

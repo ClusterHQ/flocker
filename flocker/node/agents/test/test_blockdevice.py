@@ -40,7 +40,7 @@ from ..blockdevice import (
     RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE,
 )
 
-from ... import InParallel, IStateChange
+from ... import IStateChange, run_state_change, in_parallel
 from ...testtools import ideployer_tests_factory, to_node
 from ....testtools import REALISTIC_BLOCKDEVICE_SIZE, run_process
 from ....control import (
@@ -73,6 +73,17 @@ class _SizeInfo(PRecord):
 
 
 def get_size_info(api, volume):
+    """
+    Retrieve information about the size of the backing file for the given
+    volume.
+
+    :param LoopbackBlockDeviceAPI api: The loopback backend to use to retrieve
+        the size information.
+    :param BlockDeviceVolume volume: The volume the size of which to look up.
+
+    :return: A ``_SizeInfo`` giving information about actual storage and
+        reported size of the backing file for the given volume.
+    """
     backing_file = api._root_path.descendant(
         ['unattached', volume.blockdevice_id]
     )
@@ -454,7 +465,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
 
         assert_calculated_changes(
             self, local_state, local_config,
-            InParallel(changes=[])
+            in_parallel(changes=[]),
         )
     test_deleted_ignored.skip = "oops"
 
@@ -480,7 +491,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
         assert_calculated_changes(
             self, local_state, local_config,
-            InParallel(changes=[
+            in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ]),
         )
@@ -523,7 +534,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[]),
+            in_parallel(changes=[]),
             changes
         )
 
@@ -546,7 +557,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
 
-class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
+class BlockDeviceDeployerCreationCalculateChangesTests(
         SynchronousTestCase
 ):
     """
@@ -579,7 +590,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             block_device_api=api,
         )
         changes = deployer.calculate_changes(configuration, state)
-        self.assertEqual(InParallel(changes=[]), changes)
+        self.assertEqual(in_parallel(changes=[]), changes)
 
     def test_no_devices_one_dataset(self):
         """
@@ -609,7 +620,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         changes = deployer.calculate_changes(configuration, state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         self.assertEqual(
-            InParallel(
+            in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
                         dataset=dataset, mountpoint=mountpoint
@@ -691,7 +702,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             desired_configuration
         )
 
-        expected_changes = InParallel(changes=[])
+        expected_changes = in_parallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
 
@@ -795,7 +806,7 @@ class IBlockDeviceAPITestsMixin(object):
 
     def test_created_is_listed(self):
         """
-        ``create_volume`` returns a ``BlockVolume`` that is returned by
+        ``create_volume`` returns a ``BlockDeviceVolume`` that is returned by
         ``list_volumes``.
         """
         dataset_id = uuid4()
@@ -806,7 +817,8 @@ class IBlockDeviceAPITestsMixin(object):
 
     def test_listed_volume_attributes(self):
         """
-        ``list_volumes`` returns ``BlockVolume`` s that have a dataset_id.
+        ``list_volumes`` returns ``BlockDeviceVolume`` s that have the same
+        dataset_id and size as was passed to ``create_volume``.
 
         XXX: Update this test to also check that the listed volume has the same
         size as was supplied when it was created.
@@ -817,11 +829,15 @@ class IBlockDeviceAPITestsMixin(object):
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
         [listed_volume] = self.api.list_volumes()
-        self.assertEqual(expected_dataset_id, listed_volume.dataset_id)
+        self.assertEqual(
+            (expected_dataset_id, REALISTIC_BLOCKDEVICE_SIZE),
+            (listed_volume.dataset_id, listed_volume.size)
+        )
 
     def test_created_volume_attributes(self):
         """
-        ``create_volume`` returns a ``BlockVolume`` that has a dataset_id
+        ``create_volume`` returns a ``BlockDeviceVolume`` that has a dataset_id
+        and a size.
 
         XXX: Update this test to also check that the created volume has the
         same size as was supplied.
@@ -831,7 +847,10 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=expected_dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        self.assertEqual(expected_dataset_id, new_volume.dataset_id)
+        self.assertEqual(
+            (expected_dataset_id, REALISTIC_BLOCKDEVICE_SIZE),
+            (new_volume.dataset_id, new_volume.size)
+        )
 
     def test_attach_unknown_volume(self):
         """
@@ -899,7 +918,8 @@ class IBlockDeviceAPITestsMixin(object):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
+            size=REALISTIC_BLOCKDEVICE_SIZE
+        )
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
@@ -920,7 +940,8 @@ class IBlockDeviceAPITestsMixin(object):
         expected_host = u'192.0.2.123'
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
+            size=REALISTIC_BLOCKDEVICE_SIZE
+        )
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
@@ -1751,7 +1772,7 @@ class DestroyBlockDeviceDatasetTests(
             mountroot=mountroot,
         )
         change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
-        self.successResultOf(change.run(deployer))
+        self.successResultOf(run_state_change(change, deployer))
 
         # It's only possible to destroy a volume that's been detached.  It's
         # only possible to detach a volume that's been unmounted.  If the
