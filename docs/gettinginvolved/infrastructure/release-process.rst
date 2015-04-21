@@ -103,7 +103,7 @@ Preparing For a Release
 
 #. Create a release branch, and create and activate a virtual environment:
 
-   .. prompt:: [vagrant@localhost]$
+   .. prompt:: bash [vagrant@localhost]$
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
