@@ -17,7 +17,7 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
-    P2PNodeDeployer, ApplicationNodeDeployer, P2PManifestationDeployer,
+    ApplicationNodeDeployer, P2PManifestationDeployer,
 )
 from ..testtools import (
     ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
@@ -539,31 +539,44 @@ class StopApplicationTests(SynchronousTestCase):
         self.assertIs(None, result)
 
 
-class DeployerDiscoverStateTests(SynchronousTestCase):
-    """
-    Tests for ``P2PNodeDeployer.discover_state``.
-    """
-    def test_adapted_local_state(self):
-        """
-        ``P2PNodeDeployer.discover_state`` adapts the return value of
-        ``P2PNodeDeployer.discover_local_state`` to the type required by the
-        interface.
-        """
-        api = P2PNodeDeployer(
-            u"example.com",
-            create_volume_service(self),
-            docker_client=FakeDockerClient(units={}),
-            network=make_memory_network(),
-        )
-        known_local_state = NodeState(hostname=api.hostname)
+# This models an application that has a volume.
 
-        old_result = api.discover_local_state(known_local_state)
-        new_result = api.discover_state(known_local_state)
-        self.assertEqual(
-            (self.successResultOf(old_result),),
-            self.successResultOf(new_result)
-        )
+APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
+DATASET_ID = unicode(uuid4())
+DATASET = Dataset(dataset_id=DATASET_ID)
+APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
+APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
+APPLICATION_WITH_VOLUME = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+    volume=AttachedVolume(
+        manifestation=Manifestation(dataset=DATASET, primary=True),
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    ),
+    links=frozenset(),
+)
+MANIFESTATION = APPLICATION_WITH_VOLUME.volume.manifestation
 
+DATASET_WITH_SIZE = Dataset(dataset_id=DATASET_ID,
+                            metadata=DATASET.metadata,
+                            maximum_size=1024 * 1024 * 100)
+
+APPLICATION_WITH_VOLUME_SIZE = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+    volume=AttachedVolume(
+        manifestation=Manifestation(dataset=DATASET_WITH_SIZE,
+                                    primary=True),
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    ),
+    links=frozenset(),
+)
+
+MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
+
+# Placeholder in case at some point discovered application is different
+# than requested application:
+DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
 APP_NAME = u"site-example.com"
 UNIT_FOR_APP = Unit(name=APP_NAME,
@@ -2518,16 +2531,6 @@ class PushVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)
-
-
-class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
-        lambda test: P2PNodeDeployer(u"localhost",
-                                     create_volume_service(test),
-                                     FakeDockerClient(),
-                                     make_memory_network()))):
-    """
-    ``IDeployer`` tests for ``P2PNodeDeployer``.
-    """
 
 
 class ControllableDeployerInterfaceTests(

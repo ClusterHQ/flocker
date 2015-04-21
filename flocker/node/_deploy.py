@@ -93,44 +93,6 @@ class IDeployer(Interface):
         """
 
 
-@implementer(IDeployer)
-class _OldToNewDeployer(object):
-    """
-    Base class to help update implementations of the old ``IDeployer`` to the
-    current version of the interface.
-
-    Subclass this and the existing ``hostname`` attribute and
-    ``discover_local_state`` and ``calculate_necessary_state_changes`` methods
-    will be adapted to the new interface (and this would be cleaner as an
-    adapter but that would require updating more code that's soon to be thrown
-    away).
-
-    This is a transitional helper until we can update the old ``IDeployer``
-    implementations properly.
-
-    Don't use this in any new code.
-    """
-    def discover_state(self, known_local_state):
-        """
-        Discover only local state.
-
-        :return: A ``Deferred`` that fires with a one-tuple consisting of the
-            result of ``discover_local_state``.
-        """
-        discovering = self.discover_local_state(known_local_state)
-        discovering.addCallback(lambda local_state: (local_state,))
-        return discovering
-
-    def calculate_changes(self, configuration, cluster_state):
-        """
-        Extract the local state from ``cluster_state`` and delegate calculation
-        to ``calculate_necessary_state_changes``.
-        """
-        local_state = cluster_state.get_node(self.hostname)
-        return self.calculate_necessary_state_changes(
-            local_state, configuration, cluster_state)
-
-
 def _eliot_system(part):
     return u"flocker:p2pdeployer:" + part
 
@@ -932,50 +894,3 @@ def find_dataset_changes(hostname, current_state, desired_state):
                    if dataset.deleted)
     return DatasetChanges(going=going, coming=coming, deleting=deleting,
                           creating=creating, resizing=resizing)
-
-
-class P2PNodeDeployer(_OldToNewDeployer):
-    """
-    Combination of ZFS and container deployer.
-
-    Temporary expedient for use by flocker-changestate until we rip it
-    out, and even more temporarily in flocker-zfs-agent. In FLOC-1554
-    flocker-zfs-agent will be split up and stop using this.
-    """
-    def __init__(self, hostname, volume_service, docker_client=None,
-                 network=None):
-        self.manifestations_deployer = P2PManifestationDeployer(
-            hostname, volume_service)
-        self.applications_deployer = ApplicationNodeDeployer(
-            hostname, docker_client, network)
-        self.hostname = hostname
-        self.volume_service = self.manifestations_deployer.volume_service
-        self.docker_client = self.applications_deployer.docker_client
-        self.network = self.applications_deployer.network
-
-    def discover_local_state(self, local_state):
-        d = self.manifestations_deployer.discover_state(local_state)
-
-        def got_manifestations_state(manifestations_state):
-            manifestations_state = manifestations_state[0]
-            app_discovery = self.applications_deployer.discover_state(
-                manifestations_state)
-            app_discovery.addCallback(
-                lambda app_state: app_state[0].set(
-                    "manifestations", manifestations_state.manifestations).set(
-                    "paths", manifestations_state.paths))
-            return app_discovery
-        d.addCallback(got_manifestations_state)
-        return d
-
-    def calculate_necessary_state_changes(
-            self, local_state, configuration, cluster_state):
-        """
-        Combine changes from the application and ZFS agents.
-        """
-        return sequentially(changes=[
-            self.applications_deployer.calculate_changes(
-                configuration, cluster_state),
-            self.manifestations_deployer.calculate_changes(
-                configuration, cluster_state),
-        ])

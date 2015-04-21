@@ -9,17 +9,14 @@ from ._change import (
 )
 
 from ._deploy import (
-    P2PNodeDeployer, IDeployer,
+    IDeployer,
     P2PManifestationDeployer,
     ApplicationNodeDeployer,
 )
 
 __all__ = [
     'IDeployer', 'IStateChange',
-
-    'P2PNodeDeployer',
     'P2PManifestationDeployer',
     'ApplicationNodeDeployer',
-
     'run_state_change', 'in_parallel', 'sequentially',
 ]

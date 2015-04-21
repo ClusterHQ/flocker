@@ -1,5 +1,5 @@
 [Unit]
-Description=Flocker Node Agent
+Description=Flocker ZFS Agent
 
 [Service]
 ExecStart=/usr/sbin/flocker-zfs-agent $FLOCKER_NODE_NAME $FLOCKER_CONTROL_NODE
