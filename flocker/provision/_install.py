@@ -328,6 +328,8 @@ def task_install_flocker(
             ]
 
         # Add ClusterHQ repo for installation of Flocker packages.
+        # TODO - this should be replaced by official repo when
+        # available. See [FLOC-1065]
         if base_url:
             commands.append(run_from_args([
                 "add-apt-repository", "-y", "deb {} /".format(base_url)]))
@@ -338,6 +340,7 @@ def task_install_flocker(
                 "apt-get", "update"]),
             # Package spl-dkms sometimes does not have libc6-dev as a
             # dependency, add it before ZFS installation requires it.
+            # See https://github.com/zfsonlinux/zfs/issues/3298
             run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
             # Install Flocker node and all dependencies
             run_from_args([
