@@ -6,6 +6,8 @@ Tests for environment variables.
 from unittest import skipUnless
 from uuid import uuid4
 
+from eliot import Message, Logger
+
 from pyrsistent import pmap, freeze, thaw
 
 from twisted.python.filepath import FilePath
@@ -172,7 +174,10 @@ class EnvironmentVariableTests(TestCase):
                             passwd=passwd,
                             db=db,
                         )
-                    except Error:
+                    except Error as e:
+                        Message.new(
+                            message_type="acceptance:mysql_connect_error",
+                            error=str(e)).write(Logger())
                         return False
                 dl = loop_until(mysql_can_connect)
                 return dl
