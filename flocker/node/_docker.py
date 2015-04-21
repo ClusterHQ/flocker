@@ -17,6 +17,8 @@ from docker.utils import create_host_config
 
 from pyrsistent import field, PRecord
 
+from eliot import Logger, Message
+
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
@@ -25,6 +27,9 @@ from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field)
+
+
+logger = Logger()
 
 
 class AlreadyExists(Exception):
@@ -480,6 +485,23 @@ class DockerClient(object):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
 
+    def _blocking_container_runs(self, container_name):
+        """
+        Blocking API to check if container is running.
+
+        :param unicode container_name: The name of the container whose
+            state we're checking.
+
+        :return: ``True`` if container is running, otherwise ``False``.
+        """
+        result = self._client.inspect_container(container_name)
+        Message.new(
+            type=u'flocker:docker:container_state',
+            name=container_name,
+            state=result,
+        ).write(logger)
+        return result['State']['Running']
+
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
 
@@ -508,9 +530,12 @@ class DockerClient(object):
                     break
 
             try:
-                while (self._client.inspect_container(container_name)
-                        ['State']['Running']):
-                    sleep(0.1)
+                # The ``docker.Client.stop`` method puts the container into
+                # a stopping state, but the container cannot be removed
+                # until the container has actually stopped running.
+                while self._blocking_container_runs(container_name):
+                    sleep(0.01)
+
                 self._client.remove_container(container_name)
             except APIError as e:
                 # If the container doesn't exist, we swallow the error,
