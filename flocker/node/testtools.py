@@ -15,6 +15,7 @@ from zope.interface import implementer
 from characteristic import attributes
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
 
@@ -109,8 +110,10 @@ class DummyDeployer(object):
     """
     A non-implementation of ``IDeployer``.
     """
+    hostname = u"127.0.0.1"
+
     def discover_state(self, node_stat):
-        return ()
+        return succeed(())
 
     def calculate_changes(self, desired_configuration, cluster_state):
         return sequentially(changes=[])
