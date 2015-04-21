@@ -434,7 +434,7 @@ Release
 #. If the release is a marketing release, merge the new ``vagrant-flocker`` branch.
 
    .. warning:: It takes some time for CloudFront invalidations to propagate.
-      This means that there will be a short period for some users where the documentation will still be for the previous version but the Vagrantfile download the latest tutorial box.
+      This means that there will be a short period for some users where the documentation will still be for the previous version but the ``Vagrantfile`` downloads the latest tutorial box.
 
    .. prompt:: bash [vagrant@localhost]$
 
