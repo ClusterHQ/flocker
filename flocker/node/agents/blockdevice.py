@@ -88,6 +88,12 @@ VOLUME = Field(
     u"The unique identifier of a volume."
 )
 
+FILESYSTEM_TYPE = Field.forTypes(
+    u"filesystem_type",
+    [unicode],
+    u"The name of a filesystem."
+)
+
 DATASET_ID = Field(
     u"dataset_id",
     lambda dataset_id: unicode(dataset_id),
@@ -187,6 +193,13 @@ RESIZE_VOLUME = ActionType(
     [VOLUME],
     [],
     u"The volume for a block-device-backed dataset is being resized."
+)
+
+CREATE_FILESYSTEM = ActionType(
+    u"agent:blockdevice:create_filesystem",
+    [VOLUME, FILESYSTEM_TYPE],
+    [],
+    u"A block device is being initialized with a filesystem.",
 )
 
 RESIZE_FILESYSTEM = ActionType(
@@ -309,6 +322,13 @@ class ResizeVolume(PRecord):
     volume = _volume()
     size = field(type=int, mandatory=True)
 
+    @property
+    def eliot_action(self):
+        return RESIZE_VOLUME(
+            _logger, volume=self.volume,
+            old_size=self.volume.size, new_size=self.size,
+        )
+
     def run(self, deployer):
         deployer.block_device_api.resize_volume(
             self.volume.blockdevice_id, self.size
@@ -324,6 +344,12 @@ class CreateFilesystem(PRecord):
     volume = _volume()
     filesystem = field(type=unicode, mandatory=True)
 
+    @property
+    def eliot_action(self):
+        return CREATE_FILESYSTEM(
+            _logger, volume=self.volume, filesystem=self.filesystem
+        )
+
     def run(self, deployer):
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
@@ -337,6 +363,10 @@ class CreateFilesystem(PRecord):
 @implementer(IStateChange)
 class ResizeFilesystem(PRecord):
     volume = _volume()
+
+    @property
+    def eliot_action(self):
+        return RESIZE_FILESYSTEM(_logger, volume=self.volume)
 
     def run(self, deployer):
         device = deployer.block_device_api.get_device_path(
@@ -377,9 +407,8 @@ class ResizeBlockDeviceDataset(PRecord):
     size = field(type=int, mandatory=True)
 
     @property
-    def _eliot_action(self):
-        # return RESIZE_BLOCK_DEVICE_DATASET(_logger, volume=self.volume)
-        pass
+    def eliot_action(self):
+        return RESIZE_BLOCK_DEVICE_DATASET(_logger, dataset_id=self.dataset_id)
 
     def run(self, deployer):
         volume = _blockdevice_volume_from_datasetid(
@@ -416,9 +445,8 @@ class MountBlockDevice(PRecord):
     mountpoint = field(type=FilePath, mandatory=True)
 
     @property
-    def _eliot_action(self):
-        # return MOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
-        pass
+    def eliot_action(self):
+        return MOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
 
     def run(self, deployer):
         """
@@ -480,9 +508,8 @@ class AttachVolume(PRecord):
     hostname = field(type=unicode, mandatory=True)
 
     @property
-    def _eliot_action(self):
-        # return ATTACH_VOLUME(_logger, volume=self.volume)
-        pass
+    def eliot_action(self):
+        return ATTACH_VOLUME(_logger, volume=self.volume)
 
     def run(self, deployer):
         """
