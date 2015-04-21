@@ -310,14 +310,6 @@ Release
 
       admin/publish-packages
 
-#. Copy the tutorial box to the final location:
-   
-   .. note:: Skip this step for a maintenance or documentation release.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
-
 #. Add the tutorial box to Atlas:
 
    .. note:: Skip this step for a maintenance or documentation release.
@@ -326,7 +318,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      echo http://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+      echo https://s3.amazonaws.com/clusterhq-archive/vagrant/flocker-tutorial-${VERSION}.box
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
