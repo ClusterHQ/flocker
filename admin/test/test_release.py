@@ -45,7 +45,7 @@ def hard_linking_possible():
     file = scratch_directory.child('src')
     file.touch()
     try:
-        os.link(file.path, 'dst')
+        os.link(file.path, scratch_directory.child('dst').path)
         return True
     except:
         return False
