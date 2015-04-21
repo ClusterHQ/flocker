@@ -30,6 +30,7 @@ from ..release import (
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
+    IncorrectSetuptoolsVersion,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1566,12 +1567,12 @@ class UploadPythonPackagesTests(SynchronousTestCase):
 
     def test_setuptools_version_requirement(self):
         """
-        When setuptools' version is not 3.6, a ValueError is raised.
+        When setuptools' version is not 3.6, an error is raised.
         """
         self.patch(
             release, 'setuptools_version', '15.1')
         self.assertRaises(
-            ValueError,
+            IncorrectSetuptoolsVersion,
             self.upload_python_packages)
 
 
