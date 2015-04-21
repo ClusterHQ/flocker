@@ -97,6 +97,9 @@ def run_state_change(change, deployer):
 class _InParallel(PRecord):
     changes = field(
         type=PVector,
+        # Sort the changes for the benefit of comparison.  Stick with a vector
+        # (rather than, say, a set) in case someone wants to run the same
+        # change multiple times in parallel.
         factory=lambda changes: pvector(sorted(changes)),
         mandatory=True
     )
