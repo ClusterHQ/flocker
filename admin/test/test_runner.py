@@ -35,7 +35,7 @@ class RunTests(TestCase):
     """
     def setUp(self):
         self.logger = MemoryLogger()
-        self.patch(runner, 'logger', self.logger)
+        self.patch(runner, '_logger', self.logger)
 
     def test_spawns_process(self):
         """
