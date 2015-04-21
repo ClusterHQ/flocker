@@ -175,6 +175,14 @@ definitions:
       and optional tag, e.g. "clusterhq/redis:latest".
     type: string
 
+  command_line:
+    title: "Command line"
+    description: |
+      Alternate command-line to run using the Docker image's entry point.
+    type: array
+    items:
+      type: string
+
   host:
     title: "Host"
     description: |
