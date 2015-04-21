@@ -15,9 +15,6 @@ from .testtools import (flocker_deploy, get_mongo_client, get_nodes,
 class MovingDataTests(TestCase):
     """
     Tests for movement of data across nodes.
-
-    Similar to:
-    http://doc-dev.clusterhq.com/gettingstarted/tutorial/volumes.html
     """
     @require_flocker_cli
     @require_mongo

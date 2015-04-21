@@ -54,9 +54,6 @@ POSTGRES_APPLICATION = Application(
 class PostgresTests(TestCase):
     """
     Tests for running and managing PostgreSQL with Flocker.
-
-    Similar to:
-    http://doc-dev.clusterhq.com/gettingstarted/examples/postgres.html
     """
     @require_flocker_cli
     def setUp(self):

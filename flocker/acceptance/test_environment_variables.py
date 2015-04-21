@@ -62,9 +62,6 @@ class EnvironmentVariableTests(TestCase):
     """
     Tests for passing environment variables to containers, in particular
     passing a root password to MySQL.
-
-    Similar to:
-    http://doc-dev.clusterhq.com/gettingstarted/examples/environment.html
     """
     @require_flocker_cli
     def setUp(self):
