@@ -70,6 +70,8 @@ There is a staging bucket, ``clusterhq-staging-archive``.
 
 The Homebrew installation script for OS X downloads packages from the ``python`` directory.
 
+Binary and source distributions are hosted in the ``python`` directory.
+
 Fedora 20 and CentOS client and node packages in the ``fedora`` and ``centos`` directories.
 There are also ``fedora-testing`` and ``centos-testing`` directories used for weekly development releases.
 
