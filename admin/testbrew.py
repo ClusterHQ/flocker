@@ -18,6 +18,8 @@ import os
 import sys
 import urllib2
 
+from eliot import add_destination
+
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
@@ -75,6 +77,26 @@ class TestBrewOptions(Options):
         sys.exit(0)
 
 
+MESSAGE_FORMATS = {
+    "flocker.provision.ssh:run":
+        "[%(username)s@%(address)s]: Running %(command)s\n",
+    "flocker.provision.ssh:run:output":
+        "[%(username)s@%(address)s]: %(line)s\n",
+    "admin.runner:run":
+        "Running %(command)s\n",
+    "admin.runner:run:output":
+        "%(line)s\n",
+}
+
+
+def eliot_output(message):
+    """
+    Write pretty versions of eliot log messages to stdout.
+    """
+    sys.stdout.write(MESSAGE_FORMATS[message['message_type']] % message)
+    sys.stdout.flush()
+
+
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
     try:
@@ -84,6 +106,9 @@ def main(reactor, args, base_path, top_level):
         except UsageError as e:
             sys.stderr.write("Error: {error}.\n".format(error=str(e)))
             sys.exit(1)
+
+        add_destination(eliot_output)
+
         recipe_url = options['recipe_url']
         options['vmpath'] = FilePath(options['vmpath'])
         # Open the recipe URL just to validate and verify that it exists.
