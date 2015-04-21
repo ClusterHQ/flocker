@@ -73,8 +73,8 @@ The Homebrew installation script for OS X downloads packages from the ``python``
 Fedora 20 and CentOS client and node packages in the ``fedora`` and ``centos`` directories.
 There are also ``fedora-testing`` and ``centos-testing`` directories used for weekly development releases.
 
-`clusterhq-archive`
--------------------
+``clusterhq-archive``
+---------------------
 
 This bucket has the following policy::
 
@@ -94,8 +94,8 @@ This bucket has the following policy::
 
 A policy can be set by going to a bucket's "Properties", "Permissions", then "Add bucket policy".
 
-`clusterhq-release package`
----------------------------
+``clusterhq-release package``
+-----------------------------
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
