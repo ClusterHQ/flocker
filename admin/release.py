@@ -393,10 +393,17 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
 
 
 @do
-def copy_tutorial_vagrant_box(target_bucket, version):
+def copy_tutorial_vagrant_box(target_bucket, dev_bucket, version):
     """
-    TODO
+    Copy the tutorial box from a ``dev_bucket`` to a ``target_bucket``.
     """
+    yield Effect(
+        CopyS3Keys(source_bucket=dev_bucket,
+                   source_prefix='{}/vagrant/tutorial/'.format(version),
+                   destination_bucket=target_bucket,
+                   destination_prefix='vagrant/tutorial/',
+                   keys=['flocker-tutorial-{}.box'.format(version)]))
+
 
 
 @do

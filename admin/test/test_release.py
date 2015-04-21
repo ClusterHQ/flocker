@@ -1750,22 +1750,26 @@ class CopyTutorialVagrantBox(SynchronousTestCase):
         A Vagrant box for a given version of Flocker is copied to the
         archive.
         """
-        bucket = 'clusterhq-archive'
+        target_bucket = 'clusterhq-archive'
+        dev_bucket = 'clusterhq-dev-archive'
 
         aws = FakeAWS(
             routing_rules={},
             s3_buckets={
-                bucket: {},
-                'clusterhq-dev-archive': {
+                target_bucket: {},
+                dev_bucket: {
                     '0.3.0/vagrant/tutorial/flocker-tutorial-0.3.0.box': '',
                 },
             })
 
         sync_perform(
             ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
-            copy_tutorial_vagrant_box(target_bucket=bucket, version='0.3.0'))
+            copy_tutorial_vagrant_box(
+                target_bucket=target_bucket,
+                dev_bucket=dev_bucket,
+                version='0.3.0'))
 
         self.assertEqual(
-            aws.s3_buckets[bucket],
+            aws.s3_buckets[target_bucket],
             {'vagrant/tutorial/flocker-tutorial-0.3.0.box': ''}
         )
