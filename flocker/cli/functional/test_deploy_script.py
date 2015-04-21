@@ -3,7 +3,7 @@
 """
 Functional tests for the ``flocker-deploy`` command line tool.
 """
-from subprocess import check_output, CalledProcessError
+from subprocess import check_output
 from unittest import skipUnless
 from os import environ
 from copy import deepcopy
