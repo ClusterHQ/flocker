@@ -89,11 +89,11 @@ def main(reactor, args, base_path, top_level):
         # Open the recipe URL just to validate and verify that it exists.
         # We do not need to read its content.
         urllib2.urlopen(recipe_url)
-        yield run([
+        yield run(reactor, [
             "vmrun", "revertToSnapshot",
             options['vmpath'].path, options['vmsnapshot'],
         ])
-        yield run([
+        yield run(reactor, [
             "vmrun", "start", options['vmpath'].path, "nogui",
         ])
         yield perform(
@@ -104,7 +104,7 @@ def main(reactor, args, base_path, top_level):
                 commands=task_test_homebrew(recipe_url)
             ),
         )
-        yield run([
+        yield run(reactor, [
             "vmrun", "stop", options['vmpath'].path, "hard",
         ])
         print "Done."
