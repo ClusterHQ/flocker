@@ -272,6 +272,9 @@ class Application(PRecord):
     :ivar IRestartPolicy restart_policy: The restart policy for this
         application.
 
+    :ivar command_line: Custom command to run using the image, a ``PVector``
+        of ``unicode``. ``None`` means use default.
+
     :ivar bool running: Whether or not the application is running.
     """
     name = field(mandatory=True)
@@ -285,6 +288,7 @@ class Application(PRecord):
     environment = field(mandatory=True, initial=pmap(), factory=pmap,
                         type=PMap)
     running = field(mandatory=True, initial=True, type=bool)
+    command_line = pvector_field(unicode, optional=True, initial=None)
 
 
 class Dataset(PRecord):
