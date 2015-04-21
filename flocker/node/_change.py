@@ -119,6 +119,7 @@ def in_parallel(changes):
     Failures in one change do not prevent other changes from continuing.
 
     The order in which execution of the changes is started is unspecified.
+    Comparison of the resulting object disregards the ordering of the changes.
     """
     return _InParallel(changes=changes)
 
