@@ -26,7 +26,7 @@ from twisted.python.usage import Options, UsageError
 from flocker.provision._install import task_test_homebrew
 from flocker.provision._ssh import run_remotely
 from flocker.provision._ssh._conch import make_dispatcher
-from effect import sync_perform as perform
+from effect.twisted import perform
 from flocker import __version__
 
 from .runner import run
