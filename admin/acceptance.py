@@ -376,13 +376,13 @@ class RunOptions(Options):
 
 MESSAGE_FORMATS = {
     "flocker.provision.ssh:run":
-        "[%(username)s@%(address)s]: Running %(command)s",
+        "[%(username)s@%(address)s]: Running %(command)s\n",
     "flocker.provision.ssh:run:output":
-        "[%(username)s@%(address)s]: %(line)s",
+        "[%(username)s@%(address)s]: %(line)s\n",
     "admin.runner:run":
-        "Running %(command)s",
+        "Running %(command)s\n",
     "admin.runner:run:output":
-        "%(line)s",
+        "%(line)s\n",
 }
 
 
