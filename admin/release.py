@@ -524,6 +524,8 @@ def upload_python_packages(scratch_directory, target_bucket, top_level,
         # https://clusterhq.atlassian.net/browse/FLOC-1331.
         raise ValueError("setuptools version is not 3.6")
 
+    # XXX This has a side effect so it should be an Effect
+    # https://clusterhq.atlassian.net/browse/FLOC-1731
     check_call([
         'python', 'setup.py',
         'sdist', '--dist-dir={}'.format(scratch_directory.path),
