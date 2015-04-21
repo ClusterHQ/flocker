@@ -83,7 +83,7 @@ class InParallelIStateChangeTests(
     def test_duplicates_run(self):
         """
         If the same change is passed to ``in_parallel`` twice then it is run
-        twice then the resulting ``IStateChange`` is run.
+        twice.
         """
         deployer = DummyDeployer()
         the_change = RunSpyStateChange(value=0)
