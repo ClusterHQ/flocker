@@ -25,6 +25,7 @@ from ..common.script import (
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
+from ..control._config import ip_to_uuid
 
 
 __all__ = [
@@ -62,14 +63,6 @@ def _get_external_ip(host, port):
     return sock.getaddr()[1]  # XXX approximately
 
 
-def _get_node_uuid(ip):
-    # Soon we'll extract this from TLS certificate for node.  Until then
-    # we'll just do a temporary hack of some sort.  In particular, by
-    # using a deterministic IP->UUID mapping we can separate out porting
-    # the REST API to new UUID model into a separate issue.
-    pass #return UUID(md5(ip))
-
-
 @implementer(ICommandLineVolumeScript)
 class ZFSAgentScript(object):
     """
@@ -80,7 +73,9 @@ class ZFSAgentScript(object):
         host = options["destination-host"]
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
-        node_uuid = _get_node_uuid()
+        # Soon we'll extract this from TLS certificate for node.  Until then
+        # we'll just do a temporary hack
+        node_uuid = ip_to_uuid(ip)
         deployer = P2PManifestationDeployer(node_uuid, ip, volume_service)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
@@ -186,10 +181,11 @@ class AgentServiceFactory(PRecord):
         """
         host = options["destination-host"]
         port = options["destination-port"]
+        ip = _get_external_ip()
         return AgentLoopService(
             reactor=reactor,
-            deployer=self.deployer_factory(uuid=_get_node_uuid(),
-                                           hostname=_get_external_ip()),
+            deployer=self.deployer_factory(uuid=ip_to_uuid(ip),
+                                           hostname=ip),
             host=host, port=port,
         )
 

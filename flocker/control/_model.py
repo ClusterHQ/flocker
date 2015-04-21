@@ -548,6 +548,21 @@ class IClusterStateChange(Interface):
         """
 
 
+def ip_to_uuid(ip):
+    """
+    Deterministically convert IP to UUID.
+
+    This is intended for interim use and backwards compatibility for
+    existing tests. It should not be hit in production code paths.
+
+    :param unicode ip: An IP.
+    """
+    warn(DeprecationWarning, "UUID is required, this is for backwards compat "
+         "with existing tests only. If you see this in production code that's "
+         "a bug")
+    return UUID(md5(ip))  # or something
+
+
 @implementer(IClusterStateChange)
 class NodeState(PRecord):
     """
@@ -574,6 +589,11 @@ class NodeState(PRecord):
             if key != value.dataset_id:
                 return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
+
+    def __init__(self, **kwargs):
+        if "uuid" not in kwargs:
+            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
+        PRecord.__init__(self, **kwargs)
 
     uuid = field(type=UUID, factory=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
