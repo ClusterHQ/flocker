@@ -1758,7 +1758,7 @@ class CopyTutorialVagrantBox(SynchronousTestCase):
             s3_buckets={
                 target_bucket: {},
                 dev_bucket: {
-                    '0.3.0/vagrant/tutorial/flocker-tutorial-0.3.0.box': '',
+                    'vagrant/tutorial/flocker-tutorial-0.3.0.box': '',
                 },
             })
 
