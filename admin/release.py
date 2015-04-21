@@ -393,6 +393,13 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
 
 
 @do
+def copy_tutorial_vagrant_box(target_bucket, version):
+    """
+    TODO
+    """
+
+
+@do
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
     Upload RPMS from build server to yum repository.
