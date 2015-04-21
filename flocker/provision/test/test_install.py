@@ -21,7 +21,7 @@ class InstallFlockerTests(SynchronousTestCase):
     Tests for ``task_install_flocker``.
     """
 
-    def test_no_arguments(self):
+    def test_fedora_no_arguments(self):
         """
         With no arguments, ``task_install_flocker`` installs the latest
         release.
@@ -34,7 +34,7 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command="yum install -y clusterhq-flocker-node")
         ]))
 
-    def test_with_version(self):
+    def test_fedora_with_version(self):
         """
         With a ``PackageSource`` containing just a version,
         ``task_install_flocker`` installs that version from our release
@@ -49,6 +49,43 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command="yum install -y %s" % ZFS_REPO[distribution]),
             run(command="yum install -y %s" % CLUSTERHQ_REPO[distribution]),
             run(command="yum install -y clusterhq-flocker-node-1.2.3-1")
+        ]))
+
+    def test_ubuntu_no_arguments(self):
+        """
+        With no arguments, ``task_install_flocker`` installs the latest
+        release.
+        """
+        distribution = 'ubuntu-14.04'
+        commands = task_install_flocker(distribution=distribution)
+        self.assertEqual(commands, sequence([
+            run(command='apt-get -y install software-properties-common'),
+            run(command='add-apt-repository -y ppa:zfs-native/stable'),
+            run(command='add-apt-repository -y ppa:james-page/docker'),
+            run(command='apt-get update'),
+            run(command='apt-get -y install libc6-dev'),
+            run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
+        ]))
+
+
+    def test_ubuntu_with_version(self):
+        """
+        With a ``PackageSource`` containing just a version,
+        ``task_install_flocker`` installs that version from our release
+        repositories.
+        """
+        distribution = 'ubuntu-14.04'
+        source = PackageSource(os_version="1.2.3-1")
+        commands = task_install_flocker(
+            package_source=source,
+            distribution=distribution)
+        self.assertEqual(commands, sequence([
+            run(command='apt-get -y install software-properties-common'),
+            run(command='add-apt-repository -y ppa:zfs-native/stable'),
+            run(command='add-apt-repository -y ppa:james-page/docker'),
+            run(command='apt-get update'),
+            run(command='apt-get -y install libc6-dev'),
+            run(command='apt-get -y --force-yes install clusterhq-flocker-node=1.2.3-1'),  # noqa
         ]))
 
     def test_with_branch(self):

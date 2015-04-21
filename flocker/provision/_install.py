@@ -342,11 +342,18 @@ def task_install_flocker(
             # dependency, add it before ZFS installation requires it.
             # See https://github.com/zfsonlinux/zfs/issues/3298
             run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
-            # Install Flocker node and all dependencies
-            run_from_args([
-                'apt-get', '-y', '--force-yes', 'install',
-                'clusterhq-flocker-node']),
             ]
+
+        if package_source.os_version:
+            package = 'clusterhq-flocker-node=%s' % (
+                package_source.os_version,)
+        else:
+            package = 'clusterhq-flocker-node'
+
+        # Install Flocker node and all dependencies
+        commands.append(run_from_args([
+            'apt-get', '-y', '--force-yes', 'install', package]))
+
         return sequence(commands)
     else:
         commands = [
