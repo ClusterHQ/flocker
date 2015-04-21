@@ -62,10 +62,12 @@ def _get_external_ip(host, port):
     return sock.getaddr()[1]  # XXX approximately
 
 
-def _get_node_uuid():
-    # Soon we'll extract this from TLS certificate for node.
-    # Until then we'll just do a temporary hack of some sort, e.g.:
-    pass #return UUID(FilePath(b"/etc/machine-id").getContent())
+def _get_node_uuid(ip):
+    # Soon we'll extract this from TLS certificate for node.  Until then
+    # we'll just do a temporary hack of some sort.  In particular, by
+    # using a deterministic IP->UUID mapping we can separate out porting
+    # the REST API to new UUID model into a separate issue.
+    pass #return UUID(md5(ip))
 
 
 @implementer(ICommandLineVolumeScript)
