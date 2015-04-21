@@ -296,9 +296,6 @@ def task_install_flocker(
 
 
 ACCEPTANCE_IMAGES = [
-    "clusterhq/elasticsearch",
-    "clusterhq/logstash",
-    "clusterhq/kibana",
     "postgres:latest",
     "clusterhq/mongodb:latest",
 ]
@@ -442,33 +439,5 @@ def configure_cluster(control_node, agent_nodes):
                     ),
                 ),
             ]) for node in agent_nodes
-        ])
-    ])
-
-
-def stop_cluster(control_node, agent_nodes):
-    """
-    Stop flocker-control, flocker-agent and flocker-container-agent on a
-    collection of nodes.
-
-    :param bytes control_node: The address of the control node.
-    :param list agent_nodes: List of addresses of agent nodes.
-    """
-    return sequence([
-        run_remotely(
-            username='root',
-            address=control_node,
-            commands=run_from_args(['systemctl', 'stop', 'flocker-control']),
-        ),
-        sequence([
-            run_remotely(
-                username='root',
-                address=node,
-                commands=sequence([
-                    run_from_args(['systemctl', 'stop', 'flocker-agent']),
-                    run_from_args(['systemctl', 'stop',
-                                   'flocker-container-agent']),
-                ]))
-            for node in agent_nodes
         ])
     ])
