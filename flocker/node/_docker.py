@@ -123,7 +123,7 @@ class Unit(PRecord):
     :ivar IRestartPolicy restart_policy: The restart policy of the container.
 
     :ivar command_line: Custom command to run using the image, a ``PVector``
-        of ``unicode``. Empty sequence means use default.
+        of ``unicode``. ``None`` means use default.
     """
     name = field(mandatory=True)
     container_name = field(mandatory=True)
