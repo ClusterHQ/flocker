@@ -35,7 +35,10 @@ Software
 
 - A web browser,
 - `Vagrant`_ (1.6.2 or newer),
-- `VirtualBox`_.
+- `VirtualBox`_,
+- ``vagrant-scp`` plugin::
+
+   $ vagrant plugin install vagrant-scp
 
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
@@ -93,7 +96,8 @@ Preparing For a Release
       cd flocker-${VERSION}
       vagrant up
       vagrant ssh -c "echo export VERSION=${VERSION} >> .bashrc"
-      vagrant ssh
+      if [ -f ~/.boto ]; then vagrant scp "~/.boto" /home/vagrant; fi
+      vagrant ssh -- -A
 
 #. Create a release branch, and create and activate a virtual environment:
 
@@ -445,16 +449,15 @@ Release
       git merge origin/release/flocker-${VERSION}
       git push
 
-#. Copy the ``boto`` configuration file to a synced folder, then your local home directory:
+#. Copy the ``boto`` configuration file to your local home directory:
 
    If the ``boto`` configuration is on your workstation it will not have to be recreated next time you do a release.
 
    .. prompt:: bash [vagrant@localhost]$,$ auto
 
-      [vagrant@localhost]$ cp ~/.boto /vagrant
       [vagrant@localhost]$ logout
       Connection to 127.0.0.1 closed.
-      $ cp .boto ~/
+      $ vagrant scp default:/home/vagrant/.boto ~/
 
 #. Submit the release pull request for review again.
 

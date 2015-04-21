@@ -23,12 +23,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.provision "file", source: File.join(Dir.home, ".gitconfig"), destination: ".gitconfig"
   end
 
-  # Use the boto configuration from the host in the VM, if it is in the
-  # expected location
-  if File.exists?(File.join(Dir.home, ".boto"))
-    config.vm.provision "file", source: File.join(Dir.home, ".boto"), destination: ".boto"
-  end
-
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
   end
