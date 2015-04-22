@@ -344,6 +344,18 @@ FLOCKER_PACKAGES = [
 ]
 
 
+def publish_homebrew_recipe(git_url, scratch_directory, version):
+    """
+    Publish a Homebrew recipe to a git repository.
+
+    :param unicode git_url: See ``Git.Repo.clone_from.url``.
+    :param FilePath scratch_directory: Temporary directory to clone
+        repository to.
+    :param bytes version: Version of Flocker to publish a recipe for.
+    """
+    pass
+
+
 @do
 def update_repo(rpm_directory, target_bucket, target_key, source_repo,
                 packages, flocker_version, distro_name, distro_version):

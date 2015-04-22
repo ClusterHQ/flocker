@@ -1751,6 +1751,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         """
         repo = create_git_repository(test_case=self)
         publish_homebrew_recipe(
-            tap_repository=repo,
+            git_url='XXX',
+            scratch_directory=FilePath(self.mktemp()),
             version='0.3.0')
         self.assertIn((u'flocker-0.3.0.rb', 0), repo.index.entries)
