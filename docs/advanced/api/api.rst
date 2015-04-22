@@ -27,7 +27,7 @@ To configure firewalld to allow access to the control service REST API, and for 
 (On AWS, an external firewall is used instead, which will need to be configured similarity).
 For more details on configuring the firewall, see Fedora's `firewalld documentation <https://fedoraproject.org/wiki/FirewallD>`_.
 
-To start the agent on a node, (where ``${CONTROL_NODE}`` is the address of the control node, and ``${NODE_NAME}`` is the name of the node being configured).:
+To start the agents on a node, (where ``${CONTROL_NODE}`` is the address of the control node, and ``${NODE_NAME}`` is the name of the node being configured).:
 
 .. task:: enable_flocker_agent ${NODE_NAME} ${CONTROL_NODE}
    :prompt: [root@agent-node]#

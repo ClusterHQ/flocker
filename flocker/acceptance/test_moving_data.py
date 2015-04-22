@@ -5,6 +5,8 @@ Tests for movement of data across nodes.
 """
 from twisted.trial.unittest import TestCase
 
+from pyrsistent import thaw, freeze
+
 from .testtools import (flocker_deploy, get_mongo_client, get_nodes,
                         MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
                         require_mongo)
@@ -13,9 +15,6 @@ from .testtools import (flocker_deploy, get_mongo_client, get_nodes,
 class MovingDataTests(TestCase):
     """
     Tests for movement of data across nodes.
-
-    Similar to:
-    http://doc-dev.clusterhq.com/gettingstarted/tutorial/volumes.html
     """
     @require_flocker_cli
     @require_mongo
@@ -45,6 +44,11 @@ class MovingDataTests(TestCase):
                 },
             },
         }
+
+        volume_application_different_port = thaw(freeze(
+            volume_application).transform(
+                [u"applications", MONGO_APPLICATION, u"ports", 0,
+                 u"external"], 27018))
 
         def deploy_data_application(node_ips):
             self.node_1, self.node_2 = node_ips
@@ -77,9 +81,12 @@ class MovingDataTests(TestCase):
                 },
             }
 
-            flocker_deploy(self, volume_deployment_moved, volume_application)
+            # Use different port so we're sure it's new container we're
+            # talking to:
+            flocker_deploy(self, volume_deployment_moved,
+                           volume_application_different_port)
 
-            d = get_mongo_client(self.node_2)
+            d = get_mongo_client(self.node_2, 27018)
 
             d.addCallback(lambda client_2: self.assertEqual(
                 data,
