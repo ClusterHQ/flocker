@@ -1844,7 +1844,7 @@ class MountBlockDeviceTests(
 
         mountpoint = mountroot.child(b"mount-test")
         change = MountBlockDevice(volume=volume, mountpoint=mountpoint)
-        self.successResultOf(change.run(deployer))
+        self.successResultOf(run_state_change(change, deployer))
 
         expected = (
             api.get_device_path(volume.blockdevice_id).path,
