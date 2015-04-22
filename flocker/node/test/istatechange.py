@@ -73,12 +73,17 @@ def make_istatechange_tests(klass, kwargs1, kwargs2):
     :return: ``SynchronousTestCase`` subclass named
         ``<klassname>IStateChangeTests``.
     """
+    def instance(kwargs):
+        if isinstance(kwargs, dict):
+            return klass(**kwargs)
+        return klass(**kwargs())
+
     class Tests(make_comparison_tests(klass, kwargs1, kwargs2)):
         def test_interface(self):
             """
             The class implements ``IStateChange``.
             """
-            self.assertTrue(verifyObject(IStateChange, klass(**kwargs1)))
+            self.assertTrue(verifyObject(IStateChange, instance(kwargs1)))
     Tests.__name__ = klass.__name__ + "IStateChangeTests"
     return Tests
 
