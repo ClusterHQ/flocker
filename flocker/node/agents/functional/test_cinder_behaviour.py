@@ -4,31 +4,9 @@
 Tests for cinder API behaviour.
 """
 
-import uuid
-
 from twisted.trial.unittest import SynchronousTestCase
 
-from ..testtools import require_cinder_credentials
-from ..cinder import authenticated_cinder_client
-
-def random_name():
-    """
-    Return a random unicode label.
-    """
-    return unicode(uuid.uuid4())
-
-
-@require_cinder_credentials
-def cinder_client_from_environment(OPENSTACK_API_USER, OPENSTACK_API_KEY):
-    """
-    Create a ``cinder.client.Client`` using credentials from the process
-    environment which are supplied to the RackspaceAuth plugin.
-    """
-    return authenticated_cinder_client(
-        username=OPENSTACK_API_USER,
-        api_key=OPENSTACK_API_KEY,
-        region='DFW',
-    )
+from ..testtools import tidy_cinder_client_for_test, random_name
 
 
 def wait_for_volume(client, new_volume):
@@ -50,20 +28,21 @@ class VolumesCreateTests(SynchronousTestCase):
     """
     Tests for ``cinder.Client.volumes.create``.
     """
+    def setUp(self):
+        self.cinder_client = tidy_cinder_client_for_test(test_case=self)
+
     def test_create_metadata_is_listed(self):
         """
         ``metadata`` supplied when creating a volume is included when that
         volume is subsequently listed.
         """
-        client = cinder_client_from_environment()
-
         expected_metadata = {random_name(): "bar"}
 
-        new_volume = client.volumes.create(
+        new_volume = self.cinder_client.volumes.create(
             size=100,
             metadata=expected_metadata
         )
-        listed_volume = wait_for_volume(client, new_volume)
+        listed_volume = wait_for_volume(self.cinder_client, new_volume)
 
         expected_items = set(expected_metadata.items())
         actual_items = set(listed_volume.metadata.items())
@@ -74,7 +53,6 @@ class VolumesCreateTests(SynchronousTestCase):
                 actual_items, expected_items
             )
         )
-
     test_create_metadata_is_listed.todo = (
         'Rackspace API does not save the supplied metadata. '
         'See support ticket: 150422-ord-0000495'
@@ -85,22 +63,23 @@ class VolumesSetMetadataTests(SynchronousTestCase):
     """
     Tests for ``cinder.Client.volumes.set_metadata``.
     """
+    def setUp(self):
+        self.cinder_client = tidy_cinder_client_for_test(test_case=self)
+
     def test_updated_metadata_is_listed(self):
         """
         ``metadata`` supplied to update_metadata is included when that
         volume is subsequently listed.
         """
-        client = cinder_client_from_environment()
-
         expected_metadata = {random_name(): u"bar"}
 
-        new_volume = client.volumes.create(size=100,)
+        new_volume = self.cinder_client.volumes.create(size=100,)
 
-        listed_volume = wait_for_volume(client, new_volume)
+        listed_volume = wait_for_volume(self.cinder_client, new_volume)
 
-        client.volumes.set_metadata(new_volume, expected_metadata)
+        self.cinder_client.volumes.set_metadata(new_volume, expected_metadata)
 
-        listed_volume = wait_for_volume(client, new_volume)
+        listed_volume = wait_for_volume(self.cinder_client, new_volume)
 
         expected_items = set(expected_metadata.items())
         actual_items = set(listed_volume.metadata.items())

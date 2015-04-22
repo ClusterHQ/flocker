@@ -589,3 +589,92 @@ def cinder_client_for_test(
         region='DFW',
     )
     return client
+
+
+from twisted.python.components import proxyForInterface
+from zope.interface import implementer, Interface, verify
+class ICinderVolumeManager(Interface):
+    def create(size, metadata=None):
+        """
+        """
+
+    def list():
+        """
+        """
+
+    def set_metadata(volume, metadata):
+        """
+        """
+
+
+@implementer(ICinderVolumeManager)
+class TidyCinderVolumeManager(
+        proxyForInterface(ICinderVolumeManager, 'original')
+):
+    def __init__(self, original):
+        """
+        """
+        self.original = original
+        self._created_volumes = []
+
+    def create(self, size, metadata=None):
+        """
+        """
+        volume = self.original.create(size=size, metadata=metadata)
+        self._created_volumes.append(volume)
+        return volume
+
+    def _cleanup(self):
+        """
+        """
+        print 'CLEANING UP', self._created_volumes
+        for volume in self._created_volumes:
+            self.original.delete(volume)
+
+
+class ICinderVolumeManagerTestsMixin(object):
+    def test_interface(self):
+        self.assertTrue(verify.verifyObject(ICinderVolumeManager, self.client))
+
+
+def make_icindervolumemanager_tests(client_factory):
+    class Tests(ICinderVolumeManagerTestsMixin, SynchronousTestCase):
+        def setUp(self):
+            self.client = client_factory(test_case=self)
+
+    return Tests
+
+
+def random_name():
+    """
+    Return a random unicode label.
+    """
+    return unicode(uuid4())
+
+
+@require_cinder_credentials
+def cinder_client_from_environment(OPENSTACK_API_USER, OPENSTACK_API_KEY):
+    """
+    Create a ``cinder.client.Client`` using credentials from the process
+    environment which are supplied to the RackspaceAuth plugin.
+    """
+    return authenticated_cinder_client(
+        username=OPENSTACK_API_USER,
+        api_key=OPENSTACK_API_KEY,
+        region='DFW',
+    )
+
+
+def tidy_cinder_client_for_test(test_case):
+    client = cinder_client_from_environment()
+    client.volumes = TidyCinderVolumeManager(client.volumes)
+    test_case.addCleanup(client.volumes._cleanup)
+    return client
+
+
+def require_cinder_client(test_method):
+    @wraps(test_method)
+    def wrapper(test_case, *args, **kwargs):
+        kwargs['cinder_client'] = tidy_cinder_client_for_test(test_case)
+        return test_method(test_case, *args, **kwargs)
+    return wrapper
