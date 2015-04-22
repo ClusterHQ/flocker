@@ -14,6 +14,29 @@ from zope.interface import implementer
 from .blockdevice import IBlockDeviceAPI
 
 
+# The key name used for identifying the Flocker cluster_id in the metadata for
+# a volume.
+CLUSTER_ID_LABEL = u'flocker-cluster-id'
+
+# The key name used for identifying the Flocker dataset_id in the metadata for
+# a volume.
+DATASET_ID_LABEL = u'flocker-dataset-id'
+
+def wait_for_volume(client, new_volume):
+    """
+    Wait for a volume with the same id as ``new_volume`` to be listed as
+    ``available`` and return that listed volume.
+    """
+    while True:
+        for listed_volume in client.volumes.list():
+            if listed_volume.id == new_volume.id:
+                if listed_volume.status == 'available':
+                    return listed_volume
+                else:
+                    print "STATUS", listed_volume.status
+                    print "METADATA", listed_volume.metadata
+
+
 @implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
     """
@@ -56,8 +79,17 @@ class CinderBlockDeviceAPI(object):
            Should that be the value of ``BlockDeviceVolume.blockdevice_id`` ?
            That field type is unicode rather than UUID which was (I think) chosen so as to support provider specific volume ID strings.
         """
-        # pyrax.volume.create(...)
-        # ...then block until the volume status is "available"
+        requested_volume = self.cinder_client.volumes.create(size=100)
+        created_volume = wait_for_volume(self.cinder_client, requested_volume)
+        import pdb; pdb.set_trace()
+        metadata = {
+            CLUSTER_ID_LABEL: unicode(self.cluster_id),
+            DATASET_ID_LABEL: unicode(dataset_id),
+        }
+        updated_volume = self.cinder_client.volumes.set_metadata(
+            created_volume, metadata
+        )
+        return _blockdevicevolume_from_cinder_volume(updated_volume)
 
     def list_volumes(self):
         """
@@ -84,11 +116,6 @@ class CinderBlockDeviceAPI(object):
 
     def get_device_path(self, blockdevice_id):
         pass
-
-
-# The key name used for identifying the Flocker cluster id in the metadata for
-# a volume.
-CLUSTER_ID_LABEL = u'flocker-cluster-id'
 
 
 def _is_cluster_volume(cluster_id, cinder_volume):

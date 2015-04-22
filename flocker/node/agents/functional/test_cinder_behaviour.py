@@ -6,23 +6,9 @@ Tests for cinder API behaviour.
 
 from twisted.trial.unittest import SynchronousTestCase
 
+from ..cinder import wait_for_volume
 from ..testtools import tidy_cinder_client_for_test
 from ....testtools import random_name
-
-
-def wait_for_volume(client, new_volume):
-    """
-    Wait for a volume with the same id as ``new_volume`` to be listed as
-    ``available`` and return that listed volume.
-    """
-    while True:
-        for listed_volume in client.volumes.list():
-            if listed_volume.id == new_volume.id:
-                if listed_volume.status == 'available':
-                    return listed_volume
-                else:
-                    print "STATUS", listed_volume.status
-                    print "METADATA", listed_volume.metadata
 
 
 class VolumesCreateTests(SynchronousTestCase):
