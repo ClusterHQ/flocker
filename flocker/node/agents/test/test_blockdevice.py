@@ -2228,18 +2228,24 @@ class ResizeBlockDeviceDatasetTests(
             dataset_id=dataset_id,
             maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
         )
-        creating = CreateBlockDeviceDataset(
-            dataset=dataset,
-            mountpoint=deployer._mountpath_for_manifestation(
-                Manifestation(dataset=dataset, primary=True),
+        creating = run_state_change(
+            CreateBlockDeviceDataset(
+                dataset=dataset,
+                mountpoint=deployer._mountpath_for_manifestation(
+                    Manifestation(dataset=dataset, primary=True),
+                ),
             ),
-        ).run(deployer)
+            deployer,
+        )
 
         def created(ignored):
-            return ResizeBlockDeviceDataset(
-                dataset_id=dataset_id,
-                size=REALISTIC_BLOCKDEVICE_SIZE * 2,
-            ).run(deployer)
+            return run_state_change(
+                ResizeBlockDeviceDataset(
+                    dataset_id=dataset_id,
+                    size=REALISTIC_BLOCKDEVICE_SIZE * 2,
+                ),
+                deployer,
+            )
         resizing = creating.addCallback(created)
 
         def resized(ignored):
