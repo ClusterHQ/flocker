@@ -11,21 +11,10 @@ cluster.
 
 from uuid import uuid4
 
-from ..cinder import cinder_api, authenticated_cinder_client
+from ..cinder import cinder_api
 from ..testtools import (
-    make_iblockdeviceapi_tests, require_cinder_credentials, todo_except
+    make_iblockdeviceapi_tests, todo_except, cinder_client_for_test
 )
-
-@require_cinder_credentials
-def cinder_client_for_test(
-        test_case, OPENSTACK_API_USER, OPENSTACK_API_KEY
-):
-    client = authenticated_cinder_client(
-        username=OPENSTACK_API_USER,
-        api_key=OPENSTACK_API_KEY,
-        region='DFW',
-    )
-    return client
 
 
 def cinderblockdeviceapi_for_test(test_case):
