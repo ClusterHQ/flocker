@@ -15,12 +15,14 @@ EXECUTABLE = b"flocker-ca"
 
 def requireCA(test):
     """
-    Simple test decorator to check if flocker-ca is installed and skip
-    if it isn't.
+    Simple test decorator to check if both flocker-ca and OpenSSL are
+    installed and skip if either isn't.
     """
     def inner(testcase, *args, **kwargs):
         if not which(EXECUTABLE):
             return testcase.skipTest(EXECUTABLE + " not installed")
+        if not which(b"openssl"):
+            return testcase.skipTest("openssl not installed")
         return test(testcase, *args, **kwargs)
     return inner
 
