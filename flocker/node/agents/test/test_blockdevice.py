@@ -738,16 +738,6 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
             )
         )
 
-    def test_maximum_size_decreased(self):
-        """
-        ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``ResizeBlockDeviceDataset`` state change operation if the
-        ``maximum_size`` of the configured ``Dataset`` is smalled than the size
-        reported in the local node state.
-        """
-        self.fail("")
-    test_maximum_size_decreased.todo = "FLOC-1503"
-
     def test_multiple_resize(self):
         """
         ``BlockDeviceDeployer.calculate_changes`` returns a
@@ -2253,15 +2243,6 @@ class ResizeBlockDeviceDatasetTests(
             self.assertEqual(REALISTIC_BLOCKDEVICE_SIZE * 2, volume.size)
         resizing.addCallback(resized)
         return resizing
-
-    def test_run_shrink(self):
-        """
-        After running ``ResizeBlockDeviceDataset``, its filesystem and volume
-        have been shrunk.
-        """
-        self.fail("")
-    test_run_shrink.todo = "FLOC-1503"
-
 
 def _make_resize_volume():
     return ResizeVolume(
