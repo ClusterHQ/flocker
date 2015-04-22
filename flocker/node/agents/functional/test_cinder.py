@@ -11,14 +11,20 @@ cluster.
 
 from uuid import uuid4
 
-from ..cinder import CinderBlockDeviceAPI
-from ..testtools import make_iblockdeviceapi_tests
+from ..cinder import authenticated_cinder_api
+from ..testtools import (
+    make_iblockdeviceapi_tests, require_cinder_credentials
+)
 
 
+@require_cinder_credentials
 def cinderblockdeviceapi_for_test(test_case):
     """
     """
-    return CinderBlockDeviceAPI(cluster_id=unicode(uuid4()), region='DFW')
+    return authenticated_cinder_api(
+        cluster_id=unicode(uuid4()),
+        region='DFW'
+    )
 
 
 class CinderBlockDeviceAPITests(

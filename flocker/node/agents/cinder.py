@@ -29,8 +29,10 @@ class CinderBlockDeviceAPI(object):
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
     in an OpenStack cluster.
     """
-    def __init__(self, cluster_id, region):
+    def __init__(self, cinder_client, cluster_id, region):
         """
+        :param cinderclient.cinder.Client cinder_client: A client for
+            interacting with Cinder API.
         :param UUID cluster_id: An ID that will be included in the names of
             Cinder block devices in order to associate them with a particular
             Flocker cluster.

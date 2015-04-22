@@ -12,7 +12,7 @@ from keystoneclient.session import Session
 
 from cinderclient.client import Client
 
-from ..testtools import require_environment_variables
+from ..testtools import require_cinder_credentials
 
 
 def random_name():
@@ -22,9 +22,7 @@ def random_name():
     return unicode(uuid.uuid4())
 
 
-@require_environment_variables(
-    required_keys=['OPENSTACK_API_USER', 'OPENSTACK_API_KEY']
-)
+@require_cinder_credentials
 def cinder_client_from_environment(OPENSTACK_API_USER, OPENSTACK_API_KEY):
     """
     Create a ``cinder.client.Client`` using credentials from the process

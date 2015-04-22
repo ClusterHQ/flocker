@@ -517,10 +517,26 @@ def require_environment_variables(required_keys):
         def wrapper(*args, **kwargs):
             if missing_keys:
                 raise SkipTest(
-                    '{!r} requires the following environment variables: '
-                    '{!r}'.format(fullyQualifiedName(original), missing_keys)
+                    '{!r} requires environment variables. '
+                    'Required: "{}". '
+                    'Missing: "{}".'.format(
+                        fullyQualifiedName(original),
+                        '", "'.join(required_keys),
+                        '", "'.join(missing_keys),
+                    )
                 )
             updated_kwargs = dict(kwargs.items() + keyvalues.items())
             return original(*args, **updated_kwargs)
         return wrapper
     return decorator
+
+
+def require_cinder_credentials(original):
+    """
+    Raise ``SkipTest`` unless the cinder username and api key are present in
+    the environment.
+    """
+    decorator = require_environment_variables(
+        required_keys=['OPENSTACK_API_USER', 'OPENSTACK_API_KEY']
+    )
+    return decorator(original)
