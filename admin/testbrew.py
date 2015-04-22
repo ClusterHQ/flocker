@@ -93,7 +93,8 @@ def eliot_output(message):
     """
     Write pretty versions of eliot log messages to stdout.
     """
-    sys.stdout.write(MESSAGE_FORMATS[message['message_type']] % message)
+    message_type = message.get('message_type', message.get('action_type'))
+    sys.stdout.write(MESSAGE_FORMATS.get(message_type, '') % message)
     sys.stdout.flush()
 
 
