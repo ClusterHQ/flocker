@@ -2178,6 +2178,27 @@ class ResizeBlockDeviceDatasetTests(
         )
         self.assertTrue(a != b)
 
+    def test_ordering(self):
+        """
+        Instances of ``ResizeBlockDeviceDataset`` are ordered as tuples
+        consisting of their ``dataset_id`` and ``size`` fields would be.
+        """
+        uuids = sorted([uuid4(), uuid4()])
+        a = ResizeBlockDeviceDataset(
+            dataset_id=uuids[0],
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        b = ResizeBlockDeviceDataset(
+            dataset_id=uuids[1],
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        c = ResizeBlockDeviceDataset(
+            dataset_id=uuids[1],
+            size=REALISTIC_BLOCKDEVICE_SIZE * 2,
+        )
+        resizes = [c, b, a]
+        self.assertEqual([a, b, c], sorted(resizes))
+
     _verify_grow_log = multistep_change_log(
         RESIZE_BLOCK_DEVICE_DATASET,
         [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, RESIZE_VOLUME, ATTACH_VOLUME,

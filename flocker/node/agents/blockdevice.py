@@ -17,6 +17,7 @@ from eliot.serializers import identity
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
+from characteristic import with_cmp
 
 import psutil
 
@@ -385,6 +386,9 @@ class ResizeFilesystem(PRecord):
 
 
 @implementer(IStateChange)
+# Make them sort reasonably for ease of testing and because determinism is
+# generally pretty nice.
+@with_cmp(["dataset_id", "size"])
 class ResizeBlockDeviceDataset(PRecord):
     """
     Resize the volume for a dataset with a primary manifestation on the node
