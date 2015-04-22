@@ -185,9 +185,9 @@ class InitializeOptions(PrettyOptions):
                     "Please keep cluster.key secret, as anyone who can access "
                     "it will be able to control your cluster."
                 )
-            except CertificateAlreadyExistsError as e:
-                raise UsageError(str(e))
-            except KeyAlreadyExistsError as e:
+            except (
+                KeyAlreadyExistsError, CertificateAlreadyExistsError, PathError
+            ) as e:
                 raise UsageError(str(e))
         except UsageError as e:
             print b"Error: {error}".format(error=str(e))
