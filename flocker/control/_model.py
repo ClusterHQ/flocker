@@ -697,4 +697,3 @@ SERIALIZABLE_CLASSES = [
     RestartOnFailure, Application, Dataset, Manifestation, AttachedVolume,
     NodeState, DeploymentState, NonManifestDatasets,
 ]
-

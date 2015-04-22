@@ -88,7 +88,7 @@ class ZFSAgentScript(object):
         # Soon we'll extract this from TLS certificate for node.  Until then
         # we'll just do a temporary hack (probably to be fixed in FLOC-1727).
         node_uuid = ip_to_uuid(ip)
-        deployer = P2PManifestationDeployer(node_uuid, ip, volume_service)
+        deployer = P2PManifestationDeployer(ip, volume_service, uuid=node_uuid)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
         volume_service.setServiceParent(loop)
