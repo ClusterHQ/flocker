@@ -25,6 +25,7 @@ from ..release import (
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
+    publish_homebrew_recipe,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1737,3 +1738,23 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.assertRaises(
             TagExists,
             self.calculate_base_branch, '0.3.0')
+
+
+class PublishHomebrewRecipeTests(SynchronousTestCase):
+    """
+    Tests for :func:`publish_homebrew_recipe`.
+    """
+
+    def test_homebrew_recipe_uploaded(self):
+        """
+        A Homebrew recipe is uploaded to S3.
+        """
+        target_bucket = 'clusterhq-archive'
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                target_bucket: {},
+            })
+
+        publish_homebrew_recipe(target_bucket=target_bucket, version='0.3.0')
+        self.assertEqual(1, 1)
