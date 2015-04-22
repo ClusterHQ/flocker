@@ -16,7 +16,10 @@ Notes:
   It might be worth experimenting with that a little, especially to see how it handle volume metadata.
 """
 
-import pyrax
+from keystoneclient_rackspace.v2_0 import RackspaceAuth
+from keystoneclient.session import Session
+
+from cinderclient.client import Client
 
 from zope.interface import implementer
 
@@ -103,14 +106,17 @@ def _blockdevicevolume_from_pyrax_volume(blockdevice_id, pyrax_volume):
     """
 
 
-def authenticated_cinder_api(cluster_id, username, api_key, region, id_type="rackspace"):
+def authenticated_cinder_client(username, api_key, region):
+    auth_url = "https://identity.api.rackspacecloud.com/v2.0"
+    auth = RackspaceAuth(auth_url=auth_url, username=username, api_key=api_key)
+    session = Session(auth=auth)
+    return Client(version=1, session=session, region_name=region)
+
+
+def authenticated_cinder_api(cluster_id, username, api_key, region):
     """
     Create a pyrax context for the supplied credentials and return a
     ``CinderBlockDeviceAPI with those.
     """
-    # See https://github.com/ClusterHQ/flocker/compare/openstack-spike-FLOC-1147#diff-f958e4076e410717193f3dd33c9a9919R47
-    pyrax_context = pyrax.create_context(
-        id_type=id_type, username=username, api_key=api_key
-    )
-    pyrax_context.authenticate()
-    return CinderBlockDeviceAPI(cluster_id, region, pyrax_context)
+    cinder_client = authenticated_cinder_client(username, api_key, region)
+    return CinderBlockDeviceAPI(cinder_client, cluster_id, region)

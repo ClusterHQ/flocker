@@ -7,13 +7,8 @@ Tests for cinder API behaviour.
 import uuid
 from unittest import TestCase
 
-from keystoneclient_rackspace.v2_0 import RackspaceAuth
-from keystoneclient.session import Session
-
-from cinderclient.client import Client
-
 from ..testtools import require_cinder_credentials
-
+from ..cinder import authenticated_cinder_client
 
 def random_name():
     """
@@ -28,15 +23,11 @@ def cinder_client_from_environment(OPENSTACK_API_USER, OPENSTACK_API_KEY):
     Create a ``cinder.client.Client`` using credentials from the process
     environment which are supplied to the RackspaceAuth plugin.
     """
-    # Required
-    username = OPENSTACK_API_USER
-    api_key = OPENSTACK_API_KEY
-    # Optional
-    region = 'DFW'
-    auth_url = "https://identity.api.rackspacecloud.com/v2.0"
-    auth = RackspaceAuth(auth_url=auth_url, username=username, api_key=api_key)
-    session = Session(auth=auth)
-    return Client(version=1, session=session, region_name=region)
+    return authenticated_cinder_client(
+        username=OPENSTACK_API_USER,
+        api_key=OPENSTACK_API_KEY,
+        region='DFW',
+    )
 
 
 def wait_for_volume(client, new_volume):
