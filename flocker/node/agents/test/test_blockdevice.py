@@ -1651,6 +1651,17 @@ def _make_destroy_dataset():
 
 
 def multistep_change_log(parent, children):
+    """
+    Create an Eliot logging validation function which asserts that the given
+    parent action is logged with the given children actions.
+
+    :param ActionType parent: The type of an action that will be required.
+    :param list children: The types of actions will be required to appear as
+        children of ``parent``.
+
+    :return: A two-argument callable suitable for use with
+        ``validate_logging``.
+    """
     def verify(self, logger):
         [parent_action] = LoggedAction.of_type(logger.messages, parent)
         children_actions = [
