@@ -111,6 +111,7 @@ Preparing For a Release
       pip install --editable .[release]
       # This ensures that setuptools is a version that does not normalize
       # version numbers according to PEP440.
+      # See https://clusterhq.atlassian.net/browse/FLOC-1331
       pip install setuptools==3.6
       admin/create-release-branch --flocker-version="${VERSION}"
       git push --set-upstream origin release/flocker-${VERSION}
