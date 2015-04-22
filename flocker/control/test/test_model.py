@@ -4,7 +4,7 @@
 Tests for ``flocker.node._model``.
 """
 
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from pyrsistent import (
     InvariantException, pset, PRecord, PSet, pmap, PMap, thaw
@@ -16,13 +16,37 @@ from twisted.python.filepath import FilePath
 from zope.interface.verify import verifyObject
 
 from ...testtools import make_with_init_tests
-from .._model import pset_field, pmap_field
+from .._model import pset_field, pmap_field, ip_to_uuid
 from .. import (
     IClusterStateChange,
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets,
 )
+
+
+class IpToUUIDTests(SynchronousTestCase):
+    """
+    Tests for ``ip_to_uuid``.
+    """
+    def test_uuid(self):
+        """
+        ``ip_to_uuid`` returns a UUID.
+        """
+        uuid = ip_to_uuid(u"1.2.3.4")
+        self.assertIsInstance(uuid, UUID)
+
+    def test_stable(self):
+        """
+        ``ip_to_uuid`` returns the same UUID given the same IP.
+        """
+        self.assertEqual(ip_to_uuid(u"1.2.3.4"), ip_to_uuid(u"1.2.3.4"))
+
+    def test_different(self):
+        """
+        ``ip_to_uuid`` returns different UUIDs for different IPs.
+        """
+        self.assertNotEqual(ip_to_uuid(u"1.2.3.5"), ip_to_uuid(u"1.2.3.6"))
 
 
 APP1 = Application(
@@ -122,7 +146,27 @@ class NodeInitTests(make_with_init_tests(
 )):
     """
     Tests for ``Node.__init__``.
+
+    Note that hostname will no longer be required and should therefore be
+    removed from these tests in FLOC-1733.
     """
+    def test_no_uuid(self):
+        """
+        If no UUID is given, a UUID is generated from the hostname.
+
+        This is done for backwards compatibility with existing tests, and
+        should be removed enveutally.
+        """
+        node = Node(hostname=u'1.2.3.4')
+        self.assertIsInstance(node.uuid, UUID)
+
+    def test_uuid(self):
+        """
+        ``Node`` can be created with a UUID.
+        """
+        uuid = uuid4()
+        node = Node(hostname=u'1.2.3.4', uuid=uuid)
+        self.assertEqual(node.uuid, uuid)
 
 
 class ManifestationTests(SynchronousTestCase):
@@ -205,6 +249,24 @@ class NodeStateTests(SynchronousTestCase):
     """
     Tests for ``NodeState``.
     """
+    def test_no_uuid(self):
+        """
+        If no UUID is given, a UUID is generated from the hostname.
+
+        This is done for backwards compatibility with existing tests, and
+        should be removed enveutally.
+        """
+        node = NodeState(hostname=u'1.2.3.4')
+        self.assertIsInstance(node.uuid, UUID)
+
+    def test_uuid(self):
+        """
+        ``NodeState`` can be created with a UUID.
+        """
+        uuid = uuid4()
+        node = NodeState(hostname=u'1.2.3.4', uuid=uuid)
+        self.assertEqual(node.uuid, uuid)
+
     def test_iclusterstatechange(self):
         """
         ``NodeState`` instances provide ``IClusterStateChange``.
@@ -359,9 +421,10 @@ class GetNodeTests(SynchronousTestCase):
         If the ``Deployment`` has a ``Node`` with a matching hostname,
         ``get_node`` returns it.
         """
-        identifier = u"127.0.0.1"
-        node = Node(hostname=identifier, applications={APP1})
-        trap = Node(hostname=u"192.168.1.1")
+        ip = u"127.0.0.1"
+        identifier = uuid4()
+        node = Node(uuid=identifier, hostname=ip, applications={APP1})
+        trap = Node(uuid=uuid4(), hostname=u"192.168.1.1")
         config = Deployment(nodes={node, trap})
         self.assertEqual(node, config.get_node(identifier))
 
@@ -370,34 +433,38 @@ class GetNodeTests(SynchronousTestCase):
         If the ``Deployment`` has no ``Node`` with a matching hostname,
         ``get_node`` returns a new empty ``Node`` with the given hostname.
         """
-        identifier = u"127.0.0.1"
-        trap = Node(hostname=u"192.168.1.1")
+        ip = u"127.0.0.1"
+        identifier = uuid4()
+        trap = Node(uuid=uuid4(), hostname=u"192.168.1.1")
         config = Deployment(nodes={trap})
         self.assertEqual(
-            Node(hostname=identifier), config.get_node(identifier)
+            Node(uuid=identifier, hostname=ip),
+            config.get_node(identifier, hostname=ip)
         )
 
     def test_deploymentstate_with_node(self):
         """
-        If the ``Deployment`` has a ``NodeState`` with a matching hostname,
+        If the ``Deployment`` has a ``NodeState`` with a matching uuid,
         ``get_nodes`` returns it.
         """
-        identifier = u"127.0.0.1"
-        node = NodeState(hostname=identifier)
+        ip = u"127.0.0.1"
+        identifier = uuid4()
+        node = NodeState(uuid=identifier, hostname=ip)
         state = DeploymentState(nodes={node})
         self.assertIs(node, state.get_node(identifier))
 
     def test_deploymentstate_without_node(self):
         """
         If the ``DeploymentState`` has no ``NodeState`` with a matching
-        hostname, ``get_node`` returns a new empty ``NodeState`` with the given
-        hostname.
+        uuid, ``get_node`` returns a new empty ``NodeState`` with the given
+        uuid and defaults.
         """
-        identifier = u"127.0.0.1"
-        trap = NodeState(hostname=u"192.168.1.1")
+        identifier = uuid4()
+        trap = NodeState(uuid=uuid4(), hostname=u"192.168.1.1")
         state = DeploymentState(nodes={trap})
         self.assertEqual(
-            NodeState(hostname=identifier), state.get_node(identifier)
+            NodeState(uuid=identifier, hostname=u"1.2.3.4"),
+            state.get_node(identifier, hostname=u"1.2.3.4"),
         )
 
 

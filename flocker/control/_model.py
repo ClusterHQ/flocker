@@ -14,9 +14,11 @@ There are different categories of classes:
 3. Configuration-specific classes, none implemented yet.
 """
 
-from characteristic import attributes
 from uuid import UUID
+from warnings import warn
+from hashlib import md5
 
+from characteristic import attributes
 from twisted.python.filepath import FilePath
 
 from pyrsistent import (
@@ -377,14 +379,19 @@ class Node(PRecord):
                     return (False, '%r manifestation is not on node' % (app,))
         return (True, "")
 
-    def __init__(self, hostname=None, **kwargs):
-        # Hostname argument will go away in future once tests are ported
-        # to pass in correct arguments.
-        if "uuid" not in kwargs:
-            kwargs["uuid"] = ip_to_uuid(hostname)
-        PRecord.__init__(self, **kwargs)
+    def __new__(cls, **kwargs):
+        # PRecord does some crazy stuff, thus _precord_buckets; see
+        # PRecord.__new__.
+        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
+            warn("UUID is required, this is for backwards compat with existing"
+                 " tests only. If you see this in production code that's "
+                 "a bug.", DeprecationWarning, stacklevel=2)
+            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
+        return PRecord.__new__(cls, **kwargs)
 
-    uuid = field(type=UUID, factory=UUID, mandatory=True)
+    # hostname will be removed in FLOC-1733 probably:
+    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    uuid = field(type=UUID, mandatory=True)
     applications = pset_field(Application)
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
@@ -563,11 +570,10 @@ def ip_to_uuid(ip):
     existing tests. It should not be hit in production code paths.
 
     :param unicode ip: An IP.
+
+    :return UUID: Matching UUID.
     """
-    warn(DeprecationWarning, "UUID is required, this is for backwards compat "
-         "with existing tests only. If you see this in production code that's "
-         "a bug")
-    return UUID(md5(ip))  # or something
+    return UUID(bytes=md5(ip.encode("utf-8")).digest())
 
 
 @implementer(IClusterStateChange)
@@ -597,12 +603,17 @@ class NodeState(PRecord):
                 return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
-    def __init__(self, **kwargs):
-        if "uuid" not in kwargs:
+    def __new__(cls, **kwargs):
+        # PRecord does some crazy stuff, thus _precord_buckets; see
+        # PRecord.__new__.
+        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
+            warn("UUID is required, this is for backwards compat with existing"
+                 " tests only. If you see this in production code that's "
+                 "a bug.", DeprecationWarning, stacklevel=2)
             kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
-        PRecord.__init__(self, **kwargs)
+        return PRecord.__new__(cls, **kwargs)
 
-    uuid = field(type=UUID, factory=UUID, mandatory=True)
+    uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = pset_field(int, optional=True)
     applications = pset_field(Application, optional=True)
