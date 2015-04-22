@@ -67,11 +67,11 @@ class UnattachedVolume(VolumeException):
     requires the volume to be attached.
     """
 
-OLD_SIZE = Field(
+OLD_SIZE = Field.for_types(
     u"old_size", [int], u"The size of a volume prior to a resize operation."
 )
 
-NEW_SIZE = Field(
+NEW_SIZE = Field.for_types(
     u"new_size", [int],
     u"The intended size of a volume after resize operation."
 )
