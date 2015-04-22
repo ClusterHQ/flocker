@@ -30,6 +30,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
+from twisted.python.reflect import fullyQualifiedName
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
@@ -846,3 +847,40 @@ def run_process(command, *args, **kwargs):
     if result.status:
         raise CalledProcessError(returncode=status, cmd=command, output=output)
     return result
+
+
+def require_environment_variables(required_keys):
+    """
+    Get the values for each of ``keys`` from ``os.environ``.
+
+    :param list keys: The key names to search for in ``os.environ``.
+    :return: a ``dict`` of ``keys`` and corresponding values.
+    :raises: ``SkipTest`` if any of the keys are not found in ``os.environ``.
+    """
+    def decorator(original):
+        missing_keys = []
+        keyvalues = {}
+
+        for key in required_keys:
+            value = os.environ.get(key, None)
+            if value is None:
+                missing_keys.append(key)
+            else:
+                keyvalues[key] = value
+
+        @wraps(original)
+        def wrapper(*args, **kwargs):
+            if missing_keys:
+                raise SkipTest(
+                    '{!r} requires environment variables. '
+                    'Required: "{}". '
+                    'Missing: "{}".'.format(
+                        fullyQualifiedName(original),
+                        '", "'.join(required_keys),
+                        '", "'.join(missing_keys),
+                    )
+                )
+            updated_kwargs = dict(kwargs.items() + keyvalues.items())
+            return original(*args, **updated_kwargs)
+        return wrapper
+    return decorator
