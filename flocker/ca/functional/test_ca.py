@@ -24,6 +24,7 @@ def requireCA(test):
         return test(testcase, *args, **kwargs)
     return inner
 
+
 def flocker_ca(command, *args):
     """
     Run a flocker-ca command and return the output along with an indicator
@@ -59,7 +60,7 @@ def openssl_verify(cafile, certificatefile):
     try:
         output = check_output(command)
         return output.strip() == b"{}: OK".format(certificatefile)
-    except CalledProcessError as e:
+    except CalledProcessError:
         return False
 
 
