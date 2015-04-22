@@ -1120,6 +1120,8 @@ class DockerBuildScript(object):
             self.sys_module.stderr.write("%s\n" % (e,))
             raise SystemExit(1)
 
+        # Currently we add system control files for both EL and Debian-based
+        # systems.  We should probabl;y be more specific.  See FLOC-1736.
         self.build_command(
             distribution=CURRENT_DISTRIBUTION,
             destination_path=options['destination-path'],
