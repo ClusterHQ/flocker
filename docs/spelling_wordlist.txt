@@ -1,6 +1,7 @@
 admin
 app
 apps
+authorised
 backend
 behaviour
 Btrfs
@@ -13,6 +14,7 @@ cli
 CLI
 clusterhq
 Copr
+cURL
 dataset
 datasets
 Deis
@@ -67,7 +69,9 @@ stateful
 sysadmin
 terabytes
 timestamp
+unauthorised
 username
+versa
 versioning
 virtualization
 VMware
