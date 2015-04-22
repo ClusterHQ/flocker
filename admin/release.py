@@ -54,6 +54,9 @@ from .yum import (
     DownloadPackagesFromRepository,
 )
 
+# TODO create this function
+from .homebrew import get_recipe
+
 
 class NotTagged(Exception):
     """
@@ -344,7 +347,7 @@ FLOCKER_PACKAGES = [
 ]
 
 
-def publish_homebrew_recipe(git_url, scratch_directory, version):
+def publish_homebrew_recipe(git_url, scratch_directory, version, sdist):
     """
     Publish a Homebrew recipe to a git repository.
 
@@ -353,7 +356,12 @@ def publish_homebrew_recipe(git_url, scratch_directory, version):
         repository to.
     :param bytes version: Version of Flocker to publish a recipe for.
     """
-    pass
+    repo = Repo()
+    repo.clone_from(url=git_url, path=scratch_directory.path)
+    recipe = get_recipe(version=version, sdist=sdist)
+    repo.index.add(['NEW_FILE'])
+    repo.index.commit('Add NEW_FILE')
+    repo.remotes.origin.push(repo.head)
 
 
 @do
