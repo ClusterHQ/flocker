@@ -30,7 +30,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
-from twisted.python.reflect import fullyQualifiedName
+from twisted.python.reflect import fullyQualifiedName, prefixedMethodNames
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
@@ -883,4 +883,40 @@ def require_environment_variables(required_keys):
             updated_kwargs = dict(kwargs.items() + keyvalues.items())
             return original(*args, **updated_kwargs)
         return wrapper
+    return decorator
+
+
+def todo_except(supported_tests):
+    """
+    Mark all the ``test_`` methods in ``TestCase`` as ``todo`` unless the test
+    method names are in ``supported_tests``.
+
+    :param list supported_tests: The names of the tests that are expected to
+        pass.
+    """
+    test_prefix = 'test_'
+
+    def decorator(test_case):
+        test_method_names = [
+            test_prefix + name
+            for name
+            in prefixedMethodNames(test_case, test_prefix)
+        ]
+        for test_method_name in test_method_names:
+            if test_method_name not in supported_tests:
+                test_method = getattr(test_case, test_method_name)
+                new_todo = []
+                existing_todo = getattr(test_method, 'todo', None)
+                if existing_todo is not None:
+                    new_todo.append(existing_todo)
+                new_todo.append('Not implemented yet')
+                new_todo = ' '.join(new_todo)
+
+                @wraps(test_method)
+                def wrapper(*args, **kwargs):
+                    return test_method(*args, **kwargs)
+                wrapper.todo = new_todo
+                setattr(test_case, test_method_name, wrapper)
+
+        return test_case
     return decorator

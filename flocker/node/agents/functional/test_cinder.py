@@ -11,9 +11,10 @@ cluster.
 
 from uuid import uuid4
 
+from ....testtools import todo_except
 from ..cinder import cinder_api
 from ..testtools import (
-    make_iblockdeviceapi_tests, todo_except, tidy_cinder_client_for_test
+    make_iblockdeviceapi_tests, tidy_cinder_client_for_test
 )
 
 
