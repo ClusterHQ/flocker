@@ -31,7 +31,7 @@ Security Benefits
 The TLS client certification layer used by Flocker provides a number of security benefits to a cluster:
 
 - Prevents unauthorised requests to the REST API.
-- Prevents `man-in-the-middle <http://en.wikipedia.org/wiki/Man-in-the-middle_attack>`_ attacks between the control service and convergence agents by verifying the identity of cluster components.
+- Prevents `man-in-the-middle <http://en.wikipedia.org/wiki/Man-in-the-middle_attack>`_ and `identity replay <http://en.wikipedia.org/wiki/Replay_attack>`_ attacks between the control service and convergence agents by verifying the identity of cluster components.
 - Securely encrypts communications over the public internet between the control service and convergence agents.
 - Securely encrypts communications between the control service and an API end user.
 - Prevents connections to the control service and convergence agents from unidentified or unauthorised sources.
