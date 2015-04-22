@@ -3,7 +3,7 @@
 """
 Test helpers for ``flocker.node.agents``.
 """
-
+from functools import wraps
 import os
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
@@ -16,6 +16,7 @@ from pyrsistent import InvariantException
 
 from twisted.python.runtime import platform
 from twisted.python.reflect import fullyQualifiedName
+from twisted.python.reflect import prefixedMethodNames
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
@@ -540,3 +541,38 @@ def require_cinder_credentials(original):
         required_keys=['OPENSTACK_API_USER', 'OPENSTACK_API_KEY']
     )
     return decorator(original)
+
+
+def todo_except(supported_tests):
+    """
+    Mark all the ``test_`` methods in ``TestCase`` as ``todo`` unless the test
+    method names are in ``supported_tests``.
+
+    :param list supported_tests: The names of the tests that are expected to
+        pass.
+    """
+    test_prefix = 'test_'
+
+    def decorator(test_case):
+        test_method_names = [
+            test_prefix + name
+            for name
+            in prefixedMethodNames(test_case, test_prefix)
+        ]
+        for test_method_name in test_method_names:
+            if test_method_name not in supported_tests:
+                test_method = getattr(test_case, test_method_name)
+                new_todo = []
+                existing_todo = getattr(test_method, 'todo', None)
+                if existing_todo is not None:
+                    new_todo.append(existing_todo)
+                new_todo.append('Not implemented yet')
+                new_todo = ' '.join(new_todo)
+                @wraps(test_method)
+                def wrapper(*args, **kwargs):
+                    return test_method(*args, **kwargs)
+                wrapper.todo = new_todo
+                setattr(test_case, test_method_name, wrapper)
+
+        return test_case
+    return decorator

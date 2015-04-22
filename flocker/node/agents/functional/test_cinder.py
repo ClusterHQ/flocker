@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from ..cinder import authenticated_cinder_api
 from ..testtools import (
-    make_iblockdeviceapi_tests, require_cinder_credentials
+    make_iblockdeviceapi_tests, require_cinder_credentials, todo_except
 )
 
 
@@ -32,6 +32,7 @@ def cinderblockdeviceapi_for_test(
     )
 
 
+@todo_except(supported_tests=['test_interface'])
 class CinderBlockDeviceAPITests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=cinderblockdeviceapi_for_test
