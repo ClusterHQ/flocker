@@ -7,7 +7,6 @@ The command-line ``flocker-*-agent`` tools.
 
 from functools import partial
 from socket import socket
-from uuid import UUID
 
 from pyrsistent import PRecord, field
 
@@ -25,7 +24,7 @@ from ..common.script import (
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
-from ..control._config import ip_to_uuid
+from ..control._model import ip_to_uuid
 
 
 __all__ = [
@@ -58,9 +57,22 @@ class ZFSAgentOptions(Options):
 
 
 def _get_external_ip(host, port):
+    """
+    Get an external IP address for this node that can in theory connect to
+    the given host and port.
+
+    :param host: A host to connect to.
+    :param port: The port to connect to.
+
+    :return unicode: IP address of external interface on this node.
+    """
     sock = socket()
-    sock.connect_ex((host, port))
-    return sock.getaddr()[1]  # XXX approximately
+    try:
+        sock.setblocking(False)
+        sock.connect_ex((host, port))
+        return unicode(sock.getsockname()[0], "ascii")
+    finally:
+        sock.close()
 
 
 @implementer(ICommandLineVolumeScript)
@@ -74,7 +86,7 @@ class ZFSAgentScript(object):
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then
-        # we'll just do a temporary hack
+        # we'll just do a temporary hack (probably to be fixed in FLOC-1727).
         node_uuid = ip_to_uuid(ip)
         deployer = P2PManifestationDeployer(node_uuid, ip, volume_service)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
@@ -181,9 +193,10 @@ class AgentServiceFactory(PRecord):
         """
         host = options["destination-host"]
         port = options["destination-port"]
-        ip = _get_external_ip()
+        ip = _get_external_ip(host, port)
         return AgentLoopService(
             reactor=reactor,
+            # Temporary hack, to be fixed in FLOC-1727 probably:
             deployer=self.deployer_factory(uuid=ip_to_uuid(ip),
                                            hostname=ip),
             host=host, port=port,
