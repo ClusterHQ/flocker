@@ -25,6 +25,7 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from eliot.testing import validate_logging, LoggedAction
 
 from .. import blockdevice
+from ..test.istatechange import make_comparison_tests
 
 from ..blockdevice import (
     BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
@@ -43,7 +44,9 @@ from ..blockdevice import (
 
 from ... import IStateChange, run_state_change, in_parallel
 from ...testtools import ideployer_tests_factory, to_node
-from ....testtools import REALISTIC_BLOCKDEVICE_SIZE, run_process
+from ....testtools import (
+    REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests
+)
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
     NonManifestDatasets,
@@ -1673,36 +1676,39 @@ def multistep_change_log(parent, children):
     return verify
 
 
+class DestroyBlockDeviceDatasetInitTests(
+    make_with_init_tests(
+        DestroyBlockDeviceDataset,
+        dict(dataset_id=uuid4()),
+        dict(),
+    )
+):
+    """
+    Tests for ``DestroyBlockDeviceDataset`` initialization.
+    """
+
+
+class DestroyBlockDeviceDatasetComparisonTests(
+    make_comparison_tests(
+        DestroyBlockDeviceDataset,
+        # Avoid using the same instance, just provide the same value.
+        lambda _uuid=uuid4(): dict(dataset_id=_uuid),
+        lambda _uuid=uuid4(): dict(dataset_id=_uuid),
+    )
+):
+    """
+    Tests for ``DestroyBlockDeviceDataset`` comparison.
+    """
+
+
 class DestroyBlockDeviceDatasetTests(
         make_state_change_tests(_make_destroy_dataset)
 ):
     """
     Tests for ``DestroyBlockDeviceDataset``.
     """
-    def test_dataset_id_required(self):
-        """
-        XXX: The same checks apply to the ResizeBlockDevice class so consider
-        moving this and other tests to shared mixin to that that they can be
-        shared...on the other hand exarkun commented that that may be premature:
-        https://github.com/ClusterHQ/flocker/pull/1254#discussion_r27444702
-        ```
-        Maybe not worth doing a lot of refactoring for these composed
-        IStateChange implementations yet. We're going to twiddle the
-        implementation around a bit more before we find the final shape for
-        them, I think. We want something that's both easier to define and more
-        introspectable than what ended up in the FLOC-1582 branch (which I
-        expect will be much the same as what ends up in this branch).
-        ```
-
-        If ``dataset_id`` is not supplied when initializing
-        ``DestroyBlockDeviceDataset``, ``InvariantException`` is raised.
-        """
-        self.assertRaises(InvariantException, DestroyBlockDeviceDataset)
-
     def test_dataset_id_must_be_uuid(self):
         """
-        XXX: Move to shared mixin.
-
         If the value given for ``dataset_id`` is not an instance of ``UUID``
         when initializing ``DestroyBlockDeviceDataset``, ``TypeError`` is
         raised.
@@ -1710,30 +1716,6 @@ class DestroyBlockDeviceDatasetTests(
         self.assertRaises(
             TypeError, DestroyBlockDeviceDataset, dataset_id=object()
         )
-
-    def test_equal(self):
-        """
-        XXX: Move to shared mixin.
-
-        Two ``DestroyBlockDeviceDataset`` instances compare as equal if they
-        are initialized with the same dataset identifier.
-        """
-        dataset_id = unicode(uuid4())
-        # Avoid using the same instance, just provide the same value.
-        a = DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
-        b = DestroyBlockDeviceDataset(dataset_id=UUID(dataset_id))
-        self.assertTrue(a == b)
-
-    def test_not_equal(self):
-        """
-        XXX: Move to shared mixin.
-
-        Two ``DestroyBlockDeviceDataset`` instances compare as not equal if
-        they are initialized with different dataset identifiers.
-        """
-        a = DestroyBlockDeviceDataset(dataset_id=uuid4())
-        b = DestroyBlockDeviceDataset(dataset_id=uuid4())
-        self.assertTrue(a != b)
 
     _verify_destroy_log = multistep_change_log(
         DESTROY_BLOCK_DEVICE_DATASET,
@@ -2127,6 +2109,33 @@ class CreateBlockDeviceDatasetTests(make_state_change_tests(_make_create)):
             )
         )
 
+class ResizeBlockDeviceDatasetInitTests(
+    make_with_init_tests(
+        ResizeBlockDeviceDataset,
+        dict(dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE),
+        dict(),
+    )
+):
+    """
+    Tests for ``ResizeBlockDeviceDataset`` initialization.
+    """
+
+
+class ResizeBlockDeviceDatasetComparisonTests(
+    make_comparison_tests(
+        ResizeBlockDeviceDataset,
+        lambda _uuid=uuid4(): dict(
+            dataset_id=_uuid, size=REALISTIC_BLOCKDEVICE_SIZE
+        ),
+        lambda _uuid=uuid4(): dict(
+            dataset_id=_uuid, size=REALISTIC_BLOCKDEVICE_SIZE
+        ),
+    )
+):
+    """
+    Tests for ``ResizeBlockDeviceDataset`` comparison.
+    """
+
 
 def _make_resize_dataset():
     """
@@ -2145,9 +2154,6 @@ class ResizeBlockDeviceDatasetTests(
     """
     Tests for ``ResizeBlockDeviceDataset``.
     """
-    # Lots of tests that are very similar to those for DestroyBlockDeviceDataset tests.
-    # We should probably refactor these in to a test mixin class.
-
     def test_dataset_id_required(self):
         """
         If ``dataset_id`` is not supplied when initializing
@@ -2190,38 +2196,6 @@ class ResizeBlockDeviceDatasetTests(
             ResizeBlockDeviceDataset,
             dataset_id=uuid4(), size=object()
         )
-
-    def test_equal(self):
-        """
-        Two ``ResizeBlockDeviceDataset`` instances compare as equal if they
-        are initialized with the same volume.
-        """
-        dataset_id = uuid4()
-
-        def resize():
-            # Avoid using the same instance, just provide the same data.
-            return ResizeBlockDeviceDataset(
-                dataset_id=dataset_id,
-                size=REALISTIC_BLOCKDEVICE_SIZE,
-            )
-        a = resize()
-        b = resize()
-        self.assertTrue(a == b)
-
-    def test_not_equal(self):
-        """
-        Two ``ResizeBlockDeviceDataset`` instances compare as not equal if
-        they are initialized with different values.
-        """
-        a = ResizeBlockDeviceDataset(
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-            dataset_id=uuid4(),
-        )
-        b = ResizeBlockDeviceDataset(
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-            dataset_id=uuid4(),
-        )
-        self.assertTrue(a != b)
 
     def test_ordering(self):
         """
