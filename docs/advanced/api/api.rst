@@ -32,6 +32,9 @@ To start the agent on a node, (where ``${CONTROL_NODE}`` is the address of the c
 .. task:: enable_flocker_agent ${NODE_NAME} ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
+You will need to provide API end users with a certificate for authentication before they can use the API.
+Please see the :doc:`API authentication guide <./authentication>` for more information.
+
 API Details
 ===========
 

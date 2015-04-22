@@ -328,6 +328,11 @@ Paste them into a root console on the target node:
 
 .. task:: install_flocker fedora-20
    :prompt: [root@node]#
+   
+Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
+
+.. _centos-7-install:
 
 Installing on CentOS 7
 ----------------------
@@ -351,9 +356,68 @@ Paste them into a root console on the target node:
 
 .. task:: install_flocker centos-7
    :prompt: [root@node]#
+   
+Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
+.. _authentication:
 
-.. _centos-7-install:
+Cluster Authentication Layer Configuration
+------------------------------------------
+
+Communication between the different parts of your cluster is secured and authenticated via TLS.
+The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
+
+Once you have installed the ``flocker-node`` package, you will need to generate:
+
+- A control service certificate and key file, to be copied over to the node running your :doc:`control service <../advanced/architecture>`.
+- A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
+
+Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
+
+Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with any name you like to uniquely identify this cluster.
+
+.. code-block:: console
+
+    $ flocker-ca initialize mycluster
+    Created cluster.key and cluster.crt. Please keep cluster.key secret, as anyone who can access it will be able to control your cluster.
+
+You will find the files ``cluster.key`` and ``cluster.crt`` have been created in your working directory.
+The file ``cluster.key`` should be kept only by the cluster administrator; it does not need to be copied anywhere.
+
+You are now able to generate authentication certificates for the control service and each of your nodes.
+To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step.
+
+.. code-block:: console
+
+   $ flocker-ca create-control-certificate
+   Created control-service.crt. Copy it over to /etc/flocker/control-service.crt on your control service machine and make sure to chmod 0600 it.
+   
+You will need to copy both ``control-service.crt`` and ``control-service.key`` over to the node that is running your control service, to the directory ``/etc/flocker/``.
+You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
+
+You will also need to generate authentication certificates for each of your nodes.
+Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
+This step should be followed for all nodes on the cluster, including the node running the control service.
+Run the command in the same directory containing the certificate authority files you generated in the first step.
+
+.. code-block:: console
+
+   $ flocker-ca create-node-certificate
+   Created 8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt. Copy it over to /etc/flocker/node.crt on your node machine, and make sure to chmod 0600 it.
+
+The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
+
+As with the control service certificate, you should securely copy the generated certificate and key file over to your node.
+Copy the generated files to ``/etc/flocker/`` on the target node and name them ``node.crt`` and ``node.key``.
+
+Finally, you should securely copy the ``cluster.crt`` file generated in the first step to ``/etc/flocker/cluster.crt`` on all of your nodes, including the machine running the control service.
+
+.. warning::
+
+   Copy the file ``cluster.crt`` **only** - do **not** copy the ``cluster.key`` file; this must kept only by the cluster administrator.
+
+You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../advanced/security>`.
 
 Post installation configuration for Fedora 20 and CentOS 7
 ----------------------------------------------------------

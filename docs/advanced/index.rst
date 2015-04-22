@@ -9,6 +9,7 @@ Advanced Documentation
    usage
    configuration
    architecture
+   security
    api/index
    volume/index
    clustering
