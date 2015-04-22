@@ -9,7 +9,7 @@ import sys
 
 import textwrap
 
-from twisted.internet.defer import maybeDeferred, succeed, fail
+from twisted.internet.defer import maybeDeferred, succeed
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
