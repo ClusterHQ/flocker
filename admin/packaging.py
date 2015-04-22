@@ -485,7 +485,7 @@ class BuildPackage(object):
 
         if not (self.package_type is PackageTypes.DEB and self.epoch == '0'):
             # Leave epoch unset for deb's with epoch 0
-            command.extend('--epoch', self.epoch)
+            command.extend(['--epoch', self.epoch])
 
         for requirement in self.dependencies:
             command.extend(
