@@ -895,6 +895,10 @@ def todo_except(supported_tests):
         pass.
     """
     test_prefix = 'test_'
+    skip_or_todo = 'todo'
+    skip_todo = os.environ.get('SKIP_TODO')
+    if skip_todo is not None:
+        skip_or_todo = 'skip'
 
     def decorator(test_case):
         test_method_names = [
@@ -905,17 +909,17 @@ def todo_except(supported_tests):
         for test_method_name in test_method_names:
             if test_method_name not in supported_tests:
                 test_method = getattr(test_case, test_method_name)
-                new_todo = []
-                existing_todo = getattr(test_method, 'todo', None)
-                if existing_todo is not None:
-                    new_todo.append(existing_todo)
-                new_todo.append('Not implemented yet')
-                new_todo = ' '.join(new_todo)
+                new_message = []
+                existing_message = getattr(test_method, skip_or_todo, None)
+                if existing_message is not None:
+                    new_message.append(existing_message)
+                new_message.append('Not implemented yet')
+                new_message = ' '.join(new_message)
 
                 @wraps(test_method)
                 def wrapper(*args, **kwargs):
                     return test_method(*args, **kwargs)
-                wrapper.todo = new_todo
+                setattr(wrapper, skip_or_todo, new_message)
                 setattr(test_case, test_method_name, wrapper)
 
         return test_case

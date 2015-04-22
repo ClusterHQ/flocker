@@ -3,6 +3,7 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
+from uuid import UUID
 
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from keystoneclient.session import Session
@@ -11,7 +12,7 @@ from cinderclient.client import Client
 
 from zope.interface import implementer
 
-from .blockdevice import IBlockDeviceAPI
+from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume
 
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -21,6 +22,9 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # The key name used for identifying the Flocker dataset_id in the metadata for
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
+
+GIBIBYTE = 2 ** 30
+
 
 def wait_for_volume(client, new_volume):
     """
@@ -54,7 +58,6 @@ class CinderBlockDeviceAPI(object):
         self.cinder_client = cinder_client
         self.cluster_id = cluster_id
 
-
     def create_volume(self, dataset_id, size):
         """
         Create the block device using the volume_driver.
@@ -79,17 +82,26 @@ class CinderBlockDeviceAPI(object):
            Should that be the value of ``BlockDeviceVolume.blockdevice_id`` ?
            That field type is unicode rather than UUID which was (I think) chosen so as to support provider specific volume ID strings.
         """
-        requested_volume = self.cinder_client.volumes.create(size=100)
-        created_volume = wait_for_volume(self.cinder_client, requested_volume)
-        import pdb; pdb.set_trace()
+        # XXX Need to convert from bytes to GB and use a minimum of 75GB in tests
+        # Rackspace API says "u'{"badRequest": {"message": "Invalid input
+        # received: \'size\' parameter must be between 75 and 1024", "code":
+        # 400}}'"
         metadata = {
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
-        updated_volume = self.cinder_client.volumes.set_metadata(
+        # We supply metadata here and it'll be included in the returned cinder
+        # volume record, but it'll be lost by Rackspace, so...
+        requested_volume = self.cinder_client.volumes.create(size=100, metadata=metadata)
+        created_volume = wait_for_volume(self.cinder_client, requested_volume)
+        # So once the volume has actually been created, we set the metadata
+        # again. One day we hope this won't be necessary.
+        # See Rackspace support ticket: 150422-ord-0000495'
+        self.cinder_client.volumes.set_metadata(
             created_volume, metadata
         )
-        return _blockdevicevolume_from_cinder_volume(updated_volume)
+        # Use requested volume here, because it has the desired metadata
+        return _blockdevicevolume_from_cinder_volume(requested_volume)
 
     def list_volumes(self):
         """
@@ -135,7 +147,13 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     :returns: A ``BlockDeviceVolume`` based on values found in the supplied
         instance.
     """
-    return cinder_volume
+    return BlockDeviceVolume(
+        blockdevice_id=unicode(cinder_volume.id),
+        # XXX: Check that GIBIBYTE is the correct multiplier.
+        size=cinder_volume.size * GIBIBYTE,
+        host=None,
+        dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
+    )
 
 
 def authenticated_cinder_client(username, api_key, region):
