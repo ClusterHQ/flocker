@@ -204,7 +204,7 @@ CREATE_FILESYSTEM = ActionType(
 
 RESIZE_FILESYSTEM = ActionType(
     u"agent:blockdevice:resize_filesystem",
-    [VOLUME, OLD_SIZE, NEW_SIZE],
+    [VOLUME],
     [],
     u"The filesystem on a block-device-backed dataset is being resized."
 )
