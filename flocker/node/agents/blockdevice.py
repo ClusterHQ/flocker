@@ -190,7 +190,7 @@ DESTROY_VOLUME = ActionType(
 
 RESIZE_VOLUME = ActionType(
     u"agent:blockdevice:resize_volume",
-    [VOLUME],
+    [VOLUME, OLD_SIZE, NEW_SIZE],
     [],
     u"The volume for a block-device-backed dataset is being resized."
 )
