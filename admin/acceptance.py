@@ -126,7 +126,7 @@ RUNNER_ATTRIBUTES = [
 
 
 @implementer(INode)
-@attributes('address', 'distribution', apply_immutable=True)
+@attributes(['address', 'distribution'], apply_immutable=True)
 class VagrantNode(object):
     """
     Node run using VagrantRunner
