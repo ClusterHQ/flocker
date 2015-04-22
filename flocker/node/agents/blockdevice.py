@@ -396,11 +396,9 @@ class ResizeBlockDeviceDataset(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset to which the
         volume to be destroyed belongs.
+    :ivar int size: The size to which to resize the block device.
     """
     dataset_id = field(type=UUID, mandatory=True)
-
-    # XXX size might be optional.  We can grow to fill a block device without
-    # specifying it.  Shrink does need it though.
     size = field(type=int, mandatory=True)
 
     @property
