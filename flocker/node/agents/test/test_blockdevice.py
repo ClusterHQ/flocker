@@ -1770,6 +1770,22 @@ class DestroyBlockDeviceDatasetTests(
         # happened.
         self.assertEqual([], api.list_volumes())
 
+    def test_destroy_nonexistent(self):
+        """
+        If there is no volume associated with the indicated ``dataset_id``,
+        ``DestroyBlockDeviceDataset.run`` does nothing.
+        """
+        node = u"192.0.2.3"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(self)
+        deployer = BlockDeviceDeployer(
+            hostname=node,
+            block_device_api=api,
+        )
+        change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
+        self.successResultOf(run_state_change(change, deployer))
+        self.assertEqual([], api.list_volumes())
+
 
 def _make_create_filesystem():
     return CreateFilesystem(volume=_ARBITRARY_VOLUME, filesystem=u"ext4")
