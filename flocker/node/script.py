@@ -20,7 +20,7 @@ from ..volume.script import flocker_volume_options
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
-from . import P2PNodeDeployer
+from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 
@@ -67,8 +67,8 @@ class ZFSAgentScript(object):
     def main(self, reactor, options, volume_service):
         host = options["destination-host"]
         port = options["destination-port"]
-        deployer = P2PNodeDeployer(options["hostname"].decode("ascii"),
-                                   volume_service)
+        deployer = P2PManifestationDeployer(
+            options["hostname"].decode("ascii"), volume_service)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
         volume_service.setServiceParent(loop)
@@ -83,19 +83,16 @@ def flocker_zfs_agent_main():
 
 
 @flocker_standard_options
-class DatasetAgentOptions(Options):
+class _AgentOptions(Options):
     """
-    Command line options for ``flocker-dataset-agent``.
+    Command line options for agents.
 
     XXX: This is a hack. Better to have required options and to share the
     common options with ``ZFSAgentOptions``.
     """
-    longdesc = """\
-    flocker-dataset-agent runs a dataset convergence agent on a node.
-    """
-
+    # Use as basis for subclass' synopsis:
     synopsis = (
-        "Usage: flocker-dataset-agent [OPTIONS] <local-hostname> "
+        "Usage: {} [OPTIONS] <local-hostname> "
         "<control-service-hostname>")
 
     optParameters = [
@@ -106,19 +103,43 @@ class DatasetAgentOptions(Options):
     def parseArgs(self, hostname, host):
         # Passing in the 'hostname' (really node identity) via command
         # line is a hack.  See
-        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution.
+        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution,
+        # or perhaps https://clusterhq.atlassian.net/browse/FLOC-1631.
         self["hostname"] = unicode(hostname, "ascii")
         self["destination-host"] = unicode(host, "ascii")
 
 
-@implementer(ICommandLineScript)
-class DatasetAgentScript(PRecord):
+class DatasetAgentOptions(_AgentOptions):
     """
-    Implement top-level logic for the ``flocker-dataset-agent`` script.
+    Command line options for ``flocker-dataset-agent``.
+    """
+    longdesc = """\
+    flocker-dataset-agent runs a dataset convergence agent on a node.
+    """
+
+    synopsis = _AgentOptions.synopsis.format("flocker-dataset-agent")
+
+
+class ContainerAgentOptions(_AgentOptions):
+    """
+    Command line options for ``flocker-container-agent``.
+    """
+    longdesc = """\
+    flocker-container-agent runs a container convergence agent on a node.
+    """
+
+    synopsis = _AgentOptions.synopsis.format("flocker-container-agent")
+
+
+@implementer(ICommandLineScript)
+class AgentScript(PRecord):
+    """
+    Implement top-level logic for the ``flocker-dataset-agent`` and
+    ``flocker-container-agent`` scripts.
 
     :ivar service_factory: A two-argument callable that returns an ``IService``
         provider that will get run when this script is run.  The arguments
-        passed to it are the reactor being used and a ``DatasetAgentOptions``
+        passed to it are the reactor being used and a ``AgentOptions``
         instance which has parsed any command line options that were given.
     """
     service_factory = field(mandatory=True)
@@ -130,10 +151,10 @@ class DatasetAgentScript(PRecord):
         )
 
 
-class DatasetAgentServiceFactory(PRecord):
+class AgentServiceFactory(PRecord):
     """
     Implement general agent setup in a way that's usable by
-    ``DatasetAgentScript`` but also easily testable.
+    ``AgentScript`` but also easily testable.
 
     Possibly ``ICommandLineScript`` should be replaced by something that is
     inherently more easily tested so that this separation isn't required.
@@ -151,7 +172,7 @@ class DatasetAgentServiceFactory(PRecord):
         :param reactor: The reactor to give to the service so it can schedule
             timed events and make network connections.
 
-        :param DatasetAgentOptions options: The command-line options to use to
+        :param AgentOptions options: The command-line options to use to
             configure the loop and the loop's deployer.
 
         :return: The ``AgentLoopService`` instance.
@@ -172,7 +193,7 @@ def flocker_dataset_agent_main():
     dataset agent using any of the support dataset backends.
     """
     # Later, construction of this object can be moved into
-    # DatasetAgentServiceFactory.get_service where various options passed on
+    # AgentServiceFactory.get_service where various options passed on
     # the command line could alter what is created and how it is initialized.
     api = LoopbackBlockDeviceAPI.from_path(
         b"/var/lib/flocker/loopback"
@@ -181,13 +202,29 @@ def flocker_dataset_agent_main():
         BlockDeviceDeployer,
         block_device_api=api,
     )
-    service_factory = DatasetAgentServiceFactory(
+    service_factory = AgentServiceFactory(
         deployer_factory=deployer_factory
     ).get_service
-    agent_script = DatasetAgentScript(
+    agent_script = AgentScript(
         service_factory=service_factory,
     )
     return FlockerScriptRunner(
         script=agent_script,
         options=DatasetAgentOptions()
+    ).main()
+
+
+def flocker_container_agent_main():
+    """
+    Implementation of the ``flocker-container-agent`` command line script.
+
+    This starts a Docker-based container convergence agent.
+    """
+    service_factory = AgentServiceFactory(
+        deployer_factory=ApplicationNodeDeployer
+    ).get_service
+    agent_script = AgentScript(service_factory=service_factory)
+    return FlockerScriptRunner(
+        script=agent_script,
+        options=ContainerAgentOptions()
     ).main()

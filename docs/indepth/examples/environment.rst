@@ -4,9 +4,6 @@
 Using Environment Variables
 ===========================
 
-.. This section is tested in flocker.acceptance.test_environment_variables.EnvironmentVariableTests.
-   Reflect any relevant changes here in those tests.
-
 MySQL Example
 =============
 

@@ -7,19 +7,119 @@ Tests for ``flocker.node._change``.
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.defer import FirstError, Deferred, succeed, fail
 
-from ..testtools import ControllableAction, ControllableDeployer
+from eliot.testing import validate_logging, assertHasAction
+
+from ..testtools import (
+    CONTROLLABLE_ACTION_TYPE, ControllableAction, ControllableDeployer,
+    DummyDeployer
+)
 
 from .. import sequentially, in_parallel, run_state_change
 
-from .istatechange import make_istatechange_tests
+from .istatechange import (
+    DummyStateChange, RunSpyStateChange, make_istatechange_tests,
+)
 
 DEPLOYER = ControllableDeployer(u"192.168.1.1", (), ())
 
 
-SequentiallyIStateChangeTests = make_istatechange_tests(
-    sequentially, dict(changes=[1]), dict(changes=[2]))
-InParallelIStateChangeTests = make_istatechange_tests(
-    in_parallel, dict(changes=[1]), dict(changes=[2]))
+class DummyStateChangeIStateChangeTests(
+        make_istatechange_tests(
+            DummyStateChange, dict(value=1), dict(value=2)
+        )
+):
+    """
+    Tests for the ``DummyStateChange`` ``IStateChange`` implementation.
+    """
+
+
+class RunSpyStateChangeIStateChangeTests(
+        make_istatechange_tests(
+            RunSpyStateChange, dict(value=1), dict(value=2)
+        )
+):
+    """
+    Tests for the ``RunSpyStateChange`` ``IStateChange`` implementation.
+    """
+
+
+class SequentiallyIStateChangeTests(
+        make_istatechange_tests(
+            sequentially, dict(changes=[1]), dict(changes=[2])
+        )
+):
+    """
+    Tests for the ``IStateChange`` implementation provided by the object
+    returned by ``sequentially``.
+    """
+
+
+class InParallelIStateChangeTests(
+        make_istatechange_tests(
+            in_parallel, dict(changes=[1]), dict(changes=[2])
+        )
+):
+    """
+    Tests for the ``IStateChange`` implementation provided by the object
+    returned by ``in_parallel``.
+    """
+    def test_change_order_equality(self):
+        """
+        If the same changes are passed to ``in_parallel`` but in a different
+        order, the resulting ``IStateChange`` providers still compare as equal
+        to each other.
+        """
+        first_change = DummyStateChange(value=1)
+        second_change = DummyStateChange(value=2)
+        first_parallel = in_parallel(changes=[first_change, second_change])
+        second_parallel = in_parallel(changes=[second_change, first_change])
+
+        self.assertEqual(
+            (True, False),
+            (first_parallel == second_parallel,
+             first_parallel != second_parallel)
+        )
+
+    def test_duplicates_run(self):
+        """
+        If the same change is passed to ``in_parallel`` twice then it is run
+        twice.
+        """
+        deployer = DummyDeployer()
+        the_change = RunSpyStateChange(value=0)
+        parallel = in_parallel(changes=[the_change, the_change])
+        self.successResultOf(parallel.run(deployer))
+        self.assertEqual(2, the_change.value)
+
+
+def _test_nested_change(case, outer_factory, inner_factory):
+    """
+    Assert that ``IChangeState`` providers wrapped inside ``inner_factory``
+    wrapped inside ``outer_factory`` are run with the same deployer argument as
+    is passed to ``run_state_change``.
+
+    :param TestCase case: A running test.
+    :param outer_factory: Either ``sequentially`` or ``in_parallel`` to
+        construct the top-level change to pass to ``run_state_change``.
+    :param inner_factory: Either ``sequentially`` or ``in_parallel`` to
+        construct a change to include the top-level change passed to
+        ``run_state_change``.
+
+    :raise: A test failure if the inner change is not run with the same
+        deployer as is passed to ``run_state_change``.
+    """
+    inner_action = ControllableAction(result=succeed(None))
+    subchanges = [
+        ControllableAction(result=succeed(None)),
+        inner_factory(changes=[inner_action]),
+        ControllableAction(result=succeed(None))
+    ]
+    change = outer_factory(changes=subchanges)
+    run_state_change(change, DEPLOYER)
+    case.assertEqual(
+        (True, DEPLOYER),
+        (inner_action.called, inner_action.deployer)
+    )
 
 
 class SequentiallyTests(SynchronousTestCase):
@@ -97,6 +197,20 @@ class SequentiallyTests(SynchronousTestCase):
         called.extend([subchanges[1].called,
                        self.failureResultOf(result).value])
         self.assertEqual(called, [False, False, exception])
+
+    def test_nested_sequentially(self):
+        """
+        ``run_state_changes`` executes all of the changes in a ``sequentially``
+        nested within another ``sequentially``.
+        """
+        _test_nested_change(self, sequentially, sequentially)
+
+    def test_nested_in_parallel(self):
+        """
+        ``run_state_changes`` executes all of the changes in an ``in_parallel``
+        nested within a ``sequentially``.
+        """
+        _test_nested_change(self, sequentially, in_parallel)
 
 
 class InParallelTests(SynchronousTestCase):
@@ -179,3 +293,63 @@ class InParallelTests(SynchronousTestCase):
             len(subchanges),
             len(self.flushLoggedErrors(ZeroDivisionError))
         )
+
+    def test_nested_in_parallel(self):
+        """
+        ``run_state_changes`` executes all of the changes in an ``in_parallel``
+        nested within another ``in_parallel``.
+        """
+        _test_nested_change(self, in_parallel, in_parallel)
+
+    def test_nested_sequentially(self):
+        """
+        ``run_state_changes`` executes all of the changes in a ``sequentially``
+        nested within an ``in_parallel``.
+        """
+        _test_nested_change(self, in_parallel, sequentially)
+
+
+class RunStateChangeTests(SynchronousTestCase):
+    """
+    Direct unit tests for ``run_state_change``.
+    """
+    def test_run(self):
+        """
+        ``run_state_change`` calls the ``run`` method of the ``IStateChange``
+        passed to it and passes along the same deployer it was called with.
+        """
+        action = ControllableAction(result=succeed(None))
+        run_state_change(action, DEPLOYER)
+        self.assertTrue(
+            (True, DEPLOYER),
+            (action.called, action.deployer)
+        )
+
+    @validate_logging(
+        assertHasAction, CONTROLLABLE_ACTION_TYPE, succeeded=True,
+    )
+    def test_succeed(self, logger):
+        """
+        If the change passed to ``run_state_change`` returns a ``Deferred``
+        that succeeds, the ``Deferred`` returned by ``run_state_change``
+        succeeds.
+        """
+        action = ControllableAction(result=succeed(None))
+        action._logger = logger
+        self.assertIs(
+            None, self.successResultOf(run_state_change(action, DEPLOYER))
+        )
+
+    @validate_logging(
+        assertHasAction, CONTROLLABLE_ACTION_TYPE, succeeded=False,
+    )
+    def test_failed(self, logger):
+        """
+        If the change passed to ``run_state_change`` returns a ``Deferred``
+        that fails, the ``Deferred`` returned by ``run_state_change`` fails the
+        same way.
+        """
+        action = ControllableAction(result=fail(Exception("Oh no")))
+        action._logger = logger
+        failure = self.failureResultOf(run_state_change(action, DEPLOYER))
+        self.assertEqual(failure.getErrorMessage(), "Oh no")

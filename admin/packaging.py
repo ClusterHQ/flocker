@@ -593,6 +593,7 @@ IGNORED_WARNINGS = {
 
         # Upstart control files are not installed as conffiles.
         'non-conffile-in-etc /etc/init/flocker-agent.conf',
+        'non-conffile-in-etc /etc/init/flocker-container-agent.conf',
         'non-conffile-in-etc /etc/init/flocker-control.conf',
 
         # Cryptography hazmat bindings
@@ -654,10 +655,11 @@ IGNORED_WARNINGS = {
 
         # Upstart control files are not installed as conffiles.
         'file-in-etc-not-marked-as-conffile etc/init/flocker-agent.conf',
+        'file-in-etc-not-marked-as-conffile etc/init/flocker-container-agent.conf',  # noqa
         'file-in-etc-not-marked-as-conffile etc/init/flocker-control.conf',
 
         # Cryptography hazmat bindings
-        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
+        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
     ),
 }
 
@@ -907,13 +909,14 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-control'),
                      flocker_node_path),
+                    (FilePath('/opt/flocker/bin/flocker-container-agent'),
+                     flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
                      flocker_node_path),
-                    # When the ZFS convergence agent is separated from the
-                    # container convergence agent, we'll be able to get rid of
-                    # flocker-zfs-agent and make that functionality part of
+                    # Eventually we'll get rid of flocker-zfs-agent and
+                    # make that functionality part of
                     # flocker-dataset-agent, controlled by a command line
-                    # argument or some such.  FLOC-1443
+                    # argument or some such. See FLOC-1721.
                     (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
                      flocker_node_path),
                 ]

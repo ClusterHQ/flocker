@@ -270,7 +270,7 @@ FLOCKER_CONTROL_NODE=%(control_node)s
 
 def task_enable_flocker_agent(distribution, agent_node, control_node):
     """
-    Configure and enable flocker-agent.
+    Configure and enable the flocker agents.
 
     :param INode agent_node: The flocker-agent node.
     :param bytes control_node: The address of the control agent.
@@ -286,6 +286,8 @@ def task_enable_flocker_agent(distribution, agent_node, control_node):
             ),
             run_from_args(['systemctl', 'enable', 'flocker-agent']),
             run_from_args(['systemctl', 'start', 'flocker-agent']),
+            run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
+            run_from_args(['systemctl', 'start', 'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
@@ -297,6 +299,7 @@ def task_enable_flocker_agent(distribution, agent_node, control_node):
                 },
             ),
             run_from_args(['service', 'flocker-agent', 'start']),
+            run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
     else:
         raise NotImplementedError()
@@ -407,9 +410,6 @@ def task_install_flocker(
 
 
 ACCEPTANCE_IMAGES = [
-    "clusterhq/elasticsearch",
-    "clusterhq/logstash",
-    "clusterhq/kibana",
     "postgres:latest",
     "clusterhq/mongodb:latest",
 ]
@@ -529,7 +529,8 @@ def provision(distribution, package_source, variants):
 
 def configure_cluster(control_node, agent_nodes):
     """
-    Configure flocker-control and flocker-agent on a collection of nodes.
+    Configure flocker-control, flocker-agent and flocker-container-agent
+    on a collection of nodes.
 
     :param INode control_node: The control node.
     :param INode agent_nodes: List of agent nodes.
