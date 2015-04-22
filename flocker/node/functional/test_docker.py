@@ -648,21 +648,27 @@ CMD sh -c "trap \"\" 2; sleep 3"
         """
         A container with custom command line is run with those arguments.
         """
-        directory = FilePath(self.mktemp())
-        directory.makedirs()
+        external_port = find_free_port()[1]
+        name = random_name()
         d = self.start_container(
-            random_name(), image_name=u"busybox",
-            volumes=[Volume(node_path=directory,
-                            container_path=FilePath(b"/data"))],
-            command_line=[u"sh", u"-c", u"echo 'hello' > /data/output"])
+            name, image_name=u"busybox",
+            command_line=[u"sh", u"-c", u"""\
+echo -n '#!/bin/sh
+echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
+' > /tmp/script.sh;
+chmod +x /tmp/script.sh;
+nc -ll -p 8080 -e /tmp/script.sh
+"""],
+            ports=[PortMap(internal_port=8080,
+                           external_port=external_port)])
 
-        def started(_):
-            expected = directory.child(b"output")
-            for i in range(100):
-                if expected.exists():
-                    self.assertEqual(expected.getContent(), b"hello\n")
-                    return
-            self.fail("Files never created.")
+        d.addCallback(
+            lambda ignored: self.request_until_response(external_port))
+
+        def started(response):
+            d = content(response)
+            d.addCallback(lambda body: self.assertEqual(b"hi", body))
+            return d
         d.addCallback(started)
         return d
 
