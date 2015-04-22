@@ -402,6 +402,9 @@ def assert_calculated_changes(case, node_state, node_config, expected_changes):
 
 
 class ScenarioMixin(object):
+    """
+    A mixin for tests which defines some basic Flocker cluster state.
+    """
     DATASET_ID = uuid4()
     NODE = u"192.0.2.1"
 
