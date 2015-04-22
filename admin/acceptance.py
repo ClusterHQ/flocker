@@ -175,11 +175,6 @@ class VagrantRunner(object):
                     commands=task_pull_docker_images()
                 ),
             )
-<<<<<<< HEAD
-
-        return self.NODE_ADDRESSES
-=======
->>>>>>> origin/master
 
         returnValue(self.NODE_ADDRESSES)
 
@@ -244,8 +239,6 @@ class LibcloudRunner(object):
             self.nodes.append(node)
             del node
 
-            remove_known_host(node.address)
-            
         commands = sequence([
             node.provision(package_source=self.package_source,
                            variants=self.variants)
