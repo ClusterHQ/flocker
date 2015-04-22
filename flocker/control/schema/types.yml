@@ -180,8 +180,10 @@ definitions:
     description: |
       Alternate command-line to run using the Docker image's entry point.
     type: array
+    maxItems: 4096
     items:
       type: string
+      maxLength: 4096
 
   host:
     title: "Host"
