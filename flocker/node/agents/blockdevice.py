@@ -9,9 +9,8 @@ devices.
 
 from uuid import UUID
 from subprocess import check_output
-from functools import wraps
 
-from eliot import ActionType, Field, Logger
+from eliot import MessageType, ActionType, Field, Logger
 from eliot.serializers import identity
 
 from zope.interface import implementer, Interface
@@ -23,7 +22,7 @@ import psutil
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
-from .. import IDeployer, IStateChange, Sequentially, InParallel
+from .. import IDeployer, IStateChange, sequentially, in_parallel
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 
 # Eliot is transitioning away from the "Logger instances all over the place"
@@ -121,9 +120,15 @@ BLOCK_DEVICE_HOST = Field(
 CREATE_BLOCK_DEVICE_DATASET = ActionType(
     u"agent:blockdevice:create",
     [DATASET, MOUNTPOINT],
+    [],
+    u"A block-device-backed dataset is being created.",
+)
+
+BLOCK_DEVICE_DATASET_CREATED = MessageType(
+    u"agent:blockdevice:created",
     [DEVICE_PATH, BLOCK_DEVICE_ID, DATASET_ID, BLOCK_DEVICE_SIZE,
      BLOCK_DEVICE_HOST],
-    u"A block-device-backed dataset is being created.",
+    u"A block-device-backed dataset has been created.",
 )
 
 DESTROY_BLOCK_DEVICE_DATASET = ActionType(
@@ -155,36 +160,6 @@ DESTROY_VOLUME = ActionType(
 )
 
 
-def _logged_statechange(cls):
-    """
-    Decorate an ``IStateChange.run`` implementation with partially automatic
-    logging.
-
-    :param cls: An ``IStateChange`` implementation which also has an
-        ``_eliot_action`` attribute giving an Eliot action that should be used
-        to log its ``run`` method.
-
-    :return: ``cls``, mutated so that its ``run`` method is automatically run
-        in the context of its ``_eliot_action``.
-    """
-    original_run = cls.run
-    # Work-around https://twistedmatrix.com/trac/ticket/7832
-    try:
-        original_run.__name__ = original_run.methodName
-    except AttributeError:
-        pass
-
-    @wraps(original_run)
-    def run(self, deployer):
-        with self._eliot_action:
-            # IStateChange.run nominally returns a Deferred.  Hook it up to the
-            # action properly.  Do this as part of FLOC-1549 or maybe earlier.
-            return original_run(self, deployer)
-
-    cls.run = run
-    return cls
-
-
 class BlockDeviceVolume(PRecord):
     """
     A block device that may be attached to a host.
@@ -210,7 +185,6 @@ class BlockDeviceVolume(PRecord):
 #
 # after FLOC-1591 makes it possible to have reasonable logging with such a
 # solution.
-@_logged_statechange
 @implementer(IStateChange)
 class DestroyBlockDeviceDataset(PRecord):
     """
@@ -222,8 +196,10 @@ class DestroyBlockDeviceDataset(PRecord):
     """
     dataset_id = field(type=UUID, mandatory=True)
 
+    # This can be replaced with a regular attribute when the `_logger` argument
+    # is no longer required by Eliot.
     @property
-    def _eliot_action(self):
+    def eliot_action(self):
         return DESTROY_BLOCK_DEVICE_DATASET(
             _logger, dataset_id=self.dataset_id
         )
@@ -231,7 +207,7 @@ class DestroyBlockDeviceDataset(PRecord):
     def run(self, deployer):
         for volume in deployer.block_device_api.list_volumes():
             if volume.dataset_id == self.dataset_id:
-                return Sequentially(
+                return sequentially(
                     changes=[
                         UnmountBlockDevice(volume=volume),
                         DetachVolume(volume=volume),
@@ -254,7 +230,6 @@ def _volume():
     )
 
 
-@_logged_statechange
 @implementer(IStateChange)
 class UnmountBlockDevice(PRecord):
     """
@@ -267,7 +242,7 @@ class UnmountBlockDevice(PRecord):
     volume = _volume()
 
     @property
-    def _eliot_action(self):
+    def eliot_action(self):
         return UNMOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
 
     def run(self, deployer):
@@ -279,13 +254,11 @@ class UnmountBlockDevice(PRecord):
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
-        # This should be asynchronous.  Do it as part of FLOC-1499.  Make sure
-        # to fix _logged_statechange to handle Deferreds too.
+        # This should be asynchronous.  Do it as part of FLOC-1499.
         check_output([b"umount", device.path])
         return succeed(None)
 
 
-@_logged_statechange
 @implementer(IStateChange)
 class DetachVolume(PRecord):
     """
@@ -296,7 +269,7 @@ class DetachVolume(PRecord):
     volume = _volume()
 
     @property
-    def _eliot_action(self):
+    def eliot_action(self):
         return DETACH_VOLUME(_logger, volume=self.volume)
 
     def run(self, deployer):
@@ -309,7 +282,6 @@ class DetachVolume(PRecord):
         return succeed(None)
 
 
-@_logged_statechange
 @implementer(IStateChange)
 class DestroyVolume(PRecord):
     """
@@ -320,7 +292,7 @@ class DestroyVolume(PRecord):
     volume = _volume()
 
     @property
-    def _eliot_action(self):
+    def eliot_action(self):
         return DESTROY_VOLUME(_logger, volume=self.volume)
 
     def run(self, deployer):
@@ -344,6 +316,13 @@ class CreateBlockDeviceDataset(PRecord):
     dataset = field(mandatory=True, type=Dataset)
     mountpoint = field(mandatory=True, type=FilePath)
 
+    @property
+    def eliot_action(self):
+        return CREATE_BLOCK_DEVICE_DATASET(
+            _logger,
+            dataset=self.dataset, mountpoint=self.mountpoint
+        )
+
     def run(self, deployer):
         """
         Create a block device, attach it to the local host, create an ``ext4``
@@ -356,44 +335,40 @@ class CreateBlockDeviceDataset(PRecord):
 
         :returns: An already fired ``Deferred`` with result ``None``.
         """
-        with CREATE_BLOCK_DEVICE_DATASET(
-                _logger,
-                dataset=self.dataset, mountpoint=self.mountpoint
-        ) as action:
-            api = deployer.block_device_api
-            volume = api.create_volume(
-                dataset_id=UUID(self.dataset.dataset_id),
-                size=self.dataset.maximum_size,
-            )
+        api = deployer.block_device_api
+        volume = api.create_volume(
+            dataset_id=UUID(self.dataset.dataset_id),
+            size=self.dataset.maximum_size,
+        )
 
-            # This will be factored into a separate IStateChange to support the
-            # case where the volume exists but is not attached.  That object
-            # will be used by this one to perform this work.  FLOC-1575
-            volume = api.attach_volume(
-                volume.blockdevice_id, deployer.hostname
-            )
-            device = api.get_device_path(volume.blockdevice_id)
+        # This will be factored into a separate IStateChange to support the
+        # case where the volume exists but is not attached.  That object
+        # will be used by this one to perform this work.  FLOC-1575
+        volume = api.attach_volume(
+            volume.blockdevice_id, deployer.hostname
+        )
+        device = api.get_device_path(volume.blockdevice_id)
 
-            # This will be factored into a separate IStateChange to support the
-            # case where the volume is attached but has no filesystem.  That
-            # object will be used by this one to perform this work. FLOC-1576
-            check_output(["mkfs", "-t", "ext4", device.path])
+        # This will be factored into a separate IStateChange to support the
+        # case where the volume is attached but has no filesystem.  That
+        # object will be used by this one to perform this work. FLOC-1576
+        check_output(["mkfs", "-t", "ext4", device.path])
 
-            # This will be factored into a separate IStateChange to support the
-            # case where the only state change necessary is mounting.  That
-            # object will be used by this one to perform this mount. It will
-            # also gracefully handle the case where the mountpoint directory
-            # already exists.  FLOC-1498
-            self.mountpoint.makedirs()
-            check_output(["mount", device.path, self.mountpoint.path])
+        # This will be factored into a separate IStateChange to support the
+        # case where the only state change necessary is mounting.  That
+        # object will be used by this one to perform this mount. It will
+        # also gracefully handle the case where the mountpoint directory
+        # already exists.  FLOC-1498
+        self.mountpoint.makedirs()
+        check_output(["mount", device.path, self.mountpoint.path])
 
-            action.add_success_fields(
-                block_device_path=device,
-                block_device_id=volume.blockdevice_id,
-                dataset_id=volume.dataset_id,
-                block_device_size=volume.size,
-                block_device_host=volume.host,
-            )
+        BLOCK_DEVICE_DATASET_CREATED(
+            block_device_path=device,
+            block_device_id=volume.blockdevice_id,
+            dataset_id=volume.dataset_id,
+            block_device_size=volume.size,
+            block_device_host=volume.host,
+        ).write(_logger)
         return succeed(None)
 
 
@@ -460,6 +435,23 @@ class IBlockDeviceAPI(Interface):
             exist.
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to anything.
+        :returns: ``None``
+        """
+
+    def resize_volume(blockdevice_id, size):
+        """
+        Resize an unattached ``blockdevice_id``.
+
+        This changes the amount of storage available.  It does not change the
+        data on the volume (including the filesystem).
+
+        :param unicode blockdevice_id: The unique identifier for the block
+            device being detached.
+        :param int size: The required size, in bytes, of the volume.
+
+        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+            exist.
+
         :returns: ``None``
         """
 
@@ -725,6 +717,28 @@ class LoopbackBlockDeviceAPI(object):
         )
         volume_path.moveTo(new_path)
 
+    def resize_volume(self, blockdevice_id, size):
+        """
+        Change the size of the loopback backing file.
+
+        Sparseness is maintained by using ``truncate`` on the backing file.
+
+        This implementation is limited to being able to resize volumes only if
+        they are unattached.
+        """
+        backing_path = self._unattached_directory.child(
+            blockdevice_id.encode("ascii")
+        )
+        try:
+            backing_file = backing_path.open("r+")
+        except IOError:
+            raise UnknownVolume(blockdevice_id)
+        else:
+            try:
+                backing_file.truncate(size)
+            finally:
+                backing_file.close()
+
     def list_volumes(self):
         """
         Return ``BlockDeviceVolume`` instances for all the files in the
@@ -933,7 +947,7 @@ class BlockDeviceDeployer(PRecord):
 
         deletes = self._calculate_deletes(configured_manifestations)
 
-        return InParallel(changes=creates + deletes)
+        return in_parallel(changes=creates + deletes)
 
     def _calculate_deletes(self, configured_manifestations):
         """
