@@ -15,7 +15,7 @@ control service, and sends inputs to the ConvergenceLoop state machine.
 
 from zope.interface import implementer
 
-from eliot import ActionType, Field
+from eliot import ActionType, Field, writeFailure
 from eliot.twisted import DeferredContext
 
 from characteristic import attributes
@@ -28,6 +28,8 @@ from machinist import (
 from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.protocol import ReconnectingClientFactory
+
+from . import run_state_change
 
 from ..control._protocol import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
@@ -256,7 +258,8 @@ class ConvergenceLoop(object):
     :ivar Deployment configuration: Desired cluster
         configuration. Initially ``None``.
 
-    :ivar Deployment state: Actual cluster state.  Initially ``None``.
+    :ivar DeploymentState cluster_state: Actual cluster state.  Initially
+        ``None``.
 
     :ivar fsm: The finite state machine this is part of.
     """
@@ -269,30 +272,36 @@ class ConvergenceLoop(object):
         """
         self.reactor = reactor
         self.deployer = deployer
+        self.cluster_state = None
 
     def output_STORE_INFO(self, context):
         self.client, self.configuration, self.cluster_state = (
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        d = DeferredContext(self.deployer.discover_local_state())
+        known_local_state = self.cluster_state.get_node(self.deployer.hostname)
+        d = DeferredContext(self.deployer.discover_state(known_local_state))
 
-        def got_local_state(local_state):
+        def got_local_state(state_changes):
             # Current cluster state is likely out of date as regards the local
-            # state, so update it accordingly:
-            self.cluster_state = self.cluster_state.update_node(
-                local_state.to_node()
-            )
+            # state, so update it accordingly.
+            for state in state_changes:
+                self.cluster_state = state.update_cluster_state(
+                    self.cluster_state
+                )
             with LOG_SEND_TO_CONTROL_SERVICE(
                     self.fsm.logger, connection=self.client) as context:
                 self.client.callRemote(NodeStateCommand,
-                                       node_state=local_state,
+                                       state_changes=state_changes,
                                        eliot_context=context)
-            action = self.deployer.calculate_necessary_state_changes(
-                local_state, self.configuration, self.cluster_state
+            action = self.deployer.calculate_changes(
+                self.configuration, self.cluster_state
             )
-            return action.run(self.deployer)
+            return run_state_change(action, self.deployer)
         d.addCallback(got_local_state)
+        # If an error occurred we just want to log it and then try
+        # converging again; hopefully next time we'll have more success.
+        d.addErrback(writeFailure, self.fsm.logger, u"")
 
         # It would be better to have a "quiet time" state in the FSM and
         # transition to that next, then have a timeout input kick the machine
@@ -307,8 +316,6 @@ class ConvergenceLoop(object):
                     1.0, self.fsm.receive, ConvergenceLoopInputs.ITERATION_DONE
                 )
         )
-        # This needs error handling:
-        # https://clusterhq.atlassian.net/browse/FLOC-1357
 
 
 def build_convergence_loop_fsm(reactor, deployer):

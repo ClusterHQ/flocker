@@ -39,12 +39,14 @@ FAILED_INPUT_VALIDATION = (
     u"The provided JSON doesn't match the required schema.")
 
 
-def _assertRequestLogged(path):
+def _assertRequestLogged(path, method=b"GET"):
     def actuallyAssert(self, logger):
         request = LoggedAction.ofType(logger.messages, REQUEST)[0]
         assertContainsFields(self, request.startMessage, {
-            u"request_path": repr(path).decode("ascii"),
+            u"request_path": path.decode("ascii"),
+            u"method": method,
         })
+        return request
     return actuallyAssert
 
 

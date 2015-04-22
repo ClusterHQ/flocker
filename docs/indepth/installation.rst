@@ -7,8 +7,7 @@ This should be installed on a machine with SSH credentials to control the cluste
 (e.g., if you use our Vagrant setup then the machine which is running Vagrant).
 
 There is also a ``clusterhq-flocker-node`` package which is installed on each node in the cluster.
-It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities.
-These utilities are called by ``flocker-deploy`` (via SSH) to install and migrate Docker containers and their data volumes.
+It contains the services that need to run on each node.
 
 .. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
 
@@ -84,17 +83,10 @@ Make sure Homebrew has no issues:
 
 Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
 
-Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
+Add the ``ClusterHQ/tap`` tap to Homebrew and install ``flocker``:
 
-.. version-code-block:: console
-
-   alice@mercury:~$ brew tap ClusterHQ/tap
-   ...
-   alice@mercury:~$ brew install flocker-|latest-installable|
-   ...
-   alice@mercury:~$ brew test flocker-|latest-installable|
-   ...
-   alice@mercury:~$
+.. task:: test_homebrew flocker-|latest-installable|
+   :prompt: alice@mercury:~$
 
 You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
@@ -223,14 +215,6 @@ Using Amazon Web Services
    .. code-block:: sh
 
       [fedora@aws]$ sudo shutdown -r now
-
-#. Update the SELinux policies.
-
-   Old SELinux policies stop docker from starting containers.
-
-   .. task:: upgrade_selinux
-      :prompt: [root@aws]#
-
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
@@ -373,6 +357,16 @@ Paste them into a root console on the target node:
 
 Post installation configuration for Fedora 20 and CentOS 7
 ----------------------------------------------------------
+
+First disable SELinux.
+
+.. task:: disable_selinux
+   :prompt: [root@node]#
+
+.. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
+          This prevents Docker containers from accessing those filesystems as volumes.
+          A future version of Flocker may provide a different integration strategy.
+          See :issue:`619`.
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:

@@ -1,6 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Various utilities to help with unit and functional testing."""
+"""
+Various utilities to help with unit and functional testing.
+"""
 
 from __future__ import absolute_import
 
@@ -14,17 +16,19 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import random
 import shutil
-from subprocess import check_call, check_output
 from functools import wraps
-from unittest import skipIf
-from unittest import skipUnless
+from unittest import skipIf, skipUnless
+from inspect import getfile, getsourcelines
+from subprocess import PIPE, STDOUT, CalledProcessError, Popen
+
+from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
 
 from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
-    )
+)
 from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
@@ -36,6 +40,7 @@ from twisted.test.proto_helpers import MemoryReactor
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.protocols.amp import AMP, InvalidSignature
+from twisted.python.log import msg
 
 from characteristic import attributes
 
@@ -187,6 +192,8 @@ def loop_until(predicate):
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
+    msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
+                                   getsourcelines(predicate)[1]))
     d = maybeDeferred(predicate)
 
     def loop(result):
@@ -592,11 +599,8 @@ class DockerImageBuilder(object):
             b'--tag=%s' % (tag,),
             docker_dir.path
         ]
-        check_call(command)
-        # XXX until https://clusterhq.atlassian.net/browse/FLOC-409 is
-        # fixed we will often have a container lying around which is still
-        # using the new image, so removing the image will fail.
-        # self.test.addCleanup(check_call, [b"docker", b"rmi", tag])
+        run_process(command)
+        self.test.addCleanup(run_process, [b"docker", b"rmi", tag])
         return tag
 
 
@@ -678,8 +682,9 @@ def assertContainsAll(haystack, needles, test_case):
         )
 
 
-# Skip decorator for tests:
+# Skip decorators for tests:
 if_root = skipIf(os.getuid() != 0, "Must run as root.")
+not_root = skipIf(os.getuid() == 0, "Must not run as root.")
 
 
 # TODO: This should be provided by Twisted (also it should be more complete
@@ -699,10 +704,12 @@ class MemoryCoreReactor(MemoryReactor):
 
     def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
         event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
-        event.addTrigger(phase, callable, *args, **kw)
-        # removeSystemEventTrigger isn't implemented so the return value here
-        # isn't useful.
-        return object()
+        return eventType, event.addTrigger(phase, callable, *args, **kw)
+
+    def removeSystemEventTrigger(self, triggerID):
+        eventType, handle = triggerID
+        event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
+        event.removeTrigger(handle)
 
     def fireSystemEvent(self, eventType):
         event = self._triggers.get(eventType)
@@ -725,16 +732,16 @@ def make_script_tests(executable):
             """
             The script is a command available on the system path.
             """
-            result = check_output([executable] + [b"--version"])
-            self.assertEqual(result, b"%s\n" % (__version__,))
+            result = run_process([executable] + [b"--version"])
+            self.assertEqual(result.output, b"%s\n" % (__version__,))
 
         @skipUnless(which(executable), executable + " not installed")
         def test_identification(self):
             """
             The script identifies itself as what it is.
             """
-            result = check_output([executable] + [b"--help"])
-            self.assertIn(executable, result)
+            result = run_process([executable] + [b"--help"])
+            self.assertIn(executable, result.output)
     return ScriptTests
 
 
@@ -807,3 +814,35 @@ class CustomException(Exception):
     An exception that will never be raised by real code, useful for
     testing.
     """
+
+
+class _ProcessResult(PRecord):
+    """
+    The return type for ``run_process`` representing the outcome of the process
+    that was run.
+    """
+    command = field(type=list, mandatory=True)
+    output = field(type=bytes, mandatory=True)
+    status = field(type=int, mandatory=True)
+
+
+def run_process(command, *args, **kwargs):
+    """
+    Run a child process, capturing its stdout and stderr.
+
+    :param list command: An argument list to use to launch the child process.
+
+    :raise CalledProcessError: If the child process has a non-zero exit status.
+
+    :return: A ``_ProcessResult`` instance describing the result of the child
+         process.
+    """
+    kwargs["stdout"] = PIPE
+    kwargs["stderr"] = STDOUT
+    process = Popen(command, *args, **kwargs)
+    output = process.stdout.read()
+    status = process.wait()
+    result = _ProcessResult(command=command, output=output, status=status)
+    if result.status:
+        raise CalledProcessError(returncode=status, cmd=command, output=output)
+    return result

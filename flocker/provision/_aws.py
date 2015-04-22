@@ -7,63 +7,76 @@ AWS provisioner.
 from ._libcloud import LibcloudProvisioner
 from ._common import Variants
 from ._install import (
-    provision, run,
+    provision,
     task_install_ssh_key,
     task_upgrade_kernel,
-    task_upgrade_selinux,
     task_upgrade_kernel_centos,
     task_enable_updates_testing
 )
+
+from ._ssh import run_remotely
+from ._effect import sequence
+from effect import Func, Effect
 
 
 def provision_aws(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
+
+    :param LibcloudNode node: Node to provision.
+    :param PackageSource package_source: See func:`task_install_flocker`
+    :param bytes distribution: See func:`task_install_flocker`
+    :param set variants: The set of variant configurations to use when
+        provisioning
     """
     username = {
         'fedora-20': 'fedora',
         'centos-7': 'centos',
     }[distribution]
-    run(
+
+    commands = []
+
+    commands.append(run_remotely(
         username=username,
         address=node.address,
         commands=task_install_ssh_key(),
-    )
+    ))
 
+    pre_reboot_commands = []
     if Variants.DISTRO_TESTING in variants:
-        # FIXME: We shouldn't need to duplicate this here.
-        run(
-            username='root',
-            address=node.address,
-            commands=task_enable_updates_testing(distribution)
+        pre_reboot_commands.append(
+            task_enable_updates_testing(distribution)
         )
 
     if distribution in ('centos-7',):
-        run(
-            username='root',
-            address=node.address,
-            commands=task_upgrade_kernel_centos(),
+        pre_reboot_commands.append(
+            task_upgrade_kernel_centos()
         )
-        node.reboot()
+
     elif distribution in ('fedora-20',):
-        run(
-            username='root',
-            address=node.address,
-            commands=task_upgrade_kernel(),
+        pre_reboot_commands.append(
+            task_upgrade_kernel(),
         )
 
-    node.reboot()
+    commands.append(run_remotely(
+        username='root',
+        address=node.address,
+        commands=sequence(pre_reboot_commands),
+    ))
 
-    run(
+    commands.append(Effect(Func(node.reboot)))
+
+    commands.append(run_remotely(
         username='root',
         address=node.address,
         commands=provision(
             package_source=package_source,
             distribution=node.distribution,
             variants=variants,
-        ) + task_upgrade_selinux(),
-    )
-    return node.address
+        ),
+    ))
+
+    return sequence(commands)
 
 
 IMAGE_NAMES = {

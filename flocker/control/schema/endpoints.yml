@@ -65,6 +65,17 @@ definitions:
       - host
     additionalProperties: false
 
+  # This will be improved and tested in
+  # https://clusterhq.atlassian.net/browse/FLOC-1632
+  nodes_array:
+    description: "An array of nodes in the cluster."
+    type: array
+    items:
+      type: object
+      properties:
+        hostname:
+          '$ref': 'types.json#/definitions/host'
+
   state_container:
     type: object
     properties:
@@ -110,31 +121,39 @@ definitions:
     type: array
     items: {"$ref": "#/definitions/state_container" }
 
-  configuration_dataset:
-    description: "The configuration for a particular dataset."
-    type: object
-    properties:
-      primary:
-        '$ref': 'types.json#/definitions/primary'
-      dataset_id:
-        '$ref': 'types.json#/definitions/dataset_id'
-      deleted:
-        '$ref': 'types.json#/definitions/deleted'
-      metadata:
-        '$ref': 'types.json#/definitions/metadata'
-      maximum_size:
-        '$ref': 'types.json#/definitions/maximum_size'
-    required:
-      # Temporarily required until volume backends settle down and we know
-      # more about what it means to not have a primary manifestation.
-      - primary
-    additionalProperties: false
+  configuration_datasets:
+    description: |
+      The output schema for the create_dataset and update_dataset and
+      delete_dataset endpoints.
+    "$ref": "types.json#/definitions/dataset_configuration"
 
-  # A sequence of datasets
-  configuration_datasets_array:
-    description: "An array of configuration datasets."
+  configuration_datasets_update:
+    description: |
+      The input schema for the update_dataset endpoint.
+    "$ref": "types.json#/definitions/dataset_configuration"
+
+  configuration_datasets_create:
+    # XXX: The publicapi documentation builder currently fails unless the
+    # schema has a ``type`` attribute and a ``properties`` dictionary.
+    # See: https://clusterhq.atlassian.net/browse/FLOC-1697
+    # XXX: Additionally the validation and publicapi documentation builder
+    # don't provide any way of merging the locally defined attributes
+    # and attributes from a remote reference.
+    # See: https://clusterhq.atlassian.net/browse/FLOC-1698
+    type: object
+    description: |
+      The input schema for the create_dataset endpoint
+    properties: {}
+    allOf:
+      - "$ref": "types.json#/definitions/dataset_configuration"
+      - required:
+          - primary
+
+  configuration_datasets_list:
+    description: |
+      The output schema for the get_dataset_configuration endpoint.
     type: array
-    items: {"$ref": "#/definitions/configuration_dataset" }
+    items: {"$ref": "types.json#/definitions/dataset_configuration" }
 
   state_datasets_array:
     description: "An array of state datasets."
@@ -156,3 +175,22 @@ definitions:
         - dataset_id
         - path
       additionalProperties: false
+
+  configuration_compose:
+    description: "Private endpoint for flocker-deploy."
+    type: object
+    properties:
+      applications:
+        type: object
+        title: Application configuration
+        description: |
+          Application configuration in Flocker or Fig/Compose format.
+      deployment:
+        type: object
+        title: Application location configuration
+        description: |
+          Configuration of application locations within the cluster.
+    required:
+      - applications
+      - deployment
+    additionalProperties: false

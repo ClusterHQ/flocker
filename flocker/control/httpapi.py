@@ -11,6 +11,7 @@ from pyrsistent import pmap, thaw
 from twisted.python.filepath import FilePath
 from twisted.web.http import (
     CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
+    BAD_REQUEST
 )
 from twisted.web.server import Site
 from twisted.web.resource import Resource
@@ -24,11 +25,13 @@ from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
 from . import (
-    Dataset, Manifestation, Node, Application, DockerImage, Port,
+    Dataset, Manifestation, Application, DockerImage, Port,
     AttachedVolume, Link
 )
 from ._config import (
-    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY
+    ApplicationMarshaller, FLOCKER_RESTART_POLICY_NAME_TO_POLICY,
+    model_from_configuration, FigConfiguration, FlockerConfiguration,
+    ConfigurationError
 )
 from .. import __version__
 
@@ -75,6 +78,9 @@ DATASET_IN_USE = make_bad_request(
     description=u"The dataset is being used by another container.")
 
 
+_UNDEFINED_MAXIMUM_SIZE = object()
+
+
 class ConfigurationAPIUserV1(object):
     """
     A user accessing the API.
@@ -95,23 +101,6 @@ class ConfigurationAPIUserV1(object):
         """
         self.persistence_service = persistence_service
         self.cluster_state_service = cluster_state_service
-
-    def _find_node_by_host(self, host, deployment):
-        """
-        Find a Node matching the specified host, or create a new one if it does
-        not already exist.
-        :param node: A ``unicode`` representing a host / IP address.
-        :param deployment: A ``Deployment`` instance.
-        :return: A ``Node`` instance.
-        """
-        for node in deployment.nodes:
-            if host == node.hostname:
-                return node
-
-        # The node wasn't found in the configuration so create a new node.
-        # FLOC-1278 will make sure we're not creating nonsense
-        # configuration in this step.
-        return Node(hostname=host)
 
     @app.route("/version", methods=['GET'])
     @user_documentation("""
@@ -139,7 +128,7 @@ class ConfigurationAPIUserV1(object):
         inputSchema={},
         outputSchema={
             '$ref':
-            '/v1/endpoints.json#/definitions/configuration_datasets_array',
+            '/v1/endpoints.json#/definitions/configuration_datasets_list',
         },
         schema_store=SCHEMAS,
     )
@@ -166,10 +155,13 @@ class ConfigurationAPIUserV1(object):
         ]
     )
     @structured(
-        inputSchema={'$ref':
-                     '/v1/endpoints.json#/definitions/configuration_dataset'},
-        outputSchema={'$ref':
-                      '/v1/endpoints.json#/definitions/configuration_dataset'},
+        inputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets_create'
+        },
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS
     )
     def create_dataset_configuration(self, primary, dataset_id=None,
@@ -186,9 +178,10 @@ class ConfigurationAPIUserV1(object):
             This is not for easy human use.  For human-friendly identifiers,
             use items in ``metadata``.
 
-        :param int maximum_size: The maximum number of bytes the dataset will
-            be capable of storing.  This may be optional or required depending
-            on the dataset backend.
+        :param maximum_size: Either the maximum number of bytes the dataset
+            will be capable of storing or ``None`` to make the dataset size
+            unlimited. This may be optional or required depending on the
+            dataset backend.
 
         :param dict metadata: A small collection of unicode key/value pairs to
             associate with the dataset.  These items are not interpreted.  They
@@ -226,7 +219,7 @@ class ConfigurationAPIUserV1(object):
         )
         manifestation = Manifestation(dataset=dataset, primary=True)
 
-        primary_node = self._find_node_by_host(primary, deployment)
+        primary_node = deployment.get_node(primary)
 
         new_node_config = primary_node.transform(
             ("manifestations", manifestation.dataset_id), manifestation)
@@ -238,42 +231,6 @@ class ConfigurationAPIUserV1(object):
             return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
-
-    def _find_manifestation_and_node(self, dataset_id):
-        """
-        Given the ID of a dataset, find its primary manifestation and the node
-        it's on.
-
-        :param unicode dataset_id: The unique identifier of the dataset.  This
-            is a string giving a UUID (per RFC 4122).
-
-        :return: Tuple containing the primary ``Manifestation`` and the
-            ``Node`` it is on.
-        """
-        # Get the current configuration.
-        deployment = self.persistence_service.get()
-
-        manifestations_and_nodes = manifestations_from_deployment(
-            deployment, dataset_id)
-        index = 0
-        for index, (manifestation, node) in enumerate(
-                manifestations_and_nodes):
-            if manifestation.primary:
-                primary_manifestation, origin_node = manifestation, node
-                break
-        else:
-            # There are no manifestations containing the requested dataset.
-            if index == 0:
-                raise DATASET_NOT_FOUND
-            else:
-                # There were no primary manifestations
-                raise IndexError(
-                    'No primary manifestations for dataset: {!r}. See '
-                    'https://clusterhq.atlassian.net/browse/FLOC-1403'.format(
-                        dataset_id)
-                )
-
-        return primary_manifestation, origin_node
 
     @app.route("/configuration/datasets/<dataset_id>", methods=['DELETE'])
     @user_documentation(
@@ -290,8 +247,9 @@ class ConfigurationAPIUserV1(object):
     )
     @structured(
         inputSchema={},
-        outputSchema={'$ref':
-                      '/v1/endpoints.json#/definitions/configuration_dataset'},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS
     )
     def delete_dataset(self, dataset_id):
@@ -310,8 +268,8 @@ class ConfigurationAPIUserV1(object):
 
         # XXX this doesn't handle replicas
         # https://clusterhq.atlassian.net/browse/FLOC-1240
-        old_manifestation, origin_node = self._find_manifestation_and_node(
-            dataset_id)
+        old_manifestation, origin_node = _find_manifestation_and_node(
+            deployment, dataset_id)
 
         new_node = origin_node.transform(
             ("manifestations", dataset_id, "dataset", "deleted"), True)
@@ -336,22 +294,27 @@ class ConfigurationAPIUserV1(object):
 
         * Move a dataset from one node to another by changing the
           ``primary`` attribute.
-        * In the future, update metadata and maximum size.
+        * Resize the dataset by modifying the maximum_size attribute.
+        * In the future update metadata.
 
         """,
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
+            u"update dataset size"
         ]
     )
     @structured(
-        inputSchema={'$ref':
-                     '/v1/endpoints.json#/definitions/configuration_dataset'},
-        outputSchema={'$ref':
-                      '/v1/endpoints.json#/definitions/configuration_dataset'},
+        inputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets_update'},
+        outputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS
     )
-    def update_dataset(self, dataset_id, primary=None):
+    def update_dataset(self, dataset_id, primary=None,
+                       maximum_size=_UNDEFINED_MAXIMUM_SIZE):
         """
         Update an existing dataset in the cluster configuration.
 
@@ -361,6 +324,11 @@ class ConfigurationAPIUserV1(object):
         :param unicode primary: The address of the node to which the dataset
             will be moved.
 
+        :param maximum_size: Either the maximum number of bytes the dataset
+            will be capable of storing or ``None`` to make the dataset size
+            unlimited. This may be optional or required depending on the
+            dataset backend.
+
         :return: A ``dict`` describing the dataset which has been added to the
             cluster configuration or giving error information if this is not
             possible.
@@ -368,47 +336,36 @@ class ConfigurationAPIUserV1(object):
         # Get the current configuration.
         deployment = self.persistence_service.get()
 
-        primary_manifestation, origin_node = self._find_manifestation_and_node(
-            dataset_id)
+        # Raises DATASET_NOT_FOUND if the ``dataset_id`` is not found.
+        primary_manifestation, current_node = _find_manifestation_and_node(
+            deployment, dataset_id
+        )
 
         if primary_manifestation.dataset.deleted:
             raise DATASET_DELETED
 
-        # Now construct a new_deployment where the primary manifestation of the
-        # dataset is on the requested primary node.
-        new_origin_node = origin_node.transform(
-            ("manifestations", dataset_id), discard)
-        deployment = deployment.update_node(new_origin_node)
-
-        primary_nodes = list(
-            node for node in deployment.nodes if primary == node.hostname
-        )
-        if len(primary_nodes) == 0:
-            # `primary` is not in cluster. Add it.
-            # XXX Check cluster state to determine if the given primary node
-            # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
-            # See FLOC-1278
-            new_target_node = Node(
-                hostname=primary,
-                manifestations={dataset_id: primary_manifestation},
+        if primary is not None:
+            deployment = _update_dataset_primary(
+                deployment, dataset_id, primary
             )
-        else:
-            # There should only be one node with the requested primary
-            # hostname. ``ValueError`` here if that's not the case.
-            (target_node,) = primary_nodes
-            new_target_node = target_node.transform(
-                ("manifestations", dataset_id), primary_manifestation)
 
-        deployment = deployment.update_node(new_target_node)
+        if maximum_size is not _UNDEFINED_MAXIMUM_SIZE:
+            deployment = _update_dataset_maximum_size(
+                deployment, dataset_id, maximum_size
+            )
 
         saving = self.persistence_service.save(deployment)
+
+        primary_manifestation, current_node = _find_manifestation_and_node(
+            deployment, dataset_id
+        )
 
         # Return an API response dictionary containing the dataset with updated
         # primary address.
         def saved(ignored):
             result = api_dataset_from_dataset_and_node(
                 primary_manifestation.dataset,
-                new_target_node.hostname
+                current_node.hostname,
             )
             return EndpointResponse(OK, result)
         saving.addCallback(saved)
@@ -619,7 +576,7 @@ class ConfigurationAPIUserV1(object):
             attached_volume = self._get_attached_volume(host, volumes[0])
 
         # Find the node.
-        node = self._find_node_by_host(host, deployment)
+        node = deployment.get_node(host)
 
         # Check if we have any ports in the request. If we do, check existing
         # external ports exposed to ensure there is no conflict. If there is a
@@ -732,7 +689,7 @@ class ConfigurationAPIUserV1(object):
             been updated.
         """
         deployment = self.persistence_service.get()
-        target_node = self._find_node_by_host(host, deployment)
+        target_node = deployment.get_node(host)
         for node in deployment.nodes:
             for application in node.applications:
                 if application.name == name:
@@ -759,7 +716,8 @@ class ConfigurationAPIUserV1(object):
         Remove a container from the configuration.
 
         This will lead to the container being stopped and not being
-        restarted again.
+        restarted again. Any datasets that were attached as volumes will
+        continue to exist on the cluster.
         """,
         examples=[
             u"remove a container",
@@ -794,6 +752,143 @@ class ConfigurationAPIUserV1(object):
 
         # Didn't find the application:
         raise CONTAINER_NOT_FOUND
+
+    @app.route("/state/nodes", methods=['GET'])
+    # To be done in https://clusterhq.atlassian.net/browse/FLOC-1632
+    # @user_documentation(...)
+    @structured(
+        inputSchema={},
+        outputSchema={"$ref":
+                      '/v1/endpoints.json#/definitions/nodes_array'},
+        schema_store=SCHEMAS
+    )
+    def list_current_nodes(self):
+        return [{u"hostname": node.hostname} for node in
+                self.cluster_state_service.as_deployment().nodes]
+
+    @app.route("/configuration/_compose", methods=['POST'])
+    @user_documentation(
+        """
+        Private API endpoint used by flocker-deploy.
+
+        Please do not use it as it may be removed in the near future.
+        """,
+        examples=[],
+    )
+    @structured(
+        inputSchema={
+            '$ref':
+            '/v1/endpoints.json#/definitions/configuration_compose'
+        },
+        outputSchema={},
+        schema_store=SCHEMAS
+    )
+    def replace_configuration(self, applications, deployment):
+        """
+        Replace the existing configuration with one given by flocker-deploy
+        command line tool.
+
+        :param applications: Configuration in Flocker-native or
+            Fig/Compose format.
+
+        :param deployment: Configuration of which applications run on
+            which nodes.
+        """
+        try:
+            configuration = FigConfiguration(applications)
+            if not configuration.is_valid_format():
+                configuration = FlockerConfiguration(applications)
+            return self.persistence_service.save(model_from_configuration(
+                applications=configuration.applications(),
+                deployment_configuration=deployment))
+        except ConfigurationError as e:
+            raise make_bad_request(code=BAD_REQUEST, description=unicode(e))
+
+
+def _find_manifestation_and_node(deployment, dataset_id):
+    """
+    Given the ID of a dataset, find its primary manifestation and the node
+    it's on.
+
+    :param unicode dataset_id: The unique identifier of the dataset.  This
+        is a string giving a UUID (per RFC 4122).
+
+    :return: Tuple containing the primary ``Manifestation`` and the
+        ``Node`` it is on.
+    """
+    manifestations_and_nodes = manifestations_from_deployment(
+        deployment, dataset_id)
+    index = 0
+    for index, (manifestation, node) in enumerate(
+            manifestations_and_nodes):
+        if manifestation.primary:
+            primary_manifestation, origin_node = manifestation, node
+            break
+    else:
+        # There are no manifestations containing the requested dataset.
+        if index == 0:
+            raise DATASET_NOT_FOUND
+        else:
+            # There were no primary manifestations
+            raise IndexError(
+                'No primary manifestations for dataset: {!r}. See '
+                'https://clusterhq.atlassian.net/browse/FLOC-1403'.format(
+                    dataset_id)
+            )
+
+    return primary_manifestation, origin_node
+
+
+def _update_dataset_primary(deployment, dataset_id, primary):
+    """
+    Update the ``deployment`` so that the ``Dataset`` with the supplied
+    ``dataset_id`` is on the ``Node`` with the supplied ``primary`` address.
+
+    :param Deployment deployment: The deployment containing the dataset to be
+        updated.
+    :param unicode dataset_id: The ID of the dataset to be updated.
+    :param unicode primary: The IP address of the new primary node of the
+        supplied ``dataset_id``.
+    :returns: An updated ``Deployment``.
+    """
+    primary_manifestation, old_primary_node = _find_manifestation_and_node(
+        deployment, dataset_id
+    )
+    # Now construct a new_deployment where the primary manifestation of the
+    # dataset is on the requested primary node.
+    old_primary_node = old_primary_node.transform(
+        ("manifestations", primary_manifestation.dataset_id), discard
+    )
+    deployment = deployment.update_node(old_primary_node)
+
+    new_primary_node = deployment.get_node(primary)
+    new_primary_node = new_primary_node.transform(
+        ("manifestations", dataset_id), primary_manifestation
+    )
+
+    deployment = deployment.update_node(new_primary_node)
+    return deployment
+
+
+def _update_dataset_maximum_size(deployment, dataset_id, maximum_size):
+    """
+    Update the ``deployment`` so that the ``Dataset`` with the supplied
+    ``dataset_id`` has the supplied ``maximum_size``.
+
+    :param Deployment deployment: The deployment containing the dataset to be
+        updated.
+    :param unicode dataset_id: The ID of the dataset to be updated.
+    :param maximum_size: The new size of the dataset or ``None`` to remove the
+        size limit.
+    :returns: An updated ``Deployment``.
+    """
+    manifestation, node = _find_manifestation_and_node(deployment, dataset_id)
+    deployment = deployment.set(nodes=deployment.nodes.discard(node))
+    node = node.transform(
+        ['manifestations', dataset_id, 'dataset', 'maximum_size'],
+        maximum_size
+    )
+    return deployment.set(nodes=deployment.nodes.add(node))
 
 
 def manifestations_from_deployment(deployment, dataset_id):
@@ -867,7 +962,10 @@ def container_configuration_response(application, node):
     result.update(ApplicationMarshaller(application).convert())
     # Configuration format isn't quite the same as JSON format:
     if u"volume" in result:
-        result[u"volumes"] = [result.pop(u"volume")]
+        # Config format includes maximum_size, which we don't want:
+        volume = result.pop(u"volume")
+        result[u"volumes"] = [{u"dataset_id": volume[u"dataset_id"],
+                               u"mountpoint": volume[u"mountpoint"]}]
     if application.cpu_shares is not None:
         result["cpu_shares"] = application.cpu_shares
     if application.memory_limit is not None:

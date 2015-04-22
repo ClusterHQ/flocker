@@ -3,7 +3,7 @@ Cleaning Up
 ===========
 
 Flocker does not currently implement a tool to purge containers and state from deployment nodes that have had applications and volumes installed via ``flocker-deploy``.
-Adding a cleanup tool is `on the Flocker development path`_ for a later release.
+Adding a cleanup tool is :issue:`on the Flocker development path <682>` for a later release.
 
 Until this feature is available, you may wish to manually purge deployment nodes of all containers and state created by Flocker.
 This will enable you to test, play around with Flocker or repeat the deployment process (for example, if you have followed through the tutorial and would like to clean up the virtual machines to start again without having to destroy and rebuild them).
@@ -54,6 +54,3 @@ The following sequence of steps must be performed in order:
    .. code-block:: console
 
       alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs destroy -r flocker'
-
-
-.. _`on the Flocker development path`: https://clusterhq.atlassian.net/browse/FLOC-682

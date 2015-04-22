@@ -194,11 +194,11 @@ The ``Vagrantfile`` used in this tutorial installs an RPM package called ``clust
 If you already have a tutorial environment from a previous release, you'll need to ensure that both tutorial nodes are running the latest version of ``clusterhq-flocker-node`` before continuing with the following tutorials.
 
 First check the current Flocker version on the nodes.
-You can do this by logging into each node and running the ``flocker-reportstate`` command with a ``--version`` argument.
+You can do this by logging into each node and running the ``flocker-zfs-agent`` command with a ``--version`` argument.
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 flocker-reportstate --version
+   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 flocker-zfs-agent --version
 
 Only proceed if you find that you are running an older version of Flocker than |version|.
 

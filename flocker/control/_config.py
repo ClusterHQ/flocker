@@ -18,7 +18,6 @@ from pyrsistent import pmap, InvariantException
 
 from twisted.python.filepath import FilePath
 
-from yaml import safe_dump
 from zope.interface import Interface, implementer
 
 from ._model import (
@@ -297,38 +296,13 @@ class ApplicationMarshaller(object):
                 u'mountpoint': self._application.volume.mountpoint.path
             }
             dataset = self._application.volume.dataset
-            # Don't include dataset id in generated config if it's
-            # same as the one we are going to generate anyway. Not
-            # strictly necessary, just have some overly specific tests
-            # that depend on this. Feel free to remove if necessary.
-            if dataset.dataset_id != dataset_id_from_name(
-                    self._application.name):
-                volume_dict[u'dataset_id'] = dataset.dataset_id
+            volume_dict[u'dataset_id'] = dataset.dataset_id
             if dataset.maximum_size is not None:
                 volume_dict[u'maximum_size'] = (
                     unicode(dataset.maximum_size)
                 )
             return volume_dict
         return None
-
-
-def applications_to_flocker_yaml(applications):
-    """
-    Converts a ``dict`` of ``Application`` instances to Flocker's
-    application configuration YAML.
-
-    :param applications: A ``dict`` mapping application names to
-        ``Application`` instances.
-
-    :returns: ``unicode`` representation of a complete Flocker
-        application configuration YAML.
-    """
-    config = {'version': 1, 'applications': dict()}
-    for application_name, application in applications.items():
-        converter = ApplicationMarshaller(application)
-        value = converter.convert()
-        config['applications'][application_name] = value
-    return safe_dump(config)
 
 
 def dataset_id_from_name(name):

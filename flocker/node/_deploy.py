@@ -7,17 +7,19 @@ Deploy applications on nodes.
 
 from itertools import chain
 
-from zope.interface import Interface, implementer
+from zope.interface import Interface, implementer, Attribute
 
 from characteristic import attributes
 
-from pyrsistent import pmap, PRecord, field
+from pyrsistent import PRecord, field
 
-from eliot import write_failure, Logger
+from eliot import write_failure, Logger, start_action
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
+from . import IStateChange, in_parallel, sequentially
+
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
     NodeState, DockerImage, Port, Link, Manifestation, Dataset,
@@ -47,120 +49,89 @@ def _to_volume_name(dataset_id):
     return VolumeName(namespace=u"default", dataset_id=dataset_id)
 
 
-class IStateChange(Interface):
-    """
-    An operation that changes local state.
-    """
-    def run(deployer):
-        """
-        Apply the change to local state.
-
-        :param IDeployer deployer: The ``IDeployer`` to use. Specific
-            ``IStateChange`` providers may require specific ``IDeployer``
-            providers that provide relevant functionality for applying the
-            change.
-
-        :return: ``Deferred`` firing when the change is done.
-        """
-
-    def __eq__(other):
-        """
-        Return whether this change is equivalent to another.
-        """
-
-    def __ne__(other):
-        """
-        Return whether this change is not equivalent to another.
-        """
-
-
 class IDeployer(Interface):
     """
     An object that can discover local state and calculate necessary
     changes to bring local state and desired cluster configuration into
     alignment.
+
+    :ivar unicode hostname: The hostname of the node this deployer is
+        managing.
     """
-    def discover_local_state():
+    hostname = Attribute("The hostname for this node.")
+
+    def discover_state(local_state):
         """
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.
 
-        :return: A ``Deferred`` which fires with an object describing
-             local state. This object will be passed to the control
-             service (see ``flocker.control._protocol``) and may also be
-             passed to this object's
-             ``calculate_necessary_state_changes()`` method.
+        :param NodeState local_state: The previously known state of this
+            node. This may include information that this deployer cannot
+            discover on its own. Information here should NOT be copied
+            into the result; the return result should include only
+            information discovered by this particular deployer.
+
+        :return: A ``Deferred`` which fires with a tuple of
+            ``IClusterStateChange`` providers describing
+            local state. These objects will be passed to the control
+            service (see ``flocker.control._protocol``) and may also be
+            passed to this object's ``calculate_changes()`` method.
         """
 
-    def calculate_necessary_state_changes(local_state,
-                                          desired_configuration,
-                                          current_cluster_state):
+    def calculate_changes(configuration, cluster_state):
         """
-        Calculate the state changes necessary to make the local state match
-        the desired cluster configuration.
+        Calculate the state changes necessary to make the local state match the
+        desired cluster configuration.
 
-        :param local_state: The recent output of ``discover_local_state``.
-        :param Deployment desired_configuration: The intended
-            configuration of all nodes.
-        :param Deployment current_cluster_state: The current state of all
-            nodes. While technically this may also includes the local
-            state, that information is likely out of date so should be
-            overriden by ``local_state``.
+        :param Deployment configuration: The intended configuration of all
+            nodes.
 
-        :return: A ``IStateChange`` provider.
+        :param DeploymentState cluster_state: The current state of all nodes
+            already updated with recent output of ``discover_state``.
+
+        :return: An ``IStateChange`` provider.
         """
+
+
+def _eliot_system(part):
+    return u"flocker:p2pdeployer:" + part
 
 
 @implementer(IStateChange)
-@attributes(["changes"])
-class Sequentially(object):
-    """
-    Run a series of changes in sequence, one after the other.
-
-    Failures in earlier changes stop later changes.
-    """
-    def run(self, deployer):
-        d = succeed(None)
-        for change in self.changes:
-            d.addCallback(lambda _, change=change: change.run(deployer))
-        return d
-
-
-@implementer(IStateChange)
-@attributes(["changes"])
-class InParallel(object):
-    """
-    Run a series of changes in parallel.
-
-    Failures in one change do not prevent other changes from continuing.
-    """
-    def run(self, deployer):
-        return gather_deferreds(
-            [change.run(deployer) for change in self.changes])
-
-
-@implementer(IStateChange)
-@attributes(["application", "hostname"])
-class StartApplication(object):
+class StartApplication(PRecord):
     """
     Launch the supplied application as a container.
 
     :ivar Application application: The ``Application`` to create and
         start.
 
-    :ivar unicode hostname: The hostname of the application is running on.
+    :ivar NodeState node_state: The state of the node the ``Application``
+        is running on.
     """
+    application = field(type=Application, mandatory=True)
+    node_state = field(type=NodeState, mandatory=True)
+
+    # This (and other eliot_action implementations) uses `start_action` because
+    # it was easier than defining a new `ActionType` with a bunch of fields.
+    # It might be worth doing that work eventually, though.  Also, this can
+    # turn into a regular attribute when the `_logger` argument is no longer
+    # required by Eliot.
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"startapplication"),
+            name=self.application.name,
+        )
+
     def run(self, deployer):
         application = self.application
 
         volumes = []
         if application.volume is not None:
-            volume = deployer.volume_service.get(
-                _to_volume_name(
-                    application.volume.manifestation.dataset.dataset_id))
+            dataset_id = application.volume.manifestation.dataset_id
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
-                node_path=volume.get_filesystem().get_path()))
+                node_path=self.node_state.paths[dataset_id]))
 
         if application.ports is not None:
             port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
@@ -176,7 +147,7 @@ class StartApplication(object):
                 protocol=u"tcp",
                 alias=link.alias,
                 local_port=link.local_port,
-                hostname=self.hostname,
+                hostname=self.node_state.hostname,
                 remote_port=link.remote_port,
                 ))
 
@@ -227,13 +198,21 @@ def _link_environment(protocol, alias, local_port, hostname, remote_port):
 
 
 @implementer(IStateChange)
-@attributes(["application"])
-class StopApplication(object):
+class StopApplication(PRecord):
     """
     Stop and disable the given application.
 
     :ivar Application application: The ``Application`` to stop.
     """
+    application = field(type=Application, mandatory=True)
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"stopapplication"),
+            name=self.application.name,
+        )
+
     def run(self, deployer):
         application = self.application
         unit_name = application.name
@@ -241,13 +220,22 @@ class StopApplication(object):
 
 
 @implementer(IStateChange)
-@attributes(["dataset"])
-class CreateDataset(object):
+class CreateDataset(PRecord):
     """
     Create a new locally-owned dataset.
 
     :ivar Dataset dataset: Dataset to create.
     """
+    dataset = field(type=Dataset, mandatory=True)
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"createdataset"),
+            dataset_id=self.dataset.dataset_id,
+            maximum_size=self.dataset.maximum_size,
+        )
+
     def run(self, deployer):
         volume = deployer.volume_service.get(
             name=_to_volume_name(self.dataset.dataset_id),
@@ -264,25 +252,20 @@ class ResizeDataset(object):
 
     :ivar Dataset dataset: Dataset to resize.
     """
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"createdataset"),
+            dataset_id=self.dataset.dataset_id,
+            maximum_size=self.dataset.maximum_size,
+        )
+
     def run(self, deployer):
         volume = deployer.volume_service.get(
             name=_to_volume_name(self.dataset.dataset_id),
             size=VolumeSize(maximum_size=self.dataset.maximum_size)
         )
         return deployer.volume_service.set_maximum_size(volume)
-
-
-@implementer(IStateChange)
-@attributes(["dataset"])
-class WaitForDataset(object):
-    """
-    Wait for a dataset to exist and be owned locally.
-
-    :ivar Dataset dataset: Dataset to wait for.
-    """
-    def run(self, deployer):
-        return deployer.volume_service.wait_for_volume(
-            _to_volume_name(self.dataset.dataset_id))
 
 
 @implementer(IStateChange)
@@ -298,6 +281,15 @@ class HandoffDataset(object):
     :ivar bytes hostname: The hostname of the node to which the dataset is
          meant to be handed off.
     """
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"handoff"),
+            dataset_id=self.dataset.dataset_id,
+            hostname=self.hostname,
+        )
+
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
@@ -319,6 +311,15 @@ class PushDataset(object):
     :ivar bytes hostname: The hostname of the node to which the dataset is
          meant to be pushed.
     """
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system(u"push"),
+            dataset_id=self.dataset.dataset_id,
+            hostname=self.hostname,
+        )
+
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
@@ -342,6 +343,13 @@ class DeleteDataset(PRecord):
     """
     dataset = field(mandatory=True, type=Dataset)
 
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system("delete"),
+            dataset_id=self.dataset.dataset_id,
+        )
+
     def run(self, deployer):
         service = deployer.volume_service
         d = service.enumerate()
@@ -358,13 +366,21 @@ class DeleteDataset(PRecord):
 
 
 @implementer(IStateChange)
-@attributes(["ports"])
-class SetProxies(object):
+class SetProxies(PRecord):
     """
     Set the ports which will be forwarded to other nodes.
 
-    :ivar proxy: A collection of ``Port`` objects.
+    :ivar ports: A collection of ``Proxy`` objects.
     """
+    ports = pset_field(Proxy)
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system("setproxies"),
+            addresses=list(dict(port) for port in self.ports),
+        )
+
     def run(self, deployer):
         results = []
         # XXX: The proxy manipulation operations are blocking. Convert to a
@@ -389,8 +405,14 @@ class OpenPorts(PRecord):
 
     :ivar ports: A list of :class:`OpenPort`s.
     """
-
     ports = pset_field(OpenPort)
+
+    @property
+    def eliot_action(self):
+        return start_action(
+            _logger, _eliot_system("openports"),
+            ports=list(port.port for port in self.ports),
+        )
 
     def run(self, deployer):
         results = []
@@ -410,35 +432,21 @@ class OpenPorts(PRecord):
 
 
 @implementer(IDeployer)
-class P2PNodeDeployer(object):
+class P2PManifestationDeployer(object):
     """
-    Start and stop applications.
+    Discover and calculate changes for peer-to-peer manifestations (e.g. ZFS)
+    on a node.
 
-    :ivar unicode hostname: The hostname of the node that this is running
-            on.
+    :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
-    :ivar IDockerClient docker_client: The Docker client API to use in
-        deployment operations. Default ``DockerClient``.
-    :ivar INetwork network: The network routing API to use in
-        deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, hostname, volume_service, docker_client=None,
-                 network=None):
+    def __init__(self, hostname, volume_service):
         self.hostname = hostname
-        if docker_client is None:
-            docker_client = DockerClient()
-        self.docker_client = docker_client
-        if network is None:
-            network = make_host_network()
-        self.network = network
         self.volume_service = volume_service
 
-    def discover_local_state(self):
+    def discover_state(self, local_state):
         """
-        List all the ``Application``\ s running on this node.
-
-        :returns: A ``Deferred`` which fires with a ``NodeState``
-            instance.
+        Discover local ZFS manifestations.
         """
         # Add real namespace support in
         # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
@@ -455,14 +463,151 @@ class P2PNodeDeployer(object):
                         volume.name.dataset_id, volume.size.maximum_size)
             return primary_manifestations
         volumes.addCallback(map_volumes_to_size)
-        d = gatherResults([self.docker_client.list(), volumes])
 
-        def applications_from_units(result):
-            units, available_manifestations = result
-            applications = []
-            manifestations = []  # Manifestation objects we're constructing
+        def got_volumes(available_manifestations):
             manifestation_paths = {dataset_id: path for (path, (dataset_id, _))
                                    in available_manifestations.items()}
+
+            manifestations = list(
+                Manifestation(dataset=Dataset(dataset_id=dataset_id,
+                                              maximum_size=maximum_size),
+                              primary=True)
+                for (dataset_id, maximum_size) in
+                available_manifestations.values())
+
+            return [NodeState(
+                hostname=self.hostname,
+                applications=None,
+                used_ports=None,
+                manifestations={manifestation.dataset_id: manifestation
+                                for manifestation in manifestations},
+                paths=manifestation_paths,
+            )]
+        volumes.addCallback(got_volumes)
+        return volumes
+
+    def calculate_changes(self, configuration, cluster_state):
+        """
+        Calculate necessary changes to peer-to-peer manifestations.
+
+        Datasets that are in use by applications cannot be deleted,
+        handed-off or resized. See
+        https://clusterhq.atlassian.net/browse/FLOC-1425 for leases, a
+        better solution.
+        """
+        local_state = cluster_state.get_node(self.hostname)
+        # We need to know applications (for now) to see if we should delay
+        # deletion or handoffs. Eventually this will rely on leases instead.
+        if local_state.applications is None:
+            return sequentially(changes=[])
+        phases = []
+
+        # For now we delay deletion and handoffs until we know application
+        # isn't using the dataset. Later on we'll use leases to decouple
+        # the application and dataset logic better.
+        in_use_datasets = {app.volume.manifestation.dataset_id
+                           for node in cluster_state.nodes
+                           for app in node.applications
+                           if app.volume is not None}
+
+        # Find any dataset that are moving to or from this node - or
+        # that are being newly created by this new configuration.
+        dataset_changes = find_dataset_changes(
+            self.hostname, cluster_state, configuration)
+
+        resizing = [dataset for dataset in dataset_changes.resizing
+                    if dataset.dataset_id not in in_use_datasets]
+        if resizing:
+            phases.append(in_parallel(changes=[
+                ResizeDataset(dataset=dataset)
+                for dataset in resizing]))
+
+        going = [handoff for handoff in dataset_changes.going
+                 if handoff.dataset.dataset_id not in in_use_datasets]
+        if going:
+            phases.append(in_parallel(changes=[
+                HandoffDataset(dataset=handoff.dataset,
+                               hostname=handoff.hostname)
+                for handoff in going]))
+
+        if dataset_changes.creating:
+            phases.append(in_parallel(changes=[
+                CreateDataset(dataset=dataset)
+                for dataset in dataset_changes.creating]))
+
+        deleting = [dataset for dataset in dataset_changes.deleting
+                    if dataset.dataset_id not in in_use_datasets]
+        if deleting:
+            phases.append(in_parallel(changes=[
+                DeleteDataset(dataset=dataset)
+                for dataset in deleting
+                ]))
+        return sequentially(changes=phases)
+
+
+@implementer(IDeployer)
+class ApplicationNodeDeployer(object):
+    """
+    Discover and calculate changes for applications running on a node.
+
+    :ivar unicode hostname: The hostname of the node that this is running
+            on.
+    :ivar IDockerClient docker_client: The Docker client API to use in
+        deployment operations. Default ``DockerClient``.
+    :ivar INetwork network: The network routing API to use in
+        deployment operations. Default is iptables-based implementation.
+    """
+    def __init__(self, hostname, docker_client=None, network=None):
+        self.hostname = hostname
+        if docker_client is None:
+            docker_client = DockerClient()
+        self.docker_client = docker_client
+        if network is None:
+            network = make_host_network()
+        self.network = network
+
+    def discover_state(self, local_state):
+        """
+        List all the ``Application``\ s running on this node.
+
+        The given local state is used to figure out if applications have
+        attached volumes that are specific manifestations. If no
+        manifestations are known then discovery isn't done and ignorance
+        is claimed about applications. This ensures that the information
+        returned is accurate, and therefore that convergence is done
+        correctly.
+
+        This does mean you can't run an application agent without a
+        dataset agent. See
+        https://clusterhq.atlassian.net/browse/FLOC-1646.
+
+        :return: A ``Deferred`` which fires with a list containing a
+            ``NodeState`` instance with information only about
+            ``Application`` and ports. ``NodeState.manifestations`` and
+            ``NodeState.paths`` will not be filled in.
+        """
+        if local_state.manifestations is None:
+            # Without manifestations we don't know if local applications'
+            # volumes are manifestations or not. Rather than return
+            # incorrect information leading to possibly erroneous
+            # convergence actions, just declare ignorance. Eventually the
+            # convergence agent for datasets will discover the information
+            # and then we can proceed.
+            return succeed([NodeState(
+                hostname=self.hostname,
+                applications=None,
+                used_ports=None,
+                manifestations=None,
+                paths=None,
+            )])
+
+        path_to_manifestations = {path: local_state.manifestations[dataset_id]
+                                  for (dataset_id, path)
+                                  in local_state.paths.items()}
+        d = self.docker_client.list()
+
+        def applications_from_units(units):
+            applications = []
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.volumes:
@@ -473,21 +618,15 @@ class P2PNodeDeployer(object):
                     # we assume all volumes are datasets
                     docker_volume = list(unit.volumes)[0]
                     try:
-                        dataset_id, max_size = available_manifestations.pop(
-                            docker_volume.node_path)
+                        manifestation = path_to_manifestations[
+                            docker_volume.node_path]
                     except KeyError:
                         # Apparently not a dataset we're managing, give up.
                         volume = None
                     else:
                         volume = AttachedVolume(
-                            manifestation=Manifestation(
-                                dataset=Dataset(
-                                    dataset_id=dataset_id,
-                                    metadata=pmap({u"name": unit.name}),
-                                    maximum_size=max_size),
-                                primary=True),
+                            manifestation=manifestation,
                             mountpoint=docker_volume.container_path)
-                        manifestations.append(volume.manifestation)
                 else:
                     volume = None
                 ports = []
@@ -497,6 +636,7 @@ class P2PNodeDeployer(object):
                         external_port=portmap.external_port
                     ))
                 links = []
+                environment = []
                 if unit.environment:
                     environment_dict = unit.environment.to_dict()
                     for label, value in environment_dict.items():
@@ -506,6 +646,15 @@ class P2PNodeDeployer(object):
                             alias, pad_a, port, pad_b, pad_c = parts
                             local_port = int(port)
                         except ValueError:
+                            # <ALIAS>_PORT_<PORT>_TCP
+                            parts = label.rsplit(b"_", 3)
+                            try:
+                                alias, pad_a, port, pad_b = parts
+                            except ValueError:
+                                environment.append((label, value))
+                                continue
+                            if not (pad_a, pad_b) == (b"PORT", b"TCP"):
+                                environment.append((label, value))
                             continue
                         if (pad_a, pad_b, pad_c) == (b"PORT", b"TCP", b"PORT"):
                             links.append(Link(
@@ -518,31 +667,23 @@ class P2PNodeDeployer(object):
                     image=image,
                     ports=frozenset(ports),
                     volume=volume,
+                    environment=environment if environment else None,
                     links=frozenset(links),
                     restart_policy=unit.restart_policy,
                     running=(unit.activation_state == u"active"),
                 ))
 
-            manifestations += list(
-                Manifestation(dataset=Dataset(dataset_id=dataset_id,
-                                              maximum_size=maximum_size),
-                              primary=True)
-                for (dataset_id, maximum_size) in
-                available_manifestations.values())
-
-            return NodeState(
+            return [NodeState(
                 hostname=self.hostname,
                 applications=applications,
                 used_ports=self.network.enumerate_used_ports(),
-                manifestations=manifestations,
-                paths=manifestation_paths,
-            )
+                manifestations=None,
+                paths=None,
+            )]
         d.addCallback(applications_from_units)
         return d
 
-    def calculate_necessary_state_changes(self, local_state,
-                                          desired_configuration,
-                                          current_cluster_state):
+    def calculate_changes(self, desired_configuration, current_cluster_state):
         """
         Work out which changes need to happen to the local state to match
         the given desired state.
@@ -552,23 +693,17 @@ class P2PNodeDeployer(object):
         1. Change proxies to point to new addresses (should really be
            last, see https://clusterhq.atlassian.net/browse/FLOC-380)
         2. Stop all relevant containers.
-        3. Handoff volumes.
-        4. Wait for volumes.
-        5. Create volumes.
-        6. Start and restart any relevant containers.
-
-        :param NodeState local_state: The local state of the node.
-        :param Deployment desired_configuration: The intended
-            configuration of all nodes.
-        :param Deployment current_cluster_state: The current configuration
-            of all nodes. While technically this also includes the current
-            node's state, this information may be out of date so we check
-            again to ensure we have absolute latest information.
-        :param unicode hostname: The hostname of the node that this is running
-            on.
-
-        :return: A ``IStateChange`` provider.
+        3. Start and restart any containers that should be running
+           locally, so long as their required datasets are available.
         """
+        # We are a node-specific IDeployer:
+        current_node_state = current_cluster_state.get_node(self.hostname)
+        if current_node_state.applications is None:
+            # We don't know current application state, so can't calculate
+            # anything. This will be the case if we don't know the local
+            # datasets' state yet; see notes in discover_state().
+            return sequentially(changes=[])
+
         phases = []
 
         desired_proxies = set()
@@ -595,8 +730,6 @@ class P2PNodeDeployer(object):
         if desired_open_ports != set(self.network.enumerate_open_ports()):
             phases.append(OpenPorts(ports=desired_open_ports))
 
-        # We are a node-specific IDeployer:
-        current_node_state = local_state
         current_node_applications = set(
             app for app in current_node_state.applications if app.running)
         all_applications = current_node_state.applications
@@ -618,18 +751,25 @@ class P2PNodeDeployer(object):
             desired_local_state)
 
         start_containers = [
-            StartApplication(application=app, hostname=self.hostname)
+            StartApplication(application=app, node_state=current_node_state)
             for app in desired_node_applications
-            if app.name in start_names
+            if ((app.name in start_names) and
+                # If manifestation isn't available yet, don't start:
+                # XXX in FLOC-1240 non-primaries should be checked.
+                (app.volume is None or
+                 app.volume.manifestation.dataset_id in
+                 current_node_state.manifestations))
         ]
         stop_containers = [
             StopApplication(application=app) for app in all_applications
             if app.name in stop_names
         ]
+
         restart_containers = [
-            Sequentially(changes=[StopApplication(application=app),
-                                  StartApplication(application=app,
-                                                   hostname=self.hostname)])
+            sequentially(changes=[
+                StopApplication(application=app),
+                StartApplication(application=app,
+                                 node_state=current_node_state)])
             for app in desired_node_applications
             if app.name in not_running
         ]
@@ -646,87 +786,26 @@ class P2PNodeDeployer(object):
         for application_name in applications_to_inspect:
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
+            # Current state never has metadata, but that's OK:
+            if inspect_desired.volume is not None:
+                inspect_desired = inspect_desired.transform(
+                    ["volume", "manifestation", "dataset", "metadata"], {})
             if inspect_desired != inspect_current:
                 changes = [
                     StopApplication(application=inspect_current),
                     StartApplication(application=inspect_desired,
-                                     hostname=self.hostname)
+                                     node_state=current_node_state),
                 ]
-                sequence = Sequentially(changes=changes)
+                sequence = sequentially(changes=changes)
                 if sequence not in restart_containers:
                     restart_containers.append(sequence)
 
-        # Find any dataset that are moving to or from this node - or
-        # that are being newly created by this new configuration.
-        dataset_changes = find_dataset_changes(
-            self.hostname, current_cluster_state, desired_configuration)
-
-        if dataset_changes.resizing:
-            phases.append(InParallel(changes=[
-                ResizeDataset(dataset=dataset)
-                for dataset in dataset_changes.resizing]))
-
-        # Do an initial push of all volumes that are going to move, so
-        # that the final push which happens during handoff is a quick
-        # incremental push. This should significantly reduces the
-        # application downtime caused by the time it takes to copy
-        # data.
-        if dataset_changes.going:
-            phases.append(InParallel(changes=[
-                PushDataset(dataset=handoff.dataset,
-                            hostname=handoff.hostname)
-                for handoff in dataset_changes.going]))
-
         if stop_containers:
-            phases.append(InParallel(changes=stop_containers))
-        if dataset_changes.going:
-            phases.append(InParallel(changes=[
-                HandoffDataset(dataset=handoff.dataset,
-                               hostname=handoff.hostname)
-                for handoff in dataset_changes.going]))
-        # any datasets coming to this node should also be
-        # resized to the appropriate quota max size once they
-        # have been received
-        if dataset_changes.coming:
-            phases.append(InParallel(changes=[
-                WaitForDataset(dataset=dataset)
-                for dataset in dataset_changes.coming]))
-            phases.append(InParallel(changes=[
-                ResizeDataset(dataset=dataset)
-                for dataset in dataset_changes.coming]))
-        if dataset_changes.creating:
-            phases.append(InParallel(changes=[
-                CreateDataset(dataset=dataset)
-                for dataset in dataset_changes.creating]))
-        if dataset_changes.deleting:
-            phases.append(InParallel(changes=[
-                DeleteDataset(dataset=dataset)
-                for dataset in dataset_changes.deleting]))
+            phases.append(in_parallel(changes=stop_containers))
         start_restart = start_containers + restart_containers
         if start_restart:
-            phases.append(InParallel(changes=start_restart))
-        return Sequentially(changes=phases)
-
-
-def change_node_state(deployer, desired_configuration,  current_cluster_state):
-    """
-    Change the local state to match the given desired state.
-
-    :param IDeployer deployer: Deployer to discover local state and
-        calculate changes.
-    :param Deployment desired_configuration: The intended configuration of all
-        nodes.
-    :param Deployment current_cluster_state: The current configuration
-        of all nodes.
-
-    :return: ``Deferred`` that fires when the necessary changes are done.
-    """
-    d = deployer.discover_local_state()
-    d.addCallback(deployer.calculate_necessary_state_changes,
-                  desired_configuration=desired_configuration,
-                  current_cluster_state=current_cluster_state)
-    d.addCallback(lambda change: change.run(deployer))
-    return d
+            phases.append(in_parallel(changes=start_restart))
+        return sequentially(changes=phases)
 
 
 def find_dataset_changes(hostname, current_state, desired_state):

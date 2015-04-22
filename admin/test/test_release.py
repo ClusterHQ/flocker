@@ -5,72 +5,33 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipUnless, TestCase
+from unittest import skipUnless
 import tempfile
+
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
+from git import Repo
 
 from requests.exceptions import HTTPError
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.python.usage import UsageError
+from twisted.trial.unittest import SynchronousTestCase
 
 from ..release import (
-    rpm_version, make_rpm_version, upload_rpms, update_repo,
-    publish_docs, Environments,
+    upload_rpms, update_repo,
+    publish_docs, Environments, DOCUMENTATION_CONFIGURATIONS,
     DocumentationRelease, NotTagged, NotARelease,
+    calculate_base_branch, create_release_branch,
+    CreateReleaseBranchOptions, BranchExists, TagExists,
+    BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
 )
+
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 
 
-class MakeRpmVersionTests(TestCase):
-    """
-    Tests for ``make_rpm_version``.
-    """
-    def test_good(self):
-        """
-        ``make_rpm_version`` gives the expected ``rpm_version`` instances when
-        supplied with valid ``flocker_version_number``s.
-        """
-        expected = {
-            '0.1.0': rpm_version('0.1.0', '1'),
-            '0.1.0-99-g3d644b1': rpm_version('0.1.0', '1.99.g3d644b1'),
-            '0.1.1pre1': rpm_version('0.1.1', '0.pre.1'),
-            '0.1.1': rpm_version('0.1.1', '1'),
-            '0.2.0dev1': rpm_version('0.2.0', '0.dev.1'),
-            '0.2.0dev2-99-g3d644b1':
-                rpm_version('0.2.0', '0.dev.2.99.g3d644b1'),
-            '0.2.0dev3-100-g3d644b2-dirty': rpm_version(
-                '0.2.0', '0.dev.3.100.g3d644b2.dirty'),
-        }
-        unexpected_results = []
-        for supplied_version, expected_rpm_version in expected.items():
-            actual_rpm_version = make_rpm_version(supplied_version)
-            if actual_rpm_version != expected_rpm_version:
-                unexpected_results.append((
-                    supplied_version,
-                    actual_rpm_version,
-                    expected_rpm_version,
-                ))
-
-        if unexpected_results:
-            self.fail(unexpected_results)
-
-    def test_non_integer_suffix(self):
-        """
-        ``make_rpm_version`` raises ``Exception`` when supplied with a version
-        with a non-integer pre or dev suffix number.
-        """
-        with self.assertRaises(Exception) as exception:
-            make_rpm_version('0.1.2preX')
-
-        self.assertEqual(
-            u'Non-integer value "X" for "pre". Supplied version 0.1.2preX',
-            unicode(exception.exception),
-        )
-
-
-class PublishDocsTests(TestCase):
+class PublishDocsTests(SynchronousTestCase):
     """
     Tests for :func:``publish_docs``.
     """
@@ -640,6 +601,33 @@ class PublishDocsTests(TestCase):
             aws, '0.3.0-444-gf05215b', '0.3.1dev1',
             environment=Environments.PRODUCTION)
 
+    def test_publish_to_doc_version(self):
+        """
+        Trying to publish to a documentation version in a staging environment
+        publishes to to the version being updated.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/latest/': '',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {},
+                'clusterhq-dev-docs': {},
+            })
+
+        self.publish_docs(
+            aws, '0.3.1-444-gf05215b', '0.3.1+doc1',
+            environment=Environments.STAGING)
+
+        self.assertEqual(
+            aws.routing_rules, {
+                'clusterhq-staging-docs': {
+                    'en/latest/': 'en/0.3.1/',
+                },
+            })
+
     def test_production_can_publish_doc_version(self):
         """
         Publishing a documentation version to the version of the latest full
@@ -659,6 +647,24 @@ class PublishDocsTests(TestCase):
         self.publish_docs(
             aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
 
+    def test_production_can_publish_prerelease(self):
+        """
+        Publishing a pre-release succeeds.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-docs': {
+                    'en/devel/': 'en/0.3.1.dev4/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-docs': {},
+                'clusterhq-dev-docs': {},
+            })
+        # Does not raise:
+        self.publish_docs(
+            aws, '0.3.2pre1', '0.3.2pre1', environment=Environments.PRODUCTION)
+
     def test_publish_non_release_fails(self):
         """
         Trying to publish to version that isn't a release fails.
@@ -670,8 +676,141 @@ class PublishDocsTests(TestCase):
             aws, '0.3.0-444-gf05215b', '0.3.0-444-gf05215b',
             environment=Environments.STAGING)
 
+    def assert_error_key_update(self, doc_version, environment, should_update):
+        """
+        Call ``publish_docs`` and assert that only the expected buckets have an
+        updated error_key property.
 
-class UploadRPMsTests(TestCase):
+        :param unicode doc_version: The version of the documentation that is
+            being published.
+        :param NamedConstant environment: One of the ``NamedConstants`` in
+            ``Environments``.
+        :param bool should_update: A flag indicating whether the error_key for
+            the bucket associated with ``environment`` is expected to be
+            updated.
+        :raises: ``FailTest`` if an error_key in any of the S3 buckets has been
+            updated unexpectedly.
+        """
+        # Get a set of all target S3 buckets.
+        bucket_names = set()
+        for e in Environments.iterconstants():
+            bucket_names.add(
+                DOCUMENTATION_CONFIGURATIONS[e].documentation_bucket
+            )
+        # Pretend that both devel and latest aliases are currently pointing to
+        # an older version.
+        empty_routes = {
+            'en/devel/': 'en/0.0.0/',
+            'en/latest/': 'en/0.0.0/',
+        }
+        # In all the S3 buckets.
+        empty_routing_rules = {
+            bucket_name: empty_routes.copy()
+            for bucket_name in bucket_names
+        }
+        # And that all the buckets themselves are empty.
+        empty_buckets = {bucket_name: {} for bucket_name in bucket_names}
+        # Including the dev bucket
+        empty_buckets['clusterhq-dev-docs'] = {}
+        # And that all the buckets have an empty error_key
+        empty_error_keys = {bucket_name: b'' for bucket_name in bucket_names}
+
+        aws = FakeAWS(
+            routing_rules=empty_routing_rules,
+            s3_buckets=empty_buckets,
+            error_key=empty_error_keys
+        )
+        # The value of any updated error_key will include the version that's
+        # being published.
+        expected_error_path = 'en/{}/error_pages/404.html'.format(doc_version)
+        expected_updated_bucket = (
+            DOCUMENTATION_CONFIGURATIONS[environment].documentation_bucket
+        )
+        # Grab a copy of the current error_key before it gets mutated.
+        expected_error_keys = aws.error_key.copy()
+        if should_update:
+            # And if an error_key is expected to be updated we expect it to be
+            # for the bucket corresponding to the environment that we're
+            # publishing to.
+            expected_error_keys[expected_updated_bucket] = expected_error_path
+
+        self.publish_docs(
+            aws,
+            flocker_version=doc_version,
+            doc_version=doc_version,
+            environment=environment
+        )
+
+        self.assertEqual(expected_error_keys, aws.error_key)
+
+    def test_error_key_dev_staging(self):
+        """
+        Publishing documentation for a development release to the staging
+        bucket, updates the error_key in that bucket only.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1dev1',
+            environment=Environments.STAGING,
+            should_update=True
+        )
+
+    def test_error_key_dev_production(self):
+        """
+        Publishing documentation for a development release to the production
+        bucket, does not update the error_key in any of the buckets.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1dev1',
+            environment=Environments.PRODUCTION,
+            should_update=False
+        )
+
+    def test_error_key_pre_staging(self):
+        """
+        Publishing documentation for a pre-release to the staging
+        bucket, updates the error_key in that bucket only.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1pre1',
+            environment=Environments.STAGING,
+            should_update=True
+        )
+
+    def test_error_key_pre_production(self):
+        """
+        Publishing documentation for a pre-release to the production
+        bucket, does not update the error_key in any of the buckets.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1pre1',
+            environment=Environments.PRODUCTION,
+            should_update=False
+        )
+
+    def test_error_key_marketing_staging(self):
+        """
+        Publishing documentation for a marketing release to the staging
+        bucket, updates the error_key in that bucket.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1',
+            environment=Environments.STAGING,
+            should_update=True
+        )
+
+    def test_error_key_marketing_production(self):
+        """
+        Publishing documentation for a marketing release to the production
+        bucket, updates the error_key in that bucket.
+        """
+        self.assert_error_key_update(
+            doc_version='0.4.1',
+            environment=Environments.PRODUCTION,
+            should_update=True
+        )
+
+
+class UploadRPMsTests(SynchronousTestCase):
     """
     Tests for :func:``upload_rpms``.
     """
@@ -1216,23 +1355,78 @@ class UploadRPMsTests(TestCase):
             build_server=self.create_fake_repository(files=repo_contents),
         )
 
-        expected_files = set()
-        for operating_system in self.operating_systems:
-            for file in [
-                'clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',
-                'clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',
-                'repodata/repomd.xml',
-            ]:
-                path = os.path.join(
-                    operating_system['distro'] + '-testing',
-                    operating_system['version'],
-                    operating_system['arch'],
-                    file,
-                )
-                expected_files.add(path)
+        expected_files = [
+            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm',  # noqa
+            'centos-testing/7/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'centos-testing/7/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'centos-testing/7/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'centos-testing/7/x86_64/repodata/repomd.xml',
+            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.3-0.dev.7.noarch.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.3-0.dev.7.noarch.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.3-0.dev.7.x86_64.rpm',  # noqa
+            'fedora-testing/20/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/repomd.xml',
+    ]
 
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+        self.assertEqual(
+            sorted(expected_files),
+            sorted(aws.s3_buckets[self.target_bucket].keys()))
+
+    def test_development_repositories_created_for_pre_release(self):
+        """
+        Calling :func:`upload_rpms` creates development repositories for
+        CentOS 7 and Fedora 20 for a pre-release.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        repo_contents = {
+            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/fedora-20/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/centos-7/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm': '',  # noqa
+            'results/omnibus/0.3.0pre1/centos-7/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm': '',  # noqa
+        }
+
+        self.upload_rpms(
+            aws=aws,
+            yum=FakeYum(),
+            scratch_directory=self.scratch_directory,
+            target_bucket=self.target_bucket,
+            version='0.3.0pre1',
+            build_server=self.create_fake_repository(files=repo_contents),
+        )
+
+        expected_files = [
+            'fedora-testing/20/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'centos-testing/7/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-python-flocker-0.3.0-0.pre.1.x86_64.rpm',  # noqa
+            'fedora-testing/20/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'fedora-testing/20/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'centos-testing/7/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-cli-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/clusterhq-flocker-node-0.3.0-0.pre.1.noarch.rpm',  # noqa
+            'centos-testing/7/x86_64/repodata/repomd.xml',
+            'centos-testing/7/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'fedora-testing/20/x86_64/repodata/repomd.xml',
+        ]
+
+        self.assertEqual(
+            sorted(expected_files),
+            sorted(aws.s3_buckets[self.target_bucket].keys()))
+
 
     def test_marketing_repositories_created(self):
         """
@@ -1264,23 +1458,26 @@ class UploadRPMsTests(TestCase):
             build_server=self.create_fake_repository(files=repo_contents),
         )
 
-        expected_files = set()
-        for operating_system in self.operating_systems:
-            for file in [
-                'clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
-                'clusterhq-flocker-node-0.3.3-1.noarch.rpm',
-                'repodata/repomd.xml',
-            ]:
-                path = os.path.join(
-                    operating_system['distro'],
-                    operating_system['version'],
-                    operating_system['arch'],
-                    file,
-                )
-                expected_files.add(path)
+        expected_files = [
+            'centos/7/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'centos/7/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'fedora/20/x86_64/repodata/3d4791a418739c1bb3f025423f2f5896-filelists.xml.gz',  # noqa
+            'centos/7/x86_64/repodata/repomd.xml',
+            'centos/7/x86_64/clusterhq-python-flocker-0.3.3-1.x86_64.rpm',
+            'fedora/20/x86_64/clusterhq-python-flocker-0.3.3-1.x86_64.rpm',
+            'fedora/20/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora/20/x86_64/clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
+            'fedora/20/x86_64/repodata/repomd.xml',
+            'centos/7/x86_64/clusterhq-flocker-node-0.3.3-1.noarch.rpm',
+            'centos/7/x86_64/repodata/aa56424de4246c734dd2ed9b2fd14152-primary.xml.gz',  # noqa
+            'fedora/20/x86_64/repodata/90ea647eafe44d1479109c1c4093ab48-other.xml.gz',  # noqa
+            'centos/7/x86_64/clusterhq-flocker-cli-0.3.3-1.noarch.rpm',
+            'fedora/20/x86_64/clusterhq-flocker-node-0.3.3-1.noarch.rpm',
+         ]
 
-        files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+        self.assertEqual(
+            sorted(expected_files),
+            sorted(aws.s3_buckets[self.target_bucket].keys()))
 
     @skipUnless(which('createrepo'),
         "Tests require the ``createrepo`` command.")
@@ -1332,7 +1529,211 @@ class UploadRPMsTests(TestCase):
                               files])
 
         files_on_s3 = aws.s3_buckets[self.target_bucket].keys()
-        # The original source repository contains no metadata.
-        # This tests that CreateRepo creates the expected metadata files from
-        # given RPMs, not that any metadata files are copied.
-        self.assertTrue(expected_files.issubset(set(files_on_s3)))
+
+        self.assertTrue(
+            expected_files.issubset(set(files_on_s3)),
+            "Metadata files for the packages were not created.")
+
+
+class CreateReleaseBranchOptionsTests(SynchronousTestCase):
+    """
+    Tests for :class:`CreateReleaseBranchOptions`.
+    """
+
+    def test_flocker_version_required(self):
+          """
+          The ``--flocker-version`` option is required.
+          """
+          options = CreateReleaseBranchOptions()
+          self.assertRaises(
+              UsageError,
+              options.parseOptions, [])
+
+
+def create_git_repository(test_case):
+    """
+    Create a git repository with a ``master`` branch and ``README``.
+
+    :param test_case: The ``TestCase`` calling this.
+    """
+    directory = FilePath(test_case.mktemp())
+    directory.child('README').makedirs()
+    directory.child('README').touch()
+
+    repository = Repo.init(path=directory.path)
+    repository.index.add(['README'])
+    repository.index.commit('Initial commit')
+    repository.create_head('master')
+    return repository
+
+
+class CreateReleaseBranchTests(SynchronousTestCase):
+    """
+    Tests for :func:`create_release_branch`.
+    """
+    def setUp(self):
+        self.repo = create_git_repository(test_case=self)
+
+    def test_branch_exists_fails(self):
+        """
+        Trying to create a release when a branch already exists for the given
+        version fails.
+        """
+        branch = self.repo.create_head('release/flocker-0.3.0')
+
+        self.assertRaises(
+            BranchExists,
+            create_release_branch, '0.3.0', base_branch=branch)
+
+    def test_active_branch(self):
+        """
+        Creating a release branch changes the active branch on the given
+        branch's repository.
+        """
+        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+
+        create_release_branch(version='0.3.0', base_branch=branch)
+        self.assertEqual(
+            self.repo.active_branch.name,
+            "release/flocker-0.3.0")
+
+    def test_branch_created_from_base(self):
+        """
+        The new branch is created from the given branch.
+        """
+        master = self.repo.active_branch
+        branch = self.repo.create_head('release/flocker-0.3.0pre1')
+        branch.checkout()
+        FilePath(self.repo.working_dir).child('NEW_FILE').touch()
+        self.repo.index.add(['NEW_FILE'])
+        self.repo.index.commit('Add NEW_FILE')
+        master.checkout()
+        create_release_branch(version='0.3.0', base_branch=branch)
+        self.assertIn((u'NEW_FILE', 0), self.repo.index.entries)
+
+
+class CalculateBaseBranchTests(SynchronousTestCase):
+    """
+    Tests for :func:`calculate_base_branch`.
+    """
+
+    def setUp(self):
+        self.repo = create_git_repository(test_case=self)
+
+    def calculate_base_branch(self, version):
+        return calculate_base_branch(
+            version=version, path=self.repo.working_dir)
+
+    def test_calculate_base_branch_for_non_release_fails(self):
+        """
+        Calling :func:`calculate_base_branch` with a version that isn't a
+        release fails.
+        """
+        self.assertRaises(
+            NotARelease,
+            self.calculate_base_branch, '0.3.0-444-gf05215b')
+
+    def test_weekly_release_base(self):
+        """
+        A weekly release is created from the "master" branch.
+        """
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0dev1').name,
+            "master")
+
+    def test_doc_release_base(self):
+        """
+        A documentation release is created from the release which is having
+        its documentation changed.
+        """
+        self.repo.create_head('release/flocker-0.3.0')
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0+doc1').name,
+            "release/flocker-0.3.0")
+
+    def test_first_pre_release(self):
+        """
+        The first pre-release for a marketing release is created from the
+        "master" branch.
+        """
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0pre1').name,
+            "master")
+
+    def test_uses_previous_pre_release(self):
+        """
+        The second pre-release for a marketing release is created from the
+        previous pre-release release branch.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.repo.create_head('release/flocker-0.3.0pre2')
+        self.repo.create_tag('0.3.0pre2')
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0pre3').name,
+            "release/flocker-0.3.0pre2")
+
+    def test_unparseable_tags(self):
+        """
+        There is no error raised if the repository contains a tag which cannot
+        be parsed as a version.
+        """
+        self.repo.create_head('release/flocker-0.3.0unparseable')
+        self.repo.create_tag('0.3.0unparseable')
+        self.repo.create_head('release/flocker-0.3.0pre2')
+        self.repo.create_tag('0.3.0pre2')
+        self.assertEqual(
+            self.calculate_base_branch(version='0.3.0pre3').name,
+            "release/flocker-0.3.0pre2")
+
+    def test_parent_repository_used(self):
+        """
+        If a path is given as the repository path, the parents of that file
+        are searched until a Git repository is found.
+        """
+        self.assertEqual(
+            calculate_base_branch(
+                version='0.3.0dev1',
+                path=FilePath(self.repo.working_dir).child('README').path,
+            ).name,
+            "master")
+
+    def test_no_pre_releases_fails(self):
+        """
+        Trying to release a marketing release when no pre-release exists for it
+        fails.
+        """
+        self.assertRaises(
+            NoPreRelease,
+            self.calculate_base_branch, '0.3.0')
+
+    def test_missing_pre_release_fails(self):
+        """
+        Trying to release a pre-release when the previous pre-release does not
+        exist fails.
+        """
+        self.repo.create_head('release/flocker-0.3.0pre1')
+        self.repo.create_tag('0.3.0pre1')
+        self.assertRaises(
+            MissingPreRelease,
+            self.calculate_base_branch, '0.3.0pre3')
+
+    def test_base_branch_does_not_exist_fails(self):
+        """
+        Trying to create a release when the base branch does not exist fails.
+        """
+        self.repo.create_tag('0.3.0pre1')
+
+        self.assertRaises(
+            BaseBranchDoesNotExist,
+            self.calculate_base_branch, '0.3.0')
+
+    def test_tag_exists_fails(self):
+        """
+        Trying to create a release when a tag already exists for the given
+        version fails.
+        """
+        self.repo.create_tag('0.3.0')
+        self.assertRaises(
+            TagExists,
+            self.calculate_base_branch, '0.3.0')

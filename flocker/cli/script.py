@@ -4,28 +4,26 @@
 The command-line ``flocker-deploy`` tool.
 """
 
-from subprocess import CalledProcessError
+import sys
+from json import dumps
 
-from twisted.internet.defer import DeferredList, succeed
-from twisted.internet.threads import deferToThread
+from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
+from twisted.web.http import OK
+
+from treq import post, json_content
 
 from zope.interface import implementer
 
-from yaml import safe_load, safe_dump
+from yaml import safe_load
 from yaml.error import YAMLError
 
 from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..control import (FlockerConfiguration, ConfigurationError,
-                       FigConfiguration, applications_to_flocker_yaml,
-                       model_from_configuration)
-
-from ..common import ProcessNode, gather_deferreds
-from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
+from ..control.httpapi import REST_API_PORT
 
 
 FEEDBACK_CLI_TEXT = (
@@ -33,6 +31,11 @@ FEEDBACK_CLI_TEXT = (
     "If you have any issues or feedback, you can talk to us: "
     "https://docs.clusterhq.com/en/latest/gettinginvolved/"
     "contributing.html#talk-to-us")
+
+_OK_MESSAGE = (
+    b"The cluster configuration has been updated. It may take a short "
+    b"while for changes to take effect, in particular if Docker "
+    b"images need to be pulled.\n")
 
 
 @attributes(['node', 'hostname'])
@@ -54,10 +57,13 @@ class DeployOptions(Options):
     """
 
     synopsis = ("Usage: flocker-deploy [OPTIONS] "
-                "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH"
+                "<control-host> <deployment.yml-path> <application.yml-path>"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
-    def parseArgs(self, deployment_config, application_config):
+    optParameters = [["port", "p", REST_API_PORT,
+                      "The REST API port on the server.", int]]
+
+    def parseArgs(self, control_host, deployment_config, application_config):
         deployment_config = FilePath(deployment_config)
         application_config = FilePath(application_config)
 
@@ -69,11 +75,13 @@ class DeployOptions(Options):
             raise UsageError('No file exists at {path}'
                              .format(path=application_config.path))
 
-        self["deployment_config"] = deployment_config.getContent()
+        self["url"] = u"http://{}:{}/v1/configuration/_compose".format(
+            control_host, self["port"]).encode("ascii")
         self["application_config"] = application_config.getContent()
 
         try:
-            deploy_config_obj = safe_load(self["deployment_config"])
+            self["deployment_config"] = safe_load(
+                deployment_config.getContent())
         except YAMLError as e:
             raise UsageError(
                 ("Deployment configuration at {path} could not be parsed as "
@@ -83,7 +91,8 @@ class DeployOptions(Options):
                 )
             )
         try:
-            app_config_obj = safe_load(self["application_config"])
+            self["application_config"] = safe_load(
+                application_config.getContent())
         except YAMLError as e:
             raise UsageError(
                 ("Application configuration at {path} could not be parsed as "
@@ -93,67 +102,12 @@ class DeployOptions(Options):
                 )
             )
 
-        try:
-            fig_configuration = FigConfiguration(app_config_obj)
-            if fig_configuration.is_valid_format():
-                applications = fig_configuration.applications()
-                self['application_config'] = (
-                    applications_to_flocker_yaml(applications)
-                )
-            else:
-                configuration = FlockerConfiguration(app_config_obj)
-                if configuration.is_valid_format():
-                    applications = configuration.applications()
-                else:
-                    raise ConfigurationError(
-                        "Configuration is not a valid Fig or Flocker format."
-                    )
-            self['deployment'] = model_from_configuration(
-                applications=applications,
-                deployment_configuration=deploy_config_obj)
-        except ConfigurationError as e:
-            raise UsageError(str(e))
-
 
 @implementer(ICommandLineScript)
 class DeployScript(object):
     """
     A script to start configured deployments on a Flocker cluster.
     """
-    def __init__(self, ssh_configuration=None, ssh_port=22):
-        if ssh_configuration is None:
-            ssh_configuration = OpenSSHConfiguration.defaults()
-        self.ssh_configuration = ssh_configuration
-        self.ssh_port = ssh_port
-
-    def _configure_ssh(self, deployment):
-        """
-        :return: A ``Deferred`` which fires when all nodes have been configured
-            with ssh keys.
-        """
-        self.ssh_configuration.create_keypair()
-        results = []
-        for node in deployment.nodes:
-            results.append(
-                deferToThread(
-                    self.ssh_configuration.configure_ssh,
-                    node.hostname, self.ssh_port
-                )
-            )
-        d = gather_deferreds(results)
-
-        # Exit with ssh's output if it failed for some reason:
-        def got_failure(failure):
-            if failure.value.subFailure.check(CalledProcessError):
-                raise SystemExit(
-                    b"Error connecting to cluster node: " +
-                    failure.value.subFailure.value.output)
-            else:
-                return failure
-
-        d.addErrback(got_failure)
-        return d
-
     def main(self, reactor, options):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
@@ -161,97 +115,25 @@ class DeployScript(object):
         :return: A ``Deferred`` which fires when the deployment is complete or
                  has encountered an error.
         """
-        deployment = options['deployment']
-        configuring = self._configure_ssh(deployment)
-        configuring.addCallback(
-            lambda _: self._reportstate_on_nodes(deployment))
+        body = dumps({"applications": options["application_config"],
+                      "deployment": options["deployment_config"]})
+        posted = post(options["url"], data=body,
+                      headers={b"content-type": b"application/json"},
+                      persistent=False)
 
-        def configured(current_config):
-            return self._changestate_on_nodes(
-                deployment,
-                options["deployment_config"],
-                options["application_config"],
-                current_config)
-        configuring.addCallback(configured)
-        configuring.addCallback(lambda _: None)
-        return configuring
+        def fail(msg):
+            raise SystemExit(msg)
 
-    def _get_destinations(self, deployment):
-        """
-        Return iterable of ``NodeTargets`` to connect to for given deployment.
-
-        :param Deployment deployment: The requested already parsed
-            configuration.
-
-        :return: Iterable of ``NodeTarget``\ s containing the node hostname and
-            corresponding ``INode`` provider with which to issue remote
-            procedures on that node.
-        """
-        private_key = DEFAULT_SSH_DIRECTORY.child(b"id_rsa_flocker")
-
-        for node in deployment.nodes:
-            yield NodeTarget(
-                node=ProcessNode.using_ssh(
-                    node.hostname, 22, b"root", private_key),
-                hostname=node.hostname
-            )
-
-    def _reportstate_on_nodes(self, deployment):
-        """
-        Connect to all nodes and run ``flocker-reportstate``.
-
-        :param Deployment deployment: The requested already parsed
-            configuration.
-
-        :return: ``Deferred`` that fires with a ``bytes`` in YAML format
-            describing the current configuration.
-        """
-        command = [b"flocker-reportstate"]
-        results = []
-        for target in self._get_destinations(deployment):
-            d = deferToThread(target.node.get_output, command)
-            d.addCallback(safe_load)
-            d.addCallback(lambda val, key=target.hostname: (key, val))
-            results.append(d)
-        d = DeferredList(results, fireOnOneErrback=False, consumeErrors=True)
-
-        def got_results(node_states):
-            # Bail on errors:
-            for succeeded, value in node_states:
-                if not succeeded:
-                    return value
-            return safe_dump(dict(pair for (_, pair) in node_states))
-        d.addCallback(got_results)
-        return d
-
-    def _changestate_on_nodes(self, deployment, deployment_config,
-                              application_config, cluster_config):
-        """
-        Connect to all nodes and run ``flocker-changestate``.
-
-        :param Deployment deployment: The requested already parsed
-            configuration.
-        :param bytes deployment_config: YAML-encoded deployment configuration.
-        :param bytes application_config: YAML-encoded application
-            configuration.
-        :param bytes current_config: YAML-encoded current cluster
-            configuration.
-
-        :return: ``Deferred`` that fires when all remote calls are finished.
-        """
-        command = [b"flocker-changestate",
-                   deployment_config,
-                   application_config,
-                   cluster_config]
-        results = []
-        for target in self._get_destinations(deployment):
-            # XXX if number of nodes is bigger than number of available
-            # threads we won't get the required parallelism...
-            # https://clusterhq.atlassian.net/browse/FLOC-347
-            results.append(
-                deferToThread(
-                    target.node.get_output, command + [target.hostname]))
-        return DeferredList(results)
+        def got_response(response):
+            if response.code != OK:
+                d = json_content(response)
+                d.addCallback(
+                    lambda error: fail(error[u"description"] + u"\n"))
+                return d
+            else:
+                sys.stdout.write(_OK_MESSAGE)
+        posted.addCallback(got_response)
+        return posted
 
 
 @flocker_standard_options
