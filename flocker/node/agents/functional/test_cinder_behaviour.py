@@ -9,6 +9,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from ..testtools import tidy_cinder_client_for_test
 from ....testtools import random_name
 
+
 def wait_for_volume(client, new_volume):
     """
     Wait for a volume with the same id as ``new_volume`` to be listed as

@@ -562,16 +562,23 @@ def todo_except(supported_tests):
 
 
 class ICinderVolumeManager(Interface):
+    """
+    The parts of the ``cinder.client.Client.volumes`` that we use.
+    """
     def create(size, metadata=None):
         """
+        Create a new cinder volume and return a representation of that volume.
         """
 
     def list():
         """
+        Return a list of all the cinder volumes known to this client; limited
+        by the access granted for a particular API key and the region.
         """
 
     def set_metadata(volume, metadata):
         """
+        Set the metadata for a cinder volume.
         """
 
 
@@ -580,13 +587,13 @@ class TidyCinderVolumeManager(
         proxyForInterface(ICinderVolumeManager, 'original')
 ):
     def __init__(self, original):
-        """
-        """
         self.original = original
         self._created_volumes = []
 
     def create(self, size, metadata=None):
         """
+        Call the original VolumeManager and record the volume so that it can be
+        cleaned up later.
         """
         volume = self.original.create(size=size, metadata=metadata)
         self._created_volumes.append(volume)
@@ -594,18 +601,26 @@ class TidyCinderVolumeManager(
 
     def _cleanup(self):
         """
+        Remove all the volumes that have been created by this VolumeManager
+        wrapper.
         """
-        print 'CLEANING UP', self._created_volumes
         for volume in self._created_volumes:
             self.original.delete(volume)
 
 
 class ICinderVolumeManagerTestsMixin(object):
+    """
+    Tests for ``ICinderVolumeManager`` implementations.
+    """
     def test_interface(self):
         self.assertTrue(verifyObject(ICinderVolumeManager, self.client))
 
 
 def make_icindervolumemanager_tests(client_factory):
+    """
+    Build a ``TestCase`` for verifying that an implementation of
+    ``ICinderVolumeManager`` adheres to that interface.
+    """
     class Tests(ICinderVolumeManagerTestsMixin, SynchronousTestCase):
         def setUp(self):
             self.client = client_factory(test_case=self)
@@ -627,6 +642,11 @@ def cinder_client_from_environment(OPENSTACK_API_USER, OPENSTACK_API_KEY):
 
 
 def tidy_cinder_client_for_test(test_case):
+    """
+    Return a ``cinder.client.Client`` whose ``volumes`` API is a wrapped by a
+    ``TidyCinderVolumeManager`` and register a ``test_case`` cleanup callback
+    to remove any volumes that are created during the course of a test.
+    """
     client = cinder_client_from_environment()
     client.volumes = TidyCinderVolumeManager(client.volumes)
     test_case.addCleanup(client.volumes._cleanup)
