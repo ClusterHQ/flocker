@@ -32,7 +32,7 @@ class CinderBlockDeviceAPI(object):
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
     in an OpenStack cluster.
     """
-    def __init__(self, cinder_client, cluster_id, region):
+    def __init__(self, cinder_client, cluster_id):
         """
         :param cinderclient.cinder.Client cinder_client: A client for
             interacting with Cinder API.
@@ -42,6 +42,9 @@ class CinderBlockDeviceAPI(object):
         :param unicode region: A provider specific region identifier string.
         :param pyrax_context: An authenticated pyrax context.
         """
+        self.cinder_client = cinder_client
+        self.cluster_id = cluster_id
+
 
     def create_volume(self, dataset_id, size):
         """
@@ -96,6 +99,13 @@ class CinderBlockDeviceAPI(object):
 
         See comment above about how pyrax.volume.list doesn't seem to return the metadata that you supply when creating a volume.
         """
+        volumes = []
+        for cinder_volume in self.cinder_client.volumes.list():
+            if _is_cluster_volume(self.cluster_id, cinder_volume):
+                volumes.append(
+                    _blockdevicevolume_from_cinder_volume(cinder_volume)
+                )
+        return volumes
 
     def attach_volume(self, blockdevice_id, host):
         """
@@ -113,13 +123,23 @@ class CinderBlockDeviceAPI(object):
         """
         """
 
+CLUSTER_ID_LABEL = u'flocker-cluster-id'
 
-def _blockdevicevolume_from_pyrax_volume(blockdevice_id, pyrax_volume):
+
+def _is_cluster_volume(cluster_id, cinder_volume):
+    actual_cluster_id = cinder_volume.metadata.get(CLUSTER_ID_LABEL)
+    if actual_cluster_id == cluster_id:
+        return True
+    return False
+
+
+def _blockdevicevolume_from_cinder_volume(cinder_volume):
     """
-    ```
-    :param CloudBlockStorageVolume pyrax_volume: The pyrax volume object returned by pyrax.volume.list.
+    :param CloudBlockStorageVolume cinder_volume:
     :returns: A ``BlockDeviceVolume`` based on values found in the supplied instance.
     """
+    return cinder_volume
+
 
 def authenticated_cinder_client(username, api_key, region):
     auth_url = "https://identity.api.rackspacecloud.com/v2.0"
@@ -128,10 +148,7 @@ def authenticated_cinder_client(username, api_key, region):
     return Client(version=1, session=session, region_name=region)
 
 
-def authenticated_cinder_api(cluster_id, username, api_key, region):
+def cinder_api(cinder_client, cluster_id):
     """
-    Create a pyrax context for the supplied credentials and return a
-    ``CinderBlockDeviceAPI with those.
     """
-    cinder_client = authenticated_cinder_client(username, api_key, region)
-    return CinderBlockDeviceAPI(cinder_client, cluster_id, region)
+    return CinderBlockDeviceAPI(cinder_client, cluster_id)
