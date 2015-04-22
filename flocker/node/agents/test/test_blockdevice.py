@@ -567,6 +567,23 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
 
+class BlockDeviceDeployerAttachCalculateChangesTests(
+        SynchronousTestCase
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to attaching existing datasets.
+    """
+    def test_attach_existing_nonmanifest(self):
+        """
+        If a dataset exists but is not manifest anywhere in the cluster and the
+        configuration specifies it should be manifest on the deployer's node,
+        ``BlockDeviceDeployer.calculate_changes`` returns state changes to
+        attach that dataset to its node and then mount its filesystem.
+        """
+        self.fail("FLOC-1575")
+
+
 class BlockDeviceDeployerCreationCalculateChangesTests(
         SynchronousTestCase
 ):
