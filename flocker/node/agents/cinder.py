@@ -97,6 +97,22 @@ class CinderBlockDeviceAPI(object):
         See comment above about how pyrax.volume.list doesn't seem to return the metadata that you supply when creating a volume.
         """
 
+    def attach_volume(self, blockdevice_id, host):
+        """
+        """
+
+    def detach_volume(self, blockdevice_id):
+        """
+        """
+
+    def destroy_volume(self, blockdevice_id):
+        """
+        """
+
+    def get_device_path(self, blockdevice_id):
+        """
+        """
+
 
 def _blockdevicevolume_from_pyrax_volume(blockdevice_id, pyrax_volume):
     """
@@ -104,7 +120,6 @@ def _blockdevicevolume_from_pyrax_volume(blockdevice_id, pyrax_volume):
     :param CloudBlockStorageVolume pyrax_volume: The pyrax volume object returned by pyrax.volume.list.
     :returns: A ``BlockDeviceVolume`` based on values found in the supplied instance.
     """
-
 
 def authenticated_cinder_client(username, api_key, region):
     auth_url = "https://identity.api.rackspacecloud.com/v2.0"
