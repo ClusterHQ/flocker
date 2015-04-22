@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from ..cinder import cinder_api
 from ..testtools import (
-    make_iblockdeviceapi_tests, todo_except, cinder_client_for_test
+    make_iblockdeviceapi_tests, todo_except, tidy_cinder_client_for_test
 )
 
 
@@ -21,7 +21,7 @@ def cinderblockdeviceapi_for_test(test_case):
     """
     """
     return cinder_api(
-        cinder_client=cinder_client_for_test(test_case),
+        cinder_client=tidy_cinder_client_for_test(test_case),
         cluster_id=unicode(uuid4()),
     )
 
