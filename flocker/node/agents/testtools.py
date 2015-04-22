@@ -631,11 +631,3 @@ def tidy_cinder_client_for_test(test_case):
     client.volumes = TidyCinderVolumeManager(client.volumes)
     test_case.addCleanup(client.volumes._cleanup)
     return client
-
-
-def require_cinder_client(test_method):
-    @wraps(test_method)
-    def wrapper(test_case, *args, **kwargs):
-        kwargs['cinder_client'] = tidy_cinder_client_for_test(test_case)
-        return test_method(test_case, *args, **kwargs)
-    return wrapper
