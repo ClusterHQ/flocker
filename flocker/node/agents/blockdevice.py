@@ -307,13 +307,6 @@ class DestroyBlockDeviceDataset(PRecord):
         ).run(deployer)
 
 
-# Implement:
-#     AttachVolume(volume=volume),
-# in order to carry out the sequence below.
-# Maybe use those in the CreateBlockDeviceDataset state change or paste in some
-# followup issues, or maybe do those issues first??
-
-
 @implementer(IStateChange)
 class ResizeVolume(PRecord):
     """
