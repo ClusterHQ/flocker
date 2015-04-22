@@ -16,21 +16,23 @@ from ..testtools import (
     make_iblockdeviceapi_tests, require_cinder_credentials, todo_except
 )
 
-
 @require_cinder_credentials
-def cinderblockdeviceapi_for_test(
+def cinder_client_for_test(
         test_case, OPENSTACK_API_USER, OPENSTACK_API_KEY
 ):
-    """
-
-    """
-    cinder_client = authenticated_cinder_client(
+    client = authenticated_cinder_client(
         username=OPENSTACK_API_USER,
         api_key=OPENSTACK_API_KEY,
         region='DFW',
     )
+    return client
+
+
+def cinderblockdeviceapi_for_test(test_case):
+    """
+    """
     return cinder_api(
-        cinder_client,
+        cinder_client=cinder_client_for_test(test_case),
         cluster_id=unicode(uuid4()),
     )
 
