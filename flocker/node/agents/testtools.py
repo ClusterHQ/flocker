@@ -561,18 +561,6 @@ def todo_except(supported_tests):
     return decorator
 
 
-@require_cinder_credentials
-def cinder_client_for_test(
-        test_case, OPENSTACK_API_USER, OPENSTACK_API_KEY
-):
-    client = authenticated_cinder_client(
-        username=OPENSTACK_API_USER,
-        api_key=OPENSTACK_API_KEY,
-        region='DFW',
-    )
-    return client
-
-
 class ICinderVolumeManager(Interface):
     def create(size, metadata=None):
         """
