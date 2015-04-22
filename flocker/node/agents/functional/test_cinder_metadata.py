@@ -7,6 +7,8 @@ from keystoneclient.session import Session
 
 from cinderclient.client import Client
 
+from ..testtools import require_environment_variables
+
 
 def random_name():
     """
@@ -15,28 +17,22 @@ def random_name():
     return unicode(uuid.uuid4())
 
 
-def cinder_client_from_environment():
+@require_environment_variables(
+    required_keys=['OPENSTACK_API_USER', 'OPENSTACK_API_KEY']
+)
+def cinder_client_from_environment(OPENSTACK_API_USER, OPENSTACK_API_KEY):
     """
     Create a ``cinder.client.Client`` using credentials from the process
     environment which are supplied to the RackspaceAuth plugin.
     """
     # Required
-    username = os.environ["OPENSTACK_API_USER"]
-    api_key = os.environ["OPENSTACK_API_KEY"]
-
+    username = OPENSTACK_API_USER
+    api_key = OPENSTACK_API_KEY
     # Optional
-    region = os.environ.get('OPENSTACK_REGION', 'DFW')
-    auth_url = os.environ.get(
-        "OPENSTACK_AUTH_URL", "https://identity.api.rackspacecloud.com/v2.0")
-
-    auth = RackspaceAuth(
-        auth_url=auth_url,
-        username=username,
-        api_key=api_key,
-    )
-
+    region = 'DFW'
+    auth_url = "https://identity.api.rackspacecloud.com/v2.0"
+    auth = RackspaceAuth(auth_url=auth_url, username=username, api_key=api_key)
     session = Session(auth=auth)
-
     return Client(version=1, session=session, region_name=region)
 
 
@@ -78,7 +74,12 @@ class VolumesCreateTests(TestCase):
         actual_items = set(listed_volume.metadata.items())
         missing_items = expected_items - actual_items
 
-        self.assertEqual(set(), missing_items)
+        self.assertEqual(
+            set(), missing_items,
+            'Metadata {!r} does not contain the expected items {!r}'.format(
+                actual_items, expected_items
+            )
+        )
 
 
 class VolumesSetMetadataTests(TestCase):

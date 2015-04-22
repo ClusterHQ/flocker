@@ -492,3 +492,35 @@ def make_iblockdeviceapi_tests(blockdevice_api_factory):
             self.api = blockdevice_api_factory(test_case=self)
 
     return Tests
+
+
+def require_environment_variables(required_keys):
+    """
+    Get the values for each of ``keys`` from ``os.environ``.
+
+    :param list keys: The key names to search for in ``os.environ``.
+    :return: a ``dict`` of ``keys`` and corresponding values.
+    :raises: ``SkipTest`` if any of the keys are not found in ``os.environ``.
+    """
+    def decorator(original):
+        missing_keys = []
+        keyvalues = {}
+
+        for key in required_keys:
+            value = os.environ.get(key, None)
+            if value is None:
+                missing_keys.append(key)
+            else:
+                keyvalues[key] = value
+
+        @wraps(original)
+        def wrapper(*args, **kwargs):
+            if missing_keys:
+                raise SkipTest(
+                    '{!r} requires the following environment variables: '
+                    '{!r}'.format(fullyQualifiedName(original), missing_keys)
+                )
+            updated_kwargs = dict(kwargs.items() + keyvalues.items())
+            return original(*args, **updated_kwargs)
+        return wrapper
+    return decorator
