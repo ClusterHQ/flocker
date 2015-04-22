@@ -66,7 +66,6 @@ Package Hosting
 ===============
 
 New packages are hosted on Amazon S3 in directories in the ``clusterhq-archive`` bucket.
-There is a staging bucket, ``clusterhq-staging-archive``.
 
 The Homebrew installation script for OS X downloads packages from the ``python`` directory.
 
