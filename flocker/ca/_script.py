@@ -139,8 +139,7 @@ class ControlCertificateOptions(PrettyOptions):
             ) as e:
                 raise UsageError(str(e))
         except UsageError as e:
-            print b"Error: {error}".format(error=str(e))
-            raise SystemExit(1)
+            raise SystemExit(u"Error: {error}".format(error=str(e)))
         return succeed(None)
 
 
@@ -190,8 +189,7 @@ class InitializeOptions(PrettyOptions):
             ) as e:
                 raise UsageError(str(e))
         except UsageError as e:
-            print b"Error: {error}".format(error=str(e))
-            raise SystemExit(1)
+            raise SystemExit(u"Error: {error}".format(error=str(e)))
         return succeed(None)
 
 
