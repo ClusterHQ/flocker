@@ -613,13 +613,6 @@ def make_icindervolumemanager_tests(client_factory):
     return Tests
 
 
-def random_name():
-    """
-    Return a random unicode label.
-    """
-    return unicode(uuid4())
-
-
 @require_cinder_credentials
 def cinder_client_from_environment(OPENSTACK_API_USER, OPENSTACK_API_KEY):
     """

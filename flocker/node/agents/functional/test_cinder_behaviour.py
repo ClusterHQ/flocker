@@ -6,8 +6,8 @@ Tests for cinder API behaviour.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from ..testtools import tidy_cinder_client_for_test, random_name
-
+from ..testtools import tidy_cinder_client_for_test
+from ....testtools import random_name
 
 def wait_for_volume(client, new_volume):
     """
