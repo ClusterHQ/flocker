@@ -95,7 +95,14 @@ def run_state_change(change, deployer):
 # certain other areas of the test suite depend on it.
 @implementer(IStateChange)
 class _InParallel(PRecord):
-    changes = field(type=PVector, factory=pvector, mandatory=True)
+    changes = field(
+        type=PVector,
+        # Sort the changes for the benefit of comparison.  Stick with a vector
+        # (rather than, say, a set) in case someone wants to run the same
+        # change multiple times in parallel.
+        factory=lambda changes: pvector(sorted(changes)),
+        mandatory=True
+    )
 
     # Supplied so we technically conform to the interface.  This won't actually
     # be used.
@@ -110,6 +117,9 @@ def in_parallel(changes):
     Run a series of changes in parallel.
 
     Failures in one change do not prevent other changes from continuing.
+
+    The order in which execution of the changes is started is unspecified.
+    Comparison of the resulting object disregards the ordering of the changes.
     """
     return _InParallel(changes=changes)
 

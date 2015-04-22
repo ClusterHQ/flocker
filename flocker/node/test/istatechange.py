@@ -10,7 +10,15 @@ __all__ = [
 
 from zope.interface.verify import verifyObject
 
+from zope.interface import implementer
+
+from eliot import Logger, start_action
+
+from pyrsistent import PRecord, field
+from characteristic import attributes
+
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.internet.defer import succeed
 
 from .. import IStateChange
 
@@ -26,7 +34,7 @@ def make_comparison_tests(klass, kwargs1, kwargs2):
         than ``kwargs1``.
 
     :return: ``SynchronousTestCase`` subclass named
-             ``<klassname>ComparisonTests``.
+        ``<klassname>ComparisonTests``.
     """
     class Tests(SynchronousTestCase):
         def test_equality(self):
@@ -66,3 +74,33 @@ def make_istatechange_tests(klass, kwargs1, kwargs2):
             self.assertTrue(verifyObject(IStateChange, klass(**kwargs1)))
     Tests.__name__ = klass.__name__ + "IStateChangeTests"
     return Tests
+
+
+@implementer(IStateChange)
+class DummyStateChange(PRecord):
+    """
+    A do-nothing implementation of ``IStateChange``.
+    """
+    value = field()
+
+    @property
+    def eliot_action(self):
+        return start_action(Logger(), u"flocker:tests:dummy_state_change")
+
+    def run(self, deployer):
+        return succeed(None)
+
+
+@implementer(IStateChange)
+@attributes(["value"])
+class RunSpyStateChange(object):
+    """
+    An implementation of ``IStateChange`` that records its runs.
+    """
+    @property
+    def eliot_action(self):
+        return start_action(Logger(), u"flocker:tests:run_spy_state_change")
+
+    def run(self, deployer):
+        self.value += 1
+        return succeed(None)

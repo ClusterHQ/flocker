@@ -15,13 +15,14 @@ from zope.interface import implementer
 from characteristic import attributes
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
 
 from eliot import Logger, ActionType
 
 from ._docker import BASE_DOCKER_API_URL
-from . import IDeployer, IStateChange
+from . import IDeployer, IStateChange, sequentially
 from ..testtools import loop_until
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
@@ -102,6 +103,20 @@ class ControllableAction(object):
         self.called = True
         self.deployer = deployer
         return self.result
+
+
+@implementer(IDeployer)
+class DummyDeployer(object):
+    """
+    A non-implementation of ``IDeployer``.
+    """
+    hostname = u"127.0.0.1"
+
+    def discover_state(self, node_stat):
+        return succeed(())
+
+    def calculate_changes(self, desired_configuration, cluster_state):
+        return sequentially(changes=[])
 
 
 @implementer(IDeployer)
