@@ -458,8 +458,7 @@ class MountBlockDevice(PRecord):
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
-        # This should be asynchronous.  Do it as part of FLOC-1499.  Make sure
-        # to fix _logged_statechange to handle Deferreds too.
+        # This should be asynchronous.  Do it as part of FLOC-1499.
         try:
             self.mountpoint.makedirs()
         except OSError as e:
