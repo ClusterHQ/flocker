@@ -1,4 +1,9 @@
-import os
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
+"""
+Tests for cinder API behaviour.
+"""
+
 import uuid
 from unittest import TestCase
 
