@@ -426,7 +426,6 @@ class ResizeBlockDeviceDataset(PRecord):
         ).run(deployer)
 
 
-# @_logged_statechange
 @implementer(IStateChange)
 class MountBlockDevice(PRecord):
     """
