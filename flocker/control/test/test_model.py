@@ -807,9 +807,9 @@ class PVectorFieldTests(SynchronousTestCase):
         record = Record(value=[1, 2])
         assert isinstance(record.value, PVector)
 
-    def test_checked_set(self):
+    def test_checked_vector(self):
         """
-        ``pvector_field`` results in a set that enforces its type.
+        ``pvector_field`` results in a vector that enforces its type.
         """
         class Record(PRecord):
             value = pvector_field(int)
