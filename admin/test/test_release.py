@@ -1745,16 +1745,12 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
     Tests for :func:`publish_homebrew_recipe`.
     """
 
-    def test_homebrew_recipe_uploaded(self):
+    def test_homebrew_recipe_added(self):
         """
-        A Homebrew recipe is uploaded to S3.
+        A Homebrew recipe is added to the given tap repository.
         """
-        target_bucket = 'clusterhq-archive'
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={
-                target_bucket: {},
-            })
-
-        publish_homebrew_recipe(target_bucket=target_bucket, version='0.3.0')
-        self.assertEqual(1, 1)
+        repo = create_git_repository(test_case=self)
+        publish_homebrew_recipe(
+            tap_repository=repo,
+            version='0.3.0')
+        self.assertIn((u'flocker-0.3.0.rb', 0), repo.index.entries)
