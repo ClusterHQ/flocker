@@ -1220,12 +1220,6 @@ class BlockDeviceDeployer(PRecord):
         )
 
         deletes = self._calculate_deletes(configured_manifestations)
-        # Also supply the local_state here so that the method can figure out
-        # which datasets to resize.
-        # But why don't we supply the local_state to _calculate_deletes (above)
-        # so that it can return StateChanges for only the datasets that are
-        # found to still exist in the cluster?
-        #
         resizes = list(self._calculate_resizes(
             configured_manifestations, local_state
         ))
