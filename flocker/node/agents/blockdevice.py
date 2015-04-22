@@ -24,7 +24,9 @@ import psutil
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 
-from .. import IDeployer, IStateChange, sequentially, in_parallel
+from .. import (
+    IDeployer, IStateChange, sequentially, in_parallel, run_state_change
+)
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 
 # Eliot is transitioning away from the "Logger instances all over the place"
@@ -299,13 +301,16 @@ class DestroyBlockDeviceDataset(PRecord):
         if volume is None:
             return succeed(None)
 
-        return sequentially(
-            changes=[
-                UnmountBlockDevice(volume=volume),
-                DetachVolume(volume=volume),
-                DestroyVolume(volume=volume),
-            ]
-        ).run(deployer)
+        return run_state_change(
+            sequentially(
+                changes=[
+                    UnmountBlockDevice(volume=volume),
+                    DetachVolume(volume=volume),
+                    DestroyVolume(volume=volume),
+                ]
+            ),
+            deployer,
+        )
 
 
 @implementer(IStateChange)
@@ -409,21 +414,24 @@ class ResizeBlockDeviceDataset(PRecord):
         volume = _blockdevice_volume_from_datasetid(
             deployer.block_device_api, self.dataset_id
         )
-        return sequentially(
-            changes=[
-                UnmountBlockDevice(volume=volume),
-                DetachVolume(volume=volume),
-                ResizeVolume(volume=volume, size=self.size),
-                AttachVolume(volume=volume, hostname=deployer.hostname),
-                ResizeFilesystem(volume=volume),
-                MountBlockDevice(
-                    volume=volume,
-                    mountpoint=deployer._mountpath_for_dataset_id(
-                        unicode(self.dataset_id)
-                    )
-                ),
-            ]
-        ).run(deployer)
+        return run_state_change(
+            sequentially(
+                changes=[
+                    UnmountBlockDevice(volume=volume),
+                    DetachVolume(volume=volume),
+                    ResizeVolume(volume=volume, size=self.size),
+                    AttachVolume(volume=volume, hostname=deployer.hostname),
+                    ResizeFilesystem(volume=volume),
+                    MountBlockDevice(
+                        volume=volume,
+                        mountpoint=deployer._mountpath_for_dataset_id(
+                            unicode(self.dataset_id)
+                        )
+                    ),
+                ]
+            ),
+            deployer,
+        )
 
 
 @implementer(IStateChange)
