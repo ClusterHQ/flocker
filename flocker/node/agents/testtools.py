@@ -5,41 +5,22 @@ Test helpers for ``flocker.node.agents``.
 """
 from functools import wraps
 import os
-from uuid import UUID, uuid4
-from subprocess import STDOUT, PIPE, Popen, check_output
-from functools import wraps
-import psutil
+from uuid import uuid4
+from subprocess import STDOUT, PIPE, Popen
 
 from zope.interface.verify import verifyObject
+from zope.interface import implementer, Interface
 
-from pyrsistent import InvariantException
-
-from twisted.python.runtime import platform
 from twisted.python.reflect import fullyQualifiedName
 from twisted.python.reflect import prefixedMethodNames
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
-
-from eliot.testing import validate_logging, LoggedAction
+from twisted.python.components import proxyForInterface
 
 from .cinder import authenticated_cinder_client
 from .blockdevice import (
-    BlockDeviceDeployer, LoopbackBlockDeviceAPI, IBlockDeviceAPI,
-    BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    CreateBlockDeviceDataset, UnattachedVolume,
-    DestroyBlockDeviceDataset, UnmountBlockDevice, DetachVolume,
-    DestroyVolume,
-    _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
-    DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
-    DESTROY_VOLUME,
-)
-
-from .. import InParallel, IStateChange
-from ..testtools import ideployer_tests_factory, to_node
-from ...testtools import run_process
-from ...control import (
-    Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
-    NonManifestDatasets,
+    IBlockDeviceAPI, AlreadyAttachedVolume, BlockDeviceVolume, UnknownVolume,
+    UnattachedVolume
 )
 
 
@@ -569,6 +550,7 @@ def todo_except(supported_tests):
                     new_todo.append(existing_todo)
                 new_todo.append('Not implemented yet')
                 new_todo = ' '.join(new_todo)
+
                 @wraps(test_method)
                 def wrapper(*args, **kwargs):
                     return test_method(*args, **kwargs)
@@ -591,8 +573,6 @@ def cinder_client_for_test(
     return client
 
 
-from twisted.python.components import proxyForInterface
-from zope.interface import implementer, Interface, verify
 class ICinderVolumeManager(Interface):
     def create(size, metadata=None):
         """
@@ -634,7 +614,7 @@ class TidyCinderVolumeManager(
 
 class ICinderVolumeManagerTestsMixin(object):
     def test_interface(self):
-        self.assertTrue(verify.verifyObject(ICinderVolumeManager, self.client))
+        self.assertTrue(verifyObject(ICinderVolumeManager, self.client))
 
 
 def make_icindervolumemanager_tests(client_factory):
