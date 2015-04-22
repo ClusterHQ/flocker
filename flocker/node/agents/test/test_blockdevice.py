@@ -4,6 +4,7 @@
 Tests for ``flocker.node.agents.blockdevice``.
 """
 
+from errno import ENOTDIR
 from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
@@ -1815,10 +1816,10 @@ class MountBlockDeviceTests(
     """
     Tests for ``MountBlockDevice``\ 's ``IStateChange`` implementation.
     """
-    def test_run(self):
+    def _run_test(self, mountpoint):
         """
-        ``CreateFilesystem.run`` initializes a block device with a filesystem
-        which ``MountBlockDevice.run`` can then mount.
+        Verify that ``MountBlockDevice.run`` mounts the filesystem from the
+        block device for the attached volume it is given.
         """
         host = u"192.0.7.8"
         dataset_id = uuid4()
@@ -1828,11 +1829,10 @@ class MountBlockDeviceTests(
         )
         api.attach_volume(volume.blockdevice_id, host)
 
-        mountroot = mountroot_for_test(self)
         deployer = BlockDeviceDeployer(
             hostname=host,
             block_device_api=api,
-            mountroot=mountroot,
+            mountroot=mountpoint.parent(),
         )
 
         filesystem = u"ext4"
@@ -1842,7 +1842,6 @@ class MountBlockDeviceTests(
             )
         )
 
-        mountpoint = mountroot.child(b"mount-test")
         change = MountBlockDevice(volume=volume, mountpoint=mountpoint)
         self.successResultOf(run_state_change(change, deployer))
 
@@ -1856,6 +1855,41 @@ class MountBlockDeviceTests(
             for part in psutil.disk_partitions()
         )
         self.assertIn(expected, mounted)
+
+    def test_run(self):
+        """
+        ``CreateFilesystem.run`` initializes a block device with a filesystem
+        which ``MountBlockDevice.run`` can then mount.
+        """
+        mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(b"mount-test")
+        self._run_test(mountpoint)
+
+    def test_mountpoint_exists(self):
+        """
+        It is not an error if the mountpoint given to ``MountBlockDevice``
+        already exists.
+        """
+        mountroot = mountroot_for_test(self)
+        mountpoint = mountroot.child(b"mount-test")
+        mountpoint.makedirs()
+        self._run_test(mountpoint)
+
+    def test_mountpoint_error(self):
+        """
+        If the mountpoint is unusable, for example because it is a regular file
+        instead of a directory, ``MountBlockDevice.run`` returns a ``Deferred``
+        that fires with a ``Failure`` given the reason.
+        """
+        mountroot = mountroot_for_test(self)
+        intermediate = mountroot.child(b"mount-error-test")
+        intermediate.setContent(b"collision")
+        mountpoint = intermediate.child(b"mount-test")
+        exception = self.assertRaises(
+            OSError,
+            self._run_test, mountpoint
+        )
+        self.assertEqual(ENOTDIR, exception.errno)
 
 
 def _make_unmount():
