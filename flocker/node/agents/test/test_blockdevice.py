@@ -474,7 +474,10 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
             self, local_state, local_config,
             in_parallel(changes=[]),
         )
-    test_deleted_ignored.skip = "oops"
+    test_deleted_ignored.skip = (
+        "This will pass when the deployer is smart enough to know it should "
+        "not delete things that do not exist."
+    )
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
