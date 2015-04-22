@@ -9,7 +9,7 @@ import sys
 
 import textwrap
 
-from twisted.internet.defer import maybeDeferred, Deferred, succeed
+from twisted.internet.defer import maybeDeferred, succeed
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
@@ -177,9 +177,7 @@ class InitializeOptions(PrettyOptions):
         create new private/public key pair, self-sign, write out to
         files locally.
         """
-        d = Deferred()
-
-        def generateCert(_):
+        try:
             try:
                 RootCredential.initialize(self["path"], self["name"])
                 print (
@@ -191,15 +189,10 @@ class InitializeOptions(PrettyOptions):
                 raise UsageError(str(e))
             except KeyAlreadyExistsError as e:
                 raise UsageError(str(e))
-
-        def generateError(failure):
-            print b"Error: {error}".format(error=str(failure.value))
+        except UsageError as e:
+            print b"Error: {error}".format(error=str(e))
             sys.exit(1)
-
-        d.addCallback(generateCert)
-        d.addErrback(generateError)
-        d.callback(None)
-        return d
+        return succeed(None)
 
 
 @flocker_standard_options
