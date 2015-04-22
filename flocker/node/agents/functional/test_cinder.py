@@ -32,7 +32,15 @@ def cinderblockdeviceapi_for_test(
     )
 
 
-@todo_except(supported_tests=['test_interface'])
+@todo_except(
+    supported_tests=[
+        'test_interface',
+        'test_created_is_listed',
+        'test_created_volume_attributes',
+        'test_list_volume_empty',
+        'test_listed_volume_attributes',
+    ]
+)
 class CinderBlockDeviceAPITests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=cinderblockdeviceapi_for_test
