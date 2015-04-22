@@ -463,7 +463,6 @@ class MountBlockDevice(PRecord):
             self.mountpoint.makedirs()
         except OSError as e:
             if EEXIST != e.errno:
-                # XXX test
                 raise
         check_output([b"mount", device.path, self.mountpoint.path])
         return succeed(None)
