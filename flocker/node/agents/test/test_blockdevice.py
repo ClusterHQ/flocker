@@ -810,9 +810,6 @@ class IBlockDeviceAPITestsMixin(object):
         """
         ``list_volumes`` returns ``BlockDeviceVolume`` s that have the same
         dataset_id and size as was passed to ``create_volume``.
-
-        XXX: Update this test to also check that the listed volume has the same
-        size as was supplied when it was created.
         """
         expected_dataset_id = uuid4()
         self.api.create_volume(
@@ -829,9 +826,6 @@ class IBlockDeviceAPITestsMixin(object):
         """
         ``create_volume`` returns a ``BlockDeviceVolume`` that has a dataset_id
         and a size.
-
-        XXX: Update this test to also check that the created volume has the
-        same size as was supplied.
         """
         expected_dataset_id = uuid4()
         new_volume = self.api.create_volume(
