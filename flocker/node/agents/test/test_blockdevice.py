@@ -717,6 +717,18 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         self.assertEqual(expected_changes, actual_changes)
 
 
+class BlockDeviceDeployerDetachCalculateChangesTests(
+        SynchronousTestCase, ScenarioMixin
+):
+    def test_detach_manifestation(self):
+        """
+        If a dataset is manifest locally but the configuration specifies it
+        should not be, ``BlockDeviceDeployer.calculate_changes`` returns state
+        changes to unmount the dataset's filesystem and then detach its volume.
+        """
+        self.fail("FLOC-1593")
+
+
 class BlockDeviceDeployerResizeCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
 ):

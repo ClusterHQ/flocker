@@ -1219,6 +1219,15 @@ class BlockDeviceDeployer(PRecord):
             in manifestations_to_create
         )
 
+        # FLOC-1593
+        #
+        # Find datasets that local_state indicates are locally manifest but
+        # which local_config indicates should not be.  For each of them, make a
+        #
+        # sequentially(changes=[UnmountBlockDevice(), DetachVolume()])
+        #
+        # to include in the final ``in_parallel`` returned below.
+
         deletes = self._calculate_deletes(configured_manifestations)
         resizes = list(self._calculate_resizes(
             configured_manifestations, local_state
