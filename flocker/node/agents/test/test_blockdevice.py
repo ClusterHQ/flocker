@@ -1820,7 +1820,7 @@ class MountBlockDeviceTests(
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
         )
-        attached = api.attach_volume(volume.blockdevice_id, host)
+        api.attach_volume(volume.blockdevice_id, host)
 
         mountroot = mountroot_for_test(self)
         deployer = BlockDeviceDeployer(
@@ -2387,4 +2387,3 @@ class ResizeFilesystemTests(make_state_change_tests(_make_resize_filesystem)):
             "Available inodes before ({}) is not roughly half available "
             "inodes after".format(before.f_favail, after.f_favail)
         )
-
