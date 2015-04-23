@@ -26,7 +26,7 @@ class TidyCinderVolumeManager(
         self.original = original
         self._created_volumes = []
 
-    def create(self, size, metadata=None):
+    def create(self, size, metadata=None, type="SATA"):
         """
         Call the original VolumeManager and record the volume so that it can be
         cleaned up later.

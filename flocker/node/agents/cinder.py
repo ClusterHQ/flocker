@@ -42,7 +42,7 @@ class ICinderVolumeManager(Interface):
     """
     The parts of the ``cinder.client.Client.volumes`` that we use.
     """
-    def create(size, metadata=None):
+    def create(size, metadata=None, type="SATA"):
         """
         Create a new cinder volume and return a representation of that volume.
         """
@@ -101,10 +101,6 @@ class CinderBlockDeviceAPI(object):
         Discussion:
          * Assign a Human readable name and description?
 
-         * Rackspace (maybe cinder in general) supports a block device type, eg SSD or SATA.
-           I guess we'll hardcode SATA here to start with
-           Maybe expand the API later to make the disk type configurable?
-
          * pyrax.volume.create expects a size in GB
            The minimum SATA disk size on Rackspace is 100GB.
            How do we enforce that?
@@ -123,7 +119,12 @@ class CinderBlockDeviceAPI(object):
         # volume record, but it'll be lost by Rackspace, so...
         requested_volume = self.cinder_client.volumes.create(
             size=Byte(size).to_GB().value,
-            metadata=metadata
+            metadata=metadata,
+            # Rackspace (maybe cinder in general) supports a block device type,
+            # eg SSD or SATA.  Hardcode SATA here to start with
+            # Maybe expand the API later to make the disk type configurable?
+            # See XXX
+            type='SATA',
         )
         created_volume = wait_for_volume(self.cinder_client, requested_volume)
         # So once the volume has actually been created, we set the metadata
