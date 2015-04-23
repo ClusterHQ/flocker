@@ -5,6 +5,8 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 from uuid import UUID
 
+from bitmath import Byte, GB
+
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from keystoneclient.session import Session
 
@@ -24,6 +26,17 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
 GIBIBYTE = 2 ** 30
+
+
+# Rackspace public docs say "The minimum size for a Cloud Block Storage volume
+# is 50 GB for an SSD volume or 75GB for an SATA volume. The maximum volume
+# size is 1TB."
+# * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
+# Rackspace API agrees "u'{"badRequest": {"message": "Invalid input
+# received: \'size\' parameter must be between 75 and 1024", "code":
+# 400}}'"
+# Let's assume that we only support SATA volumes for now.
+RACKSPACE_MINIMUM_BLOCK_SIZE = GB(75)
 
 
 def wait_for_volume(client, new_volume):
@@ -82,17 +95,16 @@ class CinderBlockDeviceAPI(object):
            Should that be the value of ``BlockDeviceVolume.blockdevice_id`` ?
            That field type is unicode rather than UUID which was (I think) chosen so as to support provider specific volume ID strings.
         """
-        # XXX Need to convert from bytes to GB and use a minimum of 75GB in tests
-        # Rackspace API says "u'{"badRequest": {"message": "Invalid input
-        # received: \'size\' parameter must be between 75 and 1024", "code":
-        # 400}}'"
         metadata = {
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
         # We supply metadata here and it'll be included in the returned cinder
         # volume record, but it'll be lost by Rackspace, so...
-        requested_volume = self.cinder_client.volumes.create(size=100, metadata=metadata)
+        requested_volume = self.cinder_client.volumes.create(
+            size=max(RACKSPACE_MINIMUM_BLOCK_SIZE, Byte(size).to_GB()).value,
+            metadata=metadata
+        )
         created_volume = wait_for_volume(self.cinder_client, requested_volume)
         # So once the volume has actually been created, we set the metadata
         # again. One day we hope this won't be necessary.
@@ -100,7 +112,7 @@ class CinderBlockDeviceAPI(object):
         self.cinder_client.volumes.set_metadata(
             created_volume, metadata
         )
-        # Use requested volume here, because it has the desired metadata
+        # Use requested volume here, because it has the desired metadata.
         return _blockdevicevolume_from_cinder_volume(requested_volume)
 
     def list_volumes(self):
@@ -149,8 +161,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     """
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
-        # XXX: Check that GIBIBYTE is the correct multiplier.
-        size=cinder_volume.size * GIBIBYTE,
+        size=int(GB(cinder_volume.size).to_Byte().value),
         host=None,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
