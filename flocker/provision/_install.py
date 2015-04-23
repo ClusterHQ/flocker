@@ -219,7 +219,7 @@ FLOCKER_CONTROL_NODE = %(control_node)s
 """
 
 
-def task_enable_flocker_agent(node_name, control_node):
+def task_enable_flocker_agent(node_name, control_node, backend):
     """
     Configure and enable the flocker agents.
 
@@ -234,8 +234,14 @@ def task_enable_flocker_agent(node_name, control_node):
                 'control_node': control_node
             },
         ),
-        run_from_args(['systemctl', 'enable', 'flocker-agent']),
-        run_from_args(['systemctl', 'start', 'flocker-agent']),
+        put(
+            path='/etc/flocker/dataset-agent.yml',
+            content=AGENT_CONFIG % {
+                '#TODO'
+            },
+        ),
+        run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
+        run_from_args(['systemctl', 'start', 'flocker-dataset-agent']),
         run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
         run_from_args(['systemctl', 'start', 'flocker-container-agent']),
     ])

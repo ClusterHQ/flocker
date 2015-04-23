@@ -11,6 +11,7 @@ from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
 from ..volume.service import (
@@ -26,61 +27,8 @@ from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 
 
 __all__ = [
-    "flocker_zfs_agent_main",
     "flocker_dataset_agent_main",
 ]
-
-
-@flocker_standard_options
-@flocker_volume_options
-class ZFSAgentOptions(Options):
-    """
-    Command line options for ``flocker-zfs-agent`` cluster management process.
-    """
-    longdesc = """\
-    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
-    """
-
-    synopsis = (
-        "Usage: flocker-zfs-agent [OPTIONS] <local-hostname> "
-        "<control-service-hostname>")
-
-    optParameters = [
-        ["destination-port", "p", 4524,
-         "The port on the control service to connect to.", int],
-    ]
-
-    def parseArgs(self, hostname, host):
-        # Passing in the 'hostname' (really node identity) via command
-        # line is a hack.  See
-        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution.
-        self["hostname"] = unicode(hostname, "ascii")
-        self["destination-host"] = unicode(host, "ascii")
-
-
-@implementer(ICommandLineVolumeScript)
-class ZFSAgentScript(object):
-    """
-    A command to start a long-running process to manage volumes on one node of
-    a Flocker cluster.
-    """
-    def main(self, reactor, options, volume_service):
-        host = options["destination-host"]
-        port = options["destination-port"]
-        deployer = P2PManifestationDeployer(
-            options["hostname"].decode("ascii"), volume_service)
-        loop = AgentLoopService(reactor=reactor, deployer=deployer,
-                                host=host, port=port)
-        volume_service.setServiceParent(loop)
-        return main_for_service(reactor, loop)
-
-
-def flocker_zfs_agent_main():
-    return FlockerScriptRunner(
-        script=VolumeScript(ZFSAgentScript()),
-        options=ZFSAgentOptions()
-    ).main()
-
 
 @flocker_standard_options
 class _AgentOptions(Options):
@@ -118,6 +66,11 @@ class DatasetAgentOptions(_AgentOptions):
     """
 
     synopsis = _AgentOptions.synopsis.format("flocker-dataset-agent")
+
+    optParameters = [
+        ["config-file", "c", FilePath("/etc/flocker/dataset-agent.yml"),
+         "The configuration file for the dataset agent.", FilePath],
+    ]
 
 
 class ContainerAgentOptions(_AgentOptions):
@@ -179,9 +132,45 @@ class AgentServiceFactory(PRecord):
         """
         return AgentLoopService(
             reactor=reactor,
-            deployer=self.deployer_factory(hostname=options["hostname"]),
+            deployer=self.deployer_factory(options=options),
             host=options["destination-host"], port=options["destination-port"],
         )
+
+
+def volume_service_from_config(config):
+    pass
+
+def dataset_deployer_from_options(options):
+    """
+    Returns an IDeployer configured by options.
+    """
+    import yaml
+    config = yaml.safe_load(options['config-file'].getContents())
+    if config['backend'] == 'zfs':
+        # TODO The volume service should be integrated with the reactor - see
+        # main_for_service
+        volume_service = VolumeService(
+            config_path=flocker.volume.service.DEFAULT_CONFIG_PATH,
+            pool=config.get('zfs-pool', flocker.volume.service.FLOCKER_POOL),
+            # TODO thread through the reactor
+            reactor=reactor,
+        )
+
+        deployer_factory = partial(
+            P2PManifestationDeployer, volume_service=volume_service)
+    elif config['backend'] == 'loopback':
+        # Later, construction of this object can be moved into
+        # AgentServiceFactory.get_service where various options passed on
+        # the command line could alter what is created and how it is initialized.
+        loopback_pool = config.get('loopback-pool',
+                                   b"/var/lib/flocker/loopback")
+        api = LoopbackBlockDeviceAPI.from_path(loopback_pool)
+        deployer_factory = partial(
+            BlockDeviceDeployer,
+            block_device_api=api,
+        )
+
+    return deployer_factory(hostname=options['hostname'])
 
 
 def flocker_dataset_agent_main():
@@ -192,18 +181,8 @@ def flocker_dataset_agent_main():
     loopback block device backend.  Later it will be capable of starting a
     dataset agent using any of the support dataset backends.
     """
-    # Later, construction of this object can be moved into
-    # AgentServiceFactory.get_service where various options passed on
-    # the command line could alter what is created and how it is initialized.
-    api = LoopbackBlockDeviceAPI.from_path(
-        b"/var/lib/flocker/loopback"
-    )
-    deployer_factory = partial(
-        BlockDeviceDeployer,
-        block_device_api=api,
-    )
     service_factory = AgentServiceFactory(
-        deployer_factory=deployer_factory
+        deployer_factory=dataset_deployer_from_options
     ).get_service
     agent_script = AgentScript(
         service_factory=service_factory,
@@ -221,6 +200,7 @@ def flocker_container_agent_main():
     This starts a Docker-based container convergence agent.
     """
     service_factory = AgentServiceFactory(
+        # TODO this needs to be something which parses Options
         deployer_factory=ApplicationNodeDeployer
     ).get_service
     agent_script = AgentScript(service_factory=service_factory)
