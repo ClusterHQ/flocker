@@ -55,7 +55,7 @@ from .yum import (
 )
 
 # TODO create this function
-from .homebrew import get_recipe
+# from .homebrew import get_recipe
 
 
 class NotTagged(Exception):
@@ -351,17 +351,25 @@ def publish_homebrew_recipe(git_url, scratch_directory, version, sdist):
     """
     Publish a Homebrew recipe to a git repository.
 
-    :param unicode git_url: See ``Git.Repo.clone_from.url``.
+    :param unicode git_url: See ``Git.Repo.clone_from.url``. Clone with
+        SSH to avoid needing a password, if SSH keys are set up already.
+        See https://help.github.com/articles/
+            which-remote-url-should-i-use/#cloning-with-ssh
     :param FilePath scratch_directory: Temporary directory to clone
         repository to.
     :param bytes version: Version of Flocker to publish a recipe for.
     """
-    repo = Repo()
-    repo.clone_from(url=git_url, path=scratch_directory.path)
-    recipe = get_recipe(version=version, sdist=sdist)
-    repo.index.add(['NEW_FILE'])
-    repo.index.commit('Add NEW_FILE')
-    repo.remotes.origin.push(repo.head)
+    git_url = "git@github.com:adamtheturtle/dotfiles.git"
+    homebrew_repo = Repo().clone_from(url=git_url, to_path=scratch_directory.path)
+    # recipe = get_recipe(version=version, sdist=sdist)
+    recipe = scratch_directory.child('flocker-{version}.rb'.format(
+        version=version))
+    recipe.touch()
+    recipe.setContent("Some recipe contents")
+
+    homebrew_repo.index.add([recipe.path])
+    homebrew_repo.index.commit('Add recipe for Flocker version ' + version)
+    homebrew_repo.remotes.origin.push(homebrew_repo.head)
 
 
 @do
