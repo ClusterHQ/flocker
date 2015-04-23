@@ -1565,6 +1565,7 @@ def create_git_repository(test_case):
     repository.index.add(['README'])
     repository.index.commit('Initial commit')
     repository.create_head('master')
+    repository.create_remote('origin', repository.working_dir)
     return repository
 
 
@@ -1749,9 +1750,16 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         """
         A Homebrew recipe is added to the given tap repository.
         """
-        repo = create_git_repository(test_case=self)
-        publish_homebrew_recipe(
-            git_url='XXX',
-            scratch_directory=FilePath(self.mktemp()),
-            version='0.3.0')
-        self.assertIn((u'flocker-0.3.0.rb', 0), repo.index.entries)
+        source_repo = create_git_repository(test_case=self)
+
+        push = publish_homebrew_recipe(
+            homebrew_repo=source_repo,
+            scratch_directory=FilePath(source_repo.working_dir),
+            version='0.3.0',
+            sdist=None)
+
+        self.assertIn((u'flocker-0.3.0.rb', 0), source_repo.index.entries)
+        self.assertEqual(
+            source_repo.remotes.origin.fetch()[0].commit.summary,
+            u'Add recipe for Flocker version 0.3.0')
+        self.assertEqual(push.local_ref, source_repo.head)
