@@ -16,9 +16,6 @@ rpm_version = sys.argv[1]
 branch = sys.argv[2]
 build_server = sys.argv[3] or 'http://build.clusterhq.com/'
 
-# Make it possible to install flocker-node
-check_call(['if selinuxenabled; then setenforce 0; fi'])
-
 rpm_dist = check_output(['rpm', '-E', '%dist']).strip()
 
 clusterhq_repo_url = (
