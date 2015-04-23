@@ -1163,6 +1163,23 @@ def make_iblockdeviceapi_tests(blockdevice_api_factory):
 
     return Tests
 
+# FLOC-1549
+# def make_iblockdeviceasyncapi_tests(blockdeviceasync_api_factory):
+#     # Test the interface.  Probably nothing else for now.  If we build a native
+#     # async implementation (not a threadpool-based wrapper) we'll want to
+#     # actually test the functionality.
+
+
+# FLOC-1549
+# class SyncToThreadedAsyncAPIAdapterTests(
+#     make_iblockdeviceasyncapi_tests(
+#         lambda test_case:
+#             _SyncToThreadedAsyncAPIAdapter(loopbackblockdeviceapi_for_test(
+#                 test_case
+#             )
+#     )
+# ):
+
 
 def losetup_detach(device_file):
     """
