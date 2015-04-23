@@ -25,7 +25,7 @@ from .. import (
 )
 
 
-class IpToUUIDTests(SynchronousTestCase):
+class IPToUUIDTests(SynchronousTestCase):
     """
     Tests for ``ip_to_uuid``.
     """
