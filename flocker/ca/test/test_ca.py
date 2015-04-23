@@ -58,7 +58,8 @@ class UserCredentialTests(SynchronousTestCase):
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
         self.assertTrue(
-            uc.keypair.keypair.matches(uc.certificate.getPublicKey())
+            uc.credential.keypair.keypair.matches(
+                uc.credential.certificate.getPublicKey())
         )
 
     def test_decoded_certificate_matches_private_key(self):
@@ -67,8 +68,8 @@ class UserCredentialTests(SynchronousTestCase):
         be paired with.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
-        priv = uc.keypair.keypair.original
-        pub = uc.certificate.getPublicKey().original
+        priv = uc.credential.keypair.keypair.original
+        pub = uc.credential.certificate.getPublicKey().original
         pub_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, pub)
         priv_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, priv)
         pub_der = asn1.DerSequence()
@@ -247,7 +248,7 @@ class UserCredentialTests(SynchronousTestCase):
         supplied during the certificate's creation.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
-        cert = uc.certificate.original
+        cert = uc.credential.certificate.original
         subject = cert.get_subject()
         self.assertEqual(subject.CN, b"user-{user}".format(user=uc.username))
 
@@ -257,7 +258,7 @@ class UserCredentialTests(SynchronousTestCase):
         authority's common name as its organizational unit name.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
-        cert = uc.certificate.original
+        cert = uc.credential.certificate.original
         issuer = cert.get_issuer()
         subject = cert.get_subject()
         self.assertEqual(
@@ -271,11 +272,11 @@ class UserCredentialTests(SynchronousTestCase):
         as being signed by the certificate authority.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
-        cert = uc.certificate.original
+        cert = uc.credential.certificate.original
         issuer = cert.get_issuer()
         self.assertEqual(
             issuer.CN,
-            self.ca.certificate.getSubject().CN
+            self.ca.credential.certificate.getSubject().CN
         )
 
     def test_certificate_expiration(self):
@@ -286,7 +287,7 @@ class UserCredentialTests(SynchronousTestCase):
         today = datetime.datetime.now()
         expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
         uc = UserCredential.initialize(self.path, self.ca, self.username)
-        cert = uc.certificate.original
+        cert = uc.credential.certificate.original
         asn1 = cert.get_notAfter()
         expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
         self.assertEqual(expiry_date.date(), expected_expiry.date())
@@ -297,8 +298,8 @@ class UserCredentialTests(SynchronousTestCase):
         4096 bit, SHA-256 format.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
-        cert = uc.certificate.original
-        key = uc.certificate.getPublicKey().original
+        cert = uc.credential.certificate.original
+        key = uc.credential.certificate.getPublicKey().original
         self.assertEqual(
             (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
             (key.type(), key.bits(), cert.get_signature_algorithm())
@@ -340,7 +341,8 @@ class NodeCredentialTests(SynchronousTestCase):
         """
         nc = NodeCredential.initialize(self.path, self.ca)
         self.assertTrue(
-            nc.keypair.keypair.matches(nc.certificate.getPublicKey())
+            nc.credential.keypair.keypair.matches(
+                nc.credential.certificate.getPublicKey())
         )
 
     def test_decoded_certificate_matches_private_key(self):
@@ -349,8 +351,8 @@ class NodeCredentialTests(SynchronousTestCase):
         be paired with.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
-        priv = nc.keypair.keypair.original
-        pub = nc.certificate.getPublicKey().original
+        priv = nc.credential.keypair.keypair.original
+        pub = nc.credential.certificate.getPublicKey().original
         pub_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, pub)
         priv_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, priv)
         pub_der = asn1.DerSequence()
@@ -538,7 +540,7 @@ class NodeCredentialTests(SynchronousTestCase):
         generated during the certificate's creation.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
+        cert = nc.credential.certificate.original
         subject = cert.get_subject()
         self.assertEqual(subject.CN, b"node-{uuid}".format(uuid=nc.uuid))
 
@@ -548,7 +550,7 @@ class NodeCredentialTests(SynchronousTestCase):
         authority's common name as its organizational unit name.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
+        cert = nc.credential.certificate.original
         issuer = cert.get_issuer()
         subject = cert.get_subject()
         self.assertEqual(
@@ -562,11 +564,11 @@ class NodeCredentialTests(SynchronousTestCase):
         as being signed by the certificate authority.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
+        cert = nc.credential.certificate.original
         issuer = cert.get_issuer()
         self.assertEqual(
             issuer.CN,
-            self.ca.certificate.getSubject().CN
+            self.ca.credential.certificate.getSubject().CN
         )
 
     def test_certificate_expiration(self):
@@ -577,7 +579,7 @@ class NodeCredentialTests(SynchronousTestCase):
         today = datetime.datetime.now()
         expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
         nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
+        cert = nc.credential.certificate.original
         asn1 = cert.get_notAfter()
         expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
         self.assertEqual(expiry_date.date(), expected_expiry.date())
@@ -588,8 +590,8 @@ class NodeCredentialTests(SynchronousTestCase):
         4096 bit, SHA-256 format.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
-        key = nc.certificate.getPublicKey().original
+        cert = nc.credential.certificate.original
+        key = nc.credential.certificate.getPublicKey().original
         self.assertEqual(
             (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
             (key.type(), key.bits(), cert.get_signature_algorithm())
@@ -628,7 +630,8 @@ class ControlCredentialTests(SynchronousTestCase):
         """
         cc = ControlCredential.initialize(self.path, self.ca)
         self.assertTrue(
-            cc.keypair.keypair.matches(cc.certificate.getPublicKey())
+            cc.credential.keypair.keypair.matches(
+                cc.credential.certificate.getPublicKey())
         )
 
     def test_decoded_certificate_matches_private_key(self):
@@ -637,8 +640,8 @@ class ControlCredentialTests(SynchronousTestCase):
         be paired with.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
-        priv = cc.keypair.keypair.original
-        pub = cc.certificate.getPublicKey().original
+        priv = cc.credential.keypair.keypair.original
+        pub = cc.credential.certificate.getPublicKey().original
         pub_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, pub)
         priv_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, priv)
         pub_der = asn1.DerSequence()
@@ -807,7 +810,7 @@ class ControlCredentialTests(SynchronousTestCase):
         subject common name "control-service"
         """
         cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
+        cert = cc.credential.certificate.original
         subject = cert.get_subject()
         self.assertEqual(subject.CN, b"control-service")
 
@@ -817,7 +820,7 @@ class ControlCredentialTests(SynchronousTestCase):
         authority's common name as its organizational unit name.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
+        cert = cc.credential.certificate.original
         issuer = cert.get_issuer()
         subject = cert.get_subject()
         self.assertEqual(
@@ -831,11 +834,11 @@ class ControlCredentialTests(SynchronousTestCase):
         as being signed by the certificate authority.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
+        cert = cc.credential.certificate.original
         issuer = cert.get_issuer()
         self.assertEqual(
             issuer.CN,
-            self.ca.certificate.getSubject().CN
+            self.ca.credential.certificate.getSubject().CN
         )
 
     def test_certificate_expiration(self):
@@ -846,7 +849,7 @@ class ControlCredentialTests(SynchronousTestCase):
         today = datetime.datetime.now()
         expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
         cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
+        cert = cc.credential.certificate.original
         asn1 = cert.get_notAfter()
         expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
         self.assertEqual(expiry_date.date(), expected_expiry.date())
@@ -857,8 +860,8 @@ class ControlCredentialTests(SynchronousTestCase):
         4096 bit, SHA-256 format.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
-        key = cc.certificate.getPublicKey().original
+        cert = cc.credential.certificate.original
+        key = cc.credential.certificate.getPublicKey().original
         self.assertEqual(
             (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
             (key.type(), key.bits(), cert.get_signature_algorithm())
@@ -892,7 +895,8 @@ class RootCredentialTests(SynchronousTestCase):
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
         self.assertTrue(
-            ca.keypair.keypair.matches(ca.certificate.getPublicKey())
+            ca.credential.keypair.keypair.matches(
+                ca.credential.certificate.getPublicKey())
         )
 
     def test_decoded_certificate_matches_private_key(self):
@@ -903,8 +907,8 @@ class RootCredentialTests(SynchronousTestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
-        priv = ca.keypair.keypair.original
-        pub = ca.certificate.getPublicKey().original
+        priv = ca.credential.keypair.keypair.original
+        pub = ca.credential.certificate.getPublicKey().original
         pub_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, pub)
         priv_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, priv)
         pub_der = asn1.DerSequence()
@@ -1086,7 +1090,7 @@ class RootCredentialTests(SynchronousTestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
-        cert = ca.certificate.original
+        cert = ca.credential.certificate.original
         issuer = cert.get_issuer().get_components()
         subject = cert.get_subject().get_components()
         self.assertEqual(issuer, subject)
@@ -1101,7 +1105,7 @@ class RootCredentialTests(SynchronousTestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
-        cert = ca.certificate.original
+        cert = ca.credential.certificate.original
         asn1 = cert.get_notAfter()
         expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
         self.assertEqual(expiry_date.date(), expected_expiry.date())
@@ -1114,8 +1118,8 @@ class RootCredentialTests(SynchronousTestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
-        cert = ca.certificate.original
-        key = ca.certificate.getPublicKey().original
+        cert = ca.credential.certificate.original
+        key = ca.credential.certificate.getPublicKey().original
         self.assertEqual(
             (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
             (key.type(), key.bits(), cert.get_signature_algorithm())

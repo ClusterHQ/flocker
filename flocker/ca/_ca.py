@@ -231,13 +231,16 @@ class FlockerCredential(PRecord):
             os.umask(original_umask)
 
 
-class UserCredential(FlockerCredential):
+class UserCredential(PRecord):
     """
     A certificate for an API user, signed by a supplied certificate
     authority.
 
+    :ivar FlockerCredential credential: The certificate and key pair
+        credential object.
     :ivar bytes username: A username.
     """
+    credential = field(mandatory=True)
     username = field(mandatory=True, initial=None)
 
     @classmethod
@@ -250,10 +253,9 @@ class UserCredential(FlockerCredential):
         keypair, certificate = load_certificate_from_path(
             path, key_filename, cert_filename
         )
-        return cls(
-            path=path, keypair=keypair,
-            certificate=certificate, username=username
-        )
+        credential = FlockerCredential(
+            path=path, keypair=keypair, certificate=certificate)
+        return cls(credential=credential, username=username)
 
     @classmethod
     def initialize(cls, path, authority, username):
@@ -272,7 +274,7 @@ class UserCredential(FlockerCredential):
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
-        organizational_unit = authority.certificate.getSubject().CN
+        organizational_unit = authority.credential.certificate.getSubject().CN
         dn = DistinguishedName(
             commonName=name, organizationalUnitName=organizational_unit
         )
@@ -280,26 +282,30 @@ class UserCredential(FlockerCredential):
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
-        cert = authority.keypair.keypair.signRequestObject(
-            authority.certificate.getSubject(), request,
+        cert = authority.credential.keypair.keypair.signRequestObject(
+            authority.credential.certificate.getSubject(), request,
             serial, EXPIRY_20_YEARS, 'sha256'
         )
-        instance = cls(
-            path=path, keypair=keypair,
-            certificate=cert, username=username
+        credential = FlockerCredential(
+            path=path, keypair=keypair, certificate=cert
         )
-        instance.write_credential_files(key_filename, cert_filename)
+        instance = cls(credential=credential, username=username)
+        instance.credential.write_credential_files(
+            key_filename, cert_filename)
         return instance
 
 
-class NodeCredential(FlockerCredential):
+class NodeCredential(PRecord):
     """
     A certificate for a node agent, signed by a supplied certificate
     authority.
 
+    :ivar FlockerCredential credential: The certificate and key pair
+        credential object.
     :ivar bytes uuid: A unique identifier for the node this certificate
         identifies, in the form of a version 4 UUID.
     """
+    credential = field(mandatory=True)
     uuid = field(mandatory=True, initial=None)
 
     @classmethod
@@ -312,9 +318,9 @@ class NodeCredential(FlockerCredential):
         keypair, certificate = load_certificate_from_path(
             path, key_filename, cert_filename
         )
-        return cls(
-            path=path, keypair=keypair, certificate=certificate, uuid=uuid
-        )
+        credential = FlockerCredential(
+            path=path, keypair=keypair, certificate=certificate)
+        return cls(credential=credential, uuid=uuid)
 
     @classmethod
     def initialize(cls, path, authority):
@@ -333,7 +339,7 @@ class NodeCredential(FlockerCredential):
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
-        organizational_unit = authority.certificate.getSubject().CN
+        organizational_unit = authority.credential.certificate.getSubject().CN
         dn = DistinguishedName(
             commonName=name, organizationalUnitName=organizational_unit
         )
@@ -341,29 +347,36 @@ class NodeCredential(FlockerCredential):
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
-        cert = authority.keypair.keypair.signRequestObject(
-            authority.certificate.getSubject(), request,
+        cert = authority.credential.keypair.keypair.signRequestObject(
+            authority.credential.certificate.getSubject(), request,
             serial, EXPIRY_20_YEARS, 'sha256'
         )
-        instance = cls(
-            path=path, keypair=keypair, certificate=cert, uuid=node_uuid)
-        instance.write_credential_files(key_filename, cert_filename)
+        credential = FlockerCredential(
+            path=path, keypair=keypair, certificate=cert)
+        instance = cls(credential=credential, uuid=node_uuid)
+        instance.credential.write_credential_files(
+            key_filename, cert_filename)
         return instance
 
 
-class ControlCredential(FlockerCredential):
+class ControlCredential(PRecord):
     """
     A certificate and key pair for a control service, signed by a supplied
     certificate authority.
+
+    :ivar FlockerCredential credential: The certificate and key pair
+        credential object.
     """
+    credential = field(mandatory=True)
+
     @classmethod
     def from_path(cls, path):
         keypair, certificate = load_certificate_from_path(
             path, CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME
         )
-        return cls(
-            path=path, keypair=keypair, certificate=certificate
-        )
+        credential = FlockerCredential(
+            path=path, keypair=keypair, certificate=certificate)
+        return cls(credential=credential)
 
     @classmethod
     def initialize(cls, path, authority):
@@ -381,7 +394,7 @@ class ControlCredential(FlockerCredential):
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
-        organizational_unit = authority.certificate.getSubject().CN
+        organizational_unit = authority.credential.certificate.getSubject().CN
         dn = DistinguishedName(
             commonName=name, organizationalUnitName=organizational_unit
         )
@@ -389,20 +402,26 @@ class ControlCredential(FlockerCredential):
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
-        cert = authority.keypair.keypair.signRequestObject(
-            authority.certificate.getSubject(), request,
+        cert = authority.credential.keypair.keypair.signRequestObject(
+            authority.credential.certificate.getSubject(), request,
             serial, EXPIRY_20_YEARS, 'sha256'
         )
-        instance = cls(path=path, keypair=keypair, certificate=cert)
-        instance.write_credential_files(
+        credential = FlockerCredential(
+            path=path, keypair=keypair, certificate=cert)
+        instance = cls(credential=credential)
+        instance.credential.write_credential_files(
             CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME)
         return instance
 
 
-class RootCredential(FlockerCredential):
+class RootCredential(PRecord):
     """
     A credential representing a self-signed certificate authority.
+    :ivar FlockerCredential credential: The certificate and key pair
+        credential object.
     """
+    credential = field(mandatory=True)
+
     @classmethod
     def from_path(cls, path):
         try:
@@ -416,9 +435,9 @@ class RootCredential(FlockerCredential):
                 error = error + (b" Please run `flocker-ca initialize` to "
                                  b"generate a new certificate authority.")
             raise PathError(error, e.filename, e.code, e.failure)
-        return cls(
-            path=path, keypair=keypair, certificate=certificate
-        )
+        credential = FlockerCredential(
+            path=path, keypair=keypair, certificate=certificate)
+        return cls(credential=credential)
 
     @classmethod
     def initialize(cls, path, name):
@@ -441,7 +460,9 @@ class RootCredential(FlockerCredential):
         certificate = create_certificate_authority(
             keypair.keypair, dn, request, serial, EXPIRY_20_YEARS, 'sha256'
         )
-        instance = cls(path=path, keypair=keypair, certificate=certificate)
-        instance.write_credential_files(
+        credential = FlockerCredential(
+            path=path, keypair=keypair, certificate=certificate)
+        instance = cls(credential=credential)
+        instance.credential.write_credential_files(
             AUTHORITY_KEY_FILENAME, AUTHORITY_CERTIFICATE_FILENAME)
         return instance
