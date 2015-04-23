@@ -19,8 +19,8 @@ from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 
 from ._ca import (RootCredential, ControlCredential, NodeCredential,
-                  CertificateAlreadyExistsError, KeyAlreadyExistsError,
-                  PathError)
+                  UserCredential, CertificateAlreadyExistsError,
+                  KeyAlreadyExistsError, PathError)
 
 
 class PrettyOptions(Options):
@@ -87,6 +87,62 @@ class PrettyOptions(Options):
                 commandName, ' '.join((self.parent.subCommand, synopsis)))
 
         return synopsis
+
+
+@flocker_standard_options
+class UserCertificateOptions(PrettyOptions):
+    """
+    Command line options for ``flocker-ca create-api-certificate``.
+    """
+
+    helptext = """Create a new certificate for an API end user.
+
+    Creates a certificate signed by a previously generated certificate
+    authority (see flocker-ca initialize command for more information).
+
+    Required parameters:
+
+    * name: A username for which the certificate should be created.
+    """
+
+    synopsis = "<name> [options]"
+
+    optParameters = [
+        ['inputpath', 'i', os.getcwd(),
+         'Path to directory containing root certificate.'],
+        ['outputpath', 'o', os.getcwd(),
+         'Path to directory to write control service certificate.'],
+    ]
+
+    def parseArgs(self, name):
+        self["name"] = name
+
+    def run(self):
+        """
+        Check if root key and certificate files (either default or as
+        specified on the command line) exist in the path and error out if
+        they do not. If there are no path errors, create a new node
+        certificate signed by the root and write it out to the current
+        directory.
+        """
+        self["inputpath"] = FilePath(self["inputpath"])
+        self["outputpath"] = FilePath(self["outputpath"])
+
+        try:
+            try:
+                ca = RootCredential.from_path(self["inputpath"])
+                uc = UserCredential.initialize(
+                    self["outputpath"], ca, self["name"])
+                print (
+                    b"Created {user}.crt. You can now give it to your "
+                    "API enduser so they can access the control service "
+                    "API.".format(user=uc.username)
+                )
+            except PathError as e:
+                raise UsageError(str(e))
+        except UsageError as e:
+            raise SystemExit(u"Error: {error}".format(error=str(e)))
+        return succeed(None)
 
 
 @flocker_standard_options
@@ -263,6 +319,8 @@ class CAOptions(PrettyOptions):
          "Create a certificate for the control service."],
         ["create-node-certificate", None, NodeCertificateOptions,
          "Create a certificate for a node agent."],
+        ["create-api-certificate", None, UserCertificateOptions,
+         "Create a certificate for an API user."],
         ]
 
 
