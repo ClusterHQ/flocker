@@ -87,7 +87,7 @@ class ZFSAgentScript(object):
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then
-        # we'll just do a temporary hack (probably to be fixed in FLOC-1727).
+        # we'll just do a temporary hack (probably to be fixed in FLOC-1733).
         node_uuid = ip_to_uuid(ip)
         deployer = P2PManifestationDeployer(ip, volume_service,
                                             node_uuid=node_uuid)
