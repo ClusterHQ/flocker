@@ -388,6 +388,20 @@ class RunOptions(Options):
 
 
 @inlineCallbacks
+def do_cluster_acceptance_tests(reactor, runner, trial_args):
+    nodes = yield runner.start_nodes(reactor, node_count=2)
+    yield perform(
+        dispatcher,
+        configure_cluster(control_node=nodes[0], agent_nodes=nodes))
+    result = yield run_tests(
+        reactor=reactor,
+        nodes=nodes,
+        control_node=nodes[0], agent_nodes=nodes,
+        trial_args=trial_args)
+    returnValue(result)
+
+
+@inlineCallbacks
 def main(reactor, args, base_path, top_level):
     """
     :param reactor: Reactor to use.
@@ -406,15 +420,8 @@ def main(reactor, args, base_path, top_level):
     runner = options.runner
 
     try:
-        nodes = yield runner.start_nodes(reactor, node_count=2)
-        yield perform(
-            dispatcher,
-            configure_cluster(control_node=nodes[0], agent_nodes=nodes))
-        result = yield run_tests(
-            reactor=reactor,
-            nodes=nodes,
-            control_node=nodes[0], agent_nodes=nodes,
-            trial_args=options['trial-args'])
+        result = yield do_cluster_acceptance_tests(
+            reactor, runner, options['trial-args'])
     except:
         result = 1
         raise
