@@ -755,7 +755,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         )
         for app in applications:
             StartApplication(
-                node_state=NodeState(uuid=api.node_uuid, hostname=api.hostname),
+                node_state=NodeState(uuid=api.node_uuid,
+                                     hostname=api.hostname),
                 application=app
             ).run(api)
         d = api.discover_state(self.EMPTY_NODESTATE)

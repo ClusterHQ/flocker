@@ -1038,7 +1038,8 @@ class SameNodeTests(SynchronousTestCase):
 
     def test_nodestate(self):
         """
-        ``same_node`` returns ``True`` if two ``NodeState``s have the same UUID.
+        ``same_node`` returns ``True`` if two ``NodeState``s have the same
+        UUID.
         """
         node1 = NodeState(uuid=uuid4(), hostname=u"1.2.3.4")
         node2 = NodeState(uuid=node1.uuid, hostname=u"1.2.3.5")
