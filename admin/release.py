@@ -359,6 +359,7 @@ def publish_homebrew_recipe(homebrew_repo, version, content):
     """
     # TODO caller should use Repo.clone_from(homebrew_ssh_url, scratch_dir)
     # TODO caller should first get content using homebrew.py
+    # TODO option for homebrew-tap git repository
     recipe = 'flocker-{version}.rb'.format(version=version)
     FilePath(homebrew_repo.working_dir).child(recipe).setContent(content)
 
