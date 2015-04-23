@@ -12,7 +12,7 @@ from characteristic import attributes
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 
 from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
@@ -131,6 +131,14 @@ class VagrantNode(object):
     """
     Node run using VagrantRunner
     """
+    def provision(self, package_source, variants):
+        """
+        Provision the node.
+
+        Vagrant node starts with a provisioned image, so this is
+        a null operation.
+        """
+        return succeed(None)
 
 
 @implementer(INodeRunner)
@@ -254,13 +262,6 @@ class LibcloudRunner(object):
             yield remove_known_host(reactor, node.address)
             self.nodes.append(node)
             del node
-
-        commands = sequence([
-            node.provision(package_source=self.package_source,
-                           variants=self.variants)
-            for node in self.nodes
-        ])
-        yield perform(dispatcher, commands)
 
         returnValue(self.nodes)
 
@@ -390,6 +391,13 @@ class RunOptions(Options):
 @inlineCallbacks
 def do_cluster_acceptance_tests(reactor, runner, trial_args):
     nodes = yield runner.start_nodes(reactor, node_count=2)
+    commands = sequence([
+        node.provision(package_source=runner.package_source,
+                       variants=runner.variants)
+        for node in nodes
+    ])
+    yield perform(dispatcher, commands)
+
     yield perform(
         dispatcher,
         configure_cluster(control_node=nodes[0], agent_nodes=nodes))

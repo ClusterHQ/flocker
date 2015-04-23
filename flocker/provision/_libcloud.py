@@ -140,6 +140,16 @@ class INode(Interface):
     address = InterfaceAttribute('ip address for node')
     distribution = InterfaceAttribute('distribution on node')
 
+    def provision(package_source, variants):
+        """
+        Provision flocker on this node.
+
+        :param PackageSource package_source: The source from which to install
+            flocker.
+        :param set variants: The set of variant configurations to use when
+            provisioning
+        """
+
 
 @implementer(INode)
 @attributes([
