@@ -38,6 +38,7 @@ Homebrew
 hostname
 installable
 internet
+invalidations
 Kubernetes
 libswarm
 lifecycle
