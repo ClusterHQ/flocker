@@ -26,6 +26,8 @@ from ._model import (
     Manifestation, Dataset,
 )
 
+from ..common import BYTE_MULTIPLIERS
+
 # Map ``flocker.node.IRestartPolicy`` implementations to
 # ``restart_policy`` ``name`` strings found in Flocker's application.yml file.
 FLOCKER_RESTART_POLICY_POLICY_TO_NAME = {
@@ -147,10 +149,6 @@ def parse_storage_string(value):
     :returns: ``int`` representing the supplied value converted to bytes, e.g.
         input of "2G" (2 gigabytes) returns 2147483648.
     """
-    byte_multipliers = {
-        'K': 1024, 'M': 1048576,
-        'G': 1073741824, 'T': 1099511627776
-    }
     if not isinstance(value, types.StringTypes):
         raise ValueError("Value must be string, got {type}.".format(
             type=type(value).__name__))
@@ -165,7 +163,7 @@ def parse_storage_string(value):
     quantity = float(quantity)
     if unit is not None:
         unit = unit.upper()
-        quantity = quantity * byte_multipliers[unit]
+        quantity = quantity * BYTE_MULTIPLIERS[unit]
     quantity = int(math.ceil(quantity))
     return quantity
 
