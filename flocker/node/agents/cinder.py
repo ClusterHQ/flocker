@@ -69,9 +69,6 @@ def wait_for_volume(client, new_volume):
             if listed_volume.id == new_volume.id:
                 if listed_volume.status == 'available':
                     return listed_volume
-                else:
-                    print "STATUS", listed_volume.status
-                    print "METADATA", listed_volume.metadata
 
 
 @implementer(IBlockDeviceAPI)
