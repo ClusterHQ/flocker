@@ -65,4 +65,3 @@ def auto_threaded(interface, reactor, sync, threadpool):
             )
         return cls
     return _threaded_class_decorator
-
