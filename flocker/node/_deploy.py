@@ -484,7 +484,7 @@ class P2PManifestationDeployer(object):
                 available_manifestations.values())
 
             return [NodeState(
-                # XXX uuid=self.uuid,
+                uuid=self.uuid,
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,

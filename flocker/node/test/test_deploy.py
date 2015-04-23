@@ -976,6 +976,9 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
     """
     def setUp(self):
         self.volume_service = create_volume_service(self)
+        self.node_uuid = uuid4()
+        self.EMPTY_NODESTATE = NodeState(hostname=u"example.com",
+                                         uuid=self.node_uuid)
 
     DATASET_ID = unicode(uuid4())
     DATASET_ID2 = unicode(uuid4())
@@ -985,11 +988,12 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         Applications and ports are left as ``None`` in discovery results.
         """
         deployer = P2PManifestationDeployer(
-            u'example.com', self.volume_service)
+            u'example.com', self.volume_service, uuid=self.node_uuid)
         self.assertEqual(
             self.successResultOf(deployer.discover_state(
-                EMPTY_NODESTATE)),
+                self.EMPTY_NODESTATE)),
             [NodeState(hostname=deployer.hostname,
+                       uuid=deployer.uuid,
                        manifestations={}, paths={},
                        applications=None, used_ports=None)])
 
@@ -1010,14 +1014,25 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         return P2PManifestationDeployer(
             u'example.com',
             self.volume_service,
+            uuid=self.node_uuid
         )
+
+    def test_uuid(self):
+        """
+        The ``NodeState`` returned from discovery has same UUID as the
+        deployer.
+        """
+        deployer = self._setup_datasets()
+        nodes = self.successResultOf(
+            deployer.discover_state(self.EMPTY_NODESTATE))
+        self.assertEqual(nodes[0].uuid, deployer.uuid)
 
     def test_discover_datasets(self):
         """
         All datasets on the node are added to ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID: Manifestation(
@@ -1034,7 +1049,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID:
@@ -1067,8 +1082,9 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         api = P2PManifestationDeployer(
             u'example.com',
             self.volume_service,
+            uuid=self.node_uuid,
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(
             self.successResultOf(d)[0].manifestations[self.DATASET_ID],
