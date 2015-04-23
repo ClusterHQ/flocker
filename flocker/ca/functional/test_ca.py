@@ -120,6 +120,21 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         )
 
     @requireCA
+    def test_apiuser_certificate(self):
+        """
+        Test for ``flocker-ca create-api-certificate`` command.
+        Runs ``flocker-ca initialize`` followed by
+        ``flocker-ca create-api-certificate` and calls ``openssl``
+        to verify the generated control certificate and private key is
+        signed by the previously generated certificate authority.
+        """
+        flocker_ca("initialize", "mycluster")
+        flocker_ca("create-api-certificate", "alice")
+        self.assertTrue(
+            openssl_verify("cluster.crt", "alice.crt")
+        )
+
+    @requireCA
     def test_help_description(self):
         """
         The output of ``flocker-ca --help`` includes the helptext with
