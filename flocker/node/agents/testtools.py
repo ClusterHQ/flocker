@@ -7,36 +7,15 @@ import os
 import yaml
 
 from zope.interface.verify import verifyObject
-from zope.interface import implementer, Interface
+from zope.interface import implementer
 
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.python.components import proxyForInterface
 
-from .cinder import authenticated_cinder_client
+from .cinder import authenticated_cinder_client, ICinderVolumeManager
 # make_iblockdeviceapi_tests should really be here, but I want to keep the
 # branch size down
 from .test.test_blockdevice import make_iblockdeviceapi_tests
-
-
-class ICinderVolumeManager(Interface):
-    """
-    The parts of the ``cinder.client.Client.volumes`` that we use.
-    """
-    def create(size, metadata=None):
-        """
-        Create a new cinder volume and return a representation of that volume.
-        """
-
-    def list():
-        """
-        Return a list of all the cinder volumes known to this client; limited
-        by the access granted for a particular API key and the region.
-        """
-
-    def set_metadata(volume, metadata):
-        """
-        Set the metadata for a cinder volume.
-        """
 
 
 @implementer(ICinderVolumeManager)

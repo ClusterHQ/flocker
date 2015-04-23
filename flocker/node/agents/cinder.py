@@ -12,7 +12,7 @@ from keystoneclient.session import Session
 
 from cinderclient.client import Client
 
-from zope.interface import implementer
+from zope.interface import implementer, Interface
 
 from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume
 
@@ -36,6 +36,27 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # The key name used for identifying the Flocker dataset_id in the metadata for
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
+
+
+class ICinderVolumeManager(Interface):
+    """
+    The parts of the ``cinder.client.Client.volumes`` that we use.
+    """
+    def create(size, metadata=None):
+        """
+        Create a new cinder volume and return a representation of that volume.
+        """
+
+    def list():
+        """
+        Return a list of all the cinder volumes known to this client; limited
+        by the access granted for a particular API key and the region.
+        """
+
+    def set_metadata(volume, metadata):
+        """
+        Set the metadata for a cinder volume.
+        """
 
 
 def wait_for_volume(client, new_volume):
