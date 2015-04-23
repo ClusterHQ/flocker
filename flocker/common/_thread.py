@@ -1,9 +1,30 @@
-# FLOC-1549
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
+
+"""
+Some thread-related tools.
+"""
 
 from twisted.internet.threads import deferToThreadPool
 
 
-def _threaded_method(method_name, reactor_name, sync_name, threadpool_name):
+def _threaded_method(sync_name, method_name, reactor_name, threadpool_name):
+    """
+    Create a method that calls another method in a threadpool.
+
+    :param str sync_name: The name of the attribute of ``self`` on which to
+        look up the other method to run.  This is the "sync" object.
+    :param str method_name: The name of the method to look up on the "sync"
+        object.
+    :param str reactor_name: The name of the attribute of ``self`` referencing
+        the reactor to use to get results back to the calling thread.
+    :param str threadpool_name: The name of the attribute of ``self``
+        referencing a ``twisted.python.threadpool.ThreadPool`` instance to use
+        to run the method in a different thread.
+
+    :return: The new thread-using method.  It has the same signature as the
+             original method except it returns a ``Deferred`` that fires with
+             the original method's result.
+    """
     def _run_in_thread(self, *args, **kwargs):
         reactor = getattr(self, reactor_name)
         sync = getattr(self, sync_name)
@@ -40,7 +61,7 @@ def auto_threaded(interface, reactor, sync, threadpool):
     def _threaded_class_decorator(cls):
         for name in interface.names():
             setattr(
-                cls, name, _threaded_method(name, reactor, sync, threadpool)
+                cls, name, _threaded_method(sync, name, reactor, threadpool)
             )
         return cls
     return _threaded_class_decorator

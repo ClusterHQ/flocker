@@ -1,8 +1,8 @@
 # Copyright ClusterHQ Inc.  See LICENSE file for details.
 
-# """
-# Tests for ``flocker.common._thread``.
-# """
+"""
+Tests for ``flocker.common._thread``.
+"""
 
 from zope.interface import Interface, implementer
 
