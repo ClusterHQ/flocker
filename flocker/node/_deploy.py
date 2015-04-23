@@ -59,7 +59,7 @@ class IDeployer(Interface):
     :ivar unicode hostname: The hostname of the node this deployer is
         managing.
     """
-    uuid = Attribute("The UUID of thise node, a ``UUID`` instance.")
+    node_uuid = Attribute("The UUID of thise node, a ``UUID`` instance.")
     hostname = Attribute("The public IP address of this node.")
 
     def discover_state(local_state):
@@ -442,13 +442,13 @@ class P2PManifestationDeployer(object):
     :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
     """
-    def __init__(self, hostname, volume_service, uuid=None):
-        if uuid is None:
+    def __init__(self, hostname, volume_service, node_uuid=None):
+        if node_uuid is None:
             warn("UUID is required, this is for backwards compat with existing"
                  " tests only. If you see this in production code that's "
                  "a bug.", DeprecationWarning, stacklevel=2)
-            uuid = ip_to_uuid(hostname)
-        self.uuid = uuid
+            node_uuid = ip_to_uuid(hostname)
+        self.node_uuid = node_uuid
         self.hostname = hostname
         self.volume_service = volume_service
 
@@ -484,7 +484,7 @@ class P2PManifestationDeployer(object):
                 available_manifestations.values())
 
             return [NodeState(
-                uuid=self.uuid,
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,
@@ -504,7 +504,7 @@ class P2PManifestationDeployer(object):
         https://clusterhq.atlassian.net/browse/FLOC-1425 for leases, a
         better solution.
         """
-        local_state = cluster_state.get_node(self.uuid)
+        local_state = cluster_state.get_node(self.node_uuid)
         # We need to know applications (for now) to see if we should delay
         # deletion or handoffs. Eventually this will rely on leases instead.
         if local_state.applications is None:
@@ -522,7 +522,7 @@ class P2PManifestationDeployer(object):
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.
         dataset_changes = find_dataset_changes(
-            self.uuid, cluster_state, configuration)
+            self.node_uuid, cluster_state, configuration)
 
         resizing = [dataset for dataset in dataset_changes.resizing
                     if dataset.dataset_id not in in_use_datasets]
@@ -566,13 +566,14 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, hostname, docker_client=None, network=None, uuid=None):
-        if uuid is None:
+    def __init__(self, hostname, docker_client=None, network=None,
+                 node_uuid=None):
+        if node_uuid is None:
             warn("UUID is required, this is for backwards compat with existing"
                  " tests only. If you see this in production code that's "
                  "a bug.", DeprecationWarning, stacklevel=2)
-            uuid = ip_to_uuid(hostname)
-        self.uuid = uuid
+            node_uuid = ip_to_uuid(hostname)
+        self.node_uuid = node_uuid
         self.hostname = hostname
         if docker_client is None:
             docker_client = DockerClient()
@@ -609,7 +610,7 @@ class ApplicationNodeDeployer(object):
             # convergence agent for datasets will discover the information
             # and then we can proceed.
             return succeed([NodeState(
-                uuid=self.uuid,
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,
@@ -690,7 +691,7 @@ class ApplicationNodeDeployer(object):
                 ))
 
             return [NodeState(
-                uuid=self.uuid,
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=applications,
                 used_ports=self.network.enumerate_used_ports(),
@@ -715,7 +716,7 @@ class ApplicationNodeDeployer(object):
         """
         # We are a node-specific IDeployer:
         current_node_state = current_cluster_state.get_node(
-            self.uuid, hostname=self.hostname)
+            self.node_uuid, hostname=self.hostname)
         if current_node_state.applications is None:
             # We don't know current application state, so can't calculate
             # anything. This will be the case if we don't know the local

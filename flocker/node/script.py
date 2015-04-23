@@ -88,7 +88,8 @@ class ZFSAgentScript(object):
         # Soon we'll extract this from TLS certificate for node.  Until then
         # we'll just do a temporary hack (probably to be fixed in FLOC-1727).
         node_uuid = ip_to_uuid(ip)
-        deployer = P2PManifestationDeployer(ip, volume_service, uuid=node_uuid)
+        deployer = P2PManifestationDeployer(ip, volume_service,
+                                            node_uuid=node_uuid)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
         volume_service.setServiceParent(loop)
@@ -174,7 +175,7 @@ class AgentServiceFactory(PRecord):
 
     :ivar deployer_factory: A two-argument callable to create an
         ``IDeployer`` provider for this script.  The arguments are a
-        ``hostname`` keyword argument and a ``uuid`` keyword
+        ``hostname`` keyword argument and a ``node_uuid`` keyword
         argument. They must be passed by keyword.
     """
     deployer_factory = field(mandatory=True)
@@ -197,7 +198,7 @@ class AgentServiceFactory(PRecord):
         return AgentLoopService(
             reactor=reactor,
             # Temporary hack, to be fixed in FLOC-1727 probably:
-            deployer=self.deployer_factory(uuid=ip_to_uuid(ip),
+            deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
                                            hostname=ip),
             host=host, port=port,
         )

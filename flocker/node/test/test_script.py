@@ -100,7 +100,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         deployer = object()
 
         def factory(**kw):
-            if set(kw.keys()) != {"uuid", "hostname"}:
+            if set(kw.keys()) != {"node_uuid", "hostname"}:
                 raise TypeError("wrong arguments")
             return deployer
 
@@ -129,7 +129,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         """
         spied = []
 
-        def deployer_factory(uuid, hostname):
+        def deployer_factory(node_uuid, hostname):
             spied.append(hostname)
             return object()
 

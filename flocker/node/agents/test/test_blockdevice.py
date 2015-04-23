@@ -147,7 +147,7 @@ class BlockDeviceDeployerTests(
         ideployer_tests_factory(
             lambda test: BlockDeviceDeployer(
                 hostname=u"localhost",
-                uuid=uuid4(),
+                node_uuid=uuid4(),
                 block_device_api=loopbackblockdeviceapi_for_test(test)
             )
         )
@@ -166,7 +166,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.expected_uuid = uuid4()
         self.api = loopbackblockdeviceapi_for_test(self)
         self.deployer = BlockDeviceDeployer(
-            uuid=self.expected_uuid,
+            node_uuid=self.expected_uuid,
             hostname=self.expected_hostname,
             block_device_api=self.api,
             mountroot=mountroot_for_test(self),
@@ -196,7 +196,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             expected_paths[dataset_id] = mountpath
         expected = (
             NodeState(
-                uuid=deployer.uuid,
+                uuid=deployer.node_uuid,
                 hostname=deployer.hostname,
                 manifestations={
                     m.dataset_id: m for m in expected_manifestations},
@@ -412,7 +412,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         api.attach_volume(volume.blockdevice_id, self.NODE)
 
         deployer = BlockDeviceDeployer(
-            uuid=self.NODE_UUID,
+            node_uuid=self.NODE_UUID,
             hostname=self.NODE,
             block_device_api=api,
         )
@@ -453,7 +453,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         volume = api.attach_volume(volume.blockdevice_id, self.NODE)
 
         deployer = BlockDeviceDeployer(
-            uuid=self.NODE_UUID,
+            node_uuid=self.NODE_UUID,
             hostname=self.NODE,
             block_device_api=api,
         )
@@ -499,7 +499,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         deployer = BlockDeviceDeployer(
             # This deployer is responsible for *other_node*, not node.
             hostname=other_node,
-            uuid=uuid4(),
+            node_uuid=uuid4(),
             block_device_api=api,
         )
 
@@ -542,7 +542,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         state = DeploymentState(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
-            uuid=uuid4(),
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
         )
@@ -573,7 +573,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         state = DeploymentState(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
-            uuid=uuid,
+            node_uuid=uuid,
             hostname=node,
             block_device_api=api,
         )
@@ -609,7 +609,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
-            uuid=uuid4(),
+            node_uuid=uuid4(),
             hostname=local_hostname,
             block_device_api=api,
         )
@@ -1619,7 +1619,7 @@ class DestroyBlockDeviceDatasetTests(
         mount(device, mountpoint)
 
         deployer = BlockDeviceDeployer(
-            uuid=uuid4(),
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
             mountroot=mountroot,
@@ -1668,7 +1668,7 @@ class UnmountBlockDeviceTests(make_state_change_tests(_make_unmount)):
         check_output([b"mount", device.path, mountpoint.path])
 
         deployer = BlockDeviceDeployer(
-            uuid=uuid4(),
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
             mountroot=mountroot,
@@ -1713,7 +1713,7 @@ class DetachVolumeTests(make_state_change_tests(_make_detach)):
         volume = api.attach_volume(volume.blockdevice_id, node)
 
         deployer = BlockDeviceDeployer(
-            uuid=uuid4(),
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
         )
@@ -1751,7 +1751,7 @@ class DestroyVolumeTests(make_state_change_tests(_make_destroy_volume)):
         )
 
         deployer = BlockDeviceDeployer(
-            uuid=uuid4(),
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
         )
@@ -1797,7 +1797,7 @@ class CreateBlockDeviceDatasetTests(make_state_change_tests(_make_create)):
         )
 
         deployer = BlockDeviceDeployer(
-            uuid=uuid4(),
+            node_uuid=uuid4(),
             hostname=host,
             block_device_api=api,
             mountroot=mountroot
