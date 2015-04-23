@@ -155,7 +155,7 @@ class NodeInitTests(make_with_init_tests(
         If no UUID is given, a UUID is generated from the hostname.
 
         This is done for backwards compatibility with existing tests, and
-        should be removed enveutally.
+        should be removed eventually.
         """
         node = Node(hostname=u'1.2.3.4')
         self.assertIsInstance(node.uuid, UUID)
@@ -254,7 +254,7 @@ class NodeStateTests(SynchronousTestCase):
         If no UUID is given, a UUID is generated from the hostname.
 
         This is done for backwards compatibility with existing tests, and
-        should be removed enveutally.
+        should be removed eventually.
         """
         node = NodeState(hostname=u'1.2.3.4')
         self.assertIsInstance(node.uuid, UUID)
