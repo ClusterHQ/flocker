@@ -65,12 +65,14 @@ def task_install_cli(distribution, package_source=PackageSource()):
             # Ensure add-apt-repository command is available
             run_from_args([
                 "apt-get", "-y", "install", "software-properties-common"]),
+            run_from_args([
+                'add-apt-repository', '-y',
+                'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'  # noqa
+                ])
             ]
 
-        # Add ClusterHQ repo for installation of Flocker packages.
-        # TODO - this should be replaced by official repo when
-        # available. See [FLOC-1065]
         if base_url:
+            # Add BuildBot repo for running tests
             commands.append(run_from_args([
                 "add-apt-repository", "-y", "deb {} /".format(base_url)]))
 
