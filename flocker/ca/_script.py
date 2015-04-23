@@ -95,13 +95,13 @@ class NodeCertificateOptions(PrettyOptions):
     Command line options for ``flocker-ca create-node-certificate``.
     """
 
-    longdesc = """Create a new certificate for a node agent.
+    helptext = """Create a new certificate for a node agent.
 
     Creates a certificate signed by a previously generated certificate
     authority (see flocker-ca initialize command for more information).
     """
 
-    synopsis = "[OPTIONS]"
+    synopsis = "[options]"
 
     optParameters = [
         ['inputpath', 'i', os.getcwd(),

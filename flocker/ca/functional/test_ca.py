@@ -4,6 +4,8 @@
 Functional tests for ``flocker-ca`` CLI.
 """
 
+import re
+
 from subprocess import check_output, CalledProcessError
 
 from twisted.python.procutils import which
@@ -97,6 +99,24 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         flocker_ca("create-control-certificate")
         self.assertTrue(
             openssl_verify("cluster.crt", "control-service.crt")
+        )
+
+    @requireCA
+    def test_node_certificate(self):
+        """
+        Test for ``flocker-ca create-node-certificate`` command.
+        Runs ``flocker-ca initialize`` followed by
+        ``flocker-ca create-node-certificate` and calls ``openssl``
+        to verify the generated node certificate and private key is
+        signed by the previously generated certificate authority.
+        """
+        flocker_ca("initialize", "mycluster")
+        status, output = flocker_ca("create-node-certificate")
+        # Find the generated file name with UUID from the output.
+        file_pattern = re.compile("([a-zA-Z0-9\-]*\.crt)")
+        file_name = file_pattern.search(output).groups()[0]
+        self.assertTrue(
+            openssl_verify("cluster.crt", file_name)
         )
 
     @requireCA
