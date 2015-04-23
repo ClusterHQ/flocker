@@ -30,7 +30,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
-from twisted.python.reflect import fullyQualifiedName, prefixedMethodNames
+from twisted.python.reflect import prefixedMethodNames
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
@@ -849,19 +849,19 @@ def run_process(command, *args, **kwargs):
     return result
 
 
-def todo_except(supported_tests):
+def skip_except(supported_tests):
     """
-    Mark all the ``test_`` methods in ``TestCase`` as ``todo`` unless the test
+    Mark all the ``test_`` methods in ``TestCase`` as ``skip`` unless the test
     method names are in ``supported_tests``.
 
     :param list supported_tests: The names of the tests that are expected to
         pass.
     """
     test_prefix = 'test_'
-    skip_or_todo = 'todo'
-    skip_todo = os.environ.get('SKIP_TODO')
-    if skip_todo is not None:
-        skip_or_todo = 'skip'
+    skip_or_todo = 'skip'
+    noskip = os.environ.get('NOSKIP')
+    if noskip is not None:
+        return lambda test_case: test_case
 
     def decorator(test_case):
         test_method_names = [

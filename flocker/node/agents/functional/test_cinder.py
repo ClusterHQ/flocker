@@ -7,7 +7,7 @@ cluster.
 
 from uuid import uuid4
 
-from ....testtools import todo_except
+from ....testtools import skip_except
 from ..cinder import cinder_api
 from ..testtools import (
     make_iblockdeviceapi_tests, tidy_cinder_client_for_test
@@ -27,7 +27,7 @@ def cinderblockdeviceapi_for_test(test_case):
 
 
 # This branch only implements the create and list parts of  ``IBlockDeviceAPI``
-@todo_except(
+@skip_except(
     supported_tests=[
         'test_interface',
         'test_created_is_listed',
