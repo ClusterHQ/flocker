@@ -61,6 +61,7 @@ def _get_external_ip(host, port):
     Get an external IP address for this node that can in theory connect to
     the given host and port.
 
+    See https://clusterhq.atlassian.net/browse/FLOC-1751 for better solution.
     :param host: A host to connect to.
     :param port: The port to connect to.
 
