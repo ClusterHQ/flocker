@@ -31,6 +31,8 @@ from ..blockdevice import (
     _losetup_list_parse, _losetup_list, _blockdevicevolume_from_dataset_id,
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
+    IBlockDeviceAsyncAPI,
+    _SyncToThreadedAsyncAPIAdapter,
 )
 
 from ... import IStateChange, run_state_change, in_parallel
@@ -654,6 +656,30 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         self.assertEqual(expected_changes, actual_changes)
 
 
+class BlockDeviceInterfaceTests(SynchronousTestCase):
+    """
+    Tests for ``IBlockDeviceAPI`` and ``IBlockDeviceAsyncAPI``.
+    """
+    def test_names(self):
+        """
+        The two interfaces have all of the same names defined.
+        """
+        self.assertItemsEqual(
+            list(IBlockDeviceAPI.names()),
+            list(IBlockDeviceAsyncAPI.names()),
+        )
+
+    def test_same_signatures(self):
+        """
+        Methods of the two interfaces all have the same signature.
+        """
+        names = list(IBlockDeviceAPI.names())
+        self.assertItemsEqual(
+            list(IBlockDeviceAPI[name] for name in names),
+            list(IBlockDeviceAsyncAPI[name] for name in names),
+        )
+
+
 class IBlockDeviceAPITestsMixin(object):
     """
     Tests to perform on ``IBlockDeviceAPI`` providers.
@@ -1163,22 +1189,50 @@ def make_iblockdeviceapi_tests(blockdevice_api_factory):
 
     return Tests
 
-# FLOC-1549
-# def make_iblockdeviceasyncapi_tests(blockdeviceasync_api_factory):
-#     # Test the interface.  Probably nothing else for now.  If we build a native
-#     # async implementation (not a threadpool-based wrapper) we'll want to
-#     # actually test the functionality.
+
+class IBlockDeviceAsyncAPITestsMixin(object):
+    """
+    Tests to perform on ``IBlockDeviceAsyncAPI`` providers.
+    """
+    def test_interface(self):
+        """
+        The API object provides ``IBlockDeviceAsyncAPI``.
+        """
+        self.assertTrue(
+            verifyObject(IBlockDeviceAsyncAPI, self.api)
+        )
 
 
-# FLOC-1549
-# class SyncToThreadedAsyncAPIAdapterTests(
-#     make_iblockdeviceasyncapi_tests(
-#         lambda test_case:
-#             _SyncToThreadedAsyncAPIAdapter(loopbackblockdeviceapi_for_test(
-#                 test_case
-#             )
-#     )
-# ):
+def make_iblockdeviceasyncapi_tests(blockdeviceasync_api_factory):
+    """
+    :return: A ``TestCase`` with tests that will be performed on the supplied
+        ``IBlockDeviceAsyncAPI`` provider.  These tests are not exhaustive
+        because we currently assume ``make_iblockdeviceapi_tests`` will be used
+        on the wrapped object.
+    """
+    class Tests(IBlockDeviceAsyncAPITestsMixin, SynchronousTestCase):
+        def setUp(self):
+            self.api = blockdeviceasync_api_factory(test_case=self)
+
+    return Tests
+
+
+class SyncToThreadedAsyncAPIAdapterTests(
+    make_iblockdeviceasyncapi_tests(
+        lambda test_case:
+            _SyncToThreadedAsyncAPIAdapter(
+                _reactor=None,
+                _threadpool=None,
+                # Okay to bypass loopbackblockdeviceapi_for_test here as long
+                # as we don't call any methods on the object.  This lets these
+                # tests run even as non-root.
+                _sync=LoopbackBlockDeviceAPI.from_path(test_case.mktemp())
+            )
+    )
+):
+    """
+    Tests for ``_SyncToThreadedAsyncAPIAdapter``.
+    """
 
 
 def losetup_detach(device_file):
