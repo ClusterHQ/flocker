@@ -42,9 +42,14 @@ class NonThreadPool(object):
         try:
             result = func(*args, **kw)
         except:
-            onResult(Failure())
+            onResult(False, Failure())
         else:
-            onResult(result)
+            onResult(True, result)
+
+
+class NonReactor(object):
+    def callFromThread(self, f, *args, **kwargs):
+        f(*args, **kwargs)
 
 
 class AutoThreadedTests(SynchronousTestCase):
@@ -52,8 +57,8 @@ class AutoThreadedTests(SynchronousTestCase):
     Tests for ``flocker.common.auto_threaded``.
     """
     def setUp(self):
-        self.reactor = object()
-        self.threadpool = object()
+        self.reactor = NonReactor()
+        self.threadpool = NonThreadPool()
         # Some unique objects that support ``+``
         self.a = [object()]
         self.b = [object()]
@@ -104,8 +109,8 @@ class AutoThreadedTests(SynchronousTestCase):
 
 class AutoThreadedIntegrationTests(TestCase):
     """
-    Tests for ``auto_threaded`` in combination with a real thread pool,
-    ``twisted.python.threads.ThreadPool``.
+    Tests for ``auto_threaded`` in combination with a real reactor and a real
+    thread pool, ``twisted.python.threads.ThreadPool``.
     """
     def test_integration(self):
         """
