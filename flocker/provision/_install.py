@@ -221,7 +221,7 @@ FLOCKER_CONTROL_NODE = %(control_node)s
 
 def task_enable_flocker_agent(node_name, control_node):
     """
-    Configure and enable flocker-agent.
+    Configure and enable the flocker agents.
 
     :param bytes node_name: The name this node is known by.
     :param bytes control_node: The address of the control agent.
@@ -236,6 +236,8 @@ def task_enable_flocker_agent(node_name, control_node):
         ),
         run_from_args(['systemctl', 'enable', 'flocker-agent']),
         run_from_args(['systemctl', 'start', 'flocker-agent']),
+        run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
+        run_from_args(['systemctl', 'start', 'flocker-container-agent']),
     ])
 
 
@@ -294,9 +296,6 @@ def task_install_flocker(
 
 
 ACCEPTANCE_IMAGES = [
-    "clusterhq/elasticsearch",
-    "clusterhq/logstash",
-    "clusterhq/kibana",
     "postgres:latest",
     "clusterhq/mongodb:latest",
 ]
@@ -416,7 +415,8 @@ def provision(distribution, package_source, variants):
 
 def configure_cluster(control_node, agent_nodes):
     """
-    Configure flocker-control and flocker-agent on a collection of nodes.
+    Configure flocker-control, flocker-agent and flocker-container-agent
+    on a collection of nodes.
 
     :param bytes control_node: The address of the control node.
     :param list agent_nodes: List of addresses of agent nodes.
@@ -439,29 +439,5 @@ def configure_cluster(control_node, agent_nodes):
                     ),
                 ),
             ]) for node in agent_nodes
-        ])
-    ])
-
-
-def stop_cluster(control_node, agent_nodes):
-    """
-    Stop flocker-control and flocker-agent on a collection of nodes.
-
-    :param bytes control_node: The address of the control node.
-    :param list agent_nodes: List of addresses of agent nodes.
-    """
-    return sequence([
-        run_remotely(
-            username='root',
-            address=control_node,
-            commands=run_from_args(['systemctl', 'stop', 'flocker-control']),
-        ),
-        sequence([
-            run_remotely(
-                username='root',
-                address=node,
-                commands=run_from_args(['systemctl', 'stop', 'flocker-agent']),
-            )
-            for node in agent_nodes
         ])
     ])

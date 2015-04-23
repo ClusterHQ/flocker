@@ -178,19 +178,17 @@ def load_certificate_from_path(path, key_filename, cert_filename):
 
 class FlockerCredential(PRecord):
     """
-    Base class for Flocker credentials, comprising a ceritificate and
+    Base class for Flocker credentials, comprising a certificate and
     public/private key pair.
 
     :ivar FilePath path: A ``FilePath`` representing the absolute path of
         a directory containing the certificate and key files.
-    :ivar Certificate certificate: A signed certificate, populated only by
-        loading from ``path``.
-    :ivar FlockerKeyPair keypair: A private/public keypair, populated only by
-        loading from ``path``.
+    :ivar Certificate certificate: A signed certificate.
+    :ivar FlockerKeyPair keypair: A private/public keypair.
     """
     path = field(mandatory=True)
-    certificate = field(mandatory=True, initial=None)
-    keypair = field(mandatory=True, initial=None)
+    certificate = field(mandatory=True)
+    keypair = field(mandatory=True)
 
     def write_credential_files(self, key_filename, certificate_filename):
         """
@@ -294,8 +292,8 @@ class NodeCredential(FlockerCredential):
 
 class ControlCredential(FlockerCredential):
     """
-    A certificate for a control service, signed by a supplied certificate
-    authority.
+    A certificate and key pair for a control service, signed by a supplied
+    certificate authority.
     """
     @classmethod
     def from_path(cls, path):
