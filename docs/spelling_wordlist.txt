@@ -54,6 +54,7 @@ online
 pem
 petabyte
 petabytes
+plugin
 plugins
 pre
 programmatically

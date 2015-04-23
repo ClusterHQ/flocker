@@ -46,7 +46,7 @@ def task_client_smoke_test():
     return run_from_args(['flocker', '--version'])
 
 
-def task_install_cli(distribution, package_source):
+def task_install_cli(distribution, package_source=PackageSource()):
     """
     Install flocker CLI on a distribution.
 
