@@ -201,6 +201,8 @@ def flocker_container_agent_main():
     """
     service_factory = AgentServiceFactory(
         # TODO this needs to be something which parses Options
+        # to get a hostname, the only necessary parameter for
+        # ApplicationNodeDeployer
         deployer_factory=ApplicationNodeDeployer
     ).get_service
     agent_script = AgentScript(service_factory=service_factory)

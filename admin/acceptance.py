@@ -282,6 +282,10 @@ class RunOptions(Options):
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
          'Base URL of build server to download RPMs from'],
+        # TODO this requires a buildbot branch which sets the volume
+        # backend when run-acceptance-tests is run
+        ['volume-backend', None, None,
+         'The type of volume backend to use.'],
     ]
 
     optFlags = [
@@ -392,7 +396,10 @@ def main(reactor, args, base_path, top_level):
         nodes = yield runner.start_nodes(reactor)
         yield perform(
             dispatcher,
-            configure_cluster(control_node=nodes[0], agent_nodes=nodes))
+            configure_cluster(
+                control_node=nodes[0],
+                agent_nodes=nodes,
+                volume_backend=options['volume-backend']))
         result = yield run_tests(
             reactor=reactor,
             nodes=nodes,
