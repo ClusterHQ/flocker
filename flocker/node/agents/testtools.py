@@ -3,6 +3,7 @@
 """
 Test helpers for ``flocker.node.agents``.
 """
+
 import os
 import yaml
 
@@ -23,15 +24,22 @@ class TidyCinderVolumeManager(
         proxyForInterface(ICinderVolumeManager, 'original')
 ):
     def __init__(self, original):
+        """
+        :param ICinderVolumeManager original: An instance of
+            ``cinderclient.v2.volumes.VolumeManager``.
+        """
         self.original = original
         self._created_volumes = []
 
     def create(self, size, metadata=None, type="SATA"):
         """
-        Call the original VolumeManager and record the volume so that it can be
-        cleaned up later.
+        Call the original ``VolumeManager.create`` and record the returned
+        ``Volume`` so that it can be cleaned up later.
+
+        See ``cinderclient.v2.volumes.VolumeManager.create`` for parameter and
+        return type documentation.
         """
-        volume = self.original.create(size=size, metadata=metadata)
+        volume = self.original.create(size=size, metadata=metadata, type=type)
         self._created_volumes.append(volume)
         return volume
 
@@ -39,6 +47,9 @@ class TidyCinderVolumeManager(
         """
         Remove all the volumes that have been created by this VolumeManager
         wrapper.
+
+        XXX: Some tests will have deleted the volume already, this method
+        should probably deal with already deleted volumes.
         """
         for volume in self._created_volumes:
             self.original.delete(volume)
@@ -49,6 +60,9 @@ class ICinderVolumeManagerTestsMixin(object):
     Tests for ``ICinderVolumeManager`` implementations.
     """
     def test_interface(self):
+        """
+        ``client`` provides ``ICinderVolumeManager``.
+        """
         self.assertTrue(verifyObject(ICinderVolumeManager, self.client))
 
 
@@ -66,10 +80,15 @@ def make_icindervolumemanager_tests(client_factory):
 
 def cinder_client_from_environment():
     """
-    Create a ``cinder.client.Client`` using credentials from a config file path
-    which may be supplied as an environment variable.
-    Default to ``acceptance.yml`` in the current user home directory, since
+    Create a ``cinderclient.v2.client.Client`` using credentials from a config
+    file path which may be supplied as an environment variable.
+    Default to ``~/acceptance.yml`` in the current user home directory, since
     that's where buildbot puts its acceptance test credentials file.
+
+    :returns: An instance of ``cinderclient.v2.client.Client`` authenticated
+        using Rackspace credentials and against the Rackspace Keystone server.
+    :raises: ``SkipTest`` if a ``CLOUD_CONFIG_PATH`` was not set and the
+        default config file could not be read.
     """
     default_config_file_path = os.path.expanduser('~/acceptance.yml')
     config_file_path = os.environ.get('CLOUD_CONFIG_PATH')
@@ -91,15 +110,17 @@ def cinder_client_from_environment():
     return authenticated_cinder_client(
         username=rackspace_config['username'],
         api_key=rackspace_config['key'],
-        region=rackspace_config['region'],
+        # XXX: Seems that Rackspace region slugs are case sensitive...when used
+        # with python-keystone anyway.
+        region=rackspace_config['region'].upper(),
     )
 
 
 def tidy_cinder_client_for_test(test_case):
     """
-    Return a ``cinder.client.Client`` whose ``volumes`` API is a wrapped by a
-    ``TidyCinderVolumeManager`` and register a ``test_case`` cleanup callback
-    to remove any volumes that are created during the course of a test.
+    Return a ``cinderclient.v2.client.Client`` whose ``volumes`` API is a
+    wrapped by a ``TidyCinderVolumeManager`` and register a ``test_case``
+    cleanup callback to remove any volumes that are created during each test.
     """
     client = cinder_client_from_environment()
     client.volumes = TidyCinderVolumeManager(client.volumes)
