@@ -24,6 +24,8 @@ from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume
 # received: \'size\' parameter must be between 75 and 1024", "code":
 # 400}}'"
 # Let's assume that we only support SATA volumes for now.
+# Eventually we'll validate size at configuration time based on backend limits.
+# See https://clusterhq.atlassian.net/browse/FLOC-1579
 RACKSPACE_MINIMUM_BLOCK_SIZE = int(GB(75).to_Byte().value)
 RACKSPACE_MAXIMUM_BLOCK_SIZE = int(TB(1).to_Byte().value)
 
