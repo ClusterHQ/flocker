@@ -5,7 +5,7 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 from uuid import UUID
 
-from bitmath import Byte, GB
+from bitmath import Byte, GB, TB
 
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from keystoneclient.session import Session
@@ -25,8 +25,6 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
-GIBIBYTE = 2 ** 30
-
 
 # Rackspace public docs say "The minimum size for a Cloud Block Storage volume
 # is 50 GB for an SSD volume or 75GB for an SATA volume. The maximum volume
@@ -37,6 +35,7 @@ GIBIBYTE = 2 ** 30
 # 400}}'"
 # Let's assume that we only support SATA volumes for now.
 RACKSPACE_MINIMUM_BLOCK_SIZE = GB(75)
+RACKSPACE_MAXIMUM_BLOCK_SIZE = TB(1)
 
 
 def wait_for_volume(client, new_volume):
@@ -102,7 +101,11 @@ class CinderBlockDeviceAPI(object):
         # We supply metadata here and it'll be included in the returned cinder
         # volume record, but it'll be lost by Rackspace, so...
         requested_volume = self.cinder_client.volumes.create(
-            size=max(RACKSPACE_MINIMUM_BLOCK_SIZE, Byte(size).to_GB()).value,
+            size=max(
+                RACKSPACE_MINIMUM_BLOCK_SIZE,
+                Byte(size),
+                RACKSPACE_MAXIMUM_BLOCK_SIZE
+            ).to_GB().value,
             metadata=metadata
         )
         created_volume = wait_for_volume(self.cinder_client, requested_volume)
