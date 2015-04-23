@@ -63,7 +63,7 @@ def remove_known_host(reactor, hostname):
 
 def run_client_tests(reactor, node, trial_args):
     """
-    Run the acceptance tests.
+    Run the client acceptance tests.
 
     :param INode node: The node to run client acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
@@ -75,6 +75,8 @@ def run_client_tests(reactor, node, trial_args):
         trial_args = ['flocker.acceptance']
 
     def check_result(f):
+        # TODO do we need to trap ProcessTerminated here?
+        # Test this when FLOC-1674 is merged
         f.trap(ProcessTerminated)
         if f.value.exitCode is not None:
             return f.value.exitCode
@@ -93,7 +95,7 @@ def run_client_tests(reactor, node, trial_args):
 
 def run_cluster_tests(reactor, nodes, control_node, agent_nodes, trial_args):
     """
-    Run the acceptance tests.
+    Run the cluster acceptance tests.
 
     :param list nodes: The list of INode nodes to run the acceptance
         tests against.
