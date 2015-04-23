@@ -160,7 +160,10 @@ class VagrantRunner(object):
                              % (', '.join(self.variants),))
 
     @inlineCallbacks
-    def start_nodes(self, reactor):
+    def start_nodes(self, reactor, node_count):
+        if node_count != 2:
+            raise NotImplementedError('Vagrant start_nodes must start 2 nodes')
+
         # Destroy the box to begin, so that we are guaranteed
         # a clean build.
         yield run(
@@ -221,7 +224,7 @@ class LibcloudRunner(object):
         self.creator = creator
 
     @inlineCallbacks
-    def start_nodes(self, reactor):
+    def start_nodes(self, reactor, node_count):
         """
         Provision cloud nodes for acceptance tests.
 
@@ -234,7 +237,7 @@ class LibcloudRunner(object):
         }
         metadata.update(self.metadata)
 
-        for index in range(2):
+        for index in range(node_count):
             name = "acceptance-test-%s-%d" % (self.creator, index)
             try:
                 print "Creating node %d: %s" % (index, name)
@@ -403,7 +406,7 @@ def main(reactor, args, base_path, top_level):
     runner = options.runner
 
     try:
-        nodes = yield runner.start_nodes(reactor)
+        nodes = yield runner.start_nodes(reactor, node_count=2)
         yield perform(
             dispatcher,
             configure_cluster(control_node=nodes[0], agent_nodes=nodes))
