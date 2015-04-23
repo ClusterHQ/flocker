@@ -14,7 +14,7 @@ import psutil
 
 from zope.interface.verify import verifyObject
 
-from pyrsistent import InvariantException
+from pyrsistent import InvariantException, PRecord, field
 
 from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
@@ -34,8 +34,9 @@ from ..blockdevice import (
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
 )
+
 from ..cinder import RACKSPACE_MINIMUM_BLOCK_SIZE
-from ... import InParallel, IStateChange
+from ... import IStateChange, run_state_change, in_parallel
 from ...testtools import ideployer_tests_factory, to_node
 from ....testtools import run_process
 from ....control import (
@@ -53,6 +54,43 @@ if not platform.isLinux():
     # platforms.  Rather than skipping each test module individually it would
     # be nice to have some single global solution.  FLOC-1560, FLOC-1205
     skip = "flocker.node.agents.blockdevice is only supported on Linux"
+
+
+class _SizeInfo(PRecord):
+    """
+    :ivar int actual: The number of bytes allocated in the filesystem to a
+        file, as computed by counting block size.  A sparse file may have less
+        space allocated to it than might be expected given just its reported
+        size.
+    :ivar int reported: The size of the file as a number of bytes, as computed
+        by the apparent position of the end of the file (ie, what ``stat``
+        reports).
+    """
+    actual = field(type=int, mandatory=True)
+    reported = field(type=int, mandatory=True)
+
+
+def get_size_info(api, volume):
+    """
+    Retrieve information about the size of the backing file for the given
+    volume.
+
+    :param LoopbackBlockDeviceAPI api: The loopback backend to use to retrieve
+        the size information.
+    :param BlockDeviceVolume volume: The volume the size of which to look up.
+
+    :return: A ``_SizeInfo`` giving information about actual storage and
+        reported size of the backing file for the given volume.
+    """
+    backing_file = api._root_path.descendant(
+        ['unattached', volume.blockdevice_id]
+    )
+    # Get actual number of 512 byte blocks used by the file.  See
+    # http://stackoverflow.com/a/3212102
+    backing_file.restat()
+    actual = backing_file.statinfo.st_blocks * 512
+    reported = backing_file.getsize()
+    return _SizeInfo(actual=actual, reported=reported)
 
 
 def make_filesystem(device, block_device):
@@ -380,7 +418,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[]),
+            in_parallel(changes=[]),
             changes
         )
 
@@ -420,7 +458,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[
+            in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ]),
             changes
@@ -464,12 +502,12 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
         self.assertEqual(
-            InParallel(changes=[]),
+            in_parallel(changes=[]),
             changes
         )
 
 
-class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
+class BlockDeviceDeployerCreationCalculateChangesTests(
         SynchronousTestCase
 ):
     """
@@ -502,7 +540,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             block_device_api=api,
         )
         changes = deployer.calculate_changes(configuration, state)
-        self.assertEqual(InParallel(changes=[]), changes)
+        self.assertEqual(in_parallel(changes=[]), changes)
 
     def test_no_devices_one_dataset(self):
         """
@@ -532,7 +570,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
         changes = deployer.calculate_changes(configuration, state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
         self.assertEqual(
-            InParallel(
+            in_parallel(
                 changes=[
                     CreateBlockDeviceDataset(
                         dataset=dataset, mountpoint=mountpoint
@@ -614,7 +652,7 @@ class BlockDeviceDeployerCreationCalculateNecessaryStateChangesTests(
             desired_configuration
         )
 
-        expected_changes = InParallel(changes=[])
+        expected_changes = in_parallel(changes=[])
 
         self.assertEqual(expected_changes, actual_changes)
 
@@ -640,7 +678,7 @@ class IBlockDeviceAPITestsMixin(object):
 
     def test_created_is_listed(self):
         """
-        ``create_volume`` returns a ``BlockVolume`` that is returned by
+        ``create_volume`` returns a ``BlockDeviceVolume`` that is returned by
         ``list_volumes``.
         """
         dataset_id = uuid4()
@@ -651,7 +689,8 @@ class IBlockDeviceAPITestsMixin(object):
 
     def test_listed_volume_attributes(self):
         """
-        ``list_volumes`` returns ``BlockVolume`` s that have a dataset_id.
+        ``list_volumes`` returns ``BlockDeviceVolume`` s that have the same
+        dataset_id and size as was passed to ``create_volume``.
         """
         expected_dataset_id = uuid4()
         self.api.create_volume(
@@ -659,18 +698,25 @@ class IBlockDeviceAPITestsMixin(object):
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
         [listed_volume] = self.api.list_volumes()
-        self.assertEqual(expected_dataset_id, listed_volume.dataset_id)
+        self.assertEqual(
+            (expected_dataset_id, REALISTIC_BLOCKDEVICE_SIZE),
+            (listed_volume.dataset_id, listed_volume.size)
+        )
 
     def test_created_volume_attributes(self):
         """
-        ``create_volume`` returns a ``BlockVolume`` that has a dataset_id
+        ``create_volume`` returns a ``BlockDeviceVolume`` that has a dataset_id
+        and a size.
         """
         expected_dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=expected_dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        self.assertEqual(expected_dataset_id, new_volume.dataset_id)
+        self.assertEqual(
+            (expected_dataset_id, REALISTIC_BLOCKDEVICE_SIZE),
+            (new_volume.dataset_id, new_volume.size)
+        )
 
     def test_attach_unknown_volume(self):
         """
@@ -738,7 +784,8 @@ class IBlockDeviceAPITestsMixin(object):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
+            size=REALISTIC_BLOCKDEVICE_SIZE
+        )
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
@@ -759,7 +806,8 @@ class IBlockDeviceAPITestsMixin(object):
         expected_host = u'192.0.2.123'
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE)
+            size=REALISTIC_BLOCKDEVICE_SIZE
+        )
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
@@ -1054,6 +1102,58 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
+    def test_resize_unknown_volume(self):
+        """
+        ``resize_volume`` raises ``UnknownVolume`` if passed a
+        ``blockdevice_id`` does not exist.
+        """
+        blockdevice_id = unicode(uuid4())
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.resize_volume,
+            blockdevice_id=blockdevice_id,
+            size=REALISTIC_BLOCKDEVICE_SIZE * 10,
+        )
+        self.assertEqual(exception.args, (blockdevice_id,))
+
+    def test_resize_volume_listed(self):
+        """
+        ``resize_volume`` returns when the ``BlockDeviceVolume`` has been
+        resized and ``list_volumes`` then reports the ``BlockDeviceVolume``
+        with the new size.
+        """
+        unrelated_volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        original_volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        new_size = REALISTIC_BLOCKDEVICE_SIZE * 8
+        self.api.resize_volume(original_volume.blockdevice_id, new_size)
+        larger_volume = original_volume.set(size=new_size)
+
+        self.assertItemsEqual(
+            [unrelated_volume, larger_volume],
+            self.api.list_volumes()
+        )
+
+    def test_resize_destroyed_volume(self):
+        """
+        ``resize_volume`` raises ``UnknownVolume`` if the supplied
+        ``blockdevice_id`` was associated with a volume but that volume has
+        been destroyed.
+        """
+        volume = self._destroyed_volume()
+        exception = self.assertRaises(
+            UnknownVolume,
+            self.api.resize_volume,
+            blockdevice_id=volume.blockdevice_id,
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
+
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
     """
@@ -1141,6 +1241,9 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             (attached_directory.exists(), unattached_directory.exists())
         )
 
+    def setUp(self):
+        self.api = loopbackblockdeviceapi_for_test(test_case=self)
+
     def test_initialise_directories(self):
         """
         ``from_path`` creates a directory structure if it doesn't already
@@ -1175,25 +1278,65 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         ``create_volume`` creates sparse files.
         """
-        api = loopbackblockdeviceapi_for_test(test_case=self)
         # 1GB
         apparent_size = REALISTIC_BLOCKDEVICE_SIZE
-        volume = api.create_volume(
+        volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=apparent_size
         )
-        backing_file = api._root_path.descendant(
-            ['unattached', volume.blockdevice_id]
-        )
-        # Get actual number of 512 byte blocks used by the file.
-        # See http://stackoverflow.com/a/3212102
-        actual_size = os.stat(backing_file.path).st_blocks * 512
-        reported_size = backing_file.getsize()
+        size = get_size_info(self.api, volume)
 
         self.assertEqual(
             (0, apparent_size),
-            (actual_size, reported_size)
+            (size.actual, size.reported)
         )
+
+    def test_resize_grow_sparse(self):
+        """
+        ``resize_volume`` extends backing files sparsely.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        apparent_size = volume.size * 2
+        self.api.resize_volume(
+            volume.blockdevice_id, apparent_size,
+        )
+        size = get_size_info(self.api, volume)
+        self.assertEqual(
+            (0, apparent_size),
+            (size.actual, size.reported)
+        )
+
+    def test_resize_data_preserved(self):
+        """
+        ``resize_volume`` does not modify the data contained inside the backing
+        file.
+        """
+        start_size = 1024 * 64
+        end_size = start_size * 2
+        volume = self.api.create_volume(dataset_id=uuid4(), size=start_size)
+        backing_file = self.api._root_path.descendant(
+            ['unattached', volume.blockdevice_id]
+        )
+        # Make up a bit pattern that seems kind of interesting.  Not being
+        # particularly rigorous here.  Assuming any failures will be pretty
+        # obvious.
+        pattern = b"\x00\x0f\xf0\xff"
+        expected_data = pattern * (start_size / len(pattern))
+
+        # Make sure we didn't do something insane:
+        self.assertEqual(len(expected_data), start_size)
+
+        with backing_file.open("w") as fObj:
+            fObj.write(expected_data)
+
+        self.api.resize_volume(volume.blockdevice_id, end_size)
+
+        with backing_file.open("r") as fObj:
+            data_after_resize = fObj.read(start_size)
+
+        self.assertEqual(expected_data, data_after_resize)
 
     def test_list_unattached_volumes(self):
         """
@@ -1470,7 +1613,7 @@ class DestroyBlockDeviceDatasetTests(
             mountroot=mountroot,
         )
         change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
-        self.successResultOf(change.run(deployer))
+        self.successResultOf(run_state_change(change, deployer))
 
         # It's only possible to destroy a volume that's been detached.  It's
         # only possible to detach a volume that's been unmounted.  If the

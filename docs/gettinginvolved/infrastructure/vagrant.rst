@@ -55,11 +55,7 @@ Add a Vagrant Box to Atlas
 
 To add to Atlas, you will need a public link to the relevant Vagrant box.
 
-#. Visit `Atlas <https://atlas.hashicorp.com/>`_ and sign in.
-
-#. At the top of the page, select "Development", and from the "Boxes" menu on the left, select "``clusterhq/flocker-dev``" or "``clusterhq/flocker-tutorial``" as applicable.
-
-#. In the menu at the left select "Create new version".
+#. Visit the Atlas page for creating a new version of the `tutorial box <https://atlas.hashicorp.com/clusterhq/boxes/flocker-tutorial/versions/new>`_ or the `development box <https://atlas.hashicorp.com/clusterhq/boxes/flocker-dev/versions/new>`_ as appropriate.
 
 #. Set the "Version" to the relevant version.
 
