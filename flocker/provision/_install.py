@@ -219,12 +219,13 @@ FLOCKER_CONTROL_NODE = %(control_node)s
 """
 
 
-def task_enable_flocker_agent(node_name, control_node, backend):
+def task_enable_flocker_agent(node_name, control_node, volume_backend):
     """
     Configure and enable the flocker agents.
 
     :param bytes node_name: The name this node is known by.
     :param bytes control_node: The address of the control agent.
+    :param bytes volume_backend: The name of the volume backend type.
     """
     return sequence([
         put(
@@ -235,6 +236,7 @@ def task_enable_flocker_agent(node_name, control_node, backend):
             },
         ),
         put(
+            # TODO volume_backend type will determine the config
             path='/etc/flocker/dataset-agent.yml',
             content=AGENT_CONFIG % {
                 '#TODO'
@@ -419,13 +421,14 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(control_node, agent_nodes):
+def configure_cluster(control_node, agent_nodes, volume_backend):
     """
     Configure flocker-control, flocker-agent and flocker-container-agent
     on a collection of nodes.
 
     :param bytes control_node: The address of the control node.
     :param list agent_nodes: List of addresses of agent nodes.
+    # TODO doc volume_backend
     """
     return sequence([
         run_remotely(
@@ -442,6 +445,7 @@ def configure_cluster(control_node, agent_nodes):
                     commands=task_enable_flocker_agent(
                         node_name=node,
                         control_node=control_node,
+                        volume_backend=volume_backend,
                     ),
                 ),
             ]) for node in agent_nodes
