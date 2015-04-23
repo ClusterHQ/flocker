@@ -359,8 +359,8 @@ def publish_homebrew_recipe(git_url, scratch_directory, version, sdist):
         repository to.
     :param bytes version: Version of Flocker to publish a recipe for.
     """
-    git_url = "git@github.com:adamtheturtle/dotfiles.git"
-    homebrew_repo = Repo().clone_from(url=git_url, to_path=scratch_directory.path)
+    # git_url = "git@github.com:adamtheturtle/dotfiles.git"
+    homebrew_repo = Repo.clone_from(url=git_url, to_path=scratch_directory.path)
     # recipe = get_recipe(version=version, sdist=sdist)
     recipe = scratch_directory.child('flocker-{version}.rb'.format(
         version=version))
