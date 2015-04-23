@@ -150,6 +150,9 @@ class CinderBlockDeviceAPI(object):
                 )
         return volumes
 
+    def resize_volume(self, blockdevice_id, size):
+        pass
+
     def attach_volume(self, blockdevice_id, host):
         pass
 
