@@ -16,16 +16,6 @@ from zope.interface import implementer
 
 from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume
 
-
-# The key name used for identifying the Flocker cluster_id in the metadata for
-# a volume.
-CLUSTER_ID_LABEL = u'flocker-cluster-id'
-
-# The key name used for identifying the Flocker dataset_id in the metadata for
-# a volume.
-DATASET_ID_LABEL = u'flocker-dataset-id'
-
-
 # Rackspace public docs say "The minimum size for a Cloud Block Storage volume
 # is 50 GB for an SSD volume or 75GB for an SATA volume. The maximum volume
 # size is 1TB."
@@ -34,8 +24,16 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 # received: \'size\' parameter must be between 75 and 1024", "code":
 # 400}}'"
 # Let's assume that we only support SATA volumes for now.
-RACKSPACE_MINIMUM_BLOCK_SIZE = GB(75)
-RACKSPACE_MAXIMUM_BLOCK_SIZE = TB(1)
+RACKSPACE_MINIMUM_BLOCK_SIZE = int(GB(75).to_Byte().value)
+RACKSPACE_MAXIMUM_BLOCK_SIZE = int(TB(1).to_Byte().value)
+
+# The key name used for identifying the Flocker cluster_id in the metadata for
+# a volume.
+CLUSTER_ID_LABEL = u'flocker-cluster-id'
+
+# The key name used for identifying the Flocker dataset_id in the metadata for
+# a volume.
+DATASET_ID_LABEL = u'flocker-dataset-id'
 
 
 def wait_for_volume(client, new_volume):
@@ -72,14 +70,14 @@ class CinderBlockDeviceAPI(object):
 
     def create_volume(self, dataset_id, size):
         """
-        Create the block device using the volume_driver.
-        Store the dataset_id as metadata
-        Store the cluster_id as metadata
-        Assign a Human readable name and description?
+        Create a block device using the cinder VolumeManager.
+        Store the cluster_id and dataset_id as metadata.
 
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html
 
         Discussion:
+         * Assign a Human readable name and description?
+
          * Rackspace (maybe cinder in general) supports a block device type, eg SSD or SATA.
            I guess we'll hardcode SATA here to start with
            Maybe expand the API later to make the disk type configurable?
@@ -101,11 +99,7 @@ class CinderBlockDeviceAPI(object):
         # We supply metadata here and it'll be included in the returned cinder
         # volume record, but it'll be lost by Rackspace, so...
         requested_volume = self.cinder_client.volumes.create(
-            size=max(
-                RACKSPACE_MINIMUM_BLOCK_SIZE,
-                Byte(size),
-                RACKSPACE_MAXIMUM_BLOCK_SIZE
-            ).to_GB().value,
+            size=Byte(size).to_GB().value,
             metadata=metadata
         )
         created_volume = wait_for_volume(self.cinder_client, requested_volume)

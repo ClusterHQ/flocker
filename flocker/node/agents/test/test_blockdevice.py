@@ -8,6 +8,8 @@ import os
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
+from bitmath import MB
+
 import psutil
 
 from zope.interface.verify import verifyObject
@@ -32,7 +34,7 @@ from ..blockdevice import (
     DESTROY_BLOCK_DEVICE_DATASET, UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME,
     DESTROY_VOLUME,
 )
-
+from ..cinder import RACKSPACE_MINIMUM_BLOCK_SIZE
 from ... import InParallel, IStateChange
 from ...testtools import ideployer_tests_factory, to_node
 from ....testtools import run_process
@@ -41,9 +43,9 @@ from ....control import (
     NonManifestDatasets,
 )
 
-GIBIBYTE = 2 ** 30
-REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
-LOOPBACK_BLOCKDEVICE_SIZE = 1024 * 1024 * 64
+# Use Rackspace minimum size here so that tests can be run against that API.
+REALISTIC_BLOCKDEVICE_SIZE = RACKSPACE_MINIMUM_BLOCK_SIZE
+LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
