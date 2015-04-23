@@ -343,12 +343,15 @@ def task_install_flocker(
             # Add Docker repo for recent Docker versions
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
+            # Add ClusterHQ repo for installation of Flocker packages.
+            run_from_args([
+                'add-apt-repository', '-y',
+                'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'  # noqa
+                ])
             ]
 
-        # Add ClusterHQ repo for installation of Flocker packages.
-        # TODO - this should be replaced by official repo when
-        # available. See [FLOC-1065]
         if base_url:
+            # Add BuildBot repo for testing
             commands.append(run_from_args([
                 "add-apt-repository", "-y", "deb {} /".format(base_url)]))
 
