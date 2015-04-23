@@ -14,9 +14,6 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.python.components import proxyForInterface
 
 from .cinder import authenticated_cinder_client, ICinderVolumeManager
-# make_iblockdeviceapi_tests should really be here, but I want to keep the
-# branch size down
-from .test.test_blockdevice import make_iblockdeviceapi_tests
 
 
 @implementer(ICinderVolumeManager)
