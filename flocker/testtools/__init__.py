@@ -849,43 +849,6 @@ def run_process(command, *args, **kwargs):
     return result
 
 
-def require_environment_variables(required_keys):
-    """
-    Get the values for each of ``keys`` from ``os.environ``.
-
-    :param list keys: The key names to search for in ``os.environ``.
-    :return: a ``dict`` of ``keys`` and corresponding values.
-    :raises: ``SkipTest`` if any of the keys are not found in ``os.environ``.
-    """
-    def decorator(original):
-        missing_keys = []
-        keyvalues = {}
-
-        for key in required_keys:
-            value = os.environ.get(key, None)
-            if value is None:
-                missing_keys.append(key)
-            else:
-                keyvalues[key] = value
-
-        @wraps(original)
-        def wrapper(*args, **kwargs):
-            if missing_keys:
-                raise SkipTest(
-                    '{!r} requires environment variables. '
-                    'Required: "{}". '
-                    'Missing: "{}".'.format(
-                        fullyQualifiedName(original),
-                        '", "'.join(required_keys),
-                        '", "'.join(missing_keys),
-                    )
-                )
-            updated_kwargs = dict(kwargs.items() + keyvalues.items())
-            return original(*args, **updated_kwargs)
-        return wrapper
-    return decorator
-
-
 def todo_except(supported_tests):
     """
     Mark all the ``test_`` methods in ``TestCase`` as ``todo`` unless the test

@@ -3,34 +3,19 @@
 """
 Test helpers for ``flocker.node.agents``.
 """
+import os
+import yaml
 
 from zope.interface.verify import verifyObject
 from zope.interface import implementer, Interface
 
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.python.components import proxyForInterface
 
-from ...testtools import require_environment_variables
 from .cinder import authenticated_cinder_client
 # make_iblockdeviceapi_tests should really be here, but I want to keep the
 # branch size down
 from .test.test_blockdevice import make_iblockdeviceapi_tests
-
-
-GIBIBYTE = 2 ** 30
-REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
-LOOPBACK_BLOCKDEVICE_SIZE = 1024 * 1024 * 64
-
-
-def require_cinder_credentials(original):
-    """
-    Raise ``SkipTest`` unless the cinder username and api key are present in
-    the environment.
-    """
-    decorator = require_environment_variables(
-        required_keys=['OPENSTACK_API_USER', 'OPENSTACK_API_KEY']
-    )
-    return decorator(original)
 
 
 class ICinderVolumeManager(Interface):
@@ -100,16 +85,34 @@ def make_icindervolumemanager_tests(client_factory):
     return Tests
 
 
-@require_cinder_credentials
-def cinder_client_from_environment(OPENSTACK_API_USER, OPENSTACK_API_KEY):
+def cinder_client_from_environment():
     """
-    Create a ``cinder.client.Client`` using credentials from the process
-    environment which are supplied to the RackspaceAuth plugin.
+    Create a ``cinder.client.Client`` using credentials from a config file path
+    which may be supplied as an environment variable.
+    Default to ``acceptance.yml`` in the current user home directory, since
+    that's where buildbot puts its acceptance test credentials file.
     """
+    default_config_file_path = os.path.expanduser('~/acceptance.yml')
+    config_file_path = os.environ.get('CLOUD_CONFIG_PATH')
+    if config_file_path is not None:
+        config_file = open(config_file_path)
+    else:
+        try:
+            config_file = open(default_config_file_path)
+        except IOError as e:
+            raise SkipTest(
+                'CLOUD_CONFIG_PATH environment variable was not set '
+                'and the default config path ({}) could not be read. '
+                '{}'.format(default_config_file_path, e)
+            )
+
+    config = yaml.load(config_file.read())
+    rackspace_config = config['rackspace']
+
     return authenticated_cinder_client(
-        username=OPENSTACK_API_USER,
-        api_key=OPENSTACK_API_KEY,
-        region='DFW',
+        username=rackspace_config['username'],
+        api_key=rackspace_config['key'],
+        region=rackspace_config['region'],
     )
 
 
