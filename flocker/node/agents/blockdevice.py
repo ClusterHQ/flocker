@@ -24,6 +24,8 @@ from twisted.python.filepath import FilePath
 
 from .. import IDeployer, IStateChange, sequentially, in_parallel
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
+from ...common import auto_threaded
+
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
@@ -371,78 +373,63 @@ class CreateBlockDeviceDataset(PRecord):
         ).write(_logger)
         return succeed(None)
 
-# FLOC-1549
 
-# class IBlockDeviceAsyncAPI(Interface):
-#     """
-#     Common operations provided by all block devices backends, exposed via
-#     asynchronous methods.
-#     """
-#     def create_volume(dataset_id, size):
-#         """
-#         See ``IBlockDeviceAPI.create_volume``.
+class IBlockDeviceAsyncAPI(Interface):
+    """
+    Common operations provided by all block devices backends, exposed via
+    asynchronous methods.
+    """
+    def create_volume(dataset_id, size):
+        """
+        See ``IBlockDeviceAPI.create_volume``.
 
-#         :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` when
-#             the volume has been created.
-#         """
+        :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` when
+            the volume has been created.
+        """
 
-#     def destroy_volume(blockdevice_id):
-#         """
-#         See ``IBlockDeviceAPI.destroy_volume``.
+    def destroy_volume(blockdevice_id):
+        """
+        See ``IBlockDeviceAPI.destroy_volume``.
 
-#         :return: A ``Deferred`` that fires when the volume has been destroyed.
-#         """
+        :return: A ``Deferred`` that fires when the volume has been destroyed.
+        """
 
-#     def attach_volume(blockdevice_id, host):
-#         """
-#         See ``IBlockDeviceAPI.attach_volume``.
+    def attach_volume(blockdevice_id, host):
+        """
+        See ``IBlockDeviceAPI.attach_volume``.
 
-#         :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` with a
-#             ``host`` attribute set to ``host``.
-#         """
+        :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` with a
+            ``host`` attribute set to ``host``.
+        """
 
-#     def detach_volume(blockdevice_id):
-#         """
-#         See ``BlockDeviceAPI.detach_volume``.
+    def detach_volume(blockdevice_id):
+        """
+        See ``BlockDeviceAPI.detach_volume``.
 
-#         :returns: A ``Deferred`` that fires when the volume has been detached.
-#         """
+        :returns: A ``Deferred`` that fires when the volume has been detached.
+        """
 
-#     def resize_volume(blockdevice_id, size):
-#         """
-#         See ``BlockDeviceAPI.resize_volume``.
+    def resize_volume(blockdevice_id, size):
+        """
+        See ``BlockDeviceAPI.resize_volume``.
 
-#         :returns: A ``Deferred`` that fires when the volume has been resized.
-#         """
+        :returns: A ``Deferred`` that fires when the volume has been resized.
+        """
 
-#     def list_volumes():
-#         """
-#         See ``BlockDeviceAPI.list_volume``.
+    def list_volumes():
+        """
+        See ``BlockDeviceAPI.list_volume``.
 
-#         :returns: A ``Deferred`` that fires with a ``list`` of
-#             ``BlockDeviceVolume``\ s.
-#         """
+        :returns: A ``Deferred`` that fires with a ``list`` of
+            ``BlockDeviceVolume``\ s.
+        """
 
-#     def get_device_path(blockdevice_id):
-#         """
-#         See ``BlockDeviceAPI.get_device_path``.
+    def get_device_path(blockdevice_id):
+        """
+        See ``BlockDeviceAPI.get_device_path``.
 
-#         :returns: A ``Deferred`` that fires with a ``FilePath`` for the device.
-#         """
-
-
-# FLOC-1549
-#
-# @implementer(IBlockDeviceAsyncAPI)
-# @auto_threaded(IBlockDeviceAPI, "_reactor", "_sync", "_threadpool")
-# class _SyncToThreadedAsyncAPIAdapter(PRecord):
-#     """
-#     Adapt any ``IBlockDeviceAPI`` to ``IBlockDeviceAsyncAPI`` by running its
-#     methods threads of a thread pool.
-#     """
-#     _reactor = field()
-#     _sync = field()
-#     _threadpool = field()
+        :returns: A ``Deferred`` that fires with a ``FilePath`` for the device.
+        """
 
 
 class IBlockDeviceAPI(Interface):
@@ -545,6 +532,18 @@ class IBlockDeviceAPI(Interface):
             not attached to a host.
         :returns: A ``FilePath`` for the device.
         """
+
+
+@implementer(IBlockDeviceAsyncAPI)
+@auto_threaded(IBlockDeviceAPI, "_reactor", "_sync", "_threadpool")
+class _SyncToThreadedAsyncAPIAdapter(PRecord):
+    """
+    Adapt any ``IBlockDeviceAPI`` to ``IBlockDeviceAsyncAPI`` by running its
+    methods threads of a thread pool.
+    """
+    _reactor = field()
+    _sync = field()
+    _threadpool = field()
 
 
 def _blockdevicevolume_from_dataset_id(dataset_id, size, host=None):
