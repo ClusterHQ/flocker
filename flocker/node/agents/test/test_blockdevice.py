@@ -673,10 +673,16 @@ class BlockDeviceInterfaceTests(SynchronousTestCase):
         """
         Methods of the two interfaces all have the same signature.
         """
+        def parts(method):
+            return (
+                method.positional, method.kwargs,
+                method.required, method.varargs
+            )
+
         names = list(IBlockDeviceAPI.names())
         self.assertItemsEqual(
-            list(IBlockDeviceAPI[name] for name in names),
-            list(IBlockDeviceAsyncAPI[name] for name in names),
+            list(parts(IBlockDeviceAPI[name]) for name in names),
+            list(parts(IBlockDeviceAsyncAPI[name]) for name in names),
         )
 
 
