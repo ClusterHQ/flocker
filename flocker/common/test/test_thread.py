@@ -16,28 +16,52 @@ from .. import auto_threaded
 
 
 class IStub(Interface):
+    """
+    An interface that can be passed to ``auto_threaded``.
+    """
     def method(self, a, b, c):
         pass
 
 
 @implementer(IStub)
 class Spy(object):
+    """
+    A synchronous implementation of ``IStub`` that will be wrapped by an
+    ``auto-threaded``-decorated class.  It also records calls to make some
+    tests easier.
+
+    :ivar list calls: A list of tuples of the arguments passed to ``method``.
+    """
     def __init__(self):
         self.calls = []
 
     def method(self, a, b, c):
+        """
+        Record this method call and return the concatenation of all the
+        arguments.
+        """
         self.calls.append((a, b, c))
         return a + b + c
 
 
 @auto_threaded(IStub, "reactor", "provider", "threadpool")
 class AsyncSpy(PRecord):
+    """
+    An automatically asynchronous version of ``Spy``.
+    """
     reactor = field()
     provider = field()
     threadpool = field()
 
 
 class NonThreadPool(object):
+    """
+    A stand-in for ``twisted.python.threadpool.ThreadPool`` so that the
+    majority of the test suite does not need to use multithreading.
+
+    This implementation takes the function call which is meant to run in a
+    thread pool and runs it synchronously in the calling thread.
+    """
     def callInThreadWithCallback(self, onResult, func, *args, **kw):
         try:
             result = func(*args, **kw)
@@ -48,6 +72,10 @@ class NonThreadPool(object):
 
 
 class NonReactor(object):
+    """
+    A stand-in for ``twisted.internet.reactor`` which fits into the execution
+    model defined by ``NonThreadPool``.
+    """
     def callFromThread(self, f, *args, **kwargs):
         f(*args, **kwargs)
 
