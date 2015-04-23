@@ -40,9 +40,9 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 
 class ICinderVolumeManager(Interface):
     """
-    The parts of the ``cinder.client.Client.volumes`` that we use.
+    The parts of ``cinderclient.v2.volumes.VolumeManager`` that we use.
     """
-    def create(size, metadata=None, type="SATA"):
+    def create(size, metadata=None):
         """
         Create a new cinder volume and return a representation of that volume.
         """
@@ -117,11 +117,6 @@ class CinderBlockDeviceAPI(object):
         requested_volume = self.cinder_client.volumes.create(
             size=Byte(size).to_GB().value,
             metadata=metadata,
-            # Rackspace (maybe cinder in general) supports a block device type,
-            # eg SSD or SATA.  Hardcode SATA here to start with
-            # Maybe expand the API later to make the disk type configurable?
-            # See XXX
-            type='SATA',
         )
         created_volume = wait_for_volume(self.cinder_client, requested_volume)
         # So once the volume has actually been created, we set the metadata

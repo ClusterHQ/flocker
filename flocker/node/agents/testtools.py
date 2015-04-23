@@ -28,7 +28,7 @@ class TidyCinderVolumeManager(
         self.original = original
         self._created_volumes = []
 
-    def create(self, size, metadata=None, type="SATA"):
+    def create(self, size, metadata=None):
         """
         Call the original ``VolumeManager.create`` and record the returned
         ``Volume`` so that it can be cleaned up later.
@@ -36,7 +36,7 @@ class TidyCinderVolumeManager(
         See ``cinderclient.v2.volumes.VolumeManager.create`` for parameter and
         return type documentation.
         """
-        volume = self.original.create(size=size, metadata=metadata, type=type)
+        volume = self.original.create(size=size, metadata=metadata)
         self._created_volumes.append(volume)
         return volume
 
