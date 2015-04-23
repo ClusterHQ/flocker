@@ -198,7 +198,7 @@ class AgentServiceFactory(PRecord):
         ip = _get_external_ip(host, port)
         return AgentLoopService(
             reactor=reactor,
-            # Temporary hack, to be fixed in FLOC-1727 probably:
+            # Temporary hack, to be fixed in FLOC-1733 probably:
             deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
                                            hostname=ip),
             host=host, port=port,
