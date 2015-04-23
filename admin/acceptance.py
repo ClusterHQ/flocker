@@ -391,16 +391,16 @@ class RunOptions(Options):
 @inlineCallbacks
 def do_cluster_acceptance_tests(reactor, runner, trial_args):
     nodes = yield runner.start_nodes(reactor, node_count=2)
-    commands = sequence([
-        node.provision(package_source=runner.package_source,
-                       variants=runner.variants)
-        for node in nodes
-    ])
-    yield perform(dispatcher, commands)
-
     yield perform(
         dispatcher,
-        configure_cluster(control_node=nodes[0], agent_nodes=nodes))
+        sequence([
+            sequence([
+                    node.provision(package_source=runner.package_source,
+                                   variants=runner.variants)
+                    for node in nodes
+                ]),
+            configure_cluster(control_node=nodes[0], agent_nodes=nodes)
+            ]))
     result = yield run_tests(
         reactor=reactor,
         nodes=nodes,
