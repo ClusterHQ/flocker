@@ -44,18 +44,26 @@ class ICinderVolumeManager(Interface):
     """
     def create(size, metadata=None):
         """
-        Create a new cinder volume and return a representation of that volume.
+        Creates a volume.
+
+        :param size: Size of volume in GB
+        :param metadata: Optional metadata to set on volume creation
+        :rtype: :class:`Volume`
         """
 
     def list():
         """
-        Return a list of all the cinder volumes known to this client; limited
-        by the access granted for a particular API key and the region.
+        Lists all volumes.
+
+        :rtype: list of :class:`Volume`
         """
 
     def set_metadata(volume, metadata):
         """
-        Set the metadata for a cinder volume.
+        Update/Set a volumes metadata.
+
+        :param volume: The :class:`Volume`.
+        :param metadata: A list of keys to be set.
         """
 
 
