@@ -42,6 +42,92 @@ CLUSTERHQ_REPO = {
 }
 
 
+def task_client_smoke_test():
+    return run_from_args(['flocker', '--version'])
+
+
+def task_install_cli(distribution, package_source):
+    """
+    Install flocker CLI on a distribution.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+    """
+    if package_source.branch:
+        result_path = posixpath.join(
+            '/results/omnibus/', package_source.branch, distribution)
+        base_url = urljoin(package_source.build_server, result_path)
+    else:
+        base_url = None
+    if distribution == 'ubuntu-14.04':
+        commands = [
+            # Ensure add-apt-repository command is available
+            run_from_args([
+                "apt-get", "-y", "install", "software-properties-common"]),
+            ]
+
+        # Add ClusterHQ repo for installation of Flocker packages.
+        # TODO - this should be replaced by official repo when
+        # available. See [FLOC-1065]
+        if base_url:
+            commands.append(run_from_args([
+                "add-apt-repository", "-y", "deb {} /".format(base_url)]))
+
+        commands += [
+            # Update to read package info from new repos
+            run_from_args([
+                "apt-get", "update"]),
+            ]
+
+        if package_source.os_version:
+            package = 'clusterhq-flocker-cli=%s' % (
+                package_source.os_version,)
+        else:
+            package = 'clusterhq-flocker-cli'
+
+        # Install Flocker node and all dependencies
+        commands.append(run_from_args([
+            'apt-get', '-y', '--force-yes', 'install', package]))
+
+        return sequence(commands)
+    else:
+        commands = [
+            run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+        ]
+
+        if base_url:
+            repo = dedent(b"""\
+                [clusterhq-build]
+                name=clusterhq-build
+                baseurl=%s
+                gpgcheck=0
+                enabled=0
+                """) % (base_url,)
+            commands.append(put(content=repo,
+                                path='/etc/yum.repos.d/clusterhq-build.repo'))
+            branch_opt = ['--enablerepo=clusterhq-build']
+        else:
+            branch_opt = []
+
+        if package_source.os_version:
+            package = 'clusterhq-flocker-cli-%s' % (
+                package_source.os_version,)
+        else:
+            package = 'clusterhq-flocker-cli'
+
+        commands.append(run_from_args(
+            ["yum", "install"] + branch_opt + ["-y", package]))
+
+        return sequence(commands)
+
+
+def install_cli(package_source, node):
+    return run_remotely(
+        'root', node.address,
+        task_install_cli(node.distribution, package_source))
+
+
 def task_test_homebrew(recipe):
     """
     The commands used to install a Homebrew recipe for Flocker and test it.

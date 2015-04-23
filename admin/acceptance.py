@@ -10,9 +10,11 @@ import yaml
 from zope.interface import Interface, implementer
 from characteristic import attributes
 from twisted.internet.error import ProcessTerminated
+from twisted.python.constants import Values, ValueConstant
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
+
 
 from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
@@ -21,6 +23,8 @@ import flocker
 from flocker.provision._ssh import (
     run_remotely)
 from flocker.provision._install import (
+    task_client_smoke_test,
+    install_cli,
     task_pull_docker_images,
     configure_cluster,
 )
@@ -57,7 +61,37 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
+def run_client_tests(reactor, node, trial_args):
+    """
+    Run the acceptance tests.
+
+    :param INode node: The node to run client acceptance tests against.
+    :param list trial_args: Arguments to pass to trial. If not
+        provided, defaults to ``['flocker.acceptance']``.
+
+    :return int: The exit-code of trial.
+    """
+    if not trial_args:
+        trial_args = ['flocker.acceptance']
+
+    def check_result(f):
+        f.trap(ProcessTerminated)
+        if f.value.exitCode is not None:
+            return f.value.exitCode
+        else:
+            return f
+
+    return perform(dispatcher, run_remotely(
+        username='root',
+        address=node.address,
+        commands=task_client_smoke_test()
+        )).addCallbacks(
+            callback=lambda _: 0,
+            errback=check_result,
+            )
+
+
+def run_cluster_tests(reactor, nodes, control_node, agent_nodes, trial_args):
     """
     Run the acceptance tests.
 
@@ -281,6 +315,17 @@ DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
 PROVIDERS = tuple(sorted(['vagrant'] + CLOUD_PROVIDERS.keys()))
 
 
+class TestTypes(Values):
+    """
+    Type of test to run.
+
+    :ivar CLIENT: Run client smoke tests.
+    :ivar CLUSTER: Run cluster acceptance tests.
+    """
+    CLIENT = ValueConstant("client")
+    CLUSTER = ValueConstant("cluster")
+
+
 class RunOptions(Options):
     description = "Run the acceptance tests."
 
@@ -291,6 +336,9 @@ class RunOptions(Options):
         ['provider', None, 'vagrant',
          'The target provider to test against. '
          'One of {}.'.format(', '.join(PROVIDERS))],
+        ['type', None, TestTypes.CLUSTER,
+         'Whether to run client or cluster tests. One of client, cluster',
+         TestTypes.lookupByValue],
         ['config-file', None, None,
          'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab packages from'],
@@ -307,7 +355,7 @@ class RunOptions(Options):
     ]
 
     synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
-                '[--provider <provider>] [<test-cases>]')
+                '[--provider <provider>] [--type <type>] [<test-cases>]')
 
     def __init__(self, top_level):
         """
@@ -389,6 +437,18 @@ class RunOptions(Options):
 
 
 @inlineCallbacks
+def do_client_acceptance_tests(reactor, runner, trial_args):
+    nodes = yield runner.start_nodes(reactor, node_count=1)
+    yield perform(
+        dispatcher, install_cli(runner.package_source, nodes[0]))
+    result = yield run_client_tests(
+        reactor=reactor,
+        node=nodes[0],
+        trial_args=trial_args)
+    returnValue(result)
+
+
+@inlineCallbacks
 def do_cluster_acceptance_tests(reactor, runner, trial_args):
     nodes = yield runner.start_nodes(reactor, node_count=2)
     yield perform(
@@ -401,12 +461,17 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
                 ]),
             configure_cluster(control_node=nodes[0], agent_nodes=nodes)
             ]))
-    result = yield run_tests(
+    result = yield run_cluster_tests(
         reactor=reactor,
         nodes=nodes,
         control_node=nodes[0], agent_nodes=nodes,
         trial_args=trial_args)
     returnValue(result)
+
+test_type_runner = {
+    TestTypes.CLIENT: do_client_acceptance_tests,
+    TestTypes.CLUSTER: do_cluster_acceptance_tests,
+}
 
 
 @inlineCallbacks
@@ -428,7 +493,7 @@ def main(reactor, args, base_path, top_level):
     runner = options.runner
 
     try:
-        result = yield do_cluster_acceptance_tests(
+        result = yield test_type_runner[options['type']](
             reactor, runner, options['trial-args'])
     except:
         result = 1
