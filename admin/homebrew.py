@@ -120,6 +120,12 @@ def get_resource_stanzas(dependency_graph):
 
 def main():
     """
+    # TODO docstring should mention the --output-file
+    # TODO separate this out into a more standard Options class using twisted's
+    # options
+    # TODO create a function to get the string
+    # TODO tests for some things, including the options
+    # TODO look at using homebrew-poet
     Print a Homebrew recipe for the Flocker distribution.
 
     The version for the recipe must be provided in the environment
