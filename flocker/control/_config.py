@@ -7,7 +7,9 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
+import math
 import os
+import re
 import types
 from uuid import UUID
 from hashlib import md5
@@ -23,8 +25,6 @@ from ._model import (
     DockerImage, Node, Port, RestartAlways, RestartNever, RestartOnFailure,
     Manifestation, Dataset,
 )
-
-from ..common import parse_storage_string
 
 # Map ``flocker.node.IRestartPolicy`` implementations to
 # ``restart_policy`` ``name`` strings found in Flocker's application.yml file.
@@ -129,6 +129,45 @@ def _check_type(value, types, description, application_name):
                 description=description,
                 type=type(value).__name__,
             ))
+
+
+def parse_storage_string(value):
+    """
+    Converts a string representing a quantity and a unit identifier in to
+    an integer value representing the number of bytes in that quantity, e.g.
+    an input of "1G" is parsed to 1073741824. Raises ``ValueError`` if
+    value cannot be converted.
+
+    An int is always returned, so conversions resulting in a floating-point
+    are always rounded UP to ensure sufficient bytes for the specified storage
+    size, e.g. input of "2.1M" is converted to 2202010 bytes, not 2202009.
+
+    :param StringTypes value: The string value to convert to integer bytes.
+
+    :returns: ``int`` representing the supplied value converted to bytes, e.g.
+        input of "2G" (2 gigabytes) returns 2147483648.
+    """
+    byte_multipliers = {
+        'K': 1024, 'M': 1048576,
+        'G': 1073741824, 'T': 1099511627776
+    }
+    if not isinstance(value, types.StringTypes):
+        raise ValueError("Value must be string, got {type}.".format(
+            type=type(value).__name__))
+    pattern = re.compile("^(\d+\.?\d*)(K|M|G|T)?$", re.I | re.U)
+    parsed = pattern.match(value)
+    if not parsed:
+        raise ValueError(
+            "Value '{value}' could not be parsed as a storage quantity.".
+            format(value=value)
+        )
+    quantity, unit = parsed.groups()
+    quantity = float(quantity)
+    if unit is not None:
+        unit = unit.upper()
+        quantity = quantity * byte_multipliers[unit]
+    quantity = int(math.ceil(quantity))
+    return quantity
 
 
 class ApplicationMarshaller(object):
