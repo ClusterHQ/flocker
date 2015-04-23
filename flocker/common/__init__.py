@@ -5,9 +5,11 @@ Shared flocker components.
 """
 
 __all__ = [
-    'INode', 'FakeNode', 'ProcessNode', 'gather_deferreds', 'BYTE_MULTIPLIERS'
+    'INode', 'FakeNode', 'ProcessNode', 'gather_deferreds',
+    'BYTE_MULTIPLIERS',
+    'parse_storage_string',
 ]
 
 from ._ipc import INode, FakeNode, ProcessNode
 from ._defer import gather_deferreds
-from ._units import BYTE_MULTIPLIERS
+from ._units import BYTE_MULTIPLIERS, parse_storage_string

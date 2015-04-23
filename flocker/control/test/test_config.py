@@ -17,7 +17,7 @@ from .._config import (
     ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
-    parse_storage_string, ApplicationMarshaller,
+    ApplicationMarshaller,
     FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
     _parse_restart_policy, dataset_id_from_name
 )
@@ -1472,32 +1472,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
              "parsed as a storage quantity.")
         )
 
-    def test_invalid_volume_max_size_invalid_string(self):
-        """
-        ``parse_storage_string`` raises a ``ValueError`` when given a
-        string which is not in a valid format for parsing in to a quantity of
-        bytes.
-        """
-        exception = self.assertRaises(ValueError,
-                                      parse_storage_string,
-                                      "abcdef")
-        self.assertEqual(
-            exception.message,
-            "Value 'abcdef' could not be parsed as a storage quantity."
-        )
-
-    def test_parse_storage_string_invalid_not_string(self):
-        """
-        ``parse_storage_string`` raises a ``ValueError`` when given a
-        value which is not a string or unicode.
-        """
-        exception = self.assertRaises(ValueError,
-                                      parse_storage_string,
-                                      610.25)
-        self.assertEqual(
-            exception.message,
-            "Value must be string, got float."
-        )
 
     def test_volume_max_size_bytes_integer(self):
         """
@@ -1681,20 +1655,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         volume_config = config['applications']['mysql-hybridcluster']['volume']
         volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
         self.assertEqual(volume.dataset.dataset_id, dataset_id)
-
-    def test_volume_max_size_parse_valid_unit(self):
-        """
-        ``parse_storage_string`` returns the integer number of bytes
-        converted from a string specifying a quantity and unit in a valid
-        format. Valid format is a number followed by a unit identifier,
-        which is one of K, M, G or T.
-        """
-        ps = parse_storage_string
-        self.assertEqual((1099511627776,) * 4,
-                         (ps("1073741824K"),
-                          ps("1048576M"),
-                          ps("1024G"),
-                          ps("1T")))
 
     def test_ports_missing_internal(self):
         """
