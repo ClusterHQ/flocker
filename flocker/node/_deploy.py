@@ -56,8 +56,9 @@ class IDeployer(Interface):
     changes to bring local state and desired cluster configuration into
     alignment.
 
-    :ivar unicode hostname: The hostname of the node this deployer is
-        managing.
+    :ivar UUID node_uuid: The UUID of the node this deployer is running.
+    :ivar unicode hostname: The hostname (really, IP) of the node this
+        deployer is managing.
     """
     node_uuid = Attribute("The UUID of thise node, a ``UUID`` instance.")
     hostname = Attribute("The public IP address of this node.")
