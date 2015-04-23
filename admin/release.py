@@ -349,13 +349,13 @@ FLOCKER_PACKAGES = [
 
 def publish_homebrew_recipe(homebrew_repo, version, content):
     """
-    Publish a Homebrew recipe to a git repository.
+    Publish a Homebrew recipe to a Git repository.
 
-    :param Git.Repo homebrew_repo: Homebrew tap Git repository.
-    :param FilePath scratch_directory: Temporary directory to clone
-        repository to.
+    :param git.Repo homebrew_repo: Homebrew tap Git repository.
     :param bytes version: Version of Flocker to publish a recipe for.
-    TODO Content
+    :param bytes content: The content of the desired Homebrew recipe.
+
+    :return git.remote.PushInfo: Information about the push to GitHub.
     """
     # TODO caller should use Repo.clone_from(homebrew_ssh_url, scratch_dir)
     # TODO caller should first get content using homebrew.py
