@@ -8,6 +8,8 @@ from subprocess import check_output, CalledProcessError
 
 from twisted.python.procutils import which
 
+from .._script import CAOptions
+
 from ...testtools import make_script_tests
 
 EXECUTABLE = b"flocker-ca"
@@ -96,3 +98,16 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         self.assertTrue(
             openssl_verify("cluster.crt", "control-service.crt")
         )
+
+    @requireCA
+    def test_help_description(self):
+        """
+        The output of ``flocker-ca --help`` includes the helptext with
+        its original formatting.
+        """
+        helptext = CAOptions.helptext
+        expected = ""
+        for line in helptext.splitlines():
+            expected = expected + line.strip() + "\n"
+        status, output = flocker_ca("--help")
+        self.assertIn(expected, output)
