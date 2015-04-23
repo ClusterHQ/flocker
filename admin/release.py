@@ -347,7 +347,8 @@ FLOCKER_PACKAGES = [
 ]
 
 
-def publish_homebrew_recipe(homebrew_repo, scratch_directory, version, sdist):
+def publish_homebrew_recipe(homebrew_repo, scratch_directory, version,
+    content):
     """
     Publish a Homebrew recipe to a git repository.
 
@@ -355,16 +356,13 @@ def publish_homebrew_recipe(homebrew_repo, scratch_directory, version, sdist):
     :param FilePath scratch_directory: Temporary directory to clone
         repository to.
     :param bytes version: Version of Flocker to publish a recipe for.
+    TODO Content
     """
-    # git_url = "git@github.com:adamtheturtle/dotfiles.git"
-    # homebrew_repo = Repo.clone_from(url=homebrew_repo, to_path=scratch_directory.path)
-    # recipe = get_recipe(version=version, sdist=sdist)
-    recipe = scratch_directory.child('flocker-{version}.rb'.format(
-        version=version))
-    recipe.touch()
-    recipe.setContent("Some recipe contents")
+    recipe = 'flocker-{version}.rb'.format(version=version)
+    scratch_directory.child(recipe)
+    recipe.setContent(content)
 
-    homebrew_repo.index.add([recipe.path])
+    homebrew_repo.index.add([recipe])
     homebrew_repo.index.commit('Add recipe for Flocker version ' + version)
     return homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
 

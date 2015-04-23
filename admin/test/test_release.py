@@ -1756,10 +1756,15 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             homebrew_repo=source_repo,
             scratch_directory=FilePath(source_repo.working_dir),
             version='0.3.0',
-            sdist=None)
+            content="Some recipe contents")
 
         self.assertIn((u'flocker-0.3.0.rb', 0), source_repo.index.entries)
         self.assertEqual(
             source_repo.remotes.origin.fetch()[0].commit.summary,
             u'Add recipe for Flocker version 0.3.0')
         self.assertEqual(push.local_ref, source_repo.head)
+        self.assertEqual(
+            FilePath(source_repo.working_dir).child('flocker-0.3.0.rb').getContent(),
+            "Some recipe contents",
+        )
+        import pdb; pdb.set_trace()
