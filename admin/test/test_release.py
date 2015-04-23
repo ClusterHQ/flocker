@@ -1746,25 +1746,38 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
     Tests for :func:`publish_homebrew_recipe`.
     """
 
-    def test_homebrew_recipe_added(self):
-        """
-        A Homebrew recipe is added to the given tap repository.
-        """
-        source_repo = create_git_repository(test_case=self)
-
-        push = publish_homebrew_recipe(
-            homebrew_repo=source_repo,
-            scratch_directory=FilePath(source_repo.working_dir),
+    def setUp(self):
+        self.source_repo = create_git_repository(test_case=self)
+        self.content = "Some recipe contents"
+        self.push = publish_homebrew_recipe(
+            homebrew_repo=self.source_repo,
             version='0.3.0',
-            content="Some recipe contents")
+            content=self.content)
 
-        self.assertIn((u'flocker-0.3.0.rb', 0), source_repo.index.entries)
+    def test_homebrew_recipe_committed(self):
+        """
+        A Homebrew recipe is committed to the given tap repository.
+        """
+        self.assertIn((u'flocker-0.3.0.rb', 0), self.source_repo.index.entries)
+
+    def test_commit_message(self):
+        """
+        The recipe is committed with a sensible message.
+        """
         self.assertEqual(
-            source_repo.remotes.origin.fetch()[0].commit.summary,
+            self.source_repo.remotes.origin.fetch()[0].commit.summary,
             u'Add recipe for Flocker version 0.3.0')
-        self.assertEqual(push.local_ref, source_repo.head)
-        self.assertEqual(
-            FilePath(source_repo.working_dir).child('flocker-0.3.0.rb').getContent(),
-            "Some recipe contents",
-        )
-        import pdb; pdb.set_trace()
+
+    def test_recipe_contents(self):
+        """
+        The passed in contents are in the recipe.
+        """
+        working_dir = FilePath(self.source_repo.working_dir)
+        recipe = working_dir.child('flocker-0.3.0.rb')
+        self.assertEqual(recipe.getContent(), self.content)
+
+    def test_commit_pushed(self):
+        """
+        The commit is pushed to the current branch of the repository.
+        """
+        self.assertEqual(self.push.local_ref, self.source_repo.head)
