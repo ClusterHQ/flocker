@@ -32,7 +32,7 @@ from flocker.provision._libcloud import INode
 
 from flocker.provision._ssh._fabric import dispatcher
 from flocker.provision._effect import sequence
-from effect import sync_perform as perform
+from effect.twisted import perform
 
 from .runner import run
 
