@@ -398,6 +398,19 @@ class Node(PRecord):
     )
 
 
+def same_node(node1, node2):
+    """
+    Return whether these two objects both refer to same cluster node,
+    i.e. have same UUID.
+
+    :param node1: ``Node`` or ``NodeState`` instance.
+    :param node2: ``Node`` or ``NodeState`` instance.
+
+    :return: Whether the two instances have same UUID.
+    """
+    return node1.uuid == node2.uuid
+
+
 def _get_node(default_factory):
     """
     Create a helper function for getting a node from a deployment.
@@ -457,7 +470,7 @@ class Deployment(PRecord):
         :return Deployment: Updated with new ``Node``.
         """
         return Deployment(nodes=frozenset(
-            list(n for n in self.nodes if n.uuid != node.uuid) +
+            list(n for n in self.nodes if not same_node(n, node)) +
             [node]))
 
     def move_application(self, application, target_node):
@@ -478,7 +491,7 @@ class Deployment(PRecord):
                 if container.name == application.name:
                     # We only need to perform a move if the node currently
                     # hosting the container is not the node it's moving to.
-                    if node.uuid != target_node.uuid:
+                    if not same_node(node, target_node):
                         # If the container has a volume, we need to add the
                         # manifestation to the new host first.
                         if application.volume is not None:
@@ -667,7 +680,7 @@ class DeploymentState(PRecord):
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
-        nodes = {n for n in self.nodes if n.uuid == node_state.uuid}
+        nodes = {n for n in self.nodes if same_node(n, node_state)}
         if not nodes:
             return self.transform(["nodes"], lambda s: s.add(node_state))
         [original_node] = nodes

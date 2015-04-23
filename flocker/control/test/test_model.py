@@ -21,7 +21,7 @@ from .. import (
     IClusterStateChange,
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
-    NodeState, DeploymentState, NonManifestDatasets,
+    NodeState, DeploymentState, NonManifestDatasets, same_node,
 )
 
 
@@ -1020,3 +1020,39 @@ class DeploymentStateTests(SynchronousTestCase):
         self.assertRaises(InvariantException,
                           DeploymentState,
                           nonmanifest_datasets={u"123": MANIFESTATION.dataset})
+
+
+class SameNodeTests(SynchronousTestCase):
+    """
+    Tests for ``same_node``.
+    """
+    def test_node(self):
+        """
+        ``same_node`` returns ``True`` if two ``Node``s have the same UUID.
+        """
+        node1 = Node(uuid=uuid4(), hostname=u"1.2.3.4")
+        node2 = Node(uuid=node1.uuid, hostname=u"1.2.3.5")
+        node3 = Node(uuid=uuid4(), hostname=u"1.2.3.4")
+        self.assertEqual([same_node(node1, node2), same_node(node1, node3)],
+                         [True, False])
+
+    def test_nodestate(self):
+        """
+        ``same_node`` returns ``True`` if two ``NodeState``s have the same UUID.
+        """
+        node1 = NodeState(uuid=uuid4(), hostname=u"1.2.3.4")
+        node2 = NodeState(uuid=node1.uuid, hostname=u"1.2.3.5")
+        node3 = NodeState(uuid=uuid4(), hostname=u"1.2.3.4")
+        self.assertEqual([same_node(node1, node2), same_node(node1, node3)],
+                         [True, False])
+
+    def test_both(self):
+        """
+        ``same_node`` returns ``True`` if a ``Node`` and ``NodeState`` have
+        the same UUID.
+        """
+        node1 = Node(uuid=uuid4(), hostname=u"1.2.3.4")
+        node2 = NodeState(uuid=node1.uuid, hostname=u"1.2.3.5")
+        node3 = NodeState(uuid=uuid4(), hostname=u"1.2.3.4")
+        self.assertEqual([same_node(node1, node2), same_node(node1, node3)],
+                         [True, False])
