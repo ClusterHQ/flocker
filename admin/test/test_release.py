@@ -1551,21 +1551,21 @@ class CreateReleaseBranchOptionsTests(SynchronousTestCase):
               options.parseOptions, [])
 
 
-def create_git_repository(test_case):
+def create_git_repository(test_case, bare=False):
     """
     Create a git repository with a ``master`` branch and ``README``.
 
     :param test_case: The ``TestCase`` calling this.
     """
     directory = FilePath(test_case.mktemp())
-    directory.child('README').makedirs()
-    directory.child('README').touch()
+    repository = Repo.init(path=directory.path, bare=bare)
 
-    repository = Repo.init(path=directory.path)
-    repository.index.add(['README'])
-    repository.index.commit('Initial commit')
-    repository.create_head('master')
-    repository.create_remote('origin', repository.working_dir)
+    if not bare:
+        directory.child('README').makedirs()
+        directory.child('README').touch()
+        repository.index.add(['README'])
+        repository.index.commit('Initial commit')
+        repository.create_head('master')
     return repository
 
 
@@ -1747,37 +1747,25 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
     """
 
     def setUp(self):
-        self.source_repo = create_git_repository(test_case=self)
+        self.source_repo = create_git_repository(test_case=self, bare=True)
         self.content = "Some recipe contents"
-        self.push = publish_homebrew_recipe(
-            homebrew_repo=self.source_repo,
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
             version='0.3.0',
-            content=self.content)
-
-    def test_homebrew_recipe_committed(self):
-        """
-        A Homebrew recipe is committed to the given tap repository.
-        """
-        self.assertIn((u'flocker-0.3.0.rb', 0), self.source_repo.index.entries)
+            content=self.content,
+            scratch_directory=FilePath(self.mktemp()))
 
     def test_commit_message(self):
         """
         The recipe is committed with a sensible message.
         """
         self.assertEqual(
-            self.source_repo.remotes.origin.fetch()[0].commit.summary,
+            self.source_repo.head.commit.summary,
             u'Add recipe for Flocker version 0.3.0')
 
     def test_recipe_contents(self):
         """
         The passed in contents are in the recipe.
         """
-        working_dir = FilePath(self.source_repo.working_dir)
-        recipe = working_dir.child('flocker-0.3.0.rb')
-        self.assertEqual(recipe.getContent(), self.content)
-
-    def test_commit_pushed(self):
-        """
-        The commit is pushed to the current branch of the repository.
-        """
-        self.assertEqual(self.push.local_ref, self.source_repo.head)
+        with self.source_repo.head.commit.tree['flocker-0.3.0.rb'] as recipe:
+            self.assertEqual(recipe.read(), self.content)

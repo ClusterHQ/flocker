@@ -347,7 +347,7 @@ FLOCKER_PACKAGES = [
 ]
 
 
-def publish_homebrew_recipe(homebrew_repo, version, content):
+def publish_homebrew_recipe(homebrew_repo_url, version, content, scratch_directory):
     """
     Publish a Homebrew recipe to a Git repository.
 
@@ -357,15 +357,17 @@ def publish_homebrew_recipe(homebrew_repo, version, content):
 
     :return git.remote.PushInfo: Information about the push to GitHub.
     """
-    # TODO caller should use Repo.clone_from(homebrew_ssh_url, scratch_dir)
-    # TODO caller should first get content using homebrew.py
+    # TODO caller should pass url of homebrew repo - ssh
     # TODO option for homebrew-tap git repository
+    # TODO note it should be ssh url - note it as necessary on releae process
+    homebrew_repo = Repo.clone_from(url=homebrew_repo_url, to_path=scratch_directory.path)
     recipe = 'flocker-{version}.rb'.format(version=version)
     FilePath(homebrew_repo.working_dir).child(recipe).setContent(content)
 
     homebrew_repo.index.add([recipe])
     homebrew_repo.index.commit('Add recipe for Flocker version ' + version)
-    return homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    foo = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    # TODO catch if there is an error pushing - foo.flags & foo.ERROR is not 0
 
 
 @do
