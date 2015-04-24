@@ -28,6 +28,8 @@ from .. import (
     IDeployer, IStateChange, sequentially, in_parallel, run_state_change
 )
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
+from ...common import auto_threaded
+
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
@@ -657,13 +659,68 @@ class CreateBlockDeviceDataset(PRecord):
         return succeed(None)
 
 
-# TODO: Introduce a non-blocking version of this interface and an automatic
-# thread-based wrapper for adapting this to the other.  Use that interface
-# anywhere being non-blocking is important (which is probably lots of places).
-# See https://clusterhq.atlassian.net/browse/FLOC-1549
+class IBlockDeviceAsyncAPI(Interface):
+    """
+    Common operations provided by all block device backends, exposed via
+    asynchronous methods.
+    """
+    def create_volume(dataset_id, size):
+        """
+        See ``IBlockDeviceAPI.create_volume``.
+
+        :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` when
+            the volume has been created.
+        """
+
+    def destroy_volume(blockdevice_id):
+        """
+        See ``IBlockDeviceAPI.destroy_volume``.
+
+        :return: A ``Deferred`` that fires when the volume has been destroyed.
+        """
+
+    def attach_volume(blockdevice_id, host):
+        """
+        See ``IBlockDeviceAPI.attach_volume``.
+
+        :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` with a
+            ``host`` attribute set to ``host``.
+        """
+
+    def detach_volume(blockdevice_id):
+        """
+        See ``BlockDeviceAPI.detach_volume``.
+
+        :returns: A ``Deferred`` that fires when the volume has been detached.
+        """
+
+    def resize_volume(blockdevice_id, size):
+        """
+        See ``BlockDeviceAPI.resize_volume``.
+
+        :returns: A ``Deferred`` that fires when the volume has been resized.
+        """
+
+    def list_volumes():
+        """
+        See ``BlockDeviceAPI.list_volume``.
+
+        :returns: A ``Deferred`` that fires with a ``list`` of
+            ``BlockDeviceVolume``\ s.
+        """
+
+    def get_device_path(blockdevice_id):
+        """
+        See ``BlockDeviceAPI.get_device_path``.
+
+        :returns: A ``Deferred`` that fires with a ``FilePath`` for the device.
+        """
+
+
 class IBlockDeviceAPI(Interface):
     """
-    Common operations provided by all block device backends.
+    Common operations provided by all block device backends, exposed via
+    synchronous methods.
 
     Note: This is an early sketch of the interface and it'll be refined as we
     real blockdevice providers are implemented.
@@ -760,6 +817,18 @@ class IBlockDeviceAPI(Interface):
             not attached to a host.
         :returns: A ``FilePath`` for the device.
         """
+
+
+@implementer(IBlockDeviceAsyncAPI)
+@auto_threaded(IBlockDeviceAPI, "_reactor", "_sync", "_threadpool")
+class _SyncToThreadedAsyncAPIAdapter(PRecord):
+    """
+    Adapt any ``IBlockDeviceAPI`` to ``IBlockDeviceAsyncAPI`` by running its
+    methods in threads of a thread pool.
+    """
+    _reactor = field()
+    _sync = field()
+    _threadpool = field()
 
 
 def _blockdevicevolume_from_dataset_id(dataset_id, size, host=None):
