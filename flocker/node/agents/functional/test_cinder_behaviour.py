@@ -29,7 +29,10 @@ class VolumesCreateTests(SynchronousTestCase):
             size=100,
             metadata=expected_metadata
         )
-        listed_volume = wait_for_volume(self.cinder_client, new_volume)
+        listed_volume = wait_for_volume(
+            volume_manager=self.cinder_client.volumes,
+            expected_volume=new_volume,
+        )
 
         expected_items = set(expected_metadata.items())
         actual_items = set(listed_volume.metadata.items())
@@ -62,11 +65,17 @@ class VolumesSetMetadataTests(SynchronousTestCase):
 
         new_volume = self.cinder_client.volumes.create(size=100,)
 
-        listed_volume = wait_for_volume(self.cinder_client, new_volume)
+        listed_volume = wait_for_volume(
+            volume_manager=self.cinder_client.volumes,
+            expected_volume=new_volume,
+        )
 
         self.cinder_client.volumes.set_metadata(new_volume, expected_metadata)
 
-        listed_volume = wait_for_volume(self.cinder_client, new_volume)
+        listed_volume = wait_for_volume(
+            volume_manager=self.cinder_client.volumes,
+            expected_volume=new_volume
+        )
 
         expected_items = set(expected_metadata.items())
         actual_items = set(listed_volume.metadata.items())

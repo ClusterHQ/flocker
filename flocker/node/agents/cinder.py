@@ -41,6 +41,7 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 class ICinderVolumeManager(Interface):
     """
     The parts of ``cinderclient.v1.volumes.VolumeManager`` that we use.
+    See: https://github.com/openstack/python-cinderclient/blob/master/cinderclient/v1/volumes.py#L135 # noqa
     """
     def create(size, metadata=None):
         """
@@ -67,14 +68,18 @@ class ICinderVolumeManager(Interface):
         """
 
 
-def wait_for_volume(client, new_volume):
+def wait_for_volume(volume_manager, expected_volume):
     """
-    Wait for a volume with the same id as ``new_volume`` to be listed as
-    ``available`` and return that listed volume.
+    Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
+    listed and to have a ``status`` value of ``available``.
+
+    :param ICinderVolumeManager volume_manager: An API for listing volumes.
+    :param Volume expected_volume: The ``Volume`` to wait for.
+    :returns: The listed ``Volume`` that matches ``new_volume``.
     """
     while True:
-        for listed_volume in client.volumes.list():
-            if listed_volume.id == new_volume.id:
+        for listed_volume in volume_manager.list():
+            if listed_volume.id == expected_volume.id:
                 if listed_volume.status == 'available':
                     return listed_volume
 
@@ -126,7 +131,10 @@ class CinderBlockDeviceAPI(object):
             size=Byte(size).to_GB().value,
             metadata=metadata,
         )
-        created_volume = wait_for_volume(self.cinder_client, requested_volume)
+        created_volume = wait_for_volume(
+            volume_manager=self.cinder_client.volumes,
+            expected_volume=requested_volume
+        )
         # So once the volume has actually been created, we set the metadata
         # again. One day we hope this won't be necessary.
         # See Rackspace support ticket: 150422-ord-0000495'
