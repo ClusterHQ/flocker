@@ -40,7 +40,7 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 
 class ICinderVolumeManager(Interface):
     """
-    The parts of ``cinderclient.v2.volumes.VolumeManager`` that we use.
+    The parts of ``cinderclient.v1.volumes.VolumeManager`` that we use.
     """
     def create(size, metadata=None):
         """

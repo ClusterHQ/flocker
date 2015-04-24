@@ -21,7 +21,7 @@ def cinderblockdeviceapi_for_test(test_case):
 
     :param TestCase test_case: The test being run.
     :returns: A ``CinderBlockDeviceAPI`` instance whose underlying
-        ``cinderclient.v2.client.Client`` has a ``volumes`` attribute wrapped
+        ``cinderclient.v1.client.Client`` has a ``volumes`` attribute wrapped
         by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
         are created during the course of ``test_case``
     """

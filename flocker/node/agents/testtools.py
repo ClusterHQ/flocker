@@ -23,7 +23,7 @@ class TidyCinderVolumeManager(
     def __init__(self, original):
         """
         :param ICinderVolumeManager original: An instance of
-            ``cinderclient.v2.volumes.VolumeManager``.
+            ``cinderclient.v1.volumes.VolumeManager``.
         """
         self.original = original
         self._created_volumes = []
@@ -33,7 +33,7 @@ class TidyCinderVolumeManager(
         Call the original ``VolumeManager.create`` and record the returned
         ``Volume`` so that it can be cleaned up later.
 
-        See ``cinderclient.v2.volumes.VolumeManager.create`` for parameter and
+        See ``cinderclient.v1.volumes.VolumeManager.create`` for parameter and
         return type documentation.
         """
         volume = self.original.create(size=size, metadata=metadata)
@@ -77,12 +77,12 @@ def make_icindervolumemanager_tests(client_factory):
 
 def cinder_client_from_environment():
     """
-    Create a ``cinderclient.v2.client.Client`` using credentials from a config
+    Create a ``cinderclient.v1.client.Client`` using credentials from a config
     file path which may be supplied as an environment variable.
     Default to ``~/acceptance.yml`` in the current user home directory, since
     that's where buildbot puts its acceptance test credentials file.
 
-    :returns: An instance of ``cinderclient.v2.client.Client`` authenticated
+    :returns: An instance of ``cinderclient.v1.client.Client`` authenticated
         using Rackspace credentials and against the Rackspace Keystone server.
     :raises: ``SkipTest`` if a ``CLOUD_CONFIG_PATH`` was not set and the
         default config file could not be read.
@@ -115,7 +115,7 @@ def cinder_client_from_environment():
 
 def tidy_cinder_client_for_test(test_case):
     """
-    Return a ``cinderclient.v2.client.Client`` whose ``volumes`` API is a
+    Return a ``cinderclient.v1.client.Client`` whose ``volumes`` API is a
     wrapped by a ``TidyCinderVolumeManager`` and register a ``test_case``
     cleanup callback to remove any volumes that are created during each test.
     """
