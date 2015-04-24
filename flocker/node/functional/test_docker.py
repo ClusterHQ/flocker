@@ -190,6 +190,38 @@ class GenericDockerClientTests(TestCase):
                                  expected_states=(u'inactive',))
         return d
 
+    def test_list_with_missing_image(self):
+        """
+        ``DockerClient.list()`` can list containers whose image is missing.
+
+        The resulting output may be inaccurate, but that's OK: this only
+        happens for non-running containers, who at worst we're going to
+        restart anyway.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.child(b"Dockerfile.in").setContent("FROM busybox\n")
+        image_name = DockerImageBuilder(test=self, source_dir=path,
+                                        cleanup=False).build()
+        name = random_name()
+        d = self.start_container(unit_name=name, image_name=image_name,
+                                 expected_states=(u'inactive',))
+
+        def stopped_container_exists(_):
+            # Remove the image:
+            docker_client = Client()
+            docker_client.remove_image(image_name, force=True)
+
+            # Should be able to still list the container:
+            client = self.make_client()
+            listed = client.list()
+            listed.addCallback(lambda results: self.assertIn(
+                (name, "inactive"),
+                [(unit.name, unit.activation_state) for unit in results]))
+            return listed
+        d.addCallback(stopped_container_exists)
+        return d
+
     def test_dead_is_removed(self):
         """
         ``DockerClient.remove()`` removes dead units without error.
@@ -334,11 +366,13 @@ CMD sh -c "trap \"\" 2; sleep 3"
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        image = u"busybox:latest"
+        # Use an image that isn't likely to be in use by anything, since
+        # it's old, and isn't used by other tests:
+        image = u"busybox:ubuntu-12.04"
         # Make sure image is gone:
         docker = Client()
         try:
-            docker.remove_image(image)
+            docker.remove_image(image, force=True)
         except APIError as e:
             if e.response.status_code != 404:
                 raise
