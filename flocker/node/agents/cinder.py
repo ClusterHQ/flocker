@@ -225,9 +225,9 @@ CINDER_CLIENT_FACTORIES = {
 
 def cinder_api(cinder_client, cluster_id):
     """
-    :param cinder_client: The Cinder API client whose ``volumes`` attribute
-        will be supplied as the ``volume_manager`` parameter of
-        ``CinderBlockDeviceAPI``.
+    :param cinderclient.v1.client.Client cinder_client: The Cinder API client
+        whose ``volumes`` attribute will be supplied as the ``volume_manager``
+        parameter of ``CinderBlockDeviceAPI``.
     :param UUID cluster_id: A Flocker cluster ID.
     :returns: A ``CinderBlockDeviceAPI``.
     """
