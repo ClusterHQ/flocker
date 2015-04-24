@@ -191,6 +191,12 @@ class CinderBlockDeviceAPI(object):
         pass
 
     def attach_volume(self, blockdevice_id, host):
+        """
+        The attaching may have to be done via the nova client :-(
+        See http://www.florentflament.com/blog/openstack-volume-in-use-although-vm-doesnt-exist.html
+
+        When I attach using the cinder client the volumes become undetachable.
+        """
         unattached_volume = self._get(blockdevice_id)
         local_instance_uuid = _instance_uuid()
         self.volume_manager.attach(
