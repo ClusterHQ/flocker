@@ -44,14 +44,27 @@ class HomebrewOptionsTests(SynchronousTestCase):
 
 # TODO make private methods private
 # TODO release will have to use an sdist
+# TODO update buildbot to call wrapper script
 
 class GetChecksumTests(SynchronousTestCase):
+    """
+    Tests for X.
+    """
+    # TODO use requests
+    # test with local file, like with RPMs
     pass
 
 class GetDependencyGraphTests(SynchronousTestCase):
+    """
+    Tests for X.
+    """
     pass
 
 class GetClassNameTests(SynchronousTestCase):
+    """
+    Tests for X.
+    """
+
     def test_flocker_version(self):
         pass
 
@@ -61,7 +74,12 @@ class GetClassNameTests(SynchronousTestCase):
         """
 
 class GetFormattedDependencyListTests(SynchronousTestCase):
-    pass
+    """
+    Tests for X.
+    """
+    # TODO this should return a list which is later formatted
 
 class GetResourceStanzasTests(SynchronousTestCase):
-    pass
+    """
+    Tests for X.
+    """
