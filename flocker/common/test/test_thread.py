@@ -19,7 +19,7 @@ class IStub(Interface):
     """
     An interface that can be passed to ``auto_threaded``.
     """
-    def method(self, a, b, c):
+    def method(a, b, c):
         pass
 
 
