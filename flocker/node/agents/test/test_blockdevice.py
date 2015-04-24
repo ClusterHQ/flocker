@@ -753,7 +753,6 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         ``BlockDeviceDeployer.calculate_changes`` returns a
         ``ResizeBlockDeviceDataset`` state change operation for each configured
         dataset which has a different maximum_size in the local state.
-        ``maximum_size`` of the configured ``Dataset`` is larger than the size
         """
         dataset_id = uuid4()
         dataset = Dataset(
