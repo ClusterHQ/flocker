@@ -61,8 +61,14 @@ class NonThreadPool(object):
 
     This implementation takes the function call which is meant to run in a
     thread pool and runs it synchronously in the calling thread.
+
+    :ivar int calls: The number of calls which have been dispatched to this
+        object.
     """
+    calls = 0
+
     def callInThreadWithCallback(self, onResult, func, *args, **kw):
+        self.calls += 1
         try:
             result = func(*args, **kw)
         except:
@@ -132,7 +138,10 @@ class AutoThreadedTests(SynchronousTestCase):
         The corresponding method of the provider of the interface is called in
         a thread using the threadpool specified to ``auto_threaded``.
         """
-        self.async_spy.method(self.a, self.b, self.c)
+        before = self.threadpool.calls
+        self.successResultOf(self.async_spy.method(self.a, self.b, self.c))
+        after = self.threadpool.calls
+        self.assertEqual((before, after), (0, 1))
 
     def test_attributes_rejected(self):
         """
