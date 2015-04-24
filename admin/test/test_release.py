@@ -30,6 +30,7 @@ from ..release import (
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
+from ..homebrew import homebrew_dispatcher
 
 
 class PublishDocsTests(SynchronousTestCase):
@@ -1749,11 +1750,15 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
     def setUp(self):
         self.source_repo = create_git_repository(test_case=self, bare=True)
         self.content = "Some recipe contents"
-        publish_homebrew_recipe(
-            homebrew_repo_url=self.source_repo.git_dir,
-            version='0.3.0',
-            content=self.content,
-            scratch_directory=FilePath(self.mktemp()))
+        sync_perform(
+            ComposedDispatcher([base_dispatcher, homebrew_dispatcher]),
+            publish_homebrew_recipe(
+                homebrew_repo_url=self.source_repo.git_dir,
+                version='0.3.0',
+                content=self.content,
+                scratch_directory=FilePath(self.mktemp()),
+            ))
+
 
     def test_commit_message(self):
         """
@@ -1767,5 +1772,17 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         """
         The passed in contents are in the recipe.
         """
-        with self.source_repo.head.commit.tree['flocker-0.3.0.rb'] as recipe:
-            self.assertEqual(recipe.read(), self.content)
+        # TODO is this leaving files open?
+        recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
+        self.assertEqual(recipe.data_stream.read(), self.content)
+
+    def test_push_fails(self):
+        """
+        If the push fails, an error is raised.
+        """
+
+    def test_recipe_already_exists(self):
+        """
+        If a recipe already exists with the same name, it is overwritten.
+        """
+        # call publish twice

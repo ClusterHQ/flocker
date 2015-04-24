@@ -13,8 +13,36 @@ from os import environ
 from json import load
 from urllib2 import urlopen
 from hashlib import sha1
+
+from effect import sync_performer, TypeDispatcher
+from characteristic import attributes
+# TODO this will have to be a dev requirement if it isn't already
 from tl.eggdeps.graph import Graph
 
+
+@attributes([
+    "flocker_version",
+    "sdist",
+])
+class GetHomebrewRecipe(object):
+    """
+    Upload contents of a directory to S3, for given files.
+
+    Note that this returns a list with the prefixes stripped.
+
+    :ivar FilePath source_path: Prefix of files to be uploaded.
+    :ivar bytes target_bucket: Name of bucket to upload file to.
+    :ivar bytes target_key: Name S3 key to upload file to.
+    :ivar list files: List of bytes, relative paths to files to upload.
+    """
+
+@sync_performer
+def perform_get_homebrew_recipe(dispatcher, intent):
+    return "Some recipe contents"
+
+homebrew_dispatcher = TypeDispatcher({
+    GetHomebrewRecipe: perform_get_homebrew_recipe,
+})
 
 def get_dependency_graph(application):
     """

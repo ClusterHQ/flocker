@@ -56,6 +56,7 @@ from .yum import (
 
 # TODO create this function
 # from .homebrew import get_recipe
+from .homebrew import GetHomebrewRecipe, homebrew_dispatcher
 
 
 class NotTagged(Exception):
@@ -347,6 +348,7 @@ FLOCKER_PACKAGES = [
 ]
 
 
+@do
 def publish_homebrew_recipe(homebrew_repo_url, version, content, scratch_directory):
     """
     Publish a Homebrew recipe to a Git repository.
@@ -360,14 +362,22 @@ def publish_homebrew_recipe(homebrew_repo_url, version, content, scratch_directo
     # TODO caller should pass url of homebrew repo - ssh
     # TODO option for homebrew-tap git repository
     # TODO note it should be ssh url - note it as necessary on releae process
+    content = yield Effect(
+        GetHomebrewRecipe(
+            flocker_version=version,
+            sdist='sdisturl'
+        )
+    )
+
     homebrew_repo = Repo.clone_from(url=homebrew_repo_url, to_path=scratch_directory.path)
     recipe = 'flocker-{version}.rb'.format(version=version)
     FilePath(homebrew_repo.working_dir).child(recipe).setContent(content)
 
     homebrew_repo.index.add([recipe])
     homebrew_repo.index.commit('Add recipe for Flocker version ' + version)
-    foo = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    homebrew_repo.remotes.origin.push(homebrew_repo.head)
     # TODO catch if there is an error pushing - foo.flags & foo.ERROR is not 0
+    # foo = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
 
 
 @do
