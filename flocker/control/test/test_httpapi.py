@@ -558,6 +558,22 @@ class CreateContainerTestsMixin(APITestsMixin):
             dict(container_json), CREATED, dict(container_json_response)
         )
 
+    def test_create_container_with_command_line_response(self):
+        """
+        A valid API request to create a container including a command line
+        returns the command line supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"command_line": [u"a", u"bc"],
+            u"restart_policy": {u"name": u"never"},
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
     def test_create_container_with_links(self):
         """
         An API request to create a container including links to be injected in
