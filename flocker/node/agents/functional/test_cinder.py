@@ -3,6 +3,14 @@
 """
 Functional tests for ``flocker.node.agents.cinder`` using a real OpenStack
 cluster.
+
+Ideally, there'd be some in-memory tests too. Some ideas:
+ * Maybe start a `mimic` server and use it to at test just the authentication
+   step.
+ * Mimic doesn't currently fake the cinder APIs but perhaps we could contribute
+   that feature.
+
+See https://github.com/rackerlabs/mimic/issues/218
 """
 
 from uuid import uuid4
