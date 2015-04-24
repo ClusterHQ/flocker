@@ -71,6 +71,15 @@ class ICinderVolumeManager(Interface):
         :param metadata: A list of keys to be set.
         """
 
+    def attach(volume, instance_uuid, mountpoint):
+        """
+         Set attachment metadata.
+
+        :param volume: The :class:`Volume` (or its ID) you would like
+            to attach.
+        :param instance_uuid: uuid of the attaching instance.
+        :param mountpoint: mountpoint on the attaching instance.
+        """
 
 def wait_for_volume(volume_manager, expected_volume):
     """

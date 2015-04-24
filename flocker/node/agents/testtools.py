@@ -46,6 +46,16 @@ class TidyCinderVolumeManager(
         self._created_volumes.append(volume)
         return volume
 
+    def attach(self, volume, instance_uuid, mountpoint):
+        """
+        This may not be necessary....let's see.
+        """
+        return self.original.attach(
+            volume=volume,
+            instance_uuid=instance_uuid,
+            mountpoint=mountpoint,
+        )
+
     def _cleanup(self):
         """
         Remove all the volumes that have been created by this VolumeManager
