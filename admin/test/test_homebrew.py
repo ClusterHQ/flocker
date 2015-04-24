@@ -52,9 +52,11 @@ class GetChecksumTests(SynchronousTestCase):
     """
     Tests for X.
     """
-    # TODO use requests
-    # test with local file, like with RPMs
-    pass
+    def test_checksum(self):
+        pass
+
+    def test_file_not_available(self):
+        pass
 
 class GetDependencyGraphTests(SynchronousTestCase):
     """

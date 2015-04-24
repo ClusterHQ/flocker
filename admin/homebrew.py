@@ -18,6 +18,9 @@ from characteristic import attributes
 from twisted.python.usage import Options, UsageError
 from tl.eggdeps.graph import Graph
 
+import requests
+from requests_file import FileAdapter
+
 
 @attributes([
     "flocker_version",
@@ -87,13 +90,13 @@ def get_checksum(url):
 
     :return str checksum: The sha1 hash of the file at ``url``.
     """
-    logging.info('Downloading {}'.format(url))
-    download = urlopen(url)
-    try:
-        checksum = sha1(download.read()).hexdigest()
-    finally:
-        download.close()
-    return checksum
+    s = requests.Session()
+    # Tests use a local package repository
+    s.mount('file://', FileAdapter())
+    download = s.get(url)
+    download.raise_for_status()
+    content = download.content
+    return sha1(content).hexdigest()
 
 
 def get_class_name(version):
@@ -164,34 +167,35 @@ def get_resource_stanzas(dependency_graph):
 
 
 def get_recipe(url, sha1, class_name, resources, dependencies):
+    # TODO is this too much indentation?
 
     return """require "formula"
 
-    class {class_name} < Formula
-      homepage "https://clusterhq.com"
-      url "{url}"
-      sha1 "{sha1}"
-      depends_on :python if MacOS.version <= :snow_leopard
-    {resources}
-      def install
-        ENV.prepend_create_path "PYTHONPATH", "#{{libexec}}/vendor/lib/python2.7/site-packages"
-        %w[{dependencies}].each do |r|
-          resource(r).stage do
-            system "python", *Language::Python.setup_install_args(libexec/"vendor")
-          end
-        end
-
-        ENV.prepend_create_path "PYTHONPATH", libexec/"lib/python2.7/site-packages"
-        system "python", *Language::Python.setup_install_args(libexec)
-
-        bin.install Dir["#{{libexec}}/bin/*"]
-        bin.env_script_all_files(libexec/"bin", :PYTHONPATH => ENV["PYTHONPATH"])
-      end
-
-      test do
-        system "#{{bin}}/flocker-deploy", "--version"
+class {class_name} < Formula
+  homepage "https://clusterhq.com"
+  url "{url}"
+  sha1 "{sha1}"
+  depends_on :python if MacOS.version <= :snow_leopard
+{resources}
+  def install
+    ENV.prepend_create_path "PYTHONPATH", "#{{libexec}}/vendor/lib/python2.7/site-packages"
+    %w[{dependencies}].each do |r|
+      resource(r).stage do
+        system "python", *Language::Python.setup_install_args(libexec/"vendor")
       end
     end
+
+    ENV.prepend_create_path "PYTHONPATH", libexec/"lib/python2.7/site-packages"
+    system "python", *Language::Python.setup_install_args(libexec)
+
+    bin.install Dir["#{{libexec}}/bin/*"]
+    bin.env_script_all_files(libexec/"bin", :PYTHONPATH => ENV["PYTHONPATH"])
+  end
+
+  test do
+    system "#{{bin}}/flocker-deploy", "--version"
+  end
+end
     """.format(
             url=url,
             sha1=sha1,
@@ -247,7 +251,7 @@ def main(args, base_path, top_level):
     sha1 = get_checksum(url)
     class_name = get_class_name(version=version),
     dependency_graph = get_dependency_graph(u"flocker")
-    resources = get_resource_stanzas(dependency_graph=dependency_graph),
+    resources = get_resource_stanzas(dependency_graph=dependency_graph)
     dependencies = get_formatted_dependency_list(
         dependency_graph=dependency_graph)
 
