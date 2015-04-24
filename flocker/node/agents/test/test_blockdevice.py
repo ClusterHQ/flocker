@@ -45,7 +45,7 @@ from ..blockdevice import (
     _SyncToThreadedAsyncAPIAdapter,
 )
 
-from ... import IStateChange, run_state_change, in_parallel
+from ... import run_state_change, in_parallel
 from ...testtools import ideployer_tests_factory, to_node
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests
