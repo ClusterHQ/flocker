@@ -37,6 +37,10 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
+# The Rackspace authentication endpoint
+# See http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/Authentication-d1e647.html # noqa
+RACKSPACE_AUTH_URL = "https://identity.api.rackspacecloud.com/v2.0"
+
 
 class ICinderVolumeManager(Interface):
     """
@@ -203,8 +207,11 @@ def rackspace_cinder_client(**kwargs):
     api_key = kwargs.pop('key')
     region = kwargs.pop('region')
 
-    auth_url = "https://identity.api.rackspacecloud.com/v2.0"
-    auth = RackspaceAuth(auth_url=auth_url, username=username, api_key=api_key)
+    auth = RackspaceAuth(
+        auth_url=RACKSPACE_AUTH_URL,
+        username=username,
+        api_key=api_key
+    )
     session = Session(auth=auth)
     return Client(version=1, session=session, region_name=region)
 
