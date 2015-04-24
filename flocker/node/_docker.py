@@ -543,6 +543,8 @@ class DockerClient(object):
                     # have been removed in another thread.
                     if e.response.status_code == NOT_FOUND:
                         continue
+                    else:
+                        raise
 
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
@@ -574,7 +576,18 @@ class DockerClient(object):
                 # Retrieve environment variables for this container,
                 # disregarding any environment variables that are part
                 # of the image, rather than supplied in the configuration.
-                image_data = self._client.inspect_image(image)
+                try:
+                    image_data = self._client.inspect_image(image)
+                except APIError as e:
+                    if e.response.status_code == NOT_FOUND:
+                        # Image has been deleted, so just fill in some
+                        # stub data so we can return *something*. This
+                        # should happen only for stopped containers so
+                        # some inaccuracy is acceptable.
+                        image_data = {u"Config": {u"Env": []}}
+                    else:
+                        raise
+
                 unit_environment = []
                 container_environment = data[u"Config"][u"Env"]
                 image_environment = image_data[u"Config"]["Env"]
