@@ -69,11 +69,6 @@ def auto_threaded(interface, reactor, sync, threadpool):
 
     def _threaded_class_decorator(cls):
         for name in interface.names():
-            if not isinstance(interface[name], Method):
-                raise TypeError(
-                    "auto_threaded does not support interfaces with "
-                    "non-methods attributes"
-                )
             setattr(
                 cls, name, _threaded_method(sync, name, reactor, threadpool)
             )
