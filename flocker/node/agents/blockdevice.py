@@ -220,7 +220,7 @@ RESIZE_BLOCK_DEVICE_DATASET = ActionType(
 )
 
 
-def _volume():
+def _volume_field():
     """
     Create and return a ``PRecord`` ``field`` to hold a ``BlockDeviceVolume``.
     """
@@ -318,7 +318,7 @@ class ResizeVolume(PRecord):
     """
     Change the size of a volume.
     """
-    volume = _volume()
+    volume = _volume_field()
     size = field(type=int, mandatory=True)
 
     @property
@@ -340,7 +340,7 @@ class CreateFilesystem(PRecord):
     """
     Create a filesystem on a block device.
     """
-    volume = _volume()
+    volume = _volume_field()
     filesystem = field(type=unicode, mandatory=True)
 
     @property
@@ -361,7 +361,7 @@ class CreateFilesystem(PRecord):
 
 @implementer(IStateChange)
 class ResizeFilesystem(PRecord):
-    volume = _volume()
+    volume = _volume_field()
 
     @property
     def eliot_action(self):
@@ -443,7 +443,7 @@ class MountBlockDevice(PRecord):
     :ivar BlockDeviceVolume volume: The volume associated with the dataset
         which will be unmounted.
     """
-    volume = _volume()
+    volume = _volume_field()
     mountpoint = field(type=FilePath, mandatory=True)
 
     @property
@@ -477,7 +477,7 @@ class UnmountBlockDevice(PRecord):
     :ivar BlockDeviceVolume volume: The volume associated with the dataset
         which will be unmounted.
     """
-    volume = _volume()
+    volume = _volume_field()
 
     @property
     def eliot_action(self):
@@ -504,7 +504,7 @@ class AttachVolume(PRecord):
 
     :ivar BlockDeviceVolume volume: The volume to attach.
     """
-    volume = _volume()
+    volume = _volume_field()
     hostname = field(type=unicode, mandatory=True)
 
     @property
@@ -530,7 +530,7 @@ class DetachVolume(PRecord):
 
     :ivar BlockDeviceVolume volume: The volume to destroy.
     """
-    volume = _volume()
+    volume = _volume_field()
 
     @property
     def eliot_action(self):
@@ -553,7 +553,7 @@ class DestroyVolume(PRecord):
 
     :ivar BlockDeviceVolume volume: The volume to destroy.
     """
-    volume = _volume()
+    volume = _volume_field()
 
     @property
     def eliot_action(self):
