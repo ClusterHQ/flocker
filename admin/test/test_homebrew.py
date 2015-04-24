@@ -3,10 +3,13 @@
 Tests for :module:`admin.homebrew`.
 """
 
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 
-from admin.homebrew import HomebrewOptions
+from requests.exceptions import HTTPError
+
+from admin.homebrew import HomebrewOptions, get_checksum
 
 class HomebrewOptionsTests(SynchronousTestCase):
     """
@@ -53,10 +56,29 @@ class GetChecksumTests(SynchronousTestCase):
     Tests for X.
     """
     def test_checksum(self):
-        pass
+        """
+        The sha1 hash of a file at a given URI is returned.
+        """
+        source_repo = FilePath(self.mktemp())
+        source_repo.makedirs()
+        file = source_repo.child('example_file')
+        file.setContent("Some content")
+
+        uri = 'file://' + file.path
+        # TODO Make get_checksum take URI not URL
+        self.assertEqual(
+            '9f1a6ecf74e9f9b1ae52e8eb581d420e63e8453a',
+            get_checksum(url=uri))
 
     def test_file_not_available(self):
-        pass
+        """
+        If a requested file is not available in the repository, a 404 error is
+        raised.
+        """
+        with self.assertRaises(HTTPError) as exception:
+            get_checksum(url='file://' + FilePath(self.mktemp()).path)
+
+        self.assertEqual(404, exception.exception.response.status_code)
 
 class GetDependencyGraphTests(SynchronousTestCase):
     """
