@@ -3,6 +3,7 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
+from subprocess import check_output
 from uuid import UUID
 
 from bitmath import Byte, GB, TB
@@ -97,6 +98,29 @@ def wait_for_volume(volume_manager, expected_volume):
                     return listed_volume
 
 
+def _instance_uuid():
+    """
+    See http://wiki.christophchamp.com/index.php/Xenstore
+    $ sudo xenstore-read name
+    instance-6ddfb6c0-d264-4e77-846a-aa67e4fe89df
+
+    # This is how we can get the instance_uuid of this node.
+    # But to satisfy the current IBlockDeviceAPI.list API we'll need
+    # to match the OpenStack instance_uuid to the hostname (or soon,
+    # the Flocker Node UUD). How will we do that?
+    # We don't really want this implementation to have to query the
+    # OpenStack servers list and even if it could get that list, how
+    # is it going to match Flocker node UUIDs to OpenStack
+    # instance_uuid.
+    # Perhaps BlockDeviceVolume.host should have the OpenStack
+    # instance_uuid and there should be an extra
+    # IBlockDeviceAPI.is_local_volume method (or something)
+    """
+    prefix = 'instance-'
+    name = check_output(['xenstore-read', 'name']).rstrip()
+    return UUID(name[len(prefix):])
+
+
 @implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
     """
@@ -168,6 +192,12 @@ class CinderBlockDeviceAPI(object):
 
     def attach_volume(self, blockdevice_id, host):
         unattached_volume = self._get(blockdevice_id)
+        local_instance_uuid = _instance_uuid()
+        self.volume_manager.attach(
+            volume=unattached_volume.blockdevice_id,
+            instance_uuid=unicode(local_instance_uuid),
+            mountpoint=u'auto',
+        )
         attached_volume = unattached_volume.set('host', host)
         return attached_volume
 
