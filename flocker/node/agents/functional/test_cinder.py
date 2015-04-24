@@ -68,12 +68,16 @@ class CinderBlockDeviceAPIInterfaceTests(
 ):
     """
     Interface adherence Tests for ``CinderBlockDeviceAPI``.
+    Block devices that are created in these tests will be cleaned up by
+    ``TidyCinderVolumeManager``.
     """
 
 
 class CinderBlockDeviceAPIImplementationTests(SynchronousTestCase):
     """
     Implementation specific tests for ``CinderBlockDeviceAPI``.
+    Block devices that are created in these tests will be cleaned up by
+    ``TidyCinderVolumeManager``.
     """
     def test_foreign_volume(self):
         """
