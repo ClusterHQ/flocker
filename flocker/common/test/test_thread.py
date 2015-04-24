@@ -4,7 +4,7 @@
 Tests for ``flocker.common._thread``.
 """
 
-from zope.interface import Interface, implementer
+from zope.interface import Attribute, Interface, implementer
 
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.failure import Failure
@@ -133,6 +133,22 @@ class AutoThreadedTests(SynchronousTestCase):
         a thread using the threadpool specified to ``auto_threaded``.
         """
         self.async_spy.method(self.a, self.b, self.c)
+
+    def test_attributes_rejected(self):
+        """
+        Interfaces that use ``Attribute`` are not supported.
+        """
+        class IAttributeHaving(Interface):
+            def some_method():
+                pass
+
+            x = Attribute("some attribute")
+
+        self.assertRaises(
+            TypeError,
+            auto_threaded,
+            IAttributeHaving, "reactor", "sync", "threadpool"
+        )
 
 
 class AutoThreadedIntegrationTests(TestCase):
