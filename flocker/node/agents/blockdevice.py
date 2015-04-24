@@ -342,6 +342,11 @@ class ResizeVolume(PRecord):
 class CreateFilesystem(PRecord):
     """
     Create a filesystem on a block device.
+
+    :ivar BlockDeviceVolume volume: The volume in which to create the
+        filesystem.
+    :ivar unicode filesystem: The name of the filesystem type to create.  For
+        example, ``u"ext4"``.
     """
     volume = _volume_field()
     filesystem = field(type=unicode, mandatory=True)
@@ -364,6 +369,15 @@ class CreateFilesystem(PRecord):
 
 @implementer(IStateChange)
 class ResizeFilesystem(PRecord):
+    """
+    Resize the filesystem on a volume.
+
+    This is currently limited to growing the filesystem to exactly the size of
+    the volume.
+
+    :ivar BlockDeviceVolume volume: The volume with an existing filesystem to
+        resize.
+    """
     volume = _volume_field()
 
     @property
@@ -404,7 +418,7 @@ class ResizeBlockDeviceDataset(PRecord):
 
     :ivar UUID dataset_id: The unique identifier of the dataset to which the
         volume to be destroyed belongs.
-    :ivar int size: The size to which to resize the block device.
+    :ivar int size: The size (in bytes) to which to resize the block device.
     """
     dataset_id = field(type=UUID, mandatory=True)
     size = field(type=int, mandatory=True)
@@ -445,6 +459,8 @@ class MountBlockDevice(PRecord):
 
     :ivar BlockDeviceVolume volume: The volume associated with the dataset
         which will be unmounted.
+    :ivar FilePath mountpoint: The filesystem location at which to mount the
+        volume's filesystem.  If this does not exist, it is created.
     """
     volume = _volume_field()
     mountpoint = field(type=FilePath, mandatory=True)
@@ -506,6 +522,8 @@ class AttachVolume(PRecord):
     Attach an unattached volume to a node.
 
     :ivar BlockDeviceVolume volume: The volume to attach.
+    :ivar unicode hostname: An identifier for the node to which the volume
+        should be attached.  An IPv4 address literal.
     """
     volume = _volume_field()
     hostname = field(type=unicode, mandatory=True)
