@@ -1775,7 +1775,6 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         """
         The passed in contents are in the recipe.
         """
-        # TODO is this leaving files open?
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(), self.content)
 
