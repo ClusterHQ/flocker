@@ -9,7 +9,7 @@ from twisted.python.usage import UsageError
 
 from requests.exceptions import HTTPError
 
-from admin.homebrew import HomebrewOptions, get_checksum
+from admin.homebrew import HomebrewOptions, get_checksum, get_dependency_graph
 
 class HomebrewOptionsTests(SynchronousTestCase):
     """
@@ -84,7 +84,21 @@ class GetDependencyGraphTests(SynchronousTestCase):
     """
     Tests for X.
     """
-    pass
+    def test_get_dependency_graph(self):
+        graph = get_dependency_graph(u'flocker')
+        # We can be sure that flocker is installed if we are running this,
+        # and pretty sure that setuptools is a dependency with no dependencies
+        # of its own.
+        # Perhaps a better test would installe a canned package.
+        self.assertEqual(graph['setuptools'], {})
+
+    def test_application_removed(self):
+        """
+        Applications cannot depend on themselves so they are not in the graph.
+        """
+
+    def test_application_does_not_exist(self):
+        pass
 
 class GetClassNameTests(SynchronousTestCase):
     """
