@@ -1,7 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Tests for cinder API behaviour.
+Test for real world behaviour of Cinder implementations, so we know when to
+update our workarounds.
 """
 
 from twisted.trial.unittest import SynchronousTestCase
