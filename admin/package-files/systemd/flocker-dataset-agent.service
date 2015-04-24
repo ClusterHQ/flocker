@@ -1,9 +1,9 @@
 [Unit]
 Description=Flocker Dataset Agent
+AssertFileNotEmpty=/etc/flocker/dataset-agent.yml
 
 [Service]
-ExecStart=/usr/sbin/flocker-dataset-agent $FLOCKER_NODE_NAME $FLOCKER_CONTROL_NODE
-EnvironmentFile=/etc/sysconfig/flocker-agent
+ExecStart=/usr/sbin/flocker-dataset-agent
 
 # We can't have a private mount namespace, since we need to see ZFS created mounts.
 

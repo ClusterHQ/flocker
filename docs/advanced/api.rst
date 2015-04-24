@@ -27,6 +27,28 @@ To configure firewalld to allow access to the control service REST API, and for 
 (On AWS, an external firewall is used instead, which will need to be configured similarity).
 For more details on configuring the firewall, see Fedora's `firewalld documentation <https://fedoraproject.org/wiki/FirewallD>`_.
 
+To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/dataset-agent.yml``.
+This file has the format:
+
+
+.. code-block:: yaml
+
+   node-name:
+   control-service-endpoint: tcp:control-service-hostname:4524
+   dataset:
+      backend: zfs
+      zfs-pool: flocker
+
+.. Remove this before doing a release (JIRA-XXX)
+
+or if loopback, dataset key is like:
+
+.. code-block:: yaml
+
+   dataset:
+      backend: loopback
+      loopback-pool: /var/lib/flocker/loopback
+
 To start the agents on a node, (where ``${CONTROL_NODE}`` is the address of the control node,
 ``${NODE_NAME}`` is the name of the node being configured),
 and ``${BACKEND}`` is either ``zfs`` or ``loopback``:
