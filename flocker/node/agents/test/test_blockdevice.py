@@ -1802,7 +1802,7 @@ class _MountScenario(PRecord):
     :ivar dataset_id: The dataset identifier associated with the volume that
         will be created.
     :ivar filesystem_type: The name of the filesystem with which the volume
-        will be initialized (eg ``b"ext2"``).
+        will be initialized (eg ``u"ext2"``).
     :ivar api: The ``IBlockDeviceAPI`` provider which will be used to create
         and attach a new volume.
     :ivar volume: The volume which is created.
@@ -1813,7 +1813,7 @@ class _MountScenario(PRecord):
     """
     host = field(type=unicode)
     dataset_id = field(type=UUID)
-    filesystem_type = field(type=bytes)
+    filesystem_type = field(type=unicode)
     api = field()
     volume = field(type=BlockDeviceVolume)
     deployer = field(type=BlockDeviceDeployer)
@@ -1836,7 +1836,7 @@ class _MountScenario(PRecord):
             state which has been set up.
         """
         host = u"192.0.7.8"
-        filesystem = u"ext4"
+        filesystem_type = u"ext4"
         dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(case)
         volume = api.create_volume(
@@ -1851,8 +1851,8 @@ class _MountScenario(PRecord):
         )
 
         return cls(
-            host=host, dataset_id=dataset_id, filesystem=filesystem, api=api,
-            volume=volume, deployer=deployer, mountpoint=mountpoint,
+            host=host, dataset_id=dataset_id, filesystem_type=filesystem_type,
+            api=api, volume=volume, deployer=deployer, mountpoint=mountpoint,
         )
 
     def create(self):
@@ -1863,7 +1863,9 @@ class _MountScenario(PRecord):
             created.
         """
         return run_state_change(
-            CreateFilesystem(volume=self.volume, filesystem=self.filesystem),
+            CreateFilesystem(
+                volume=self.volume, filesystem=self.filesystem_type
+            ),
             self.deployer,
         )
 
@@ -1898,7 +1900,7 @@ class MountBlockDeviceTests(
         expected = (
             scenario.api.get_device_path(scenario.volume.blockdevice_id).path,
             mountpoint.path,
-            scenario.filesystem,
+            scenario.filesystem_type,
         )
         mounted = list(
             (part.device, part.mountpoint, part.fstype)
