@@ -23,6 +23,23 @@ class IStub(Interface):
         pass
 
 
+class CannotAdd(object):
+    """
+    A class to use to demonstrate error handling behavior of ``auto_threaded``.
+    ``IStub.method`` uses addition.  This class fails to support addition in a
+    particular, easily observed way.
+    """
+    EXCEPTION = Exception("Cannot add CannotAdd!")
+
+    def __add__(self, other):
+        """
+        ``CannotAdd`` cannot be added to anything.
+
+        :raise: ``self.EXCEPTION``
+        """
+        raise self.EXCEPTION
+
+
 @implementer(IStub)
 class Spy(object):
     """
@@ -128,10 +145,11 @@ class AutoThreadedTests(SynchronousTestCase):
         an exception, the ``Deferred`` fires with a ``Failure`` representing
         that exception.
         """
-        self.failureResultOf(
-            self.async_spy.method(None, None, None),
-            TypeError
+        failure = self.failureResultOf(
+            self.async_spy.method(CannotAdd(), 1, 2),
+            type(CannotAdd.EXCEPTION)
         )
+        self.assertEqual(CannotAdd.EXCEPTION, failure.value)
 
     def test_called_in_threadpool(self):
         """
