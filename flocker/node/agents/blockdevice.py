@@ -376,7 +376,7 @@ class CreateBlockDeviceDataset(PRecord):
 
 class IBlockDeviceAsyncAPI(Interface):
     """
-    Common operations provided by all block devices backends, exposed via
+    Common operations provided by all block device backends, exposed via
     asynchronous methods.
     """
     def create_volume(dataset_id, size):
@@ -434,8 +434,8 @@ class IBlockDeviceAsyncAPI(Interface):
 
 class IBlockDeviceAPI(Interface):
     """
-    Common operations provided by all block device backends, exposed, exposed
-    via synchronous methods.
+    Common operations provided by all block device backends, exposed via
+    synchronous methods.
 
     Note: This is an early sketch of the interface and it'll be refined as we
     real blockdevice providers are implemented.
