@@ -219,6 +219,9 @@ class HomebrewOptions(Options):
         if self['sdist'] is None:
             raise UsageError("`--sdist` must be specified.")
 
+        if self['output-file'] is None:
+            raise UsageError("`--sdist` must be specified.")
+
 
 def main(args, base_path, top_level):
     """
