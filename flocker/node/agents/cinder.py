@@ -88,17 +88,17 @@ def wait_for_volume(volume_manager, expected_volume):
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
-    in an OpenStack cluster.
+    in an OpenStack cluster using Cinder APIs.
     """
-    def __init__(self, cinder_client, cluster_id):
+    def __init__(self, volume_manager, cluster_id):
         """
-        :param ICinderVolumeManager cinder_client: A client for interacting
+        :param ICinderVolumeManager volume_manager: A client for interacting
             with Cinder API.
         :param UUID cluster_id: An ID that will be included in the names of
             Cinder block devices in order to associate them with a particular
             Flocker cluster.
         """
-        self.cinder_client = cinder_client
+        self.volume_manager = volume_manager
         self.cluster_id = cluster_id
 
     def create_volume(self, dataset_id, size):
@@ -127,20 +127,15 @@ class CinderBlockDeviceAPI(object):
         }
         # We supply metadata here and it'll be included in the returned cinder
         # volume record, but it'll be lost by Rackspace, so...
-        requested_volume = self.cinder_client.volumes.create(
+        requested_volume = self.volume_manager.create(
             size=Byte(size).to_GB().value,
             metadata=metadata,
         )
-        created_volume = wait_for_volume(
-            volume_manager=self.cinder_client.volumes,
-            expected_volume=requested_volume
-        )
+        created_volume = wait_for_volume(self.volume_manager, requested_volume)
         # So once the volume has actually been created, we set the metadata
         # again. One day we hope this won't be necessary.
         # See Rackspace support ticket: 150422-ord-0000495'
-        self.cinder_client.volumes.set_metadata(
-            created_volume, metadata
-        )
+        self.volume_manager.set_metadata(created_volume, metadata)
         # Use requested volume here, because it has the desired metadata.
         return _blockdevicevolume_from_cinder_volume(requested_volume)
 
@@ -151,7 +146,7 @@ class CinderBlockDeviceAPI(object):
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html
         """
         volumes = []
-        for cinder_volume in self.cinder_client.volumes.list():
+        for cinder_volume in self.volume_manager.list():
             if _is_cluster_volume(self.cluster_id, cinder_volume):
                 volumes.append(
                     _blockdevicevolume_from_cinder_volume(cinder_volume)
@@ -218,4 +213,7 @@ def authenticated_cinder_client(username, api_key, region):
 def cinder_api(cinder_client, cluster_id):
     """
     """
-    return CinderBlockDeviceAPI(cinder_client, cluster_id)
+    return CinderBlockDeviceAPI(
+        volume_manager=cinder_client.volumes,
+        cluster_id=cluster_id,
+    )
