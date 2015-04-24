@@ -169,11 +169,13 @@ def _is_cluster_volume(cluster_id, cinder_volume):
     :param UUID cluster_id: The uuid4 of a Flocker cluster.
     :param Volume cinder_volume: The Volume with metadata to examine.
     :return: ``True`` if ``cinder_volume`` metadata has a
-    ``CLUSTER_ID_LABEL`` value matching ``cluster_id`` else ``False``.
+        ``CLUSTER_ID_LABEL`` value matching ``cluster_id`` else ``False``.
     """
     actual_cluster_id = cinder_volume.metadata.get(CLUSTER_ID_LABEL)
-    if actual_cluster_id == cluster_id:
-        return True
+    if actual_cluster_id is not None:
+        actual_cluster_id = UUID(actual_cluster_id)
+        if actual_cluster_id == cluster_id:
+            return True
     return False
 
 

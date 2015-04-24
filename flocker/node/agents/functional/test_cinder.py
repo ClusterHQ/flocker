@@ -7,6 +7,8 @@ cluster.
 
 from uuid import uuid4
 
+from bitmath import Byte
+
 from twisted.trial.unittest import SynchronousTestCase
 
 from ....testtools import skip_except
@@ -71,7 +73,7 @@ class CinderBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         cinder_client = tidy_cinder_client_for_test(test_case=self)
         requested_volume = cinder_client.volumes.create(
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
         )
         wait_for_volume(
             volume_manager=cinder_client.volumes,
