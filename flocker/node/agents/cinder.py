@@ -167,7 +167,9 @@ class CinderBlockDeviceAPI(object):
         pass
 
     def attach_volume(self, blockdevice_id, host):
-        volume = self._get(blockdevice_id)
+        unattached_volume = self._get(blockdevice_id)
+        attached_volume = unattached_volume.set('host', host)
+        return attached_volume
 
     def detach_volume(self, blockdevice_id):
         pass
