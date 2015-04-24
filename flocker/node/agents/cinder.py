@@ -14,7 +14,7 @@ from cinderclient.client import Client
 
 from zope.interface import implementer, Interface
 
-from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume
+from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume
 
 # Rackspace public docs say "The minimum size for a Cloud Block Storage volume
 # is 50 GB for an SSD volume or 75GB for an SATA volume. The maximum volume
@@ -157,11 +157,17 @@ class CinderBlockDeviceAPI(object):
                 )
         return volumes
 
+    def _get(self, blockdevice_id):
+        for volume in self.list_volumes():
+            if volume.blockdevice_id == blockdevice_id:
+                return volume
+        raise UnknownVolume(blockdevice_id)
+
     def resize_volume(self, blockdevice_id, size):
         pass
 
     def attach_volume(self, blockdevice_id, host):
-        pass
+        volume = self._get(blockdevice_id)
 
     def detach_volume(self, blockdevice_id):
         pass
