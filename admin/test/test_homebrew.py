@@ -31,15 +31,16 @@ class HomebrewOptionsTests(SynchronousTestCase):
             UsageError,
             options.parseOptions, ['--flocker-version', '0.3.0'])
 
-    def test_output_file_not_required(self):
+    def test_output_file_required(self):
         """
-        The ``--output-file`` option is not required.
+        The ``--output-file`` option is required.
         """
-        # Does not raise
         options = HomebrewOptions()
-        options.parseOptions([
-            '--flocker-version', '0.3.0',
-            '--sdist', 'mysdist'])
+        self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            ['--flocker-version', '0.3.0',
+             '--sdist', 'mysdist'])
 
 # TODO make private methods private
 # TODO release will have to use an sdist

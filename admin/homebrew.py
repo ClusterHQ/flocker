@@ -163,6 +163,42 @@ def get_resource_stanzas(dependency_graph):
     return resources
 
 
+def get_recipe(url, sha1, class_name, resources, dependencies):
+
+    return """require "formula"
+
+    class {class_name} < Formula
+      homepage "https://clusterhq.com"
+      url "{url}"
+      sha1 "{sha1}"
+      depends_on :python if MacOS.version <= :snow_leopard
+    {resources}
+      def install
+        ENV.prepend_create_path "PYTHONPATH", "#{{libexec}}/vendor/lib/python2.7/site-packages"
+        %w[{dependencies}].each do |r|
+          resource(r).stage do
+            system "python", *Language::Python.setup_install_args(libexec/"vendor")
+          end
+        end
+
+        ENV.prepend_create_path "PYTHONPATH", libexec/"lib/python2.7/site-packages"
+        system "python", *Language::Python.setup_install_args(libexec)
+
+        bin.install Dir["#{{libexec}}/bin/*"]
+        bin.env_script_all_files(libexec/"bin", :PYTHONPATH => ENV["PYTHONPATH"])
+      end
+
+      test do
+        system "#{{bin}}/flocker-deploy", "--version"
+      end
+    end
+    """.format(
+            url=url,
+            sha1=sha1,
+            class_name=class_name,
+            resources=resources,
+            dependencies=dependencies)
+
 class HomebrewOptions(Options):
     """
     Options for uploading packages.
@@ -173,8 +209,7 @@ class HomebrewOptions(Options):
         ["sdist", None, None,
          "URL to a source distribution of Flocker."],
         ["output-file", None, None,
-         "(Optional) The name of a file to output containing the recipe. "
-         "Without this the recipe will be printed."],
+         "The name of a file to output containing the recipe."],
     ]
 
     def parseArgs(self):
@@ -184,11 +219,12 @@ class HomebrewOptions(Options):
         if self['sdist'] is None:
             raise UsageError("`--sdist` must be specified.")
 
+
 def main(args, base_path, top_level):
     """
     # TODO create a function to get the string
 
-    Create a Homebrew recipe and either print it or output it to a file.
+    Create a Homebrew recipe.
     """
     options = HomebrewOptions()
 
@@ -201,52 +237,26 @@ def main(args, base_path, top_level):
     logging.basicConfig(level=logging.INFO)
 
     version = options["flocker-version"]
-    url = options["sdist"]
+
     logging.info('Creating Homebrew recipe for version {}'.format(version))
 
+    url = options["sdist"]
+    sha1 = get_checksum(url)
+    class_name = get_class_name(version=version),
     dependency_graph = get_dependency_graph(u"flocker")
+    resources = get_resource_stanzas(dependency_graph=dependency_graph),
+    dependencies = get_formatted_dependency_list(
+        dependency_graph=dependency_graph)
 
+    recipe = get_recipe(
+        url=url,
+        sha1=sha1,
+        class_name=class_name,
+        resources=resources,
+        dependencies=dependencies)
 
-    recipe = u"""require "formula"
-
-class {class_name} < Formula
-  homepage "https://clusterhq.com"
-  url "{url}"
-  sha1 "{sha1}"
-  depends_on :python if MacOS.version <= :snow_leopard
-{resources}
-  def install
-    ENV.prepend_create_path "PYTHONPATH", "#{{libexec}}/vendor/lib/python2.7/site-packages"
-    %w[{dependencies}].each do |r|
-      resource(r).stage do
-        system "python", *Language::Python.setup_install_args(libexec/"vendor")
-      end
-    end
-
-    ENV.prepend_create_path "PYTHONPATH", libexec/"lib/python2.7/site-packages"
-    system "python", *Language::Python.setup_install_args(libexec)
-
-    bin.install Dir["#{{libexec}}/bin/*"]
-    bin.env_script_all_files(libexec/"bin", :PYTHONPATH => ENV["PYTHONPATH"])
-  end
-
-  test do
-    system "#{{bin}}/flocker-deploy", "--version"
-  end
-end
-""".format(url=url, sha1=get_checksum(url),
-           class_name=get_class_name(version),
-           resources=get_resource_stanzas(dependency_graph),
-           dependencies=get_formatted_dependency_list(dependency_graph))
-
-    # If output-file not supplied, print to stdout.
-    filename = options["output-file"]
-    if filename is None:
-        sys.stdout.write(recipe)
-    else:
-        logging.info('Writing Homebrew recipe to file "{}"'.format(filename))
-        with open(filename, 'wt') as f:
-            f.write(recipe)
+    with open(options["output-file"], 'wt') as f:
+        f.write(recipe)
 
 
 if __name__ == "__main__":
