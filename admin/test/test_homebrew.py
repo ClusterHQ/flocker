@@ -1,21 +1,48 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
-Tests for :module:`admin.vagrant`.
+Tests for :module:`admin.homebrew`.
 """
 
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 
-from admin.homebrew import (
-    box_metadata, BuildOptions)
-
-from flocker import __version__ as flocker_version
+from admin.homebrew import HomebrewOptions
 
 class HomebrewOptionsTests(SynchronousTestCase):
     """
-    Tests for :func:`box_metadata`.
+    Tests for :class:`HomebrewOptions`.
     """
+
+    def test_flocker_version_required(self):
+          """
+          The ``--flocker-version`` option is not required.
+          """
+          options = HomebrewOptions()
+          self.assertRaises(
+              UsageError,
+              options.parseOptions, ['--sdist', 'mysdist'])
+
+    def test_sdist_required(self):
+        """
+        The ``--sdist`` option is not required.
+        """
+        options = HomebrewOptions()
+        self.assertRaises(
+            UsageError,
+            options.parseOptions, ['--flocker-version', '0.3.0'])
+
+    def test_output_file_not_required(self):
+        """
+        The ``--output-file`` option is not required.
+        """
+        # Does not raise
+        options = HomebrewOptions()
+        options.parseOptions([
+            '--flocker-version', '0.3.0',
+            '--sdist', 'mysdist'])
+
+# TODO make private methods private
+# TODO release will have to use an sdist
 
 class GetChecksumTests(SynchronousTestCase):
     pass

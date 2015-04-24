@@ -16,6 +16,7 @@ from hashlib import sha1
 from effect import sync_performer, TypeDispatcher
 from characteristic import attributes
 # TODO this will have to be a dev requirement if it isn't already
+from twisted.python.usage import Options, UsageError
 from tl.eggdeps.graph import Graph
 
 
@@ -163,6 +164,27 @@ def get_resource_stanzas(dependency_graph):
     return resources
 
 
+class HomebrewOptions(Options):
+    """
+    Options for uploading packages.
+    """
+    optParameters = [
+        ["flocker-version", None, None,
+         "The version of Flocker to create a recipe for."],
+        ["sdist", None, None,
+         "URL to a source distribution of Flocker."],
+        ["output-file", None, None,
+         "(Optional) The name of a file to output containing the recipe. "
+         "Without this the recipe will be printed."],
+    ]
+
+    def parseArgs(self):
+        if self['flocker-version'] is None:
+            raise UsageError("`--flocker-version` must be specified.")
+
+        if self['sdist'] is None:
+            raise UsageError("`--sdist` must be specified.")
+
 def main():
     """
     # TODO docstring should mention the --output-file
@@ -182,32 +204,18 @@ def main():
     If no command line argument is provided, use the standard release
     location for the indicated version.
     """
+    options = HomebrewOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
     logging.basicConfig(level=logging.INFO)
 
-    parser = argparse.ArgumentParser(
-        description='Create a Homebrew recipe from a source distribution.')
-    parser.add_argument(
-        '--flocker-version', help='version number for the Homebrew recipe'
-        ' (either this argument or the environment variable VERSION must be'
-        ' provided)')
-    parser.add_argument(
-        '--sdist', help='URL of the source distribution')
-    parser.add_argument(
-        '--output-file',
-        help='filename for created Homebrew recipe (default: stdout)')
-    args = parser.parse_args()
-
-
-    version = args.flocker_version
+    version = options["flocker-version"]
     logging.info('Creating Homebrew recipe for version {}'.format(version))
-
-    # If url not supplied, for backwards-compatibility, use the Google
-    # Storage location specified in the release process.
-    url = args.sdist
-    if url is None:
-        url = (b"https://storage.googleapis.com/archive.clusterhq.com/"
-               "downloads/flocker/Flocker-{version}.tar.gz").format(
-                   version=version)
 
     dependency_graph = get_dependency_graph(u"flocker")
 
@@ -244,7 +252,7 @@ end
            dependencies=get_formatted_dependency_list(dependency_graph))
 
     # If output-file not supplied, print to stdout.
-    filename = args.output_file
+    filename = options["output-file"]
     if filename is None:
         sys.stdout.write(recipe)
     else:
