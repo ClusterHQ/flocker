@@ -1245,6 +1245,9 @@ class BlockDeviceDeployer(PRecord):
             configured_manifestations, local_state
         ))
 
+        # TODO Prevent changes to volumes that are currently being used by
+        # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
+
         return in_parallel(changes=creates + deletes + resizes)
 
     def _calculate_deletes(self, configured_manifestations):
