@@ -188,7 +188,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
-def rackspace_cinder_client(username, api_key, region):
+def rackspace_cinder_client(**kwargs):
     """
     Create a Cinder API client capable of authenticating with Rackspace and
     communicating with their Cinder API.
@@ -199,10 +199,19 @@ def rackspace_cinder_client(username, api_key, region):
     :return: A ``cinderclient.v1.clien.Client`` instance with a ``volumes``
         attribute that conforms to ``ICinderVolumeManager``.
     """
+    username = kwargs.pop('username')
+    api_key = kwargs.pop('key')
+    region = kwargs.pop('region')
+
     auth_url = "https://identity.api.rackspacecloud.com/v2.0"
     auth = RackspaceAuth(auth_url=auth_url, username=username, api_key=api_key)
     session = Session(auth=auth)
     return Client(version=1, session=session, region_name=region)
+
+
+CINDER_CLIENT_FACTORIES = {
+    'rackspace': rackspace_cinder_client,
+}
 
 
 def cinder_api(cinder_client, cluster_id):

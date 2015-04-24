@@ -13,7 +13,13 @@ from zope.interface import implementer
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.python.components import proxyForInterface
 
-from .cinder import authenticated_cinder_client, ICinderVolumeManager
+from .cinder import (
+    ICinderVolumeManager, CINDER_CLIENT_FACTORIES
+)
+
+
+DEFAULT_CLOUD_PROVIDER = 'rackspace'
+DEFAULT_CLOUD_CONFIG_FILE = os.path.expanduser('~/acceptance.yml')
 
 
 @implementer(ICinderVolumeManager)
@@ -83,34 +89,28 @@ def cinder_client_from_environment():
     that's where buildbot puts its acceptance test credentials file.
 
     :returns: An instance of ``cinderclient.v1.client.Client`` authenticated
-        using Rackspace credentials and against the Rackspace Keystone server.
-    :raises: ``SkipTest`` if a ``CLOUD_CONFIG_PATH`` was not set and the
+        using provider specific credentials found in ``CLOUD_CONFIG_FILE``.
+    :raises: ``SkipTest`` if a ``CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
     """
-    default_config_file_path = os.path.expanduser('~/acceptance.yml')
-    config_file_path = os.environ.get('CLOUD_CONFIG_PATH')
+    config_file_path = os.environ.get('CLOUD_CONFIG_FILE')
     if config_file_path is not None:
         config_file = open(config_file_path)
     else:
         try:
-            config_file = open(default_config_file_path)
+            config_file = open(DEFAULT_CLOUD_CONFIG_FILE)
         except IOError as e:
             raise SkipTest(
-                'CLOUD_CONFIG_PATH environment variable was not set '
+                'CLOUD_CONFIG_FILE environment variable was not set '
                 'and the default config path ({}) could not be read. '
-                '{}'.format(default_config_file_path, e)
+                '{}'.format(DEFAULT_CLOUD_CONFIG_FILE, e)
             )
 
     config = yaml.load(config_file.read())
-    rackspace_config = config['rackspace']
-
-    return authenticated_cinder_client(
-        username=rackspace_config['username'],
-        api_key=rackspace_config['key'],
-        # XXX: Seems that Rackspace region slugs are case sensitive...when used
-        # with python-keystone anyway.
-        region=rackspace_config['region'].upper(),
-    )
+    provider_name = os.environ.get('CLOUD_PROVIDER', DEFAULT_CLOUD_PROVIDER)
+    provider_config = config[provider_name]
+    cinder_client_factory = CINDER_CLIENT_FACTORIES[provider_name]
+    return cinder_client_factory(**provider_config)
 
 
 def tidy_cinder_client_for_test(test_case):
