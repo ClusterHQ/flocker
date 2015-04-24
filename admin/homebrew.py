@@ -6,7 +6,6 @@ Create a Homebrew recipe for Flocker, using the VERSION environment variable.
 Inspired by https://github.com/tdsmith/labmisc/blob/master/mkpydeps.
 """
 
-import argparse
 import logging
 import sys
 from json import load
@@ -185,24 +184,11 @@ class HomebrewOptions(Options):
         if self['sdist'] is None:
             raise UsageError("`--sdist` must be specified.")
 
-def main():
+def main(args, base_path, top_level):
     """
-    # TODO docstring should mention the --output-file
-    # TODO separate this out into a more standard Options class using twisted's
-    # options
     # TODO create a function to get the string
-    # TODO tests for some things, including the options
-    # TODO look at using homebrew-poet
-    Print a Homebrew recipe for the Flocker distribution.
 
-    The version for the recipe must be provided in the environment
-    variable ``VERSION``.
-
-    If the command is called with a single argument, the argument
-    provides a URL to retrieve the initial source distribution archive.
-
-    If no command line argument is provided, use the standard release
-    location for the indicated version.
+    Create a Homebrew recipe and either print it or output it to a file.
     """
     options = HomebrewOptions()
 
@@ -215,9 +201,11 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     version = options["flocker-version"]
+    url = options["sdist"]
     logging.info('Creating Homebrew recipe for version {}'.format(version))
 
     dependency_graph = get_dependency_graph(u"flocker")
+
 
     recipe = u"""require "formula"
 
