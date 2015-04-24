@@ -45,6 +45,8 @@ class HomebrewOptionsTests(SynchronousTestCase):
 # TODO make private methods private
 # TODO release will have to use an sdist
 # TODO update buildbot to call wrapper script
+# TODO one function called by main which gets everything and returns a recipe
+# this will help with faking
 
 class GetChecksumTests(SynchronousTestCase):
     """
@@ -64,14 +66,8 @@ class GetClassNameTests(SynchronousTestCase):
     """
     Tests for X.
     """
-
-    def test_flocker_version(self):
+    def test_disallowed_characters_removed(self):
         pass
-
-    def test_unexpected_fails(self):
-        """
-        The given version must be a valid Flocker version.
-        """
 
 class GetFormattedDependencyListTests(SynchronousTestCase):
     """
@@ -83,3 +79,7 @@ class GetResourceStanzasTests(SynchronousTestCase):
     """
     Tests for X.
     """
+    # TODO should return a dictionary of project names to URLs and Checksums
+    # get_recipe should turn this dictionary into string
+    def test_package_not_found(self):
+        pass
