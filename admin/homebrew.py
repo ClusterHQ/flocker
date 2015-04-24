@@ -36,9 +36,27 @@ class GetHomebrewRecipe(object):
     :ivar list files: List of bytes, relative paths to files to upload.
     """
 
-@sync_performer
+
+class FakeHomebrew(object):
+    """
+    Fake for homebrew
+    """
+    @sync_performer
+    def _perform_get_homebrew_recipe(self, dispatcher, intent):
+        return "Some recipe contents"
+
+    def get_dispatcher(self):
+        """
+        Get an :module:`effect` dispatcher for interacting with this
+        :class:`FakeAWS`.
+        """
+        return TypeDispatcher({
+            GetHomebrewRecipe: self._perform_get_homebrew_recipe,
+        })
+
+# todo main() should use this, change buildbot to use this
 def perform_get_homebrew_recipe(dispatcher, intent):
-    return "Some recipe contents"
+    pass
 
 homebrew_dispatcher = TypeDispatcher({
     GetHomebrewRecipe: perform_get_homebrew_recipe,
