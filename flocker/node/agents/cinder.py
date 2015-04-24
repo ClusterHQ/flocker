@@ -103,23 +103,13 @@ class CinderBlockDeviceAPI(object):
 
     def create_volume(self, dataset_id, size):
         """
-        Create a block device using the cinder VolumeManager.
-        Store the cluster_id and dataset_id as metadata.
+        Create a block device using the ICinderVolumeManager.
+        The cluster_id and dataset_id are stored as metadata on the volume.
 
-        http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html
+        See: http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html # noqa
 
-        Discussion:
+        TODO:
          * Assign a Human readable name and description?
-
-         * pyrax.volume.create expects a size in GB
-           The minimum SATA disk size on Rackspace is 100GB.
-           How do we enforce that?
-           And what (if any) errors should we raise if the user requests something smaller?
-           Is this an OpenStack limit or something specific to Rackspace?
-
-         * Rackspace will assign its own unique ID to the volume.
-           Should that be the value of ``BlockDeviceVolume.blockdevice_id`` ?
-           That field type is unicode rather than UUID which was (I think) chosen so as to support provider specific volume ID strings.
         """
         metadata = {
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
@@ -141,9 +131,10 @@ class CinderBlockDeviceAPI(object):
 
     def list_volumes(self):
         """
-        Return ``BlockDeviceVolume`` instances for all the Cinder devices that have the expected ``cluster_id`` among the metadata.
+        Return ``BlockDeviceVolume`` instances for all the Cinder Volumes that
+        have the expected ``cluster_id`` in their metadata.
 
-        http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html
+        See: http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html # noqa
         """
         volumes = []
         for cinder_volume in self.volume_manager.list():
@@ -171,6 +162,8 @@ class CinderBlockDeviceAPI(object):
 
 def _is_cluster_volume(cluster_id, cinder_volume):
     """
+    :param UUID cluster_id: The uuid4 of a Flocker cluster.
+    :param Volume cinder_volume: The Volume with metadata to examine.
     :return: ``True`` if ``cinder_volume`` metadata has a
     ``CLUSTER_ID_LABEL`` value matching ``cluster_id`` else ``False``.
     """
@@ -182,9 +175,10 @@ def _is_cluster_volume(cluster_id, cinder_volume):
 
 def _blockdevicevolume_from_cinder_volume(cinder_volume):
     """
-    :param CloudBlockStorageVolume cinder_volume:
+    :param Volume cinder_volume: The ``cinderclient.v1.volumes.Volume`` to
+        convert.
     :returns: A ``BlockDeviceVolume`` based on values found in the supplied
-        instance.
+        cinder Volume.
     """
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
@@ -194,15 +188,16 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
-def authenticated_cinder_client(username, api_key, region):
+def rackspace_cinder_client(username, api_key, region):
     """
-    XXX: This is currently RackSpace specific.
+    Create a Cinder API client capable of authenticating with Rackspace and
+    communicating with their Cinder API.
 
     :param unicode username: A RackSpace API username.
     :param unicode api_key: A RackSpace API key.
     :param unicode region: A RackSpace region slug.
-    :return: A ``cinder.client.Client`` instance with a ``volumes`` attribute
-        that conforms to ``ICinderVolumeManager``.
+    :return: A ``cinderclient.v1.clien.Client`` instance with a ``volumes``
+        attribute that conforms to ``ICinderVolumeManager``.
     """
     auth_url = "https://identity.api.rackspacecloud.com/v2.0"
     auth = RackspaceAuth(auth_url=auth_url, username=username, api_key=api_key)
@@ -212,6 +207,11 @@ def authenticated_cinder_client(username, api_key, region):
 
 def cinder_api(cinder_client, cluster_id):
     """
+    :param cinder_client: The Cinder API client whose ``volumes`` attribute
+        will be supplied as the ``volume_manager`` parameter of
+        ``CinderBlockDeviceAPI``.
+    :param UUID cluster_id: A Flocker cluster ID.
+    :returns: A ``CinderBlockDeviceAPI``.
     """
     return CinderBlockDeviceAPI(
         volume_manager=cinder_client.volumes,
