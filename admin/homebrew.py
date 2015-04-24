@@ -9,7 +9,6 @@ Inspired by https://github.com/tdsmith/labmisc/blob/master/mkpydeps.
 import argparse
 import logging
 import sys
-from os import environ
 from json import load
 from urllib2 import urlopen
 from hashlib import sha1
@@ -198,14 +197,8 @@ def main():
         help='filename for created Homebrew recipe (default: stdout)')
     args = parser.parse_args()
 
-    # If version not supplied, for backwards-compatibility, get it from
-    # the environment variable VERSION.
+
     version = args.flocker_version
-    if version is None:
-        version = environ.get('VERSION')
-        if version is None:
-            parser.print_help()
-            sys.exit(1)
     logging.info('Creating Homebrew recipe for version {}'.format(version))
 
     # If url not supplied, for backwards-compatibility, use the Google
