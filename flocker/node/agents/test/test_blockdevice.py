@@ -1687,12 +1687,10 @@ class DestroyBlockDeviceDatasetTests(
             TypeError, DestroyBlockDeviceDataset, dataset_id=object()
         )
 
-    _verify_destroy_log = multistep_change_log(
+    @validate_logging(multistep_change_log(
         DESTROY_BLOCK_DEVICE_DATASET,
         [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, DESTROY_VOLUME]
-    )
-
-    @validate_logging(_verify_destroy_log)
+    ))
     def test_run(self, logger):
         """
         After running ``DestroyBlockDeviceDataset``, its volume has been
@@ -2307,13 +2305,11 @@ class ResizeBlockDeviceDatasetTests(
         resizes = [c, b, a]
         self.assertEqual([a, b, c], sorted(resizes))
 
-    _verify_grow_log = multistep_change_log(
+    @validate_logging(multistep_change_log(
         RESIZE_BLOCK_DEVICE_DATASET,
         [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, RESIZE_VOLUME, ATTACH_VOLUME,
          RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE]
-    )
-
-    @validate_logging(_verify_grow_log)
+    ))
     def test_run_grow(self, logger):
         """
         After running ``ResizeBlockDeviceDataset``, its volume has been
