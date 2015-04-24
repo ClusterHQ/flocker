@@ -367,7 +367,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(added)
         return d
 
-    def test_empty_environment(self):
+    def test_null_environment(self):
         """
         A container that does not include any environment variables contains
         an empty ``environment`` in the return ``Unit``.

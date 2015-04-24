@@ -170,10 +170,11 @@ def make_idockerclient_tests(fixture):
             d.addCallback(got_list)
             return d
 
-        def test_empty_environment(self):
+        def test_null_environment(self):
             """
-            A container that does not include any environment variables contains
-            an empty ``environment`` in the return ``Unit``.            """
+            A container that does not include any environment variables
+            contains an empty ``environment`` in the return ``Unit``.
+            """
             client = fixture(self)
             name = random_name()
             self.addCleanup(client.remove, name)
