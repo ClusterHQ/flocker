@@ -195,7 +195,6 @@ def flocker_dataset_agent_main():
     # Later, construction of this object can be moved into
     # AgentServiceFactory.get_service where various options passed on
     # the command line could alter what is created and how it is initialized.
-    # XXX: Implement the factory proposed above (here or in a blocking / follow up issue)
     api = LoopbackBlockDeviceAPI.from_path(
         b"/var/lib/flocker/loopback"
     )

@@ -332,9 +332,6 @@ def create_dataset(test_case, nodes=1,
 class DatasetAPITests(TestCase):
     """
     Tests for the dataset API.
-
-    XXX: We'll need a way to run these acceptance tests on a cluster running an OpenStack based dataset convergence agent.
-    Maybe something temporary in this branch until we implement https://clusterhq.atlassian.net/browse/FLOC-1420 "Choose backend at install time"
     """
     def test_dataset_creation(self):
         """
