@@ -539,7 +539,7 @@ class IBlockDeviceAPI(Interface):
 class _SyncToThreadedAsyncAPIAdapter(PRecord):
     """
     Adapt any ``IBlockDeviceAPI`` to ``IBlockDeviceAsyncAPI`` by running its
-    methods threads of a thread pool.
+    methods in threads of a thread pool.
     """
     _reactor = field()
     _sync = field()
