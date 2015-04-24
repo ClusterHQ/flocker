@@ -367,6 +367,23 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(added)
         return d
 
+    def test_empty_environment(self):
+        """
+        A container that does not include any environment variables contains
+        an empty ``environment`` in the return ``Unit``.
+        """
+        client = self.make_client()
+        name = random_name()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox:latest")
+        d.addCallback(lambda _: client.list())
+
+        def got_list(units):
+            unit = [unit for unit in units if unit.name == name][0]
+            self.assertIsNone(unit.environment)
+        d.addCallback(got_list)
+        return d
+
     def test_container_name(self):
         """
         The container name stored on returned ``Unit`` instances matches the

@@ -565,10 +565,11 @@ class DockerClient(object):
                 unit_environment = []
                 container_environment = data[u"Config"][u"Env"]
                 image_environment = image_data[u"Config"]["Env"]
-                for environment in container_environment:
-                    if environment not in image_environment:
-                        env_key, env_value = environment.split('=', 1)
-                        unit_environment.append((env_key, env_value))
+                if container_environment is not None:
+                    for environment in container_environment:
+                        if environment not in image_environment:
+                            env_key, env_value = environment.split('=', 1)
+                            unit_environment.append((env_key, env_value))
                 unit_environment = (
                     Environment(variables=frozenset(unit_environment))
                     if unit_environment else None
