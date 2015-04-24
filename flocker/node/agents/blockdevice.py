@@ -317,6 +317,9 @@ class DestroyBlockDeviceDataset(PRecord):
 class ResizeVolume(PRecord):
     """
     Change the size of a volume.
+
+    :ivar BlockDeviceVolume volume: The volume to resize.
+    :ivar int size: The size (in bytes) to which to resize the volume.
     """
     volume = _volume_field()
     size = field(type=int, mandatory=True)
