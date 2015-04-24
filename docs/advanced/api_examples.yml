@@ -9,10 +9,10 @@
 #
 # DOMAIN - The domain name of the cluster API server.
 #
-# NODE_N - The hostname specifically identifying one of the nodes of the
+# NODE_N - The UUID specifically identifying one of the nodes of the
 #     cluster.  Use any integer suffix for N starting with 0.  For example,
-#     NODE_3 is replaced with the hostname for a hypothetical fourth cluster
-#     node.  (Only NODE_0 is implemented.  See FLOC-1288.)
+#     NODE_3 is replaced with the UUID for a hypothetical fourth cluster
+#     node.  (Only NODE_0 and NODE_1 are implemented.  See FLOC-1288.)
 
 -
   # Every element must have a unique identifier.  Documentation can use these
@@ -302,13 +302,13 @@
 
     [
       {
-        "host": "%(NODE_0)s",
+        "node_uuid": "%(NODE_0)s",
         "name": "webserver",
         "image": "nginx:latest",
         "restart_policy": {"name": "never"}
       },
       {
-        "host": "%(NODE_1)s",
+        "node_uuid": "%(NODE_1)s",
         "name": "webserver2",
         "image": "nginx:latest",
         "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
@@ -335,14 +335,16 @@
 
     [
       {
-        "host": "%(NODE_0)s",
+        "node_uuid": "%(NODE_0)s",
+        "host": "10.0.0.3",
         "name": "webserver",
         "image": "nginx:latest",
         "restart_policy": {"name": "never"},
         "running": false
       },
       {
-        "host": "%(NODE_0)s",
+        "node_uuid": "%(NODE_0)s",
+        "host": "10.0.0.3",
         "name": "database",
         "image": "postgres:latest",
         "restart_policy": {"name": "on-failure", "maximum_retry_count": 5},
@@ -355,7 +357,7 @@
     "move container"
 
   doc: |
-    Move an existing named container (and any attached datasets) to a new host.
+    Move an existing named container (and any attached datasets) to a new node.
 
   request: |
     POST /v1/configuration/containers/webserver HTTP/1.1
@@ -365,7 +367,7 @@
   response: |
     HTTP/1.1 200 OK
 
-    {"host": "%(NODE_1)s",
+    {"node_uuid": "%(NODE_1)s",
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "never"}}
@@ -380,14 +382,14 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest"}
 
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "never"}}
@@ -405,7 +407,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "links": [{"alias":"postgres", "local_port": 5432, "remote_port": 54320}]}
@@ -413,7 +415,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "never"},
@@ -432,7 +434,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "nc",
      "image": "busybox",
      "command_line": ["nc", "-l", "-p", 1234]}
@@ -440,7 +442,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "nc",
      "image": "busybox",
      "restart_policy": {"name": "never"},
@@ -456,7 +458,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "memory_limit": 262144000}
@@ -464,7 +466,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "never"},
@@ -480,7 +482,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "cpu_shares": 512}
@@ -488,7 +490,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "never"},
@@ -507,7 +509,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_1)s",
+    {"node_uuid": "%(NODE_1)s",
      "name": "webserver2",
      "image": "nginx:latest",
      "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
@@ -517,7 +519,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_1)s",
+    {"node_uuid": "%(NODE_1)s",
      "name": "webserver2",
      "image": "nginx:latest",
      "volumes": [{"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c",
@@ -539,7 +541,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}}
@@ -547,7 +549,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "restart_policy": {"name": "on-failure", "maximum_retry_count": 5}}
@@ -562,7 +564,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},
@@ -571,7 +573,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "environment": {"CONFIG_FILE": "/etc/nginx/nginx.conf"},
@@ -587,7 +589,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "ports": [{"internal": 80, "external": 8080}],
@@ -596,7 +598,7 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest",
      "ports": [{"internal": 80, "external": 8080}],
@@ -617,7 +619,7 @@
   request: |
     POST /v1/configuration/containers HTTP/1.1
 
-    {"host": "%(NODE_0)s",
+    {"node_uuid": "%(NODE_0)s",
      "name": "webserver",
      "image": "nginx:latest"}
 

@@ -16,8 +16,8 @@ definitions:
   configuration_container:
     type: object
     properties:
-      host:
-        '$ref': 'types.json#/definitions/host'
+      node_uuid:
+        '$ref': 'types.json#/definitions/node_uuid'
       name:
         '$ref': 'types.json#/definitions/container_name'
       image:
@@ -47,7 +47,7 @@ definitions:
       links:
         '$ref': 'types.json#/definitions/container_links'
     required:
-      - host
+      - node_uuid
       - name
       - image
     additionalProperties: false
@@ -81,6 +81,8 @@ definitions:
   state_container:
     type: object
     properties:
+      node_uuid:
+        '$ref': 'types.json#/definitions/node_uuid'
       host:
         '$ref': 'types.json#/definitions/host'
       name:
@@ -114,6 +116,7 @@ definitions:
       running:
         '$ref': 'types.json#/definitions/running'
     required:
+      - node_uuid
       - host
       - name
       - image
