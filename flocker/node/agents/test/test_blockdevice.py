@@ -6,7 +6,7 @@ Tests for ``flocker.node.agents.blockdevice``.
 
 from errno import ENOTDIR
 from os import getuid, statvfs
-from uuid import uuid4
+from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
 import psutil
@@ -1784,6 +1784,90 @@ class MountBlockDeviceInitTests(
     """
 
 
+class _MountScenario(PRecord):
+    """
+    Setup tools for the tests defined on ``MountBlockDeviceTests``.
+
+    This class serves as a central point for the handful of separate pieces of
+    state that go into setting up a situation where it might be possible to
+    mount something.  It also provides helpers for performing some of the
+    external system interactions that might be necessary (such as creating a
+    volume on the backend and initializing it with a filesystem).
+
+    The factoring is dictated primarily by what makes it easy to write the
+    tests with minimal duplication, nothing more.
+
+    :ivar host: An identifier for the node to which a newly created volume will
+        be attached.
+    :ivar dataset_id: The dataset identifier associated with the volume that
+        will be created.
+    :ivar filesystem_type: The name of the filesystem with which the volume
+        will be initialized (eg ``b"ext2"``).
+    :ivar api: The ``IBlockDeviceAPI`` provider which will be used to create
+        and attach a new volume.
+    :ivar volume: The volume which is created.
+    :ivar deployer: The ``BlockDeviceDeployer`` which will be passed to the
+        ``IStateChange`` provider's ``run`` method.
+    :ivar mountpoint: The filesystem location where the mount will be
+        attempted.
+    """
+    host = field(type=unicode)
+    dataset_id = field(type=UUID)
+    filesystem_type = field(type=bytes)
+    api = field()
+    volume = field(type=BlockDeviceVolume)
+    deployer = field(type=BlockDeviceDeployer)
+    mountpoint = field(type=FilePath)
+
+    @classmethod
+    def generate(cls, case, mountpoint):
+        """
+        Create a new ``_MountScenario``.
+
+        The scenario comes with a newly created volume attached to
+        ``self.host`` and with a new ``self.filesystem_type`` filesystem.
+
+        :param TestCase case: The running test case, used for temporary path
+            generation.
+        :param FilePath mountpoint: The location at which the mount attempt
+            will eventually be made.
+
+        :return: A new ``_MountScenario`` with attributes describing all of the
+            state which has been set up.
+        """
+        host = u"192.0.7.8"
+        filesystem = u"ext4"
+        dataset_id = uuid4()
+        api = loopbackblockdeviceapi_for_test(case)
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        api.attach_volume(volume.blockdevice_id, host)
+
+        deployer = BlockDeviceDeployer(
+            hostname=host,
+            block_device_api=api,
+            mountroot=mountpoint.parent(),
+        )
+
+        return cls(
+            host=host, dataset_id=dataset_id, filesystem=filesystem, api=api,
+            volume=volume, deployer=deployer, mountpoint=mountpoint,
+        )
+
+    def create(self):
+        """
+        Create a filesystem on this scenario's volume.
+
+        :return: A ``Deferred`` which fires when the filesystem has been
+            created.
+        """
+        return run_state_change(
+            CreateFilesystem(volume=self.volume, filesystem=self.filesystem),
+            self.deployer,
+        )
+
+
 class MountBlockDeviceTests(
     make_istatechange_tests(
         MountBlockDevice,
@@ -1799,34 +1883,22 @@ class MountBlockDeviceTests(
         Verify that ``MountBlockDevice.run`` mounts the filesystem from the
         block device for the attached volume it is given.
         """
-        host = u"192.0.7.8"
-        dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
-        volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-        api.attach_volume(volume.blockdevice_id, host)
+        scenario = _MountScenario.generate(self, mountpoint)
+        self.successResultOf(scenario.create())
 
-        deployer = BlockDeviceDeployer(
-            hostname=host,
-            block_device_api=api,
-            mountroot=mountpoint.parent(),
+        change = MountBlockDevice(
+            volume=scenario.volume, mountpoint=scenario.mountpoint
         )
+        return scenario, run_state_change(change, scenario.deployer)
 
-        filesystem = u"ext4"
-        self.successResultOf(
-            CreateFilesystem(volume=volume, filesystem=filesystem).run(
-                deployer
-            )
-        )
-
-        change = MountBlockDevice(volume=volume, mountpoint=mountpoint)
-        self.successResultOf(run_state_change(change, deployer))
+    def _run_success_test(self, mountpoint):
+        scenario, mount_result = self._run_test(mountpoint)
+        self.successResultOf(mount_result)
 
         expected = (
-            api.get_device_path(volume.blockdevice_id).path,
+            scenario.api.get_device_path(scenario.volume.blockdevice_id).path,
             mountpoint.path,
-            filesystem,
+            scenario.filesystem,
         )
         mounted = list(
             (part.device, part.mountpoint, part.fstype)
@@ -1841,7 +1913,7 @@ class MountBlockDeviceTests(
         """
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(b"mount-test")
-        self._run_test(mountpoint)
+        self._run_success_test(mountpoint)
 
     def test_mountpoint_exists(self):
         """
@@ -1851,7 +1923,7 @@ class MountBlockDeviceTests(
         mountroot = mountroot_for_test(self)
         mountpoint = mountroot.child(b"mount-test")
         mountpoint.makedirs()
-        self._run_test(mountpoint)
+        self._run_success_test(mountpoint)
 
     def test_mountpoint_error(self):
         """
@@ -1863,11 +1935,10 @@ class MountBlockDeviceTests(
         intermediate = mountroot.child(b"mount-error-test")
         intermediate.setContent(b"collision")
         mountpoint = intermediate.child(b"mount-test")
-        exception = self.assertRaises(
-            OSError,
-            self._run_test, mountpoint
-        )
-        self.assertEqual(ENOTDIR, exception.errno)
+        scenario, mount_result = self._run_test(mountpoint)
+
+        failure = self.failureResultOf(mount_result, OSError)
+        self.assertEqual(ENOTDIR, failure.value.errno)
 
 
 class UnmountBlockDeviceInitTests(
