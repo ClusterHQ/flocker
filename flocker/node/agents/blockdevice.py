@@ -21,7 +21,7 @@ from characteristic import with_cmp
 
 import psutil
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 
 from .. import (
@@ -463,7 +463,7 @@ class MountBlockDevice(PRecord):
             self.mountpoint.makedirs()
         except OSError as e:
             if EEXIST != e.errno:
-                raise
+                return fail()
         check_output([b"mount", device.path, self.mountpoint.path])
         return succeed(None)
 
