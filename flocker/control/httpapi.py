@@ -506,6 +506,7 @@ class ConfigurationAPIUserV1(object):
             u"create container with cpu shares",
             u"create container with memory limit",
             u"create container with links",
+            u"create container with command line",
         ]
     )
     @structured(
@@ -518,7 +519,7 @@ class ConfigurationAPIUserV1(object):
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
         restart_policy=None, cpu_shares=None, memory_limit=None,
-        links=(), volumes=()
+        links=(), volumes=(), command_line=None,
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -559,6 +560,9 @@ class ConfigurationAPIUserV1(object):
 
         :param list links: A ``list`` of ``dict`` objects, mapping container
             links via "alias", "local_port" and "remote_port" values.
+
+        :param command_line: If not ``None``, the command line to use when
+            running the Docker image's entry point.
 
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
@@ -638,7 +642,8 @@ class ConfigurationAPIUserV1(object):
             restart_policy=policy,
             cpu_shares=cpu_shares,
             memory_limit=memory_limit,
-            links=application_links
+            links=application_links,
+            command_line=command_line,
         )
 
         new_node_config = node.transform(
@@ -974,6 +979,8 @@ def container_configuration_response(application, node):
         result["cpu_shares"] = application.cpu_shares
     if application.memory_limit is not None:
         result["memory_limit"] = application.memory_limit
+    if application.command_line is not None:
+        result["command_line"] = list(application.command_line)
     return result
 
 

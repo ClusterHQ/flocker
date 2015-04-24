@@ -23,37 +23,72 @@ from twisted.python.filepath import FilePath
 
 from pyrsistent import (
     pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
-    optional as optional_type
+    optional as optional_type, CheckedPVector
     )
 
 from zope.interface import Interface, implementer
 
 
-def pset_field(item_type, optional=False):
+def _sequence_field(checked_class, suffix, item_type, optional, initial):
     """
-    Create checked ``PSet`` field.
+    Create checked field for either ``PSet`` or ``PVector``.
 
+    :param checked_class: ``CheckedPSet`` or ``CheckedPVector``.
+    :param suffix: Suffix for new type name.
     :param item_type: The required type for the items in the set.
     :param bool optional: If true, ``None`` can be used as a value for
         this field.
+    :param initial: Initial value to pass to factory.
 
-    :return: A ``field`` containing a ``CheckedPSet`` of the given type.
+    :return: A ``field`` containing a checked class.
     """
-    class TheSet(CheckedPSet):
+    class TheType(checked_class):
         __type__ = item_type
-    TheSet.__name__ = item_type.__name__.capitalize() + "PSet"
+    TheType.__name__ = item_type.__name__.capitalize() + suffix
 
     if optional:
         def factory(argument):
             if argument is None:
                 return None
             else:
-                return TheSet(argument)
+                return TheType(argument)
     else:
-        factory = TheSet
-    return field(type=optional_type(TheSet) if optional else TheSet,
+        factory = TheType
+    return field(type=optional_type(TheType) if optional else TheType,
                  factory=factory, mandatory=True,
-                 initial=TheSet())
+                 initial=factory(initial))
+
+
+def pset_field(item_type, optional=False, initial=()):
+    """
+    Create checked ``PSet`` field.
+
+    :param item_type: The required type for the items in the set.
+    :param bool optional: If true, ``None`` can be used as a value for
+        this field.
+    :param initial: Initial value to pass to factory if no value is given
+        for the field.
+
+    :return: A ``field`` containing a ``CheckedPSet`` of the given type.
+    """
+    return _sequence_field(CheckedPSet, "PSet", item_type, optional,
+                           initial)
+
+
+def pvector_field(item_type, optional=False, initial=()):
+    """
+    Create checked ``PVector`` field.
+
+    :param item_type: The required type for the items in the vector.
+    :param bool optional: If true, ``None`` can be used as a value for
+        this field.
+    :param initial: Initial value to pass to factory if no value is given
+        for the field.
+
+    :return: A ``field`` containing a ``CheckedPVector`` of the given type.
+    """
+    return _sequence_field(CheckedPVector, "PVector", item_type, optional,
+                           initial)
 
 
 _valid = lambda item: (True, "")
@@ -240,6 +275,9 @@ class Application(PRecord):
     :ivar IRestartPolicy restart_policy: The restart policy for this
         application.
 
+    :ivar command_line: Custom command to run using the image, a ``PVector``
+        of ``unicode``. ``None`` means use default.
+
     :ivar bool running: Whether or not the application is running.
     """
     name = field(mandatory=True)
@@ -253,6 +291,7 @@ class Application(PRecord):
     environment = field(mandatory=True, initial=pmap(), factory=pmap,
                         type=PMap)
     running = field(mandatory=True, initial=True, type=bool)
+    command_line = pvector_field(unicode, optional=True, initial=None)
 
 
 class Dataset(PRecord):
