@@ -109,10 +109,17 @@ def get_class_name(version):
     :return str: The name of the ruby class needed if the file being created
         is called "flocker-$VERSION.rb".
     """
-    class_name = 'Flocker' + version
-    for disallowed_character in ['-', '.']:
-        class_name = class_name.replace(disallowed_character, '')
-    return class_name
+    class_name = list('Flocker' + version)
+    disallowed_characters = ['-', '.']
+    for index, character in enumerate(class_name):
+        if character in disallowed_characters:
+            try:
+                class_name[index + 1] = class_name[index + 1].upper()
+            except IndexError:
+                pass
+            class_name.pop(index)
+
+    return ''.join(class_name)
 
 
 def get_formatted_dependency_list(dependency_graph):

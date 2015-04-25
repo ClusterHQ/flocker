@@ -9,7 +9,10 @@ from twisted.python.usage import UsageError
 
 from requests.exceptions import HTTPError
 
-from admin.homebrew import HomebrewOptions, get_checksum, get_dependency_graph
+from admin.homebrew import (
+    HomebrewOptions, get_checksum, get_dependency_graph, get_class_name,
+)
+
 
 class HomebrewOptionsTests(SynchronousTestCase):
     """
@@ -51,6 +54,7 @@ class HomebrewOptionsTests(SynchronousTestCase):
 # TODO one function called by main which gets everything and returns a recipe
 # this will help with faking
 
+
 class GetChecksumTests(SynchronousTestCase):
     """
     Tests for X.
@@ -80,6 +84,7 @@ class GetChecksumTests(SynchronousTestCase):
 
         self.assertEqual(404, exception.exception.response.status_code)
 
+
 class GetDependencyGraphTests(SynchronousTestCase):
     """
     Tests for X.
@@ -96,22 +101,49 @@ class GetDependencyGraphTests(SynchronousTestCase):
         """
         Applications cannot depend on themselves so they are not in the graph.
         """
+        self.assertNotIn(u'flocker', get_dependency_graph(u'flocker'))
 
-    def test_application_does_not_exist(self):
-        pass
 
 class GetClassNameTests(SynchronousTestCase):
     """
     Tests for X.
     """
     def test_disallowed_characters_removed(self):
-        pass
+        """
+        Hyphens and periods are removed.
+        """
+        self.assertEqual(
+            get_class_name(version='0.3.0-444-05215b'),
+            'Flocker03044405215b'
+        )
+
+    def test_caps_after_disallowed(self):
+        """
+        If there is a letter following a disallowed character then it is
+        capitalised.
+        """
+        self.assertEqual(
+            get_class_name(version='0.3.0-444-g05215b'),
+            'Flocker030444G05215b'
+        )
+
+    def test_disallowed_at_end(self):
+        """
+        If there is a letter following a disallowed character then it is
+        capitalised.
+        """
+        self.assertEqual(
+            get_class_name(version='0.3.0-444-g05215b-'),
+            'Flocker030444G05215b'
+        )
+
 
 class GetFormattedDependencyListTests(SynchronousTestCase):
     """
     Tests for X.
     """
     # TODO this should return a list which is later formatted
+
 
 class GetResourceStanzasTests(SynchronousTestCase):
     """
