@@ -111,15 +111,10 @@ def get_class_name(version):
     """
     class_name = list('Flocker' + version)
     disallowed_characters = ['-', '.']
-    for index, character in enumerate(class_name):
-        if character in disallowed_characters:
-            try:
-                class_name[index + 1] = class_name[index + 1].upper()
-            except IndexError:
-                pass
-            class_name.pop(index)
-
-    return ''.join(class_name)
+    return ''.join([
+        character.upper() if class_name[index - 1] in disallowed_characters
+        else character for index, character in enumerate(class_name) if
+        character not in disallowed_characters])
 
 
 def get_formatted_dependency_list(dependency_graph):
