@@ -53,11 +53,9 @@ Access
 - Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
-- A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
-
 - An OS X (most recent release) system.
 
-.. note:: For a maintenance or documentation release, access to Google Cloud Storage and Atlas is not required.
+.. note:: For a maintenance or documentation release, access to Google Cloud Storage is not required.
 
 .. _preparing-for-a-release:
 
@@ -348,18 +346,6 @@ Release
       admin/publish-packages
       # Copy the tutorial box to the final location
       gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
-
-#. Add the tutorial box to Atlas:
-
-   .. note:: Skip this step for a maintenance or documentation release.
-
-   XXX This should be automated, see :issue:`943`.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      echo https://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
-
-   Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
 #. Create a version specific Homebrew recipe for this release:
 
