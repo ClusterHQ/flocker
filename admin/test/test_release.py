@@ -1751,9 +1751,13 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.metadata_key = 'vagrant/flocker-tutorial.json'
 
     def publish_vagrant_metadata(self, aws, version):
+        # TODO perhaps the URL is created in main
+        # TODO perhaps the URL should be returned by the code which uploads
+        # the tutorial box.
+        box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
         sync_perform(
             ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
-            publish_vagrant_metadata(version=version))
+            publish_vagrant_metadata(version=version, box_url=box_url))
 
     def test_no_metadata_exists(self):
         """
@@ -1790,9 +1794,9 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             "description": "Test clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
             "versions": [{
-                "version": "0.4.0",
+                "version": "0.3.0",
                 "providers": [{
-                    "url": "https://example.com/flocker-tutorial-0.4.0.box",
+                    "url": "https://example.com/flocker-tutorial-0.3.0.box",
                     "name": "virtualbox"}]}]})
 
         aws = FakeAWS(
@@ -1808,9 +1812,9 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             "description": "Test clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
             "versions": [{
-                "version": "0.4.0",
+                "version": "0.3.0",
                 "providers": [{
-                    "url": "https://example.com/flocker-tutorial-0.4.0.box",
+                    "url": "https://example.com/flocker-tutorial-0.3.0.box",
                     "name": "virtualbox"}]}]})
 
 
