@@ -10,7 +10,7 @@ from eliot.testing import validate_logging
 
 from ipaddr import IPAddress
 
-from pyrsistent import pset
+from pyrsistent import pset, pvector
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
@@ -455,6 +455,29 @@ class StartApplicationTests(SynchronousTestCase):
         self.assertIs(
             policy,
             fake_docker._units[application_name].restart_policy,
+        )
+
+    def test_command_line(self):
+        """
+        ``StartApplication.run()`` passes an ``Application``'s
+        ``command_line`` to ``DockerClient.add``.
+        """
+        command_line = [u"hello", u"there"]
+        fake_docker = FakeDockerClient()
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage.from_string(u"postgresql"),
+            command_line=command_line)
+
+        StartApplication(application=application,
+                         node_state=EMPTY_NODESTATE).run(deployer)
+
+        self.assertEqual(
+            fake_docker._units[application_name].command_line,
+            pvector(command_line),
         )
 
 

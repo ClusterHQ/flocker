@@ -169,6 +169,7 @@ class StartApplication(PRecord):
             mem_limit=application.memory_limit,
             cpu_shares=application.cpu_shares,
             restart_policy=application.restart_policy,
+            command_line=application.command_line,
         )
 
 

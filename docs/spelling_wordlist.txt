@@ -4,6 +4,7 @@ apps
 authorised
 backend
 behaviour
+blog
 Btrfs
 bugfix
 Buildbot
@@ -17,6 +18,7 @@ Copr
 cURL
 dataset
 datasets
+Debian
 Deis
 devel
 DigitalOcean
@@ -55,6 +57,7 @@ online
 pem
 petabyte
 petabytes
+plugin
 plugins
 pre
 programmatically
@@ -70,6 +73,7 @@ sysadmin
 terabytes
 timestamp
 unauthorised
+Ubuntu
 username
 versa
 versioning
