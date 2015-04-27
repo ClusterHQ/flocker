@@ -485,13 +485,13 @@ class NodeCredentialTests(SynchronousTestCase):
         crt_file.write(b"dummy")
         crt_file.close()
         # make file unreadable
-        crt_path.chmod(64)
+        crt_path.chmod(0100)
         key_path = path.child(key_file)
         key_file = key_path.open(b'w')
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(64)
+        key_path.chmod(0100)
         e = self.assertRaises(
             PathError, NodeCredential.from_path, path, uuid
         )
@@ -523,7 +523,7 @@ class NodeCredentialTests(SynchronousTestCase):
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(64)
+        key_path.chmod(0100)
         e = self.assertRaises(
             PathError, NodeCredential.from_path, path, uuid
         )
@@ -760,13 +760,13 @@ class ControlCredentialTests(SynchronousTestCase):
         crt_file.write(b"dummy")
         crt_file.close()
         # make file unreadable
-        crt_path.chmod(64)
+        crt_path.chmod(0100)
         key_path = path.child(CONTROL_KEY_FILENAME)
         key_file = key_path.open(b'w')
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(64)
+        key_path.chmod(0100)
         e = self.assertRaises(
             PathError, ControlCredential.from_path, path
         )
@@ -794,7 +794,7 @@ class ControlCredentialTests(SynchronousTestCase):
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(64)
+        key_path.chmod(0100)
         e = self.assertRaises(
             PathError, ControlCredential.from_path, path
         )
@@ -1038,13 +1038,13 @@ class RootCredentialTests(SynchronousTestCase):
         crt_file.write(b"dummy")
         crt_file.close()
         # make file unreadable
-        crt_path.chmod(64)
+        crt_path.chmod(0100)
         key_path = path.child(AUTHORITY_KEY_FILENAME)
         key_file = key_path.open(b'w')
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(64)
+        key_path.chmod(0100)
         e = self.assertRaises(
             PathError, RootCredential.from_path, path
         )
@@ -1072,7 +1072,7 @@ class RootCredentialTests(SynchronousTestCase):
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(64)
+        key_path.chmod(0100)
         e = self.assertRaises(
             PathError, RootCredential.from_path, path
         )

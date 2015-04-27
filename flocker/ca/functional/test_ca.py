@@ -4,6 +4,7 @@
 Functional tests for ``flocker-ca`` CLI.
 """
 
+import os
 import re
 
 from subprocess import check_output, CalledProcessError
@@ -74,6 +75,19 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
     """
     Tests for ``flocker-ca`` script.
     """
+    def setUp(self):
+        """
+        Create a root certificate for the test.
+        """
+        flocker_ca("initialize", "mycluster")
+
+    def tearDown(self):
+        """
+        Delete the previously created root certificate.
+        """
+        os.remove("cluster.crt")
+        os.remove("cluster.key")
+
     @requireCA
     def test_initialize(self):
         """
@@ -81,7 +95,6 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         Runs ``flocker-ca initialize`` and calls ``openssl`` to verify the
         generated certificate is a self-signed certificate authority.
         """
-        flocker_ca("initialize", "mycluster")
         self.assertTrue(
             openssl_verify("cluster.crt", "cluster.crt")
         )
@@ -95,11 +108,12 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         to verify the generated control certificate and private key is
         signed by the previously generated certificate authority.
         """
-        flocker_ca("initialize", "mycluster")
         flocker_ca("create-control-certificate")
         self.assertTrue(
             openssl_verify("cluster.crt", "control-service.crt")
         )
+        os.remove("control-service.crt")
+        os.remove("control-service.key")
 
     @requireCA
     def test_node_certificate(self):
@@ -110,7 +124,6 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         to verify the generated node certificate and private key is
         signed by the previously generated certificate authority.
         """
-        flocker_ca("initialize", "mycluster")
         status, output = flocker_ca("create-node-certificate")
         # Find the generated file name with UUID from the output.
         file_pattern = re.compile("([a-zA-Z0-9\-]*\.crt)")

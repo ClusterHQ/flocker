@@ -160,10 +160,12 @@ class NodeCertificateOptions(PrettyOptions):
     synopsis = "[options]"
 
     optParameters = [
-        ['inputpath', 'i', os.getcwd(),
-         'Path to directory containing root certificate.'],
-        ['outputpath', 'o', os.getcwd(),
-         'Path to directory to write control service certificate.'],
+        ['inputpath', 'i', None,
+         ('Path to directory containing root certificate. '
+          'Defaults to current working directory.')],
+        ['outputpath', 'o', None,
+         ('Path to directory to write control service certificate. '
+          'Defaults to current working directory.')],
     ]
 
     def run(self):
@@ -174,6 +176,10 @@ class NodeCertificateOptions(PrettyOptions):
         certificate signed by the root and write it out to the current
         directory.
         """
+        if self["inputpath"] is None:
+            self["inputpath"] = os.getcwd()
+        if self["outputpath"] is None:
+            self["outputpath"] = os.getcwd()
         self["inputpath"] = FilePath(self["inputpath"])
         self["outputpath"] = FilePath(self["outputpath"])
 
@@ -213,10 +219,12 @@ class ControlCertificateOptions(PrettyOptions):
     synopsis = "[options]"
 
     optParameters = [
-        ['inputpath', 'i', os.getcwd(),
-         'Path to directory containing root certificate.'],
-        ['outputpath', 'o', os.getcwd(),
-         'Path to directory to write control service certificate.'],
+        ['inputpath', 'i', None,
+         ('Path to directory containing root certificate. '
+          'Defaults to current working directory.')],
+        ['outputpath', 'o', None,
+         ('Path to directory to write control service certificate. '
+          'Defaults to current working directory.')],
     ]
 
     def run(self):
@@ -228,6 +236,10 @@ class ControlCertificateOptions(PrettyOptions):
         errors, create a new control service certificate signed by the root
         and write it out to the current directory.
         """
+        if self["inputpath"] is None:
+            self["inputpath"] = os.getcwd()
+        if self["outputpath"] is None:
+            self["outputpath"] = os.getcwd()
         self["inputpath"] = FilePath(self["inputpath"])
         self["outputpath"] = FilePath(self["outputpath"])
 
