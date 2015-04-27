@@ -12,6 +12,7 @@ ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-tutorial"
+  config.vm.box_url = "https://s3.amazonaws.com/clusterhq-archive/vagrant/flocker-tutorial.json"
   config.vm.box_version = "= |latest-installable|"
 
   if Vagrant.has_plugin?("vagrant-cachier")
