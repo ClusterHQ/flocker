@@ -46,38 +46,11 @@ using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
    - Visit https://console.developers.google.com/project/hybridcluster-docker/storage/clusterhq-vagrant/.
    - Right click and copy the "Public link" for the relevant box.
 
-#. :ref:`add-vagrant-box-to-atlas`\ .
-
-.. _add-vagrant-box-to-atlas:
-
-Add a Vagrant Box to Atlas
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To add to Atlas, you will need a public link to the relevant Vagrant box.
-
-#. Visit the Atlas page for creating a new version of the `tutorial box <https://atlas.hashicorp.com/clusterhq/boxes/flocker-tutorial/versions/new>`_ or the `development box <https://atlas.hashicorp.com/clusterhq/boxes/flocker-dev/versions/new>`_ as appropriate.
-
-#. Set the "Version" to the relevant version.
-
-   If adding the ``flocker-dev`` box, ensure that the version number increases using the semantic versioning format.
-   This usually involves replacing instances of ``-`` and ``+`` with ``.`` and removing any alphanumeric segments.
-
-   No description is needed.
-
-#. Click "Create version" and then "Create new provider".
-
-#. Set the new provider as "``virtualbox``" and set the URL to be the public link to the Vagrant box.
-
-   Click the "Create provider" button.
-
-#. Click the "Edit" button that appears next to the button containing the version.
-
-#. A message should appear, saying "This version hasn't been released. Upon releasing, it will be available to users from Vagrant".
-
-   Click the "Release version" button next to this message.
+#. To upload a development box do XXX.
 
 Testing
 ^^^^^^^
+
 It is possible to test this image locally before uploading.
 The :file:`build` script generates metadata pointing a the locally built file,
 which can be used to add the box with the correct version::
