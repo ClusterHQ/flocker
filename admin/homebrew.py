@@ -12,8 +12,6 @@ from json import load
 from urllib2 import urlopen
 from hashlib import sha1
 
-from effect import sync_performer, TypeDispatcher
-from characteristic import attributes
 # TODO this will have to be a dev requirement if it isn't already
 from twisted.python.usage import Options, UsageError
 from tl.eggdeps.graph import Graph
@@ -21,48 +19,6 @@ from tl.eggdeps.graph import Graph
 import requests
 from requests_file import FileAdapter
 
-
-@attributes([
-    "flocker_version",
-    "sdist",
-])
-class GetHomebrewRecipe(object):
-    """
-    Upload contents of a directory to S3, for given files.
-
-    Note that this returns a list with the prefixes stripped.
-
-    :ivar FilePath source_path: Prefix of files to be uploaded.
-    :ivar bytes target_bucket: Name of bucket to upload file to.
-    :ivar bytes target_key: Name S3 key to upload file to.
-    :ivar list files: List of bytes, relative paths to files to upload.
-    """
-
-
-class FakeHomebrew(object):
-    """
-    Fake for homebrew
-    """
-    @sync_performer
-    def _perform_get_homebrew_recipe(self, dispatcher, intent):
-        return "Some recipe contents"
-
-    def get_dispatcher(self):
-        """
-        Get an :module:`effect` dispatcher for interacting with this
-        :class:`FakeAWS`.
-        """
-        return TypeDispatcher({
-            GetHomebrewRecipe: self._perform_get_homebrew_recipe,
-        })
-
-# todo main() should use this, change buildbot to use this
-def perform_get_homebrew_recipe(dispatcher, intent):
-    pass
-
-homebrew_dispatcher = TypeDispatcher({
-    GetHomebrewRecipe: perform_get_homebrew_recipe,
-})
 
 def get_dependency_graph(application):
     """
@@ -116,6 +72,7 @@ def get_class_name(version):
         else character for index, character in enumerate(class_name) if
         character not in disallowed_characters])
 
+
 def get_resources(dependency_graph):
     """
     :param tl.eggdeps.graph.Graph dependency_graph: Graph of Python
@@ -140,7 +97,7 @@ def get_resources(dependency_graph):
                 sdist_url = release['url']
                 resources.append({
                     "project_name": project_name,
-                    "url": release['url'],
+                    "url": sdist_url,
                     "checksum": get_checksum(sdist_url),
                 })
                 break
@@ -150,6 +107,9 @@ def get_resources(dependency_graph):
 
 
 def format_resource_stanzas(resources):
+    """
+    TODO Docstring
+    """
     stanzas = u""
     stanza_template = u"""
   resource "{project_name}" do
@@ -166,6 +126,9 @@ def format_resource_stanzas(resources):
 
 
 def make_recipe(version, sdist_url):
+    """
+    TODO Docstring
+    """
     dependency_graph = get_dependency_graph(u"flocker")
     return get_recipe(
         sdist_url=sdist_url,
@@ -174,8 +137,11 @@ def make_recipe(version, sdist_url):
         resources=get_resources(dependency_graph=dependency_graph),
     )
 
+
 def get_recipe(sdist_url, sha1, class_name, resources):
-    # TODO is this too much indentation?
+    """
+    TODO Docstring
+    """
     dependencies = [resource['project_name'] for resource in resources]
 
     return u"""require "formula"
