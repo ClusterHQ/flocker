@@ -11,6 +11,7 @@ from requests.exceptions import HTTPError
 
 from admin.homebrew import (
     HomebrewOptions, get_checksum, get_dependency_graph, get_class_name,
+    format_resource_stanzas,
 )
 
 
@@ -137,6 +138,34 @@ class GetClassNameTests(SynchronousTestCase):
             'Flocker030444G05215b'
         )
 
+class FormatResourceStanzasTests(SynchronousTestCase):
+    """
+    Tests for X.
+    """
+    def test_two_resources(self):
+        resources = [{
+            "project_name": "six",
+            "url": "https://example.com/six/six-1.9.0.tar.gz",
+            "checksum": "d168e6d01f0900875c6ecebc97da72d0fda31129",
+        },
+        {
+            "project_name": "treq",
+            "url": "https://example.com/treq/treq-0.2.1.tar.gz",
+            "checksum": "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a",
+        },
+        ]
+        expected = u"""
+  resource "six" do
+    url "https://example.com/six/six-1.9.0.tar.gz"
+    sha1 "d168e6d01f0900875c6ecebc97da72d0fda31129"
+  end
+
+  resource "treq" do
+    url "https://example.com/treq/treq-0.2.1.tar.gz"
+    sha1 "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a"
+  end
+"""
+        self.assertEqual(expected, format_resource_stanzas(resources))
 
 class GetFormattedDependencyListTests(SynchronousTestCase):
     """
