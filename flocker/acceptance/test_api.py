@@ -14,12 +14,11 @@ from twisted.web.http import BAD_REQUEST
 
 from treq import get, json_content
 
-from ..testtools import loop_until, random_name
+from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
+    get_test_cluster, require_cluster,
 )
-from ..node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
-from .testtools import get_test_cluster, require_cluster
 
 
 def verify_socket(host, port):
