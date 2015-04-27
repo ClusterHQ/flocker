@@ -54,7 +54,6 @@ from .yum import (
     DownloadPackagesFromRepository,
 )
 
-# TODO call this from publish_artifacts_main
 from .homebrew import make_recipe
 
 
@@ -115,6 +114,12 @@ class MissingPreRelease(Exception):
 class NoPreRelease(Exception):
     """
     Raised if trying to release a marketing release if no pre-release exists.
+    """
+
+
+class PushFailed(Exception):
+    """
+    Raised if pushing to Git fails.
     """
 
 
@@ -369,9 +374,12 @@ def publish_homebrew_recipe(homebrew_repo_url, version, scratch_directory):
 
     homebrew_repo.index.add([recipe])
     homebrew_repo.index.commit('Add recipe for Flocker version ' + version)
-    homebrew_repo.remotes.origin.push(homebrew_repo.head)
-    # TODO catch if there is an error pushing - foo.flags & foo.ERROR is not 0
-    # foo = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    push_info = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    if (push_info.flags & push_info.ERROR) != 0:
+        raise PushFailed()
+
+    # TODO call this from publish_artifacts_main (also catch PushFailed?)
+    # TODO also close https://clusterhq.atlassian.net/browse/FLOC-1150
 
 
 @do
