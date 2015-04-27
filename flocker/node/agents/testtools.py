@@ -19,7 +19,6 @@ from .cinder import (
 
 
 DEFAULT_CLOUD_PROVIDER = 'rackspace'
-DEFAULT_CLOUD_CONFIG_FILE = os.path.expanduser('~/acceptance.yml')
 
 
 @implementer(ICinderVolumeManager)
@@ -97,14 +96,13 @@ def cinder_client_from_environment():
     if config_file_path is not None:
         config_file = open(config_file_path)
     else:
-        try:
-            config_file = open(DEFAULT_CLOUD_CONFIG_FILE)
-        except IOError as e:
-            raise SkipTest(
-                'CLOUD_CONFIG_FILE environment variable was not set '
-                'and the default config path ({}) could not be read. '
-                '{}'.format(DEFAULT_CLOUD_CONFIG_FILE, e)
-            )
+        raise SkipTest(
+            'Supply the path to a cloud credentials file '
+            'using the CLOUD_CONFIG_FILE environment variable. '
+            'See: '
+            'https://docs.clusterhq.com/en/latest/gettinginvolved/acceptance-testing.html '  # noqa
+            'for details of the expected format.'
+        )
 
     config = yaml.load(config_file.read())
     provider_name = os.environ.get('CLOUD_PROVIDER', DEFAULT_CLOUD_PROVIDER)
