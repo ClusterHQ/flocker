@@ -108,7 +108,11 @@ def get_resources(dependency_graph):
 
 def format_resource_stanzas(resources):
     """
-    TODO Docstring
+    Given resources, create stanzas for a recipe.
+
+    :param resources: List of dictionaries mapping project names to urls and
+        checksums.
+    :return: Unicode representing resource stanzas.
     """
     stanzas = []
     stanza_template = u"""
@@ -127,7 +131,12 @@ def format_resource_stanzas(resources):
 
 def make_recipe(version, sdist_url):
     """
-    TODO Docstring
+    Create a Homebrew recipe.
+
+    :param version: The version of Flocker to create a recipe for.
+    :param sdist_url: The URL of the source distribution of Flocker.
+
+    :return unicode: A Homebrew recipe.
     """
     dependency_graph = get_dependency_graph(u"flocker")
     return get_recipe(
@@ -140,7 +149,15 @@ def make_recipe(version, sdist_url):
 
 def get_recipe(sdist_url, sha1, class_name, resources):
     """
-    TODO Docstring
+    Create a Homebrew recipe.
+
+    :param sdist_url: The URL of the source distribution of Flocker.
+    :param sha1: The checksum of ``sdist_url``.
+    :param class_name: The recipe Ruby class name.
+    :param resources: List of dictionaries mapping project names to urls and
+        checksums or dependencies.
+
+    :return unicode: A Homebrew recipe.
     """
     dependencies = [resource['project_name'] for resource in resources]
 

@@ -347,7 +347,7 @@ FLOCKER_PACKAGES = [
 ]
 
 
-def publish_homebrew_recipe(homebrew_repo_url, version, content, scratch_directory):
+def publish_homebrew_recipe(homebrew_repo_url, version, scratch_directory):
     """
     Publish a Homebrew recipe to a Git repository.
 
@@ -356,6 +356,7 @@ def publish_homebrew_recipe(homebrew_repo_url, version, content, scratch_directo
     :param bytes content: The content of the desired Homebrew recipe.
 
     :return git.remote.PushInfo: Information about the push to GitHub.
+    # TODO Docstring
     """
     sdist_url = 'https://s3.amazonaws.com/clusterhq-archive/python/Flocker-{}.tar.gz'.format(version)  # noqa
     content = make_recipe(
