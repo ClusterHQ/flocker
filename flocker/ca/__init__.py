@@ -5,7 +5,7 @@ A minimal certificate authority.
 """
 
 __all__ = [
-    "RootCredential", "ControlCredential",
+    "RootCredential", "ControlCredential", "NodeCredential",
     "ComparableKeyPair", "PathError", "CertificateAlreadyExistsError",
     "KeyAlreadyExistsError", "EXPIRY_20_YEARS",
     "AUTHORITY_CERTIFICATE_FILENAME", "AUTHORITY_KEY_FILENAME",
@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 from ._ca import (
-    RootCredential, ControlCredential,
+    RootCredential, ControlCredential, NodeCredential,
     ComparableKeyPair, PathError, CertificateAlreadyExistsError,
     KeyAlreadyExistsError, EXPIRY_20_YEARS,
     AUTHORITY_CERTIFICATE_FILENAME, AUTHORITY_KEY_FILENAME,
