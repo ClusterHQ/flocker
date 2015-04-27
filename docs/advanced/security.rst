@@ -4,7 +4,7 @@ Cluster Security & Authentication
 
 A Flocker cluster comprises a control service and convergence agents, along with some command line tools that are provided to interact with and manage the cluster (see :doc:`architecture`).
 
-Flocker uses `Transport Layer Security <http://en.wikipedia.org/wiki/Transport_Layer_Security>`_ (TLS) to authenticate components of a cluster against each other, using a technique known as client certification.
+Flocker uses `Transport Layer Security <http://en.wikipedia.org/wiki/Transport_Layer_Security>`_ (TLS) to authenticate components of a cluster against each other in a `mutual authentication<http://en.wikipedia.org/wiki/Mutual_authentication>`_ model.
 
 This ensures that the control service, convergence agents and API end users can be sure that they are communicating with a verified component of a cluster, helping to prevent unauthorised access and mitigating some potential attack vectors.
 
@@ -13,9 +13,11 @@ Client Certification Overview
 
 When you :doc:`install the flocker-node package <../indepth/installation>`, you are asked to run the ``flocker-ca`` tool provided as part of ``flocker-cli`` to generate a certificate authority for your cluster, as well as certificates and private keys for the control service and convergence agents.
 
-A certificate authority, also known as a root certificate, is a special type of TLS certificate that is authorised to generate other certificates by signing another key's `certificate signing request <http://en.wikipedia.org/wiki/Certificate_signing_request>`_ with its own private key.
+A certification authority certificate, also known as a root certificate, is a special type of TLS certificate that is used to generate other certificates by signing another key's `certificate signing request <http://en.wikipedia.org/wiki/Certificate_signing_request>`_ with its own private key.
+The certificate authority is an individual or organisation that is trusted to generate certificates signed with its own private key.
+In the context of Flocker, the certificate authority is the cluster administrator.
 
-This provides a means to verify the identity of an entity (for example, the control service or an API end user) that presents itself as being an authorised component of a cluster.
+This mutual authentication process, where certificates signed by a private key known only to the cluster administrator are used to establish connections, provides a means to verify the identity of an entity (for example, the control service or an API end user) that presents itself as being an authorised component of a cluster.
 
 If a convergence agent receives a request to change the state of a cluster node, for example, it can check that the TLS data received from a machine identifying as that cluster's control service was encrypted using the key of a certificate that is signed by the cluster's known certificate authority.
 Further, some data can be sent encrypted to the control service using the public key of the signed certificate presented by the control service.
@@ -46,7 +48,7 @@ Flocker's authentication layer does not completely guarantee the security of a c
 If, for example, a malicious user were able to gain root SSH access to the machine running the control service, they would be able to copy the control service's private key and therefore be able to set up another machine to act and identify as the legitimate control service for that cluster.
 Similarly, if the private key of an API end user is compromised, anyone with that key will be able to authenticate as that authorised user and therefore make requests to the REST API to read or change the state of a cluster.
 
-It is therefore very important that you ensure the private keys are kept secret; they should not be copied or shared.
+It is therefore very important that you ensure the private keys are kept secret; they should not be copied or shared insecurely.
 When copying certificates and private keys to your cluster nodes as part of the installation process ``flocker-node``, the files must be copied using a secure and encrypted transfer medium such as SSH, SCP or SFTP.
 
 Other measures that would normally be taken to secure a server should still be implemented; Flocker is not a full server stack and its security layer does not prevent your server being hacked, rather it mitigates the likelihood of Flocker services being used as a vector to do so.

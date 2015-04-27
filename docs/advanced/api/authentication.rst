@@ -2,14 +2,15 @@
 Authentication
 ==============
 
-The Flocker REST API uses TLS certification to secure and authenticate requests.
+The Flocker REST API uses TLS to secure and authenticate requests.
 This ensures an API request is both encrypted and verified to have come from an authorised user, while the corresponding response is verified to have come from the genuine cluster control service.
 
-Unlike regular HTTPS, Flocker uses TLS not just for establishing a secure connection between an API user and the cluster's control service, but also for identity verification; that is, client certification is used in place of a username and password to identify an API user to the cluster.
+Certificates are used for both client and server authentication, entirely replacing the use of usernames and passwords commonly used in HTTPS.
 
 Therefore to grant a user access to your cluster's REST API, you will need to use the ``flocker-ca`` tool installed as part of the ``flocker-cli`` package to generate a certificate and private key that is then given to the API end user.
-When you installed the ``flocker-node`` package on each of your cluster nodes, you should have already used the ``flocker-ca`` tool to generate a root certificate authority identifying your cluster.
-If you have not already followed these steps, please see the `flocker-node installation instructions <../indepth/installation>`.
+To give a user access to a cluster's REST API, use the flocker-ca tool to generate a certificate and private key for the user.
+The ``flocker-ca`` tool is installed as part of the flocker-cli package.
+If you have not already followed these steps, please see the `flocker-node installation instructions <../../indepth/installation>`.
 
 Generate an API user certificate
 ================================
@@ -36,9 +37,9 @@ The CLI package includes the ``flocker-ca`` program which is used to generate ce
         create-node-certificate         Create a certificate for a node.
         create-api-certificate          Create a certificate for an API user.
 
-You will need to run the ``create-api-certificate`` command from the same directory containing the certificate authority files generated when you first installed the cluster.
+You will need to run the ``flocker-ca create-api-certificate`` command from the same directory containing the certificate authority files generated when you first installed the cluster.
 
-Run ``flocker-ca create-api-certificate username``, replacing ``username`` with anything you like to uniquely identify an individual API user.
+Run ``flocker-ca create-api-certificate <username>``, where ``<username>`` is a unique username for an API user.
 
 .. code-block:: console
 
@@ -46,7 +47,7 @@ Run ``flocker-ca create-api-certificate username``, replacing ``username`` with 
    Created alice.crt and alice.key. You can now give these to your API enduser so they can access the control service API.
 
 The two files generated will correspond to the username you specified in the command, in this example ``alice.crt`` and ``alice.key``.
-You should securely provide a copy these files to the API end user.
+You should securely provide a copy of these files to the API end user.
 Once the user is in possession of these files, for security purposes you should delete the original copies generated.
 
 Using an API certificate to authenticate
@@ -58,6 +59,6 @@ The following is an example of an authenticated request to create a new containe
 
 .. code-block:: console
 
-   $ curl -H "Content-Type: application/json" -X POST -d '{"host": "172.255.250.251", "name": "webserver", "image": "nginx:latest"}' --cert alice.crt https://172.16.255.250/v1/configuration/containers
+   $ curl -H "Content-Type: application/json" -X POST -d '{"host": "172.255.250.251", "name": "webserver", "image": "nginx:latest"}' --cacert cluster.crt --cert alice.crt --key alice.key https://172.16.255.250/v1/configuration/containers
    
 You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../security>`.
