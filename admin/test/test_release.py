@@ -27,7 +27,7 @@ from ..release import (
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
-    publish_homebrew_recipe,
+    publish_homebrew_recipe, PushFailed,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1757,17 +1757,19 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             lambda version, sdist_url:
                 "Recipe for " + version + " at " + sdist_url)
 
-        publish_homebrew_recipe(
-            homebrew_repo_url=self.source_repo.git_dir,
-            version='0.3.0',
-            scratch_directory=FilePath(self.mktemp()),
-        )
+
 
 
     def test_commit_message(self):
         """
         The recipe is committed with a sensible message.
         """
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+        )
+
         self.assertEqual(
             self.source_repo.head.commit.summary,
             u'Add recipe for Flocker version 0.3.0')
@@ -1776,6 +1778,12 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         """
         The passed in contents are in the recipe.
         """
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+        )
+
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(),
             'Recipe for 0.3.0 at https://s3.amazonaws.com/clusterhq-archive/python/Flocker-0.3.0.tar.gz')  # noqa
@@ -1784,6 +1792,12 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         """
         If the push fails, an error is raised.
         """
+        non_bare_repo = create_git_repository(test_case=self, bare=False)
+        self.assertRaises(
+            PushFailed,
+            publish_homebrew_recipe,
+            non_bare_repo.git_dir, '0.3.0', FilePath(self.mktemp()))
+
 
     def test_recipe_already_exists(self):
         """
