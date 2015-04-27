@@ -378,13 +378,6 @@ Installing on Ubuntu 14.04
 
 .. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
 
-.. To test this:
-   * create two ubuntu medium instances on AWS with security group "acceptance"
-   * ssh ubuntu@... for each of the node IPs
-   * sudo cp .ssh/authorized_keys /root/.ssh/authorized_keys
-   * ssh root@... for each of the node IPs
-   * This is similar to following the AWS instructions above but ignoring the "Upgrade the Kernel" step which is different on Ubuntu and SELinux can be ignored I think
-
 Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` package.
 
 .. task:: install_flocker ubuntu-14.04
