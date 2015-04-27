@@ -5,6 +5,7 @@ Tests for ``flocker.node.agents.blockdevice``.
 """
 
 from errno import ENOTDIR
+import math
 from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
@@ -2592,9 +2593,19 @@ class ResizeFilesystemTests(
 
         after = statvfs(mountpoint.path)
 
-        self.assertEqual(
-            before.f_favail / 10,
-            after.f_favail / 2 / 10,
-            "Available inodes before ({}) is not roughly half available "
-            "inodes after ({})".format(before.f_favail, after.f_favail)
+        inodes_before = before.f_favail
+        inodes_after = after.f_favail
+        expected_inodes_after = 2 * inodes_before
+        # Set the tolerance to 0.1% of the expected_inodes
+        tolerance = math.ceil(0.1 * expected_inodes_after / 100)
+        difference = abs(expected_inodes_after - inodes_after)
+        self.assertTrue(
+            difference <= tolerance,
+            "Larger than expected difference in available inodes. "
+            "Available inodes before: {}, "
+            "Available inodes after: {}, "
+            "Difference {}, "
+            "Tolerance {}.".format(
+                inodes_before, inodes_after, difference, tolerance
+            )
         )
