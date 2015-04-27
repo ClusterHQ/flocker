@@ -11,7 +11,7 @@ from requests.exceptions import HTTPError
 
 from admin.homebrew import (
     HomebrewOptions, get_checksum, get_dependency_graph, get_class_name,
-    format_resource_stanzas,
+    format_resource_stanzas, get_recipe,
 )
 
 
@@ -52,8 +52,6 @@ class HomebrewOptionsTests(SynchronousTestCase):
 # TODO make private methods private
 # TODO release will have to use an sdist
 # TODO update buildbot to call wrapper script
-# TODO one function called by main which gets everything and returns a recipe
-# this will help with faking
 
 
 class GetChecksumTests(SynchronousTestCase):
@@ -167,11 +165,53 @@ class FormatResourceStanzasTests(SynchronousTestCase):
 """
         self.assertEqual(expected, format_resource_stanzas(resources))
 
-class GetFormattedDependencyListTests(SynchronousTestCase):
-    """
-    Tests for X.
-    """
-    # TODO this should return a list which is later formatted
+class GetRecipeTests(SynchronousTestCase):
+    def test_get_recipe(self):
+        resources = [{
+            "project_name": "six",
+            "url": "https://example.com/six/six-1.9.0.tar.gz",
+            "checksum": "d168e6d01f0900875c6ecebc97da72d0fda31129",
+        }]
+        recipe = get_recipe(
+            sdist_url="https://example.com/flocker_sdist",
+            sha1="fc19b107d0cd6660f797ec6f82c3a61d5e2a768a",
+            class_name="Flocker030",
+            resources=resources,
+        )
+        expected = u"""require "formula"
+
+class Flocker030 < Formula
+  homepage "https://clusterhq.com"
+  url "https://example.com/flocker_sdist"
+  sha1 "fc19b107d0cd6660f797ec6f82c3a61d5e2a768a"
+  depends_on :python if MacOS.version <= :snow_leopard
+
+  resource "six" do
+    url "https://example.com/six/six-1.9.0.tar.gz"
+    sha1 "d168e6d01f0900875c6ecebc97da72d0fda31129"
+  end
+
+  def install
+    ENV.prepend_create_path "PYTHONPATH", "#{libexec}/vendor/lib/python2.7/site-packages"
+    %w[six].each do |r|
+      resource(r).stage do
+        system "python", *Language::Python.setup_install_args(libexec/"vendor")
+      end
+    end
+
+    ENV.prepend_create_path "PYTHONPATH", libexec/"lib/python2.7/site-packages"
+    system "python", *Language::Python.setup_install_args(libexec)
+
+    bin.install Dir["#{libexec}/bin/*"]
+    bin.env_script_all_files(libexec/"bin", :PYTHONPATH => ENV["PYTHONPATH"])
+  end
+
+  test do
+    system "#{bin}/flocker-deploy", "--version"
+  end
+end
+"""
+        self.assertEqual(recipe, expected)
 
 
 class GetResourceStanzasTests(SynchronousTestCase):

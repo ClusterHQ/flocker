@@ -110,7 +110,7 @@ def format_resource_stanzas(resources):
     """
     TODO Docstring
     """
-    stanzas = u""
+    stanzas = []
     stanza_template = u"""
   resource "{project_name}" do
     url "{url}"
@@ -118,11 +118,11 @@ def format_resource_stanzas(resources):
   end
 """
     for resource in resources:
-        stanzas += stanza_template.format(
+        stanzas.append(stanza_template.format(
             project_name=resource['project_name'],
             url=resource['url'],
-            checksum=resource['checksum'])
-    return stanzas
+            checksum=resource['checksum']))
+    return u''.join(stanzas)
 
 
 def make_recipe(version, sdist_url):
@@ -171,7 +171,7 @@ class {class_name} < Formula
     system "#{{bin}}/flocker-deploy", "--version"
   end
 end
-    """.format(
+""".format(
             sdist_url=sdist_url,
             sha1=sha1,
             class_name=class_name,
