@@ -4,6 +4,7 @@
 Tests for ``admin.release``.
 """
 
+import json
 import os
 from unittest import skipUnless
 import tempfile
@@ -25,6 +26,7 @@ from ..release import (
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
+    publish_vagrant_metadata,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1744,16 +1746,79 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
     Tests for :func:`publish_vagrant_metadata`.
     """
 
+    def setUp(self):
+        self.target_bucket = 'clusterhq-archive'
+        self.metadata_key = 'vagrant/flocker-tutorial.json'
+
+    def publish_vagrant_metadata(self, aws, version):
+        sync_perform(
+            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
+            publish_vagrant_metadata(version=version))
+
     def test_no_metadata_exists(self):
         """
         A metadata file is added when one does not exist.
         """
-        aws = FakeAWS()
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+
+        expected_metadata = json.dumps({
+            "description": "Test clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": [{
+                "version": "0.3.0",
+                "providers": [{
+                    "url": "https://example.com/flocker-tutorial-0.3.0.box",
+                    "name": "virtualbox"}]}]})
+
+        self.assertEqual(
+            aws.s3_buckets[self.target_bucket][self.metadata_key],
+            expected_metadata,
+        )
 
     def test_version_added(self):
         """
         A version is added to an existing metadata file.
         """
+        existing_metadata = json.dumps({
+            "description": "Test clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": [{
+                "version": "0.4.0",
+                "providers": [{
+                    "url": "https://example.com/flocker-tutorial-0.4.0.box",
+                    "name": "virtualbox"}]}]})
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {
+                    'vagrant/flocker-tutorial.json': existing_metadata,
+                },
+            },
+        )
+
+        expected_metadata = json.dumps({
+            "description": "Test clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": [{
+                "version": "0.4.0",
+                "providers": [{
+                    "url": "https://example.com/flocker-tutorial-0.4.0.box",
+                    "name": "virtualbox"}]}]})
+
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+        self.assertEqual(
+            aws.s3_buckets[self.target_bucket][self.metadata_key],
+            expected_metadata,
+        )
 
     def test_invalid_metadata_fails(self):
         """
