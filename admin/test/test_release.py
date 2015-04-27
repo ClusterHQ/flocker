@@ -30,7 +30,6 @@ from ..release import (
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
-from ..homebrew import FakeHomebrew
 
 
 class PublishDocsTests(SynchronousTestCase):
@@ -1751,16 +1750,12 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         self.source_repo = create_git_repository(test_case=self, bare=True)
         self.content = "Some recipe contents"
 
-        homebrew = FakeHomebrew()
-
-        sync_perform(
-            ComposedDispatcher([base_dispatcher, homebrew.get_dispatcher()]),
-            publish_homebrew_recipe(
-                homebrew_repo_url=self.source_repo.git_dir,
-                version='0.3.0',
-                content=self.content,
-                scratch_directory=FilePath(self.mktemp()),
-            ))
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            content=self.content,
+            scratch_directory=FilePath(self.mktemp()),
+        )
 
 
     def test_commit_message(self):
