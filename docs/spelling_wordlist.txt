@@ -3,6 +3,7 @@ app
 apps
 backend
 behaviour
+blog
 Btrfs
 bugfix
 Buildbot
@@ -16,6 +17,7 @@ clusterhq
 Copr
 dataset
 datasets
+Debian
 Deis
 devel
 DigitalOcean
@@ -54,6 +56,7 @@ online
 pem
 petabyte
 petabytes
+plugin
 plugins
 pre
 programmatically
@@ -69,6 +72,7 @@ sysadmin
 terabytes
 timestamp
 ubuntu
+Ubuntu
 username
 versioning
 virtualization
