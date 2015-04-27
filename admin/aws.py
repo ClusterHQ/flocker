@@ -322,6 +322,7 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
     """
     See :class:`UploadToS3Recursively`.
     """
+
     for file in intent.files:
         path = intent.source_path.preauthChild(file)
         if path.isfile():

@@ -366,7 +366,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
         source_path=scratch_directory,
         target_bucket=target_bucket,
         target_key='vagrant',
-        files=set(json_file.basename()),
+        files=set([json_file.basename()]),
         ))
 
 
