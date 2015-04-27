@@ -61,3 +61,8 @@ Then destroy and re-up that vagrant image.
 
 It is also possible to build a vagrant image based on RPMs from a branch.
 If you pass a ``--branch`` argument to :file:`build`, then it will use the RPMs from the latest build of that branch on Buildbot.
+
+Legacy
+^^^^^^
+
+Old stuff is on Atlas.
