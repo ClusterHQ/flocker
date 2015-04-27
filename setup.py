@@ -162,6 +162,7 @@ setup(
         "python-cinderclient==1.1.1",
         "python-keystoneclient-rackspace==0.1.3",
         "bitmath==1.2.3-4",
+        "boto==2.38.0",
         ],
 
     extras_require={
@@ -188,7 +189,7 @@ setup(
             "PyCrypto",
             "pyasn1",
             "tl.eggdeps",
-            "boto==2.30.0",
+            "boto==2.38.0",
             # Packages are downloaded from Buildbot
             "requests==2.4.3",
             "requests-file==1.0",

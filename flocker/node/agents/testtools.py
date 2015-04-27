@@ -17,7 +17,7 @@ from .cinder import (
     ICinderVolumeManager, CINDER_CLIENT_FACTORIES
 )
 
-from .ebs import ebs_client_factory
+from .ebs import ec2_client
 
 
 DEFAULT_OPENSTACK_PROVIDER = 'rackspace'
@@ -108,19 +108,19 @@ def load_client_config_from_environment():
     return config
 
 
-def ebs_client_from_environment():
+def ec2_client_from_environment():
     """
-    Create an EBS Boto client using credentials from a config
+    Create an EC2 Boto client using credentials from a config
     file path which may be supplied as an environment variable.
     See ``load_config`` for details on where config is populated from.
 
-    :returns: An instance of EBS Boto client
+    :returns: An instance of EC2 Boto client
         using provider specific credentials found in ``CLOUD_CONFIG_FILE``.
     """
     config = load_client_config_from_environment()
     provider_name = 'aws'
     provider_config = config[provider_name]
-    return ebs_client_factory(**provider_config)
+    return ec2_client(**provider_config)
 
 
 def cinder_client_from_environment():

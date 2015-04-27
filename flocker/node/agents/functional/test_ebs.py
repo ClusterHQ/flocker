@@ -8,17 +8,29 @@ Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
 from uuid import uuid4
 
 from ..ebs import EBSBlockDeviceAPI
-from ..testtools import ebs_client_from_environment
+from ..testtools import ec2_client_from_environment
+from ....testtools import skip_except
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
 
 def ebsblockdeviceapi_for_test(test_case, cluster_id):
     return EBSBlockDeviceAPI(
-        ebs_client=ebs_client_from_environment(),
+        ec2_client=ec2_client_from_environment(),
         cluster_id=cluster_id
     )
 
 
+# ``EBSBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
+# ``IBlockDeviceAPI``. Skip the rest of the tests for now.
+@skip_except(
+    supported_tests=[
+        'test_interface',
+        'test_created_is_listed',
+        'test_created_volume_attributes',
+        'test_list_volume_empty',
+        'test_listed_volume_attributes',
+    ]
+)
 class EBSBlockDeviceAPIInterfaceTests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=(
