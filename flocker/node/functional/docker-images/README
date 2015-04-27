@@ -1,0 +1,1 @@
+This directory contains Docker build contexts (and associated Dockerfiles) necessary to build images that are used by the test suite and required to be available to be pulled.

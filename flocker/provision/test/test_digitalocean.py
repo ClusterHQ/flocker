@@ -57,11 +57,7 @@ def droplet_for_test(test_case, client):
     :returns: A ``pyocean.Droplet`` instance.
     """
     droplet_attributes = copy.deepcopy(TESTING_DROPLET_ATTRIBUTES)
-    droplet_attributes['name'] = (
-        test_case.id().replace('_', '-')
-        + '-'
-        + random_name()
-    )
+    droplet_attributes['name'] = random_name(test_case)
     droplet = retry_on_error(
         [pending_event],
         client.droplet.create, droplet_attributes

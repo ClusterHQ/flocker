@@ -26,6 +26,17 @@ from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
 
+import httplib
+httplib.HTTPConnection.debuglevel = 1
+
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.DEBUG)
+requests_log.propagate = True
+
 
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
@@ -526,6 +537,15 @@ class DockerClient(object):
                 # Can't figure out how to get test coverage for this, but
                 # it's definitely necessary:
                 raise
+
+            # Just because we got a response doesn't mean Docker has actually
+            # updated any internal state yet! So if e.g. we attempt to remove
+            # the image used by this container Docker might well complain that
+            # the image is still in use.
+            while self._blocking_exists(container_name):
+                sleep(0.001)
+                continue
+
         d = deferToThread(_remove)
         return d
 

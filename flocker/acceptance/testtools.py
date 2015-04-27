@@ -15,11 +15,12 @@ from yaml import safe_dump
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.python.failure import Failure
 
 from eliot import Logger, start_action
 from eliot.twisted import DeferredContext
 
-from treq import get, post, delete, json_content
+from treq import get, post, delete, content, json_content
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
 from ..control import (
@@ -423,18 +424,30 @@ class _NodeList(CheckedPVector):
     __type__ = Node
 
 
-def check_and_decode_json(result, response_code):
+def check_and_decode_json(result, response_code, request_url):
     """
-    Given ``treq`` response object, extract JSON and ensure response code
-    is the expected one.
+    Given ``treq`` response object, extract JSON and ensure response code is
+    the expected one.
 
     :param result: ``treq`` response.
     :param int response_code: Expected response code.
+    :param bytes request_url: The URL which was requested to produce this
+        response.
 
     :return: ``Deferred`` firing with decoded JSON.
     """
     if result.code != response_code:
-        raise ValueError("Unexpected response code:", result.code)
+        d = content(result)
+        d.addCallback(
+            lambda body:
+                Failure(ValueError(
+                    "Unexpected response code:",
+                    result.code,
+                    request_url,
+                    body,
+                ))
+        )
+        return d
     return json_content(result)
 
 
@@ -484,8 +497,9 @@ class Cluster(PRecord):
         :return: ``Deferred`` firing with a list of dataset dictionaries,
             the state of the cluster.
         """
-        request = get(self.base_url + b"/state/datasets", persistent=False)
-        request.addCallback(check_and_decode_json, OK)
+        url = self.base_url + b"/state/datasets"
+        request = get(url, persistent=False)
+        request.addCallback(check_and_decode_json, OK, url)
         return request
 
     @log_method
@@ -532,14 +546,15 @@ class Cluster(PRecord):
             API response when a dataset with the supplied properties has been
             persisted to the cluster configuration.
         """
+        url = self.base_url + b"/configuration/datasets"
         request = post(
-            self.base_url + b"/configuration/datasets",
+            url,
             data=dumps(dataset_properties),
             headers={b"content-type": b"application/json"},
             persistent=False
         )
 
-        request.addCallback(check_and_decode_json, CREATED)
+        request.addCallback(check_and_decode_json, CREATED, url)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -554,16 +569,17 @@ class Cluster(PRecord):
             create.
         :returns: A 2-tuple of (cluster, api_response)
         """
+        url = self.base_url + b"/configuration/datasets/%s" % (
+            dataset_id.encode('ascii')
+        )
         request = post(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
+            url,
             data=dumps(dataset_properties),
             headers={b"content-type": b"application/json"},
             persistent=False
         )
 
-        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(check_and_decode_json, OK, url)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -577,15 +593,16 @@ class Cluster(PRecord):
 
         :returns: A 2-tuple of (cluster, api_response)
         """
+        url = self.base_url + b"/configuration/datasets/%s" % (
+            dataset_id.encode('ascii'),
+        )
         request = delete(
-            self.base_url + b"/configuration/datasets/%s" % (
-                dataset_id.encode('ascii'),
-            ),
+            url,
             headers={b"content-type": b"application/json"},
             persistent=False
         )
 
-        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(check_and_decode_json, OK, url)
         # Return cluster and API response
         request.addCallback(lambda response: (self, response))
         return request
@@ -600,14 +617,15 @@ class Cluster(PRecord):
 
         :returns: A tuple of (cluster, api_response)
         """
+        url = self.base_url + b"/configuration/containers"
         request = post(
-            self.base_url + b"/configuration/containers",
+            url,
             data=dumps(properties),
             headers={b"content-type": b"application/json"},
             persistent=False
         )
 
-        request.addCallback(check_and_decode_json, CREATED)
+        request.addCallback(check_and_decode_json, CREATED, url)
         request.addCallback(lambda response: (self, response))
         return request
 
@@ -620,15 +638,18 @@ class Cluster(PRecord):
         :param unicode host: The host to which the container should be moved.
         :returns: A tuple of (cluster, api_response)
         """
-        request = post(
+        url = (
             self.base_url + b"/configuration/containers/" +
-            name.encode("ascii"),
+            name.encode("ascii")
+        )
+        request = post(
+            url,
             data=dumps({u"host": host}),
             headers={b"content-type": b"application/json"},
             persistent=False
         )
 
-        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(check_and_decode_json, OK, url)
         request.addCallback(lambda response: (self, response))
         return request
 
@@ -641,13 +662,16 @@ class Cluster(PRecord):
 
         :returns: A tuple of (cluster, api_response)
         """
-        request = delete(
+        url = (
             self.base_url + b"/configuration/containers/" +
-            name.encode("ascii"),
+            name.encode("ascii")
+        )
+        request = delete(
+            url,
             persistent=False
         )
 
-        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(check_and_decode_json, OK, url)
         request.addCallback(lambda response: (self, response))
         return request
 
@@ -659,12 +683,13 @@ class Cluster(PRecord):
         :return: A ``Deferred`` firing with a tuple (cluster instance, API
             response).
         """
+        url = self.base_url + b"/state/containers"
         request = get(
-            self.base_url + b"/state/containers",
+            url,
             persistent=False
         )
 
-        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(check_and_decode_json, OK, url)
         request.addCallback(lambda response: (self, response))
         return request
 
@@ -713,12 +738,13 @@ class Cluster(PRecord):
         :return: A ``Deferred`` firing with a tuple (cluster instance, API
             response).
         """
+        url = self.base_url + b"/state/nodes"
         request = get(
-            self.base_url + b"/state/nodes",
+            url,
             persistent=False
         )
 
-        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(check_and_decode_json, OK, url)
         request.addCallback(lambda response: (self, response))
         return request
 
