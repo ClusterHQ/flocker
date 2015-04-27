@@ -4,7 +4,7 @@ A HTTP REST API for controlling the Dataset Manager.
 """
 
 import yaml
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from pyrsistent import pmap, thaw
 
@@ -170,7 +170,7 @@ class ConfigurationAPIUserV1(object):
         """
         Create a new dataset in the cluster configuration.
 
-        :param unicode primary: The address of the node on which the primary
+        :param unicode primary: The UUID of the node on which the primary
             manifestation of the dataset will be created.
 
         :param unicode dataset_id: A unique identifier to assign to the
@@ -200,6 +200,8 @@ class ConfigurationAPIUserV1(object):
 
         if metadata is None:
             metadata = {}
+
+#        primary = UUID(hex=primary)
 
         # Use persistence_service to get a Deployment for the cluster
         # configuration.
