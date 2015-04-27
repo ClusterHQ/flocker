@@ -223,4 +223,5 @@ def main(args, base_path, top_level):
 
 
 if __name__ == "__main__":
-    main()
+    from _preamble import TOPLEVEL, BASEPATH
+    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)
