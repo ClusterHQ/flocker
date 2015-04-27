@@ -344,6 +344,30 @@ FLOCKER_PACKAGES = [
 ]
 
 
+# TODO call this from main
+@do
+def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket):
+    """
+    TODO
+    """
+    # TODO use box_metadata from vagrant.py
+    new_metadata = {
+        "version": version,
+        "providers": [{
+            "url": "https://example.com/flocker-tutorial-0.3.0.box",
+            "name": "virtualbox"
+    }]}
+
+    metadata = ""
+    json_path.setContent(json.dumps(metadata))
+    yield Effect(UploadToS3Recursively(
+        source_path=scratch_directory,
+        target_bucket=target_bucket,
+        target_key=['vagrant'],
+        files=json_path,
+        ))
+
+
 @do
 def update_repo(rpm_directory, target_bucket, target_key, source_repo,
                 packages, flocker_version, distro_name, distro_version):

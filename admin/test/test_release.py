@@ -1757,7 +1757,10 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
         sync_perform(
             ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
-            publish_vagrant_metadata(version=version, box_url=box_url))
+            publish_vagrant_metadata(
+                version=version,
+                box_url=box_url,
+                scratch_directory=FilePath(self.mktemp())))
 
     def test_no_metadata_exists(self):
         """
