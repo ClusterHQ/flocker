@@ -214,23 +214,20 @@ def task_open_control_firewall():
 
 
 AGENT_CONFIG = """\
-FLOCKER_NODE_NAME = %(node_name)s
 FLOCKER_CONTROL_NODE = %(control_node)s
 """
 
 
-def task_enable_flocker_agent(node_name, control_node):
+def task_enable_flocker_agent(control_node):
     """
     Configure and enable the flocker agents.
 
-    :param bytes node_name: The name this node is known by.
     :param bytes control_node: The address of the control agent.
     """
     return sequence([
         put(
             path='/etc/sysconfig/flocker-agent',
             content=AGENT_CONFIG % {
-                'node_name': node_name,
                 'control_node': control_node
             },
         ),
@@ -434,7 +431,6 @@ def configure_cluster(control_node, agent_nodes):
                     username='root',
                     address=node,
                     commands=task_enable_flocker_agent(
-                        node_name=node,
                         control_node=control_node,
                     ),
                 ),

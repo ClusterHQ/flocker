@@ -33,6 +33,7 @@ from ._config import (
     model_from_configuration, FigConfiguration, FlockerConfiguration,
     ConfigurationError
 )
+from ._model import ip_to_uuid
 from .. import __version__
 
 
@@ -219,7 +220,8 @@ class ConfigurationAPIUserV1(object):
         )
         manifestation = Manifestation(dataset=dataset, primary=True)
 
-        primary_node = deployment.get_node(primary)
+        primary_node = deployment.get_node(ip_to_uuid(primary),
+                                           hostname=primary)
 
         new_node_config = primary_node.transform(
             ("manifestations", manifestation.dataset_id), manifestation)
@@ -391,8 +393,9 @@ class ConfigurationAPIUserV1(object):
         deployment = self.cluster_state_service.as_deployment()
         datasets = list(datasets_from_deployment(deployment))
         for dataset in datasets:
+            uuid = ip_to_uuid(dataset[u"primary"])
             dataset[u"path"] = self.cluster_state_service.manifestation_path(
-                dataset[u"primary"], dataset[u"dataset_id"]).path.decode(
+                uuid, dataset[u"dataset_id"]).path.decode(
                     "utf-8")
             del dataset[u"metadata"]
             del dataset[u"deleted"]
@@ -580,7 +583,7 @@ class ConfigurationAPIUserV1(object):
             attached_volume = self._get_attached_volume(host, volumes[0])
 
         # Find the node.
-        node = deployment.get_node(host)
+        node = deployment.get_node(ip_to_uuid(host), hostname=host)
 
         # Check if we have any ports in the request. If we do, check existing
         # external ports exposed to ensure there is no conflict. If there is a
@@ -694,7 +697,7 @@ class ConfigurationAPIUserV1(object):
             been updated.
         """
         deployment = self.persistence_service.get()
-        target_node = deployment.get_node(host)
+        target_node = deployment.get_node(ip_to_uuid(host), hostname=host)
         for node in deployment.nodes:
             for application in node.applications:
                 if application.name == name:
@@ -866,7 +869,8 @@ def _update_dataset_primary(deployment, dataset_id, primary):
     )
     deployment = deployment.update_node(old_primary_node)
 
-    new_primary_node = deployment.get_node(primary)
+    new_primary_node = deployment.get_node(ip_to_uuid(primary),
+                                           hostname=primary)
     new_primary_node = new_primary_node.transform(
         ("manifestations", dataset_id), primary_manifestation
     )
