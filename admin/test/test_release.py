@@ -1737,3 +1737,26 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.assertRaises(
             TagExists,
             self.calculate_base_branch, '0.3.0')
+
+
+class PublishVagrantMetadataTests(SynchronousTestCase):
+    """
+    Tests for :func:`publish_vagrant_metadata`.
+    """
+
+    def test_no_metadata_exists(self):
+        """
+        A metadata file is added when one does not exist.
+        """
+        aws = FakeAWS()
+
+    def test_version_added(self):
+        """
+        A version is added to an existing metadata file.
+        """
+
+    def test_invalid_metadata_fails(self):
+        """
+        If the metadata which exists already is not valid, an exception is
+        raised.
+        """
