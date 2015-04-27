@@ -2593,19 +2593,17 @@ class ResizeFilesystemTests(
 
         after = statvfs(mountpoint.path)
 
-        inodes_before = before.f_favail
-        inodes_after = after.f_favail
+        inodes_before = before.f_files
+        inodes_after = after.f_files
         expected_inodes_after = 2 * inodes_before
-        # Set the tolerance to 0.1% of the expected_inodes
-        tolerance = math.ceil(0.1 * expected_inodes_after / 100)
-        difference = abs(expected_inodes_after - inodes_after)
-        self.assertTrue(
-            difference <= tolerance,
-            "Larger than expected difference in available inodes. "
-            "Available inodes before: {}, "
-            "Available inodes after: {}, "
-            "Difference {}, "
-            "Tolerance {}.".format(
-                inodes_before, inodes_after, difference, tolerance
+
+        self.assertEqual(
+            expected_inodes_after,
+            inodes_after,
+            "Unexpected inode count. "
+            "Before: {}, "
+            "After: {}, "
+            "Expected: {}.".format(
+                inodes_before, inodes_after, expected_inodes_after
             )
         )
