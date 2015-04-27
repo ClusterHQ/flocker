@@ -21,6 +21,8 @@ from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
+from bitmath import GB
+
 from pyrsistent import PRecord, field
 
 from zope.interface import implementer
@@ -50,8 +52,10 @@ from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
 
-GIBIBYTE = 2 ** 30
-REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
+# This is currently set to the minimum size for a SATA based Rackspace Cloud
+# Block Storage volume. See:
+# * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
+REALISTIC_BLOCKDEVICE_SIZE = int(GB(75).to_Byte().value)
 
 
 @implementer(IProcessTransport)

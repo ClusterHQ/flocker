@@ -47,7 +47,6 @@ from ..blockdevice import (
     _SyncToThreadedAsyncAPIAdapter,
 )
 
-from ..cinder import RACKSPACE_MINIMUM_BLOCK_SIZE
 from ... import run_state_change, in_parallel
 from ...testtools import ideployer_tests_factory, to_node
 from ....testtools import (
@@ -58,8 +57,6 @@ from ....control import (
     NonManifestDatasets,
 )
 
-# Use Rackspace minimum size here so that tests can be run against that API.
-REALISTIC_BLOCKDEVICE_SIZE = RACKSPACE_MINIMUM_BLOCK_SIZE
 LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
 
 if not platform.isLinux():

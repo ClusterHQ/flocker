@@ -6,7 +6,7 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 import time
 from uuid import UUID
 
-from bitmath import Byte, GB, TB
+from bitmath import Byte, GB
 
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from keystoneclient.session import Session
@@ -16,19 +16,6 @@ from cinderclient.client import Client
 from zope.interface import implementer, Interface
 
 from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume
-
-# Rackspace public docs say "The minimum size for a Cloud Block Storage volume
-# is 50 GB for an SSD volume or 75GB for an SATA volume. The maximum volume
-# size is 1TB."
-# * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
-# Rackspace API agrees "u'{"badRequest": {"message": "Invalid input
-# received: \'size\' parameter must be between 75 and 1024", "code":
-# 400}}'"
-# Let's assume that we only support SATA volumes for now.
-# Eventually we'll validate size at configuration time based on backend limits.
-# See https://clusterhq.atlassian.net/browse/FLOC-1579
-RACKSPACE_MINIMUM_BLOCK_SIZE = int(GB(75).to_Byte().value)
-RACKSPACE_MAXIMUM_BLOCK_SIZE = int(TB(1).to_Byte().value)
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
 # a volume.
