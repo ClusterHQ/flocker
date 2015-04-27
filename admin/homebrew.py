@@ -12,7 +12,6 @@ from json import load
 from urllib2 import urlopen
 from hashlib import sha1
 
-# TODO this will have to be a dev requirement if it isn't already
 from twisted.python.usage import Options, UsageError
 from tl.eggdeps.graph import Graph
 
@@ -204,8 +203,6 @@ class HomebrewOptions(Options):
 
 def main(args, base_path, top_level):
     """
-    # TODO create a function to get the string
-
     Create a Homebrew recipe.
     """
     options = HomebrewOptions()

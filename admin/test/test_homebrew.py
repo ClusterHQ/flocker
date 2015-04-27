@@ -49,11 +49,6 @@ class HomebrewOptionsTests(SynchronousTestCase):
             ['--flocker-version', '0.3.0',
              '--sdist', 'mysdist'])
 
-# TODO make private methods private
-# TODO release will have to use an sdist
-# TODO update buildbot to call wrapper script
-
-
 class GetChecksumTests(SynchronousTestCase):
     """
     Tests for X.
@@ -68,7 +63,6 @@ class GetChecksumTests(SynchronousTestCase):
         file.setContent("Some content")
 
         uri = 'file://' + file.path
-        # TODO Make get_checksum take URI not URL
         self.assertEqual(
             '9f1a6ecf74e9f9b1ae52e8eb581d420e63e8453a',
             get_checksum(url=uri))
@@ -212,13 +206,3 @@ class Flocker030 < Formula
 end
 """
         self.assertEqual(recipe, expected)
-
-
-class GetResourceStanzasTests(SynchronousTestCase):
-    """
-    Tests for X.
-    """
-    # TODO should return a dictionary of project names to URLs and Checksums
-    # get_recipe should turn this dictionary into string
-    def test_package_not_found(self):
-        pass
