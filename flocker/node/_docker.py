@@ -564,10 +564,10 @@ class DockerClient(object):
                 image_data = self._client.inspect_image(image)
                 unit_environment = []
                 container_environment = data[u"Config"][u"Env"]
-                if image_data[u"Config"]["Env"] is not None:
-                    image_environment = image_data[u"Config"]["Env"]
-                else:
+                if image_data[u"Config"]["Env"] is None:
                     image_environment = []
+                else:
+                    image_environment = image_data[u"Config"]["Env"]
                 if container_environment is not None:
                     for environment in container_environment:
                         if environment not in image_environment:
