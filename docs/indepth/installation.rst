@@ -180,7 +180,7 @@ Using Amazon Web Services
       chmod 600 ~/.ssh/my-instance.pem
       ssh-add ~/.ssh/my-instance.pem
 
-#. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user "fedora", "centos", or "ubuntu" e.g.:
+#. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user ``fedora``, ``centos``, or ``ubuntu`` e.g.:
 
    .. prompt:: bash alice@mercury:~$
 

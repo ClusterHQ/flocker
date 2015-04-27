@@ -8,7 +8,6 @@ Btrfs
 bugfix
 Buildbot
 CentOS
-centos
 checksum
 chmod
 cli
@@ -71,7 +70,6 @@ stateful
 sysadmin
 terabytes
 timestamp
-ubuntu
 Ubuntu
 username
 versioning
