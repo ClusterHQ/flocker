@@ -116,22 +116,7 @@ def get_class_name(version):
         else character for index, character in enumerate(class_name) if
         character not in disallowed_characters])
 
-
-def get_formatted_dependency_list(dependency_graph):
-    """
-    :param tl.eggdeps.graph.Graph dependency_graph: Graph of Python
-        dependencies.
-
-    :return unicode: Space separated list of dependency names.
-    """
-    dependencies = []
-    for name, node in sorted(dependency_graph.iteritems()):
-        requirement = node.dist.as_requirement()
-        dependencies.append(requirement.project_name)
-    return u' '.join(dependencies)
-
-
-def get_resource_stanzas(dependency_graph):
+def get_resources(dependency_graph):
     """
     :param tl.eggdeps.graph.Graph dependency_graph: Graph of Python
         dependencies.
@@ -139,13 +124,7 @@ def get_resource_stanzas(dependency_graph):
     :return unicode: The part of the Homebrew recipe which defines the Python
         packages to install.
     """
-    resources = u""
-    resource_template = u"""
-  resource "{project_name}" do
-    url "{url}"
-    sha1 "{checksum}"
-  end
-"""
+    resources = []
     for name, node in sorted(dependency_graph.iteritems()):
         requirement = node.dist.as_requirement()
         operator, version = requirement.specs[0]
@@ -158,24 +137,52 @@ def get_resource_stanzas(dependency_graph):
         f.close()
         for release in pypi_information['urls']:
             if release['packagetype'] == 'sdist':
-                url = release['url']
-                resources += resource_template.format(
-                    project_name=project_name, url=release['url'],
-                    checksum=get_checksum(url))
+                sdist_url = release['url']
+                resources.append({
+                    "project_name": project_name,
+                    "url": release['url'],
+                    "checksum": get_checksum(sdist_url),
+                })
                 break
         else:
             raise Exception("sdist package not found for " + name)
     return resources
 
 
-def get_recipe(url, sha1, class_name, resources, dependencies):
-    # TODO is this too much indentation?
+def format_resource_stanzas(resources):
+    stanzas = u""
+    stanza_template = u"""
+  resource "{project_name}" do
+    url "{url}"
+    sha1 "{checksum}"
+  end
+"""
+    for resource in resources:
+        stanzas += stanza_template.format(
+            project_name=resource['project_name'],
+            url=resource['url'],
+            checksum=resource['checksum'])
+    return stanzas
 
-    return """require "formula"
+
+def make_recipe(version, sdist_url):
+    dependency_graph = get_dependency_graph(u"flocker")
+    return get_recipe(
+        sdist_url=sdist_url,
+        sha1=get_checksum(url=sdist_url),
+        class_name=get_class_name(version=version),
+        resources=get_resources(dependency_graph=dependency_graph),
+    )
+
+def get_recipe(sdist_url, sha1, class_name, resources):
+    # TODO is this too much indentation?
+    dependencies = [resource['project_name'] for resource in resources]
+
+    return u"""require "formula"
 
 class {class_name} < Formula
   homepage "https://clusterhq.com"
-  url "{url}"
+  url "{sdist_url}"
   sha1 "{sha1}"
   depends_on :python if MacOS.version <= :snow_leopard
 {resources}
@@ -199,11 +206,11 @@ class {class_name} < Formula
   end
 end
     """.format(
-            url=url,
+            sdist_url=sdist_url,
             sha1=sha1,
             class_name=class_name,
-            resources=resources,
-            dependencies=dependencies)
+            resources=format_resource_stanzas(resources),
+            dependencies=u' '.join(dependencies))
 
 class HomebrewOptions(Options):
     """
@@ -226,7 +233,7 @@ class HomebrewOptions(Options):
             raise UsageError("`--sdist` must be specified.")
 
         if self['output-file'] is None:
-            raise UsageError("`--sdist` must be specified.")
+            raise UsageError("`--output-file` must be specified.")
 
 
 def main(args, base_path, top_level):
@@ -244,25 +251,9 @@ def main(args, base_path, top_level):
         raise SystemExit(1)
 
     logging.basicConfig(level=logging.INFO)
-
     version = options["flocker-version"]
-
     logging.info('Creating Homebrew recipe for version {}'.format(version))
-
-    url = options["sdist"]
-    sha1 = get_checksum(url)
-    class_name = get_class_name(version=version),
-    dependency_graph = get_dependency_graph(u"flocker")
-    resources = get_resource_stanzas(dependency_graph=dependency_graph)
-    dependencies = get_formatted_dependency_list(
-        dependency_graph=dependency_graph)
-
-    recipe = get_recipe(
-        url=url,
-        sha1=sha1,
-        class_name=class_name,
-        resources=resources,
-        dependencies=dependencies)
+    recipe = make_recipe(version=version, sdist_url=options["sdist"])
 
     with open(options["output-file"], 'wt') as f:
         f.write(recipe)
