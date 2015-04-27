@@ -55,7 +55,7 @@ from .yum import (
 )
 
 # TODO call this from publish_artifacts_main
-from .homebrew import make_homebrew_recipe
+from .homebrew import make_recipe
 
 
 class NotTagged(Exception):
@@ -358,6 +358,10 @@ def publish_homebrew_recipe(homebrew_repo_url, version, content, scratch_directo
 
     :return git.remote.PushInfo: Information about the push to GitHub.
     """
+    sdist_url = 'https://s3.amazonaws.com/clusterhq-archive/python/Flocker-{}.tar.gz'.format(version)  # noqa
+    content = make_recipe(
+        version=version,
+        sdist_url=sdist_url)
     homebrew_repo = Repo.clone_from(url=homebrew_repo_url, to_path=scratch_directory.path)
     recipe = 'flocker-{version}.rb'.format(version=version)
     FilePath(homebrew_repo.working_dir).child(recipe).setContent(content)
@@ -367,7 +371,6 @@ def publish_homebrew_recipe(homebrew_repo_url, version, content, scratch_directo
     homebrew_repo.remotes.origin.push(homebrew_repo.head)
     # TODO catch if there is an error pushing - foo.flags & foo.ERROR is not 0
     # foo = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
-    # TODO tl.eggdeps will have to be a dev requirement if it isn't already
 
 
 @do
