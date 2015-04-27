@@ -45,12 +45,13 @@ def get_checksum(url):
 
     :return str checksum: The sha1 hash of the file at ``url``.
     """
-    s = requests.Session()
+    session = requests.Session()
     # Tests use a local package repository
-    s.mount('file://', FileAdapter())
-    download = s.get(url)
+    session.mount('file://', FileAdapter())
+    download = session.get(url, stream=True)
     download.raise_for_status()
-    content = download.content
+    content = download.raw.read()
+
     return sha1(content).hexdigest()
 
 
