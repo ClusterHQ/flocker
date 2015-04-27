@@ -5,7 +5,6 @@ Tests for ``flocker.node.agents.blockdevice``.
 """
 
 from errno import ENOTDIR
-import math
 from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
