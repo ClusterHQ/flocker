@@ -372,12 +372,20 @@ CMD sh -c "trap \"\" 2; sleep 3"
         A container that does not include any environment variables contains
         an empty ``environment`` in the return ``Unit``.
         """
-        image_name = u"clusterhq/buildroot:latest"
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM scratch\n'
+            b'MAINTAINER info@clusterhq.com\n'
+            b'CMD ["/bin/doesnotexist"]'
+        )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
         client = self.make_client()
         name = random_name()
         self.addCleanup(client.remove, name)
         d = client.add(name, image_name)
-        d.addCallback(lambda _: client.list())
+        d.addErrback(lambda _: client.list())
 
         def got_list(units):
             unit = [unit for unit in units if unit.name == name][0]
