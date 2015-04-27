@@ -18,6 +18,8 @@ from twisted.python.procutils import which
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import SynchronousTestCase
 
+from .. import release
+
 from ..release import (
     upload_rpms, update_repo,
     publish_docs, Environments, DOCUMENTATION_CONFIGURATIONS,
@@ -1748,12 +1750,16 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
 
     def setUp(self):
         self.source_repo = create_git_repository(test_case=self, bare=True)
-        self.content = "Some recipe contents"
+        # Making a recipe involves interacting with PyPI, this should be
+        # a parameter, not a patch. See:
+        # https://clusterhq.atlassian.net/browse/FLOC-1759
+        self.patch(release, 'make_recipe',
+            lambda version, sdist_url:
+                "Recipe for " + version + " at " + sdist_url)
 
         publish_homebrew_recipe(
             homebrew_repo_url=self.source_repo.git_dir,
             version='0.3.0',
-            content=self.content,
             scratch_directory=FilePath(self.mktemp()),
         )
 
@@ -1771,7 +1777,8 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         The passed in contents are in the recipe.
         """
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
-        self.assertEqual(recipe.data_stream.read(), self.content)
+        self.assertEqual(recipe.data_stream.read(),
+            'Recipe for 0.3.0 at https://s3.amazonaws.com/clusterhq-archive/python/Flocker-0.3.0.tar.gz')  # noqa
 
     def test_push_fails(self):
         """
