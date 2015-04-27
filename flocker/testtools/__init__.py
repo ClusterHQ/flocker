@@ -50,6 +50,10 @@ from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
 
+GIBIBYTE = 2 ** 30
+REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
+
+
 @implementer(IProcessTransport)
 class FakeProcessTransport(object):
     """

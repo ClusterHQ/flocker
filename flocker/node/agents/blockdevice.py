@@ -7,6 +7,7 @@ convergence agent that can be re-used against many different kinds of block
 devices.
 """
 
+from errno import EEXIST
 from uuid import UUID
 from subprocess import check_output
 
@@ -16,14 +17,19 @@ from eliot.serializers import identity
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
+from characteristic import with_cmp
 
 import psutil
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 
-from .. import IDeployer, IStateChange, sequentially, in_parallel
+from .. import (
+    IDeployer, IStateChange, sequentially, in_parallel, run_state_change
+)
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
+from ...common import auto_threaded
+
 
 # Eliot is transitioning away from the "Logger instances all over the place"
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
@@ -66,6 +72,14 @@ class UnattachedVolume(VolumeException):
     requires the volume to be attached.
     """
 
+OLD_SIZE = Field.for_types(
+    u"old_size", [int], u"The size of a volume prior to a resize operation."
+)
+
+NEW_SIZE = Field.for_types(
+    u"new_size", [int],
+    u"The intended size of a volume after resize operation."
+)
 
 DATASET = Field(
     u"dataset",
@@ -77,6 +91,12 @@ VOLUME = Field(
     u"volume",
     lambda volume: volume.blockdevice_id,
     u"The unique identifier of a volume."
+)
+
+FILESYSTEM_TYPE = Field.forTypes(
+    u"filesystem_type",
+    [unicode],
+    u"The name of a filesystem."
 )
 
 DATASET_ID = Field(
@@ -145,6 +165,20 @@ UNMOUNT_BLOCK_DEVICE = ActionType(
     u"A block-device-backed dataset is being unmounted.",
 )
 
+MOUNT_BLOCK_DEVICE = ActionType(
+    u"agent:blockdevice:mount",
+    [VOLUME],
+    [],
+    u"A block-device-backed dataset is being mounted.",
+)
+
+ATTACH_VOLUME = ActionType(
+    u"agent:blockdevice:attach_volume",
+    [VOLUME],
+    [],
+    u"The volume for a block-device-backed dataset is being attached."
+)
+
 DETACH_VOLUME = ActionType(
     u"agent:blockdevice:detach_volume",
     [VOLUME],
@@ -158,6 +192,47 @@ DESTROY_VOLUME = ActionType(
     [],
     u"The volume for a block-device-backed dataset is being destroyed."
 )
+
+RESIZE_VOLUME = ActionType(
+    u"agent:blockdevice:resize_volume",
+    [VOLUME, OLD_SIZE, NEW_SIZE],
+    [],
+    u"The volume for a block-device-backed dataset is being resized."
+)
+
+CREATE_FILESYSTEM = ActionType(
+    u"agent:blockdevice:create_filesystem",
+    [VOLUME, FILESYSTEM_TYPE],
+    [],
+    u"A block device is being initialized with a filesystem.",
+)
+
+RESIZE_FILESYSTEM = ActionType(
+    u"agent:blockdevice:resize_filesystem",
+    [VOLUME],
+    [],
+    u"The filesystem on a block-device-backed dataset is being resized."
+)
+
+RESIZE_BLOCK_DEVICE_DATASET = ActionType(
+    u"agent:blockdevice:resize",
+    [DATASET_ID],
+    [],
+    u"A block-device-backed dataset is being resized.",
+)
+
+
+def _volume_field():
+    """
+    Create and return a ``PRecord`` ``field`` to hold a ``BlockDeviceVolume``.
+    """
+    return field(
+        type=BlockDeviceVolume, mandatory=True,
+        # Disable the automatic PRecord.create factory.  Callers can just
+        # supply the right type, we don't need the magic coercion behavior
+        # supplied by default.
+        factory=lambda x: x
+    )
 
 
 class BlockDeviceVolume(PRecord):
@@ -179,9 +254,26 @@ class BlockDeviceVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
 
 
+def _blockdevice_volume_from_datasetid(block_device_api, dataset_id):
+    """
+    A helper to get the volume for a given dataset_id.
+
+    :param IBlockDeviceAPI block_device_api: The backend to use to find the
+        volume.
+    :param UUID dataset_id: The identifier of the dataset the volume of which
+        to find.
+
+    :return: Either a ``BlockDeviceVolume`` matching the given ``dataset_id``
+        or ``None`` if no such volume can be found.
+    """
+    for volume in block_device_api.list_volumes():
+        if volume.dataset_id == dataset_id:
+            return volume
+
+
 # Replace this with a simpler factory-function based API like:
 #
-#     change = destroy_blockdevice_dataset(volme)
+#     change = destroy_blockdevice_dataset(volume)
 #
 # after FLOC-1591 makes it possible to have reasonable logging with such a
 # solution.
@@ -205,29 +297,196 @@ class DestroyBlockDeviceDataset(PRecord):
         )
 
     def run(self, deployer):
-        for volume in deployer.block_device_api.list_volumes():
-            if volume.dataset_id == self.dataset_id:
-                return sequentially(
-                    changes=[
-                        UnmountBlockDevice(volume=volume),
-                        DetachVolume(volume=volume),
-                        DestroyVolume(volume=volume),
-                    ]
-                ).run(deployer)
+        volume = _blockdevice_volume_from_datasetid(
+            deployer.block_device_api, self.dataset_id
+        )
+        if volume is None:
+            return succeed(None)
+
+        return run_state_change(
+            sequentially(
+                changes=[
+                    UnmountBlockDevice(volume=volume),
+                    DetachVolume(volume=volume),
+                    DestroyVolume(volume=volume),
+                ]
+            ),
+            deployer,
+        )
+
+
+@implementer(IStateChange)
+class ResizeVolume(PRecord):
+    """
+    Change the size of a volume.
+
+    :ivar BlockDeviceVolume volume: The volume to resize.
+    :ivar int size: The size (in bytes) to which to resize the volume.
+    """
+    volume = _volume_field()
+    size = field(type=int, mandatory=True)
+
+    @property
+    def eliot_action(self):
+        return RESIZE_VOLUME(
+            _logger, volume=self.volume,
+            old_size=self.volume.size, new_size=self.size,
+        )
+
+    def run(self, deployer):
+        deployer.block_device_api.resize_volume(
+            self.volume.blockdevice_id, self.size
+        )
         return succeed(None)
 
 
-def _volume():
+@implementer(IStateChange)
+class CreateFilesystem(PRecord):
     """
-    Create and return a ``PRecord`` ``field`` to hold a ``BlockDeviceVolume``.
+    Create a filesystem on a block device.
+
+    :ivar BlockDeviceVolume volume: The volume in which to create the
+        filesystem.
+    :ivar unicode filesystem: The name of the filesystem type to create.  For
+        example, ``u"ext4"``.
     """
-    return field(
-        type=BlockDeviceVolume, mandatory=True,
-        # Disable the automatic PRecord.create factory.  Callers can just
-        # supply the right type, we don't need the magic coercion behavior
-        # supplied by default.
-        factory=lambda x: x
-    )
+    volume = _volume_field()
+    filesystem = field(type=unicode, mandatory=True)
+
+    @property
+    def eliot_action(self):
+        return CREATE_FILESYSTEM(
+            _logger, volume=self.volume, filesystem=self.filesystem
+        )
+
+    def run(self, deployer):
+        device = deployer.block_device_api.get_device_path(
+            self.volume.blockdevice_id
+        )
+        check_output([
+            b"mkfs", b"-t", self.filesystem.encode("ascii"), device.path
+        ])
+        return succeed(None)
+
+
+@implementer(IStateChange)
+class ResizeFilesystem(PRecord):
+    """
+    Resize the filesystem on a volume.
+
+    This is currently limited to growing the filesystem to exactly the size of
+    the volume.
+
+    :ivar BlockDeviceVolume volume: The volume with an existing filesystem to
+        resize.
+    """
+    volume = _volume_field()
+
+    @property
+    def eliot_action(self):
+        return RESIZE_FILESYSTEM(_logger, volume=self.volume)
+
+    def run(self, deployer):
+        device = deployer.block_device_api.get_device_path(
+            self.volume.blockdevice_id
+        )
+        # resize2fs gets angry at us without an e2fsck pass first.  This is
+        # unfortunate because we don't really want to make random filesystem
+        # fixes at this point (there should really be nothing to fix).  This
+        # may merit further consideration.
+        #
+        # -f forces the check to run even if the filesystem appears "clean"
+        #     (which it ought to because we haven't corrupted it, just resized
+        #     the block device).
+        #
+        # -y automatically answers yes to every question.  There should be no
+        #     questions since the filesystem isn't corrupt.  Without this,
+        #     e2fsck refuses to run non-interactively, though.
+        check_output([b"e2fsck", b"-f", b"-y", device.path])
+        # When passed no explicit size argument, resize2fs resizes the
+        # filesystem to the size of the device it lives on.
+        check_output([b"resize2fs", device.path])
+        return succeed(None)
+
+
+@implementer(IStateChange)
+# Make them sort reasonably for ease of testing and because determinism is
+# generally pretty nice.
+@with_cmp(["dataset_id", "size"])
+class ResizeBlockDeviceDataset(PRecord):
+    """
+    Resize the volume for a dataset with a primary manifestation on the node
+    where this state change runs.
+
+    :ivar UUID dataset_id: The unique identifier of the dataset to which the
+        volume to be destroyed belongs.
+    :ivar int size: The size (in bytes) to which to resize the block device.
+    """
+    dataset_id = field(type=UUID, mandatory=True)
+    size = field(type=int, mandatory=True)
+
+    @property
+    def eliot_action(self):
+        return RESIZE_BLOCK_DEVICE_DATASET(_logger, dataset_id=self.dataset_id)
+
+    def run(self, deployer):
+        volume = _blockdevice_volume_from_datasetid(
+            deployer.block_device_api, self.dataset_id
+        )
+        return run_state_change(
+            sequentially(
+                changes=[
+                    UnmountBlockDevice(volume=volume),
+                    DetachVolume(volume=volume),
+                    ResizeVolume(volume=volume, size=self.size),
+                    AttachVolume(volume=volume, hostname=deployer.hostname),
+                    ResizeFilesystem(volume=volume),
+                    MountBlockDevice(
+                        volume=volume,
+                        mountpoint=deployer._mountpath_for_dataset_id(
+                            unicode(self.dataset_id)
+                        )
+                    ),
+                ]
+            ),
+            deployer,
+        )
+
+
+@implementer(IStateChange)
+class MountBlockDevice(PRecord):
+    """
+    Mount the filesystem mounted from the block device backed by a particular
+    volume.
+
+    :ivar BlockDeviceVolume volume: The volume associated with the dataset
+        which will be unmounted.
+    :ivar FilePath mountpoint: The filesystem location at which to mount the
+        volume's filesystem.  If this does not exist, it is created.
+    """
+    volume = _volume_field()
+    mountpoint = field(type=FilePath, mandatory=True)
+
+    @property
+    def eliot_action(self):
+        return MOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
+
+    def run(self, deployer):
+        """
+        Run the system ``mount`` tool to mount this change's volume's block
+        device.  The volume must be attached to this node.
+        """
+        device = deployer.block_device_api.get_device_path(
+            self.volume.blockdevice_id
+        )
+        # This should be asynchronous.  Do it as part of FLOC-1499.
+        try:
+            self.mountpoint.makedirs()
+        except OSError as e:
+            if EEXIST != e.errno:
+                return fail()
+        check_output([b"mount", device.path, self.mountpoint.path])
+        return succeed(None)
 
 
 @implementer(IStateChange)
@@ -239,7 +498,7 @@ class UnmountBlockDevice(PRecord):
     :ivar BlockDeviceVolume volume: The volume associated with the dataset
         which will be unmounted.
     """
-    volume = _volume()
+    volume = _volume_field()
 
     @property
     def eliot_action(self):
@@ -260,13 +519,41 @@ class UnmountBlockDevice(PRecord):
 
 
 @implementer(IStateChange)
+class AttachVolume(PRecord):
+    """
+    Attach an unattached volume to a node.
+
+    :ivar BlockDeviceVolume volume: The volume to attach.
+    :ivar unicode hostname: An identifier for the node to which the volume
+        should be attached.  An IPv4 address literal.
+    """
+    volume = _volume_field()
+    hostname = field(type=unicode, mandatory=True)
+
+    @property
+    def eliot_action(self):
+        return ATTACH_VOLUME(_logger, volume=self.volume)
+
+    def run(self, deployer):
+        """
+        Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
+        """
+        # Make this asynchronous after FLOC-1549, probably as part of
+        # FLOC-1593.
+        deployer.block_device_api.attach_volume(
+            self.volume.blockdevice_id, self.hostname
+        )
+        return succeed(None)
+
+
+@implementer(IStateChange)
 class DetachVolume(PRecord):
     """
     Detach a volume from the node it is currently attached to.
 
     :ivar BlockDeviceVolume volume: The volume to destroy.
     """
-    volume = _volume()
+    volume = _volume_field()
 
     @property
     def eliot_action(self):
@@ -289,7 +576,7 @@ class DestroyVolume(PRecord):
 
     :ivar BlockDeviceVolume volume: The volume to destroy.
     """
-    volume = _volume()
+    volume = _volume_field()
 
     @property
     def eliot_action(self):
@@ -372,13 +659,68 @@ class CreateBlockDeviceDataset(PRecord):
         return succeed(None)
 
 
-# TODO: Introduce a non-blocking version of this interface and an automatic
-# thread-based wrapper for adapting this to the other.  Use that interface
-# anywhere being non-blocking is important (which is probably lots of places).
-# See https://clusterhq.atlassian.net/browse/FLOC-1549
+class IBlockDeviceAsyncAPI(Interface):
+    """
+    Common operations provided by all block device backends, exposed via
+    asynchronous methods.
+    """
+    def create_volume(dataset_id, size):
+        """
+        See ``IBlockDeviceAPI.create_volume``.
+
+        :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` when
+            the volume has been created.
+        """
+
+    def destroy_volume(blockdevice_id):
+        """
+        See ``IBlockDeviceAPI.destroy_volume``.
+
+        :return: A ``Deferred`` that fires when the volume has been destroyed.
+        """
+
+    def attach_volume(blockdevice_id, host):
+        """
+        See ``IBlockDeviceAPI.attach_volume``.
+
+        :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` with a
+            ``host`` attribute set to ``host``.
+        """
+
+    def detach_volume(blockdevice_id):
+        """
+        See ``BlockDeviceAPI.detach_volume``.
+
+        :returns: A ``Deferred`` that fires when the volume has been detached.
+        """
+
+    def resize_volume(blockdevice_id, size):
+        """
+        See ``BlockDeviceAPI.resize_volume``.
+
+        :returns: A ``Deferred`` that fires when the volume has been resized.
+        """
+
+    def list_volumes():
+        """
+        See ``BlockDeviceAPI.list_volume``.
+
+        :returns: A ``Deferred`` that fires with a ``list`` of
+            ``BlockDeviceVolume``\ s.
+        """
+
+    def get_device_path(blockdevice_id):
+        """
+        See ``BlockDeviceAPI.get_device_path``.
+
+        :returns: A ``Deferred`` that fires with a ``FilePath`` for the device.
+        """
+
+
 class IBlockDeviceAPI(Interface):
     """
-    Common operations provided by all block device backends.
+    Common operations provided by all block device backends, exposed via
+    synchronous methods.
 
     Note: This is an early sketch of the interface and it'll be refined as we
     real blockdevice providers are implemented.
@@ -475,6 +817,18 @@ class IBlockDeviceAPI(Interface):
             not attached to a host.
         :returns: A ``FilePath`` for the device.
         """
+
+
+@implementer(IBlockDeviceAsyncAPI)
+@auto_threaded(IBlockDeviceAPI, "_reactor", "_sync", "_threadpool")
+class _SyncToThreadedAsyncAPIAdapter(PRecord):
+    """
+    Adapt any ``IBlockDeviceAPI`` to ``IBlockDeviceAsyncAPI`` by running its
+    methods in threads of a thread pool.
+    """
+    _reactor = field()
+    _sync = field()
+    _threadpool = field()
 
 
 def _blockdevicevolume_from_dataset_id(dataset_id, size, host=None):
@@ -905,11 +1259,21 @@ class BlockDeviceDeployer(PRecord):
 
         :param Manifestation manifestation: The manifestation of a dataset that
             will be mounted.
+
         :returns: A ``FilePath`` of the mount point.
         """
-        return self.mountroot.child(
-            manifestation.dataset.dataset_id.encode("ascii")
-        )
+        return self._mountpath_for_dataset_id(manifestation.dataset_id)
+
+    def _mountpath_for_dataset_id(self, dataset_id):
+        """
+        Calculate the mountpoint for a dataset.
+
+        :param unicode dataset_id: The unique identifier of the dataset for
+            which to calculate a mount point.
+
+        :returns: A ``FilePath`` of the mount point.
+        """
+        return self.mountroot.child(dataset_id.encode("ascii"))
 
     def calculate_changes(self, configuration, cluster_state):
         # Eventually use the Datasets to avoid creating things that exist
@@ -946,8 +1310,14 @@ class BlockDeviceDeployer(PRecord):
         )
 
         deletes = self._calculate_deletes(configured_manifestations)
+        resizes = list(self._calculate_resizes(
+            configured_manifestations, local_state
+        ))
 
-        return in_parallel(changes=creates + deletes)
+        # TODO Prevent changes to volumes that are currently being used by
+        # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
+
+        return in_parallel(changes=creates + deletes + resizes)
 
     def _calculate_deletes(self, configured_manifestations):
         """
@@ -972,3 +1342,28 @@ class BlockDeviceDeployer(PRecord):
             for dataset_id
             in delete_dataset_ids
         ]
+
+    def _calculate_resizes(self, configured_manifestations, local_state):
+        """
+        Determine what resizes need to be performed.
+
+        :param dict configured_manifestations: The manifestations configured
+            for this node (like ``Node.manifestations``).
+
+        :param NodeState local_state: The current state of this node.
+
+        :return: An iterator of ``ResizeBlockDeviceDataset`` instances for each
+            volume that needs to be resized based on the given configuration
+            and the actual state of volumes (ie which have a size that is
+            different to the configuration)
+        """
+        for (dataset_id, manifestation) in local_state.manifestations.items():
+            dataset_config = configured_manifestations[dataset_id].dataset
+            if dataset_config.deleted:
+                continue
+            configured_size = dataset_config.maximum_size
+            if manifestation.dataset.maximum_size != configured_size:
+                yield ResizeBlockDeviceDataset(
+                    dataset_id=UUID(dataset_id),
+                    size=configured_size,
+                )
