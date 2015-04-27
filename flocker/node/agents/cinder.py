@@ -3,6 +3,7 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
+import time
 from uuid import UUID
 
 from bitmath import Byte, GB, TB
@@ -72,20 +73,42 @@ class ICinderVolumeManager(Interface):
         """
 
 
-def wait_for_volume(volume_manager, expected_volume):
+def wait_for_volume(volume_manager, expected_volume,
+                    expected_status=u'available',
+                    time_limit=60):
     """
     Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
-    listed and to have a ``status`` value of ``available``.
+    listed and to have a ``status`` value of ``expected_status``.
 
     :param ICinderVolumeManager volume_manager: An API for listing volumes.
     :param Volume expected_volume: The ``Volume`` to wait for.
-    :returns: The listed ``Volume`` that matches ``new_volume``.
+    :param unicode expected_status: The ``Volume.status`` to wait for.
+    :param int time_limit: The maximum time, in seconds, to wait for the
+        ``expected_volume`` to have ``expected_status``.
+    :raises Exception: If ``expected_volume`` with ``expected_status`` is not
+        listed within ``time_limit``.
+    :returns: The listed ``Volume`` that matches ``expected_volume``.
     """
+    start_time = time.time()
     while True:
         for listed_volume in volume_manager.list():
             if listed_volume.id == expected_volume.id:
-                if listed_volume.status == 'available':
+                if listed_volume.status == expected_status:
                     return listed_volume
+
+        elapsed_time = time.time() - start_time
+        if elapsed_time < time_limit:
+            time.sleep(0.1)
+        else:
+            raise Exception(
+                'Timed out while waiting for volume. '
+                'Expected Volume: {!r}, '
+                'Expected Status: {!r}, '
+                'Elapsed Time: {!r}, '
+                'Time Limit: {!r}.'.format(
+                    expected_volume, expected_status, elapsed_time, time_limit
+                )
+            )
 
 
 @implementer(IBlockDeviceAPI)
