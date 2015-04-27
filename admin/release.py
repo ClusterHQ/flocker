@@ -367,9 +367,6 @@ def publish_homebrew_recipe(homebrew_repo_url, version, content, scratch_directo
     homebrew_repo.remotes.origin.push(homebrew_repo.head)
     # TODO catch if there is an error pushing - foo.flags & foo.ERROR is not 0
     # foo = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
-    # TODO make private methods private
-    # TODO release will have to use an sdist
-    # TODO update buildbot to call wrapper script
     # TODO tl.eggdeps will have to be a dev requirement if it isn't already
 
 

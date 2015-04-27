@@ -75,6 +75,7 @@ dev_requirements = [
     "requests-file==1.0",
 
     "gitpython==1.0.0",
+    "tl.eggdeps==0.4",
 ]
 
 # The test suite uses network namespaces
@@ -184,7 +185,7 @@ setup(
             "virtualenv",
             "PyCrypto",
             "pyasn1",
-            "tl.eggdeps",
+            "tl.eggdeps==0.4",
             "boto==2.30.0",
             # Packages are downloaded from Buildbot
             "requests==2.4.3",
