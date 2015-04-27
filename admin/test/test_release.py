@@ -1803,4 +1803,20 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         """
         If a recipe already exists with the same name, it is overwritten.
         """
-        # call publish twice
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+        )
+
+        self.patch(release, 'make_recipe',
+            lambda version, sdist_url: "New content")
+
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+        )
+
+        recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
+        self.assertEqual(recipe.data_stream.read(), 'New content')
