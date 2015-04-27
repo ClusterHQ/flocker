@@ -351,6 +351,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
     TODO
     """
     # TODO use box_metadata from vagrant.py
+    import json
     new_metadata = {
         "version": version,
         "providers": [{
@@ -358,13 +359,14 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
             "name": "virtualbox"
     }]}
 
-    metadata = ""
-    json_path.setContent(json.dumps(metadata))
+    metadata = "A"
+    json_file = scratch_directory.child('flocker-tutorial.json')
+    json_file.setContent(json.dumps(metadata))
     yield Effect(UploadToS3Recursively(
         source_path=scratch_directory,
         target_bucket=target_bucket,
-        target_key=['vagrant'],
-        files=json_path,
+        target_key='vagrant',
+        files=set(json_file.basename()),
         ))
 
 

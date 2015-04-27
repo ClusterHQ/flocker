@@ -1754,13 +1754,16 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         # TODO perhaps the URL is created in main
         # TODO perhaps the URL should be returned by the code which uploads
         # the tutorial box.
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
         box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
         sync_perform(
             ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
             publish_vagrant_metadata(
                 version=version,
                 box_url=box_url,
-                scratch_directory=FilePath(self.mktemp())))
+                target_bucket=self.target_bucket,
+                scratch_directory=scratch_directory))
 
     def test_no_metadata_exists(self):
         """
