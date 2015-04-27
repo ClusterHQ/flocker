@@ -354,6 +354,8 @@ def publish_homebrew_recipe(homebrew_repo_url, version, scratch_directory):
     :param git.Repo homebrew_repo: Homebrew tap Git repository. This should
         be an SSH URL so as not to require a username and password.
     :param bytes version: Version of Flocker to publish a recipe for.
+    :param FilePath scratch_directory: Temporary directory to create a recipe
+        in.
     """
     sdist_url = 'https://s3.amazonaws.com/clusterhq-archive/python/Flocker-{}.tar.gz'.format(version)  # noqa
     content = make_recipe(
