@@ -29,7 +29,4 @@ yum install -y \
 
 # dpkg isn't currently available upstream
 # https://bugzilla.redhat.com/show_bug.cgi?id=1149590
-yum install -y \
-	https://copr-be.cloud.fedoraproject.org/results/xaeth/dpkg/epel-7-x86_64/dpkg-1.16.15-2.fc22/dpkg-1.16.15-2.el7.centos.x86_64.rpm \
-	https://copr-be.cloud.fedoraproject.org/results/xaeth/dpkg/epel-7-x86_64/dpkg-1.16.15-2.fc22/dpkg-dev-1.16.15-2.el7.centos.noarch.rpm \
-	https://copr-be.cloud.fedoraproject.org/results/xaeth/dpkg/epel-7-x86_64/dpkg-1.16.15-2.fc22/dpkg-perl-1.16.15-2.el7.centos.noarch.rpm
+yum install -y --enablerepo=epel-testing dpkg-dev
