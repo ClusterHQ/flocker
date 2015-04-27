@@ -2596,5 +2596,5 @@ class ResizeFilesystemTests(
             before.f_favail / 10,
             after.f_favail / 2 / 10,
             "Available inodes before ({}) is not roughly half available "
-            "inodes after".format(before.f_favail, after.f_favail)
+            "inodes after ({})".format(before.f_favail, after.f_favail)
         )
