@@ -17,8 +17,10 @@ from .cinder import (
     ICinderVolumeManager, CINDER_CLIENT_FACTORIES
 )
 
+from .ebs import ebs_client_factory
 
-DEFAULT_CLOUD_PROVIDER = 'rackspace'
+
+DEFAULT_OPENSTACK_PROVIDER = 'rackspace'
 
 
 @implementer(ICinderVolumeManager)
@@ -80,15 +82,13 @@ def make_icindervolumemanager_tests(client_factory):
     return Tests
 
 
-def cinder_client_from_environment():
+def load_client_config_from_environment():
     """
-    Create a ``cinderclient.v1.client.Client`` using credentials from a config
-    file path which may be supplied as an environment variable.
+    Validate and load cloud provider's yml config file.
     Default to ``~/acceptance.yml`` in the current user home directory, since
     that's where buildbot puts its acceptance test credentials file.
 
-    :returns: An instance of ``cinderclient.v1.client.Client`` authenticated
-        using provider specific credentials found in ``CLOUD_CONFIG_FILE``.
+    :returns: Loaded yml config.
     :raises: ``SkipTest`` if a ``CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
     """
@@ -104,8 +104,34 @@ def cinder_client_from_environment():
             'for details of the expected format.'
         )
 
-    config = yaml.load(config_file.read())
-    provider_name = os.environ.get('CLOUD_PROVIDER', DEFAULT_CLOUD_PROVIDER)
+    config = yaml.safe_load(config_file.read())
+    return config
+
+
+def ebs_client_from_environment():
+    """
+    Create an EBS Boto client using credentials from a config
+    file path which may be supplied as an environment variable.
+    See ``load_config`` for details on where config is populated from.
+
+    :returns: An instance of EBS Boto client
+        using provider specific credentials found in ``CLOUD_CONFIG_FILE``.
+    """
+    config = load_client_config_from_environment()
+    provider_name = 'aws'
+    provider_config = config[provider_name]
+    return ebs_client_factory(**provider_config)
+
+
+def cinder_client_from_environment():
+    """
+    Create a ``cinderclient.v1.client.Client`` using credentials from a config
+    file path which may be supplied as an environment variable.
+    See ``load_config`` for details on where config is populated from.
+    """
+    config = load_client_config_from_environment()
+    provider_name = os.environ.get('CLOUD_PROVIDER',
+                                   DEFAULT_OPENSTACK_PROVIDER)
     provider_config = config[provider_name]
     cinder_client_factory = CINDER_CLIENT_FACTORIES[provider_name]
     return cinder_client_factory(**provider_config)
