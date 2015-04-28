@@ -9,6 +9,8 @@ from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
+from bitmath import MB
+
 import psutil
 
 from zope.interface import implementer
@@ -55,7 +57,7 @@ from ....control import (
     NonManifestDatasets,
 )
 
-LOOPBACK_BLOCKDEVICE_SIZE = 1024 * 1024 * 64
+LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -2622,9 +2624,17 @@ class ResizeFilesystemTests(
 
         after = statvfs(mountpoint.path)
 
+        inodes_before = before.f_files
+        inodes_after = after.f_files
+        expected_inodes_after = 2 * inodes_before
+
         self.assertEqual(
-            before.f_favail / 10,
-            after.f_favail / 2 / 10,
-            "Available inodes before ({}) is not roughly half available "
-            "inodes after".format(before.f_favail, after.f_favail)
+            expected_inodes_after,
+            inodes_after,
+            "Unexpected inode count. "
+            "Before: {}, "
+            "After: {}, "
+            "Expected: {}.".format(
+                inodes_before, inodes_after, expected_inodes_after
+            )
         )
