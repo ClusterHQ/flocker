@@ -1744,7 +1744,7 @@ class CreatePipIndexTests(SynchronousTestCase):
             packages=[
                 'Flocker-0.3.0-py2-none-any.whl',
                 'Flocker-0.3.1-py2-none-any.whl',
-                'index',
+                'index.html',
             ]
         )
 
@@ -1816,7 +1816,7 @@ class UploadPipIndexTests(SynchronousTestCase):
                 scratch_directory=scratch_directory,
                 target_bucket=bucket))
         self.assertEqual(
-            aws.s3_buckets[bucket]['python/index'],
+            aws.s3_buckets[bucket]['python/index.html'],
             'This is an index for pip\n'
             '<a href="Flocker-0.3.1-py2-none-any.whl">'
             'Flocker-0.3.1-py2-none-any.whl</a><br/>\n')

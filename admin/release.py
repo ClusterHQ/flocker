@@ -478,11 +478,11 @@ def create_pip_index(scratch_directory, packages):
     :param list packages: List of bytes, filenames of packages to be in the
         index.
     """
-    index_file = scratch_directory.child('index')
+    index_file = scratch_directory.child('index.html')
     with index_file.open('w') as f:
         f.write('This is an index for pip\n')
         for package in packages:
-            if package != 'index':
+            if package != 'index.html':
                 f.write('<a href={destination}>{title}</a><br/>\n'.format(
                     destination=quoteattr(package),
                     title=escape(package)))
