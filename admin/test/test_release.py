@@ -1212,38 +1212,6 @@ class UploadRPMsTests(SynchronousTestCase):
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.example'
 
-    def test_upload_non_release_fails(self):
-        """
-        Calling :func:`upload_rpms` with a version that isn't a release fails.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={},
-        )
-        yum = FakeYum()
-
-        self.assertRaises(
-            NotARelease,
-            self.upload_rpms, aws, yum,
-            self.scratch_directory, self.target_bucket, '0.3.0-444-gf05215b',
-            self.build_server)
-
-    def test_upload_doc_release_fails(self):
-        """
-        Calling :func:`upload_rpms` with a documentation release version fails.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={},
-        )
-        yum = FakeYum()
-
-        self.assertRaises(
-            DocumentationRelease,
-            self.upload_rpms, aws, yum,
-            self.scratch_directory, self.target_bucket, '0.3.0+doc1',
-            self.build_server)
-
     def test_development_repositories_created(self):
         """
         Calling :func:`upload_rpms` creates development repositories for
@@ -1716,6 +1684,7 @@ class UploadPipIndexTests(SynchronousTestCase):
             upload_pip_index(
                 scratch_directory=scratch_directory,
                 target_bucket=bucket))
+
         self.assertEqual(
             aws.s3_buckets[bucket]['python/index.html'],
             'This is an index for pip\n'

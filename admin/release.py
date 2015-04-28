@@ -49,7 +49,6 @@ from .aws import (
     DeleteS3Keys,
     CopyS3Keys,
     DownloadS3KeyRecursively,
-    UploadToS3,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
 
@@ -519,11 +518,11 @@ def upload_pip_index(scratch_directory, target_bucket):
         packages=packages)
 
     yield Effect(
-        UploadToS3(
+        UploadToS3Recursively(
             source_path=scratch_directory,
             target_bucket=target_bucket,
-            target_key='python/index.html',
-            file=index_path,
+            target_key='python',
+            files=set([index_path.basename()]),
         ))
 
 
