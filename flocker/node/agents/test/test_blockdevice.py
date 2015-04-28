@@ -157,14 +157,28 @@ def mount(device, mountpoint):
     run_process([b"mount", device.path, mountpoint.path])
 
 
+def create_blockdevicedeployer(
+        test_case, hostname=u"192.0.2.1", node_uuid=uuid4()
+):
+    """
+    Create a new ``BlockDeviceDeployer``.
+
+    :param unicode hostname: The hostname to assign the deployer.
+    :param UUID node_uuid: The unique identifier of the node to assign the
+        deployer.
+
+    :return: The newly created ``BlockDeviceDeployer``.
+    """
+    return BlockDeviceDeployer(
+        hostname=hostname,
+        node_uuid=node_uuid,
+        block_device_api=loopbackblockdeviceapi_for_test(test_case),
+        mountroot=mountroot_for_test(test_case),
+    )
+
+
 class BlockDeviceDeployerTests(
-        ideployer_tests_factory(
-            lambda test: BlockDeviceDeployer(
-                hostname=u"localhost",
-                node_uuid=uuid4(),
-                block_device_api=loopbackblockdeviceapi_for_test(test)
-            )
-        )
+        ideployer_tests_factory(create_blockdevicedeployer)
 ):
     """
     Tests for ``BlockDeviceDeployer``.
@@ -580,26 +594,6 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
 
-def create_blockdevicedeployer(
-        test_case, hostname=u"192.0.2.1", node_uuid=uuid4()
-):
-    """
-    Create a new ``BlockDeviceDeployer``.
-
-    :param unicode hostname: The hostname to assign the deployer.
-    :param UUID node_uuid: The unique identifier of the node to assign the
-        deployer.
-
-    :return: The newly created ``BlockDeviceDeployer``.
-    """
-    return BlockDeviceDeployer(
-        hostname=hostname,
-        node_uuid=node_uuid,
-        block_device_api=loopbackblockdeviceapi_for_test(test_case),
-        mountroot=mountroot_for_test(test_case),
-    )
-
-
 class BlockDeviceDeployerAttachCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
 ):
@@ -688,11 +682,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             }
         )
         state = DeploymentState(nodes=[])
-        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
-        deployer = BlockDeviceDeployer(
-            node_uuid=node_uuid,
-            hostname=node,
-            block_device_api=api,
+        deployer = create_blockdevicedeployer(
+            self, hostname=node, node_uuid=node_uuid
         )
         changes = deployer.calculate_changes(configuration, state)
         self.assertEqual(in_parallel(changes=[]), changes)
@@ -719,11 +710,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             }
         )
         state = DeploymentState(nodes=[])
-        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid,
-            hostname=node,
-            block_device_api=api,
+        deployer = create_blockdevicedeployer(
+            self, hostname=node, node_uuid=uuid,
         )
         changes = deployer.calculate_changes(configuration, state)
         mountpoint = deployer.mountroot.child(dataset_id.encode("ascii"))
@@ -757,11 +745,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         # state.
         current_cluster_state = DeploymentState(nodes={local_state})
 
-        api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
-        deployer = BlockDeviceDeployer(
-            node_uuid=local_uuid,
-            hostname=local_hostname,
-            block_device_api=api,
+        deployer = create_blockdevicedeployer(
+            self, node_uuid=local_uuid, hostname=local_hostname,
         )
 
         return deployer.calculate_changes(
