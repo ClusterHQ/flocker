@@ -163,9 +163,6 @@ setup(
         "pycrypto == 2.6.1",
         "pyOpenSSL == 0.14",
         "effect==0.1a13",
-        "python-cinderclient==1.1.1",
-        "python-keystoneclient-rackspace==0.1.3",
-        "bitmath==1.2.3-4",
         ],
 
     extras_require={

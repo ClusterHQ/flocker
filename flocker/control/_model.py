@@ -14,81 +14,43 @@ There are different categories of classes:
 3. Configuration-specific classes, none implemented yet.
 """
 
-from uuid import UUID
-from warnings import warn
-from hashlib import md5
-
 from characteristic import attributes
+
 from twisted.python.filepath import FilePath
 
 from pyrsistent import (
     pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
-    optional as optional_type, CheckedPVector
+    optional as optional_type
     )
 
 from zope.interface import Interface, implementer
 
 
-def _sequence_field(checked_class, suffix, item_type, optional, initial):
-    """
-    Create checked field for either ``PSet`` or ``PVector``.
-
-    :param checked_class: ``CheckedPSet`` or ``CheckedPVector``.
-    :param suffix: Suffix for new type name.
-    :param item_type: The required type for the items in the set.
-    :param bool optional: If true, ``None`` can be used as a value for
-        this field.
-    :param initial: Initial value to pass to factory.
-
-    :return: A ``field`` containing a checked class.
-    """
-    class TheType(checked_class):
-        __type__ = item_type
-    TheType.__name__ = item_type.__name__.capitalize() + suffix
-
-    if optional:
-        def factory(argument):
-            if argument is None:
-                return None
-            else:
-                return TheType(argument)
-    else:
-        factory = TheType
-    return field(type=optional_type(TheType) if optional else TheType,
-                 factory=factory, mandatory=True,
-                 initial=factory(initial))
-
-
-def pset_field(item_type, optional=False, initial=()):
+def pset_field(item_type, optional=False):
     """
     Create checked ``PSet`` field.
 
     :param item_type: The required type for the items in the set.
     :param bool optional: If true, ``None`` can be used as a value for
         this field.
-    :param initial: Initial value to pass to factory if no value is given
-        for the field.
 
     :return: A ``field`` containing a ``CheckedPSet`` of the given type.
     """
-    return _sequence_field(CheckedPSet, "PSet", item_type, optional,
-                           initial)
+    class TheSet(CheckedPSet):
+        __type__ = item_type
+    TheSet.__name__ = item_type.__name__.capitalize() + "PSet"
 
-
-def pvector_field(item_type, optional=False, initial=()):
-    """
-    Create checked ``PVector`` field.
-
-    :param item_type: The required type for the items in the vector.
-    :param bool optional: If true, ``None`` can be used as a value for
-        this field.
-    :param initial: Initial value to pass to factory if no value is given
-        for the field.
-
-    :return: A ``field`` containing a ``CheckedPVector`` of the given type.
-    """
-    return _sequence_field(CheckedPVector, "PVector", item_type, optional,
-                           initial)
+    if optional:
+        def factory(argument):
+            if argument is None:
+                return None
+            else:
+                return TheSet(argument)
+    else:
+        factory = TheSet
+    return field(type=optional_type(TheSet) if optional else TheSet,
+                 factory=factory, mandatory=True,
+                 initial=TheSet())
 
 
 _valid = lambda item: (True, "")
@@ -275,9 +237,6 @@ class Application(PRecord):
     :ivar IRestartPolicy restart_policy: The restart policy for this
         application.
 
-    :ivar command_line: Custom command to run using the image, a ``PVector``
-        of ``unicode``. ``None`` means use default.
-
     :ivar bool running: Whether or not the application is running.
     """
     name = field(mandatory=True)
@@ -291,7 +250,6 @@ class Application(PRecord):
     environment = field(mandatory=True, initial=pmap(), factory=pmap,
                         type=PMap)
     running = field(mandatory=True, initial=True, type=bool)
-    command_line = pvector_field(unicode, optional=True, initial=None)
 
 
 class Dataset(PRecord):
@@ -418,36 +376,11 @@ class Node(PRecord):
                     return (False, '%r manifestation is not on node' % (app,))
         return (True, "")
 
-    def __new__(cls, **kwargs):
-        # PRecord does some crazy stuff, thus _precord_buckets; see
-        # PRecord.__new__.
-        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
-            warn("UUID is required, this is for backwards compat with existing"
-                 " tests only. If you see this in production code that's "
-                 "a bug.", DeprecationWarning, stacklevel=2)
-            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
-        return PRecord.__new__(cls, **kwargs)
-
-    # hostname will be removed in FLOC-1733 probably:
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    uuid = field(type=UUID, mandatory=True)
     applications = pset_field(Application)
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
     )
-
-
-def same_node(node1, node2):
-    """
-    Return whether these two objects both refer to same cluster node,
-    i.e. have same UUID.
-
-    :param node1: ``Node`` or ``NodeState`` instance.
-    :param node2: ``Node`` or ``NodeState`` instance.
-
-    :return: Whether the two instances have same UUID.
-    """
-    return node1.uuid == node2.uuid
 
 
 def _get_node(default_factory):
@@ -455,22 +388,22 @@ def _get_node(default_factory):
     Create a helper function for getting a node from a deployment.
 
     :param default_factory: A one-argument callable which is called with the
-        requested UUID when no matching node is found in the deployment.
+        requested hostname when no matching node is found in the deployment.
         The return value is used as the result.
 
     :return: A two-argument callable which accepts a ``Deployment`` or a
              ``DeploymentState`` as the first argument and a ``unicode`` string
              giving a node hostname as the second argument.  It will return a
-             node from the deployment object with a matching UUID or it
+             node from the deployment object with a matching hostname or it
              will return a value from ``default_factory`` if no matching node
              is found.
     """
-    def get_node(deployment, uuid, **defaults):
+    def get_node(deployment, hostname):
         nodes = list(
-            node for node in deployment.nodes if node.uuid == uuid
+            node for node in deployment.nodes if node.hostname == hostname
         )
         if len(nodes) == 0:
-            return default_factory(uuid=uuid, **defaults)
+            return default_factory(hostname=hostname)
         return nodes[0]
     return get_node
 
@@ -509,7 +442,7 @@ class Deployment(PRecord):
         :return Deployment: Updated with new ``Node``.
         """
         return Deployment(nodes=frozenset(
-            list(n for n in self.nodes if not same_node(n, node)) +
+            list(n for n in self.nodes if n.hostname != node.hostname) +
             [node]))
 
     def move_application(self, application, target_node):
@@ -530,7 +463,7 @@ class Deployment(PRecord):
                 if container.name == application.name:
                     # We only need to perform a move if the node currently
                     # hosting the container is not the node it's moving to.
-                    if not same_node(node, target_node):
+                    if node.hostname != target_node.hostname:
                         # If the container has a volume, we need to add the
                         # manifestation to the new host first.
                         if application.volume is not None:
@@ -614,27 +547,12 @@ class IClusterStateChange(Interface):
         """
 
 
-def ip_to_uuid(ip):
-    """
-    Deterministically convert IP to UUID.
-
-    This is intended for interim use and backwards compatibility for
-    existing tests. It should not be hit in production code paths.
-
-    :param unicode ip: An IP.
-
-    :return UUID: Matching UUID.
-    """
-    return UUID(bytes=md5(ip.encode("utf-8")).digest())
-
-
 @implementer(IClusterStateChange)
 class NodeState(PRecord):
     """
     The current state of a node.
 
-    :ivar UUID uuid: The node's UUID.
-    :ivar unicode hostname: The IP of the node.
+    :ivar unicode hostname: The hostname of the node.
     :ivar applications: A ``PSet`` of ``Application`` instances on this
         node, or ``None`` if the information is not known.
     :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
@@ -655,17 +573,6 @@ class NodeState(PRecord):
                 return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
-    def __new__(cls, **kwargs):
-        # PRecord does some crazy stuff, thus _precord_buckets; see
-        # PRecord.__new__.
-        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
-            warn("UUID is required, this is for backwards compat with existing"
-                 " tests only. If you see this in production code that's "
-                 "a bug.", DeprecationWarning, stacklevel=2)
-            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
-        return PRecord.__new__(cls, **kwargs)
-
-    uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = pset_field(int, optional=True)
     applications = pset_field(Application, optional=True)
@@ -719,7 +626,7 @@ class DeploymentState(PRecord):
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
-        nodes = {n for n in self.nodes if same_node(n, node_state)}
+        nodes = {n for n in self.nodes if n.hostname == node_state.hostname}
         if not nodes:
             return self.transform(["nodes"], lambda s: s.add(node_state))
         [original_node] = nodes
