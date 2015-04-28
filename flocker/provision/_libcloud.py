@@ -7,6 +7,7 @@ Helpers for using libcloud.
 from zope.interface import (
     Attribute as InterfaceAttribute, Interface, implementer)
 from characteristic import attributes, Attribute
+from twisted.conch.ssh.keys import Key
 
 
 def _fixed_OpenStackNodeDriver_to_node(self, api_node):
@@ -219,10 +220,19 @@ class LibcloudProvisioner(object):
     :ivar str default_size: Name of the default size of node to create.
     """
 
+    def get_ssh_key(self):
+        """
+        Return the public key assoicated to the provided keyname.
+
+        :return Key: The ssh public key.
+        """
+        key_pair = self.driver.get_key_pair(self._keyname)
+        return Key.fromString(key_pair.public_key, type='public_openssh')
+
     def create_node(self, name, distribution,
                     userdata=None,
                     size=None, disk_size=8,
-                    keyname=None, metadata={}):
+                    metadata={}):
         """
         Create a node.
 
@@ -233,15 +243,9 @@ class LibcloudProvisioner(object):
         :param str size: The name of the size to use.
         :param int disk_size: The size of disk to allocate.
         :param dict metadata: Metadata to associate with the node.
-        :param bytes keyname: The name of an existing ssh public key configured
-            with the cloud provider. The provision step assumes the
-            corresponding private key is available from an agent.
 
         :return libcloud.compute.base.Node: The created node.
         """
-        if keyname is None:
-            keyname = self._keyname
-
         if size is None:
             size = self.default_size
 
@@ -254,7 +258,7 @@ class LibcloudProvisioner(object):
             name=name,
             image=get_image(self._driver, image_name),
             size=get_size(self._driver, size),
-            ex_keyname=keyname,
+            ex_keyname=self._keyname,
             ex_userdata=userdata,
             ex_metadata=metadata,
             **create_node_arguments
