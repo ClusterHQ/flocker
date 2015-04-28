@@ -149,7 +149,6 @@ setup(
         # adhere to PEP440.
         # See https://clusterhq.atlassian.net/browse/FLOC-1373
         "setuptools==3.6",
-
         "eliot == 0.6.0",
         "machinist == 0.2.0",
         "zope.interface >= 4.0.5",

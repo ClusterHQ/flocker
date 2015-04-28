@@ -1684,6 +1684,7 @@ class UploadPipIndexTests(SynchronousTestCase):
             upload_pip_index(
                 scratch_directory=scratch_directory,
                 target_bucket=bucket))
+
         self.assertEqual(
             aws.s3_buckets[bucket]['python/index.html'],
             'This is an index for pip\n'
