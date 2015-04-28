@@ -76,7 +76,6 @@ dev_requirements = [
 
     "wheel==0.24.0",
     "gitpython==1.0.0",
-    "boto==2.30.0"
 ]
 
 # The test suite uses network namespaces
