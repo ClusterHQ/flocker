@@ -2053,9 +2053,9 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         :param Dataset dataset: The dataset which will be moved.
         :param Deployment deployment: The deployment that contains the dataset.
-        :param bytes origin: The node IP address of the node that holds the
+        :param UUID origin: The node UUID of the node that holds the
             current primary manifestation of the ``dataset``.
-        :param bytes target: The node IP address of the node to which the
+        :param UUID target: The node UUID of the node to which the
             dataset will be moved.
         :returns: A ``Deferred`` which fires when all assertions have been
             executed.
@@ -2064,7 +2064,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         expected_dataset = {
             u"dataset_id": expected_dataset_id,
-            u"primary": target,
+            u"primary": unicode(target),
             u"metadata": {},
             u"deleted": False,
         }
@@ -2433,7 +2433,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
 
         expected_dataset = {
             u"dataset_id": expected_dataset_id,
-            u"primary": origin.uuid,
+            u"primary": unicode(origin.uuid),
             u"metadata": {},
             u"deleted": True,
         }
@@ -2519,7 +2519,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
                 b"/configuration/datasets/%s" % (
                     expected_manifestation.dataset_id.encode('ascii')
                 ),
-                {u"primary": self.NODE_A},
+                {u"primary": unicode(self.NODE_A)},
                 METHOD_NOT_ALLOWED, {
                     u"description":
                     u"The dataset has been deleted."
@@ -2787,9 +2787,11 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_manifestation = Manifestation(
             dataset=expected_dataset, primary=True)
         expected_hostname = u"192.0.2.101"
+        expected_uuid = uuid4()
         self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
+                uuid=expected_uuid,
                 manifestations={expected_dataset.dataset_id:
                                 expected_manifestation},
                 paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
@@ -2797,7 +2799,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
         ])
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
-            primary=expected_hostname,
+            primary=unicode(expected_uuid),
             path=u"/path/dataset",
         )
         response = [expected_dict]
@@ -2811,6 +2813,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
         returns a list containing the datasets in arbitrary order.
         """
         expected_dataset1 = Dataset(dataset_id=unicode(uuid4()))
+        expected_uuid1 = uuid4()
         expected_manifestation1 = Manifestation(
             dataset=expected_dataset1, primary=True)
         expected_hostname1 = u"192.0.2.101"
@@ -2818,14 +2821,17 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_manifestation2 = Manifestation(
             dataset=expected_dataset2, primary=True)
         expected_hostname2 = u"192.0.2.102"
+        expected_uuid2 = uuid4()
         self.cluster_state_service.apply_changes([
             NodeState(
+                uuid=expected_uuid1,
                 hostname=expected_hostname1,
                 manifestations={expected_dataset1.dataset_id:
                                 expected_manifestation1},
                 paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
             ),
             NodeState(
+                uuid=expected_uuid2,
                 hostname=expected_hostname2,
                 manifestations={expected_dataset2.dataset_id:
                                 expected_manifestation2},
@@ -2834,12 +2840,12 @@ class DatasetsStateTestsMixin(APITestsMixin):
         ])
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
-            primary=expected_hostname1,
+            primary=unicode(expected_uuid1),
             path=u"/aa",
         )
         expected_dict2 = dict(
             dataset_id=expected_dataset2.dataset_id,
-            primary=expected_hostname2,
+            primary=unicode(expected_uuid2),
             path=u"/bb",
         )
         response = [expected_dict1, expected_dict2]
@@ -3142,7 +3148,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
-            node_uuid=expected_uuid,
+            node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
             restart_policy={u"name": u"always"},
@@ -3190,7 +3196,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
-            node_uuid=expected_uuid,
+            node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
             restart_policy={u"name": u"never"},
@@ -3223,7 +3229,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
-            node_uuid=expected_uuid,
+            node_uuid=unicode(expected_uuid),
             image=u"busybox:latest",
             running=False,
             restart_policy={u"name": u"never"},
@@ -3261,7 +3267,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_dict1 = dict(
             name=u"myapp",
             host=expected_hostname1,
-            node_uuid=expected_uuid1,
+            node_uuid=unicode(expected_uuid1),
             image=u"busybox:latest",
             running=True,
             restart_policy={u"name": u"never"},
@@ -3269,7 +3275,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_dict2 = dict(
             name=u"myapp2",
             host=expected_hostname2,
-            node_uuid=expected_uuid2,
+            node_uuid=unicode(expected_uuid2),
             image=u"busybox2:latest",
             running=True,
             restart_policy={u"name": u"never"},
@@ -3310,8 +3316,8 @@ class NodesStateTestsMixin(APITestsMixin):
              NodeState(uuid=uuid2, hostname=hostname2)])
         return self.assertResultItems(
             b"GET", b"/state/nodes", None, OK,
-            [{u"hostname": hostname1, "uuid": uuid1},
-             {u"hostname": hostname2, "uuid": uuid2}],
+            [{u"hostname": hostname1, "uuid": unicode(uuid1)},
+             {u"hostname": hostname2, "uuid": unicode(uuid2)}],
         )
 
 

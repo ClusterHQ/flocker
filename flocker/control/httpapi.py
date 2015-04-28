@@ -451,11 +451,12 @@ class ConfigurationAPIUserV1(object):
             that are configured to exist anywhere on the cluster.
         """
         result = []
-        deployment = self.cluster_state_service.as_deployment()
-        for node in deployment.nodes:
+        deployment_state = self.cluster_state_service.as_deployment()
+        for node in deployment_state.nodes:
             for application in node.applications:
                 container = container_configuration_response(
                     application, node.uuid)
+                container[u"host"] = node.hostname
                 container[u"running"] = application.running
                 result.append(container)
         return result
@@ -775,7 +776,8 @@ class ConfigurationAPIUserV1(object):
         schema_store=SCHEMAS
     )
     def list_current_nodes(self):
-        return [{u"hostname": node.hostname} for node in
+        return [{u"hostname": node.hostname, u"uuid": unicode(node.uuid)}
+                for node in
                 self.cluster_state_service.as_deployment().nodes]
 
     @app.route("/configuration/_compose", methods=['POST'])
