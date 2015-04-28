@@ -290,7 +290,7 @@ def _blockdevice_volume_from_datasetid(volumes, dataset_id):
 
 
 # Get rid of this in favor of calculating each individual operation in
-# BlockDeviceDeployer.calculate_changes.
+# BlockDeviceDeployer.calculate_changes.  FLOC-1772
 @implementer(IStateChange)
 class DestroyBlockDeviceDataset(PRecord):
     """
@@ -424,7 +424,7 @@ class ResizeFilesystem(PRecord):
 
 
 # Get rid of this in favor of calculating each individual operation in
-# BlockDeviceDeployer.calculate_changes.
+# BlockDeviceDeployer.calculate_changes.  FLOC-1773
 @implementer(IStateChange)
 # Make them sort reasonably for ease of testing and because determinism is
 # generally pretty nice.
@@ -623,7 +623,7 @@ class DestroyVolume(PRecord):
 
 
 # Get rid of this in favor of calculating each individual operation in
-# BlockDeviceDeployer.calculate_changes.
+# BlockDeviceDeployer.calculate_changes.  FLOC-1771
 @implementer(IStateChange)
 class CreateBlockDeviceDataset(PRecord):
     """
