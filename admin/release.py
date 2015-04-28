@@ -54,6 +54,8 @@ from .yum import (
     DownloadPackagesFromRepository,
 )
 
+from .packaging import Distribution
+
 
 class NotTagged(Exception):
     """
@@ -268,9 +270,9 @@ class PublishDocsOptions(Options):
          "The version of flocker from which the documentation was built."],
         ["doc-version", None, None,
          "The version to publish the documentation as.\n"
-         "This will differ from \"flocker-version\" for staging uploads.\n"
+         "This will differ from \"flocker-version\" for staging uploads."
          "Attempting to publish documentation as a documentation version "
-         "publishes it as the version being updated. That is, if "
+         "publishes it as the version being updated.\n"
          "``doc-version`` is set to 0.3.0+doc1 the documentation will be "
          "published as 0.3.0.\n"],
     ]
@@ -345,13 +347,13 @@ FLOCKER_PACKAGES = [
 
 
 @do
-def update_repo(rpm_directory, target_bucket, target_key, source_repo,
+def update_repo(package_directory, target_bucket, target_key, source_repo,
                 packages, flocker_version, distro_name, distro_version):
     """
     Update ``target_bucket`` yum repository with ``packages`` from
     ``source_repo`` repository.
 
-    :param FilePath rpm_directory: Temporary directory to download
+    :param FilePath package_directory: Temporary directory to download
         repository to.
     :param bytes target_bucket: S3 bucket to upload repository to.
     :param bytes target_key: Path within S3 bucket to upload repository to.
@@ -365,27 +367,37 @@ def update_repo(rpm_directory, target_bucket, target_key, source_repo,
     :param distro_version: The distro_version of the distribution to upload
         packages for.
     """
-    rpm_directory.createDirectory()
+    package_directory.createDirectory()
+
+    distribution = Distribution(
+        name=distro_name,
+        version=distro_version,
+    )
+    package_type = distribution.package_type()
 
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
         source_prefix=target_key,
-        target_path=rpm_directory,
-        filter_extensions=('.rpm',)))
+        target_path=package_directory,
+        filter_extensions=('.' + package_type.value,)))
 
     downloaded_packages = yield Effect(DownloadPackagesFromRepository(
         source_repo=source_repo,
-        target_path=rpm_directory,
+        target_path=package_directory,
         packages=packages,
         flocker_version=flocker_version,
         distro_name=distro_name,
         distro_version=distro_version,
         ))
 
-    new_metadata = yield Effect(CreateRepo(repository_path=rpm_directory))
+    new_metadata = yield Effect(CreateRepo(
+        repository_path=package_directory,
+        distro_name=distro_name,
+        distro_version=distro_version,
+        ))
 
     yield Effect(UploadToS3Recursively(
-        source_path=rpm_directory,
+        source_path=package_directory,
         target_bucket=target_bucket,
         target_key=target_key,
         files=downloaded_packages | new_metadata,
@@ -417,15 +429,15 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     else:
         target_distro_suffix = ""
 
-
     operating_systems = [
         {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
         {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
+        {'distro': 'ubuntu', 'version': '14.04', 'arch': 'amd64'},
     ]
 
     for operating_system in operating_systems:
         yield update_repo(
-            rpm_directory=scratch_directory.child(
+            package_directory=scratch_directory.child(
                 b'{}-{}-{}'.format(
                     operating_system['distro'],
                     operating_system['version'],

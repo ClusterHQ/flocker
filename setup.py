@@ -62,9 +62,6 @@ dev_requirements = [
     # The acceptance tests interact with MySQL
     "PyMySQL==0.6.2",
 
-    # The acceptance tests interact with elasticsearch
-    "elasticsearch==1.2.0",
-
     # The acceptance tests interact with Kibana via WebKit
     "selenium==2.44.0",
 
@@ -129,6 +126,7 @@ setup(
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
+            'flocker-container-agent = flocker.node.script:flocker_container_agent_main',
             'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
             'flocker-ca = flocker.ca._script:flocker_ca_main',
@@ -160,6 +158,9 @@ setup(
         "pycrypto == 2.6.1",
         "pyOpenSSL == 0.14",
         "effect==0.1a13",
+        "python-cinderclient==1.1.1",
+        "python-keystoneclient-rackspace==0.1.3",
+        "bitmath==1.2.3-4",
         ],
 
     extras_require={

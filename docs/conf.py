@@ -15,7 +15,6 @@ from twisted.python.filepath import FilePath
 
 import sys
 import os
-import re
 
 sys.path.insert(0, FilePath(__file__).parent().parent().path)
 
