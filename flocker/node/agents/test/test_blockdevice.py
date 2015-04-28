@@ -47,7 +47,7 @@ from ..blockdevice import (
     _SyncToThreadedAsyncAPIAdapter,
 )
 
-from ... import run_state_change, in_parallel
+from ... import run_state_change, in_parallel, sequentially
 from ...testtools import ideployer_tests_factory, to_node
 from ....testtools import (
     REALISTIC_BLOCKDEVICE_SIZE, run_process, make_with_init_tests
@@ -580,8 +580,28 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         )
 
 
+def create_blockdevicedeployer(
+        test_case, hostname=u"192.0.2.1", node_uuid=uuid4()
+):
+    """
+    Create a new ``BlockDeviceDeployer``.
+
+    :param unicode hostname: The hostname to assign the deployer.
+    :param UUID node_uuid: The unique identifier of the node to assign the
+        deployer.
+
+    :return: The newly created ``BlockDeviceDeployer``.
+    """
+    return BlockDeviceDeployer(
+        hostname=hostname,
+        node_uuid=node_uuid,
+        block_device_api=loopbackblockdeviceapi_for_test(test_case),
+        mountroot=mountroot_for_test(test_case),
+    )
+
+
 class BlockDeviceDeployerAttachCalculateChangesTests(
-        SynchronousTestCase
+        SynchronousTestCase, ScenarioMixin
 ):
     """
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
@@ -594,7 +614,43 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         ``BlockDeviceDeployer.calculate_changes`` returns state changes to
         attach that dataset to its node and then mount its filesystem.
         """
-        self.fail("FLOC-1575")
+        deployer = create_blockdevicedeployer(self, hostname=self.NODE)
+
+        # Give it a configuration that says a dataset should have a
+        # manifestation on the deployer's node.
+        node_config = to_node(self.ONE_DATASET_STATE)
+        cluster_config = Deployment(nodes={node_config})
+
+        # Give the node an empty state.
+        node_state = self.ONE_DATASET_STATE.transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        # Take the dataset in the configuration and make it part of the
+        # cluster's non-manifest datasets state.
+        manifestation = node_config.manifestations[unicode(self.DATASET_ID)]
+        dataset = manifestation.dataset
+        cluster_state = DeploymentState(
+            nodes={node_state},
+            nonmanifest_datasets={
+                unicode(dataset.dataset_id): dataset,
+            }
+        )
+
+        # We'd like the filesystem to be mounted beneath the deployer's mount
+        # root in a directory unique to and identified by the dataset being
+        # operated on.
+        mountpoint = deployer.mountroot.child(bytes(self.DATASET_ID))
+
+        changes = deployer.calculate_changes(cluster_config, cluster_state)
+        self.assertEqual(
+            sequentially(changes=[
+                # Attach it to this node.
+                AttachVolume(dataset=dataset, hostname=deployer.hostname),
+                MountBlockDevice(dataset=dataset, mountpoint=mountpoint),
+            ]),
+            changes
+        )
 
 
 class BlockDeviceDeployerCreationCalculateChangesTests(
