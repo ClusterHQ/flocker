@@ -6,12 +6,9 @@ Tests for ``admin.release``.
 
 import os
 from unittest import skipUnless
-<<<<<<< HEAD
 from setuptools import __version__ as setuptools_version
 import tempfile
 from textwrap import dedent
-=======
->>>>>>> origin/master
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import Repo
@@ -882,8 +879,8 @@ class UpdateRepoTests(SynchronousTestCase):
         """
         Calling :func:`update_repo` downloads the new RPMs, creates the
         metadata, and uploads it to S3.
+        """
 
-<<<<<<< HEAD
     def test_packages_uploaded(self):
         """
         Calling :func:`update_repo` uploads packages from a source repository
@@ -948,11 +945,10 @@ class UpdateRepoTests(SynchronousTestCase):
         """
         Calling :func:`update_repo` does not delete packages or metadata which
         already exist in S3.
-=======
+
         - Existing packages on S3 are preserved in the metadata.
         - Other packages on the buildserver are not downloaded.
         - Existing metadata files are left untouched.
->>>>>>> origin/master
         """
         existing_s3_keys = {
             os.path.join(self.target_key, 'existing_package.rpm'): '',
