@@ -9,6 +9,7 @@ import pwd
 import socket
 from unittest import skipIf
 from contextlib import closing
+from uuid import uuid4
 
 from zope.interface import implementer
 
@@ -26,6 +27,7 @@ from . import IDeployer, IStateChange, sequentially
 from ..testtools import loop_until
 from ..control import (
     IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
+from ..control._model import ip_to_uuid
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -111,6 +113,7 @@ class DummyDeployer(object):
     A non-implementation of ``IDeployer``.
     """
     hostname = u"127.0.0.1"
+    node_uuid = uuid4()
 
     def discover_state(self, node_stat):
         return succeed(())
@@ -125,6 +128,7 @@ class ControllableDeployer(object):
     ``IDeployer`` whose results can be controlled.
     """
     def __init__(self, hostname, local_states, calculated_actions):
+        self.node_uuid = ip_to_uuid(hostname)
         self.hostname = hostname
         self.local_states = local_states
         self.calculated_actions = calculated_actions
@@ -135,7 +139,8 @@ class ControllableDeployer(object):
 
     def calculate_changes(self, desired_configuration, cluster_state):
         self.calculate_inputs.append(
-            (cluster_state.get_node(self.hostname),
+            (cluster_state.get_node(uuid=self.node_uuid,
+                                    hostname=self.hostname),
              desired_configuration, cluster_state))
         return self.calculated_actions.pop(0)
 
@@ -220,6 +225,6 @@ def to_node(node_state):
     :param NodeState node_state: Object to convert.
     :return Node: Equivalent node.
     """
-    return Node(hostname=node_state.hostname,
+    return Node(uuid=node_state.uuid, hostname=node_state.hostname,
                 applications=node_state.applications,
                 manifestations=node_state.manifestations)
