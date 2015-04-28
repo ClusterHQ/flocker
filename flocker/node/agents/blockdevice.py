@@ -1162,6 +1162,7 @@ class BlockDeviceDeployer(PRecord):
         mounted.
     """
     hostname = field(type=unicode, mandatory=True)
+    node_uuid = field(type=UUID, mandatory=True)
     block_device_api = field(mandatory=True)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
 
@@ -1243,6 +1244,7 @@ class BlockDeviceDeployer(PRecord):
 
         state = (
             NodeState(
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 manifestations=manifestations,
                 paths=paths,
@@ -1279,7 +1281,8 @@ class BlockDeviceDeployer(PRecord):
         # Eventually use the Datasets to avoid creating things that exist
         # already (https://clusterhq.atlassian.net/browse/FLOC-1575) and to
         # avoid deleting things that don't exist.
-        this_node_config = configuration.get_node(self.hostname)
+        this_node_config = configuration.get_node(
+            self.node_uuid, hostname=self.hostname)
         configured_manifestations = this_node_config.manifestations
 
         configured_dataset_ids = set(
@@ -1289,7 +1292,8 @@ class BlockDeviceDeployer(PRecord):
             if not manifestation.dataset.deleted
         )
 
-        local_state = cluster_state.get_node(self.hostname)
+        local_state = cluster_state.get_node(self.node_uuid,
+                                             hostname=self.hostname)
         local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set(
