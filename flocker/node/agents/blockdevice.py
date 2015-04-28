@@ -1191,11 +1191,36 @@ class BlockDeviceDeployer(PRecord):
         called upon to perform block device operations.
     :ivar FilePath mountroot: The directory where block devices will be
         mounted.
+    :ivar _async_block_device_api: An object to override the value of the
+        ``async_block_device_api`` property.  Used by tests.  Should be
+        ``None`` in real-world use.
     """
     hostname = field(type=unicode, mandatory=True)
     node_uuid = field(type=UUID, mandatory=True)
     block_device_api = field(mandatory=True)
+    _async_block_device_api = field(mandatory=True, initial=None)
     mountroot = field(type=FilePath, initial=FilePath(b"/flocker"))
+
+    @property
+    def async_block_device_api(self):
+        """
+        Get an ``IBlockDeviceAsyncAPI`` provider which can manipulate volumes
+        for this deployer.
+
+        During real operation, this is a threadpool-based wrapper around the
+        ``IBlockDeviceAPI`` provider.  For testing purposes it can be
+        overridden with a different object entirely (and this large amount of
+        support code for this is necessary because this class is a ``PRecord``
+        subclass).
+        """
+        if self._async_block_device_api is None:
+            from twisted.internet import reactor
+            return _SyncToThreadedAsyncAPIAdapter(
+                _sync=self.block_device_api,
+                _reactor=reactor,
+                _threadpool=reactor.getThreadPool(),
+            )
+        return self._async_block_device_api
 
     def _get_system_mounts(self, volumes):
         """

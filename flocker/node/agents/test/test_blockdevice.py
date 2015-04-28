@@ -56,6 +56,8 @@ from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
     NonManifestDatasets,
 )
+# XXX Move these somewhere else, write tests for them.
+from ....common.test.test_thread import NonThreadPool, NonReactor
 
 LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
 
@@ -169,10 +171,15 @@ def create_blockdevicedeployer(
 
     :return: The newly created ``BlockDeviceDeployer``.
     """
+    api = loopbackblockdeviceapi_for_test(test_case)
+    async_api = _SyncToThreadedAsyncAPIAdapter(
+        _sync=api, _reactor=NonReactor(), _threadpool=NonThreadPool(),
+    )
     return BlockDeviceDeployer(
         hostname=hostname,
         node_uuid=node_uuid,
-        block_device_api=loopbackblockdeviceapi_for_test(test_case),
+        block_device_api=api,
+        _async_block_device_api=async_api,
         mountroot=mountroot_for_test(test_case),
     )
 
@@ -183,6 +190,52 @@ class BlockDeviceDeployerTests(
     """
     Tests for ``BlockDeviceDeployer``.
     """
+
+
+class BlockDeviceDeployerAsyncAPITests(SynchronousTestCase):
+    """
+    Tests for ``BlockDeviceDeployer.async_block_device_api``.
+    """
+    def test_default(self):
+        """
+        When not otherwise initialized, the attribute evaluates to a
+        ``_SyncToThreadedAsyncAPIAdapter`` using the global reactor, the global
+        reactor's thread pool, and the value of ``block_device_api``.
+        """
+        from twisted.internet import reactor
+        threadpool = reactor.getThreadPool()
+
+        api = UnusableAPI()
+        deployer = BlockDeviceDeployer(
+            hostname=u"192.0.2.1",
+            node_uuid=uuid4(),
+            block_device_api=api,
+        )
+
+        self.assertEqual(
+            _SyncToThreadedAsyncAPIAdapter(
+                _reactor=reactor, _threadpool=threadpool, _sync=api
+            ),
+            deployer.async_block_device_api,
+        )
+
+    def test_overridden(self):
+        """
+        The object ``async_block_device_api`` refers to can be overridden by
+        supplying the ``_async_block_device_api`` keyword argument to the
+        initializer.
+        """
+        api = UnusableAPI()
+        async_api = _SyncToThreadedAsyncAPIAdapter(
+            _reactor=NonReactor(), _threadpool=NonThreadPool(), _sync=api,
+        )
+        deployer = BlockDeviceDeployer(
+            hostname=u"192.0.2.1",
+            node_uuid=uuid4(),
+            block_device_api=api,
+            _async_block_device_api=async_api,
+        )
+        self.assertIs(async_api, deployer.async_block_device_api)
 
 
 class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
