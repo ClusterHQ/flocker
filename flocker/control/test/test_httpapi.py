@@ -54,8 +54,10 @@ class APITestsMixin(object):
     # These addresses taken from RFC 5737 (TEST-NET-1)
     NODE_A_IP = u"192.0.2.1"
     NODE_B_IP = u"192.0.2.2"
-    NODE_A = uuid4()
-    NODE_B = uuid4()
+    NODE_A_UUID = uuid4()
+    NODE_B_UUID = uuid4()
+    NODE_A = unicode(NODE_A_UUID)
+    NODE_B = unicode(NODE_B_UUID)
 
     def initialize(self):
         """
@@ -252,8 +254,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         saving = self.persistence_service.save(Deployment(
             nodes={
-                Node(uuid=self.NODE_A),
-                Node(uuid=self.NODE_B),
+                Node(uuid=self.NODE_A_UUID),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
@@ -295,8 +297,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         saving = self.persistence_service.save(Deployment(
             nodes={
-                Node(uuid=self.NODE_A),
-                Node(uuid=self.NODE_B),
+                Node(uuid=self.NODE_A_UUID),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
@@ -318,7 +320,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             expected = Deployment(
                 nodes={
                     Node(
-                        uuid=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         applications=[
                             Application(
                                 name='webserver',
@@ -327,7 +329,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                             ),
                         ]
                     ),
-                    Node(uuid=self.NODE_B),
+                    Node(uuid=self.NODE_B_UUID),
                 }
             )
             self.assertEqual(deployment, expected)
@@ -372,7 +374,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         }]
         node_data = {
             Node(
-                uuid=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -381,7 +383,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(uuid=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -398,7 +400,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         }]
         node_data = {
             Node(
-                uuid=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -409,7 +411,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(uuid=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -426,7 +428,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         }]
         node_data = {
             Node(
-                uuid=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -435,7 +437,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(uuid=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -451,7 +453,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         }]
         node_data = {
             Node(
-                uuid=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -460,7 +462,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(uuid=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -507,7 +509,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         }]
         node_data = {
             Node(
-                uuid=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -516,7 +518,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(uuid=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -599,7 +601,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         }]
         node_data = {
             Node(
-                uuid=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -619,7 +621,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(uuid=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -683,7 +685,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         }]
         node_data = {
             Node(
-                uuid=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -692,7 +694,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(uuid=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -771,13 +773,13 @@ class CreateContainerTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         Application(name='postgres',
                                     image=DockerImage.from_string('postgres'))
                     ]
                 ),
-                Node(uuid=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
@@ -799,7 +801,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             expected = Deployment(
                 nodes={
                     Node(
-                        uuid=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         applications=[
                             Application(
                                 name='postgres',
@@ -812,7 +814,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                             )
                         ]
                     ),
-                    Node(uuid=self.NODE_B),
+                    Node(uuid=self.NODE_B_UUID),
                 }
             )
             self.assertEqual(deployment, expected)
@@ -850,13 +852,13 @@ class CreateContainerTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         Application(name='postgres',
                                     image=DockerImage.from_string('postgres'))
                     ]
                 ),
-                Node(uuid=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
@@ -873,7 +875,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             expected = Deployment(
                 nodes={
                     Node(
-                        uuid=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         applications=[
                             Application(
                                 name='postgres',
@@ -885,7 +887,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                             )
                         ]
                     ),
-                    Node(uuid=self.NODE_B),
+                    Node(uuid=self.NODE_B_UUID),
                 }
             )
             self.assertEqual(deployment, expected)
@@ -911,7 +913,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             expected = Deployment(
                 nodes={
                     Node(
-                        uuid=self.NODE_B,
+                        uuid=self.NODE_B_UUID,
                         applications=[
                             Application(
                                 name='postgres',
@@ -1162,7 +1164,7 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         application
                     ]
@@ -1190,12 +1192,12 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         application
                     ]
                 ),
-                Node(uuid=self.NODE_B)
+                Node(uuid=self.NODE_B_UUID)
             },
         )
         expected = [
@@ -1225,7 +1227,7 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=applications
                 ),
             },
@@ -1270,11 +1272,11 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=applications[self.NODE_A]
                 ),
                 Node(
-                    uuid=self.NODE_B,
+                    uuid=self.NODE_B_UUID,
                     applications=applications[self.NODE_B]
                 ),
             },
@@ -1309,12 +1311,12 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={manifestation.dataset_id:
                                     manifestation},
                     applications=[application]
                 ),
-                Node(uuid=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             },
         )
         expected = [
@@ -1348,7 +1350,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         Application(
                             name=u'leavemealone',
@@ -1356,7 +1358,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                         ),
                     ]
                 ),
-                Node(uuid=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
@@ -1456,12 +1458,12 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={manifestation.dataset_id:
                                     manifestation},
                     applications=[application]
                 ),
-                Node(uuid=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             },
         )
 
@@ -1476,9 +1478,9 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
             deployment = self.persistence_service.get()
             expected = Deployment(
                 nodes={
-                    Node(uuid=self.NODE_A),
+                    Node(uuid=self.NODE_A_UUID),
                     Node(
-                        uuid=self.NODE_B,
+                        uuid=self.NODE_B_UUID,
                         manifestations={manifestation.dataset_id:
                                         manifestation},
                         applications=[application]
@@ -1718,11 +1720,11 @@ class CreateDatasetTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={existing_manifestation.dataset_id:
                                     existing_manifestation}
                 ),
-                Node(uuid=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
@@ -1832,7 +1834,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         operation.
         """
         saving = self.persistence_service.save(Deployment(nodes={
-            Node(uuid=self.NODE_A)
+            Node(uuid=self.NODE_A_UUID)
         }))
 
         def saved(ignored):
@@ -1849,11 +1851,11 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 node
                 for node
                 in deployment.nodes
-                if node.uuid == self.NODE_A
+                if node.uuid == self.NODE_A_UUID
             )
             self.assertEqual(
                 # No state, just like it started.
-                Node(uuid=self.NODE_A),
+                Node(uuid=self.NODE_A_UUID),
                 node_a
             )
         saving.addCallback(created)
@@ -1907,7 +1909,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             self.assertEqual(
                 Deployment(nodes=frozenset({
                     Node(
-                        uuid=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         manifestations={
                             dataset_id: Manifestation(
                                 dataset=Dataset(
@@ -1948,7 +1950,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             self.assertEqual(
                 Deployment(nodes=frozenset({
                     Node(
-                        uuid=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         manifestations={
                             dataset_id: Manifestation(
                                 dataset=Dataset(
@@ -1991,7 +1993,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             self.assertEqual(
                 Deployment(nodes=frozenset({
                     Node(
-                        uuid=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         manifestations={
                             dataset_id: Manifestation(
                                 dataset=Dataset(
@@ -2105,7 +2107,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         current_primary_node = Node(
-            uuid=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2129,7 +2131,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            uuid=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2166,12 +2168,12 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            uuid=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
         )
-        node_b = Node(uuid=self.NODE_B)
+        node_b = Node(uuid=self.NODE_B_UUID)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
         return self._test_change_primary(
             expected_manifestation.dataset, deployment,
@@ -2185,12 +2187,12 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            uuid=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
         )
-        node_b = Node(uuid=self.NODE_B)
+        node_b = Node(uuid=self.NODE_B_UUID)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
         return self._test_change_primary(
             expected_manifestation.dataset, deployment,
@@ -2211,12 +2213,12 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation(primary=False)
         node_a = Node(
-            uuid=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
         )
-        node_b = Node(uuid=self.NODE_B)
+        node_b = Node(uuid=self.NODE_B_UUID)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
         saving = self.persistence_service.save(deployment)
 
@@ -2249,7 +2251,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            uuid=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2325,7 +2327,7 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
                 del expected_result[u'maximum_size']
 
         current_primary_node = Node(
-            uuid=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=[],
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2469,7 +2471,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            uuid=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2517,7 +2519,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
                 b"/configuration/datasets/%s" % (
                     expected_manifestation.dataset_id.encode('ascii')
                 ),
-                {u"primary": u"192.168.1.1"},
+                {u"primary": self.NODE_A},
                 METHOD_NOT_ALLOWED, {
                     u"description":
                     u"The dataset has been deleted."
@@ -2634,7 +2636,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={manifestation.dataset_id:
                                     manifestation},
                 ),
@@ -2674,12 +2676,12 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={manifestation_a.dataset_id:
                                     manifestation_a},
                 ),
                 Node(
-                    uuid=self.NODE_B,
+                    uuid=self.NODE_B_UUID,
                     manifestations={manifestation_b.dataset_id:
                                     manifestation_b},
                 ),
@@ -2706,7 +2708,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    uuid=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={
                         manifestation_a.dataset_id: manifestation_a,
                         manifestation_b.dataset_id: manifestation_b,
@@ -2902,7 +2904,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         ``datasets_from_deployment`` returns dataset dictionaries for the
         other_manifestations on all nodes.
         """
-        expected_uuid = u"node1.example.com"
+        expected_uuid = uuid4()
         expected_dataset = Dataset(dataset_id=u"jalkjlk")
         expected_manifestation = Manifestation(dataset=expected_dataset,
                                                primary=True)
@@ -2916,7 +2918,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         deployment = Deployment(nodes=frozenset([node]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
-            primary=expected_uuid,
+            primary=unicode(expected_uuid),
             metadata=thaw(expected_dataset.metadata),
             deleted=False,
         )
@@ -3180,7 +3182,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
-                uuid=expected_uuid(),
+                uuid=expected_uuid,
                 applications={expected_application},
                 manifestations={manifestation.dataset_id: manifestation},
             )

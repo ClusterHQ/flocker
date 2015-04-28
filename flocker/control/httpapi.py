@@ -972,7 +972,7 @@ def container_configuration_response(application, node):
     :return: A ``dict`` containing the container configuration.
     """
     result = {
-        "uuid": unicode(node), "name": application.name,
+        "node_uuid": unicode(node), "name": application.name,
     }
     result.update(ApplicationMarshaller(application).convert())
     # Configuration format isn't quite the same as JSON format:
