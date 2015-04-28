@@ -17,6 +17,7 @@ dataset
 datasets
 Deis
 devel
+DigitalOcean
 dropdown
 failover
 filename
