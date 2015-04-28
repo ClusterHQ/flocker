@@ -20,7 +20,7 @@ from bitmath import Byte
 from twisted.trial.unittest import SynchronousTestCase
 
 from ....testtools import skip_except
-from ..cinder import cinder_api, wait_for_volume
+from ..cinder import cinder_api, wait_for_volume, _instance_uuid
 from ..test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 from ..testtools import tidy_cinder_client_for_test, tidy_nova_client_for_test
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
@@ -39,10 +39,14 @@ def cinderblockdeviceapi_for_test(test_case, cluster_id):
         by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
         are created during the course of ``test_case``
     """
+    local_instance_uuid = _instance_uuid()
     return cinder_api(
         cinder_client=tidy_cinder_client_for_test(test_case),
         nova_client=tidy_nova_client_for_test(test_case),
         cluster_id=cluster_id,
+        host_map={
+            u'192.0.2.123': local_instance_uuid,
+        }
     )
 
 

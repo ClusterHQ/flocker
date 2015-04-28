@@ -168,7 +168,7 @@ class CinderBlockDeviceAPI(object):
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
     in an OpenStack cluster using Cinder APIs.
     """
-    def __init__(self, cinder_volume_manager, nova_volume_manager, cluster_id):
+    def __init__(self, cinder_volume_manager, nova_volume_manager, cluster_id, host_map):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for interacting
             with Cinder API.
@@ -181,6 +181,8 @@ class CinderBlockDeviceAPI(object):
         self.cinder_volume_manager = cinder_volume_manager
         self.nova_volume_manager = nova_volume_manager
         self.cluster_id = cluster_id
+        self.host_map = host_map
+        self.reverse_host_map = dict((v, k) for k, v in host_map.items())
 
     def create_volume(self, dataset_id, size):
         """
@@ -208,7 +210,10 @@ class CinderBlockDeviceAPI(object):
         # See Rackspace support ticket: 150422-ord-0000495'
         self.cinder_volume_manager.set_metadata(created_volume, metadata)
         # Use requested volume here, because it has the desired metadata.
-        return _blockdevicevolume_from_cinder_volume(requested_volume)
+        return _blockdevicevolume_from_cinder_volume(
+            cinder_volume=requested_volume, 
+            host_map=self.reverse_host_map,
+        )
 
     def list_volumes(self):
         """
@@ -217,13 +222,12 @@ class CinderBlockDeviceAPI(object):
 
         See: http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html # noqa
         """
-        volumes = []
+        flocker_volumes = []
         for cinder_volume in self.cinder_volume_manager.list():
             if _is_cluster_volume(self.cluster_id, cinder_volume):
-                volumes.append(
-                    _blockdevicevolume_from_cinder_volume(cinder_volume)
-                )
-        return volumes
+                flocker_volume = _blockdevicevolume_from_cinder_volume(cinder_volume, self.reverse_host_map)
+                flocker_volumes.append(flocker_volume)
+        return flocker_volumes
 
     def _get(self, blockdevice_id):
         for volume in self.list_volumes():
@@ -242,10 +246,11 @@ class CinderBlockDeviceAPI(object):
         When I attach using the cinder client the volumes become undetachable.
         """
         unattached_volume = self._get(blockdevice_id)
-        local_instance_uuid = _instance_uuid()
         device_path = _next_device()
+        server_id = self.host_map[host]
         nova_volume = self.nova_volume_manager.create_server_volume(
-            server_id=local_instance_uuid, 
+            # Nova API expects an ID string not UUID.
+            server_id=unicode(server_id), 
             volume_id=unattached_volume.blockdevice_id, 
             device=device_path
         )
@@ -285,17 +290,27 @@ def _is_cluster_volume(cluster_id, cinder_volume):
     return False
 
 
-def _blockdevicevolume_from_cinder_volume(cinder_volume):
+def _blockdevicevolume_from_cinder_volume(cinder_volume, host_map):
     """
     :param Volume cinder_volume: The ``cinderclient.v1.volumes.Volume`` to
         convert.
     :returns: A ``BlockDeviceVolume`` based on values found in the supplied
         cinder Volume.
     """
+    if cinder_volume.attachments:
+        # There should only be one.
+        [attachment_info] = cinder_volume.attachments
+        # Nova and Cinder APIs return ID strings. Convert to UUID
+        # before looking up.
+        server_id = UUID(attachment_info['server_id'])
+        flocker_host = host_map[server_id]
+    else:
+        flocker_host = None
+    
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
         size=int(GB(cinder_volume.size).to_Byte().value),
-        host=None,
+        host=flocker_host,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
 
@@ -325,7 +340,7 @@ SESSION_FACTORIES = {
 }
 
 
-def cinder_api(cinder_client, nova_client, cluster_id):
+def cinder_api(cinder_client, nova_client, cluster_id, host_map):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
         whose ``volumes`` attribute will be supplied as the ``cinder_volume_manager``
@@ -340,4 +355,5 @@ def cinder_api(cinder_client, nova_client, cluster_id):
         cinder_volume_manager=cinder_client.volumes,
         nova_volume_manager=nova_client.volumes,
         cluster_id=cluster_id,
+        host_map=host_map,
     )
