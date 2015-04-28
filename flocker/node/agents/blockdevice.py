@@ -174,7 +174,7 @@ MOUNT_BLOCK_DEVICE = ActionType(
 
 ATTACH_VOLUME = ActionType(
     u"agent:blockdevice:attach_volume",
-    [VOLUME],
+    [DATASET_ID],
     [],
     u"The volume for a block-device-backed dataset is being attached."
 )
@@ -433,13 +433,16 @@ class ResizeBlockDeviceDataset(PRecord):
         volume = _blockdevice_volume_from_datasetid(
             deployer.block_device_api, self.dataset_id
         )
+        attach = AttachVolume(
+            dataset_id=self.dataset_id, hostname=deployer.hostname
+        )
         return run_state_change(
             sequentially(
                 changes=[
                     UnmountBlockDevice(volume=volume),
                     DetachVolume(volume=volume),
                     ResizeVolume(volume=volume, size=self.size),
-                    AttachVolume(volume=volume, hostname=deployer.hostname),
+                    attach,
                     ResizeFilesystem(volume=volume),
                     MountBlockDevice(
                         volume=volume,
@@ -527,22 +530,22 @@ class AttachVolume(PRecord):
     :ivar unicode hostname: An identifier for the node to which the volume
         should be attached.  An IPv4 address literal.
     """
-    volume = _volume_field()
+    dataset_id = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, mandatory=True)
 
     @property
     def eliot_action(self):
-        return ATTACH_VOLUME(_logger, volume=self.volume)
+        return ATTACH_VOLUME(_logger, dataset_id=self.dataset_id)
 
     def run(self, deployer):
         """
         Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
         """
+        api = deployer.block_device_api
+        volume = _blockdevice_volume_from_datasetid(api, self.dataset_id)
         # Make this asynchronous after FLOC-1549, probably as part of
-        # FLOC-1593.
-        deployer.block_device_api.attach_volume(
-            self.volume.blockdevice_id, self.hostname
-        )
+        # FLOC-1575.
+        api.attach_volume(volume.blockdevice_id, self.hostname)
         return succeed(None)
 
 

@@ -640,7 +640,7 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         self.assertEqual(
             sequentially(changes=[
                 AttachVolume(
-                    dataset_id=dataset.dataset_id,
+                    dataset_id=UUID(dataset.dataset_id),
                     # Attach it to this node.
                     hostname=deployer.hostname
                 ),
