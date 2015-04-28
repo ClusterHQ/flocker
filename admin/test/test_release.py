@@ -1876,28 +1876,10 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         )
 
         self.publish_vagrant_metadata(aws=aws, version='0.3.0_1')
-
-        expected_metadata = {
-            "description": "clusterhq/flocker-tutorial box.",
-            "name": "clusterhq/flocker-tutorial",
-            "versions": [
-                {
-                    # The underscore is converted to a period in the version.
-                    "version": "0.3.0.1",
-                    "providers": [
-                        {
-                            "url": "https://example.com/flocker-tutorial-0.3.0_1.box",
-                            "name": "virtualbox"
-                        }
-                    ],
-                }
-            ],
-        }
-
-        self.assertEqual(
-            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
-            expected_metadata,
-        )
+        metadata = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])
+        # The underscore is converted to a period in the version.
+        self.assertEqual(metadata['versions'][0]['version'], "0.3.0.1")
 
     def test_invalid_metadata_fails(self):
         """
