@@ -568,11 +568,9 @@ def publish_artifacts_main(args, base_path, top_level):
                          % (base_path.basename(),))
         raise SystemExit(1)
     except DocumentationRelease:
-        # This should not raise 1 because the release process should continue
-        # for a documentation release without publishing artifacts.
         sys.stderr.write("%s: Can't publish artifacts for a documentation "
                          "release.\n" % (base_path.basename(),))
-        return
+        raise SystemExit(1)
 
     dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
                                      base_dispatcher])
