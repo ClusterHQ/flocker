@@ -1887,6 +1887,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         If a version already exists then its data is overwritten by the new
         metadata.
         """
+        # TODO look at other metadata features which might be useful.
         existing_metadata = json.dumps({
             "description": "clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
