@@ -283,13 +283,17 @@ class UserCredentialTests(SynchronousTestCase):
         """
         A certificate written by ``UserCredential.initialize`` has an expiry
         date 20 years from the date of signing.
+
+        XXX: This test is prone to intermittent failure depending on the time
+        of day it is run. Fixed in
+        https://github.com/ClusterHQ/flocker/pull/1339
         """
         today = datetime.datetime.now()
         expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
         uc = UserCredential.initialize(self.path, self.ca, self.username)
         cert = uc.credential.certificate.original
-        asn1 = cert.get_notAfter()
-        expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
+        date_str = cert.get_notAfter()
+        expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
         self.assertEqual(expiry_date.date(), expected_expiry.date())
 
     def test_certificate_is_rsa_4096_sha_256(self):
@@ -575,13 +579,17 @@ class NodeCredentialTests(SynchronousTestCase):
         """
         A certificate written by ``NodeCredential.initialize`` has an expiry
         date 20 years from the date of signing.
+
+        XXX: This test is prone to intermittent failure depending on the time
+        of day it is run. Fixed in
+        https://github.com/ClusterHQ/flocker/pull/1339
         """
         today = datetime.datetime.now()
         expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
         nc = NodeCredential.initialize(self.path, self.ca)
         cert = nc.credential.certificate.original
-        asn1 = cert.get_notAfter()
-        expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
+        date_str = cert.get_notAfter()
+        expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
         self.assertEqual(expiry_date.date(), expected_expiry.date())
 
     def test_certificate_is_rsa_4096_sha_256(self):
@@ -845,13 +853,17 @@ class ControlCredentialTests(SynchronousTestCase):
         """
         A certificate written by ``ControlCredential.initialize`` has an expiry
         date 20 years from the date of signing.
+
+        XXX: This test is prone to intermittent failure depending on the time
+        of day it is run. Fixed in
+        https://github.com/ClusterHQ/flocker/pull/1339
         """
         today = datetime.datetime.now()
         expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
         cc = ControlCredential.initialize(self.path, self.ca)
         cert = cc.credential.certificate.original
-        asn1 = cert.get_notAfter()
-        expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
+        date_str = cert.get_notAfter()
+        expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
         self.assertEqual(expiry_date.date(), expected_expiry.date())
 
     def test_certificate_is_rsa_4096_sha_256(self):
@@ -1099,6 +1111,10 @@ class RootCredentialTests(SynchronousTestCase):
         """
         A certificate written by ``RootCredential.initialize`` has an expiry
         date 20 years from the date of signing.
+
+        XXX: This test is prone to intermittent failure depending on the time
+        of day it is run. Fixed in
+        https://github.com/ClusterHQ/flocker/pull/1339
         """
         today = datetime.datetime.now()
         expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
@@ -1106,8 +1122,8 @@ class RootCredentialTests(SynchronousTestCase):
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
         cert = ca.credential.certificate.original
-        asn1 = cert.get_notAfter()
-        expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
+        date_str = cert.get_notAfter()
+        expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
         self.assertEqual(expiry_date.date(), expected_expiry.date())
 
     def test_certificate_is_rsa_4096_sha_256(self):
