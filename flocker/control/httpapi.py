@@ -453,6 +453,8 @@ class ConfigurationAPIUserV1(object):
         result = []
         deployment_state = self.cluster_state_service.as_deployment()
         for node in deployment_state.nodes:
+            if node.applications is None:
+                continue
             for application in node.applications:
                 container = container_configuration_response(
                     application, node.uuid)
@@ -923,7 +925,7 @@ def manifestations_from_deployment(deployment, dataset_id):
     """
     for node in deployment.nodes:
         if dataset_id in node.manifestations:
-                yield node.manifestations[dataset_id], node
+            yield node.manifestations[dataset_id], node
 
 
 def datasets_from_deployment(deployment):
@@ -940,6 +942,8 @@ def datasets_from_deployment(deployment):
     :return: Iterable returning all datasets.
     """
     for node in deployment.nodes:
+        if node.manifestations is None:
+            continue
         for manifestation in node.manifestations.values():
             if manifestation.primary:
                 # There may be multiple datasets marked as primary until we
