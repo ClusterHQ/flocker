@@ -243,12 +243,21 @@ class CinderBlockDeviceAPI(object):
         """
         unattached_volume = self._get(blockdevice_id)
         local_instance_uuid = _instance_uuid()
-        self.nova_volume_manager.create_server_volume(
+        device_path = _next_device()
+        nova_volume = self.nova_volume_manager.create_server_volume(
             server_id=local_instance_uuid, 
             volume_id=unattached_volume.blockdevice_id, 
-            device=_next_device()
+            device=device_path
         )
+        wait_for_volume(
+            volume_manager=self.cinder_volume_manager,
+            expected_volume=nova_volume,
+            expected_status=u'in-use',
+        )
+        assert FilePath(device_path).exists()
+
         attached_volume = unattached_volume.set('host', host)
+
         return attached_volume
 
     def detach_volume(self, blockdevice_id):
