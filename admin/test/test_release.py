@@ -1881,14 +1881,10 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         # The underscore is converted to a period in the version.
         self.assertEqual(metadata['versions'][0]['version'], "0.3.0.1")
 
-    def test_invalid_metadata_fails(self):
-        """
-        If the metadata which exists already is not valid, an exception is
-        raised.
-        """
 
     def test_version_already_exists(self):
         """
         If a version already exists then its data is overwritten by the new
         metadata.
         """
+        # TODO is this necessary?
