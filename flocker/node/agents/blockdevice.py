@@ -272,19 +272,19 @@ class BlockDeviceVolume(PRecord):
     dataset_id = field(type=UUID, mandatory=True)
 
 
-def _blockdevice_volume_from_datasetid(block_device_api, dataset_id):
+def _blockdevice_volume_from_datasetid(volumes, dataset_id):
     """
     A helper to get the volume for a given dataset_id.
 
-    :param IBlockDeviceAPI block_device_api: The backend to use to find the
-        volume.
+    :param list volumes: The ``BlockDeviceVolume`` instances to inspect for a
+        match.
     :param UUID dataset_id: The identifier of the dataset the volume of which
         to find.
 
     :return: Either a ``BlockDeviceVolume`` matching the given ``dataset_id``
         or ``None`` if no such volume can be found.
     """
-    for volume in block_device_api.list_volumes():
+    for volume in volumes:
         if volume.dataset_id == dataset_id:
             return volume
 
@@ -316,7 +316,7 @@ class DestroyBlockDeviceDataset(PRecord):
 
     def run(self, deployer):
         volume = _blockdevice_volume_from_datasetid(
-            deployer.block_device_api, self.dataset_id
+            deployer.block_device_api.list_volumes(), self.dataset_id
         )
         if volume is None:
             return succeed(None)
@@ -449,7 +449,7 @@ class ResizeBlockDeviceDataset(PRecord):
 
     def run(self, deployer):
         volume = _blockdevice_volume_from_datasetid(
-            deployer.block_device_api, self.dataset_id
+            deployer.block_device_api.list_volumes(), self.dataset_id
         )
         attach = AttachVolume(
             dataset_id=self.dataset_id, hostname=deployer.hostname
@@ -499,7 +499,9 @@ class MountBlockDevice(PRecord):
         device.  The volume must be attached to this node.
         """
         api = deployer.block_device_api
-        volume = _blockdevice_volume_from_datasetid(api, self.dataset_id)
+        volume = _blockdevice_volume_from_datasetid(
+            api.list_volumes(), self.dataset_id
+        )
         device = api.get_device_path(volume.blockdevice_id)
         MOUNT_BLOCK_DEVICE_DETAILS(
             volume=volume, block_device_path=device,
@@ -565,7 +567,9 @@ class AttachVolume(PRecord):
         Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
         """
         api = deployer.block_device_api
-        volume = _blockdevice_volume_from_datasetid(api, self.dataset_id)
+        volume = _blockdevice_volume_from_datasetid(
+            api.list_volumes(), self.dataset_id
+        )
         ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
         # Make this asynchronous after FLOC-1549, probably as part of
         # FLOC-1575.
