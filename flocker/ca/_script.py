@@ -18,7 +18,7 @@ from zope.interface import implementer
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 
-from ._ca import (RootCredential, ControlCredential,
+from ._ca import (RootCredential, ControlCredential, NodeCredential,
                   CertificateAlreadyExistsError, KeyAlreadyExistsError,
                   PathError)
 
@@ -90,6 +90,62 @@ class PrettyOptions(Options):
 
 
 @flocker_standard_options
+class NodeCertificateOptions(PrettyOptions):
+    """
+    Command line options for ``flocker-ca create-node-certificate``.
+    """
+
+    helptext = """Create a new certificate for a node agent.
+
+    Creates a certificate signed by a previously generated certificate
+    authority (see flocker-ca initialize command for more information).
+    """
+
+    synopsis = "[options]"
+
+    optParameters = [
+        ['inputpath', 'i', None,
+         ('Path to directory containing root certificate. '
+          'Defaults to current working directory.')],
+        ['outputpath', 'o', None,
+         ('Path to directory to write control service certificate. '
+          'Defaults to current working directory.')],
+    ]
+
+    def run(self):
+        """
+        Check if root key and certificate files (either default or as
+        specified on the command line) exist in the path and error out if
+        they do not. If there are no path errors, create a new node
+        certificate signed by the root and write it out to the current
+        directory.
+        """
+        if self["inputpath"] is None:
+            self["inputpath"] = os.getcwd()
+        if self["outputpath"] is None:
+            self["outputpath"] = os.getcwd()
+        self["inputpath"] = FilePath(self["inputpath"])
+        self["outputpath"] = FilePath(self["outputpath"])
+
+        try:
+            try:
+                ca = RootCredential.from_path(self["inputpath"])
+                nc = NodeCredential.initialize(self["outputpath"], ca)
+                print (
+                    b"Created {uuid}.crt. Copy it over to "
+                    "/etc/flocker/node.crt on your node "
+                    "machine and make sure to chmod 0600 it.".format(
+                        uuid=nc.uuid
+                    )
+                )
+            except PathError as e:
+                raise UsageError(str(e))
+        except UsageError as e:
+            raise SystemExit(u"Error: {error}".format(error=str(e)))
+        return succeed(None)
+
+
+@flocker_standard_options
 class ControlCertificateOptions(PrettyOptions):
     """
     Command line options for ``flocker-ca create-control-certificate``.
@@ -107,10 +163,12 @@ class ControlCertificateOptions(PrettyOptions):
     synopsis = "[options]"
 
     optParameters = [
-        ['inputpath', 'i', os.getcwd(),
-         'Path to directory containing root certificate.'],
-        ['outputpath', 'o', os.getcwd(),
-         'Path to directory to write control service certificate.'],
+        ['inputpath', 'i', None,
+         ('Path to directory containing root certificate. '
+          'Defaults to current working directory.')],
+        ['outputpath', 'o', None,
+         ('Path to directory to write control service certificate. '
+          'Defaults to current working directory.')],
     ]
 
     def run(self):
@@ -122,6 +180,10 @@ class ControlCertificateOptions(PrettyOptions):
         errors, create a new control service certificate signed by the root
         and write it out to the current directory.
         """
+        if self["inputpath"] is None:
+            self["inputpath"] = os.getcwd()
+        if self["outputpath"] is None:
+            self["outputpath"] = os.getcwd()
         self["inputpath"] = FilePath(self["inputpath"])
         self["outputpath"] = FilePath(self["outputpath"])
 
@@ -211,6 +273,8 @@ class CAOptions(PrettyOptions):
           "current working directory.")],
         ["create-control-certificate", None, ControlCertificateOptions,
          "Create a certificate for the control service."],
+        ["create-node-certificate", None, NodeCertificateOptions,
+         "Create a certificate for a node agent."],
         ]
 
 

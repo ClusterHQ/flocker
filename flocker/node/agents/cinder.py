@@ -4,9 +4,10 @@
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 from subprocess import check_output
+import time
 from uuid import UUID
 
-from bitmath import Byte, GB, TB
+from bitmath import Byte, GB
 
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from keystoneclient.session import Session
@@ -16,19 +17,6 @@ from cinderclient.client import Client
 from zope.interface import implementer, Interface
 
 from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume
-
-# Rackspace public docs say "The minimum size for a Cloud Block Storage volume
-# is 50 GB for an SSD volume or 75GB for an SATA volume. The maximum volume
-# size is 1TB."
-# * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
-# Rackspace API agrees "u'{"badRequest": {"message": "Invalid input
-# received: \'size\' parameter must be between 75 and 1024", "code":
-# 400}}'"
-# Let's assume that we only support SATA volumes for now.
-# Eventually we'll validate size at configuration time based on backend limits.
-# See https://clusterhq.atlassian.net/browse/FLOC-1579
-RACKSPACE_MINIMUM_BLOCK_SIZE = int(GB(75).to_Byte().value)
-RACKSPACE_MAXIMUM_BLOCK_SIZE = int(TB(1).to_Byte().value)
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
 # a volume.
@@ -82,20 +70,43 @@ class ICinderVolumeManager(Interface):
         :param mountpoint: mountpoint on the attaching instance.
         """
 
-def wait_for_volume(volume_manager, expected_volume):
+
+def wait_for_volume(volume_manager, expected_volume,
+                    expected_status=u'available',
+                    time_limit=60):
     """
     Wait for a ``Volume`` with the same ``id`` as ``expected_volume`` to be
-    listed and to have a ``status`` value of ``available``.
+    listed and to have a ``status`` value of ``expected_status``.
 
     :param ICinderVolumeManager volume_manager: An API for listing volumes.
     :param Volume expected_volume: The ``Volume`` to wait for.
-    :returns: The listed ``Volume`` that matches ``new_volume``.
+    :param unicode expected_status: The ``Volume.status`` to wait for.
+    :param int time_limit: The maximum time, in seconds, to wait for the
+        ``expected_volume`` to have ``expected_status``.
+    :raises Exception: If ``expected_volume`` with ``expected_status`` is not
+        listed within ``time_limit``.
+    :returns: The listed ``Volume`` that matches ``expected_volume``.
     """
+    start_time = time.time()
     while True:
         for listed_volume in volume_manager.list():
             if listed_volume.id == expected_volume.id:
-                if listed_volume.status == 'available':
+                if listed_volume.status == expected_status:
                     return listed_volume
+
+        elapsed_time = time.time() - start_time
+        if elapsed_time < time_limit:
+            time.sleep(0.1)
+        else:
+            raise Exception(
+                'Timed out while waiting for volume. '
+                'Expected Volume: {!r}, '
+                'Expected Status: {!r}, '
+                'Elapsed Time: {!r}, '
+                'Time Limit: {!r}.'.format(
+                    expected_volume, expected_status, elapsed_time, time_limit
+                )
+            )
 
 
 def _instance_uuid():
@@ -193,7 +204,7 @@ class CinderBlockDeviceAPI(object):
     def attach_volume(self, blockdevice_id, host):
         """
         The attaching may have to be done via the nova client :-(
-        See http://www.florentflament.com/blog/openstack-volume-in-use-although-vm-doesnt-exist.html
+        See http://www.florentflament.com/blog/openstack-volume-in-use-although-vm-doesnt-exist.html # noqa
 
         When I attach using the cinder client the volumes become undetachable.
         """
