@@ -20,10 +20,11 @@ from ._model import (
     IClusterStateChange,
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
     NodeState, Manifestation, Dataset, RestartNever, RestartOnFailure,
-    RestartAlways, DeploymentState, NonManifestDatasets,
+    RestartAlways, DeploymentState, NonManifestDatasets, same_node,
     )
 
 __all__ = [
+    'same_node',
     'IClusterStateChange',
     'FlockerConfiguration',
     'ConfigurationError',
