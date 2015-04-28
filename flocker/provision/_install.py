@@ -93,26 +93,6 @@ def task_upgrade_kernel(distribution):
         raise NotImplementedError()
 
 
-KOJI_URL_TEMPLATE = (
-    'https://kojipkgs.fedoraproject.org/packages/kernel'
-    '/{version}/{release}.{distribution}/{architecture}'
-    '/kernel-{version}-{release}.{distribution}.{architecture}.rpm'
-)
-
-
-def koji_kernel_url(kernel):
-    """
-    Return the koji URL for the given kernel version.
-    """
-    url = KOJI_URL_TEMPLATE.format(
-        version=kernel.version,
-        release=kernel.release,
-        distribution=kernel.distribution,
-        architecture=kernel.architecture
-    )
-    return url
-
-
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
