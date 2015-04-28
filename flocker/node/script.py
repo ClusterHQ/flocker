@@ -6,7 +6,6 @@ The command-line ``flocker-*-agent`` tools.
 """
 
 from functools import partial
-from socket import socket
 
 from pyrsistent import PRecord, field
 
@@ -24,7 +23,6 @@ from ..common.script import (
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
-from ..control._model import ip_to_uuid
 
 
 __all__ = [
@@ -52,28 +50,12 @@ class ZFSAgentOptions(Options):
          "The port on the control service to connect to.", int],
     ]
 
-    def parseArgs(self, host):
+    def parseArgs(self, hostname, host):
+        # Passing in the 'hostname' (really node identity) via command
+        # line is a hack.  See
+        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution.
+        self["hostname"] = unicode(hostname, "ascii")
         self["destination-host"] = unicode(host, "ascii")
-
-
-def _get_external_ip(host, port):
-    """
-    Get an external IP address for this node that can in theory connect to
-    the given host and port.
-
-    See https://clusterhq.atlassian.net/browse/FLOC-1751 for better solution.
-    :param host: A host to connect to.
-    :param port: The port to connect to.
-
-    :return unicode: IP address of external interface on this node.
-    """
-    sock = socket()
-    try:
-        sock.setblocking(False)
-        sock.connect_ex((host, port))
-        return unicode(sock.getsockname()[0], "ascii")
-    finally:
-        sock.close()
 
 
 @implementer(ICommandLineVolumeScript)
@@ -85,12 +67,8 @@ class ZFSAgentScript(object):
     def main(self, reactor, options, volume_service):
         host = options["destination-host"]
         port = options["destination-port"]
-        ip = _get_external_ip(host, port)
-        # Soon we'll extract this from TLS certificate for node.  Until then
-        # we'll just do a temporary hack (probably to be fixed in FLOC-1733).
-        node_uuid = ip_to_uuid(ip)
-        deployer = P2PManifestationDeployer(ip, volume_service,
-                                            node_uuid=node_uuid)
+        deployer = P2PManifestationDeployer(
+            options["hostname"].decode("ascii"), volume_service)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port)
         volume_service.setServiceParent(loop)
@@ -113,14 +91,21 @@ class _AgentOptions(Options):
     common options with ``ZFSAgentOptions``.
     """
     # Use as basis for subclass' synopsis:
-    synopsis = "Usage: {} [OPTIONS] <control-service-hostname>"
+    synopsis = (
+        "Usage: {} [OPTIONS] <local-hostname> "
+        "<control-service-hostname>")
 
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
     ]
 
-    def parseArgs(self, host):
+    def parseArgs(self, hostname, host):
+        # Passing in the 'hostname' (really node identity) via command
+        # line is a hack.  See
+        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution,
+        # or perhaps https://clusterhq.atlassian.net/browse/FLOC-1631.
+        self["hostname"] = unicode(hostname, "ascii")
         self["destination-host"] = unicode(host, "ascii")
 
 
@@ -174,10 +159,9 @@ class AgentServiceFactory(PRecord):
     Possibly ``ICommandLineScript`` should be replaced by something that is
     inherently more easily tested so that this separation isn't required.
 
-    :ivar deployer_factory: A two-argument callable to create an
-        ``IDeployer`` provider for this script.  The arguments are a
-        ``hostname`` keyword argument and a ``node_uuid`` keyword
-        argument. They must be passed by keyword.
+    :ivar deployer_factory: A one-argument callable to create an ``IDeployer``
+        provider for this script.  The one argument is the ``hostname`` keyword
+        argument (it must be passed by keyword).
     """
     deployer_factory = field(mandatory=True)
 
@@ -193,15 +177,10 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        host = options["destination-host"]
-        port = options["destination-port"]
-        ip = _get_external_ip(host, port)
         return AgentLoopService(
             reactor=reactor,
-            # Temporary hack, to be fixed in FLOC-1733 probably:
-            deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
-                                           hostname=ip),
-            host=host, port=port,
+            deployer=self.deployer_factory(hostname=options["hostname"]),
+            host=options["destination-host"], port=options["destination-port"],
         )
 
 

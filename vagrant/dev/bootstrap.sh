@@ -25,8 +25,3 @@ yum install -y \
 	libffi-devel openssl-devel \
 	yum-utils \
 	pypy pypy-devel
-
-
-# dpkg isn't currently available upstream
-# https://bugzilla.redhat.com/show_bug.cgi?id=1149590
-yum install -y --enablerepo=epel-testing dpkg-dev

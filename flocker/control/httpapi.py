@@ -33,7 +33,6 @@ from ._config import (
     model_from_configuration, FigConfiguration, FlockerConfiguration,
     ConfigurationError
 )
-from ._model import ip_to_uuid
 from .. import __version__
 
 
@@ -220,8 +219,7 @@ class ConfigurationAPIUserV1(object):
         )
         manifestation = Manifestation(dataset=dataset, primary=True)
 
-        primary_node = deployment.get_node(ip_to_uuid(primary),
-                                           hostname=primary)
+        primary_node = deployment.get_node(primary)
 
         new_node_config = primary_node.transform(
             ("manifestations", manifestation.dataset_id), manifestation)
@@ -393,9 +391,8 @@ class ConfigurationAPIUserV1(object):
         deployment = self.cluster_state_service.as_deployment()
         datasets = list(datasets_from_deployment(deployment))
         for dataset in datasets:
-            uuid = ip_to_uuid(dataset[u"primary"])
             dataset[u"path"] = self.cluster_state_service.manifestation_path(
-                uuid, dataset[u"dataset_id"]).path.decode(
+                dataset[u"primary"], dataset[u"dataset_id"]).path.decode(
                     "utf-8")
             del dataset[u"metadata"]
             del dataset[u"deleted"]
@@ -506,7 +503,6 @@ class ConfigurationAPIUserV1(object):
             u"create container with cpu shares",
             u"create container with memory limit",
             u"create container with links",
-            u"create container with command line",
         ]
     )
     @structured(
@@ -519,7 +515,7 @@ class ConfigurationAPIUserV1(object):
     def create_container_configuration(
         self, host, name, image, ports=(), environment=None,
         restart_policy=None, cpu_shares=None, memory_limit=None,
-        links=(), volumes=(), command_line=None,
+        links=(), volumes=()
     ):
         """
         Create a new dataset in the cluster configuration.
@@ -561,9 +557,6 @@ class ConfigurationAPIUserV1(object):
         :param list links: A ``list`` of ``dict`` objects, mapping container
             links via "alias", "local_port" and "remote_port" values.
 
-        :param command_line: If not ``None``, the command line to use when
-            running the Docker image's entry point.
-
         :return: An ``EndpointResponse`` describing the container which has
             been added to the cluster configuration.
         """
@@ -583,7 +576,7 @@ class ConfigurationAPIUserV1(object):
             attached_volume = self._get_attached_volume(host, volumes[0])
 
         # Find the node.
-        node = deployment.get_node(ip_to_uuid(host), hostname=host)
+        node = deployment.get_node(host)
 
         # Check if we have any ports in the request. If we do, check existing
         # external ports exposed to ensure there is no conflict. If there is a
@@ -642,8 +635,7 @@ class ConfigurationAPIUserV1(object):
             restart_policy=policy,
             cpu_shares=cpu_shares,
             memory_limit=memory_limit,
-            links=application_links,
-            command_line=command_line,
+            links=application_links
         )
 
         new_node_config = node.transform(
@@ -697,7 +689,7 @@ class ConfigurationAPIUserV1(object):
             been updated.
         """
         deployment = self.persistence_service.get()
-        target_node = deployment.get_node(ip_to_uuid(host), hostname=host)
+        target_node = deployment.get_node(host)
         for node in deployment.nodes:
             for application in node.applications:
                 if application.name == name:
@@ -869,8 +861,7 @@ def _update_dataset_primary(deployment, dataset_id, primary):
     )
     deployment = deployment.update_node(old_primary_node)
 
-    new_primary_node = deployment.get_node(ip_to_uuid(primary),
-                                           hostname=primary)
+    new_primary_node = deployment.get_node(primary)
     new_primary_node = new_primary_node.transform(
         ("manifestations", dataset_id), primary_manifestation
     )
@@ -979,8 +970,6 @@ def container_configuration_response(application, node):
         result["cpu_shares"] = application.cpu_shares
     if application.memory_limit is not None:
         result["memory_limit"] = application.memory_limit
-    if application.command_line is not None:
-        result["command_line"] = list(application.command_line)
     return result
 
 

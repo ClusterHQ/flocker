@@ -3,8 +3,6 @@
 """
 Tests for :module:`flocker.node.script`.
 """
-import netifaces
-
 from zope.interface.verify import verifyObject
 
 from twisted.internet.defer import Deferred
@@ -32,7 +30,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"127.0.0.1"])
+        options.parseOptions([b"1.2.3.4", b"example.com"])
         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
@@ -42,7 +40,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         script = ZFSAgentScript()
         options = ZFSAgentOptions()
-        options.parseOptions([b"127.0.0.1"])
+        options.parseOptions([b"1.2.3.4", b"example.com"])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
                                         Service()))
 
@@ -52,7 +50,8 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"--destination-port", b"1234", b"10.0.0.1"])
+        options.parseOptions([b"--destination-port", b"1234", b"1.2.3.4",
+                              b"example.com"])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
@@ -61,31 +60,13 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         deployer = parent_service.deployer
         parent_service.deployer = None
         self.assertEqual((parent_service, deployer.__class__,
-                          deployer.volume_service,
+                          deployer.hostname, deployer.volume_service,
                           parent_service.running),
                          (AgentLoopService(reactor=test_reactor,
                                            deployer=None,
-                                           host=u"10.0.0.1",
+                                           host=u"example.com",
                                            port=1234),
-                          P2PManifestationDeployer, service, True))
-
-
-def get_all_ips():
-    """
-    Find all IPs for this machine.
-
-    :return: ``list`` of IP addresses (``bytes``).
-    """
-    ips = []
-    interfaces = netifaces.interfaces()
-    for interface in interfaces:
-        addresses = netifaces.ifaddresses(interface)
-        ipv4 = addresses.get(netifaces.AF_INET)
-        if not ipv4:
-            continue
-        for address in ipv4:
-            ips.append(address['addr'])
-    return ips
+                          P2PManifestationDeployer, b"1.2.3.4", service, True))
 
 
 class AgentServiceFactoryTests(SynchronousTestCase):
@@ -100,14 +81,14 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         deployer = object()
 
         def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
+            if kw.keys() != ["hostname"]:
                 raise TypeError("wrong arguments")
             return deployer
 
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([
-            b"--destination-port", b"1234", b"10.0.0.2",
+            b"--destination-port", b"1234", b"10.0.0.1", b"10.0.0.2",
         ])
         service_factory = AgentServiceFactory(
             deployer_factory=factory
@@ -122,23 +103,23 @@ class AgentServiceFactoryTests(SynchronousTestCase):
             service_factory.get_service(reactor, options)
         )
 
-    def test_deployer_factory_called_with_ip(self):
+    def test_deployer_factory_called_with_hostname(self):
         """
-        ``AgentServiceFactory.main`` calls its ``deployer_factory`` with one
-        of the node's IPs.
+        ``AgentServiceFactory.main`` calls its ``deployer_factory`` with
+        the hostname given by the options.
         """
         spied = []
 
-        def deployer_factory(node_uuid, hostname):
+        def deployer_factory(hostname):
             spied.append(hostname)
             return object()
 
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
-        options.parseOptions([b"10.0.0.2"])
+        options.parseOptions([b"10.0.0.1", b"10.0.0.2"])
         agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
-        self.assertIn(spied[0], get_all_ips())
+        self.assertEqual([b"10.0.0.1"], spied)
 
 
 class AgentScriptTests(SynchronousTestCase):
@@ -246,7 +227,7 @@ def make_amp_agent_options_tests(options_type):
             The default AMP destination port configured by the command line
             options is 4524.
             """
-            self.options.parseOptions([b"127.0.0.1"])
+            self.options.parseOptions([b"1.2.3.4", b"example.com"])
             self.assertEqual(self.options["destination-port"], 4524)
 
         def test_custom_port(self):
@@ -255,7 +236,7 @@ def make_amp_agent_options_tests(options_type):
             the destination port.
             """
             self.options.parseOptions([b"--destination-port", b"1234",
-                                       b"127.0.0.1"])
+                                       b"1.2.3.4", b"example.com"])
             self.assertEqual(self.options["destination-port"], 1234)
 
         def test_host(self):
@@ -263,10 +244,18 @@ def make_amp_agent_options_tests(options_type):
             The second required command-line argument allows configuring the
             destination host.
             """
-            self.options.parseOptions([b"10.0.0.1"])
+            self.options.parseOptions([b"1.2.3.4", b"control.example.com"])
             self.assertEqual(
-                self.options["destination-host"], u"10.0.0.1",
+                self.options["destination-host"], u"control.example.com"
             )
+
+        def test_hostname(self):
+            """
+            The first required command-line argument allows configuring the
+            hostname of the node the agent is operating on.
+            """
+            self.options.parseOptions([b"5.6.7.8", b"control.example.com"])
+            self.assertEqual(self.options["hostname"], u"5.6.7.8")
 
     return Tests
 
@@ -294,7 +283,7 @@ class ZFSAgentOptionsTests(make_amp_agent_options_tests(ZFSAgentOptions)):
 
 
 class ZFSAgentOptionsVolumeTests(make_volume_options_tests(
-        ZFSAgentOptions, [b"1.2.3.4"])):
+        ZFSAgentOptions, [b"1.2.3.4", b"example.com"])):
     """
     Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """

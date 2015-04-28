@@ -473,6 +473,7 @@ class BuildPackage(object):
             '--name', self.name,
             '--prefix', self.prefix.path,
             '--version', self.rpm_version.version,
+            '--epoch', self.epoch,
             '--iteration', self.rpm_version.release,
             '--license', self.license,
             '--url', self.url,
@@ -482,10 +483,6 @@ class BuildPackage(object):
             '--description', self.description,
             '--category', self.category,
         ]
-
-        if not (self.package_type is PackageTypes.DEB and self.epoch == '0'):
-            # Leave epoch unset for deb's with epoch 0
-            command.extend(['--epoch', self.epoch])
 
         for requirement in self.dependencies:
             command.extend(
@@ -591,11 +588,6 @@ IGNORED_WARNINGS = {
         # We don't allow configuring ufw firewall applications.
         'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
 
-        # Upstart control files are not installed as conffiles.
-        'non-conffile-in-etc /etc/init/flocker-agent.conf',
-        'non-conffile-in-etc /etc/init/flocker-container-agent.conf',
-        'non-conffile-in-etc /etc/init/flocker-control.conf',
-
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
 
@@ -658,13 +650,8 @@ IGNORED_WARNINGS = {
         ('file-in-etc-not-marked-as-conffile '
          'etc/ufw/applications.d/flocker-control'),
 
-        # Upstart control files are not installed as conffiles.
-        'file-in-etc-not-marked-as-conffile etc/init/flocker-agent.conf',
-        'file-in-etc-not-marked-as-conffile etc/init/flocker-container-agent.conf',  # noqa
-        'file-in-etc-not-marked-as-conffile etc/init/flocker-control.conf',
-
         # Cryptography hazmat bindings
-        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
+        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
     ),
 }
 
@@ -940,9 +927,6 @@ def omnibus_package_builder(
                     # SystemD configuration
                     package_files.child('systemd'):
                         FilePath('/usr/lib/systemd/system'),
-                    # Upstart configuration
-                    package_files.child('upstart'):
-                        FilePath('/etc/init'),
                     # Flocker Control State dir
                     empty_path: FilePath('/var/lib/flocker/'),
                 },
@@ -1125,8 +1109,6 @@ class DockerBuildScript(object):
             self.sys_module.stderr.write("%s\n" % (e,))
             raise SystemExit(1)
 
-        # Currently we add system control files for both EL and Debian-based
-        # systems.  We should probably be more specific.  See FLOC-1736.
         self.build_command(
             distribution=CURRENT_DISTRIBUTION,
             destination_path=options['destination-path'],

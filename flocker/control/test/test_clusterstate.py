@@ -123,10 +123,9 @@ class ClusterStateServiceTests(SynchronousTestCase):
         ``manifestation_path`` returns the path on the filesystem where the
         given dataset exists.
         """
-        identifier = uuid4()
         service = self.service()
         service.apply_changes([
-            NodeState(hostname=u"host1", uuid=identifier,
+            NodeState(hostname=u"host1",
                       manifestations={
                           MANIFESTATION.dataset_id:
                           MANIFESTATION},
@@ -134,5 +133,5 @@ class ClusterStateServiceTests(SynchronousTestCase):
                              FilePath(b"/xxx/yyy")})
         ])
         self.assertEqual(
-            service.manifestation_path(identifier, MANIFESTATION.dataset_id),
+            service.manifestation_path(u"host1", MANIFESTATION.dataset_id),
             FilePath(b"/xxx/yyy"))

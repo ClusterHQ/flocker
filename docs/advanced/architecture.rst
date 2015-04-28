@@ -36,7 +36,7 @@ Convergence agents
 ==================
 
 Convergence agents ensure that the state of the cluster eventually converges with the configuration.
-They control the actual system state but cannot modify the configuration.
+They control the actual system state but are not be able to modify the configuration.
 
 Each agent is solely responsible for some particular piece of state in the cluster, its local state.
 Some convergence agents may be in charge of state related to a specific node, e.g. a ZFS agent may be in charge of ZFS datasets on node A.

@@ -1,12 +1,12 @@
-Building Omnibus Packages
-=========================
+Building Omnibus RPMs
+=====================
 
 Flocker depends on a number of Python packages which aren't available in Fedora,
 or newer versions than are available there.
-So the ``build-package`` script bundles those packages into the operating system package.
+So the ``build-package`` script bundles those packages into the RPM.
 We refer to these as "Omnibus" packages.
 
-To build omnibus packages, create a VirtualEnv and install Flocker then its release dependencies:
+To build omnibus RPMs, create a VirtualEnv and install Flocker then its release dependencies:
 
 .. code-block:: sh
 
@@ -21,8 +21,7 @@ Then run the following command from a clean checkout of the Flocker repository:
 
    ./admin/build-package --distribution=fedora-20 $PWD
 
-The distribution can be any of the supported distributions (see ``./admin/build-package --help`` for a list).
-This will generate three packages files in the current working directory. E.g.
+This will generate three RPM files in the current working directory. E.g.
 
 * ``clusterhq-python-flocker-0.3.0-0.dev.1.307.gb6d6e9f.dirty.x86_64.rpm``
 
@@ -70,23 +69,15 @@ New packages are hosted on Amazon S3 in directories in the ``clusterhq-archive``
 
 The Homebrew installation script for OS X downloads packages from the ``python`` directory.
 
-<<<<<<< HEAD
 Binary and source distributions are hosted in the ``python`` directory, with an index for ``pip``.
 
 Fedora 20 and CentOS client and node packages in the ``fedora`` and ``centos`` directories.
 There are also ``fedora-testing`` and ``centos-testing`` directories used for weekly development releases.
 
-=======
-Fedora, CentOS and Ubuntu client and node packages are hosted on Amazon S3.
-
->>>>>>> origin/master
 ``clusterhq-archive``
 ---------------------
 
-For each distribution, there are ``<distribution>`` and ``<distribution>-testing`` folders.
-Each contains sub-folders for the distribution version and architecture, which finally contain package repositories.
-
-To make the entire bucket public, this bucket has the following policy::
+This bucket has the following policy::
 
    {
    	"Version": "2008-10-17",
@@ -104,15 +95,8 @@ To make the entire bucket public, this bucket has the following policy::
 
 A policy can be set by going to a bucket's "Properties", "Permissions", then "Add bucket policy".
 
-<<<<<<< HEAD
 ``clusterhq-release package``
 -----------------------------
-=======
-``clusterhq-release`` package
------------------------------
-
-RPM-based distributions tend to bundle ``yum`` repository definitions in ``*-release`` packages.
->>>>>>> origin/master
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
