@@ -10,6 +10,8 @@ from pipes import quote as shell_quote
 from socket import gaierror, socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
+from uuid import UUID
+
 from yaml import safe_dump
 
 from twisted.web.http import OK, CREATED
@@ -404,13 +406,24 @@ def assert_expected_deployment(test_case, expected_deployment):
     return d
 
 
+class ControlService(PRecord):
+    """
+    A record of the cluster's control service.
+
+    :ivar bytes address: The IPv4 address of the control service.
+    """
+    address = field(type=bytes)
+
+
 class Node(PRecord):
     """
     A record of a cluster node.
 
     :ivar bytes address: The IPv4 address of the node.
+    :ivar UUID uuid: The UUID of the node.
     """
     address = field(type=bytes)
+    uuid = field(type=UUID)
 
 
 class _NodeList(CheckedPVector):
@@ -463,7 +476,7 @@ class Cluster(PRecord):
         service.
     :param list nodes: The ``Node`` s in this cluster.
     """
-    control_node = field(type=Node)
+    control_node = field(type=ControlService)
     nodes = field(type=_NodeList)
 
     @property
@@ -754,7 +767,7 @@ def get_test_cluster(node_count=0):
                            necessary=node_count, existing=len(agent_nodes)))
 
     cluster = Cluster(
-        control_node=Node(address=control_node),
+        control_node=ControlService(address=control_node),
         nodes=[]
     )
 
@@ -770,7 +783,7 @@ def get_test_cluster(node_count=0):
     # will switch to UUIDs instead.
     agents_connected.addCallback(lambda _: cluster.current_nodes())
     agents_connected.addCallback(lambda (cluster, nodes): cluster.set(
-        "nodes", [Node(address=node[u"hostname"].encode("ascii"))
+        "nodes", [Node(uuid=node[u"node_uuid"].encode("ascii"))
                   for node in nodes]))
     return agents_connected
 
