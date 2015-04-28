@@ -85,7 +85,8 @@ class GenericDockerClientTests(TestCase):
                         ports=None, expected_states=(u'active',),
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
-                        restart_policy=RestartNever()):
+                        restart_policy=RestartNever(),
+                        command_line=None):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -99,6 +100,7 @@ class GenericDockerClientTests(TestCase):
         :param mem_limit: See ``IDockerClient.add``.
         :param cpu_shares: See ``IDockerClient.add``.
         :param restart_policy: See ``IDockerClient.add``.
+        :param command_line: See ``IDockerClient.add``.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
             the unit reaches the expected state.
@@ -113,6 +115,7 @@ class GenericDockerClientTests(TestCase):
             mem_limit=mem_limit,
             cpu_shares=cpu_shares,
             restart_policy=restart_policy,
+            command_line=command_line,
         )
         self.addCleanup(client.remove, unit_name)
 
@@ -639,6 +642,34 @@ CMD sh -c "trap \"\" 2; sleep 3"
         # A Docker change e721ed9b5319e8e7c1daf87c34690f8a4e62c9e3 means that
         # this value depends on the version of Docker.
         d.addCallback(self.assertIn, ("5", "6"))
+        return d
+
+    def test_command_line(self):
+        """
+        A container with custom command line is run with those arguments.
+        """
+        external_port = find_free_port()[1]
+        name = random_name()
+        d = self.start_container(
+            name, image_name=u"busybox",
+            command_line=[u"sh", u"-c", u"""\
+echo -n '#!/bin/sh
+echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
+' > /tmp/script.sh;
+chmod +x /tmp/script.sh;
+nc -ll -p 8080 -e /tmp/script.sh
+"""],
+            ports=[PortMap(internal_port=8080,
+                           external_port=external_port)])
+
+        d.addCallback(
+            lambda ignored: self.request_until_response(external_port))
+
+        def started(response):
+            d = content(response)
+            d.addCallback(lambda body: self.assertEqual(b"hi", body))
+            return d
+        d.addCallback(started)
         return d
 
 

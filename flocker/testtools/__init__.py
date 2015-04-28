@@ -21,6 +21,8 @@ from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
+from bitmath import GB
+
 from pyrsistent import PRecord, field
 
 from zope.interface import implementer
@@ -30,6 +32,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
+from twisted.python.reflect import prefixedMethodNames
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
@@ -47,6 +50,12 @@ from characteristic import attributes
 from .. import __version__
 from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
+
+
+# This is currently set to the minimum size for a SATA based Rackspace Cloud
+# Block Storage volume. See:
+# * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
+REALISTIC_BLOCKDEVICE_SIZE = int(GB(75).to_Byte().value)
 
 
 @implementer(IProcessTransport)
@@ -846,3 +855,43 @@ def run_process(command, *args, **kwargs):
     if result.status:
         raise CalledProcessError(returncode=status, cmd=command, output=output)
     return result
+
+
+def skip_except(supported_tests):
+    """
+    Mark all the ``test_`` methods in ``TestCase`` as ``skip`` unless the test
+    method names are in ``supported_tests``.
+
+    :param list supported_tests: The names of the tests that are expected to
+        pass.
+    """
+    test_prefix = 'test_'
+    skip_or_todo = 'skip'
+    noskip = os.environ.get('NOSKIP')
+    if noskip is not None:
+        return lambda test_case: test_case
+
+    def decorator(test_case):
+        test_method_names = [
+            test_prefix + name
+            for name
+            in prefixedMethodNames(test_case, test_prefix)
+        ]
+        for test_method_name in test_method_names:
+            if test_method_name not in supported_tests:
+                test_method = getattr(test_case, test_method_name)
+                new_message = []
+                existing_message = getattr(test_method, skip_or_todo, None)
+                if existing_message is not None:
+                    new_message.append(existing_message)
+                new_message.append('Not implemented yet')
+                new_message = ' '.join(new_message)
+
+                @wraps(test_method)
+                def wrapper(*args, **kwargs):
+                    return test_method(*args, **kwargs)
+                setattr(wrapper, skip_or_todo, new_message)
+                setattr(test_case, test_method_name, wrapper)
+
+        return test_case
+    return decorator
