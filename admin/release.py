@@ -351,6 +351,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
     TODO
     """
     # TODO use box_metadata from vagrant.py
+    # TODO use vagrant_version to convert a python version to a vagrant version
     import json
     new_metadata = {
         "version": version,

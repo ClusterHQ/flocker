@@ -1830,6 +1830,12 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             expected_metadata,
         )
 
+    def test_version_normalised(self):
+        """
+        The version given is converted to a version number acceptable to
+        Vagrant.
+        """
+
     def test_invalid_metadata_fails(self):
         """
         If the metadata which exists already is not valid, an exception is
