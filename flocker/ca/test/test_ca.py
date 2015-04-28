@@ -195,13 +195,13 @@ class UserCredentialTests(SynchronousTestCase):
         crt_file.write(b"dummy")
         crt_file.close()
         # make file unreadable
-        crt_path.chmod(64)
+        crt_path.chmod(0o100)
         key_path = path.child(key_file)
         key_file = key_path.open(b'w')
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(64)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, UserCredential.from_path, path, self.username
         )
@@ -231,7 +231,7 @@ class UserCredentialTests(SynchronousTestCase):
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(64)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, UserCredential.from_path, path, self.username
         )
@@ -243,7 +243,7 @@ class UserCredentialTests(SynchronousTestCase):
 
     def test_certificate_subject_username(self):
         """
-        A cert written by ``UserCredential.initialize`` has the
+        A certificate written by ``UserCredential.initialize`` has the
         subject common name "user-{user}" where {user} is the username
         supplied during the certificate's creation.
         """
@@ -254,7 +254,7 @@ class UserCredentialTests(SynchronousTestCase):
 
     def test_certificate_ou_matches_ca(self):
         """
-        A cert written by ``UserCredential.initialize`` has the issuing
+        A certificate written by ``UserCredential.initialize`` has the issuing
         authority's common name as its organizational unit name.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
@@ -268,7 +268,7 @@ class UserCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_signed_by_ca(self):
         """
-        A cert written by ``UserCredential.initialize`` is validated
+        A certificate written by ``UserCredential.initialize`` is validated
         as being signed by the certificate authority.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
@@ -281,7 +281,7 @@ class UserCredentialTests(SynchronousTestCase):
 
     def test_certificate_expiration(self):
         """
-        A cert written by ``UserCredential.initialize`` has an expiry
+        A certificate written by ``UserCredential.initialize`` has an expiry
         date 20 years from the date of signing.
         """
         today = datetime.datetime.now()
@@ -294,7 +294,7 @@ class UserCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """
-        A cert written by ``UserCredential.initialize`` is an RSA
+        A certificate written by ``UserCredential.initialize`` is an RSA
         4096 bit, SHA-256 format.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
@@ -485,13 +485,13 @@ class NodeCredentialTests(SynchronousTestCase):
         crt_file.write(b"dummy")
         crt_file.close()
         # make file unreadable
-        crt_path.chmod(0100)
+        crt_path.chmod(0o100)
         key_path = path.child(key_file)
         key_file = key_path.open(b'w')
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(0100)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, NodeCredential.from_path, path, uuid
         )
@@ -523,7 +523,7 @@ class NodeCredentialTests(SynchronousTestCase):
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(0100)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, NodeCredential.from_path, path, uuid
         )
@@ -535,7 +535,7 @@ class NodeCredentialTests(SynchronousTestCase):
 
     def test_certificate_subject_node_uuid(self):
         """
-        A cert written by ``NodeCredential.initialize`` has the
+        A certificate written by ``NodeCredential.initialize`` has the
         subject common name "node-{uuid}" where {uuid} is the UUID
         generated during the certificate's creation.
         """
@@ -546,7 +546,7 @@ class NodeCredentialTests(SynchronousTestCase):
 
     def test_certificate_ou_matches_ca(self):
         """
-        A cert written by ``NodeCredential.initialize`` has the issuing
+        A certificate written by ``NodeCredential.initialize`` has the issuing
         authority's common name as its organizational unit name.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
@@ -560,7 +560,7 @@ class NodeCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_signed_by_ca(self):
         """
-        A cert written by ``NodeCredential.initialize`` is validated
+        A certificate written by ``NodeCredential.initialize`` is validated
         as being signed by the certificate authority.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
@@ -573,7 +573,7 @@ class NodeCredentialTests(SynchronousTestCase):
 
     def test_certificate_expiration(self):
         """
-        A cert written by ``NodeCredential.initialize`` has an expiry
+        A certificate written by ``NodeCredential.initialize`` has an expiry
         date 20 years from the date of signing.
         """
         today = datetime.datetime.now()
@@ -586,7 +586,7 @@ class NodeCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """
-        A cert written by ``NodeCredential.initialize`` is an RSA
+        A certificate written by ``NodeCredential.initialize`` is an RSA
         4096 bit, SHA-256 format.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
@@ -760,13 +760,13 @@ class ControlCredentialTests(SynchronousTestCase):
         crt_file.write(b"dummy")
         crt_file.close()
         # make file unreadable
-        crt_path.chmod(0100)
+        crt_path.chmod(0o100)
         key_path = path.child(CONTROL_KEY_FILENAME)
         key_file = key_path.open(b'w')
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(0100)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, ControlCredential.from_path, path
         )
@@ -794,7 +794,7 @@ class ControlCredentialTests(SynchronousTestCase):
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(0100)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, ControlCredential.from_path, path
         )
@@ -806,7 +806,7 @@ class ControlCredentialTests(SynchronousTestCase):
 
     def test_certificate_subject_control_service(self):
         """
-        A cert written by ``ControlCredential.initialize`` has the
+        A certificate written by ``ControlCredential.initialize`` has the
         subject common name "control-service"
         """
         cc = ControlCredential.initialize(self.path, self.ca)
@@ -816,8 +816,8 @@ class ControlCredentialTests(SynchronousTestCase):
 
     def test_certificate_ou_matches_ca(self):
         """
-        A cert written by ``ControlCredential.initialize`` has the issuing
-        authority's common name as its organizational unit name.
+        A certificate written by ``ControlCredential.initialize`` has the
+        issuing authority's common name as its organizational unit name.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
         cert = cc.credential.certificate.original
@@ -830,7 +830,7 @@ class ControlCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_signed_by_ca(self):
         """
-        A cert written by ``ControlCredential.initialize`` is validated
+        A certificate written by ``ControlCredential.initialize`` is validated
         as being signed by the certificate authority.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
@@ -843,7 +843,7 @@ class ControlCredentialTests(SynchronousTestCase):
 
     def test_certificate_expiration(self):
         """
-        A cert written by ``ControlCredential.initialize`` has an expiry
+        A certificate written by ``ControlCredential.initialize`` has an expiry
         date 20 years from the date of signing.
         """
         today = datetime.datetime.now()
@@ -856,7 +856,7 @@ class ControlCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """
-        A cert written by ``ControlCredential.initialize`` is an RSA
+        A certificate written by ``ControlCredential.initialize`` is an RSA
         4096 bit, SHA-256 format.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
@@ -1038,13 +1038,13 @@ class RootCredentialTests(SynchronousTestCase):
         crt_file.write(b"dummy")
         crt_file.close()
         # make file unreadable
-        crt_path.chmod(0100)
+        crt_path.chmod(0o100)
         key_path = path.child(AUTHORITY_KEY_FILENAME)
         key_file = key_path.open(b'w')
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(0100)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, RootCredential.from_path, path
         )
@@ -1072,7 +1072,7 @@ class RootCredentialTests(SynchronousTestCase):
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(0100)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, RootCredential.from_path, path
         )
@@ -1084,7 +1084,7 @@ class RootCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_self_signed(self):
         """
-        A cert written by ``RootCredential.initialize`` is validated
+        A certificate written by ``RootCredential.initialize`` is validated
         as a self-signed certificate.
         """
         path = FilePath(self.mktemp())
@@ -1097,7 +1097,7 @@ class RootCredentialTests(SynchronousTestCase):
 
     def test_certificate_expiration(self):
         """
-        A cert written by ``RootCredential.initialize`` has an expiry
+        A certificate written by ``RootCredential.initialize`` has an expiry
         date 20 years from the date of signing.
         """
         today = datetime.datetime.now()
@@ -1112,7 +1112,7 @@ class RootCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """
-        A cert written by ``RootCredential.initialize`` is an RSA
+        A certificate written by ``RootCredential.initialize`` is an RSA
         4096 bit, SHA-256 format.
         """
         path = FilePath(self.mktemp())
