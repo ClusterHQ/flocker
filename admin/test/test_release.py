@@ -55,7 +55,6 @@ def hard_linking_possible():
         scratch_directory.remove()
 
 
-
 class PublishDocsTests(SynchronousTestCase):
     """
     Tests for :func:``publish_docs``.
@@ -1687,9 +1686,11 @@ class UploadPipIndexTests(SynchronousTestCase):
 
         self.assertEqual(
             aws.s3_buckets[bucket]['python/index.html'],
-            'This is an index for pip\n'
-            '<a href="Flocker-0.3.1-py2-none-any.whl">'
-            'Flocker-0.3.1-py2-none-any.whl</a><br/>\n')
+            dedent('''\
+            <html>
+            \t<a href="Flocker-0.3.1-py2-none-any.whl">'''
+            '''Flocker-0.3.1-py2-none-any.whl</a><br />
+            </html>'''))
 
 
 class CalculateBaseBranchTests(SynchronousTestCase):

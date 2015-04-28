@@ -11,7 +11,6 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 import os
 import sys
 import tempfile
-from xml.sax.saxutils import quoteattr, escape
 
 from setuptools import __version__ as setuptools_version
 from subprocess import check_call
@@ -26,6 +25,7 @@ from git import GitCommandError, Repo
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
+from twisted.web.template import Element, renderer, XMLString, flatten
 
 import flocker
 from flocker.provision._effect import sequence, dispatcher as base_dispatcher
@@ -482,6 +482,27 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         )
 
 
+packages_template = (
+    '<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">\n'
+    '\t<a t:render="packages">'
+    '<t:attr name="href"><t:slot name="package_name" /></t:attr>'
+    '<t:slot name="package_name" /></a><br />\n'
+    '</html>'
+    )
+
+
+class PackagesElement(Element):
+
+    def __init__(self, packages):
+        Element.__init__(self, XMLString(packages_template))
+        self._packages = packages
+
+    @renderer
+    def packages(self, request, tag):
+        for package in self._packages:
+            yield tag.clone().fillSlots(package_name=package)
+
+
 def create_pip_index(scratch_directory, packages):
     """
     Create an index file for pip.
@@ -492,12 +513,12 @@ def create_pip_index(scratch_directory, packages):
     """
     index_file = scratch_directory.child('index.html')
     with index_file.open('w') as f:
-        f.write('This is an index for pip\n')
-        for package in packages:
-            if package != 'index.html':
-                f.write('<a href={destination}>{title}</a><br/>\n'.format(
-                    destination=quoteattr(package),
-                    title=escape(package)))
+        # Although this returns a Deferred, it works without the reactor
+        # because there are no Deferreds in the template evaluation.
+        # See this cheat described at
+        # https://twistedmatrix.com/documents/15.0.0/web/howto/twisted-templates.html
+        # TODO: convert the Twisted Deferred into an Effect?
+        flatten(None, PackagesElement(packages), f.write)
     return index_file
 
 
