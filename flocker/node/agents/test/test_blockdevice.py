@@ -645,7 +645,7 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
                     hostname=deployer.hostname
                 ),
                 MountBlockDevice(
-                    dataset_id=dataset.dataset_id, mountpoint=mountpoint
+                    dataset_id=UUID(dataset.dataset_id), mountpoint=mountpoint
                 ),
             ]),
             changes

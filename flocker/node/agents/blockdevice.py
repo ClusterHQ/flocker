@@ -167,7 +167,7 @@ UNMOUNT_BLOCK_DEVICE = ActionType(
 
 MOUNT_BLOCK_DEVICE = ActionType(
     u"agent:blockdevice:mount",
-    [VOLUME],
+    [DATASET_ID],
     [],
     u"A block-device-backed dataset is being mounted.",
 )
@@ -436,6 +436,12 @@ class ResizeBlockDeviceDataset(PRecord):
         attach = AttachVolume(
             dataset_id=self.dataset_id, hostname=deployer.hostname
         )
+        mount = MountBlockDevice(
+            dataset_id=self.dataset_id,
+            mountpoint=deployer._mountpath_for_dataset_id(
+                unicode(self.dataset_id)
+            )
+        )
         return run_state_change(
             sequentially(
                 changes=[
@@ -444,12 +450,7 @@ class ResizeBlockDeviceDataset(PRecord):
                     ResizeVolume(volume=volume, size=self.size),
                     attach,
                     ResizeFilesystem(volume=volume),
-                    MountBlockDevice(
-                        volume=volume,
-                        mountpoint=deployer._mountpath_for_dataset_id(
-                            unicode(self.dataset_id)
-                        )
-                    ),
+                    mount,
                 ]
             ),
             deployer,
@@ -467,21 +468,21 @@ class MountBlockDevice(PRecord):
     :ivar FilePath mountpoint: The filesystem location at which to mount the
         volume's filesystem.  If this does not exist, it is created.
     """
-    volume = _volume_field()
+    dataset_id = field(type=UUID, mandatory=True)
     mountpoint = field(type=FilePath, mandatory=True)
 
     @property
     def eliot_action(self):
-        return MOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
+        return MOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
 
     def run(self, deployer):
         """
         Run the system ``mount`` tool to mount this change's volume's block
         device.  The volume must be attached to this node.
         """
-        device = deployer.block_device_api.get_device_path(
-            self.volume.blockdevice_id
-        )
+        api = deployer.block_device_api
+        volume = _blockdevice_volume_from_datasetid(api, self.dataset_id)
+        device = api.get_device_path(volume.blockdevice_id)
         # This should be asynchronous.  Do it as part of FLOC-1499.
         try:
             self.mountpoint.makedirs()
