@@ -329,7 +329,7 @@ def perform_upload_s3_key_recursively(dispatcher, intent):
                 UploadToS3(
                     source_path=intent.source_path,
                     target_bucket=intent.target_bucket,
-                    target_key=intent.target_key,
+                    target_key="%s/%s" % (intent.target_key, file),
                     file=path,
                     ))
 
@@ -359,8 +359,7 @@ def perform_upload_s3_key(dispatcher, intent):
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.target_bucket)
     with intent.file.open() as source_file:
-        key = bucket.new_key(intent.target_key +
-                             intent.file.path[len(intent.source_path.path):])
+        key = bucket.new_key(intent.target_key)
         key.set_contents_from_file(source_file)
         key.make_public()
 
@@ -472,8 +471,7 @@ class FakeAWS(object):
         """
         bucket = self.s3_buckets[intent.target_bucket]
         with intent.file.open() as source_file:
-            bucket[intent.target_key + intent.file.path[
-                   len(intent.source_path.path):]] = source_file.read()
+            bucket[intent.target_key] = source_file.read()
 
     def get_dispatcher(self):
         """
