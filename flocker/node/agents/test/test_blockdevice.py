@@ -1953,7 +1953,7 @@ class CreateFilesystemTests(
 class MountBlockDeviceInitTests(
     make_with_init_tests(
         MountBlockDevice,
-        dict(volume=_ARBITRARY_VOLUME, mountpoint=FilePath(b"/foo")),
+        dict(dataset_id=uuid4(), mountpoint=FilePath(b"/foo")),
         dict(),
     )
 ):
@@ -2052,8 +2052,8 @@ class _MountScenario(PRecord):
 class MountBlockDeviceTests(
     make_istatechange_tests(
         MountBlockDevice,
-        dict(volume=_ARBITRARY_VOLUME, mountpoint=FilePath(b"/foo")),
-        dict(volume=_ARBITRARY_VOLUME, mountpoint=FilePath(b"/bar")),
+        dict(dataset_id=uuid4(), mountpoint=FilePath(b"/foo")),
+        dict(dataset_id=uuid4(), mountpoint=FilePath(b"/bar")),
     )
 ):
     """
@@ -2068,7 +2068,7 @@ class MountBlockDeviceTests(
         self.successResultOf(scenario.create())
 
         change = MountBlockDevice(
-            volume=scenario.volume, mountpoint=scenario.mountpoint
+            dataset_id=scenario.dataset_id, mountpoint=scenario.mountpoint
         )
         return scenario, run_state_change(change, scenario.deployer)
 
@@ -2596,7 +2596,7 @@ class ResizeVolumeTests(
 class AttachVolumeInitTests(
     make_with_init_tests(
         AttachVolume,
-        dict(volume=_ARBITRARY_VOLUME, hostname=u"10.0.0.1"),
+        dict(dataset_id=uuid4(), hostname=u"10.0.0.1"),
         dict(),
     )
 ):
@@ -2608,8 +2608,8 @@ class AttachVolumeInitTests(
 class AttachVolumeTests(
     make_istatechange_tests(
         AttachVolume,
-        dict(volume=_ARBITRARY_VOLUME, hostname=u"10.0.0.1"),
-        dict(volume=_ARBITRARY_VOLUME, hostname=u"10.0.0.2"),
+        dict(dataset_id=uuid4(), hostname=u"10.0.0.1"),
+        dict(dataset_id=uuid4(), hostname=u"10.0.0.2"),
     )
 ):
     """
@@ -2683,7 +2683,7 @@ class ResizeFilesystemTests(
         )
         attach = AttachVolume(dataset_id=dataset_id, hostname=host)
         createfs = CreateFilesystem(volume=volume, filesystem=filesystem)
-        mount = MountBlockDevice(volume=volume, mountpoint=mountpoint)
+        mount = MountBlockDevice(dataset_id=dataset_id, mountpoint=mountpoint)
 
         unmount = UnmountBlockDevice(volume=volume)
         detach = DetachVolume(volume=volume)
