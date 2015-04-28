@@ -140,7 +140,7 @@ setup(
         # This is necessary for a release because our version scheme does not
         # adhere to PEP440.
         # See https://clusterhq.atlassian.net/browse/FLOC-1373
-        "setuptools==7.0",
+        "setuptools==3.6",
 
         "eliot == 0.6.0",
         "machinist == 0.2.0",
