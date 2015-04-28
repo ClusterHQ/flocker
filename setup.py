@@ -137,7 +137,7 @@ setup(
     install_requires=[
         "setuptools >= 1.4",
 
-        "eliot == 0.6.0",
+        "eliot == 0.7.1",
         "machinist == 0.2.0",
         "zope.interface >= 4.0.5",
         "pytz",
