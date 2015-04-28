@@ -1305,9 +1305,6 @@ class BlockDeviceDeployer(PRecord):
         return self.mountroot.child(dataset_id.encode("ascii"))
 
     def calculate_changes(self, configuration, cluster_state):
-        # Eventually use the Datasets to avoid creating things that exist
-        # already (https://clusterhq.atlassian.net/browse/FLOC-1575) and to
-        # avoid deleting things that don't exist.
         this_node_config = configuration.get_node(
             self.node_uuid, hostname=self.hostname)
         configured_manifestations = this_node_config.manifestations
@@ -1396,6 +1393,8 @@ class BlockDeviceDeployer(PRecord):
             but it can be fixed later when extant volumes are included in
             cluster state - see FLOC-1616).
         """
+        # This deletes everything.  Make it only delete things that exist.
+        # FLOC-1756
         delete_dataset_ids = set(
             manifestation.dataset.dataset_id
             for manifestation in configured_manifestations.values()
