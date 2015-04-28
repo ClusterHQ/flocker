@@ -33,7 +33,7 @@ from ._config import (
     model_from_configuration, FigConfiguration, FlockerConfiguration,
     ConfigurationError
 )
-from ._model import ip_to_uuid
+
 from .. import __version__
 
 
