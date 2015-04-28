@@ -112,7 +112,7 @@ class DeployerTests(TestCase):
         name = random_name()
         docker_client = DockerClient()
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network(), uuid=uuid4())
+            u"localhost", docker_client, make_memory_network(), node_uuid=uuid4())
         self.addCleanup(docker_client.remove, name)
 
         desired_state = Deployment(nodes=frozenset([
@@ -164,7 +164,7 @@ class DeployerTests(TestCase):
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
             u"localhost", volume_service, docker_client,
-            make_memory_network(), uuid=uuid4())
+            make_memory_network(), node_uuid=uuid4())
 
         expected_variables = frozenset({
             'key1': 'value1',
@@ -231,7 +231,7 @@ class DeployerTests(TestCase):
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
             u"locahost", volume_service, docker_client,
-            make_memory_network(), uuid=uuid4())
+            make_memory_network(), node_uuid=uuid4())
 
         expected_variables = frozenset({
             'ALIAS_PORT_80_TCP': 'tcp://localhost:8080',
@@ -300,7 +300,8 @@ class DeployerTests(TestCase):
         self.addCleanup(docker_client.remove, application_name)
 
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network(), uuid=uuid4())
+            u"localhost", docker_client, make_memory_network(),
+            node_uuid=uuid4())
 
         desired_state = Deployment(nodes=frozenset([
             Node(uuid=deployer.node_uuid,
@@ -345,7 +346,8 @@ class DeployerTests(TestCase):
         self.addCleanup(docker_client.remove, application_name)
 
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network(), uuid=uuid4())
+            u"localhost", docker_client, make_memory_network(),
+            node_uuid=uuid4())
 
         desired_state = Deployment(nodes=frozenset([
             Node(uuid=deployer.node_uuid,
