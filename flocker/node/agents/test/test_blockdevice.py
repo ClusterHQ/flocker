@@ -645,9 +645,14 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         changes = deployer.calculate_changes(cluster_config, cluster_state)
         self.assertEqual(
             sequentially(changes=[
-                # Attach it to this node.
-                AttachVolume(dataset=dataset, hostname=deployer.hostname),
-                MountBlockDevice(dataset=dataset, mountpoint=mountpoint),
+                AttachVolume(
+                    dataset_id=dataset.dataset_id,
+                    # Attach it to this node.
+                    hostname=deployer.hostname
+                ),
+                MountBlockDevice(
+                    dataset_id=dataset.dataset_id, mountpoint=mountpoint
+                ),
             ]),
             changes
         )
@@ -2626,7 +2631,7 @@ class AttachVolumeTests(
             block_device_api=api,
             mountroot=mountroot_for_test(self),
         )
-        change = AttachVolume(volume=volume, hostname=host)
+        change = AttachVolume(dataset_id=dataset_id, hostname=host)
         self.successResultOf(change.run(deployer))
 
         expected_volume = volume.set(host=host)
@@ -2676,7 +2681,7 @@ class ResizeFilesystemTests(
             block_device_api=api,
             mountroot=mountroot,
         )
-        attach = AttachVolume(volume=volume, hostname=host)
+        attach = AttachVolume(dataset_id=dataset_id, hostname=host)
         createfs = CreateFilesystem(volume=volume, filesystem=filesystem)
         mount = MountBlockDevice(volume=volume, mountpoint=mountpoint)
 
