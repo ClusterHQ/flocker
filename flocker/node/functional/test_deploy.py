@@ -112,11 +112,11 @@ class DeployerTests(TestCase):
         name = random_name()
         docker_client = DockerClient()
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network())
+            u"localhost", docker_client, make_memory_network(), uuid=uuid4())
         self.addCleanup(docker_client.remove, name)
 
         desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
+            Node(uuid=deployer.node_uuid,
                  applications=frozenset([Application(
                      name=name,
                      image=DockerImage.from_string(
@@ -164,7 +164,7 @@ class DeployerTests(TestCase):
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
             u"localhost", volume_service, docker_client,
-            make_memory_network())
+            make_memory_network(), uuid=uuid4())
 
         expected_variables = frozenset({
             'key1': 'value1',
@@ -176,7 +176,7 @@ class DeployerTests(TestCase):
             metadata=pmap({"name": application_name}))
         manifestation = Manifestation(dataset=dataset, primary=True)
         desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
+            Node(uuid=deployer.node_uuid,
                  applications=frozenset([Application(
                      name=application_name,
                      image=DockerImage.from_string(
@@ -230,8 +230,8 @@ class DeployerTests(TestCase):
 
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
-            u"localhost", volume_service, docker_client,
-            make_memory_network())
+            u"locahost", volume_service, docker_client,
+            make_memory_network(), uuid=uuid4())
 
         expected_variables = frozenset({
             'ALIAS_PORT_80_TCP': 'tcp://localhost:8080',
@@ -249,7 +249,7 @@ class DeployerTests(TestCase):
             metadata=pmap({"name": application_name}))
         manifestation = Manifestation(dataset=dataset, primary=True)
         desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
+            Node(uuid=deployer.node_uuid,
                  applications=frozenset([Application(
                      name=application_name,
                      image=DockerImage.from_string(
@@ -300,10 +300,10 @@ class DeployerTests(TestCase):
         self.addCleanup(docker_client.remove, application_name)
 
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network())
+            u"localhost", docker_client, make_memory_network(), uuid=uuid4())
 
         desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
+            Node(uuid=deployer.node_uuid,
                  applications=frozenset([Application(
                      name=application_name,
                      image=image,
@@ -345,10 +345,10 @@ class DeployerTests(TestCase):
         self.addCleanup(docker_client.remove, application_name)
 
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network())
+            u"localhost", docker_client, make_memory_network(), uuid=uuid4())
 
         desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
+            Node(uuid=deployer.node_uuid,
                  applications=frozenset([Application(
                      name=application_name,
                      image=image,

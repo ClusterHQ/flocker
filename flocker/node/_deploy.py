@@ -730,8 +730,10 @@ class ApplicationNodeDeployer(object):
         desired_proxies = set()
         desired_open_ports = set()
         desired_node_applications = []
+        node_states = {node.uuid: node for node in current_cluster_state.nodes}
+
         for node in desired_configuration.nodes:
-            if node.hostname == self.hostname:
+            if node.uuid == self.node_uuid:
                 desired_node_applications = node.applications
                 for application in node.applications:
                     for port in application.ports:
@@ -742,8 +744,10 @@ class ApplicationNodeDeployer(object):
                     for port in application.ports:
                         # XXX: also need to do DNS resolution. See
                         # https://clusterhq.atlassian.net/browse/FLOC-322
-                        desired_proxies.add(Proxy(ip=node.hostname,
-                                                  port=port.external_port))
+                        if node.uuid in node_states:
+                            desired_proxies.add(Proxy(
+                                ip=node_states[node.uuid].hostname,
+                                port=port.external_port))
 
         if desired_proxies != set(self.network.enumerate_proxies()):
             phases.append(SetProxies(ports=desired_proxies))

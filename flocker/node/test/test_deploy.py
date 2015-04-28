@@ -1143,11 +1143,13 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
         """
-        api = ApplicationNodeDeployer(u'node2.example.com',
+        api = ApplicationNodeDeployer(u'192.168.1.1',
                                       docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      network=make_memory_network(),
+                                      node_uuid=uuid4())
         expected_destination_port = 1001
-        expected_destination_host = u'node1.example.com'
+        expected_destination_host = u'192.168.1.2'
+        destination_node_uuid = uuid4()
         port = Port(internal_port=3306,
                     external_port=expected_destination_port)
         application = Application(
@@ -1159,17 +1161,45 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         nodes = frozenset([
             Node(
-                hostname=expected_destination_host,
+                uuid=destination_node_uuid,
                 applications=frozenset([application])
             )
         ])
 
         desired = Deployment(nodes=nodes)
+        current = DeploymentState(nodes=[
+            NodeState(uuid=destination_node_uuid,
+                      hostname=expected_destination_host)])
         result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
+            desired_configuration=desired, current_cluster_state=current)
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
         expected = sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
+        self.assertEqual(expected, result)
+
+    def test_no_proxy_if_node_state_unknown(self):
+        """
+        ``ApplicationNodeDeployer.calculate_changes`` does not attempt to
+        create a proxy to a node whose state is unknown, since the
+        destination IP is unavailable.
+        """
+        api = ApplicationNodeDeployer(u'192.168.1.1', node_uuid=uuid4(),
+                                      docker_client=FakeDockerClient(),
+                                      network=make_memory_network())
+        expected_destination_port = 1001
+        port = Port(internal_port=3306,
+                    external_port=expected_destination_port)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'release-14.0'),
+            ports=frozenset([port]),
+        )
+        desired = Deployment(nodes=[Node(uuid=uuid4(),
+                                         applications=[application])])
+        result = api.calculate_changes(
+            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
+        expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
     def test_proxy_empty(self):
@@ -1449,7 +1479,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=make_memory_network()
+            network=make_memory_network(),
+            node_uuid=uuid4(),
         )
 
         old_postgres_app = Application(
@@ -1463,17 +1494,13 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             image=DockerImage.from_string(u'docker/postgres:7.6'),
         )
 
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
-
         desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
+            Node(uuid=api.node_uuid,
                  applications=frozenset({new_postgres_app})),
         }))
         node_state = NodeState(
             hostname=api.hostname,
+            uuid=api.node_uuid,
             applications={old_postgres_app})
 
         result = api.calculate_changes(
@@ -1500,7 +1527,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=make_memory_network()
+            network=make_memory_network(),
+            node_uuid=uuid4(),
         )
 
         old_postgres_app = Application(
@@ -1515,16 +1543,12 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             volume=None
         )
 
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
-
         desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
+            Node(uuid=api.node_uuid,
                  applications=frozenset({new_postgres_app})),
         }))
         node_state = NodeState(
+            uuid=api.node_uuid,
             hostname=api.hostname,
             applications={old_postgres_app})
         result = api.calculate_changes(
@@ -1774,19 +1798,20 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         than inspecting application configuration.
         """
         node = Node(
-            hostname=u"10.1.1.1",
+            uuid=uuid4(),
             manifestations={
                 MANIFESTATION.dataset_id:
                 MANIFESTATION.transform(("dataset", "deleted"), True)},
         )
         desired = Deployment(nodes=[node])
         current = DeploymentState(nodes=[NodeState(
-            hostname=node.hostname,
+            uuid=node.uuid,
+            hostname=u"10.1.1.1",
             applications={APPLICATION_WITH_VOLUME},
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION})])
 
         api = P2PManifestationDeployer(
-            node.hostname, create_volume_service(self),
+            u"10.1.1.1", create_volume_service(self), node_uuid=node.uuid,
         )
         changes = api.calculate_changes(desired, current)
         self.assertEqual(sequentially(changes=[]), changes)
