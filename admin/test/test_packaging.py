@@ -978,6 +978,8 @@ class OmnibusPackageBuilderTests(TestCase):
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-control'),
                          flocker_node_path),
+                        (FilePath('/opt/flocker/bin/flocker-container-agent'),
+                         flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
@@ -997,6 +999,9 @@ class OmnibusPackageBuilderTests(TestCase):
                         # Systemd configuration
                         package_files.child('systemd'):
                             FilePath("/usr/lib/systemd/system/"),
+                        # Upstart configuration
+                        package_files.child('upstart'):
+                            FilePath('/etc/init'),
                         # Flocker Control State dir
                         empty_path: FilePath('/var/lib/flocker/'),
                     },

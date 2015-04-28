@@ -29,6 +29,8 @@ from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.protocol import ReconnectingClientFactory
 
+from . import run_state_change
+
 from ..control._protocol import (
     NodeStateCommand, IConvergenceAgent, AgentAMP,
     )
@@ -277,7 +279,8 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        known_local_state = self.cluster_state.get_node(self.deployer.hostname)
+        known_local_state = self.cluster_state.get_node(
+            self.deployer.node_uuid, hostname=self.deployer.hostname)
         d = DeferredContext(self.deployer.discover_state(known_local_state))
 
         def got_local_state(state_changes):
@@ -295,7 +298,7 @@ class ConvergenceLoop(object):
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state
             )
-            return action.run(self.deployer)
+            return run_state_change(action, self.deployer)
         d.addCallback(got_local_state)
         # If an error occurred we just want to log it and then try
         # converging again; hopefully next time we'll have more success.

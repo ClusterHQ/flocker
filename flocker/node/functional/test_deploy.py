@@ -11,7 +11,7 @@ from pyrsistent import pmap
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from .. import P2PNodeDeployer
+from .. import P2PManifestationDeployer, ApplicationNodeDeployer, sequentially
 from ...control._model import (
     Deployment, Application, DockerImage, Node, AttachedVolume, Link,
     Manifestation, Dataset, DeploymentState, NodeState)
@@ -24,6 +24,52 @@ from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 
 
+class P2PNodeDeployer(object):
+    """
+    Combination of ZFS and container deployer.
+
+    Should really be gotten rid of:
+    https://clusterhq.atlassian.net/browse/FLOC-1732
+    """
+    def __init__(self, hostname, volume_service, docker_client=None,
+                 network=None):
+        self.manifestations_deployer = P2PManifestationDeployer(
+            hostname, volume_service)
+        self.applications_deployer = ApplicationNodeDeployer(
+            hostname, docker_client, network)
+        self.hostname = hostname
+        self.volume_service = self.manifestations_deployer.volume_service
+        self.docker_client = self.applications_deployer.docker_client
+        self.network = self.applications_deployer.network
+
+    def discover_state(self, local_state):
+        d = self.manifestations_deployer.discover_state(local_state)
+
+        def got_manifestations_state(manifestations_state):
+            manifestations_state = manifestations_state[0]
+            app_discovery = self.applications_deployer.discover_state(
+                manifestations_state)
+            app_discovery.addCallback(
+                lambda app_state: [app_state[0].set(
+                    "manifestations", manifestations_state.manifestations).set(
+                        "paths", manifestations_state.paths)])
+            return app_discovery
+        d.addCallback(got_manifestations_state)
+        return d
+
+    def calculate_changes(
+            self, configuration, cluster_state):
+        """
+        Combine changes from the application and ZFS agents.
+        """
+        return sequentially(changes=[
+            self.applications_deployer.calculate_changes(
+                configuration, cluster_state),
+            self.manifestations_deployer.calculate_changes(
+                configuration, cluster_state),
+        ])
+
+
 def change_node_state(deployer, desired_configuration):
     """
     Change the local state to match the given desired state.
@@ -34,16 +80,23 @@ def change_node_state(deployer, desired_configuration):
         nodes.
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
-    d = deployer.discover_state(NodeState(hostname=deployer.hostname))
+    def converge():
+        d = deployer.discover_state(NodeState(hostname=deployer.hostname))
 
-    def got_changes(changes):
-        cluster_state = DeploymentState()
-        for change in changes:
-            cluster_state = change.update_cluster_state(cluster_state)
-        return deployer.calculate_changes(desired_configuration, cluster_state)
-    d.addCallback(got_changes)
-    d.addCallback(lambda change: change.run(deployer))
-    return d
+        def got_changes(changes):
+            cluster_state = DeploymentState()
+            for change in changes:
+                cluster_state = change.update_cluster_state(cluster_state)
+            return deployer.calculate_changes(
+                desired_configuration, cluster_state)
+        d.addCallback(got_changes)
+        d.addCallback(lambda change: change.run(deployer))
+        return d
+    # Repeat a few times until things settle down:
+    result = converge()
+    result.addCallback(lambda _: converge())
+    result.addCallback(lambda _: converge())
+    return result
 
 
 class DeployerTests(TestCase):
@@ -58,10 +111,8 @@ class DeployerTests(TestCase):
         """
         name = random_name()
         docker_client = DockerClient()
-        deployer = P2PNodeDeployer(
-            u"localhost",
-            create_volume_service(self), docker_client,
-            make_memory_network())
+        deployer = ApplicationNodeDeployer(
+            u"localhost", docker_client, make_memory_network())
         self.addCleanup(docker_client.remove, name)
 
         desired_state = Deployment(nodes=frozenset([
@@ -248,10 +299,8 @@ class DeployerTests(TestCase):
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
 
-        volume_service = create_volume_service(self)
-        deployer = P2PNodeDeployer(
-            u"localhost", volume_service, docker_client,
-            make_memory_network())
+        deployer = ApplicationNodeDeployer(
+            u"localhost", docker_client, make_memory_network())
 
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
@@ -295,10 +344,8 @@ class DeployerTests(TestCase):
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
 
-        volume_service = create_volume_service(self)
-        deployer = P2PNodeDeployer(
-            u"localhost", volume_service, docker_client,
-            make_memory_network())
+        deployer = ApplicationNodeDeployer(
+            u"localhost", docker_client, make_memory_network())
 
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",

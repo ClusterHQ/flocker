@@ -4,25 +4,30 @@
 Testing utilities for ``flocker.node``.
 """
 
-import errno
 import os
 import pwd
 import socket
-from unittest import skipUnless
+from unittest import skipIf
+from contextlib import closing
+from uuid import uuid4
 
 from zope.interface import implementer
 
 from characteristic import attributes
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import succeed
 
 from zope.interface.verify import verifyObject
 
-from ._deploy import _OldToNewDeployer
+from eliot import Logger, ActionType
+
 from ._docker import BASE_DOCKER_API_URL
-from . import IDeployer, IStateChange
+from . import IDeployer, IStateChange, sequentially
 from ..testtools import loop_until
-from ..control import IClusterStateChange, Node, NodeState, Deployment
+from ..control import (
+    IClusterStateChange, Node, NodeState, Deployment, DeploymentState)
+from ..control._model import ip_to_uuid
 
 DOCKER_SOCKET_PATH = BASE_DOCKER_API_URL.split(':/')[-1]
 
@@ -33,27 +38,25 @@ def docker_accessible():
 
     This may address https://clusterhq.atlassian.net/browse/FLOC-85.
 
-    :return: ``True`` if the current user has permission to connect, else
-        ``False``.
+    :return: A ``bytes`` string describing the reason Docker is not
+        accessible or ``None`` if it appears to be accessible.
     """
     try:
-        socket.socket(family=socket.AF_UNIX).connect(DOCKER_SOCKET_PATH)
+        with closing(socket.socket(family=socket.AF_UNIX)) as docker_socket:
+            docker_socket.connect(DOCKER_SOCKET_PATH)
     except socket.error as e:
-        if e.errno == errno.EACCES:
-            return False
-        if e.errno == errno.ENOENT:
-            # Docker is not installed
-            return False
-        raise
-    else:
-        return True
+        return os.strerror(e.errno)
+    return None
 
-if_docker_configured = skipUnless(
-    docker_accessible(),
-    "User '{}' does not have permission "
-    "to access the Docker server socket '{}'".format(
+_docker_reason = docker_accessible()
+
+if_docker_configured = skipIf(
+    _docker_reason,
+    "User {!r} cannot access Docker via {!r}: {}".format(
         pwd.getpwuid(os.geteuid()).pw_name,
-        DOCKER_SOCKET_PATH))
+        DOCKER_SOCKET_PATH,
+        _docker_reason,
+    ))
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
@@ -80,6 +83,9 @@ def wait_for_unit_state(docker_client, unit_name, expected_activation_states):
     return loop_until(check_if_in_states)
 
 
+CONTROLLABLE_ACTION_TYPE = ActionType(u"test:controllableaction", [], [])
+
+
 @implementer(IStateChange)
 @attributes(['result'])
 class ControllableAction(object):
@@ -89,6 +95,12 @@ class ControllableAction(object):
     called = False
     deployer = None
 
+    _logger = Logger()
+
+    @property
+    def eliot_action(self):
+        return CONTROLLABLE_ACTION_TYPE(self._logger)
+
     def run(self, deployer):
         self.called = True
         self.deployer = deployer
@@ -96,29 +108,46 @@ class ControllableAction(object):
 
 
 @implementer(IDeployer)
-class ControllableDeployer(_OldToNewDeployer):
+class DummyDeployer(object):
+    """
+    A non-implementation of ``IDeployer``.
+    """
+    hostname = u"127.0.0.1"
+    node_uuid = uuid4()
+
+    def discover_state(self, node_stat):
+        return succeed(())
+
+    def calculate_changes(self, desired_configuration, cluster_state):
+        return sequentially(changes=[])
+
+
+@implementer(IDeployer)
+class ControllableDeployer(object):
     """
     ``IDeployer`` whose results can be controlled.
     """
     def __init__(self, hostname, local_states, calculated_actions):
+        self.node_uuid = ip_to_uuid(hostname)
         self.hostname = hostname
         self.local_states = local_states
         self.calculated_actions = calculated_actions
         self.calculate_inputs = []
 
-    def discover_local_state(self, node_state):
-        return self.local_states.pop(0)
+    def discover_state(self, node_state):
+        return self.local_states.pop(0).addCallback(lambda val: (val,))
 
-    def calculate_necessary_state_changes(self, local_state,
-                                          desired_configuration,
-                                          cluster_state):
+    def calculate_changes(self, desired_configuration, cluster_state):
         self.calculate_inputs.append(
-            (local_state, desired_configuration, cluster_state))
+            (cluster_state.get_node(uuid=self.node_uuid,
+                                    hostname=self.hostname),
+             desired_configuration, cluster_state))
         return self.calculated_actions.pop(0)
 
 
 # A deployment with no information:
 EMPTY = Deployment(nodes=[])
+EMPTY_STATE = DeploymentState()
 
 
 def ideployer_tests_factory(fixture):
@@ -196,6 +225,6 @@ def to_node(node_state):
     :param NodeState node_state: Object to convert.
     :return Node: Equivalent node.
     """
-    return Node(hostname=node_state.hostname,
+    return Node(uuid=node_state.uuid, hostname=node_state.hostname,
                 applications=node_state.applications,
                 manifestations=node_state.manifestations)

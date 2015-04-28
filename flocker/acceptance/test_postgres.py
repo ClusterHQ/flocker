@@ -6,7 +6,7 @@ Tests for running and managing PostgreSQL with Flocker.
 from unittest import skipUnless
 from uuid import uuid4
 
-from pyrsistent import pmap
+from pyrsistent import pmap, freeze, thaw
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -54,9 +54,6 @@ POSTGRES_APPLICATION = Application(
 class PostgresTests(TestCase):
     """
     Tests for running and managing PostgreSQL with Flocker.
-
-    Similar to:
-    http://doc-dev.clusterhq.com/gettingstarted/examples/postgres.html
     """
     @require_flocker_cli
     def setUp(self):
@@ -105,6 +102,11 @@ class PostgresTests(TestCase):
                     },
                 },
             }
+
+            self.postgres_application_different_port = thaw(freeze(
+                self.postgres_application).transform(
+                    [u"applications", POSTGRES_APPLICATION_NAME, u"ports", 0,
+                     u"external"], POSTGRES_EXTERNAL_PORT + 1))
 
             flocker_deploy(self, postgres_deployment,
                            self.postgres_application)
@@ -210,12 +212,12 @@ class PostgresTests(TestCase):
             with a connection to the previously created database on ``node_2``.
             """
             flocker_deploy(self, self.postgres_deployment_moved,
-                           self.postgres_application)
+                           self.postgres_application_different_port)
 
             return self._get_postgres_connection(
                 host=self.node_2,
                 user=user,
-                port=POSTGRES_EXTERNAL_PORT,
+                port=POSTGRES_EXTERNAL_PORT + 1,
                 database=database,
             )
 

@@ -72,15 +72,25 @@ def task_install_ssh_key():
     ])
 
 
-def task_upgrade_kernel():
+def task_upgrade_kernel(distribution):
     """
     Upgrade kernel.
     """
-    return sequence([
-        run_from_args(['yum', 'upgrade', '-y', 'kernel']),
-        comment(comment="# The upgrade doesn't make the new kernel default."),
-        run_from_args(['grubby', '--set-default-index', '0']),
-    ])
+    if distribution == 'fedora-20':
+        return sequence([
+            run_from_args(['yum', 'upgrade', '-y', 'kernel']),
+            comment(
+                comment="The upgrade doesn't make the new kernel default."),
+            run_from_args(['grubby', '--set-default-index', '0']),
+        ])
+    elif distribution == 'centos-7':
+        return sequence([
+            run_from_args([
+                "yum", "install", "-y", "kernel-devel", "kernel"]),
+            run_from_args(['sync']),
+        ])
+    else:
+        raise NotImplementedError()
 
 
 KOJI_URL_TEMPLATE = (
@@ -128,17 +138,6 @@ def task_install_digitalocean_kernel():
     ])
 
 
-def task_upgrade_kernel_centos():
-    return sequence([
-        run_from_args([
-            "yum", "install", "-y", "kernel-devel", "kernel"]),
-        # For dkms and ... ?
-        run_from_args([
-            "yum", "install", "-y", "epel-release"]),
-        run_from_args(['sync']),
-    ])
-
-
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
@@ -156,87 +155,146 @@ ${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 """)])
 
 
-def task_disable_selinux():
+def task_disable_selinux(distribution):
     """
     Disable SELinux for this session and permanently.
     XXX: Remove this when we work out suitable SELinux settings.
     See https://clusterhq.atlassian.net/browse/FLOC-619.
     """
-    return sequence([
-        run("if selinuxenabled; then setenforce 0; fi"),
-        run("test -e /etc/selinux/config && "
-            "sed --in-place='.preflocker' "
-            "'s/^SELINUX=.*$/SELINUX=disabled/g' "
-            "/etc/selinux/config"),
-    ])
+    if distribution in ('centos-7',):
+        return sequence([
+            run("if selinuxenabled; then setenforce 0; fi"),
+            run("test -e /etc/selinux/config && "
+                "sed --in-place='.preflocker' "
+                "'s/^SELINUX=.*$/SELINUX=disabled/g' "
+                "/etc/selinux/config"),
+        ])
+    elif distribution in ('fedora-20', 'ubuntu-14.04'):
+        # Fedora and Ubuntu do not have SELinux enabled
+        return sequence([])
+    else:
+        raise NotImplementedError()
 
 
-def task_enable_docker():
+def task_enable_docker(distribution):
     """
     Start docker and configure it to start automatically.
     """
-    return sequence([
-        run_from_args(["systemctl", "enable", "docker.service"]),
-        run_from_args(["systemctl", "start", "docker.service"]),
-    ])
+    if distribution in ('fedora-20', 'centos-7'):
+        return sequence([
+            run_from_args(["systemctl", "enable", "docker.service"]),
+            run_from_args(["systemctl", "start", "docker.service"]),
+        ])
+    elif distribution == 'ubuntu-14.04':
+        # Ubuntu enables docker service during installation
+        return sequence([])
+    else:
+        raise NotImplementedError()
 
 
-def configure_firewalld(rule):
+def open_firewalld(service):
     """
-    Configure firewalld with a given rule.
+    Open firewalld port for a service.
 
-    :param list rule: List of `firewall-cmd` arguments.
+    :param str service: Name of service.
     """
     return sequence([
-        run_from_args(command + rule)
-        for command in [['firewall-cmd', '--permanent'],
-                        ['firewall-cmd']]])
+        run_from_args(command + [service])
+        for command in [['firewall-cmd', '--permanent', '--add-service'],
+                        ['firewall-cmd', '--add-service']]])
 
 
-def task_enable_flocker_control():
+def open_ufw(service):
+    """
+    Open ufw port for a service.
+
+    :param str service: Name of service.
+    """
+    return sequence([
+        run_from_args(['ufw', 'allow', service])
+        ])
+
+
+def task_enable_flocker_control(distribution):
     """
     Enable flocker-control service.
     """
-    return sequence([
-        run_from_args(['systemctl', 'enable', 'flocker-control']),
-        run_from_args(['systemctl', 'start', 'flocker-control']),
-    ])
+    if distribution in ('centos-7', 'fedora-20'):
+        return sequence([
+            run_from_args(['systemctl', 'enable', 'flocker-control']),
+            run_from_args(['systemctl', 'start', 'flocker-control']),
+        ])
+    elif distribution == 'ubuntu-14.04':
+        # Since the flocker-control service is currently installed
+        # alongside the flocker-agent service, the default control
+        # service configuration does not automatically start the
+        # service.  Here, we provide an override file to start it.
+        return sequence([
+            put(
+                path='/etc/init/flocker-control.override',
+                content=dedent('''\
+                    start on runlevel [2345]
+                    stop on runlevel [016]
+                    '''),
+            ),
+            run("echo 'flocker-control-api\t4523/tcp\t\t\t# Flocker Control API port' >> /etc/services"),  # noqa
+            run("echo 'flocker-control-agent\t4524/tcp\t\t\t# Flocker Control Agent port' >> /etc/services"),  # noqa
+            run_from_args(['service', 'flocker-control', 'start']),
+        ])
+    else:
+        raise NotImplementedError()
 
 
-def task_open_control_firewall():
+def task_open_control_firewall(distribution):
     """
     Open the firewall for flocker-control.
     """
+    if distribution in ('centos-7', 'fedora-20'):
+        open_firewall = open_firewalld
+    elif distribution == 'ubuntu-14.04':
+        open_firewall = open_ufw
+    else:
+        raise NotImplementedError()
+
     return sequence([
-        configure_firewalld(['--add-service', service])
+        open_firewall(service)
         for service in ['flocker-control-api', 'flocker-control-agent']
     ])
 
 
 AGENT_CONFIG = """\
-FLOCKER_NODE_NAME = %(node_name)s
-FLOCKER_CONTROL_NODE = %(control_node)s
+FLOCKER_CONTROL_NODE=%(control_node)s
 """
 
 
-def task_enable_flocker_agent(node_name, control_node):
+def task_enable_flocker_agent(distribution, control_node):
     """
-    Configure and enable flocker-agent.
+    Configure and enable the flocker agents.
 
-    :param bytes node_name: The name this node is known by.
     :param bytes control_node: The address of the control agent.
     """
-    return sequence([
-        put(
-            path='/etc/sysconfig/flocker-agent',
-            content=AGENT_CONFIG % {
-                'node_name': node_name,
-                'control_node': control_node
-            },
-        ),
-        run_from_args(['systemctl', 'enable', 'flocker-agent']),
-        run_from_args(['systemctl', 'start', 'flocker-agent']),
-    ])
+    if distribution in ('centos-7', 'fedora-20'):
+        return sequence([
+            put(
+                path='/etc/sysconfig/flocker-agent',
+                content=AGENT_CONFIG % {'control_node': control_node},
+            ),
+            run_from_args(['systemctl', 'enable', 'flocker-agent']),
+            run_from_args(['systemctl', 'start', 'flocker-agent']),
+            run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
+            run_from_args(['systemctl', 'start', 'flocker-container-agent']),
+        ])
+    elif distribution == 'ubuntu-14.04':
+        return sequence([
+            put(
+                path='/etc/default/flocker-agent.conf',
+                content=AGENT_CONFIG % {'control_node': control_node},
+            ),
+            run_from_args(['service', 'flocker-agent', 'start']),
+            run_from_args(['service', 'flocker-container-agent', 'start']),
+        ])
+    else:
+        raise NotImplementedError()
 
 
 def task_create_flocker_pool_file():
@@ -254,49 +312,99 @@ def task_install_flocker(
         distribution=None,
         package_source=PackageSource()):
     """
-    Install flocker.
+    Install flocker on a distribution.
 
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
     """
-    commands = [
-        run(command="yum install -y " + ZFS_REPO[distribution]),
-        run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
-    ]
-
     if package_source.branch:
         result_path = posixpath.join(
             '/results/omnibus/', package_source.branch, distribution)
         base_url = urljoin(package_source.build_server, result_path)
-        repo = dedent(b"""\
-            [clusterhq-build]
-            name=clusterhq-build
-            baseurl=%s
-            gpgcheck=0
-            enabled=0
-            """) % (base_url,)
-        commands.append(put(content=repo,
-                            path='/etc/yum.repos.d/clusterhq-build.repo'))
-        branch_opt = ['--enablerepo=clusterhq-build']
     else:
-        branch_opt = []
+        base_url = None
+    if distribution == 'ubuntu-14.04':
+        commands = [
+            # Ensure add-apt-repository command is available
+            run_from_args([
+                "apt-get", "-y", "install", "software-properties-common"]),
+            # ZFS not available in base Ubuntu - add ZFS repo
+            run_from_args([
+                "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
+            # Add Docker repo for recent Docker versions
+            run_from_args([
+                "add-apt-repository", "-y", "ppa:james-page/docker"]),
+            # Add ClusterHQ repo for installation of Flocker packages.
+            run_from_args([
+                'add-apt-repository', '-y',
+                'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'  # noqa
+                ])
+            ]
 
-    if package_source.os_version:
-        package = 'clusterhq-flocker-node-%s' % (package_source.os_version,)
+        if base_url:
+            # Add BuildBot repo for testing
+            commands.append(run_from_args([
+                "add-apt-repository", "-y", "deb {} /".format(base_url)]))
+
+        commands += [
+            # Update to read package info from new repos
+            run_from_args([
+                "apt-get", "update"]),
+            # Package spl-dkms sometimes does not have libc6-dev as a
+            # dependency, add it before ZFS installation requires it.
+            # See https://github.com/zfsonlinux/zfs/issues/3298
+            run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
+            ]
+
+        if package_source.os_version:
+            package = 'clusterhq-flocker-node=%s' % (
+                package_source.os_version,)
+        else:
+            package = 'clusterhq-flocker-node'
+
+        # Install Flocker node and all dependencies
+        commands.append(run_from_args([
+            'apt-get', '-y', '--force-yes', 'install', package]))
+
+        return sequence(commands)
     else:
-        package = 'clusterhq-flocker-node'
+        commands = [
+            run(command="yum install -y " + ZFS_REPO[distribution]),
+            run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+        ]
 
-    commands.append(run_from_args(
-        ["yum", "install"] + branch_opt + ["-y", package]))
+        if distribution == 'centos-7':
+            commands.append(
+                run_from_args(["yum", "install", "-y", "epel-release"]))
 
-    return sequence(commands)
+        if base_url:
+            repo = dedent(b"""\
+                [clusterhq-build]
+                name=clusterhq-build
+                baseurl=%s
+                gpgcheck=0
+                enabled=0
+                """) % (base_url,)
+            commands.append(put(content=repo,
+                                path='/etc/yum.repos.d/clusterhq-build.repo'))
+            branch_opt = ['--enablerepo=clusterhq-build']
+        else:
+            branch_opt = []
+
+        if package_source.os_version:
+            package = 'clusterhq-flocker-node-%s' % (
+                package_source.os_version,)
+        else:
+            package = 'clusterhq-flocker-node'
+
+        commands.append(run_from_args(
+            ["yum", "install"] + branch_opt + ["-y", package]))
+
+        return sequence(commands)
 
 
 ACCEPTANCE_IMAGES = [
-    "clusterhq/elasticsearch",
-    "clusterhq/logstash",
-    "clusterhq/kibana",
     "postgres:latest",
     "clusterhq/mongodb:latest",
 ]
@@ -327,7 +435,7 @@ def task_enable_updates_testing(distribution):
                 'yum-config-manager', '--enable', 'updates-testing'])
         ])
     else:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 def task_enable_docker_head_repository(distribution):
@@ -358,7 +466,7 @@ def task_enable_docker_head_repository(distribution):
                 path="/etc/yum.repos.d/virt7-testing.repo")
         ])
     else:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 def task_enable_zfs_testing(distribution):
@@ -374,7 +482,7 @@ def task_enable_zfs_testing(distribution):
                 'yum-config-manager', '--enable', 'zfs-testing'])
         ])
     else:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 def provision(distribution, package_source, variants):
@@ -403,65 +511,43 @@ def provision(distribution, package_source, variants):
     if distribution in ('fedora-20',):
         commands.append(task_install_kernel_devel())
 
-    commands += [
-        task_install_flocker(package_source=package_source,
-                             distribution=distribution),
-        task_disable_selinux(),
-        task_enable_docker(),
-        task_create_flocker_pool_file(),
-        task_pull_docker_images(),
-    ]
+    commands.append(
+        task_install_flocker(
+            package_source=package_source, distribution=distribution))
+    if distribution in ('centos-7'):
+        commands.append(task_disable_selinux(distribution))
+    commands.append(task_enable_docker(distribution))
+    commands.append(task_create_flocker_pool_file())
+    commands.append(task_pull_docker_images())
     return sequence(commands)
 
 
 def configure_cluster(control_node, agent_nodes):
     """
-    Configure flocker-control and flocker-agent on a collection of nodes.
+    Configure flocker-control, flocker-agent and flocker-container-agent
+    on a collection of nodes.
 
-    :param bytes control_node: The address of the control node.
-    :param list agent_nodes: List of addresses of agent nodes.
+    :param INode control_node: The control node.
+    :param INode agent_nodes: List of agent nodes.
     """
     return sequence([
         run_remotely(
             username='root',
-            address=control_node,
-            commands=task_enable_flocker_control(),
+            address=control_node.address,
+            commands=task_enable_flocker_control(control_node.distribution),
         ),
         sequence([
             sequence([
-                Effect(Func(lambda node=node: configure_ssh(node, 22))),
+                Effect(
+                    Func(lambda node=node: configure_ssh(node.address, 22))),
                 run_remotely(
                     username='root',
-                    address=node,
+                    address=node.address,
                     commands=task_enable_flocker_agent(
-                        node_name=node,
-                        control_node=control_node,
+                        distribution=node.distribution,
+                        control_node=control_node.address,
                     ),
                 ),
             ]) for node in agent_nodes
-        ])
-    ])
-
-
-def stop_cluster(control_node, agent_nodes):
-    """
-    Stop flocker-control and flocker-agent on a collection of nodes.
-
-    :param bytes control_node: The address of the control node.
-    :param list agent_nodes: List of addresses of agent nodes.
-    """
-    return sequence([
-        run_remotely(
-            username='root',
-            address=control_node,
-            commands=run_from_args(['systemctl', 'stop', 'flocker-control']),
-        ),
-        sequence([
-            run_remotely(
-                username='root',
-                address=node,
-                commands=run_from_args(['systemctl', 'stop', 'flocker-agent']),
-            )
-            for node in agent_nodes
         ])
     ])

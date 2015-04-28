@@ -26,7 +26,7 @@ from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 from ..control._model import (
-    RestartNever, RestartAlways, RestartOnFailure, pset_field)
+    RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
 
 
 logger = Logger()
@@ -126,6 +126,9 @@ class Unit(PRecord):
         is probably 1024).
 
     :ivar IRestartPolicy restart_policy: The restart policy of the container.
+
+    :ivar command_line: Custom command to run using the image, a ``PVector``
+        of ``unicode``. ``None`` means use default.
     """
     name = field(mandatory=True)
     container_name = field(mandatory=True)
@@ -137,6 +140,7 @@ class Unit(PRecord):
     mem_limit = field(mandatory=True, initial=None)
     cpu_shares = field(mandatory=True, initial=None)
     restart_policy = field(mandatory=True, initial=RestartNever())
+    command_line = pvector_field(unicode, optional=True, initial=None)
 
 
 class IDockerClient(Interface):
@@ -150,7 +154,8 @@ class IDockerClient(Interface):
     """
 
     def add(unit_name, image_name, ports=None, environment=None, volumes=(),
-            mem_limit=None, cpu_shares=None, restart_policy=RestartNever()):
+            mem_limit=None, cpu_shares=None, restart_policy=RestartNever(),
+            command_line=None):
         """
         Install and start a new unit.
 
@@ -186,6 +191,9 @@ class IDockerClient(Interface):
 
         :param IRestartPolicy restart_policy: The restart policy of the
             container.
+
+        :ivar command_line: Custom command to run using the image, a sequence
+            of ``unicode``, or ``None`` to use default image command line.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -245,7 +253,7 @@ class FakeDockerClient(object):
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
             volumes=frozenset(), mem_limit=None, cpu_shares=None,
-            restart_policy=RestartNever()):
+            restart_policy=RestartNever(), command_line=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -259,6 +267,7 @@ class FakeDockerClient(object):
             mem_limit=mem_limit,
             cpu_shares=cpu_shares,
             restart_policy=restart_policy,
+            command_line=command_line,
         )
         return succeed(None)
 
@@ -398,7 +407,7 @@ class DockerClient(object):
 
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
-            restart_policy=RestartNever()):
+            restart_policy=RestartNever(), command_line=None):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -428,7 +437,7 @@ class DockerClient(object):
             self._client.create_container(
                 name=container_name,
                 image=image_name,
-                command=None,
+                command=command_line,
                 environment=environment,
                 ports=[p.internal_port for p in ports],
                 mem_limit=mem_limit,
@@ -567,6 +576,10 @@ class DockerClient(object):
                          else u"inactive")
                 name = data[u"Name"]
                 image = data[u"Config"][u"Image"]
+                command = data[u"Config"][u"Cmd"]
+                image_command = self._client.inspect_image(image)
+                if image_command[u"Config"][u"Cmd"] == command:
+                    command = None
                 port_bindings = data[u"HostConfig"][u"PortBindings"]
                 if port_bindings is not None:
                     ports = self._parse_container_ports(port_bindings)
@@ -621,7 +634,8 @@ class DockerClient(object):
                     environment=unit_environment,
                     mem_limit=mem_limit,
                     cpu_shares=cpu_shares,
-                    restart_policy=restart_policy)
+                    restart_policy=restart_policy,
+                    command_line=command)
                 )
             return result
         return deferToThread(_list)
