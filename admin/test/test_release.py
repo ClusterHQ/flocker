@@ -1934,3 +1934,6 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
             expected_metadata,
         )
+
+# TODO pass in the box name - this can be used for the dev box
+# TODO make a wrapper for this - it should be possible to upload the dev box
