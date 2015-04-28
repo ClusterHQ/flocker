@@ -137,6 +137,12 @@ BLOCK_DEVICE_HOST = Field(
     u"The host to which the underlying block device is attached."
 )
 
+BLOCK_DEVICE_PATH = Field(
+    u"block_device_path",
+    lambda path: path.path,
+    u"The system device file for an attached block device."
+)
+
 CREATE_BLOCK_DEVICE_DATASET = ActionType(
     u"agent:blockdevice:create",
     [DATASET, MOUNTPOINT],
@@ -170,6 +176,12 @@ MOUNT_BLOCK_DEVICE = ActionType(
     [DATASET_ID],
     [],
     u"A block-device-backed dataset is being mounted.",
+)
+
+MOUNT_BLOCK_DEVICE_DETAILS = MessageType(
+    u"agent:blockdevice:mount:details",
+    [VOLUME, BLOCK_DEVICE_PATH],
+    u"The device file for a block-device-backed dataset has been discovered."
 )
 
 ATTACH_VOLUME = ActionType(
@@ -489,6 +501,10 @@ class MountBlockDevice(PRecord):
         api = deployer.block_device_api
         volume = _blockdevice_volume_from_datasetid(api, self.dataset_id)
         device = api.get_device_path(volume.blockdevice_id)
+        MOUNT_BLOCK_DEVICE_DETAILS(
+            volume=volume, block_device_path=device,
+        ).write(_logger)
+
         # This should be asynchronous.  Do it as part of FLOC-1499.
         try:
             self.mountpoint.makedirs()
