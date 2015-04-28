@@ -542,7 +542,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         other_node = u"192.0.2.2"
         local_state = self.ONE_DATASET_STATE
         cluster_state = DeploymentState(
-            nodes={to_node(local_state)}
+            nodes={local_state}
         )
 
         local_config = to_node(local_state).transform(
