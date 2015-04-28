@@ -1358,20 +1358,10 @@ class BlockDeviceDeployer(PRecord):
             if dataset_id not in cluster_state.nonmanifest_datasets
         )
 
-        # FLOC-1575
-        # Inspect nonmanifest_datasets on ``cluster_state``.  Any which match
-        # up with manifestations in ``manifestations_to_create`` should
-        # actually be attached instead of created.  Make a
-        #
         attaches = list(self._calculate_attaches(
             configured_manifestations,
             cluster_state.nonmanifest_datasets
         ))
-
-        # sequentially(changes=[AttachVolume(), MountBlockDevice()])
-        #
-        # for each of those and take them out of ``manifestations_to_create``
-        # (so they don't get created by the next bit of code).
 
         # TODO prevent the configuration of unsized datasets on blockdevice
         # backends; cannot create block devices of unspecified size. FLOC-1579
