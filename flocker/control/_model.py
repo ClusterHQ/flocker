@@ -426,8 +426,6 @@ class Node(PRecord):
             kwargs["uuid"] = ip_to_uuid(hostname)
         return PRecord.__new__(cls, **kwargs)
 
-    # hostname will be removed in FLOC-1733 probably:
-    hostname = field(type=unicode, factory=unicode, mandatory=True)
     uuid = field(type=UUID, mandatory=True)
     applications = pset_field(Application)
     manifestations = pmap_field(

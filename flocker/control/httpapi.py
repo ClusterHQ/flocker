@@ -201,7 +201,7 @@ class ConfigurationAPIUserV1(object):
         if metadata is None:
             metadata = {}
 
-#        primary = UUID(hex=primary)
+        primary = UUID(hex=primary)
 
         # Use persistence_service to get a Deployment for the cluster
         # configuration.
@@ -222,8 +222,7 @@ class ConfigurationAPIUserV1(object):
         )
         manifestation = Manifestation(dataset=dataset, primary=True)
 
-        primary_node = deployment.get_node(ip_to_uuid(primary),
-                                           hostname=primary)
+        primary_node = deployment.get_node(primary)
 
         new_node_config = primary_node.transform(
             ("manifestations", manifestation.dataset_id), manifestation)
@@ -283,7 +282,7 @@ class ConfigurationAPIUserV1(object):
 
         def saved(ignored):
             result = api_dataset_from_dataset_and_node(
-                new_node.manifestations[dataset_id].dataset, new_node.hostname,
+                new_node.manifestations[dataset_id].dataset, new_node.uuid,
             )
             return EndpointResponse(OK, result)
         saving.addCallback(saved)
@@ -325,8 +324,8 @@ class ConfigurationAPIUserV1(object):
         :param unicode dataset_id: The unique identifier of the dataset.  This
             is a string giving a UUID (per RFC 4122).
 
-        :param unicode primary: The address of the node to which the dataset
-            will be moved.
+        :param primary: The UUID of the node to which the dataset will be
+            moved, or ``None`` indicating no change.
 
         :param maximum_size: Either the maximum number of bytes the dataset
             will be capable of storing or ``None`` to make the dataset size
@@ -350,7 +349,7 @@ class ConfigurationAPIUserV1(object):
 
         if primary is not None:
             deployment = _update_dataset_primary(
-                deployment, dataset_id, primary
+                deployment, dataset_id, UUID(hex=primary)
             )
 
         if maximum_size is not _UNDEFINED_MAXIMUM_SIZE:
@@ -369,7 +368,7 @@ class ConfigurationAPIUserV1(object):
         def saved(ignored):
             result = api_dataset_from_dataset_and_node(
                 primary_manifestation.dataset,
-                current_node.hostname,
+                current_node.uuid,
             )
             return EndpointResponse(OK, result)
         saving.addCallback(saved)
@@ -395,9 +394,9 @@ class ConfigurationAPIUserV1(object):
         deployment = self.cluster_state_service.as_deployment()
         datasets = list(datasets_from_deployment(deployment))
         for dataset in datasets:
-            uuid = ip_to_uuid(dataset[u"primary"])
+            node_uuid = UUID(hex=dataset[u"primary"])
             dataset[u"path"] = self.cluster_state_service.manifestation_path(
-                uuid, dataset[u"dataset_id"]).path.decode(
+                node_uuid, dataset[u"dataset_id"]).path.decode(
                     "utf-8")
             del dataset[u"metadata"]
             del dataset[u"deleted"]
@@ -456,16 +455,16 @@ class ConfigurationAPIUserV1(object):
         for node in deployment.nodes:
             for application in node.applications:
                 container = container_configuration_response(
-                    application, node.hostname)
+                    application, node.uuid)
                 container[u"running"] = application.running
                 result.append(container)
         return result
 
-    def _get_attached_volume(self, host, volume):
+    def _get_attached_volume(self, node_uuid, volume):
         """
         Create an ``AttachedVolume`` given a volume dictionary.
 
-        :param unicode host: The host where the volume should be.
+        :param UUID node_uuid: The node where the volume should be.
         :param dict volume: Parameters for specific volume passed to creation
             endpoint.
 
@@ -478,7 +477,7 @@ class ConfigurationAPIUserV1(object):
 
         if not any(m for (m, _) in instances if not m.dataset.deleted):
             raise DATASET_NOT_FOUND
-        if not any(n for (_, n) in instances if n.hostname == host):
+        if not any(n for (_, n) in instances if n.uuid == node_uuid):
             raise DATASET_ON_DIFFERENT_NODE
         if any(app for app in deployment.applications() if
                 app.volume and
@@ -487,7 +486,7 @@ class ConfigurationAPIUserV1(object):
 
         return AttachedVolume(
             manifestation=[m for (m, node) in instances
-                           if node.hostname == host and m.primary][0],
+                           if node.uuid == node_uuid and m.primary][0],
             mountpoint=FilePath(volume[u"mountpoint"].encode("utf-8")))
 
     @app.route("/configuration/containers", methods=['POST'])
@@ -519,14 +518,14 @@ class ConfigurationAPIUserV1(object):
         schema_store=SCHEMAS
     )
     def create_container_configuration(
-        self, host, name, image, ports=(), environment=None,
+        self, node_uuid, name, image, ports=(), environment=None,
         restart_policy=None, cpu_shares=None, memory_limit=None,
         links=(), volumes=(), command_line=None,
     ):
         """
         Create a new dataset in the cluster configuration.
 
-        :param unicode host: The address of the node on which the container
+        :param unicode node_uuid: The UUID of the node on which the container
             will run.
 
         :param unicode name: A unique identifier for the container within
@@ -571,6 +570,8 @@ class ConfigurationAPIUserV1(object):
         """
         deployment = self.persistence_service.get()
 
+        node_uuid = UUID(hex=node_uuid)
+
         # Check if container by this name already exists, if it does
         # return error.
         for node in deployment.nodes:
@@ -582,10 +583,10 @@ class ConfigurationAPIUserV1(object):
         # https://clusterhq.atlassian.net/browse/FLOC-49
         attached_volume = None
         if volumes:
-            attached_volume = self._get_attached_volume(host, volumes[0])
+            attached_volume = self._get_attached_volume(node_uuid, volumes[0])
 
         # Find the node.
-        node = deployment.get_node(ip_to_uuid(host), hostname=host)
+        node = deployment.get_node(node_uuid)
 
         # Check if we have any ports in the request. If we do, check existing
         # external ports exposed to ensure there is no conflict. If there is a
@@ -658,7 +659,7 @@ class ConfigurationAPIUserV1(object):
 
         # Return passed in dictionary with CREATED response code.
         def saved(_):
-            result = container_configuration_response(application, host)
+            result = container_configuration_response(application, node_uuid)
             return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
@@ -685,21 +686,22 @@ class ConfigurationAPIUserV1(object):
         },
         schema_store=SCHEMAS,
     )
-    def update_containers_configuration(self, name, host):
+    def update_containers_configuration(self, name, node_uuid):
         """
         Update the specified container's configuration.
 
         :param unicode name: A unique identifier for the container within
             the Flocker cluster.
 
-        :param unicode host: The address of the node on which the container
-            will run.
+        :param unicode node_uuid: The address of the node on which the
+            container will run.
 
         :return: An ``EndpointResponse`` describing the container which has
             been updated.
         """
         deployment = self.persistence_service.get()
-        target_node = deployment.get_node(ip_to_uuid(host), hostname=host)
+        node_uuid = UUID(hex=node_uuid)
+        target_node = deployment.get_node(node_uuid)
         for node in deployment.nodes:
             for application in node.applications:
                 if application.name == name:
@@ -710,7 +712,7 @@ class ConfigurationAPIUserV1(object):
 
                     def saved(_):
                         result = container_configuration_response(
-                            application, host
+                            application, node_uuid
                         )
                         return EndpointResponse(OK, result)
 
@@ -804,6 +806,9 @@ class ConfigurationAPIUserV1(object):
         :param deployment: Configuration of which applications run on
             which nodes.
         """
+        # XXX we're going to have to deal with UUIDs better,
+        # somehow... look up state of cluster? Change deployment
+        # configuration format?
         try:
             configuration = FigConfiguration(applications)
             if not configuration.is_valid_format():
@@ -857,7 +862,7 @@ def _update_dataset_primary(deployment, dataset_id, primary):
     :param Deployment deployment: The deployment containing the dataset to be
         updated.
     :param unicode dataset_id: The ID of the dataset to be updated.
-    :param unicode primary: The IP address of the new primary node of the
+    :param UUID primary: The UUID of the new primary node of the
         supplied ``dataset_id``.
     :returns: An updated ``Deployment``.
     """
@@ -871,8 +876,7 @@ def _update_dataset_primary(deployment, dataset_id, primary):
     )
     deployment = deployment.update_node(old_primary_node)
 
-    new_primary_node = deployment.get_node(ip_to_uuid(primary),
-                                           hostname=primary)
+    new_primary_node = deployment.get_node(primary)
     new_primary_node = new_primary_node.transform(
         ("manifestations", dataset_id), primary_manifestation
     )
@@ -940,7 +944,7 @@ def datasets_from_deployment(deployment):
                 # node.
                 # See https://clusterhq.atlassian.net/browse/FLOC-1303
                 yield api_dataset_from_dataset_and_node(
-                    manifestation.dataset, node.hostname
+                    manifestation.dataset, node.uuid
                 )
 
 
@@ -955,7 +959,7 @@ def containers_from_deployment(deployment):
     """
     for node in deployment.nodes:
         for application in node.applications:
-            yield container_configuration_response(application, node.hostname)
+            yield container_configuration_response(application, node.uuid)
 
 
 def container_configuration_response(application, node):
@@ -964,11 +968,11 @@ def container_configuration_response(application, node):
     ``/v1/endpoints.json#/definitions/configuration_container``
 
     :param Application application: An ``Application`` instance.
-    :param unicode node: The host on which this application is running.
+    :param UUID node: The host on which this application is running.
     :return: A ``dict`` containing the container configuration.
     """
     result = {
-        "host": node, "name": application.name,
+        "uuid": unicode(node), "name": application.name,
     }
     result.update(ApplicationMarshaller(application).convert())
     # Configuration format isn't quite the same as JSON format:
@@ -986,13 +990,13 @@ def container_configuration_response(application, node):
     return result
 
 
-def api_dataset_from_dataset_and_node(dataset, node_hostname):
+def api_dataset_from_dataset_and_node(dataset, node_uuid):
     """
     Return a dataset dict which conforms to
     ``/v1/endpoints.json#/definitions/configuration_datasets_array``
 
     :param Dataset dataset: A dataset present in the cluster.
-    :param unicode node_hostname: Hostname of the primary node for the
+    :param UUID node_uuid: UUID of the primary node for the
         `dataset`.
     :return: A ``dict`` containing the dataset information and the
         hostname of the primary node, conforming to
@@ -1001,7 +1005,7 @@ def api_dataset_from_dataset_and_node(dataset, node_hostname):
     result = dict(
         dataset_id=dataset.dataset_id,
         deleted=dataset.deleted,
-        primary=node_hostname,
+        primary=unicode(node_uuid),
         metadata=thaw(dataset.metadata)
     )
     if dataset.maximum_size is not None:
