@@ -80,12 +80,25 @@ class GenericDockerClientTests(TestCase):
         # disable namespacing for these tests.
         return DockerClient(namespace=self.namespacing_prefix)
 
+    def create_container(self, client, name, image):
+        """
+        Create (but don't start) a container via the supplied client.
+
+        :param DockerClient client: The Docker API client.
+        :param unicode name: The container name.
+        :param unicode image: The image name.
+        """
+        container_name = client._to_container_name(name)
+        client._client.create_container(
+            name=container_name, image=image)
+
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
                         ports=None, expected_states=(u'active',),
                         environment=None, volumes=(),
                         mem_limit=None, cpu_shares=None,
-                        restart_policy=RestartNever()):
+                        restart_policy=RestartNever(),
+                        command_line=None):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -99,6 +112,7 @@ class GenericDockerClientTests(TestCase):
         :param mem_limit: See ``IDockerClient.add``.
         :param cpu_shares: See ``IDockerClient.add``.
         :param restart_policy: See ``IDockerClient.add``.
+        :param command_line: See ``IDockerClient.add``.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
             the unit reaches the expected state.
@@ -113,6 +127,7 @@ class GenericDockerClientTests(TestCase):
             mem_limit=mem_limit,
             cpu_shares=cpu_shares,
             restart_policy=restart_policy,
+            command_line=command_line,
         )
         self.addCleanup(client.remove, unit_name)
 
@@ -401,6 +416,32 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(added)
         return d
 
+    def test_null_environment(self):
+        """
+        A container that does not include any environment variables contains
+        an empty ``environment`` in the return ``Unit``.
+        """
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM scratch\n'
+            b'MAINTAINER info@clusterhq.com\n'
+            b'CMD ["/bin/doesnotexist"]'
+        )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+        client = self.make_client()
+        name = random_name()
+        self.create_container(client, name, image_name)
+        self.addCleanup(client.remove, name)
+        d = client.list()
+
+        def got_list(units):
+            unit = [unit for unit in units if unit.name == name][0]
+            self.assertIsNone(unit.environment)
+        d.addCallback(got_list)
+        return d
+
     def test_container_name(self):
         """
         The container name stored on returned ``Unit`` instances matches the
@@ -675,6 +716,34 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(self.assertIn, ("5", "6"))
         return d
 
+    def test_command_line(self):
+        """
+        A container with custom command line is run with those arguments.
+        """
+        external_port = find_free_port()[1]
+        name = random_name()
+        d = self.start_container(
+            name, image_name=u"busybox",
+            command_line=[u"sh", u"-c", u"""\
+echo -n '#!/bin/sh
+echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
+' > /tmp/script.sh;
+chmod +x /tmp/script.sh;
+nc -ll -p 8080 -e /tmp/script.sh
+"""],
+            ports=[PortMap(internal_port=8080,
+                           external_port=external_port)])
+
+        d.addCallback(
+            lambda ignored: self.request_until_response(external_port))
+
+        def started(response):
+            d = content(response)
+            d.addCallback(lambda body: self.assertEqual(b"hi", body))
+            return d
+        d.addCallback(started)
+        return d
+
 
 class DockerClientTests(TestCase):
     """
@@ -764,6 +833,18 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
 
     def make_client(self):
         return NamespacedDockerClient(self.namespace)
+
+    def create_container(self, client, name, image):
+        """
+        Create (but don't start) a container via the supplied client.
+
+        :param DockerClient client: The Docker API client.
+        :param unicode name: The container name.
+        :param unicode image: The image name.
+        """
+        container_name = client._client._to_container_name(name)
+        client._client._client.create_container(
+            name=container_name, image=image)
 
     def test_isolated_namespaces(self):
         """

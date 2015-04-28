@@ -8,6 +8,8 @@ Uses RSA 4096-bit + SHA 256.
 
 import os
 
+from uuid import uuid4
+
 from OpenSSL import crypto
 from pyrsistent import PRecord, field
 from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
@@ -227,6 +229,65 @@ class FlockerCredential(PRecord):
             )
         finally:
             os.umask(original_umask)
+
+
+class NodeCredential(FlockerCredential):
+    """
+    A certificate for a node agent, signed by a supplied certificate
+    authority.
+
+    :ivar bytes uuid: A unique identifier for the node this certificate
+        identifies, in the form of a version 4 UUID.
+    """
+    uuid = field(mandatory=True, initial=None)
+
+    @classmethod
+    def from_path(cls, path, uuid):
+        """
+        Load a node certificate from a specified path.
+        """
+        key_filename = b"{uuid}.key".format(uuid=uuid)
+        cert_filename = b"{uuid}.crt".format(uuid=uuid)
+        keypair, certificate = load_certificate_from_path(
+            path, key_filename, cert_filename
+        )
+        return cls(
+            path=path, keypair=keypair, certificate=certificate, uuid=uuid
+        )
+
+    @classmethod
+    def initialize(cls, path, authority):
+        """
+        Generate a certificate signed by the supplied root certificate.
+
+        :param FilePath path: Directory where the certificate will be stored.
+        :param CertificateAuthority authority: The certificate authority with
+            which this certificate will be signed.
+        """
+        node_uuid = str(uuid4())
+        key_filename = b"{uuid}.key".format(uuid=node_uuid)
+        cert_filename = b"{uuid}.crt".format(uuid=node_uuid)
+        # The common name for the node certificate.
+        name = b"node-{uuid}".format(uuid=node_uuid)
+        # The organizational unit is set to the common name of the
+        # authority, which in our case is a byte string identifying
+        # the cluster.
+        organizational_unit = authority.certificate.getSubject().CN
+        dn = DistinguishedName(
+            commonName=name, organizationalUnitName=organizational_unit
+        )
+        keypair = flocker_keypair()
+        request = keypair.keypair.requestObject(dn)
+        serial = os.urandom(16).encode(b"hex")
+        serial = int(serial, 16)
+        cert = authority.keypair.keypair.signRequestObject(
+            authority.certificate.getSubject(), request,
+            serial, EXPIRY_20_YEARS, 'sha256'
+        )
+        instance = cls(
+            path=path, keypair=keypair, certificate=cert, uuid=node_uuid)
+        instance.write_credential_files(key_filename, cert_filename)
+        return instance
 
 
 class ControlCredential(FlockerCredential):
