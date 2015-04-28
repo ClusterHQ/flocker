@@ -8,6 +8,7 @@ XXX This script is not automatically checked by buildbot. See
 https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
+import json
 import os
 import sys
 import tempfile
@@ -53,6 +54,8 @@ from .yum import (
     CreateRepo,
     DownloadPackagesFromRepository,
 )
+
+from .vagrant import vagrant_version
 
 
 class NotTagged(Exception):
@@ -351,16 +354,18 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
     TODO
     """
     # TODO use box_metadata from vagrant.py
-    # TODO use vagrant_version to convert a python version to a vagrant version
-    import json
+
+    # TODO download existing metadata, json.safe_load it
+    metadata = {}
+    normalised_version = vagrant_version(version)
     new_metadata = {
-        "version": version,
+        "version": normalised_version,
         "providers": [{
             "url": "https://example.com/flocker-tutorial-0.3.0.box",
             "name": "virtualbox"
     }]}
 
-    metadata = "A"
+    metadata['versions'].append(new_metadata)
     json_file = scratch_directory.child('flocker-tutorial.json')
     json_file.setContent(json.dumps(metadata))
     yield Effect(UploadToS3Recursively(

@@ -1841,3 +1841,9 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         If the metadata which exists already is not valid, an exception is
         raised.
         """
+
+    def test_version_already_exists(self):
+        """
+        If a version already exists then its data is overwritten by the new
+        metadata.
+        """
