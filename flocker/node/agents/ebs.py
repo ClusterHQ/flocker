@@ -13,7 +13,7 @@ from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 
-from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume
+from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
@@ -106,7 +106,7 @@ class EBSBlockDeviceAPI(object):
         self.connection.create_tags([requested_volume.id],
                                     metadata)
 
-        created_volume = self._wait_for_volume(requested_volume)
+        self._wait_for_volume(requested_volume)
 
         return self._blockdevicevolume_from_ebs_volume(requested_volume)
 
@@ -115,7 +115,8 @@ class EBSBlockDeviceAPI(object):
         """
         volumes = []
         for ebs_volume in self.connection.get_all_volumes():
-            if self._is_cluster_volume(self.cluster_id, ebs_volume):
+            if ((self._is_cluster_volume(self.cluster_id, ebs_volume)) and
+               (ebs_volume.status in [u'available', u'in-use'])):
                 volumes.append(
                     self._blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
@@ -131,7 +132,16 @@ class EBSBlockDeviceAPI(object):
         pass
 
     def destroy_volume(self, blockdevice_id):
-        self.connection.delete_volume(blockdevice_id)
+        for volume in self.list_volumes():
+            if volume.blockdevice_id == blockdevice_id:
+                ret_val = self.connection.delete_volume(blockdevice_id)
+                if ret_val is False:
+                    raise Exception(
+                        'Failed to delete volume: {!r}'.format(blockdevice_id)
+                    )
+                else:
+                    return
+        raise UnknownVolume(format(blockdevice_id))
 
     def get_device_path(self, blockdevice_id):
         pass

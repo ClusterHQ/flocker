@@ -17,8 +17,6 @@ from uuid import uuid4
 
 from bitmath import Byte
 
-from twisted.trial.unittest import SynchronousTestCase
-
 from ....testtools import skip_except
 from ..cinder import cinder_api, wait_for_volume
 from ..test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
@@ -82,13 +80,6 @@ class CinderBlockDeviceAPIInterfaceTests(
 
         self.assertVolumesDistinct(block_device_api2)
 
-
-class CinderBlockDeviceAPIImplementationTests(SynchronousTestCase):
-    """
-    Implementation specific tests for ``CinderBlockDeviceAPI``.
-    Block devices that are created in these tests will be cleaned up by
-    ``TidyCinderVolumeManager``.
-    """
     def test_foreign_volume(self):
         """
         Non-Flocker Volumes are not listed.
@@ -101,14 +92,10 @@ class CinderBlockDeviceAPIImplementationTests(SynchronousTestCase):
             volume_manager=cinder_client.volumes,
             expected_volume=requested_volume
         )
-        block_device_api = cinderblockdeviceapi_for_test(
-            test_case=self,
-            cluster_id=uuid4(),
-        )
 
-        flocker_volume = block_device_api.create_volume(
+        flocker_volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=REALISTIC_BLOCKDEVICE_SIZE,
         )
 
-        self.assertEqual([flocker_volume], block_device_api.list_volumes())
+        self.assertForeignVolume([flocker_volume], self.api.list_volumes())

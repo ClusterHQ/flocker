@@ -823,6 +823,15 @@ class IBlockDeviceAPITestsMixin(object):
     """
     Tests to perform on ``IBlockDeviceAPI`` providers.
     """
+    def tearDown(self):
+        """
+        Destroy volumes created for the cluster used by the test.
+        """
+        volumes = self.api.list_volumes()
+
+        for volume in volumes:
+            self.api.destroy_volume(volume.blockdevice_id)
+
     def test_interface(self):
         """
         ``api`` instances provide ``IBlockDeviceAPI``.
@@ -1103,12 +1112,16 @@ class IBlockDeviceAPITestsMixin(object):
         ``destroy_volume`` raises ``UnknownVolume`` if the supplied
         ``blockdevice_id`` does not exist.
         """
-        blockdevice_id = unicode(uuid4)
+        volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.api.destroy_volume(volume.blockdevice_id)
         exception = self.assertRaises(
             UnknownVolume,
-            self.api.destroy_volume, blockdevice_id=blockdevice_id
+            self.api.destroy_volume, blockdevice_id=volume.blockdevice_id
         )
-        self.assertEqual(exception.args, (blockdevice_id,))
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
 
     def test_destroy_volume(self):
         """
@@ -1336,6 +1349,18 @@ class IBlockDeviceAPITestsMixin(object):
             (self.api.list_volumes(),
              block_device_api2.list_volumes())
         )
+
+        self.api.destroy_volume(flocker_volume1.blockdevice_id)
+        block_device_api2.destroy_volume(flocker_volume2.blockdevice_id)
+
+    def assertForeignVolume(self, volume):
+        """
+        """
+        flocker_volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.assertEqual([flocker_volume], self.api.list_volumes())
 
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
