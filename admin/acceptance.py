@@ -24,7 +24,6 @@ from flocker.provision._install import (
     task_pull_docker_images,
     configure_cluster,
 )
-from flocker.provision._libcloud import INode
 
 from flocker.provision._ssh._fabric import dispatcher
 from flocker.provision._effect import sequence
@@ -61,12 +60,11 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
     """
     Run the acceptance tests.
 
-    :param list nodes: The list of INode nodes to run the acceptance
-        tests against.
-    :param INode control_node: The control node to run API acceptance
-        tests against.
-    :param list agent_nodes: The list of INode nodes running flocker
-        agent, to run API acceptance tests against.
+    :param list nodes: The list of nodes to run the acceptance tests against.
+    :param bytes control_node: The address of the control node to run API
+        acceptance tests against.
+    :param list agent_nodes: The list of nodes running flocker agent, to run
+        API acceptance tests against.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
 
@@ -86,10 +84,9 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
         reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
-            FLOCKER_ACCEPTANCE_NODES=':'.join(node.address for node in nodes),
-            FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node.address,
-            FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
-                node.address for node in agent_nodes),
+            FLOCKER_ACCEPTANCE_NODES=':'.join(nodes),
+            FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node,
+            FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(agent_nodes),
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -123,14 +120,6 @@ class INodeRunner(Interface):
 RUNNER_ATTRIBUTES = [
     'distribution', 'top_level', 'config', 'package_source', 'variants'
 ]
-
-
-@implementer(INode)
-@attributes(['address', 'distribution'], apply_immutable=True)
-class VagrantNode(object):
-    """
-    Node run using VagrantRunner
-    """
 
 
 @implementer(INodeRunner)
@@ -186,10 +175,8 @@ class VagrantRunner(object):
                     commands=task_pull_docker_images()
                 ),
             )
-        returnValue([
-            VagrantNode(address=address, distribution=self.distribution)
-            for address in self.NODE_ADDRESSES
-            ])
+
+        returnValue(self.NODE_ADDRESSES)
 
     def stop_nodes(self, reactor):
         return run(
@@ -259,7 +246,7 @@ class LibcloudRunner(object):
         ])
         yield perform(dispatcher, commands)
 
-        returnValue(self.nodes)
+        returnValue([node.address for node in self.nodes])
 
     def stop_nodes(self, reactor):
         """
@@ -273,7 +260,6 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
 PROVIDERS = tuple(sorted(['vagrant'] + CLOUD_PROVIDERS.keys()))
 
 
@@ -283,19 +269,19 @@ class RunOptions(Options):
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
-         'One of {}.'.format(', '.join(DISTRIBUTIONS))],
+         'One of fedora-20.'],
         ['provider', None, 'vagrant',
          'The target provider to test against. '
          'One of {}.'.format(', '.join(PROVIDERS))],
         ['config-file', None, None,
          'Configuration for providers.'],
-        ['branch', None, None, 'Branch to grab packages from'],
+        ['branch', None, None, 'Branch to grab RPMS from'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/',
-         'Base URL of build server for package downloads'],
+         'Base URL of build server to download RPMs from'],
     ]
 
     optFlags = [

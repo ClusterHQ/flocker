@@ -74,6 +74,7 @@ dev_requirements = [
     "requests==2.4.3",
     "requests-file==1.0",
 
+    "wheel==0.24.0",
     "gitpython==1.0.0",
 ]
 
@@ -136,7 +137,10 @@ setup(
     },
 
     install_requires=[
-        "setuptools >= 1.4",
+        # This is necessary for a release because our version scheme does not
+        # adhere to PEP440.
+        # See https://clusterhq.atlassian.net/browse/FLOC-1373
+        "setuptools==3.6",
 
         "eliot == 0.6.0",
         "machinist == 0.2.0",
@@ -159,9 +163,6 @@ setup(
         "pycrypto == 2.6.1",
         "pyOpenSSL == 0.14",
         "effect==0.1a13",
-        "python-cinderclient==1.1.1",
-        "python-keystoneclient-rackspace==0.1.3",
-        "bitmath==1.2.3-4",
         ],
 
     extras_require={
@@ -183,7 +184,7 @@ setup(
         "release": [
             "gitpython==1.0.0",
             "gsutil",
-            "wheel",
+            "wheel==0.24.0",
             "virtualenv",
             "PyCrypto",
             "pyasn1",

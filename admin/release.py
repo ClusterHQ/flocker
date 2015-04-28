@@ -11,10 +11,15 @@ https://clusterhq.atlassian.net/browse/FLOC-397
 import os
 import sys
 import tempfile
+from xml.sax.saxutils import quoteattr, escape
+
+from setuptools import __version__ as setuptools_version
+from subprocess import check_call
 
 from effect import (
-    Effect, sync_perform, ComposedDispatcher, base_dispatcher)
+    Effect, sync_perform, ComposedDispatcher)
 from effect.do import do
+
 from characteristic import attributes
 from git import GitCommandError, Repo
 
@@ -23,6 +28,7 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
 
 import flocker
+from flocker.provision._effect import sequence, dispatcher as base_dispatcher
 
 from flocker.common.version import (
     get_doc_version,
@@ -43,6 +49,7 @@ from .aws import (
     DeleteS3Keys,
     CopyS3Keys,
     DownloadS3KeyRecursively,
+    UploadToS3,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
 
@@ -53,8 +60,6 @@ from .yum import (
     CreateRepo,
     DownloadPackagesFromRepository,
 )
-
-from .packaging import Distribution
 
 
 class NotTagged(Exception):
@@ -114,6 +119,13 @@ class MissingPreRelease(Exception):
 class NoPreRelease(Exception):
     """
     Raised if trying to release a marketing release if no pre-release exists.
+    """
+
+
+class IncorrectSetuptoolsVersion(Exception):
+    """
+    Raised if trying to create packages which require a specific version of
+    setuptools to be installed.
     """
 
 
@@ -326,17 +338,29 @@ def publish_docs_main(args, base_path, top_level):
 
 class UploadOptions(Options):
     """
-    Options for uploading packages.
+    Options for uploading artifacts.
     """
     optParameters = [
         ["flocker-version", None, flocker.__version__,
-         "The version of Flocker to upload packages for."],
+         "The version of Flocker to upload RPMs for."
+         "Python packages for " + flocker.__version__ + "will be uploaded.\n"],
         ["target", None, ARCHIVE_BUCKET,
-         "The bucket to upload packages to."],
+         "The bucket to upload artifacts to.\n"],
         ["build-server", None,
          b'http://build.clusterhq.com',
-         "The URL of the build-server."],
+         "The URL of the build-server.\n"],
     ]
+
+    def parseArgs(self):
+        version = self['flocker-version']
+
+        if not (is_release(version)
+                or is_weekly_release(version)
+                or is_pre_release(version)):
+            raise NotARelease()
+
+        if get_doc_version(version) != version:
+            raise DocumentationRelease()
 
 
 FLOCKER_PACKAGES = [
@@ -347,13 +371,13 @@ FLOCKER_PACKAGES = [
 
 
 @do
-def update_repo(package_directory, target_bucket, target_key, source_repo,
+def update_repo(rpm_directory, target_bucket, target_key, source_repo,
                 packages, flocker_version, distro_name, distro_version):
     """
     Update ``target_bucket`` yum repository with ``packages`` from
     ``source_repo`` repository.
 
-    :param FilePath package_directory: Temporary directory to download
+    :param FilePath rpm_directory: Temporary directory to download
         repository to.
     :param bytes target_bucket: S3 bucket to upload repository to.
     :param bytes target_key: Path within S3 bucket to upload repository to.
@@ -367,37 +391,27 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
     :param distro_version: The distro_version of the distribution to upload
         packages for.
     """
-    package_directory.createDirectory()
-
-    distribution = Distribution(
-        name=distro_name,
-        version=distro_version,
-    )
-    package_type = distribution.package_type()
+    rpm_directory.createDirectory()
 
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
         source_prefix=target_key,
-        target_path=package_directory,
-        filter_extensions=('.' + package_type.value,)))
+        target_path=rpm_directory,
+        filter_extensions=('.rpm',)))
 
     downloaded_packages = yield Effect(DownloadPackagesFromRepository(
         source_repo=source_repo,
-        target_path=package_directory,
+        target_path=rpm_directory,
         packages=packages,
         flocker_version=flocker_version,
         distro_name=distro_name,
         distro_version=distro_version,
         ))
 
-    new_metadata = yield Effect(CreateRepo(
-        repository_path=package_directory,
-        distro_name=distro_name,
-        distro_version=distro_version,
-        ))
+    new_metadata = yield Effect(CreateRepo(repository_path=rpm_directory))
 
     yield Effect(UploadToS3Recursively(
-        source_path=package_directory,
+        source_path=rpm_directory,
         target_bucket=target_bucket,
         target_key=target_key,
         files=downloaded_packages | new_metadata,
@@ -407,7 +421,12 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
 @do
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
-    Upload RPMS from build server to yum repository.
+    The ClusterHQ yum repository contains packages for Flocker, as well as the
+    dependencies which aren't available in Fedora 20 or CentOS 7. It is
+    currently hosted on Amazon S3. When doing a release, we want to add the
+    new Flocker packages, while preserving the existing packages in the
+    repository. To do this, we download the current repository, add the new
+    package, update the metadata, and then upload the repository.
 
     :param FilePath scratch_directory: Temporary directory to download
         repository to.
@@ -415,14 +434,6 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     :param bytes version: Version to download RPMs for.
     :param bytes build_server: Server to download new RPMs from.
     """
-    if not (is_release(version)
-            or is_weekly_release(version)
-            or is_pre_release(version)):
-        raise NotARelease()
-
-    if get_doc_version(version) != version:
-        raise DocumentationRelease()
-
     is_dev = not is_release(version)
     if is_dev:
         target_distro_suffix = "-testing"
@@ -432,12 +443,11 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
     operating_systems = [
         {'distro': 'fedora', 'version': '20', 'arch': 'x86_64'},
         {'distro': 'centos', 'version': '7', 'arch': 'x86_64'},
-        {'distro': 'ubuntu', 'version': '14.04', 'arch': 'amd64'},
     ]
 
     for operating_system in operating_systems:
         yield update_repo(
-            package_directory=scratch_directory.child(
+            rpm_directory=scratch_directory.child(
                 b'{}-{}-{}'.format(
                     operating_system['distro'],
                     operating_system['version'],
@@ -460,16 +470,89 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
         )
 
 
-def publish_rpms_main(args, base_path, top_level):
+def create_pip_index(scratch_directory, packages):
     """
-    The ClusterHQ yum repository contains packages for Flocker, as well as the
-    dependencies which aren't available in Fedora 20 or CentOS 7. It is
-    currently hosted on Amazon S3. When doing a release, we want to add the
-    new Flocker packages, while preserving the existing packages in the
-    repository. To do this, we download the current repository, add the new
-    package, update the metadata, and then upload the repository.
+    Create an index file for pip.
 
-    :param list args: The arguments passed to the script.
+    :param FilePath scratch_directory: Temporary directory to create index in.
+    :param list packages: List of bytes, filenames of packages to be in the
+        index.
+    """
+    index_file = scratch_directory.child('index.html')
+    with index_file.open('w') as f:
+        f.write('This is an index for pip\n')
+        for package in packages:
+            if package != 'index.html':
+                f.write('<a href={destination}>{title}</a><br/>\n'.format(
+                    destination=quoteattr(package),
+                    title=escape(package)))
+    return index_file
+
+
+@do
+def upload_pip_index(scratch_directory, target_bucket):
+    """
+    Upload an index file for pip to S3.
+
+    :param FilePath scratch_directory: Temporary directory to create index in.
+    :param bytes target_bucket: S3 bucket to upload index to.
+    """
+    packages = yield Effect(
+        ListS3Keys(bucket=target_bucket,
+                   prefix='python/'))
+
+    index_path = create_pip_index(
+        scratch_directory=scratch_directory,
+        packages=packages)
+
+    yield Effect(
+        UploadToS3(
+            source_path=scratch_directory,
+            target_bucket=target_bucket,
+            target_key='python',
+            file=index_path,
+        ))
+
+
+@do
+def upload_python_packages(scratch_directory, target_bucket, top_level,
+                           output, error):
+    """
+    The repository contains source distributions and binary distributions
+    (wheels) for Flocker. It is currently hosted on Amazon S3.
+
+    :param FilePath scratch_directory: Temporary directory to create packages
+        in.
+    :param bytes target_bucket: S3 bucket to upload packages to.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    if setuptools_version != '3.6':
+        # XXX Use PEP440 version system so new setuptools can be used.
+        # https://clusterhq.atlassian.net/browse/FLOC-1331.
+        raise IncorrectSetuptoolsVersion()
+
+    # XXX This has a side effect so it should be an Effect
+    # https://clusterhq.atlassian.net/browse/FLOC-1731
+    check_call([
+        'python', 'setup.py',
+        'sdist', '--dist-dir={}'.format(scratch_directory.path),
+        'bdist_wheel', '--dist-dir={}'.format(scratch_directory.path)],
+        cwd=top_level.path, stdout=output, stderr=error)
+
+    files = set([file.basename() for file in scratch_directory.children()])
+    yield Effect(UploadToS3Recursively(
+        source_path=scratch_directory,
+        target_bucket=target_bucket,
+        target_key='python',
+        files=files,
+        ))
+
+
+def publish_artifacts_main(args, base_path, top_level):
+    """
+    Publish release artifacts.
+
+    :param list args: The arguments passed to the scripts.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
@@ -480,30 +563,50 @@ def publish_rpms_main(args, base_path, top_level):
     except UsageError as e:
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
+    except NotARelease:
+        sys.stderr.write("%s: Can't publish artifacts for a non-release.\n"
+                         % (base_path.basename(),))
+        raise SystemExit(1)
+    except DocumentationRelease:
+        sys.stderr.write("%s: Can't publish artifacts for a documentation "
+                         "release.\n" % (base_path.basename(),))
+        raise SystemExit(1)
 
     dispatcher = ComposedDispatcher([boto_dispatcher, yum_dispatcher,
                                      base_dispatcher])
 
-    try:
-        scratch_directory = FilePath(tempfile.mkdtemp(
-            prefix=b'flocker-upload-rpm-'))
+    scratch_directory = FilePath(tempfile.mkdtemp(
+        prefix=b'flocker-upload-'))
+    scratch_directory.child('rpm').createDirectory()
+    scratch_directory.child('python').createDirectory()
+    scratch_directory.child('pip').createDirectory()
 
+    try:
         sync_perform(
             dispatcher=dispatcher,
-            effect=upload_rpms(
-                scratch_directory=scratch_directory,
-                target_bucket=options['target'],
-                version=options['flocker-version'],
-                build_server=options['build-server'],
-                ))
-
-    except NotARelease:
-        sys.stderr.write("%s: Can't upload RPMs for a non-release."
-                         % (base_path.basename(),))
-        raise SystemExit(1)
-    except DocumentationRelease:
-        sys.stderr.write("%s: Can't upload RPMs for a documentation release."
-                         % (base_path.basename(),))
+            effect=sequence([
+                upload_rpms(
+                    scratch_directory=scratch_directory.child('rpm'),
+                    target_bucket=options['target'],
+                    version=options['flocker-version'],
+                    build_server=options['build-server'],
+                ),
+                upload_python_packages(
+                    scratch_directory=scratch_directory.child('python'),
+                    target_bucket=options['target'],
+                    top_level=top_level,
+                    output=sys.stdout,
+                    error=sys.stderr,
+                ),
+                upload_pip_index(
+                    scratch_directory=scratch_directory.child('pip'),
+                    target_bucket=options['target'],
+                ),
+            ]),
+        )
+    except IncorrectSetuptoolsVersion:
+        sys.stderr.write("%s: setuptools version must be 3.6.\n"
+            % (base_path.basename(),))
         raise SystemExit(1)
     finally:
         scratch_directory.remove()

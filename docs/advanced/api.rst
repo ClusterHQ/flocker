@@ -16,21 +16,20 @@ Fedora/CentOS
 
 To enable the Flocker control service.
 
-.. task:: enable_flocker_control fedora-20
+.. task:: enable_flocker_control
    :prompt: [root@control-node]#
 
 The control service needs to accessible remotely.
 To configure firewalld to allow access to the control service REST API, and for agent connections,
 
-.. task:: open_control_firewall fedora-20
-   :prompt: [root@control-node]#
+.. task:: open_control_firewall
 
 (On AWS, an external firewall is used instead, which will need to be configured similarity).
 For more details on configuring the firewall, see Fedora's `firewalld documentation <https://fedoraproject.org/wiki/FirewallD>`_.
 
-To start the agents on a node, where ``${CONTROL_NODE}`` is the address of the control node:
+To start the agents on a node, (where ``${CONTROL_NODE}`` is the address of the control node, and ``${NODE_NAME}`` is the name of the node being configured).:
 
-.. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
+.. task:: enable_flocker_agent ${NODE_NAME} ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
 API Details

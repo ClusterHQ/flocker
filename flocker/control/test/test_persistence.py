@@ -28,7 +28,6 @@ DATASET = Dataset(dataset_id=unicode(uuid4()),
 MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
 TEST_DEPLOYMENT = Deployment(
     nodes=[Node(hostname=u'node1.example.com',
-                uuid=uuid4(),
                 applications=[
                     Application(
                         name=u'myapp',

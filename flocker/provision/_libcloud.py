@@ -4,8 +4,6 @@
 Helpers for using libcloud.
 """
 
-from zope.interface import (
-    Attribute as InterfaceAttribute, Interface, implementer)
 from characteristic import attributes, Attribute
 
 
@@ -133,15 +131,6 @@ def get_image(driver, image_name):
         raise ValueError("Unknown image.", image_name)
 
 
-class INode(Interface):
-    """
-    Interface for node for running acceptance tests.
-    """
-    address = InterfaceAttribute('ip address for node')
-    distribution = InterfaceAttribute('distribution on node')
-
-
-@implementer(INode)
 @attributes([
     # _node gets updated, so we can't make this immutable.
     Attribute('_node'),

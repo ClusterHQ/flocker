@@ -4,7 +4,7 @@
 
 from zope.interface.verify import verifyObject
 
-from pyrsistent import pset, pvector
+from pyrsistent import pset
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -183,24 +183,6 @@ def make_idockerclient_tests(fixture):
             def got_list(units):
                 unit = [unit for unit in units if unit.name == name][0]
                 self.assertIsInstance(unit.container_name, unicode)
-            d.addCallback(got_list)
-            return d
-
-        def test_command_line(self):
-            """
-            Containers created with a command-line have a command-line included
-            when listed.
-            """
-            client = fixture(self)
-            name = random_name()
-            self.addCleanup(client.remove, name)
-            command_line = [u"nc", u"-l", u"-p", u"1234"]
-            d = client.add(name, u"busybox", command_line=command_line)
-            d.addCallback(lambda _: client.list())
-
-            def got_list(units):
-                unit = [unit for unit in units if unit.name == name][0]
-                self.assertEqual(unit.command_line, pvector(command_line))
             d.addCallback(got_list)
             return d
 

@@ -5,7 +5,6 @@ Persistence of cluster configuration.
 """
 
 from json import dumps, loads, JSONEncoder
-from uuid import UUID
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
@@ -38,9 +37,6 @@ class _ConfigurationEncoder(JSONEncoder):
         elif isinstance(obj, FilePath):
             return {_CLASS_MARKER: u"FilePath",
                     u"path": obj.path.decode("utf-8")}
-        elif isinstance(obj, UUID):
-            return {_CLASS_MARKER: u"UUID",
-                    "hex": unicode(obj)}
         return JSONEncoder.default(self, obj)
 
 
@@ -67,8 +63,6 @@ def wire_decode(data):
         class_name = dictionary.get(_CLASS_MARKER, None)
         if class_name == u"FilePath":
             return FilePath(dictionary.get(u"path").encode("utf-8"))
-        elif class_name == u"UUID":
-            return UUID(dictionary[u"hex"])
         elif class_name in classes:
             dictionary = dictionary.copy()
             dictionary.pop(_CLASS_MARKER)
