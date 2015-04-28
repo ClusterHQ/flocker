@@ -632,21 +632,13 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
             }
         )
 
-        # We'd like the filesystem to be mounted beneath the deployer's mount
-        # root in a directory unique to and identified by the dataset being
-        # operated on.
-        mountpoint = deployer.mountroot.child(bytes(self.DATASET_ID))
-
         changes = deployer.calculate_changes(cluster_config, cluster_state)
         self.assertEqual(
-            sequentially(changes=[
+            in_parallel(changes=[
                 AttachVolume(
                     dataset_id=UUID(dataset.dataset_id),
                     # Attach it to this node.
                     hostname=deployer.hostname
-                ),
-                MountBlockDevice(
-                    dataset_id=UUID(dataset.dataset_id), mountpoint=mountpoint
                 ),
             ]),
             changes
