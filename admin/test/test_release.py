@@ -1735,16 +1735,16 @@ class CreatePipIndexTests(SynchronousTestCase):
         )
         self.assertEqual(expected, index.getContent())
 
-    def test_only_wheels_included(self):
+    def test_index_not_included(self):
         """
-        The pip index file created only references wheel files.
+        The pip index file does not reference itself.
         """
         index = create_pip_index(
             scratch_directory=self.scratch_directory,
             packages=[
                 'Flocker-0.3.0-py2-none-any.whl',
                 'Flocker-0.3.1-py2-none-any.whl',
-                'Flocker-0.3.2-py2-none-any.not-a-whl',
+                'index',
             ]
         )
 

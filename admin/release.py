@@ -482,7 +482,7 @@ def create_pip_index(scratch_directory, packages):
     with index_file.open('w') as f:
         f.write('This is an index for pip\n')
         for package in packages:
-            if package.endswith('.whl'):
+            if package != 'index':
                 f.write('<a href={destination}>{title}</a><br/>\n'.format(
                     destination=quoteattr(package),
                     title=escape(package)))
