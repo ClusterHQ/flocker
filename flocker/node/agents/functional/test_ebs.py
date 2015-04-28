@@ -72,6 +72,6 @@ class EBSBlockDeviceAPIInterfaceTests(
 
         self.api._wait_for_volume(requested_volume)
 
-        self.assertForeignVolume(requested_volume)
+        self.assertEqual(self.api.list_volumes(), [])
 
         ec2_client.connection.delete_volume(requested_volume.id)

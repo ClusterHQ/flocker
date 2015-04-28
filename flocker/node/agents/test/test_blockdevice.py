@@ -1365,23 +1365,13 @@ class IBlockDeviceAPITestsMixin(object):
             size=REALISTIC_BLOCKDEVICE_SIZE,
         )
 
+        self.addCleanup(block_device_api2.destroy_volume,
+                        flocker_volume2.blockdevice_id)
         self.assertEqual(
             ([flocker_volume1], [flocker_volume2]),
             (self.api.list_volumes(),
              block_device_api2.list_volumes())
         )
-
-        self.api.destroy_volume(flocker_volume1.blockdevice_id)
-        block_device_api2.destroy_volume(flocker_volume2.blockdevice_id)
-
-    def assertForeignVolume(self, volume):
-        """
-        """
-        flocker_volume = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-        self.assertEqual([flocker_volume], self.api.list_volumes())
 
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):

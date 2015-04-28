@@ -98,4 +98,4 @@ class CinderBlockDeviceAPIInterfaceTests(
             size=REALISTIC_BLOCKDEVICE_SIZE,
         )
 
-        self.assertForeignVolume([flocker_volume], self.api.list_volumes())
+        self.assertEqual([flocker_volume], self.api.list_volumes())
