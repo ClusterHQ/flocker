@@ -62,6 +62,8 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='apt-get -y install software-properties-common'),
             run(command='add-apt-repository -y ppa:zfs-native/stable'),
             run(command='add-apt-repository -y ppa:james-page/docker'),
+            run(command="add-apt-repository -y "
+                        "'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'"),  # noqa
             run(command='apt-get update'),
             run(command='apt-get -y install libc6-dev'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
@@ -82,9 +84,34 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='apt-get -y install software-properties-common'),
             run(command='add-apt-repository -y ppa:zfs-native/stable'),
             run(command='add-apt-repository -y ppa:james-page/docker'),
+            run(command="add-apt-repository -y "
+                        "'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'"),  # noqa
             run(command='apt-get update'),
             run(command='apt-get -y install libc6-dev'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node=1.2.3-1'),  # noqa
+        ]))
+
+    def test_ubuntu_with_branch(self):
+        """
+        With a ``PackageSource`` containing just a branch,
+        ``task_install_flocker`` installs that version from buildbot.
+        """
+        distribution = 'ubuntu-14.04'
+        source = PackageSource(branch="branch-FLOC-1234")
+        commands = task_install_flocker(
+            package_source=source,
+            distribution=distribution)
+        self.assertEqual(commands, sequence([
+            run(command='apt-get -y install software-properties-common'),
+            run(command='add-apt-repository -y ppa:zfs-native/stable'),
+            run(command='add-apt-repository -y ppa:james-page/docker'),
+            run(command="add-apt-repository -y "
+                        "'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'"),  # noqa
+            run(command="add-apt-repository -y "
+                        "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
+            run(command='apt-get update'),
+            run(command='apt-get -y install libc6-dev'),
+            run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
 
     def test_with_branch(self):
