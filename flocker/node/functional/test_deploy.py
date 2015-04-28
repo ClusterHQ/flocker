@@ -113,7 +113,8 @@ class DeployerTests(TestCase):
         name = random_name()
         docker_client = DockerClient()
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network(), node_uuid=uuid4())
+            u"localhost", docker_client, make_memory_network(),
+            node_uuid=uuid4())
         self.addCleanup(docker_client.remove, name)
 
         desired_state = Deployment(nodes=frozenset([
