@@ -16,7 +16,9 @@ from keystoneclient.session import Session
 from twisted.python.filepath import FilePath
 from zope.interface import implementer, Interface
 
-from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume
+from .blockdevice import (
+    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume
+)
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
 # a volume.
@@ -235,6 +237,9 @@ class CinderBlockDeviceAPI(object):
         When I attach using the cinder client the volumes become undetachable.
         """
         unattached_volume = self._get(blockdevice_id)
+        if unattached_volume.host is not None:
+            raise AlreadyAttachedVolume(blockdevice_id)
+
         device_path = _next_device()
         server_id = self.host_map[host]
         nova_volume = self.nova_volume_manager.create_server_volume(
