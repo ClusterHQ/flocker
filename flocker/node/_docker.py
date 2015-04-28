@@ -559,7 +559,7 @@ class DockerClient(object):
                         # stub data so we can return *something*. This
                         # should happen only for stopped containers so
                         # some inaccuracy is acceptable.
-                        image_data = {u"Config": {u"Env": []}}
+                        image_data = {u"Config": {u"Env": [], u"Cmd": []}}
                     else:
                         raise
                 if image_data[u"Config"][u"Cmd"] == command:
