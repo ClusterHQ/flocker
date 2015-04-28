@@ -480,7 +480,7 @@ def create_pip_index(scratch_directory, packages):
     """
     index_file = scratch_directory.child('index')
     with index_file.open('w') as f:
-        f.write('<!--This is an index for pip-->\n')
+        f.write('This is an index for pip\n')
         for package in packages:
             if package.endswith('.whl'):
                 f.write('<a href={destination}>{title}</a><br/>\n'.format(

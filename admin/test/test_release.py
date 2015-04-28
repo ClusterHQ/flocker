@@ -1729,7 +1729,7 @@ class CreatePipIndexTests(SynchronousTestCase):
         )
 
         expected = dedent(
-            "<!--This is an index for pip-->\n"
+            "This is an index for pip\n"
             '<a href="Flocker-0.3.0-py2-none-any.whl">Flocker-0.3.0-py2-none-any.whl</a><br/>\n'  # noqa
             '<a href="Flocker-0.3.1-py2-none-any.whl">Flocker-0.3.1-py2-none-any.whl</a><br/>\n'  # noqa
         )
@@ -1749,7 +1749,7 @@ class CreatePipIndexTests(SynchronousTestCase):
         )
 
         expected = dedent(
-            "<!--This is an index for pip-->\n"
+            "This is an index for pip\n"
             '<a href="Flocker-0.3.0-py2-none-any.whl">Flocker-0.3.0-py2-none-any.whl</a><br/>\n'  # noqa
             '<a href="Flocker-0.3.1-py2-none-any.whl">Flocker-0.3.1-py2-none-any.whl</a><br/>\n'  # noqa
         )
@@ -1767,7 +1767,7 @@ class CreatePipIndexTests(SynchronousTestCase):
         )
 
         expected = dedent(
-            "<!--This is an index for pip-->\n"
+            "This is an index for pip\n"
             '''<a href='"Flocker-0.3.0-py2-none-any.whl'>"Flocker-0.3.0-py2-none-any.whl</a><br/>\n'''  # noqa
         )
         self.assertEqual(expected, index.getContent())
@@ -1784,7 +1784,7 @@ class CreatePipIndexTests(SynchronousTestCase):
         )
 
         expected = dedent(
-            "<!--This is an index for pip-->\n"
+            "This is an index for pip\n"
             '''<a href="&gt;Flocker-0.3.0-py2-none-any.whl">&gt;Flocker-0.3.0-py2-none-any.whl</a><br/>\n'''  # noqa
         )
         self.assertEqual(expected, index.getContent())
@@ -1817,7 +1817,7 @@ class UploadPipIndexTests(SynchronousTestCase):
                 target_bucket=bucket))
         self.assertEqual(
             aws.s3_buckets[bucket]['python/index'],
-            '<!--This is an index for pip-->\n'
+            'This is an index for pip\n'
             '<a href="Flocker-0.3.1-py2-none-any.whl">'
             'Flocker-0.3.1-py2-none-any.whl</a><br/>\n')
 
