@@ -32,12 +32,13 @@ class P2PNodeDeployer(object):
     https://clusterhq.atlassian.net/browse/FLOC-1732
     """
     def __init__(self, hostname, volume_service, docker_client=None,
-                 network=None):
+                 network=None, node_uuid=None):
         self.manifestations_deployer = P2PManifestationDeployer(
-            hostname, volume_service)
+            hostname, volume_service, node_uuid=node_uuid)
         self.applications_deployer = ApplicationNodeDeployer(
-            hostname, docker_client, network)
+            hostname, docker_client, network, node_uuid=node_uuid)
         self.hostname = hostname
+        self.node_uuid = node_uuid
         self.volume_service = self.manifestations_deployer.volume_service
         self.docker_client = self.applications_deployer.docker_client
         self.network = self.applications_deployer.network
@@ -230,7 +231,7 @@ class DeployerTests(TestCase):
 
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
-            u"locahost", volume_service, docker_client,
+            u"localhost", volume_service, docker_client,
             make_memory_network(), node_uuid=uuid4())
 
         expected_variables = frozenset({
