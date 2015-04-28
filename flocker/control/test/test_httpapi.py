@@ -1421,7 +1421,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                 )
                 real_expected = expected
                 for node in expected.nodes:
-                    if node.uuid == self.NODE_B:
+                    if node.uuid == self.NODE_B_UUID:
                         node = node.transform(
                             ["applications"], lambda s: s.add(application)
                         )
@@ -1498,6 +1498,8 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         unknown host results in an updated configuration, with the new Node
         added to the deployment configuration.
         """
+        new_uuid = uuid4()
+
         d = self._create_container()
 
         d.addCallback(lambda _: self.persistence_service.get())
@@ -1505,7 +1507,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         def handle_expected(expected):
             dr = self.assertResponseCode(
                 b"POST", b"/configuration/containers/mycontainer",
-                {u"node_uuid": u"192.0.2.3"}, OK
+                {u"node_uuid": unicode(new_uuid)}, OK
             )
 
             def updated(_):
@@ -1514,10 +1516,10 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                     name=u'mycontainer',
                     image=DockerImage.from_string(u'busybox')
                 )
-                node = Node(uuid=u"192.0.2.3", applications=[application])
+                node = Node(uuid=new_uuid, applications=[application])
                 real_expected = expected.update_node(node)
                 for node in expected.nodes:
-                    if node.uuid == self.NODE_A:
+                    if node.uuid == self.NODE_A_UUID:
                         node = node.transform(
                             ["applications"], lambda s: s.remove(application)
                         )
@@ -1741,10 +1743,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
         def failed(reason):
             deployment = self.persistence_service.get()
             (node_a, node_b) = deployment.nodes
-            if node_a.uuid != self.NODE_A:
+            if node_a.uuid != self.NODE_A_UUID:
                 # They came out of the set backwards.
                 node_a, node_b = node_b, node_a
-            self.assertEqual(
+            self.assertItemsEqual(
                 ({existing_manifestation.dataset_id: existing_manifestation},
                  {}),
                 (node_a.manifestations, node_b.manifestations)
@@ -2116,7 +2118,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         return self._test_change_primary(
             expected_manifestation.dataset, deployment,
-            self.NODE_A, self.NODE_B
+            self.NODE_A_UUID, self.NODE_B_UUID
         )
 
     def test_unknown_primary_node(self):
@@ -2177,7 +2179,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
         return self._test_change_primary(
             expected_manifestation.dataset, deployment,
-            self.NODE_A, self.NODE_B
+            self.NODE_A_UUID, self.NODE_B_UUID
         )
 
     def test_primary_unchanged(self):
@@ -2196,7 +2198,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
         return self._test_change_primary(
             expected_manifestation.dataset, deployment,
-            self.NODE_A, self.NODE_A
+            self.NODE_A_UUID, self.NODE_A_UUID
         )
 
     def test_only_replicas(self):
@@ -2898,7 +2900,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         deployment = Deployment(nodes=frozenset([node]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
-            primary=expected_uuid,
+            primary=unicode(expected_uuid),
             metadata=thaw(expected_dataset.metadata),
             deleted=False,
         )
@@ -2966,7 +2968,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         deployment = Deployment(nodes=frozenset([node1, node2]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
-            primary=expected_uuid,
+            primary=unicode(expected_uuid),
             metadata=thaw(expected_dataset.metadata),
             deleted=False,
         )
@@ -3053,7 +3055,7 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
         expected_uuid = uuid4()
         expected = dict(
             dataset_id=dataset.dataset_id,
-            primary=expected_uuid,
+            primary=unicode(expected_uuid),
             metadata={},
             deleted=False,
         )
@@ -3075,7 +3077,7 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
         expected_uuid = uuid4()
         expected = dict(
             dataset_id=dataset.dataset_id,
-            primary=expected_uuid,
+            primary=unicode(expected_uuid),
             maximum_size=expected_size,
             metadata={},
             deleted=False,
@@ -3093,7 +3095,7 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
         expected_uuid = uuid4(),
         expected = dict(
             dataset_id=dataset.dataset_id,
-            primary=expected_uuid,
+            primary=unicode(expected_uuid),
             metadata={},
             deleted=True,
         )

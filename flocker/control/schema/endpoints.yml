@@ -61,10 +61,10 @@ definitions:
     description: "The configuration for a named container."
     type: object
     properties:
-      host:
-        '$ref': 'types.json#/definitions/host'
+      node_uuid:
+        '$ref': 'types.json#/definitions/node_uuid'
     required:
-      - host
+      - node_uuid
     additionalProperties: false
 
   # This will be improved and tested in
