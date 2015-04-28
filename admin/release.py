@@ -522,7 +522,7 @@ def upload_pip_index(scratch_directory, target_bucket):
         UploadToS3(
             source_path=scratch_directory,
             target_bucket=target_bucket,
-            target_key='python',
+            target_key='python/index.html',
             file=index_path,
         ))
 
