@@ -147,6 +147,7 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
             openssl_verify(b"cluster.crt", b"alice.crt")
         )
         os.remove(b"alice.crt")
+        os.remove(b"alice.key")
 
     @requireCA
     def test_help_description(self):
