@@ -1327,6 +1327,7 @@ class BlockDeviceDeployer(PRecord):
             configured_manifestations[dataset_id]
             for dataset_id
             in configured_dataset_ids.difference(local_dataset_ids)
+            if dataset_id not in cluster_state.nonmanifest_datasets
         )
 
         # FLOC-1575
@@ -1334,6 +1335,11 @@ class BlockDeviceDeployer(PRecord):
         # up with manifestations in ``manifestations_to_create`` should
         # actually be attached instead of created.  Make a
         #
+        attaches = list(self._calculate_attaches(
+            configured_manifestations,
+            cluster_state.nonmanifest_datasets
+        ))
+
         # sequentially(changes=[AttachVolume(), MountBlockDevice()])
         #
         # for each of those and take them out of ``manifestations_to_create``
@@ -1358,7 +1364,25 @@ class BlockDeviceDeployer(PRecord):
         # TODO Prevent changes to volumes that are currently being used by
         # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
 
-        return in_parallel(changes=creates + deletes + resizes)
+        return in_parallel(changes=attaches + creates + deletes + resizes)
+
+    def _calculate_attaches(self, configured, nonmanifest):
+        """
+        :param PMap configured: The manifestations which are configured on this
+            node.  This is the same as ``NodeState.manifestations``.
+        :param PMap nonmanifest: The datasets which exist in the cluster but
+            are not attached to any node.
+
+        :return: A generator of ``AttachVolume`` instances, one for each
+                 dataset which exists, is unattached, and is configured to be
+                 attached to this node.
+        """
+        for manifestation in configured.values():
+            if manifestation.dataset_id in nonmanifest:
+                yield AttachVolume(
+                    dataset_id=UUID(manifestation.dataset_id),
+                    hostname=self.hostname,
+                )
 
     def _calculate_deletes(self, configured_manifestations):
         """
