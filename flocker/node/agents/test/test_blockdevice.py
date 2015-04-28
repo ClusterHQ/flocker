@@ -608,8 +608,9 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         ``BlockDeviceDeployer.calculate_changes`` returns state changes to
         attach that dataset to its node and then mount its filesystem.
         """
-        deployer = create_blockdevicedeployer(self, hostname=self.NODE)
-
+        deployer = create_blockdevicedeployer(
+            self, hostname=self.NODE, node_uuid=self.NODE_UUID
+        )
         # Give it a configuration that says a dataset should have a
         # manifestation on the deployer's node.
         node_config = to_node(self.ONE_DATASET_STATE)
