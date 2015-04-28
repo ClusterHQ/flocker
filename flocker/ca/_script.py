@@ -108,10 +108,12 @@ class UserCertificateOptions(PrettyOptions):
     synopsis = "<name> [options]"
 
     optParameters = [
-        ['inputpath', 'i', os.getcwd(),
-         'Path to directory containing root certificate.'],
-        ['outputpath', 'o', os.getcwd(),
-         'Path to directory to write control service certificate.'],
+        ['inputpath', 'i', None,
+         ('Path to directory containing root certificate.'
+          'Defaults to current working directory.')],
+        ['outputpath', 'o', None,
+         ('Path to directory to write control service certificate.'
+          'Defaults to current working directory.')],
     ]
 
     def parseArgs(self, name):
@@ -119,12 +121,16 @@ class UserCertificateOptions(PrettyOptions):
 
     def run(self):
         """
-        Check if root key and certificate files (either default or as
-        specified on the command line) exist in the path and error out if
-        they do not. If there are no path errors, create a new node
-        certificate signed by the root and write it out to the current
-        directory.
+        Create a new node certificate signed by the root and write it out to
+        the current directory.
+
+        :raise PathError: When the root certificate and key cannot be found.
         """
+        if self["inputpath"] is None:
+            self["inputpath"] = os.getcwd()
+        if self["outputpath"] is None:
+            self["outputpath"] = os.getcwd()
+
         self["inputpath"] = FilePath(self["inputpath"])
         self["outputpath"] = FilePath(self["outputpath"])
 
@@ -133,7 +139,7 @@ class UserCertificateOptions(PrettyOptions):
                 ca = RootCredential.from_path(self["inputpath"])
                 uc = UserCredential.initialize(
                     self["outputpath"], ca, self["name"])
-                print (
+                self._sys_module.stdout.write(
                     b"Created {user}.crt. You can now give it to your "
                     "API enduser so they can access the control service "
                     "API.".format(user=uc.username)
@@ -187,7 +193,7 @@ class NodeCertificateOptions(PrettyOptions):
             try:
                 ca = RootCredential.from_path(self["inputpath"])
                 nc = NodeCredential.initialize(self["outputpath"], ca)
-                print (
+                self._sys_module.stdout.write(
                     b"Created {uuid}.crt. Copy it over to "
                     "/etc/flocker/node.crt on your node "
                     "machine and make sure to chmod 0600 it.".format(
@@ -247,7 +253,7 @@ class ControlCertificateOptions(PrettyOptions):
             try:
                 ca = RootCredential.from_path(self["inputpath"])
                 ControlCredential.initialize(self["outputpath"], ca)
-                print (
+                self._sys_module.stdout.write(
                     b"Created control-service.crt. Copy it over to "
                     "/etc/flocker/control-service.crt on your control service "
                     "machine and make sure to chmod 0600 it."
@@ -297,7 +303,7 @@ class InitializeOptions(PrettyOptions):
         try:
             try:
                 RootCredential.initialize(self["path"], self["name"])
-                print (
+                self._sys_module.stdout.write(
                     b"Created cluster.key and cluster.crt. "
                     "Please keep cluster.key secret, as anyone who can access "
                     "it will be able to control your cluster."

@@ -178,7 +178,7 @@ def load_certificate_from_path(path, key_filename, cert_filename):
 
 class FlockerCredential(PRecord):
     """
-    Base class for Flocker credentials, comprising a certificate and
+    Flocker credentials record, comprising a certificate and
     public/private key pair.
 
     :ivar FilePath path: A ``FilePath`` representing the absolute path of
@@ -240,16 +240,20 @@ class UserCredential(PRecord):
         credential object.
     :ivar bytes username: A username.
     """
-    credential = field(mandatory=True)
-    username = field(mandatory=True, initial=None)
+    credential = field(mandatory=True, type=FlockerCredential)
+    username = field(mandatory=True, type=bytes)
 
     @classmethod
     def from_path(cls, path, username):
         """
         Load a node certificate from a specified path.
+
+        :param FilePath path: Directory where user certificate and key
+            files are stored.
+        :param bytes username: A UTF-8 encoded username.
         """
-        key_filename = b"{user}.key".format(user=username)
-        cert_filename = b"{user}.crt".format(user=username)
+        key_filename = username + b".key"
+        cert_filename = username + b".crt"
         keypair, certificate = load_certificate_from_path(
             path, key_filename, cert_filename
         )
@@ -258,23 +262,25 @@ class UserCredential(PRecord):
         return cls(credential=credential, username=username)
 
     @classmethod
-    def initialize(cls, path, authority, username):
+    def initialize(cls, output_path, authority, username):
         """
         Generate a certificate signed by the supplied root certificate.
 
-        :param FilePath path: Directory where the certificate will be stored.
+        :param FilePath output_path: Directory where the certificate will be
+            written.
         :param CertificateAuthority authority: The certificate authority with
             which this certificate will be signed.
-        :param bytes username: The username to be included in the certificate.
+        :param bytes username: A UTF-8 encoded username to be included in
+            the certificate.
         """
-        key_filename = b"{user}.key".format(user=username)
-        cert_filename = b"{user}.crt".format(user=username)
+        key_filename = username + b".key"
+        cert_filename = username + b".crt"
         # The common name for the node certificate.
-        name = b"user-{user}".format(user=username)
+        name = b"user-" + username
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
-        organizational_unit = authority.credential.certificate.getSubject().CN
+        organizational_unit = authority.common_name
         dn = DistinguishedName(
             commonName=name, organizationalUnitName=organizational_unit
         )
@@ -284,14 +290,14 @@ class UserCredential(PRecord):
         serial = int(serial, 16)
         cert = authority.credential.keypair.keypair.signRequestObject(
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_20_YEARS, 'sha256'
+            serial, EXPIRY_20_YEARS, b"sha256"
         )
         credential = FlockerCredential(
-            path=path, keypair=keypair, certificate=cert
+            path=output_path, keypair=keypair, certificate=cert
         )
-        instance = cls(credential=credential, username=username)
-        instance.credential.write_credential_files(
+        credential.write_credential_files(
             key_filename, cert_filename)
+        instance = cls(credential=credential, username=username)
         return instance
 
 
@@ -339,7 +345,7 @@ class NodeCredential(PRecord):
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
-        organizational_unit = authority.credential.certificate.getSubject().CN
+        organizational_unit = authority.common_name
         dn = DistinguishedName(
             commonName=name, organizationalUnitName=organizational_unit
         )
@@ -353,9 +359,9 @@ class NodeCredential(PRecord):
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
-        instance = cls(credential=credential, uuid=node_uuid)
-        instance.credential.write_credential_files(
+        credential.write_credential_files(
             key_filename, cert_filename)
+        instance = cls(credential=credential, uuid=node_uuid)
         return instance
 
 
@@ -394,7 +400,7 @@ class ControlCredential(PRecord):
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
-        organizational_unit = authority.credential.certificate.getSubject().CN
+        organizational_unit = authority.common_name
         dn = DistinguishedName(
             commonName=name, organizationalUnitName=organizational_unit
         )
@@ -408,9 +414,9 @@ class ControlCredential(PRecord):
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
-        instance = cls(credential=credential)
-        instance.credential.write_credential_files(
+        credential.write_credential_files(
             CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME)
+        instance = cls(credential=credential)
         return instance
 
 
@@ -421,6 +427,10 @@ class RootCredential(PRecord):
         credential object.
     """
     credential = field(mandatory=True)
+
+    @property
+    def common_name(self):
+        return self.credential.certificate.getSubject().CN
 
     @classmethod
     def from_path(cls, path):
@@ -462,7 +472,7 @@ class RootCredential(PRecord):
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=certificate)
-        instance = cls(credential=credential)
-        instance.credential.write_credential_files(
+        credential.write_credential_files(
             AUTHORITY_KEY_FILENAME, AUTHORITY_CERTIFICATE_FILENAME)
+        instance = cls(credential=credential)
         return instance

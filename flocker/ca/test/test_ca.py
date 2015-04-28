@@ -151,9 +151,9 @@ class UserCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, UserCredential.from_path, path, self.username
         )
-        expected = (b"Certificate file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
+        expected = ("Certificate file could not be opened. "
+                    "No such file or directory "
+                    "{path}").format(
             path=path.child(cert_file).path)
         self.assertEqual(str(e), expected)
 
@@ -173,9 +173,9 @@ class UserCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, UserCredential.from_path, path, self.username
         )
-        expected = (b"Private key file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
+        expected = ("Private key file could not be opened. "
+                    "No such file or directory "
+                    "{path}").format(
                         path=path.child(key_file).path)
         self.assertEqual(str(e), expected)
 
@@ -206,8 +206,8 @@ class UserCredentialTests(SynchronousTestCase):
             PathError, UserCredential.from_path, path, self.username
         )
         expected = (
-            b"Certificate file could not be opened. "
-            b"Permission denied {path}"
+            "Certificate file could not be opened. "
+            "Permission denied {path}"
         ).format(path=crt_path.path)
         self.assertEqual(str(e), expected)
 
@@ -236,8 +236,8 @@ class UserCredentialTests(SynchronousTestCase):
             PathError, UserCredential.from_path, path, self.username
         )
         expected = (
-            b"Private key file could not be opened. "
-            b"Permission denied {path}"
+            "Private key file could not be opened. "
+            "Permission denied {path}"
         ).format(path=key_path.path)
         self.assertEqual(str(e), expected)
 
@@ -404,8 +404,8 @@ class NodeCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, NodeCredential.initialize, path, self.ca
         )
-        expected = (b"Unable to write certificate file. "
-                    b"No such file or directory {path}").format(
+        expected = ("Unable to write certificate file. "
+                    "No such file or directory {path}").format(
                         path=e.filename)
         self.assertEqual(str(e), expected)
 
@@ -419,8 +419,8 @@ class NodeCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, NodeCredential.from_path, path, uuid
         )
-        expected = (b"Certificate file could not be opened. "
-                    b"No such file or directory {path}").format(
+        expected = ("Certificate file could not be opened. "
+                    "No such file or directory {path}").format(
                         path=path.child("{}.crt".format(uuid)).path)
         self.assertEqual(str(e), expected)
 
@@ -437,9 +437,9 @@ class NodeCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, NodeCredential.from_path, path, uuid
         )
-        expected = (b"Certificate file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
+        expected = ("Certificate file could not be opened. "
+                    "No such file or directory "
+                    "{path}").format(
             path=path.child(cert_file).path)
         self.assertEqual(str(e), expected)
 
@@ -461,9 +461,9 @@ class NodeCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, NodeCredential.from_path, path, uuid
         )
-        expected = (b"Private key file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
+        expected = ("Private key file could not be opened. "
+                    "No such file or directory "
+                    "{path}").format(
                         path=path.child(key_file).path)
         self.assertEqual(str(e), expected)
 
@@ -496,8 +496,8 @@ class NodeCredentialTests(SynchronousTestCase):
             PathError, NodeCredential.from_path, path, uuid
         )
         expected = (
-            b"Certificate file could not be opened. "
-            b"Permission denied {path}"
+            "Certificate file could not be opened. "
+            "Permission denied {path}"
         ).format(path=crt_path.path)
         self.assertEqual(str(e), expected)
 
@@ -528,8 +528,8 @@ class NodeCredentialTests(SynchronousTestCase):
             PathError, NodeCredential.from_path, path, uuid
         )
         expected = (
-            b"Private key file could not be opened. "
-            b"Permission denied {path}"
+            "Private key file could not be opened. "
+            "Permission denied {path}"
         ).format(path=key_path.path)
         self.assertEqual(str(e), expected)
 
@@ -691,8 +691,8 @@ class ControlCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, ControlCredential.initialize, path, self.ca
         )
-        expected = (b"Unable to write certificate file. "
-                    b"No such file or directory {path}").format(
+        expected = ("Unable to write certificate file. "
+                    "No such file or directory {path}").format(
                         path=path.child(CONTROL_CERTIFICATE_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -705,8 +705,8 @@ class ControlCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, ControlCredential.from_path, path
         )
-        expected = (b"Certificate file could not be opened. "
-                    b"No such file or directory {path}").format(
+        expected = ("Certificate file could not be opened. "
+                    "No such file or directory {path}").format(
                         path=path.child(CONTROL_CERTIFICATE_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -720,9 +720,9 @@ class ControlCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, ControlCredential.from_path, path
         )
-        expected = (b"Certificate file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
+        expected = ("Certificate file could not be opened. "
+                    "No such file or directory "
+                    "{path}").format(
                         path=path.child(CONTROL_CERTIFICATE_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -740,9 +740,9 @@ class ControlCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, ControlCredential.from_path, path
         )
-        expected = (b"Private key file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
+        expected = ("Private key file could not be opened. "
+                    "No such file or directory "
+                    "{path}").format(
                         path=path.child(CONTROL_KEY_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -771,8 +771,8 @@ class ControlCredentialTests(SynchronousTestCase):
             PathError, ControlCredential.from_path, path
         )
         expected = (
-            b"Certificate file could not be opened. "
-            b"Permission denied {path}"
+            "Certificate file could not be opened. "
+            "Permission denied {path}"
         ).format(path=crt_path.path)
         self.assertEqual(str(e), expected)
 
@@ -799,8 +799,8 @@ class ControlCredentialTests(SynchronousTestCase):
             PathError, ControlCredential.from_path, path
         )
         expected = (
-            b"Private key file could not be opened. "
-            b"Permission denied {path}"
+            "Private key file could not be opened. "
+            "Permission denied {path}"
         ).format(path=key_path.path)
         self.assertEqual(str(e), expected)
 
@@ -964,9 +964,9 @@ class RootCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, RootCredential.initialize, path, b"mycluster"
         )
-        expected = (b"Unable to write certificate file. "
-                    b"No such file or directory "
-                    b"{path}").format(path=path.child(
+        expected = ("Unable to write certificate file. "
+                    "No such file or directory "
+                    "{path}").format(path=path.child(
                         AUTHORITY_CERTIFICATE_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -980,9 +980,9 @@ class RootCredentialTests(SynchronousTestCase):
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. Please run "
-            b"`flocker-ca initialize` to generate a new certificate "
-            b"authority. No such file or directory {path}"
+            "Unable to load certificate authority file. Please run "
+            "`flocker-ca initialize` to generate a new certificate "
+            "authority. No such file or directory {path}"
         ).format(path=path.child(AUTHORITY_CERTIFICATE_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -997,9 +997,9 @@ class RootCredentialTests(SynchronousTestCase):
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. Please run "
-            b"`flocker-ca initialize` to generate a new certificate "
-            b"authority. No such file or directory {path}"
+            "Unable to load certificate authority file. Please run "
+            "`flocker-ca initialize` to generate a new certificate "
+            "authority. No such file or directory {path}"
         ).format(path=path.child(AUTHORITY_CERTIFICATE_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -1018,9 +1018,9 @@ class RootCredentialTests(SynchronousTestCase):
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. Please run "
-            b"`flocker-ca initialize` to generate a new certificate "
-            b"authority. No such file or directory {path}"
+            "Unable to load certificate authority file. Please run "
+            "`flocker-ca initialize` to generate a new certificate "
+            "authority. No such file or directory {path}"
         ).format(path=path.child(AUTHORITY_KEY_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -1049,8 +1049,8 @@ class RootCredentialTests(SynchronousTestCase):
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. "
-            b"Permission denied {path}"
+            "Unable to load certificate authority file. "
+            "Permission denied {path}"
         ).format(path=crt_path.path)
         self.assertEqual(str(e), expected)
 
@@ -1077,8 +1077,8 @@ class RootCredentialTests(SynchronousTestCase):
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. "
-            b"Permission denied {path}"
+            "Unable to load certificate authority file. "
+            "Permission denied {path}"
         ).format(path=key_path.path)
         self.assertEqual(str(e), expected)
 
