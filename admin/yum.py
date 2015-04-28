@@ -1,20 +1,23 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Effectful interface to RPM tools.
+Effectful interface to packaging tools.
 """
 
 import requests
 from requests_file import FileAdapter
 from characteristic import attributes
 from effect import sync_performer, TypeDispatcher
-from subprocess import check_call
-from hashlib import md5
+from subprocess import check_call, check_output
+from gzip import GzipFile
 
 from flocker.common.version import make_rpm_version
 
-from admin.packaging import (PACKAGE_ARCHITECTURE, Distribution,
-        package_filename)
+from admin.packaging import (
+    PACKAGE_ARCHITECTURE, Distribution,
+    PackageTypes,
+    package_filename,
+)
 
 
 @attributes([
@@ -27,7 +30,7 @@ from admin.packaging import (PACKAGE_ARCHITECTURE, Distribution,
 ])
 class DownloadPackagesFromRepository(object):
     """
-    Download a given set of RPMs from a repository.
+    Download a given set of packages from a repository.
 
     :ivar bytes source_repo: Location of repository.
     :ivar FilePath target_path: Directory to download packages to.
@@ -77,14 +80,21 @@ def perform_download_packages_from_repository(dispatcher, intent):
 
 @attributes([
     "repository_path",
+    "distro_name",
+    "distro_version",
 ])
 class CreateRepo(object):
     """
     Create repository metadata, and return filenames of new and changed
     metadata files.
 
-    :ivar FilePath repository_path: Location of rpm files to create a
+    :ivar FilePath repository_path: Location of package files to create a
         repository from.
+    :param distro_name: The name of the distribution to download packages for.
+    :param distro_version: The distro_version of the distribution to download
+        packages for.
+
+    :return: List of new and modified rpm metadata filenames.
     """
 
 
@@ -92,18 +102,40 @@ class CreateRepo(object):
 def perform_create_repository(dispatcher, intent):
     """
     See :class:`CreateRepo`.
-
-    :return: List of new and modified rpm metadata filenames.
     """
-    # The update option means that this is faster when there is existing
-    # metadata but has output starting "Could not find valid repo at:" when
-    # there is not existing valid metadata.
-    check_call([
-        b'createrepo',
-        b'--update',
-        b'--quiet',
-        intent.repository_path.path])
-    return _list_new_metadata(repository_path=intent.repository_path)
+    distribution = Distribution(
+        name=intent.distro_name,
+        version=intent.distro_version,
+    )
+    package_type = distribution.package_type()
+
+    if package_type == PackageTypes.RPM:
+        # The update option means that this is faster when there is existing
+        # metadata but has output starting "Could not find valid repo at:" when
+        # there is not existing valid metadata.
+        check_call([
+            b'createrepo',
+            b'--update',
+            b'--quiet',
+            intent.repository_path.path])
+        return _list_new_metadata(repository_path=intent.repository_path)
+    elif package_type == PackageTypes.DEB:
+        metadata = check_output([
+            b'dpkg-scanpackages',
+            b'--multiversion',
+            intent.repository_path.path])
+
+        intent.repository_path.child('Release').setContent(
+            "Origin: ClusterHQ\n")
+
+        with intent.repository_path.child(
+                'Packages.gz').open(b"w") as raw_file:
+            with GzipFile(b'Packages.gz', fileobj=raw_file) as gzip_file:
+                gzip_file.write(metadata)
+        return {'Packages.gz', 'Release'}
+    else:
+        raise NotImplementedError("Unknown package type: %s"
+                                  % (package_type,))
 
 
 def _list_new_metadata(repository_path):
@@ -114,8 +146,9 @@ def _list_new_metadata(repository_path):
         metadata from.
     :param set existing_metadata: Filenames of existing metadata files.
     """
-    return set([path.path for path in
-                repository_path.child('repodata').walk()])
+    return {"/".join(path.segmentsFrom(repository_path))
+            for path in repository_path.child('repodata').walk()}
+
 
 yum_dispatcher = TypeDispatcher({
     DownloadPackagesFromRepository: perform_download_packages_from_repository,
@@ -133,23 +166,36 @@ class FakeYum(object):
         """
         See :class:`CreateRepo`.
         """
-        metadata_directory = intent.repository_path.child('repodata')
-        metadata_directory.createDirectory()
+        distribution = Distribution(
+            name=intent.distro_name,
+            version=intent.distro_version,
+        )
+        package_type = distribution.package_type()
+
         packages = set([
             file for file in
-            intent.repository_path.listdir() if file.endswith('rpm')])
+            intent.repository_path.listdir()
+            if file.endswith(package_type.value)])
 
-        index_filename = 'repomd.xml'
-        for filename in [index_filename, 'filelists.xml.gz', 'other.xml.gz',
-                         'primary.xml.gz']:
-            content = 'metadata content for: ' + ','.join(packages)
+        if package_type == PackageTypes.RPM:
+            metadata_directory = intent.repository_path.child('repodata')
+            metadata_directory.createDirectory()
 
-            if filename != index_filename:
-                # The index filename is always the same
-                filename = md5(filename).hexdigest() + '-' + filename
-            metadata_directory.child(filename).setContent(content)
+            metadata_directory.child('repomod.xml').setContent(
+                '<newhash>-metadata.xml')
+            metadata_directory.child('<newhash>-metadata.xml').setContent(
+                'metadata content for: ' + ','.join(packages))
 
-        return _list_new_metadata(repository_path=intent.repository_path)
+            return {'repodata/repomod.xml', 'repodata/<newhash>-metadata.xml'}
+        elif package_type == PackageTypes.DEB:
+            index = intent.repository_path.child('Packages.gz')
+            index.setContent("Packages.gz for: " + ",".join(packages))
+            intent.repository_path.child('Release').setContent(
+                "Origin: ClusterHQ\n")
+            return {'Packages.gz', 'Release'}
+        else:
+            raise NotImplementedError("Unknown package type: %s"
+                                      % (package_type,))
 
     def get_dispatcher(self):
         """

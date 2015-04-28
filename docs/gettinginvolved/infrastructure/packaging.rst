@@ -1,12 +1,12 @@
-Building Omnibus RPMs
-=====================
+Building Omnibus Packages
+=========================
 
 Flocker depends on a number of Python packages which aren't available in Fedora,
 or newer versions than are available there.
-So the ``build-package`` script bundles those packages into the RPM.
+So the ``build-package`` script bundles those packages into the operating system package.
 We refer to these as "Omnibus" packages.
 
-To build omnibus RPMs, create a VirtualEnv and install Flocker then its release dependencies:
+To build omnibus packages, create a VirtualEnv and install Flocker then its release dependencies:
 
 .. code-block:: sh
 
@@ -21,7 +21,8 @@ Then run the following command from a clean checkout of the Flocker repository:
 
    ./admin/build-package --distribution=fedora-20 $PWD
 
-This will generate three RPM files in the current working directory. E.g.
+The distribution can be any of the supported distributions (see ``./admin/build-package --help`` for a list).
+This will generate three packages files in the current working directory. E.g.
 
 * ``clusterhq-python-flocker-0.3.0-0.dev.1.307.gb6d6e9f.dirty.x86_64.rpm``
 
@@ -69,15 +70,15 @@ Some packages are hosted on Google Cloud Storage and others are hosted on Amazon
 
 The Homebrew installation script for OS X downloads packages from `Google Cloud Storage <https://console.developers.google.com/project/hybridcluster-docker/storage/browser/archive.clusterhq.com/downloads/flocker/?authuser=1>`_.
 
-Fedora 20 and CentOS client and node packages are hosted on Amazon S3.
-These are in the `clusterhq-archive` bucket.
-Within this bucket there are `development` and `marketing` keys.
-Within each of these are keys for each supported operating system.
+Fedora, CentOS and Ubuntu client and node packages are hosted on Amazon S3.
 
-`clusterhq-archive`
--------------------
+``clusterhq-archive``
+---------------------
 
-This bucket has the following policy::
+For each distribution, there are ``<distribution>`` and ``<distribution>-testing`` folders.
+Each contains sub-folders for the distribution version and architecture, which finally contain package repositories.
+
+To make the entire bucket public, this bucket has the following policy::
 
    {
    	"Version": "2008-10-17",
@@ -95,8 +96,10 @@ This bucket has the following policy::
 
 A policy can be set by going to a bucket's "Properties", "Permissions", then "Add bucket policy".
 
-`clusterhq-release package`
----------------------------
+``clusterhq-release`` package
+-----------------------------
+
+RPM-based distributions tend to bundle ``yum`` repository definitions in ``*-release`` packages.
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
