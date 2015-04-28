@@ -22,7 +22,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from ....testtools import skip_except
 from ..cinder import cinder_api, wait_for_volume
 from ..test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
-from ..testtools import tidy_cinder_client_for_test
+from ..testtools import tidy_cinder_client_for_test, tidy_nova_client_for_test
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
@@ -41,6 +41,7 @@ def cinderblockdeviceapi_for_test(test_case, cluster_id):
     """
     return cinder_api(
         cinder_client=tidy_cinder_client_for_test(test_case),
+        nova_client=tidy_nova_client_for_test(test_case),
         cluster_id=cluster_id,
     )
 

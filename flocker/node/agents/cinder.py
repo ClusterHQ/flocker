@@ -3,6 +3,7 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
+import string
 from subprocess import check_output
 import time
 from uuid import UUID
@@ -12,8 +13,7 @@ from bitmath import Byte, GB
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from keystoneclient.session import Session
 
-from cinderclient.client import Client
-
+from twisted.python.filepath import FilePath
 from zope.interface import implementer, Interface
 
 from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume
@@ -68,6 +68,22 @@ class ICinderVolumeManager(Interface):
             to attach.
         :param instance_uuid: uuid of the attaching instance.
         :param mountpoint: mountpoint on the attaching instance.
+        """
+
+
+class INovaVolumeManager(Interface):
+    """
+    The parts of ``novaclient.v2.volumes.VolumeManager`` that we use.
+    See: https://github.com/openstack/python-novaclient/blob/master/novaclient/v2/volumes.py # noqa
+    """
+    def create_server_volume(server_id, volume_id, device):
+        """
+        Attach a volume identified by the volume ID to the given server ID
+
+        :param server_id: The ID of the server
+        :param volume_id: The ID of the volume to attach.
+        :param device: The device name
+        :rtype: :class:`Volume`        
         """
 
 
@@ -132,21 +148,38 @@ def _instance_uuid():
     return UUID(name[len(prefix):])
 
 
+def _next_device():
+    """
+    Can't just use the dataset name as the block device name
+    inside the node, nor volume.id nor random_name. You can't
+    even leave it blank; auto is not supported.
+    """
+    prefix = '/dev/xvd'
+    existing = [path for path in FilePath('/dev').children()
+                if path.path.startswith(prefix) 
+                and len(path.basename()) == 4]
+    letters = string.ascii_lowercase
+    return prefix + letters[len(existing)] 
+
+
 @implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
     in an OpenStack cluster using Cinder APIs.
     """
-    def __init__(self, volume_manager, cluster_id):
+    def __init__(self, cinder_volume_manager, nova_volume_manager, cluster_id):
         """
-        :param ICinderVolumeManager volume_manager: A client for interacting
+        :param ICinderVolumeManager cinder_volume_manager: A client for interacting
             with Cinder API.
+        :param INovaServerManager nova_volume_manager: A client for interacting
+            with Nova volume API.
         :param UUID cluster_id: An ID that will be included in the names of
             Cinder block devices in order to associate them with a particular
             Flocker cluster.
         """
-        self.volume_manager = volume_manager
+        self.cinder_volume_manager = cinder_volume_manager
+        self.nova_volume_manager = nova_volume_manager
         self.cluster_id = cluster_id
 
     def create_volume(self, dataset_id, size):
@@ -165,15 +198,15 @@ class CinderBlockDeviceAPI(object):
         }
         # We supply metadata here and it'll be included in the returned cinder
         # volume record, but it'll be lost by Rackspace, so...
-        requested_volume = self.volume_manager.create(
+        requested_volume = self.cinder_volume_manager.create(
             size=Byte(size).to_GB().value,
             metadata=metadata,
         )
-        created_volume = wait_for_volume(self.volume_manager, requested_volume)
+        created_volume = wait_for_volume(self.cinder_volume_manager, requested_volume)
         # So once the volume has actually been created, we set the metadata
         # again. One day we hope this won't be necessary.
         # See Rackspace support ticket: 150422-ord-0000495'
-        self.volume_manager.set_metadata(created_volume, metadata)
+        self.cinder_volume_manager.set_metadata(created_volume, metadata)
         # Use requested volume here, because it has the desired metadata.
         return _blockdevicevolume_from_cinder_volume(requested_volume)
 
@@ -185,7 +218,7 @@ class CinderBlockDeviceAPI(object):
         See: http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html # noqa
         """
         volumes = []
-        for cinder_volume in self.volume_manager.list():
+        for cinder_volume in self.cinder_volume_manager.list():
             if _is_cluster_volume(self.cluster_id, cinder_volume):
                 volumes.append(
                     _blockdevicevolume_from_cinder_volume(cinder_volume)
@@ -210,10 +243,10 @@ class CinderBlockDeviceAPI(object):
         """
         unattached_volume = self._get(blockdevice_id)
         local_instance_uuid = _instance_uuid()
-        self.volume_manager.attach(
-            volume=unattached_volume.blockdevice_id,
-            instance_uuid=unicode(local_instance_uuid),
-            mountpoint=u'auto',
+        self.nova_volume_manager.create_server_volume(
+            server_id=local_instance_uuid, 
+            volume_id=unattached_volume.blockdevice_id, 
+            device=_next_device()
         )
         attached_volume = unattached_volume.set('host', host)
         return attached_volume
@@ -258,44 +291,44 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
-def rackspace_cinder_client(**kwargs):
+def rackspace_session(**kwargs):
     """
-    Create a Cinder API client capable of authenticating with Rackspace and
-    communicating with their Cinder API.
+    Create a Keystone session capable of authenticating with Rackspace.
 
     :param unicode username: A RackSpace API username.
     :param unicode api_key: A RackSpace API key.
     :param unicode region: A RackSpace region slug.
-    :return: A ``cinderclient.v1.clien.Client`` instance with a ``volumes``
-        attribute that conforms to ``ICinderVolumeManager``.
+    :return: A ``keystoneclient.session.Session``.
     """
     username = kwargs.pop('username')
     api_key = kwargs.pop('key')
-    region = kwargs.pop('region')
 
     auth = RackspaceAuth(
         auth_url=RACKSPACE_AUTH_URL,
         username=username,
         api_key=api_key
     )
-    session = Session(auth=auth)
-    return Client(version=1, session=session, region_name=region)
+    return Session(auth=auth)
 
 
-CINDER_CLIENT_FACTORIES = {
-    'rackspace': rackspace_cinder_client,
+SESSION_FACTORIES = {
+    'rackspace': rackspace_session,
 }
 
 
-def cinder_api(cinder_client, cluster_id):
+def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
-        whose ``volumes`` attribute will be supplied as the ``volume_manager``
+        whose ``volumes`` attribute will be supplied as the ``cinder_volume_manager``
+        parameter of ``CinderBlockDeviceAPI``.
+    :param novaclient.v2.client.Client nova_client: The Nova API client
+        whose ``volumes`` attribute will be supplied as the ``nova_volume_manager``
         parameter of ``CinderBlockDeviceAPI``.
     :param UUID cluster_id: A Flocker cluster ID.
     :returns: A ``CinderBlockDeviceAPI``.
     """
     return CinderBlockDeviceAPI(
-        volume_manager=cinder_client.volumes,
+        cinder_volume_manager=cinder_client.volumes,
+        nova_volume_manager=nova_client.volumes,
         cluster_id=cluster_id,
     )
