@@ -71,17 +71,17 @@ class EBSBlockDeviceAPI(object):
                 expected_volume.update()
             else:
                 raise Exception(
-                'Timed out while waiting for volume. '
-                'Expected Volume: {!r}, '
-                'Expected Status: {!r}, '
-                'Actual Status: {!r}, '
-                'Elapsed Time: {!r}, '
-                'Time Limit: {!r}.'.format(
-                    expected_volume, expected_status,
-                    expected_volume.status, elapsed_time,
-                    time_limit
+                    'Timed out while waiting for volume. '
+                    'Expected Volume: {!r}, '
+                    'Expected Status: {!r}, '
+                    'Actual Status: {!r}, '
+                    'Elapsed Time: {!r}, '
+                    'Time Limit: {!r}.'.format(
+                        expected_volume, expected_status,
+                        expected_volume.status, elapsed_time,
+                        time_limit
+                    )
                 )
-            )
 
     def _is_cluster_volume(self, cluster_id, ebs_volume):
         """
@@ -131,7 +131,7 @@ class EBSBlockDeviceAPI(object):
         pass
 
     def destroy_volume(self, blockdevice_id):
-        pass
+        self.connection.delete_volume(blockdevice_id)
 
     def get_device_path(self, blockdevice_id):
         pass

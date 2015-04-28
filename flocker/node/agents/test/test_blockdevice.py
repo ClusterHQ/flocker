@@ -1316,6 +1316,27 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
+    def assertVolumesDistinct(self, block_device_api2):
+        """
+        Volumes from other Flocker clusters are not listed.
+        """
+
+        flocker_volume1 = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+
+        flocker_volume2 = block_device_api2.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+
+        self.assertEqual(
+            ([flocker_volume1], [flocker_volume2]),
+            (self.api.list_volumes(),
+             block_device_api2.list_volumes())
+        )
+
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
     """

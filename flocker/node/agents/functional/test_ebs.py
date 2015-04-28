@@ -29,6 +29,8 @@ def ebsblockdeviceapi_for_test(test_case, cluster_id):
         'test_created_volume_attributes',
         'test_list_volume_empty',
         'test_listed_volume_attributes',
+        'test_foreign_cluster_volume',
+#        'test_destroy_volume',
     ]
 )
 class EBSBlockDeviceAPIInterfaceTests(
@@ -45,3 +47,10 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
+    def test_foreign_cluster_volume(self):
+        block_device_api2 = ebsblockdeviceapi_for_test(
+            test_case=self,
+            cluster_id=uuid4(),
+        )
+
+        self.assertVolumesDistinct(block_device_api2)

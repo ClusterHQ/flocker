@@ -71,6 +71,16 @@ class CinderBlockDeviceAPIInterfaceTests(
     Block devices that are created in these tests will be cleaned up by
     ``TidyCinderVolumeManager``.
     """
+    def test_foreign_cluster_volume(self):
+        """
+        Volumes from other Flocker clusters are not listed.
+        """
+        block_device_api2 = cinderblockdeviceapi_for_test(
+            test_case=self,
+            cluster_id=uuid4(),
+        )
+
+        self.assertVolumesDistinct(block_device_api2)
 
 
 class CinderBlockDeviceAPIImplementationTests(SynchronousTestCase):
@@ -102,33 +112,3 @@ class CinderBlockDeviceAPIImplementationTests(SynchronousTestCase):
         )
 
         self.assertEqual([flocker_volume], block_device_api.list_volumes())
-
-    def test_foreign_cluster_volume(self):
-        """
-        Volumes from other Flocker clusters are not listed.
-        """
-        block_device_api1 = cinderblockdeviceapi_for_test(
-            test_case=self,
-            cluster_id=uuid4(),
-        )
-
-        flocker_volume1 = block_device_api1.create_volume(
-            dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-
-        block_device_api2 = cinderblockdeviceapi_for_test(
-            test_case=self,
-            cluster_id=uuid4(),
-        )
-
-        flocker_volume2 = block_device_api2.create_volume(
-            dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-
-        self.assertEqual(
-            ([flocker_volume1], [flocker_volume2]),
-            (block_device_api1.list_volumes(),
-             block_device_api2.list_volumes())
-        )
