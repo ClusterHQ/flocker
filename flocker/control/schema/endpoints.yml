@@ -77,6 +77,8 @@ definitions:
       properties:
         hostname:
           '$ref': 'types.json#/definitions/host'
+        uuid:
+          '$ref': 'types.json#/definitions/node_uuid'
 
   state_container:
     type: object

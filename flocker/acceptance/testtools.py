@@ -420,10 +420,10 @@ class Node(PRecord):
     A record of a cluster node.
 
     :ivar bytes address: The IPv4 address of the node.
-    :ivar UUID uuid: The UUID of the node.
+    :ivar unicode uuid: The UUID of the node.
     """
     address = field(type=bytes)
-    uuid = field(type=UUID)
+    uuid = field(type=unicode)
 
 
 class _NodeList(CheckedPVector):
@@ -783,7 +783,8 @@ def get_test_cluster(node_count=0):
     # will switch to UUIDs instead.
     agents_connected.addCallback(lambda _: cluster.current_nodes())
     agents_connected.addCallback(lambda (cluster, nodes): cluster.set(
-        "nodes", [Node(uuid=node[u"node_uuid"].encode("ascii"))
+        "nodes", [Node(uuid=node[u"uuid"],
+                       address=node["hostname"].encode("ascii"))
                   for node in nodes]))
     return agents_connected
 
