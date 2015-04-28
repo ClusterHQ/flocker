@@ -56,7 +56,7 @@ from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
     NonManifestDatasets,
 )
-# XXX Move these somewhere else, write tests for them.
+# Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
 
 LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
