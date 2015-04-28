@@ -4,13 +4,12 @@
 An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
+from bitmath import Byte, GB
 import time
 from uuid import UUID
-from bitmath import Byte, GB
+
 from boto import ec2
-
 from pyrsistent import PRecord, field
-
 from zope.interface import implementer
 
 from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume
@@ -21,6 +20,17 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
+    """
+    Establish connection to EC2 client.
+
+    :param String region: The name of the EC2 region to connect to.
+    :param String zone: The zone for the EC2 region to connect to.
+    :param String access_key_id: "aws_access_key_id" credential for EC2.
+    :param String secret_access_key: "aws_secret_access_key" EC2 credential.
+
+    :return: An ``_EC2`` giving information about EC2 client connection
+        and EC2 instance zone.
+    """
     return _EC2(zone=zone,
                 connection=ec2.connect_to_region(
                     region,
@@ -30,6 +40,9 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
 
 class _EC2(PRecord):
     """
+    :ivar string zone: The name of the zone for the connection.
+    :ivar EC2Connection connection: Object representing connection to
+        an EC2 instance.
     """
     zone = field()
     connection = field()
@@ -42,12 +55,22 @@ class EBSBlockDeviceAPI(object):
     block devices in an EC2 cluster using Boto APIs.
     """
     def __init__(self, ec2_client, cluster_id):
+        """
+        Initialize EBS block device API instance.
+
+        :param ``_EC2`` ec2_client: PRecord storing EC2
+            client connection and EC2 instance zone.
+        :param String cluster_id: UUID of cluster for this
+            API instance.
+        """
         self.connection = ec2_client.connection
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
 
     def _blockdevicevolume_from_ebs_volume(self, ebs_volume):
         """
+        Helper function to convert Volume information from
+        EBS format to Flocker block device format.
         """
         return BlockDeviceVolume(
             blockdevice_id=unicode(ebs_volume.id),
@@ -60,7 +83,8 @@ class EBSBlockDeviceAPI(object):
                          expected_status=u'available',
                          time_limit=60):
         """
-        Wait for up to 60s for volume creation to complete.
+        Helper function to wait for up to 60s for given volume
+        to be in 'available' state.
         """
         start_time = time.time()
         expected_volume.update()
@@ -85,6 +109,8 @@ class EBSBlockDeviceAPI(object):
 
     def _is_cluster_volume(self, cluster_id, ebs_volume):
         """
+        Helper function to check if given volume belongs to
+        given cluster.
         """
         actual_cluster_id = ebs_volume.tags.get(CLUSTER_ID_LABEL)
         if actual_cluster_id is not None:
@@ -95,23 +121,38 @@ class EBSBlockDeviceAPI(object):
 
     def create_volume(self, dataset_id, size):
         """
+        Create a volume on EBS. Store Flocker-specific
+        {metadata version, cluster id, dataset id} for the volume
+        as volume tag data.
+
+        :param String dataset_id: Dataset_id for the volume.
+        :param int size: Requested volume size in Bytes.
+
+        :return BlockDeviceVolume volume: Created volume in
+            BlockDeviceVolume format.
         """
+        requested_volume = self.connection.create_volume(
+            size=int(Byte(size).to_GB().value), zone=self.zone)
+
+        # Stamp created volume with Flocker-specific tags.
         metadata = {
             METADATA_VERSION_LABEL: '1',
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
-        requested_volume = self.connection.create_volume(
-            size=int(Byte(size).to_GB().value), zone=self.zone)
         self.connection.create_tags([requested_volume.id],
                                     metadata)
 
+        # Wait for created volume to reach 'available' state.
         self._wait_for_volume(requested_volume)
 
+        # Return created volume in BlockDeviceVolume format.
         return self._blockdevicevolume_from_ebs_volume(requested_volume)
 
     def list_volumes(self):
         """
+        Return all volumes in {available, in-use} state that belong to
+        this Flocker cluster.
         """
         volumes = []
         for ebs_volume in self.connection.get_all_volumes():
@@ -132,6 +173,16 @@ class EBSBlockDeviceAPI(object):
         pass
 
     def destroy_volume(self, blockdevice_id):
+        """
+        Destroy EBS volume identified by blockdevice_id.
+
+        :param String blockdevice_id: EBS UUID for volume to be destroyed.
+
+        :raises UnknownVolume: If there does not exist a Flocker cluster
+            volume identified by input blockdevice_id.
+        :raises Exception: If we failed to destroy Flocker cluster volume
+            corresponding to input blockdevice_id.
+        """
         for volume in self.list_volumes():
             if volume.blockdevice_id == blockdevice_id:
                 ret_val = self.connection.delete_volume(blockdevice_id)
