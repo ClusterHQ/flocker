@@ -32,7 +32,7 @@ from ...restapi.testtools import (
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
-    RestartAlways, RestartNever, Link, same_node
+    RestartAlways, RestartNever, Link, same_node, DeploymentState
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -3333,6 +3333,12 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
     Tests for the container configuration endpoint at
     ``/configuration/_compose``.
     """
+    # Match COMPLEX_DEPLOYMENT_YAML:
+    DEPLOYMENT_STATE = DeploymentState(nodes=[
+        NodeState(uuid=uuid4(), hostname=u"node1.example.com"),
+        NodeState(uuid=uuid4(), hostname=u"node2.example.com"),
+        ])
+
     def configuration_test(self):
         """
         POSTing to ``/configuration/_compose`` in Flocker's custom
@@ -3340,6 +3346,9 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         parsing the given JSON in Flocker's custom configuration format
         and using it to replace the existing configuration.
         """
+        self.cluster_state_service.apply_changes(
+            self.DEPLOYMENT_STATE.nodes)
+
         configuration = {u"applications": COMPLEX_APPLICATION_YAML,
                          u"deployment": COMPLEX_DEPLOYMENT_YAML}
         setting = self.assertResponseCode(
@@ -3351,6 +3360,7 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
             apps = FlockerConfiguration(
                 deepcopy(COMPLEX_APPLICATION_YAML)).applications()
             expected = model_from_configuration(
+                self.DEPLOYMENT_STATE,
                 applications=apps,
                 deployment_configuration=deepcopy(COMPLEX_DEPLOYMENT_YAML))
             self.assertEqual(actual, expected)
@@ -3371,6 +3381,9 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         configuration format changes the deployment configuration
         appropriately.
         """
+        self.cluster_state_service.apply_changes(
+            self.DEPLOYMENT_STATE.nodes)
+
         fig_config = {
             u'wordpress': {
                 u'environment': {u'WORDPRESS_ADMIN_PASSWORD': u'admin'},
@@ -3395,6 +3408,7 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
             actual = self.persistence_service.get()
             apps = FigConfiguration(fig_config).applications()
             expected = model_from_configuration(
+                self.DEPLOYMENT_STATE,
                 applications=apps,
                 deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
             self.assertEqual(actual, expected)
@@ -3410,10 +3424,9 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
             running=False)
         dataset = Dataset(dataset_id=unicode(uuid4()))
         manifestation = Manifestation(dataset=dataset, primary=True)
-        expected_hostname = u"192.0.2.101"
         saved = self.persistence_service.save(Deployment(nodes=[
             Node(
-                hostname=expected_hostname,
+                uuid=uuid4(),
                 applications={application},
                 manifestations={manifestation.dataset_id: manifestation}
             )

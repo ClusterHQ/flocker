@@ -816,6 +816,7 @@ class ConfigurationAPIUserV1(object):
             if not configuration.is_valid_format():
                 configuration = FlockerConfiguration(applications)
             return self.persistence_service.save(model_from_configuration(
+                self.cluster_state_service.as_deployment(),
                 applications=configuration.applications(),
                 deployment_configuration=deployment))
         except ConfigurationError as e:
