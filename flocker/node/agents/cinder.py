@@ -60,17 +60,6 @@ class ICinderVolumeManager(Interface):
         :param metadata: A list of keys to be set.
         """
 
-    def attach(volume, instance_uuid, mountpoint):
-        """
-         Set attachment metadata.
-
-        :param volume: The :class:`Volume` (or its ID) you would like
-            to attach.
-        :param instance_uuid: uuid of the attaching instance.
-        :param mountpoint: mountpoint on the attaching instance.
-        """
-
-
 class INovaVolumeManager(Interface):
     """
     The parts of ``novaclient.v2.volumes.VolumeManager`` that we use.

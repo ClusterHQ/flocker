@@ -40,9 +40,15 @@ def cinderblockdeviceapi_for_test(test_case, cluster_id):
         are created during the course of ``test_case``
     """
     local_instance_uuid = _instance_uuid()
+    # Create the nova client last so that its cleanup method is
+    # run first and detaches volumes before the cinder client
+    # cleanup then deletes them.
+    # Yuck!
+    cinder_client = tidy_cinder_client_for_test(test_case)
+    nova_client = tidy_nova_client_for_test(test_case)
     return cinder_api(
-        cinder_client=tidy_cinder_client_for_test(test_case),
-        nova_client=tidy_nova_client_for_test(test_case),
+        cinder_client=cinder_client,
+        nova_client=nova_client,
         cluster_id=cluster_id,
         host_map={
             u'192.0.2.123': local_instance_uuid,

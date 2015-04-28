@@ -17,7 +17,8 @@ from cinderclient.client import Client as CinderClient
 from novaclient.client import Client as NovaClient
 
 from .cinder import (
-    ICinderVolumeManager, INovaVolumeManager, SESSION_FACTORIES
+    ICinderVolumeManager, INovaVolumeManager, SESSION_FACTORIES,
+    wait_for_volume,
 )
 
 
@@ -47,16 +48,6 @@ class TidyCinderVolumeManager(
         volume = self.original.create(size=size, metadata=metadata)
         self._created_volumes.append(volume)
         return volume
-
-    def attach(self, volume, instance_uuid, mountpoint):
-        """
-        This may not be necessary....let's see.
-        """
-        return self.original.attach(
-            volume=volume,
-            instance_uuid=instance_uuid,
-            mountpoint=mountpoint,
-        )
 
     def _cleanup(self):
         """
@@ -128,6 +119,14 @@ class TidyNovaVolumeManager(
                 server_id=server_id,
                 attachment_id=volume.id
             )
+        # Don't return until all the volumes have been detached.
+        for server_id, nova_volume in self._attached_volumes:
+            wait_for_volume(
+                volume_manager=self.original,
+                expected_volume=nova_volume,
+                expected_status=u'available',
+            )
+            
 
 
 class INovaVolumeManagerTestsMixin(object):
