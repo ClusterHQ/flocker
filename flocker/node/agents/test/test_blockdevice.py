@@ -2483,15 +2483,8 @@ class ResizeBlockDeviceDatasetTests(
 
         node = u"192.0.2.3"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
-
-        mountroot = mountroot_for_test(self)
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-            mountroot=mountroot,
-        )
+        deployer = create_blockdevicedeployer(self, hostname=node)
+        api = deployer.block_device_api
 
         dataset = Dataset(
             dataset_id=dataset_id,
@@ -2599,15 +2592,10 @@ class AttachVolumeTests(
         """
         host = u"192.0.7.8"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+        deployer = create_blockdevicedeployer(self, hostname=host)
+        api = deployer.block_device_api
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=host,
-            block_device_api=api,
-            mountroot=mountroot_for_test(self),
         )
         change = AttachVolume(dataset_id=dataset_id, hostname=host)
         self.successResultOf(change.run(deployer))
@@ -2645,20 +2633,16 @@ class ResizeFilesystemTests(
         """
         host = u"192.0.7.8"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+
+        deployer = create_blockdevicedeployer(self, hostname=host)
+        api = deployer.block_device_api
+        mountpoint = deployer.mountroot.child(b"resized-filesystem")
 
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
         )
-        mountroot = mountroot_for_test(self)
-        mountpoint = mountroot.child(b"resized-filesystem")
         filesystem = u"ext4"
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=host,
-            block_device_api=api,
-            mountroot=mountroot,
-        )
+
         attach = AttachVolume(dataset_id=dataset_id, hostname=host)
         createfs = CreateFilesystem(volume=volume, filesystem=filesystem)
         mount = MountBlockDevice(dataset_id=dataset_id, mountpoint=mountpoint)
