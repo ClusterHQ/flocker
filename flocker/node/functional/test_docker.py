@@ -383,9 +383,15 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image_name = image.build()
         client = self.make_client()
         name = random_name()
-        container_name = client._to_container_name(name)
+        if isinstance(client, NamespacedDockerClient):
+            container_name = client._client._to_container_name(name)
+            client._client._client.create_container(
+                name=container_name, image=image_name)
+        else:
+            container_name = client._to_container_name(name)
+            client._client.create_container(
+                name=container_name, image=image_name)
         self.addCleanup(client.remove, name)
-        client._client.create_container(name=container_name, image=image_name)
         d = client.list()
 
         def got_list(units):
