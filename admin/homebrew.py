@@ -160,7 +160,7 @@ def main():
     # Storage location specified in the release process.
     url = args.sdist
     if url is None:
-        url = (b"https://s3.amazonaws.com/clusterhq-archive/python/"
+        url = (b"https://clusterhq-archive.s3.amazonaws.com/python/"
                "Flocker-{version}.tar.gz").format(version=version)
 
     dependency_graph = get_dependency_graph(u"flocker")
