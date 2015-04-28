@@ -566,15 +566,17 @@ class AttachVolume(PRecord):
         """
         Use the deployer's ``IBlockDeviceAPI`` to attach the volume.
         """
-        api = deployer.block_device_api
-        volume = _blockdevice_volume_from_datasetid(
-            api.list_volumes(), self.dataset_id
+        api = deployer.async_block_device_api
+        listing = api.list_volumes()
+        listing.addCallback(
+            _blockdevice_volume_from_datasetid, self.dataset_id
         )
-        ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
-        # Make this asynchronous after FLOC-1549, probably as part of
-        # FLOC-1575.
-        api.attach_volume(volume.blockdevice_id, self.hostname)
-        return succeed(None)
+
+        def found(volume):
+            ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
+            return api.attach_volume(volume.blockdevice_id, self.hostname)
+        attaching = listing.addCallback(found)
+        return attaching
 
 
 @implementer(IStateChange)
