@@ -356,7 +356,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
     # TODO use box_metadata from vagrant.py
 
     # TODO download existing metadata, json.safe_load it
-    metadata = {}
+    metadata = {"versions": []}
     normalised_version = vagrant_version(version)
     new_metadata = {
         "version": normalised_version,
