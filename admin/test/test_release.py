@@ -1887,4 +1887,50 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         If a version already exists then its data is overwritten by the new
         metadata.
         """
-        # TODO is this necessary?
+        existing_metadata = json.dumps({
+            "description": "clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": [
+                {
+                    "version": "0.3.0",
+                    "providers": [
+                        {
+                            "url": "old_url",
+                            "name": "old_provider"
+                        }
+                    ],
+                }
+            ],
+        })
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {
+                    'vagrant/flocker-tutorial.json': existing_metadata,
+                },
+            },
+        )
+
+        expected_metadata = {
+            "description": "clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": [
+                {
+                    "version": "0.3.0",
+                    "providers": [
+                        {
+                            "url": "https://example.com/flocker-tutorial-0.3.0.box",
+                            "name": "virtualbox"
+                        }
+                    ]
+                },
+            ],
+        }
+
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+        self.assertEqual(
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
+            expected_metadata,
+        )

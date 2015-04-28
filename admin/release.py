@@ -370,7 +370,8 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
         existing_metadata_file = scratch_directory.children()[0]
         existing_metadata = json.loads(existing_metadata_file.getContent())
         for version_metadata in existing_metadata['versions']:
-            metadata['versions'].append(version_metadata)
+            if version_metadata['version'] != version:
+                metadata['versions'].append(version_metadata)
 
     metadata['versions'].append({
         "version": vagrant_version(version),
