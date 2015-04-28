@@ -1865,6 +1865,39 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         The version given is converted to a version number acceptable to
         Vagrant.
         """
+        """
+        A metadata file is added when one does not exist.
+        """
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            },
+        )
+
+        self.publish_vagrant_metadata(aws=aws, version='0.3.0_1')
+
+        expected_metadata = {
+            "description": "clusterhq/flocker-tutorial box.",
+            "name": "clusterhq/flocker-tutorial",
+            "versions": [
+                {
+                    # The underscore is converted to a period in the version.
+                    "version": "0.3.0.1",
+                    "providers": [
+                        {
+                            "url": "https://example.com/flocker-tutorial-0.3.0_1.box",
+                            "name": "virtualbox"
+                        }
+                    ],
+                }
+            ],
+        }
+
+        self.assertEqual(
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
+            expected_metadata,
+        )
 
     def test_invalid_metadata_fails(self):
         """
