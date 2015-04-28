@@ -372,16 +372,18 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
         for version_metadata in existing_metadata['versions']:
             metadata['versions'].append(version_metadata)
 
-    normalised_version = vagrant_version(version)
-    new_metadata = {
-        "version": normalised_version,
-        "providers": [{
-            "url": box_url,
-            "name": "virtualbox"
-    }]}
+    metadata['versions'].append({
+        "version": vagrant_version(version),
+        "providers": [
+            {
+                "url": box_url,
+                "name": "virtualbox"
+            },
+        ],
+    })
 
-    metadata['versions'].append(new_metadata)
     scratch_directory.child(metadata_filename).setContent(json.dumps(metadata))
+
     yield Effect(UploadToS3Recursively(
         source_path=scratch_directory,
         target_bucket=target_bucket,
