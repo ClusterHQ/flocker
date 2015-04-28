@@ -551,8 +551,18 @@ class DockerClient(object):
                 name = data[u"Name"]
                 image = data[u"Config"][u"Image"]
                 command = data[u"Config"][u"Cmd"]
-                image_command = self._client.inspect_image(image)
-                if image_command[u"Config"][u"Cmd"] == command:
+                try:
+                    image_data = self._client.inspect_image(image)
+                except APIError as e:
+                    if e.response.status_code == NOT_FOUND:
+                        # Image has been deleted, so just fill in some
+                        # stub data so we can return *something*. This
+                        # should happen only for stopped containers so
+                        # some inaccuracy is acceptable.
+                        image_data = {u"Config": {u"Env": []}}
+                    else:
+                        raise
+                if image_data[u"Config"][u"Cmd"] == command:
                     command = None
                 port_bindings = data[u"HostConfig"][u"PortBindings"]
                 if port_bindings is not None:
@@ -576,18 +586,6 @@ class DockerClient(object):
                 # Retrieve environment variables for this container,
                 # disregarding any environment variables that are part
                 # of the image, rather than supplied in the configuration.
-                try:
-                    image_data = self._client.inspect_image(image)
-                except APIError as e:
-                    if e.response.status_code == NOT_FOUND:
-                        # Image has been deleted, so just fill in some
-                        # stub data so we can return *something*. This
-                        # should happen only for stopped containers so
-                        # some inaccuracy is acceptable.
-                        image_data = {u"Config": {u"Env": []}}
-                    else:
-                        raise
-
                 unit_environment = []
                 container_environment = data[u"Config"][u"Env"]
                 if image_data[u"Config"]["Env"] is None:
