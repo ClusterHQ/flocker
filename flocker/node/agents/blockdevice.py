@@ -179,6 +179,12 @@ ATTACH_VOLUME = ActionType(
     u"The volume for a block-device-backed dataset is being attached."
 )
 
+ATTACH_VOLUME_DETAILS = MessageType(
+    u"agent:blockdevice:attach_volume:details",
+    [VOLUME],
+    u"The volume for a block-device-backed dataset has been discovered."
+)
+
 DETACH_VOLUME = ActionType(
     u"agent:blockdevice:detach_volume",
     [VOLUME],
@@ -544,6 +550,7 @@ class AttachVolume(PRecord):
         """
         api = deployer.block_device_api
         volume = _blockdevice_volume_from_datasetid(api, self.dataset_id)
+        ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
         # Make this asynchronous after FLOC-1549, probably as part of
         # FLOC-1575.
         api.attach_volume(volume.blockdevice_id, self.hostname)
