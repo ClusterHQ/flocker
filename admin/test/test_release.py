@@ -1912,28 +1912,22 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             },
         )
 
-        expected_metadata = {
-            "description": "clusterhq/flocker-tutorial box.",
-            "name": "clusterhq/flocker-tutorial",
-            "versions": [
+        expected_metadata_versions = [{
+            "version": "0.3.0",
+            "providers": [
                 {
-                    "version": "0.3.0",
-                    "providers": [
-                        {
-                            "url": "https://example.com/flocker-tutorial-0.3.0.box",
-                            "name": "virtualbox"
-                        }
-                    ]
+                    "url": "https://example.com/flocker-tutorial-0.3.0.box",
+                    "name": "virtualbox"
                 },
             ],
-        }
-
+        }]
 
         self.publish_vagrant_metadata(aws=aws, version='0.3.0')
-        self.assertEqual(
-            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
-            expected_metadata,
-        )
+
+        metadata_versions = json.loads(
+            aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
+        self.assertEqual(metadata_versions, expected_metadata_versions)
 
 # TODO pass in the box name - this can be used for the dev box
 # TODO make a wrapper for this - it should be possible to upload the dev box
+# TODO use # noqa
