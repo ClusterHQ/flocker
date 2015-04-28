@@ -25,7 +25,7 @@ from git import GitCommandError, Repo
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
-from twisted.web.template import Element, renderer, XMLString, flatten
+from twisted.web import template
 
 import flocker
 from flocker.provision._effect import sequence, dispatcher as base_dispatcher
@@ -491,13 +491,13 @@ packages_template = (
     )
 
 
-class PackagesElement(Element):
+class PackagesElement(template.Element):
 
     def __init__(self, packages):
-        Element.__init__(self, XMLString(packages_template))
+        template.Element.__init__(self, template.XMLString(packages_template))
         self._packages = packages
 
-    @renderer
+    @template.renderer
     def packages(self, request, tag):
         for package in self._packages:
             yield tag.clone().fillSlots(package_name=package)
@@ -518,7 +518,7 @@ def create_pip_index(scratch_directory, packages):
         # See this cheat described at
         # https://twistedmatrix.com/documents/15.0.0/web/howto/twisted-templates.html
         # TODO: convert the Twisted Deferred into an Effect?
-        flatten(None, PackagesElement(packages), f.write)
+        template.flatten(None, PackagesElement(packages), f.write)
     return index_file
 
 
