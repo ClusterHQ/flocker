@@ -99,7 +99,7 @@ A policy can be set by going to a bucket's "Properties", "Permissions", then "Ad
 ``clusterhq-release`` package
 -----------------------------
 
-RPM-based distribution tend to bundle ``yum`` repository definitions in ``*-release`` packages.
+RPM-based distributions tend to bundle ``yum`` repository definitions in ``*-release`` packages.
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
