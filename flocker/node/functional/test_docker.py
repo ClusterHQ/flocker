@@ -34,6 +34,10 @@ from .._docker import (
 from ...control._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
 
+import requests.packages.urllib3
+
+requests.packages.urllib3.add_stderr_logger()
+
 
 def namespace_for_test(test_case):
     namespace = u"%s-%s-%s" % (
