@@ -116,7 +116,6 @@ These easiest way to get Flocker going is to use our vagrant configuration.
 It is also possible to deploy Flocker in the cloud, on a number of different providers.
 
 - :ref:`Using Amazon Web Services <aws-install>`
-- :ref:`Using DigitalOcean <digitalocean-install>`
 - :ref:`Using Rackspace <rackspace-install>`
 
 It is also possible to install Flocker on any Fedora 20, CentOS 7, or Ubuntu 14.04 machine.
@@ -219,64 +218,6 @@ Using Amazon Web Services
          shutdown -r now
 
 #. Follow the operating system specific installation instructions below.
-
-
-.. _digitalocean-install:
-
-Using DigitalOcean
-------------------
-
-Another way to get a Flocker cluster running is to use DigitalOcean.
-You'll probably want to setup at least two nodes.
-
-#. Create a new Droplet running Fedora 20
-
-   * Visit https://cloud.digitalocean.com/droplets/new
-   * Choose a minimum of 8GB of RAM
-   * Choose the Fedora 20 x64 Linux distribution as your image
-   * You may choose to add an SSH key, or DigitalOcean will email you the root SSH password
-
-#. Look up the public IP address of the new Droplet, and SSH in
-
-   You can find the IP in the Droplet page after it is created, to the left of the green "Active" text near the top.
-
-   .. prompt:: bash alice@mercury:~$
-
-      ssh root@203.0.113.109
-
-#. Install a supported Linux kernel
-
-   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
-   To switch to the newest kernel, follow these steps:
-
-   #. Configure the Droplet to boot with the desired kernel:
-
-      * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
-      * Choose the newest kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
-
-        At the time of writing, the latest supported kernel is |digitalocean_kernel_title|.
-
-   #. Upgrade the kernel package inside the virtual machine:
-
-      The selected kernel may no-longer be available from the standard Fedora 20 repositories, so we install from ``koji``.
-
-      .. task:: install_digitalocean_kernel
-         :prompt: [root@digitalocean]#
-
-   #. Power Cycle the Droplet
-
-      Droplet kernel changes only take effect after *power cycling* the virtual machine.
-
-      * Shut down the virtual machine:
-
-      .. prompt:: bash [root@digitalocean]#
-
-         shutdown -h now
-
-      * On the "Power" administration page, click "Boot".
-
-
-#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 
 .. _rackspace-install:
