@@ -289,12 +289,8 @@ def _blockdevice_volume_from_datasetid(volumes, dataset_id):
             return volume
 
 
-# Replace this with a simpler factory-function based API like:
-#
-#     change = destroy_blockdevice_dataset(volume)
-#
-# after FLOC-1591 makes it possible to have reasonable logging with such a
-# solution.
+# Get rid of this in favor of calculating each individual operation in
+# BlockDeviceDeployer.calculate_changes.
 @implementer(IStateChange)
 class DestroyBlockDeviceDataset(PRecord):
     """
@@ -427,6 +423,8 @@ class ResizeFilesystem(PRecord):
         return succeed(None)
 
 
+# Get rid of this in favor of calculating each individual operation in
+# BlockDeviceDeployer.calculate_changes.
 @implementer(IStateChange)
 # Make them sort reasonably for ease of testing and because determinism is
 # generally pretty nice.
@@ -624,6 +622,8 @@ class DestroyVolume(PRecord):
         return succeed(None)
 
 
+# Get rid of this in favor of calculating each individual operation in
+# BlockDeviceDeployer.calculate_changes.
 @implementer(IStateChange)
 class CreateBlockDeviceDataset(PRecord):
     """
@@ -661,24 +661,16 @@ class CreateBlockDeviceDataset(PRecord):
             size=self.dataset.maximum_size,
         )
 
-        # This will be factored into a separate IStateChange to support the
-        # case where the volume exists but is not attached.  That object
-        # will be used by this one to perform this work.  FLOC-1575
+        # This duplicates AttachVolume now.
         volume = api.attach_volume(
             volume.blockdevice_id, deployer.hostname
         )
         device = api.get_device_path(volume.blockdevice_id)
 
-        # This will be factored into a separate IStateChange to support the
-        # case where the volume is attached but has no filesystem.  That
-        # object will be used by this one to perform this work. FLOC-1576
+        # This duplicates CreateFilesystem now.
         check_output(["mkfs", "-t", "ext4", device.path])
 
-        # This will be factored into a separate IStateChange to support the
-        # case where the only state change necessary is mounting.  That
-        # object will be used by this one to perform this mount. It will
-        # also gracefully handle the case where the mountpoint directory
-        # already exists.  FLOC-1498
+        # This duplicates MountBlockDevice now.
         self.mountpoint.makedirs()
         check_output(["mount", device.path, self.mountpoint.path])
 
