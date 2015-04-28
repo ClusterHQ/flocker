@@ -6,7 +6,7 @@ or newer versions than are available there.
 So the ``build-package`` script bundles those packages into the operating system package.
 We refer to these as "Omnibus" packages.
 
-To build omnibus pacakgess, create a VirtualEnv and install Flocker then its release dependencies:
+To build omnibus packages, create a VirtualEnv and install Flocker then its release dependencies:
 
 .. code-block:: sh
 
@@ -76,7 +76,7 @@ Fedora, CentOS and Ubuntu client and node packages are hosted on Amazon S3.
 ---------------------
 
 For each distribution, there are ``<distribution>`` and ``<distribution>-testing`` folders.
-Each continas subfolders for the distribution version and architechture, which finally contain package repositories.
+Each contains sub-folders for the distribution version and architecture, which finally contain package repositories.
 
 To make the entire bucket public, this bucket has the following policy::
 
@@ -99,7 +99,7 @@ A policy can be set by going to a bucket's "Properties", "Permissions", then "Ad
 ``clusterhq-release`` package
 -----------------------------
 
-RPM-based distribution tend to bundle ``yum`` repository definitions in ``*-release`` pacakges.
+RPM-based distribution tend to bundle ``yum`` repository definitions in ``*-release`` packages.
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
