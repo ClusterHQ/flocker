@@ -1779,7 +1779,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.publish_vagrant_metadata(aws=aws, version='0.3.0')
 
         expected_metadata = json.dumps({
-            "description": "Test clusterhq/flocker-tutorial box.",
+            "description": "clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
             "versions": [{
                 "version": "0.3.0",
@@ -1797,7 +1797,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         A version is added to an existing metadata file.
         """
         existing_metadata = json.dumps({
-            "description": "Test clusterhq/flocker-tutorial box.",
+            "description": "clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
             "versions": [{
                 "version": "0.3.0",
@@ -1815,7 +1815,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         )
 
         expected_metadata = {
-            "description": "Test clusterhq/flocker-tutorial box.",
+            "description": "clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
             "versions": [
                 {

@@ -353,7 +353,6 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
     """
     TODO
     """
-    # TODO use box_metadata from vagrant.py
     metadata_filename = 'flocker-tutorial.json'
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
@@ -362,7 +361,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
         filter_extensions=(metadata_filename,)))
 
     metadata = {
-        "description": "Test clusterhq/flocker-tutorial box.",
+        "description": "clusterhq/flocker-tutorial box.",
         "name": "clusterhq/flocker-tutorial",
         "versions": [],
     }
