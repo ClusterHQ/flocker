@@ -80,6 +80,18 @@ class GenericDockerClientTests(TestCase):
         # disable namespacing for these tests.
         return DockerClient(namespace=self.namespacing_prefix)
 
+    def create_container(self, client, name, image):
+        """
+        Create (but don't start) a container via the supplied client.
+
+        :param DockerClient client: The Docker API client.
+        :param unicode name: The container name.
+        :param unicode image: The image name.
+        """
+        container_name = client._to_container_name(name)
+        client._client.create_container(
+            name=container_name, image=image)
+
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
                         ports=None, expected_states=(u'active',),
@@ -383,14 +395,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image_name = image.build()
         client = self.make_client()
         name = random_name()
-        if isinstance(client, NamespacedDockerClient):
-            container_name = client._client._to_container_name(name)
-            client._client._client.create_container(
-                name=container_name, image=image_name)
-        else:
-            container_name = client._to_container_name(name)
-            client._client.create_container(
-                name=container_name, image=image_name)
+        self.create_container(client, name, image_name)
         self.addCleanup(client.remove, name)
         d = client.list()
 
@@ -763,6 +768,18 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
 
     def make_client(self):
         return NamespacedDockerClient(self.namespace)
+
+    def create_container(self, client, name, image):
+        """
+        Create (but don't start) a container via the supplied client.
+
+        :param DockerClient client: The Docker API client.
+        :param unicode name: The container name.
+        :param unicode image: The image name.
+        """
+        container_name = client._client._to_container_name(name)
+        client._client._client.create_container(
+            name=container_name, image=image)
 
     def test_isolated_namespaces(self):
         """
