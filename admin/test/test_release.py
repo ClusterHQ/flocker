@@ -1814,19 +1814,35 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             },
         )
 
-        expected_metadata = json.dumps({
+        expected_metadata = {
             "description": "Test clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
-            "versions": [{
-                "version": "0.3.0",
-                "providers": [{
-                    "url": "https://example.com/flocker-tutorial-0.3.0.box",
-                    "name": "virtualbox"}]}]})
+            "versions": [
+                {
+                    "version": "0.3.0",
+                    "providers": [
+                        {
+                            "url": "https://example.com/flocker-tutorial-0.3.0.box",
+                            "name": "virtualbox"
+                        }
+                    ]
+                },
+                {
+                    "version": "0.4.0",
+                    "providers": [
+                        {
+                            "url": "https://example.com/flocker-tutorial-0.4.0.box",
+                            "name": "virtualbox"
+                        }
+                    ]
+                },
+            ],
+        }
 
 
-        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+        self.publish_vagrant_metadata(aws=aws, version='0.4.0')
         self.assertEqual(
-            aws.s3_buckets[self.target_bucket][self.metadata_key],
+            json.loads(aws.s3_buckets[self.target_bucket][self.metadata_key]),
             expected_metadata,
         )
 

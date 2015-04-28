@@ -354,25 +354,40 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
     TODO
     """
     # TODO use box_metadata from vagrant.py
+    metadata_filename = 'flocker-tutorial.json'
+    yield Effect(DownloadS3KeyRecursively(
+        source_bucket=target_bucket,
+        source_prefix='vagrant',
+        target_path=scratch_directory,
+        filter_extensions=(metadata_filename,)))
 
-    # TODO download existing metadata, json.safe_load it
-    metadata = {"versions": []}
+    metadata = {
+        "description": "Test clusterhq/flocker-tutorial box.",
+        "name": "clusterhq/flocker-tutorial",
+        "versions": [],
+    }
+
+    if len(scratch_directory.children()):
+        existing_metadata_file = scratch_directory.children()[0]
+        existing_metadata = json.loads(existing_metadata_file.getContent())
+        for version_metadata in existing_metadata['versions']:
+            metadata['versions'].append(version_metadata)
+
     normalised_version = vagrant_version(version)
     new_metadata = {
         "version": normalised_version,
         "providers": [{
-            "url": "https://example.com/flocker-tutorial-0.3.0.box",
+            "url": box_url,
             "name": "virtualbox"
     }]}
 
     metadata['versions'].append(new_metadata)
-    json_file = scratch_directory.child('flocker-tutorial.json')
-    json_file.setContent(json.dumps(metadata))
+    scratch_directory.child(metadata_filename).setContent(json.dumps(metadata))
     yield Effect(UploadToS3Recursively(
         source_path=scratch_directory,
         target_bucket=target_bucket,
         target_key='vagrant',
-        files=set([json_file.basename()]),
+        files=set([metadata_filename]),
         ))
 
 
