@@ -138,7 +138,7 @@ class ApplicationInitTests(make_with_init_tests(
 
 class NodeInitTests(make_with_init_tests(
         record_type=Node,
-        kwargs=dict(hostname=u'example.com', applications=pset([
+        kwargs=dict(uuid=uuid4(), applications=pset([
             Application(name=u'mysql-clusterhq', image=DockerImage.from_string(
                 u"image")),
             Application(name=u'site-clusterhq.com',
