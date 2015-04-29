@@ -821,6 +821,46 @@ class DockerClientTests(TestCase):
 
         return running_assertions
 
+    def error_passthrough_test(self, method_name):
+        """
+        If the given method name on the underyling ``Docker`` client has a
+        non-404 error, that gets passed through to ``Docker.list()``.
+
+        :param str method_name: Method of a docker ``Client``.
+        :return: ``Deferred`` firing on test success.
+        """
+        name = random_name()
+        client = DockerClient()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox:latest")
+
+        class Response(object):
+            status_code = 500
+            content = ""
+
+        def error(name):
+            raise APIError("", Response())
+
+        def added(_):
+            # Monekypatch cause triggering non-404 errors from
+            # inspect_container is hard.
+            setattr(client._client, method_name, error)
+            return client.list()
+        d.addCallback(added)
+        return self.assertFailure(d, APIError)
+
+    def test_list_error_inspecting_container(self):
+        """
+        If an error occurs inspecting a container it is passed through.
+        """
+        return self.error_passthrough_test("inspect_container")
+
+    def test_list_error_inspecting_image(self):
+        """
+        If an error occurs inspecting an image it is passed through.
+        """
+        return self.error_passthrough_test("inspect_image")
+
 
 class NamespacedDockerClientTests(GenericDockerClientTests):
     """
