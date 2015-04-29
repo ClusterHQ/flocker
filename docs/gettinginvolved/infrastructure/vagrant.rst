@@ -47,6 +47,8 @@ using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
    - Right click and copy the "Public link" for the relevant box.
 
 #. To upload a development box do XXX.
+   TODO Do this after the vagrant box > S3 branch is merged as it also changes this.
+   Note that the tutorial box is uploaded in the release process.
 
 Testing
 ^^^^^^^
