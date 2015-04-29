@@ -224,7 +224,7 @@ def random_name(case):
 
     :return name: A random ``unicode`` name.
     """
-    return u"{}-{}".format(case.id(), randrange(10 ** 6))
+    return u"{}-{}".format(case.id().replace(u".", u"_"), randrange(10 ** 6))
 
 
 def help_problems(command_name, help_text):
