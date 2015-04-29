@@ -15,3 +15,13 @@ __all__ = [
     "Comment", "comment",
     "RunRemotely", "run_remotely",
 ]
+
+try:
+    # for admin.packaging usage
+    from ._keys import check_agent_has_ssh_key
+
+    __all__ += [
+        "check_agent_has_ssh_key",
+    ]
+except ImportError:
+    pass
