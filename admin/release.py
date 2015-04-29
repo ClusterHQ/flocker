@@ -349,11 +349,13 @@ FLOCKER_PACKAGES = [
 
 # TODO call this from main
 @do
-def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket):
+def publish_vagrant_metadata(version, box_url, scratch_directory,
+    target_bucket, box_name):
     """
     TODO
     """
-    metadata_filename = 'flocker-tutorial.json'
+    metadata_filename = '{box_name}.json'.format(box_name=box_name)
+    # TODO try download and upload not recursively
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
         source_prefix='vagrant',
@@ -361,8 +363,8 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
         filter_extensions=(metadata_filename,)))
 
     metadata = {
-        "description": "clusterhq/flocker-tutorial box.",
-        "name": "clusterhq/flocker-tutorial",
+        "description": "clusterhq/{box_name} box.".format(box_name=box_name),
+        "name": "clusterhq/{box_name}".format(box_name=box_name),
         "versions": [],
     }
 
@@ -370,6 +372,9 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, target_bucket)
         existing_metadata_file = scratch_directory.children()[0]
         existing_metadata = json.loads(existing_metadata_file.getContent())
         for version_metadata in existing_metadata['versions']:
+            # In the future we may want to have multiple providers for the
+            # same version but for now we discard any current providers for
+            # the version being added.
             if version_metadata['version'] != version:
                 metadata['versions'].append(version_metadata)
 

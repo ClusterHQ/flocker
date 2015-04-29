@@ -1757,11 +1757,13 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         scratch_directory = FilePath(self.mktemp())
         scratch_directory.makedirs()
         box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
+        box_name = 'flocker-tutorial'
         sync_perform(
             ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
             publish_vagrant_metadata(
                 version=version,
                 box_url=box_url,
+                box_name =box_name,
                 target_bucket=self.target_bucket,
                 scratch_directory=scratch_directory))
 
