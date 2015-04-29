@@ -2787,7 +2787,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
         """
         self.cluster_state_service.apply_changes([
             NodeState(hostname=u"192.0.2.101", uuid=uuid4(),
-                      manifestations=None)])
+                      manifestations=None, paths=None)])
         return self.assertResult(
             b"GET", b"/state/datasets", None, OK, []
         )
