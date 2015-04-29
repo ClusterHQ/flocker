@@ -53,7 +53,7 @@ class HomebrewOptionsTests(SynchronousTestCase):
 
 class GetChecksumTests(SynchronousTestCase):
     """
-    Tests for X.
+    Tests for :func:`get_checksum`.
     """
     def test_checksum(self):
         """
@@ -99,9 +99,12 @@ class GetChecksumTests(SynchronousTestCase):
 
 class GetDependencyGraphTests(SynchronousTestCase):
     """
-    Tests for X.
+    Tests for :func:`get_dependency_graph`.
     """
     def test_get_dependency_graph(self):
+        """
+        It is possible to get a tl.eggdeps graph for a given application.
+        """
         graph = get_dependency_graph(u'flocker')
         # We can be sure that flocker is installed if we are running this,
         # and pretty sure that setuptools is a dependency with no dependencies
@@ -118,7 +121,7 @@ class GetDependencyGraphTests(SynchronousTestCase):
 
 class GetClassNameTests(SynchronousTestCase):
     """
-    Tests for X.
+    Tests for :func:`get_class_name`.
     """
     def test_disallowed_characters_removed(self):
         """
@@ -149,11 +152,15 @@ class GetClassNameTests(SynchronousTestCase):
             'Flocker030444G05215b'
         )
 
+
 class FormatResourceStanzasTests(SynchronousTestCase):
     """
-    Tests for X.
+    Tests for :func:`format_resource_stanzas`.
     """
     def test_two_resources(self):
+        """
+        Newline separated resource stanzas are returned.
+        """
         resources = [{
             "project_name": "six",
             "url": "https://example.com/six/six-1.9.0.tar.gz",
@@ -178,8 +185,16 @@ class FormatResourceStanzasTests(SynchronousTestCase):
 """
         self.assertEqual(expected, format_resource_stanzas(resources))
 
+
 class GetRecipeTests(SynchronousTestCase):
+    """
+    Tests for :func:`get_recipe`.
+    """
     def test_get_recipe(self):
+        """
+        A Homebrew recipe is returned. That this works is tested from
+        ..testbrew.
+        """
         resources = [{
             "project_name": "six",
             "url": "https://example.com/six/six-1.9.0.tar.gz",
