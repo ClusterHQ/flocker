@@ -10,7 +10,6 @@ from pipes import quote as shell_quote
 from socket import gaierror, socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
-from uuid import UUID
 
 from yaml import safe_dump
 
