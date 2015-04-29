@@ -99,6 +99,29 @@ A policy can be set by going to a bucket's "Properties", "Permissions", then "Ad
 ``clusterhq-dev-archive``
 -------------------------
 
+BuildBot puts Vagrant boxes in the ``clusterhq-dev-archive``.
+
+This has a similar policy to the ``clusterhq-archive`` bucket but is more restrictive in that only the keys with the prefix "vagrant/" are public.
+
+This bucket has the following policy::
+
+   {
+   	"Version": "2008-10-17",
+   	"Id": "PolicyForPublicAccess",
+   	"Statement": [
+   		{
+   			"Sid": "1",
+   			"Effect": "Allow",
+   			"Principal": "*",
+   			"Action": "s3:GetObject",
+   			"Resource": "arn:aws:s3:::clusterhq-dev-archive/vagrant/*"
+   		}
+   	]
+   }
+
+``clusterhq-release`` package
+-----------------------------
+
 RPM-based distributions tend to bundle ``yum`` repository definitions in ``*-release`` packages.
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
