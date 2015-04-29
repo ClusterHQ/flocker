@@ -45,6 +45,7 @@ from ..blockdevice import (
 
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
+    DatasetWithoutVolume,
 )
 
 from ... import run_state_change, in_parallel
@@ -2655,6 +2656,24 @@ class AttachVolumeTests(
 
         expected_volume = volume.set(host=host)
         self.assertEqual([expected_volume], api.list_volumes())
+
+    def test_missing(self):
+        """
+        If no volume is associated with the ``AttachVolume`` instance's
+        ``dataset_id``, ``AttachVolume.run`` returns a ``Deferred`` that fires
+        with a ``Failure`` wrapping ``DatasetWithoutVolume``.
+        """
+        dataset_id = uuid4()
+        deployer = create_blockdevicedeployer(self)
+        change = AttachVolume(
+            dataset_id=dataset_id, hostname=deployer.hostname
+        )
+        failure = self.failureResultOf(
+            run_state_change(change, deployer), DatasetWithoutVolume
+        )
+        self.assertEqual(
+            DatasetWithoutVolume(dataset_id=dataset_id), failure.value
+        )
 
 
 class ResizeFilesystemInitTests(

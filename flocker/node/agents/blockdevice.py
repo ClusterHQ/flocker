@@ -17,7 +17,7 @@ from eliot.serializers import identity
 from zope.interface import implementer, Interface
 
 from pyrsistent import PRecord, field
-from characteristic import with_cmp
+from characteristic import attributes, with_cmp
 
 import psutil
 
@@ -35,6 +35,16 @@ from ...common import auto_threaded
 # approach.  And it's hard to put Logger instances on PRecord subclasses which
 # we have a lot of.  So just use this global logger for now.
 _logger = Logger()
+
+@attributes(["dataset_id"])
+class DatasetWithoutVolume(Exception):
+    """
+    An operation was attempted on a dataset that involves manipulating the
+    dataset's volume but that volume could not be found.
+
+    :ivar UUID dataset_id: The unique identifier of the dataset the operation
+        was meant to affect.
+    """
 
 
 class VolumeException(Exception):
@@ -571,6 +581,9 @@ class AttachVolume(PRecord):
         )
 
         def found(volume):
+            if volume is None:
+                # It was not actually found.
+                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
             ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
             return api.attach_volume(volume.blockdevice_id, self.hostname)
         attaching = listing.addCallback(found)
