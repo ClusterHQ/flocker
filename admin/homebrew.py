@@ -62,12 +62,12 @@ def get_class_name(version):
 
     :param str version: The version of Flocker this recipe is for.
 
-    :return str: The name of the ruby class needed if the file being created
-        is called "flocker-$VERSION.rb".
+    :return unicode: The name of the ruby class needed if the file being
+        created is called "flocker-$VERSION.rb".
     """
     class_name = list('Flocker' + version)
     disallowed_characters = ['-', '.']
-    return ''.join([
+    return u''.join([
         character.upper() if class_name[index - 1] in disallowed_characters
         else character for index, character in enumerate(class_name) if
         character not in disallowed_characters])
@@ -131,7 +131,7 @@ def format_resource_stanzas(resources):
 
 def make_recipe(version, sdist_url):
     """
-    Create a Homebrew recipe.
+    Create a Homebrew recipe. This uses the network.
 
     :param version: The version of Flocker to create a recipe for.
     :param sdist_url: The URL of the source distribution of Flocker.
@@ -149,7 +149,7 @@ def make_recipe(version, sdist_url):
 
 def get_recipe(sdist_url, sha1, class_name, resources):
     """
-    Create a Homebrew recipe.
+    Create a Homebrew recipe. This does not use the network.
 
     :param sdist_url: The URL of the source distribution of Flocker.
     :param sha1: The checksum of ``sdist_url``.
