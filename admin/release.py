@@ -434,6 +434,10 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
 def copy_tutorial_vagrant_box(target_bucket, dev_bucket, version):
     """
     Copy the tutorial box from a ``dev_bucket`` to a ``target_bucket``.
+
+    :param bytes target_bucket: S3 bucket to copy tutorial box to.
+    :param bytes dev_bucket: S3 bucket to copy tutorial box from.
+    :param bytes version: Version of Flocker to copy the tutorial box for.
     """
     yield Effect(
         CopyS3Keys(source_bucket=dev_bucket,
