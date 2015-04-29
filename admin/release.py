@@ -653,6 +653,11 @@ def publish_artifacts_main(args, base_path, top_level):
                     scratch_directory=scratch_directory.child('pip'),
                     target_bucket=options['target'],
                 ),
+                copy_tutorial_vagrant_box(
+                    target_bucket=options['target'],
+                    dev_bucket='clusterhq-dev-archive',
+                    version=options['flocker-version'],
+                )
             ]),
         )
     except IncorrectSetuptoolsVersion:
