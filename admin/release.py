@@ -405,8 +405,6 @@ def publish_homebrew_recipe(homebrew_repo_url, version, scratch_directory):
     if (push_info.flags & push_info.ERROR) != 0:
         raise PushFailed()
 
-    # TODO also close https://clusterhq.atlassian.net/browse/FLOC-1150
-
 
 @do
 def update_repo(package_directory, target_bucket, target_key, source_repo,
