@@ -161,6 +161,7 @@ setup(
         "python-cinderclient==1.1.1",
         "python-keystoneclient-rackspace==0.1.3",
         "bitmath==1.2.3-4",
+        "appdirs==1.4.0",
         ],
 
     extras_require={
