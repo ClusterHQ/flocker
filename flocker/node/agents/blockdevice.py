@@ -160,6 +160,10 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
     u"A block-device-backed dataset is being created.",
 )
 
+# Really this is the successful completion of CREATE_BLOCK_DEVICE_DATASET.  It
+# might be nice if these fields could just be added to the running action
+# instead of being logged as a separate message (but still in the correct
+# context).  Or maybe this is fine as-is.
 BLOCK_DEVICE_DATASET_CREATED = MessageType(
     u"agent:blockdevice:created",
     [DEVICE_PATH, BLOCK_DEVICE_ID, DATASET_ID, BLOCK_DEVICE_SIZE,
