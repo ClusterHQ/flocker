@@ -374,7 +374,6 @@ FLOCKER_PACKAGES = [
 ]
 
 
-# TODO call this from main
 @do
 def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
     target_bucket):
@@ -680,6 +679,7 @@ def publish_artifacts_main(args, base_path, top_level):
     scratch_directory.child('rpm').createDirectory()
     scratch_directory.child('python').createDirectory()
     scratch_directory.child('pip').createDirectory()
+    scratch_directory.child('vagrant').createDirectory()
 
     try:
         sync_perform(
@@ -702,6 +702,13 @@ def publish_artifacts_main(args, base_path, top_level):
                     scratch_directory=scratch_directory.child('pip'),
                     target_bucket=options['target'],
                 ),
+                publish_vagrant_metadata(
+                    version=options['flocker-version'],
+                    box_url="TODO",
+                    scratch_directory=scratch_directory.child('vagrant'),
+                    box_name="flocker-tutorial",
+                    target_bucket=options['target'],
+                )
             ]),
         )
     except IncorrectSetuptoolsVersion:
