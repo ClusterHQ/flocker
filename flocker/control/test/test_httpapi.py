@@ -2769,6 +2769,18 @@ class DatasetsStateTestsMixin(APITestsMixin):
             b"GET", b"/state/datasets", None, OK, response
         )
 
+    def test_unknown_datasets(self):
+        """
+        When the cluster state is ignorant about datasets on a node, the
+        endpoint does not list information for that node.
+        """
+        self.cluster_state_service.apply_changes([
+            NodeState(hostname=u"192.0.2.101", uuid=uuid4(),
+                      manifestations=None, paths=None)])
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, []
+        )
+
     def test_one_dataset(self):
         """
         When the cluster state includes one dataset, the endpoint
@@ -3101,6 +3113,18 @@ class ContainerStateTestsMixin(APITestsMixin):
         response = []
         return self.assertResult(
             b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_unknown_containers(self):
+        """
+        When the cluster state is ignorant about containers on a node, the
+        endpoint does not list information for that node.
+        """
+        self.cluster_state_service.apply_changes([
+            NodeState(hostname=u"192.0.2.101", uuid=uuid4(),
+                      applications=None)])
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, []
         )
 
     def test_one_container(self):
