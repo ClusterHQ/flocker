@@ -389,6 +389,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
         ],
     })
 
+    # If there is an existing file, overwrite it. Else create a new file.
     new_metadata_file = scratch_directory.child(metadata_filename)
     new_metadata_file.setContent(json.dumps(metadata))
 
