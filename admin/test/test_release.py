@@ -1751,9 +1751,6 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         self.metadata_key = 'vagrant/flocker-tutorial.json'
 
     def publish_vagrant_metadata(self, aws, version):
-        # TODO perhaps the URL is created in main
-        # TODO perhaps the URL should be returned by the code which uploads
-        # the tutorial box.
         scratch_directory = FilePath(self.mktemp())
         scratch_directory.makedirs()
         box_url = "https://example.com/flocker-tutorial-{}.box".format(version)
@@ -1788,7 +1785,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
                     "version": "0.3.0",
                     "providers": [
                         {
-                            "url": "https://example.com/flocker-tutorial-0.3.0.box",
+                            "url": "https://example.com/flocker-tutorial-0.3.0.box",  # noqa
                             "name": "virtualbox"
                         }
                     ],
@@ -1813,7 +1810,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
                     "version": "0.3.0",
                     "providers": [
                         {
-                            "url": "https://example.com/flocker-tutorial-0.3.0.box",
+                            "url": "https://example.com/flocker-tutorial-0.3.0.box",  # noqa
                             "name": "virtualbox"
                         }
                     ],
@@ -1838,7 +1835,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
                     "version": "0.3.0",
                     "providers": [
                         {
-                            "url": "https://example.com/flocker-tutorial-0.3.0.box",
+                            "url": "https://example.com/flocker-tutorial-0.3.0.box",  # noqa
                             "name": "virtualbox"
                         }
                     ]
@@ -1847,7 +1844,7 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
                     "version": "0.4.0",
                     "providers": [
                         {
-                            "url": "https://example.com/flocker-tutorial-0.4.0.box",
+                            "url": "https://example.com/flocker-tutorial-0.4.0.box",  # noqa
                             "name": "virtualbox"
                         }
                     ]
@@ -1866,9 +1863,6 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         """
         The version given is converted to a version number acceptable to
         Vagrant.
-        """
-        """
-        A metadata file is added when one does not exist.
         """
         aws = FakeAWS(
             routing_rules={},
@@ -1931,6 +1925,4 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
         self.assertEqual(metadata_versions, expected_metadata_versions)
 
-# TODO pass in the box name - this can be used for the dev box
 # TODO make a wrapper for this - it should be possible to upload the dev box
-# TODO use # noqa
