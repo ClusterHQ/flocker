@@ -51,7 +51,7 @@ class ContainerAPITests(TestCase):
         and container dictionary once the container is up and running.
         """
         data = {
-            u"name": random_name(self),
+            u"name": random_name(self).replace(u".", u"_"),
             u"host": None,
             u"image": "clusterhq/flask:latest",
             u"ports": [{u"internal": 80, u"external": 8080}],
