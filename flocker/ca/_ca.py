@@ -6,6 +6,7 @@ Low-level logic for a certificate authority.
 Uses RSA 4096-bit + SHA 256.
 """
 
+import datetime
 import os
 
 from uuid import uuid4
@@ -16,6 +17,9 @@ from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
 
 
 EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
+EXPIRY_DATE = datetime.datetime.now()
+EXPIRY_DATE = EXPIRY_DATE + datetime.timedelta(seconds=EXPIRY_20_YEARS)
+EXPIRY_DATE = EXPIRY_DATE.strftime(b"%Y%m%d%H%M%SZ")
 
 AUTHORITY_CERTIFICATE_FILENAME = b"cluster.crt"
 AUTHORITY_KEY_FILENAME = b"cluster.key"
@@ -95,8 +99,8 @@ def create_certificate_authority(keypair, dn, request, serial, expiry, digest):
 
     :param int serial: The certificate serial number.
 
-    :param int expiry: Number of seconds from now until this certificate
-        should expire.
+    :param str expiry: ASN1 formatted datetime string representing the
+        certificate's expiry date, i.e. "%Y%m%d%H%M%SZ"
 
     :param str digest: The digest algorithm to use.
     """
@@ -106,7 +110,7 @@ def create_certificate_authority(keypair, dn, request, serial, expiry, digest):
     cert.set_subject(req.get_subject())
     cert.set_pubkey(req.get_pubkey())
     cert.gmtime_adj_notBefore(0)
-    cert.gmtime_adj_notAfter(expiry)
+    cert.set_notAfter(expiry)
     cert.set_serial_number(serial)
     cert.add_extensions([
         crypto.X509Extension("basicConstraints", True,
@@ -122,6 +126,38 @@ def create_certificate_authority(keypair, dn, request, serial, expiry, digest):
             "keyid:always", issuer=cert
         )
     ])
+    cert.sign(keypair.original, digest)
+    return Certificate(cert)
+
+
+def sign_certificate_request(keypair, dn, request, serial, expiry, digest):
+    """
+    Sign a CertificateRequest and return a Certificate.
+
+    This code based on ``twisted.internet.ssl.KeyPair.signRequestObject``
+
+    :param KeyPair keypair: The private/public key pair.
+
+    :param DistinguishedName dn: The ``DistinguishedName`` for the
+        certificate.
+
+    :param CertificateRequest request: The signing request object.
+
+    :param int serial: The certificate serial number.
+
+    :param str expiry: ASN1 formatted datetime string representing the
+        certificate's expiry date, i.e. "%Y%m%d%H%M%SZ"
+
+    :param str digest: The digest algorithm to use.
+    """
+    req = request.original
+    cert = crypto.X509()
+    dn._copyInto(cert.get_issuer())
+    cert.set_subject(req.get_subject())
+    cert.set_pubkey(req.get_pubkey())
+    cert.gmtime_adj_notBefore(0)
+    cert.set_notAfter(expiry)
+    cert.set_serial_number(serial)
     cert.sign(keypair.original, digest)
     return Certificate(cert)
 
@@ -288,9 +324,10 @@ class UserCredential(PRecord):
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
-        cert = authority.credential.keypair.keypair.signRequestObject(
+        cert = sign_certificate_request(
+            authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_20_YEARS, b"sha256"
+            serial, EXPIRY_DATE, b'sha256'
         )
         credential = FlockerCredential(
             path=output_path, keypair=keypair, certificate=cert
@@ -353,9 +390,10 @@ class NodeCredential(PRecord):
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
-        cert = authority.credential.keypair.keypair.signRequestObject(
+        cert = sign_certificate_request(
+            authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_20_YEARS, 'sha256'
+            serial, EXPIRY_DATE, 'sha256'
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
@@ -408,9 +446,10 @@ class ControlCredential(PRecord):
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
-        cert = authority.credential.keypair.keypair.signRequestObject(
+        cert = sign_certificate_request(
+            authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_20_YEARS, 'sha256'
+            serial, EXPIRY_DATE, 'sha256'
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
@@ -468,7 +507,7 @@ class RootCredential(PRecord):
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
         certificate = create_certificate_authority(
-            keypair.keypair, dn, request, serial, EXPIRY_20_YEARS, 'sha256'
+            keypair.keypair, dn, request, serial, EXPIRY_DATE, 'sha256'
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=certificate)

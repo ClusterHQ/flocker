@@ -16,7 +16,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (RootCredential, ControlCredential, NodeCredential,
-                UserCredential, PathError, EXPIRY_20_YEARS,
+                UserCredential, PathError, EXPIRY_DATE,
                 AUTHORITY_CERTIFICATE_FILENAME, AUTHORITY_KEY_FILENAME,
                 CONTROL_CERTIFICATE_FILENAME, CONTROL_KEY_FILENAME)
 
@@ -288,13 +288,13 @@ class UserCredentialTests(SynchronousTestCase):
         of day it is run. Fixed in
         https://github.com/ClusterHQ/flocker/pull/1339
         """
-        today = datetime.datetime.now()
-        expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
+        expected_expiry = datetime.datetime.strptime(
+            EXPIRY_DATE, "%Y%m%d%H%M%SZ")
         uc = UserCredential.initialize(self.path, self.ca, self.username)
         cert = uc.credential.certificate.original
         date_str = cert.get_notAfter()
         expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
-        self.assertEqual(expiry_date.date(), expected_expiry.date())
+        self.assertEqual(expiry_date, expected_expiry)
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """
@@ -584,13 +584,13 @@ class NodeCredentialTests(SynchronousTestCase):
         of day it is run. Fixed in
         https://github.com/ClusterHQ/flocker/pull/1339
         """
-        today = datetime.datetime.now()
-        expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
+        expected_expiry = datetime.datetime.strptime(
+            EXPIRY_DATE, "%Y%m%d%H%M%SZ")
         nc = NodeCredential.initialize(self.path, self.ca)
         cert = nc.credential.certificate.original
         date_str = cert.get_notAfter()
         expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
-        self.assertEqual(expiry_date.date(), expected_expiry.date())
+        self.assertEqual(expiry_date, expected_expiry)
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """
@@ -858,13 +858,13 @@ class ControlCredentialTests(SynchronousTestCase):
         of day it is run. Fixed in
         https://github.com/ClusterHQ/flocker/pull/1339
         """
-        today = datetime.datetime.now()
-        expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
+        expected_expiry = datetime.datetime.strptime(
+            EXPIRY_DATE, "%Y%m%d%H%M%SZ")
         cc = ControlCredential.initialize(self.path, self.ca)
         cert = cc.credential.certificate.original
         date_str = cert.get_notAfter()
         expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
-        self.assertEqual(expiry_date.date(), expected_expiry.date())
+        self.assertEqual(expiry_date, expected_expiry)
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """
@@ -1116,15 +1116,15 @@ class RootCredentialTests(SynchronousTestCase):
         of day it is run. Fixed in
         https://github.com/ClusterHQ/flocker/pull/1339
         """
-        today = datetime.datetime.now()
-        expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
+        expected_expiry = datetime.datetime.strptime(
+            EXPIRY_DATE, "%Y%m%d%H%M%SZ")
         path = FilePath(self.mktemp())
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
         cert = ca.credential.certificate.original
         date_str = cert.get_notAfter()
         expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
-        self.assertEqual(expiry_date.date(), expected_expiry.date())
+        self.assertEqual(expiry_date, expected_expiry)
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """
