@@ -353,7 +353,15 @@ FLOCKER_PACKAGES = [
 def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
     target_bucket):
     """
-    TODO
+    Publish Vagrant metadata for a given version of a given box.
+
+    :param bytes version: The version of the Vagrant box to publish metadata
+        for.
+    :param bytes box_url: The URL of the Vagrant box.
+    :param FilePath scratch_directory: A directory to create Vagrant metadata
+        files in before uploading.
+    :param bytes box_name: The name of the Vagrant box to publish metadata for.
+    :param bytes target_bucket: S3 bucket to upload metadata to.
     """
     metadata_filename = '{box_name}.json'.format(box_name=box_name)
     # Download recursively because there may not be a metadata file
@@ -384,7 +392,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
         "providers": [
             {
                 "url": box_url,
-                "name": "virtualbox"
+                "name": "virtualbox",
             },
         ],
     })
