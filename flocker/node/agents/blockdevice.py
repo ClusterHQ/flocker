@@ -36,6 +36,7 @@ from ...common import auto_threaded
 # we have a lot of.  So just use this global logger for now.
 _logger = Logger()
 
+
 @attributes(["dataset_id"])
 class DatasetWithoutVolume(Exception):
     """
