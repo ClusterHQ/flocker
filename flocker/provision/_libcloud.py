@@ -198,6 +198,12 @@ class LibcloudNode(object):
         return self._node.name
 
 
+class CloudKeyNotFound(Exception):
+    """
+    Raised if the cloud provider doesn't have a ssh-key with a given name.
+    """
+
+
 @attributes([
     Attribute('_driver'),
     Attribute('_keyname'),
@@ -226,7 +232,10 @@ class LibcloudProvisioner(object):
 
         :return Key: The ssh public key or ``None`` if it can't be determined.
         """
-        key_pair = self._driver.get_key_pair(self._keyname)
+        try:
+            key_pair = self._driver.get_key_pair(self._keyname)
+        except Exception:
+            raise CloudKeyNotFound(self._keyname)
         if key_pair.public_key is not None:
             return Key.fromString(key_pair.public_key, type='public_openssh')
         else:
