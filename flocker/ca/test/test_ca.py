@@ -51,9 +51,9 @@ class UserCredentialTests(SynchronousTestCase):
              self.path.child(key_file).exists())
         )
 
-    def test_decoded_certificate_matches_public_key(self):
+    def test_certificate_matches_public_key(self):
         """
-        A decoded certificate's public key matches the public key it is
+        A certificate's public key matches the public key it is
         meant to be paired with.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
@@ -62,9 +62,9 @@ class UserCredentialTests(SynchronousTestCase):
                 uc.credential.certificate.getPublicKey())
         )
 
-    def test_decoded_certificate_matches_private_key(self):
+    def test_certificate_matches_private_key(self):
         """
-        A decoded certificate matches the private key it is meant to
+        A certificate matches the private key it is meant to
         be paired with.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
@@ -268,8 +268,8 @@ class UserCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_signed_by_ca(self):
         """
-        A certificate written by ``UserCredential.initialize`` is validated
-        as being signed by the certificate authority.
+        A certificate written by ``UserCredential.initialize`` is signed by
+        the certificate authority.
         """
         uc = UserCredential.initialize(self.path, self.ca, self.username)
         cert = uc.credential.certificate.original
@@ -338,9 +338,9 @@ class NodeCredentialTests(SynchronousTestCase):
              self.path.child(key_file).exists())
         )
 
-    def test_decoded_certificate_matches_public_key(self):
+    def test_certificate_matches_public_key(self):
         """
-        A decoded certificate's public key matches the public key it is
+        A certificate's public key matches the public key it is
         meant to be paired with.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
@@ -349,9 +349,9 @@ class NodeCredentialTests(SynchronousTestCase):
                 nc.credential.certificate.getPublicKey())
         )
 
-    def test_decoded_certificate_matches_private_key(self):
+    def test_certificate_matches_private_key(self):
         """
-        A decoded certificate matches the private key it is meant to
+        A certificate matches the private key it is meant to
         be paired with.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
@@ -564,8 +564,8 @@ class NodeCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_signed_by_ca(self):
         """
-        A certificate written by ``NodeCredential.initialize`` is validated
-        as being signed by the certificate authority.
+        A certificate written by ``NodeCredential.initialize`` is signed by
+        the certificate authority.
         """
         nc = NodeCredential.initialize(self.path, self.ca)
         cert = nc.credential.certificate.original
@@ -631,9 +631,9 @@ class ControlCredentialTests(SynchronousTestCase):
              self.path.child(AUTHORITY_KEY_FILENAME).exists())
         )
 
-    def test_decoded_certificate_matches_public_key(self):
+    def test_certificate_matches_public_key(self):
         """
-        A decoded certificate's public key matches the public key it is
+        A certificate's public key matches the public key it is
         meant to be paired with.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
@@ -642,9 +642,9 @@ class ControlCredentialTests(SynchronousTestCase):
                 cc.credential.certificate.getPublicKey())
         )
 
-    def test_decoded_certificate_matches_private_key(self):
+    def test_certificate_matches_private_key(self):
         """
-        A decoded certificate matches the private key it is meant to
+        A certificate matches the private key it is meant to
         be paired with.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
@@ -838,8 +838,8 @@ class ControlCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_signed_by_ca(self):
         """
-        A certificate written by ``ControlCredential.initialize`` is validated
-        as being signed by the certificate authority.
+        A certificate written by ``ControlCredential.initialize`` is signed by
+        the certificate authority.
         """
         cc = ControlCredential.initialize(self.path, self.ca)
         cert = cc.credential.certificate.original
@@ -898,9 +898,9 @@ class RootCredentialTests(SynchronousTestCase):
              path.child(AUTHORITY_KEY_FILENAME).exists())
         )
 
-    def test_decoded_certificate_matches_public_key(self):
+    def test_certificate_matches_public_key(self):
         """
-        A decoded certificate's public key matches the public key it is
+        A certificate's public key matches the public key it is
         meant to be paired with.
         """
         path = FilePath(self.mktemp())
@@ -911,9 +911,9 @@ class RootCredentialTests(SynchronousTestCase):
                 ca.credential.certificate.getPublicKey())
         )
 
-    def test_decoded_certificate_matches_private_key(self):
+    def test_certificate_matches_private_key(self):
         """
-        A decoded certificate matches the private key it is meant to
+        A certificate matches the private key it is meant to
         be paired with.
         """
         path = FilePath(self.mktemp())
@@ -1096,8 +1096,8 @@ class RootCredentialTests(SynchronousTestCase):
 
     def test_certificate_is_self_signed(self):
         """
-        A certificate written by ``RootCredential.initialize`` is validated
-        as a self-signed certificate.
+        A certificate written by ``RootCredential.initialize`` is a
+        self-signed certificate.
         """
         path = FilePath(self.mktemp())
         path.makedirs()
