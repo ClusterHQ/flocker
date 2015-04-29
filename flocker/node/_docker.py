@@ -15,6 +15,8 @@ from docker import Client
 from docker.errors import APIError
 from docker.utils import create_host_config
 
+from eliot import Message
+
 from pyrsistent import field, PRecord
 
 from twisted.python.components import proxyForInterface
@@ -562,6 +564,10 @@ class DockerClient(object):
                         # stub data so we can return *something*. This
                         # should happen only for stopped containers so
                         # some inaccuracy is acceptable.
+                        Message.new(
+                            message_type="flocker:docker:image_not_found",
+                            container=i, running=data[u"State"][u"Running"]
+                        ).write()
                         image_data = {u"Config": {u"Env": [], u"Cmd": []}}
                     else:
                         raise
