@@ -13,6 +13,7 @@ from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
+from twisted.conch.ssh.keys import Key
 
 from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
@@ -171,7 +172,9 @@ class VagrantRunner(object):
                              % (', '.join(self.variants),))
 
     def ensure_keys(self, reactor):
-        pass
+        key = Key.fromFile(os.path.expanduser(
+            "~/.vagrant.d/insecure_private_key"))
+        return ensure_agent_has_ssh_key(reactor, key)
 
     @inlineCallbacks
     def start_nodes(self, reactor):
