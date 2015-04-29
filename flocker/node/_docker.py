@@ -552,6 +552,7 @@ class DockerClient(object):
                 # Since tags (e.g. "busybox") aren't stable, ensure we're
                 # looking at the actual image by using the hash:
                 image = data[u"Image"]
+                image_tag = data[u"Config"][u"Image"]
                 command = data[u"Config"][u"Cmd"]
                 try:
                     image_data = self._client.inspect_image(image)
@@ -617,7 +618,7 @@ class DockerClient(object):
                     name=name,
                     container_name=self._to_container_name(name),
                     activation_state=state,
-                    container_image=image,
+                    container_image=image_tag,
                     ports=frozenset(ports),
                     volumes=frozenset(volumes),
                     environment=unit_environment,
