@@ -215,7 +215,8 @@ class GenericDockerClientTests(TestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
-        path.child(b"Dockerfile.in").setContent("FROM busybox\n")
+        path.child(b"Dockerfile.in").setContent(
+            b"FROM busybox\nCMD /bin/true\n")
         image_name = DockerImageBuilder(test=self, source_dir=path,
                                         cleanup=False).build()
         name = random_name()
