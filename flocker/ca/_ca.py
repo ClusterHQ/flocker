@@ -366,7 +366,7 @@ class NodeCredential(PRecord):
         return cls(credential=credential, uuid=uuid)
 
     @classmethod
-    def initialize(cls, path, authority):
+    def initialize(cls, path, authority, **kwargs):
         """
         Generate a certificate signed by the supplied root certificate.
 
@@ -374,7 +374,7 @@ class NodeCredential(PRecord):
         :param CertificateAuthority authority: The certificate authority with
             which this certificate will be signed.
         """
-        node_uuid = str(uuid4())
+        node_uuid = kwargs.pop("uuid", str(uuid4()))
         key_filename = b"{uuid}.key".format(uuid=node_uuid)
         cert_filename = b"{uuid}.crt".format(uuid=node_uuid)
         # The common name for the node certificate.
