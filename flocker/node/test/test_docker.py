@@ -210,7 +210,7 @@ def make_idockerclient_tests(fixture):
             when listed.
             """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             self.addCleanup(client.remove, name)
             command_line = [u"nc", u"-l", u"-p", u"1234"]
             d = client.add(name, u"busybox", command_line=command_line)

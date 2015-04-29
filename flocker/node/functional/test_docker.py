@@ -398,7 +398,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
         client = self.make_client()
-        name = random_name()
+        name = random_name(self)
         self.create_container(client, name, image_name)
         self.addCleanup(client.remove, name)
         d = client.list()
@@ -688,7 +688,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         A container with custom command line is run with those arguments.
         """
         external_port = find_free_port()[1]
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(
             name, image_name=u"busybox",
             command_line=[u"sh", u"-c", u"""\
