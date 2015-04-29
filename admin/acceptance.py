@@ -19,7 +19,9 @@ from flocker.common.version import make_rpm_version
 from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
 import flocker
 from flocker.provision._ssh import (
-    run_remotely)
+    run_remotely,
+    ensure_agent_has_ssh_key,
+)
 from flocker.provision._install import (
     task_pull_docker_images,
     configure_cluster,
@@ -119,6 +121,15 @@ class INodeRunner(Interface):
             stopped.
         """
 
+    def ensure_keys(self, reactor):
+        """
+        Ensure that the running ssh-agent has the ssh-keys needed to connect to
+        created nodes.
+
+        :param reactor: Reactor to use.
+        :return Deferred: Deferred which fires with ...
+        """
+
 
 RUNNER_ATTRIBUTES = [
     'distribution', 'top_level', 'config', 'package_source', 'variants'
@@ -158,6 +169,9 @@ class VagrantRunner(object):
         if self.variants:
             raise UsageError("Unsupored varianta: %s."
                              % (', '.join(self.variants),))
+
+    def ensure_keys(self, reactor):
+        pass
 
     @inlineCallbacks
     def start_nodes(self, reactor):
@@ -271,6 +285,10 @@ class LibcloudRunner(object):
                 node.destroy()
             except Exception as e:
                 print "Failed to destroy %s: %s" % (node.name, e)
+
+    def ensure_keys(self, reactor):
+        key = self.provisioner.get_ssh_key()
+        return ensure_agent_has_ssh_key(reactor, key)
 
 
 DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
@@ -403,6 +421,7 @@ def main(reactor, args, base_path, top_level):
     runner = options.runner
 
     try:
+        yield runner.ensure_keys(reactor)
         nodes = yield runner.start_nodes(reactor)
         yield perform(
             dispatcher,
