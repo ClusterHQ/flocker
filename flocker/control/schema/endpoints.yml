@@ -28,6 +28,8 @@ definitions:
         '$ref': 'types.json#/definitions/environment'
       restart_policy:
         '$ref': 'types.json#/definitions/restart_policy'
+      command_line:
+        '$ref': 'types.json#/definitions/command_line'
       volumes:
         title: Volumes to attach to the container
         description: |
@@ -91,6 +93,8 @@ definitions:
         '$ref': 'types.json#/definitions/environment'
       restart_policy:
         '$ref': 'types.json#/definitions/restart_policy'
+      command_line:
+        '$ref': 'types.json#/definitions/command_line'
       volumes:
         title: Volumes to attach to the container
         description: |

@@ -50,7 +50,7 @@ class ConfigureSSHTests(TestCase):
             flocker_path=self.flocker_config)
         self.config.create_keypair()
         self.configure_ssh = self.config.configure_ssh
-        self.agent = create_ssh_agent(self.server.key_path)
+        self.agent = create_ssh_agent(self.server.key_path, testcase=self)
 
     def test_connection_failed(self):
         """
