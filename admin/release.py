@@ -405,7 +405,6 @@ def publish_homebrew_recipe(homebrew_repo_url, version, scratch_directory):
     if (push_info.flags & push_info.ERROR) != 0:
         raise PushFailed()
 
-    # TODO call this from publish_artifacts_main (also catch PushFailed?)
     # TODO also close https://clusterhq.atlassian.net/browse/FLOC-1150
 
 
@@ -654,6 +653,8 @@ def publish_artifacts_main(args, base_path, top_level):
     scratch_directory.child('rpm').createDirectory()
     scratch_directory.child('python').createDirectory()
     scratch_directory.child('pip').createDirectory()
+    scratch_directory.child('homebrew').createDirectory()
+    homebrew_repo_url = "git@github.com:ClusterHQ/homebrew-tap.git"
 
     try:
         sync_perform(
@@ -675,6 +676,11 @@ def publish_artifacts_main(args, base_path, top_level):
                 upload_pip_index(
                     scratch_directory=scratch_directory.child('pip'),
                     target_bucket=options['target'],
+                ),
+                publish_homebrew_recipe(
+                    homebrew_repo_url=homebrew_repo_url,
+                    version=options['flocker-version'],
+                    scratch_directory=scratch_directory.child('homebrew'),
                 ),
             ]),
         )
