@@ -23,13 +23,13 @@ class HomebrewOptionsTests(SynchronousTestCase):
     """
 
     def test_flocker_version_required(self):
-          """
-          The ``--flocker-version`` option is not required.
-          """
-          options = HomebrewOptions()
-          self.assertRaises(
-              UsageError,
-              options.parseOptions, ['--sdist', 'mysdist'])
+        """
+        The ``--flocker-version`` option is not required.
+        """
+        options = HomebrewOptions()
+        self.assertRaises(
+             UsageError,
+             options.parseOptions, ['--sdist', 'mysdist'])
 
     def test_sdist_required(self):
         """
@@ -51,6 +51,7 @@ class HomebrewOptionsTests(SynchronousTestCase):
             ['--flocker-version', '0.3.0',
              '--sdist', 'mysdist'])
 
+
 class GetChecksumTests(SynchronousTestCase):
     """
     Tests for :func:`get_checksum`.
@@ -61,9 +62,9 @@ class GetChecksumTests(SynchronousTestCase):
         """
         source_repo = FilePath(self.mktemp())
         source_repo.makedirs()
-        file = source_repo.child('example_file')
-        file.setContent("Some content")
-        uri = 'file://' + file.path
+        example_file = source_repo.child('example_file')
+        example_file.setContent("Some content")
+        uri = 'file://' + example_file.path
         self.assertEqual(
             '9f1a6ecf74e9f9b1ae52e8eb581d420e63e8453a',
             get_checksum(url=uri))
@@ -74,10 +75,11 @@ class GetChecksumTests(SynchronousTestCase):
         """
         source_repo = FilePath(self.mktemp())
         source_repo.makedirs()
-        file = source_repo.child('example_gzip.tar.gz')
+        example_file = source_repo.child('example_gzip.tar.gz')
         # Set mtime else a timestamp of the current time will be used,
         # making the assertion value change.
-        gzip_file = gzip.GzipFile(filename=file.path, mode="wb", mtime=0)
+        gzip_file = gzip.GzipFile(
+            filename=example_file.path, mode="wb", mtime=0)
         self.addCleanup(gzip_file.close)
         gzip_file.write("Some content")
         uri = 'file://' + file.path
@@ -129,8 +131,7 @@ class GetClassNameTests(SynchronousTestCase):
         """
         self.assertEqual(
             get_class_name(version='0.3.0-444-05215b'),
-            'Flocker03044405215b'
-        )
+            'Flocker03044405215b')
 
     def test_caps_after_disallowed(self):
         """
@@ -139,8 +140,7 @@ class GetClassNameTests(SynchronousTestCase):
         """
         self.assertEqual(
             get_class_name(version='0.3.0-444-g05215b'),
-            'Flocker030444G05215b'
-        )
+            'Flocker030444G05215b')
 
     def test_disallowed_at_end(self):
         """
@@ -149,8 +149,7 @@ class GetClassNameTests(SynchronousTestCase):
         """
         self.assertEqual(
             get_class_name(version='0.3.0-444-g05215b-'),
-            'Flocker030444G05215b'
-        )
+            'Flocker030444G05215b')
 
 
 class FormatResourceStanzasTests(SynchronousTestCase):
