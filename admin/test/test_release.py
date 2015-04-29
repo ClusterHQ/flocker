@@ -1596,10 +1596,12 @@ class CreatePipIndexTests(SynchronousTestCase):
             ]
         )
 
-        expected = dedent(
-            "This is an index for pip\n"
-            '<a href="Flocker-0.3.0-py2-none-any.whl">Flocker-0.3.0-py2-none-any.whl</a><br/>\n'  # noqa
-            '<a href="Flocker-0.3.1-py2-none-any.whl">Flocker-0.3.1-py2-none-any.whl</a><br/>\n'  # noqa
+        expected = (
+            '<html>\nThis is an index for pip\n<div>'
+            '<a href="Flocker-0.3.0-py2-none-any.whl">'
+            'Flocker-0.3.0-py2-none-any.whl</a><br />\n</div><div>'
+            '<a href="Flocker-0.3.1-py2-none-any.whl">'
+            'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
         )
         self.assertEqual(expected, index.getContent())
 
@@ -1616,10 +1618,12 @@ class CreatePipIndexTests(SynchronousTestCase):
             ]
         )
 
-        expected = dedent(
-            "This is an index for pip\n"
-            '<a href="Flocker-0.3.0-py2-none-any.whl">Flocker-0.3.0-py2-none-any.whl</a><br/>\n'  # noqa
-            '<a href="Flocker-0.3.1-py2-none-any.whl">Flocker-0.3.1-py2-none-any.whl</a><br/>\n'  # noqa
+        expected = (
+            '<html>\nThis is an index for pip\n<div>'
+            '<a href="Flocker-0.3.0-py2-none-any.whl">'
+            'Flocker-0.3.0-py2-none-any.whl</a><br />\n</div><div>'
+            '<a href="Flocker-0.3.1-py2-none-any.whl">'
+            'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
         )
         self.assertEqual(expected, index.getContent())
 
@@ -1634,9 +1638,10 @@ class CreatePipIndexTests(SynchronousTestCase):
             ]
         )
 
-        expected = dedent(
-            "This is an index for pip\n"
-            '''<a href='"Flocker-0.3.0-py2-none-any.whl'>"Flocker-0.3.0-py2-none-any.whl</a><br/>\n'''  # noqa
+        expected = (
+            '<html>\nThis is an index for pip\n<div>'
+            '<a href="&quot;Flocker-0.3.0-py2-none-any.whl">'
+            '"Flocker-0.3.0-py2-none-any.whl</a><br />\n</div></html>'
         )
         self.assertEqual(expected, index.getContent())
 
@@ -1651,9 +1656,10 @@ class CreatePipIndexTests(SynchronousTestCase):
             ]
         )
 
-        expected = dedent(
-            "This is an index for pip\n"
-            '''<a href="&gt;Flocker-0.3.0-py2-none-any.whl">&gt;Flocker-0.3.0-py2-none-any.whl</a><br/>\n'''  # noqa
+        expected = (
+            '<html>\nThis is an index for pip\n<div>'
+            '<a href="&gt;Flocker-0.3.0-py2-none-any.whl">'
+            '&gt;Flocker-0.3.0-py2-none-any.whl</a><br />\n</div></html>'
         )
         self.assertEqual(expected, index.getContent())
 
@@ -1686,11 +1692,11 @@ class UploadPipIndexTests(SynchronousTestCase):
 
         self.assertEqual(
             aws.s3_buckets[bucket]['python/index.html'],
-            dedent('''\
-            <html>
-            \t<a href="Flocker-0.3.1-py2-none-any.whl">'''
-            '''Flocker-0.3.1-py2-none-any.whl</a><br />
-            </html>'''))
+            (
+                '<html>\nThis is an index for pip\n<div>'
+                '<a href="Flocker-0.3.1-py2-none-any.whl">'
+                'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
+            ))
 
 
 class CalculateBaseBranchTests(SynchronousTestCase):

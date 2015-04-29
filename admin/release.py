@@ -484,9 +484,11 @@ def upload_rpms(scratch_directory, target_bucket, version, build_server):
 
 packages_template = (
     '<html xmlns:t="http://twistedmatrix.com/ns/twisted.web.template/0.1">\n'
-    '\t<a t:render="packages">'
+    'This is an index for pip\n'
+    '<div t:render="packages"><a>'
     '<t:attr name="href"><t:slot name="package_name" /></t:attr>'
-    '<t:slot name="package_name" /></a><br />\n'
+    '<t:slot name="package_name" />'
+    '</a><br />\n</div>'
     '</html>'
     )
 
@@ -500,7 +502,8 @@ class PackagesElement(template.Element):
     @template.renderer
     def packages(self, request, tag):
         for package in self._packages:
-            yield tag.clone().fillSlots(package_name=package)
+            if package != 'index.html':
+                yield tag.clone().fillSlots(package_name=package)
 
 
 def create_pip_index(scratch_directory, packages):
@@ -517,7 +520,6 @@ def create_pip_index(scratch_directory, packages):
         # because there are no Deferreds in the template evaluation.
         # See this cheat described at
         # https://twistedmatrix.com/documents/15.0.0/web/howto/twisted-templates.html
-        # TODO: convert the Twisted Deferred into an Effect?
         template.flatten(None, PackagesElement(packages), f.write)
     return index_file
 
