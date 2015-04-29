@@ -12,7 +12,7 @@ from characteristic import attributes
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 
 from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
@@ -288,7 +288,10 @@ class LibcloudRunner(object):
 
     def ensure_keys(self, reactor):
         key = self.provisioner.get_ssh_key()
-        return ensure_agent_has_ssh_key(reactor, key)
+        if key is not None:
+            return ensure_agent_has_ssh_key(reactor, key)
+        else:
+            return succeed(None)
 
 
 DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')

@@ -224,10 +224,16 @@ class LibcloudProvisioner(object):
         """
         Return the public key assoicated to the provided keyname.
 
-        :return Key: The ssh public key.
+        :return Key: The ssh public key or ``None`` if it can't be determined.
         """
-        key_pair = self.driver.get_key_pair(self._keyname)
-        return Key.fromString(key_pair.public_key, type='public_openssh')
+        key_pair = self._driver.get_key_pair(self._keyname)
+        if key_pair.public_key is not None:
+            return Key.fromString(key_pair.public_key, type='public_openssh')
+        else:
+            # EC2 only provides the SSH2 fingerprint (for uploaded keys)
+            # or the SHA-1 hash of the private key (for EC2 generated keys)
+            # https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html
+            return None
 
     def create_node(self, name, distribution,
                     userdata=None,
