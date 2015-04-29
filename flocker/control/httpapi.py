@@ -377,6 +377,10 @@ class ConfigurationAPIUserV1(object):
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
         Get current cluster datasets.
+
+        The result reflects the control service's knowledge, which may be
+        out of date or incomplete. E.g. a dataset agent has not connected
+        or updated the control service yet.
         """, examples=[u"get state datasets"])
     @structured(
         inputSchema={},
@@ -432,6 +436,10 @@ class ConfigurationAPIUserV1(object):
     @user_documentation(
         """
         Get the cluster's actual containers.
+
+        This reflects the control service's knowledge of the cluster,
+        which may be out of date or incomplete, e.g. if a container agent
+        has not connected or updated the control service yet.
         """,
         examples=[u"get actual containers"],
     )
