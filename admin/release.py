@@ -44,6 +44,7 @@ from .aws import (
     DeleteS3Keys,
     CopyS3Keys,
     DownloadS3KeyRecursively,
+    UploadToS3,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
 
@@ -349,13 +350,13 @@ FLOCKER_PACKAGES = [
 
 # TODO call this from main
 @do
-def publish_vagrant_metadata(version, box_url, scratch_directory,
-    target_bucket, box_name):
+def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
+    target_bucket):
     """
     TODO
     """
     metadata_filename = '{box_name}.json'.format(box_name=box_name)
-    # TODO try download and upload not recursively
+    # Download recursively because there may not be a metadata file
     yield Effect(DownloadS3KeyRecursively(
         source_bucket=target_bucket,
         source_prefix='vagrant',
@@ -388,13 +389,14 @@ def publish_vagrant_metadata(version, box_url, scratch_directory,
         ],
     })
 
-    scratch_directory.child(metadata_filename).setContent(json.dumps(metadata))
+    new_metadata_file = scratch_directory.child(metadata_filename)
+    new_metadata_file.setContent(json.dumps(metadata))
 
-    yield Effect(UploadToS3Recursively(
+    yield Effect(UploadToS3(
         source_path=scratch_directory,
         target_bucket=target_bucket,
         target_key='vagrant',
-        files=set([metadata_filename]),
+        file=new_metadata_file,
         ))
 
 
