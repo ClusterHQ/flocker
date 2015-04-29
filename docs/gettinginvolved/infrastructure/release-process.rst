@@ -353,7 +353,6 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      # TODO is this a valid URL or should it be swapped round?
       echo https://s3.amazonaws.com/clusterhq-archive/vagrant/tutorial/flocker-tutorial-${VERSION}.box
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
