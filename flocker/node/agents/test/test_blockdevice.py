@@ -2620,9 +2620,9 @@ class ResizeVolumeTests(
 
 class AttachVolumeInitTests(
     make_with_init_tests(
-        AttachVolume,
-        dict(dataset_id=uuid4(), hostname=u"10.0.0.1"),
-        dict(),
+        record_type=AttachVolume,
+        kwargs=dict(dataset_id=uuid4(), hostname=u"10.0.0.1"),
+        expected_defaults=dict(),
     )
 ):
     """
