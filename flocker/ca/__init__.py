@@ -5,17 +5,17 @@ A minimal certificate authority.
 """
 
 __all__ = [
-    "RootCredential", "ControlCredential", "NodeCredential",
+    "RootCredential", "ControlCredential", "NodeCredential", "UserCredential",
     "ComparableKeyPair", "PathError", "CertificateAlreadyExistsError",
-    "KeyAlreadyExistsError", "EXPIRY_20_YEARS",
+    "KeyAlreadyExistsError", "EXPIRY_20_YEARS", "EXPIRY_DATE",
     "AUTHORITY_CERTIFICATE_FILENAME", "AUTHORITY_KEY_FILENAME",
     "CONTROL_CERTIFICATE_FILENAME", "CONTROL_KEY_FILENAME"
 ]
 
 from ._ca import (
-    RootCredential, ControlCredential, NodeCredential,
+    RootCredential, ControlCredential, NodeCredential, UserCredential,
     ComparableKeyPair, PathError, CertificateAlreadyExistsError,
-    KeyAlreadyExistsError, EXPIRY_20_YEARS,
+    KeyAlreadyExistsError, EXPIRY_20_YEARS, EXPIRY_DATE,
     AUTHORITY_CERTIFICATE_FILENAME, AUTHORITY_KEY_FILENAME,
     CONTROL_CERTIFICATE_FILENAME, CONTROL_KEY_FILENAME
 )
