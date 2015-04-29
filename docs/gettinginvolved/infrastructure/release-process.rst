@@ -14,7 +14,7 @@ Outcomes
 By the end of the release process we will have:
 
 - a tag in version control,
-- a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
+- a Python wheel on Amazon `S3`_,
 - Fedora 20 RPMs for software on the node and client,
 - CentOS 7 RPMs for software on the node and client,
 - Ubuntu 14.04 DEBs for software on the node and client,
@@ -110,10 +110,6 @@ Preparing For a Release
       cd flocker-${VERSION}
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
-      # This ensures that setuptools is a version that does not normalize
-      # version numbers according to PEP440.
-      # See https://clusterhq.atlassian.net/browse/FLOC-1331
-      pip install setuptools==3.6
       admin/create-release-branch --flocker-version="${VERSION}"
       git push --set-upstream origin release/flocker-${VERSION}
 
@@ -342,11 +338,8 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      # Build Python packages and upload them to ``archive.clusterhq.com``
-      python setup.py sdist bdist_wheel
-      gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
-      # Build RPM packages and upload them to Amazon S3
-      admin/publish-packages
+      # Build Python and RPM packages and upload them to Amazon S3
+      admin/publish-artifacts
       # Copy the tutorial box to the final location
       gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
