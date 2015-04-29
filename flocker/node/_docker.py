@@ -549,7 +549,9 @@ class DockerClient(object):
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
                 name = data[u"Name"]
-                image = data[u"Config"][u"Image"]
+                # Since tags (e.g. "busybox") aren't stable, ensure we're
+                # looking at the actual image by using the hash:
+                image = data[u"Image"]
                 command = data[u"Config"][u"Cmd"]
                 try:
                     image_data = self._client.inspect_image(image)
