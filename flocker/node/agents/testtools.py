@@ -118,9 +118,14 @@ def ec2_client_from_environment():
         using provider specific credentials found in ``CLOUD_CONFIG_FILE``.
     """
     config = load_client_config_from_environment()
-    provider_name = 'aws'
-    provider_config = config[provider_name]
-    return ec2_client(**provider_config)
+    provider_name = os.environ.get('CLOUD_PROVIDER')
+    if provider_name == 'aws':
+        provider_config = config[provider_name]
+        return ec2_client(**provider_config)
+    else:
+        raise SkipTest(
+            'CLOUD_PROVIDER({!r}) is not AWS. '.format(provider_name)
+        )
 
 
 def cinder_client_from_environment():
@@ -130,11 +135,15 @@ def cinder_client_from_environment():
     See ``load_config`` for details on where config is populated from.
     """
     config = load_client_config_from_environment()
-    provider_name = os.environ.get('CLOUD_PROVIDER',
-                                   DEFAULT_OPENSTACK_PROVIDER)
-    provider_config = config[provider_name]
-    cinder_client_factory = CINDER_CLIENT_FACTORIES[provider_name]
-    return cinder_client_factory(**provider_config)
+    provider_name = os.environ.get('CLOUD_PROVIDER')
+    if provider_name in [DEFAULT_OPENSTACK_PROVIDER]:
+        provider_config = config[provider_name]
+        cinder_client_factory = CINDER_CLIENT_FACTORIES[provider_name]
+        return cinder_client_factory(**provider_config)
+    else:
+        raise SkipTest(
+            'CLOUD_PROVIDER({!r}) is not OpenStack. '.format(provider_name)
+        )
 
 
 def tidy_cinder_client_for_test(test_case):
