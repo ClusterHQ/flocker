@@ -78,7 +78,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             cluster_id=uuid4(),
         )
 
-        self.assertVolumesDistinct(block_device_api2)
+        self.assert_volumes_distinct(block_device_api2)
 
     def test_foreign_volume(self):
         """

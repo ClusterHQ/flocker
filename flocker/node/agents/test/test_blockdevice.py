@@ -1350,7 +1350,7 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
-    def assertVolumesDistinct(self, block_device_api2):
+    def assert_volumes_distinct(self, block_device_api2):
         """
         Volumes from other Flocker clusters are not listed.
         """

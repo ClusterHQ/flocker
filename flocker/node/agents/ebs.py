@@ -23,10 +23,10 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     """
     Establish connection to EC2 client.
 
-    :param String region: The name of the EC2 region to connect to.
-    :param String zone: The zone for the EC2 region to connect to.
-    :param String access_key_id: "aws_access_key_id" credential for EC2.
-    :param String secret_access_key: "aws_secret_access_key" EC2 credential.
+    :param str region: The name of the EC2 region to connect to.
+    :param str zone: The zone for the EC2 region to connect to.
+    :param str access_key_id: "aws_access_key_id" credential for EC2.
+    :param str secret_access_key: "aws_secret_access_key" EC2 credential.
 
     :return: An ``_EC2`` giving information about EC2 client connection
         and EC2 instance zone.
@@ -40,12 +40,67 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
 
 class _EC2(PRecord):
     """
-    :ivar string zone: The name of the zone for the connection.
-    :ivar EC2Connection connection: Object representing connection to
-        an EC2 instance.
+    :ivar str zone: The name of the zone for the connection.
+    :ivar boto.ec2.connection.EC2Connection connection: Object
+        representing connection to an EC2 instance.
     """
-    zone = field()
-    connection = field()
+    zone = field(mandatory=True)
+    connection = field(mandatory=True)
+
+
+def _blockdevicevolume_from_ebs_volume(ebs_volume):
+    """
+    Helper function to convert Volume information from
+    EBS format to Flocker block device format.
+    """
+    return BlockDeviceVolume(
+        blockdevice_id=unicode(ebs_volume.id),
+        size=int(GB(ebs_volume.size).to_Byte().value),
+        host=None,
+        dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
+    )
+
+
+def _wait_for_volume(expected_volume,
+                     expected_status=u'available',
+                     time_limit=60):
+    """
+    Helper function to wait for up to 60s for given volume
+    to be in 'available' state.
+    """
+    start_time = time.time()
+    expected_volume.update()
+    while expected_volume.status != expected_status:
+        elapsed_time = time.time() - start_time
+        if elapsed_time < time_limit:
+            time.sleep(0.1)
+            expected_volume.update()
+        else:
+            raise Exception(
+                'Timed out while waiting for volume. '
+                'Expected Volume: {!r}, '
+                'Expected Status: {!r}, '
+                'Actual Status: {!r}, '
+                'Elapsed Time: {!r}, '
+                'Time Limit: {!r}.'.format(
+                    expected_volume, expected_status,
+                    expected_volume.status, elapsed_time,
+                    time_limit
+                )
+            )
+
+
+def _is_cluster_volume(cluster_id, ebs_volume):
+    """
+    Helper function to check if given volume belongs to
+    given cluster.
+    """
+    actual_cluster_id = ebs_volume.tags.get(CLUSTER_ID_LABEL)
+    if actual_cluster_id is not None:
+        actual_cluster_id = UUID(actual_cluster_id)
+        if actual_cluster_id == cluster_id:
+            return True
+    return False
 
 
 @implementer(IBlockDeviceAPI)
@@ -58,8 +113,7 @@ class EBSBlockDeviceAPI(object):
         """
         Initialize EBS block device API instance.
 
-        :param ``_EC2`` ec2_client: PRecord storing EC2
-            client connection and EC2 instance zone.
+        :param ``_EC2`` ec2_client: A record of EC2 connection and zone.
         :param String cluster_id: UUID of cluster for this
             API instance.
         """
@@ -78,46 +132,6 @@ class EBSBlockDeviceAPI(object):
             host=None,
             dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
         )
-
-    def _wait_for_volume(self, expected_volume,
-                         expected_status=u'available',
-                         time_limit=60):
-        """
-        Helper function to wait for up to 60s for given volume
-        to be in 'available' state.
-        """
-        start_time = time.time()
-        expected_volume.update()
-        while expected_volume.status != expected_status:
-            elapsed_time = time.time() - start_time
-            if elapsed_time < time_limit:
-                time.sleep(0.1)
-                expected_volume.update()
-            else:
-                raise Exception(
-                    'Timed out while waiting for volume. '
-                    'Expected Volume: {!r}, '
-                    'Expected Status: {!r}, '
-                    'Actual Status: {!r}, '
-                    'Elapsed Time: {!r}, '
-                    'Time Limit: {!r}.'.format(
-                        expected_volume, expected_status,
-                        expected_volume.status, elapsed_time,
-                        time_limit
-                    )
-                )
-
-    def _is_cluster_volume(self, cluster_id, ebs_volume):
-        """
-        Helper function to check if given volume belongs to
-        given cluster.
-        """
-        actual_cluster_id = ebs_volume.tags.get(CLUSTER_ID_LABEL)
-        if actual_cluster_id is not None:
-            actual_cluster_id = UUID(actual_cluster_id)
-            if actual_cluster_id == cluster_id:
-                return True
-        return False
 
     def create_volume(self, dataset_id, size):
         """
@@ -144,10 +158,10 @@ class EBSBlockDeviceAPI(object):
                                     metadata)
 
         # Wait for created volume to reach 'available' state.
-        self._wait_for_volume(requested_volume)
+        _wait_for_volume(requested_volume)
 
         # Return created volume in BlockDeviceVolume format.
-        return self._blockdevicevolume_from_ebs_volume(requested_volume)
+        return _blockdevicevolume_from_ebs_volume(requested_volume)
 
     def list_volumes(self):
         """
@@ -156,10 +170,10 @@ class EBSBlockDeviceAPI(object):
         """
         volumes = []
         for ebs_volume in self.connection.get_all_volumes():
-            if ((self._is_cluster_volume(self.cluster_id, ebs_volume)) and
+            if ((_is_cluster_volume(self.cluster_id, ebs_volume)) and
                (ebs_volume.status in [u'available', u'in-use'])):
                 volumes.append(
-                    self._blockdevicevolume_from_ebs_volume(ebs_volume)
+                    _blockdevicevolume_from_ebs_volume(ebs_volume)
                 )
         return volumes
 
@@ -180,8 +194,6 @@ class EBSBlockDeviceAPI(object):
 
         :raises UnknownVolume: If there does not exist a Flocker cluster
             volume identified by input blockdevice_id.
-        :raises Exception: If we failed to destroy Flocker cluster volume
-            corresponding to input blockdevice_id.
         """
         for volume in self.list_volumes():
             if volume.blockdevice_id == blockdevice_id:
@@ -192,7 +204,7 @@ class EBSBlockDeviceAPI(object):
                     )
                 else:
                     return
-        raise UnknownVolume(format(blockdevice_id))
+        raise UnknownVolume(blockdevice_id)
 
     def get_device_path(self, blockdevice_id):
         pass

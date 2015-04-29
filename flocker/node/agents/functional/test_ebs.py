@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from bitmath import Byte
 
-from ..ebs import EBSBlockDeviceAPI
+from ..ebs import EBSBlockDeviceAPI, _wait_for_volume
 from ..testtools import ec2_client_from_environment
 from ....testtools import skip_except
 from ..test.test_blockdevice import make_iblockdeviceapi_tests
@@ -70,7 +70,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             cluster_id=uuid4(),
         )
 
-        self.assertVolumesDistinct(block_device_api2)
+        self.assert_volumes_distinct(block_device_api2)
 
     def test_foreign_volume(self):
         """
@@ -82,7 +82,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value),
             ec2_client.zone)
 
-        self.api._wait_for_volume(requested_volume)
+        _wait_for_volume(requested_volume)
 
         self.assertEqual(self.api.list_volumes(), [])
 
