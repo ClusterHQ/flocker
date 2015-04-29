@@ -629,6 +629,9 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
     """
     def setUp(self):
         self.network = make_memory_network()
+        self.node_uuid = uuid4()
+        self.EMPTY_NODESTATE = NodeState(hostname=u"example.com",
+                                         uuid=self.node_uuid)
 
     def test_discover_none(self):
         """
@@ -638,12 +641,13 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         fake_docker = FakeDockerClient(units={})
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
-        self.assertEqual([NodeState(hostname=api.hostname,
+        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
                                     manifestations=None,
                                     paths=None)],
                          self.successResultOf(d))
@@ -657,12 +661,13 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         fake_docker = FakeDockerClient(units={APP_NAME: UNIT_FOR_APP})
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
-        self.assertEqual([NodeState(hostname=api.hostname,
+        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
                                     applications=[APP],
                                     manifestations=None,
                                     paths=None)],
@@ -680,10 +685,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP, APP2]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d)[0].applications)
@@ -705,10 +711,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP.set("environment", dict(environment_variables))]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d)[0].applications)
@@ -745,10 +752,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d)[0].applications)
@@ -764,14 +772,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         ])]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
         for app in applications:
             StartApplication(
-                node_state=NodeState(hostname=api.hostname), application=app
+                node_state=NodeState(uuid=api.node_uuid,
+                                     hostname=api.hostname),
+                application=app
             ).run(api)
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(applications,
                               self.successResultOf(d)[0].applications)
@@ -790,10 +801,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                                 [Port(internal_port=80, external_port=8080)])]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d)[0].applications))
@@ -815,7 +827,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                               primary=True,
                           )
                           for dataset_id in (DATASET_ID, DATASET_ID2)}
-        current_known_state = NodeState(hostname=u'example.com',
+        current_known_state = NodeState(uuid=self.node_uuid,
+                                        hostname=u'example.com',
                                         manifestations=manifestations,
                                         paths={DATASET_ID: path1,
                                                DATASET_ID2: path2})
@@ -843,6 +856,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                                         (APP2, DATASET_ID2)]]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
@@ -868,10 +882,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d)[0].applications))
@@ -889,13 +904,14 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP.set("running", False), APP2.set("running", False)]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
         d = api.discover_state(EMPTY_NODESTATE)
         result = self.successResultOf(d)
 
-        self.assertEqual([NodeState(hostname=api.hostname,
+        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
                                     applications=applications,
                                     manifestations=None,
                                     paths=None)],
@@ -910,15 +926,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         used_ports = frozenset([1, 3, 5, 1000])
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=FakeDockerClient(),
             network=make_memory_network(used_ports=used_ports)
         )
 
-        discovering = api.discover_state(EMPTY_NODESTATE)
+        discovering = api.discover_state(self.EMPTY_NODESTATE)
         states = self.successResultOf(discovering)
 
         self.assertEqual(
-            [NodeState(hostname=api.hostname, used_ports=used_ports,
+            [NodeState(uuid=api.node_uuid, hostname=api.hostname,
+                       used_ports=used_ports,
                        manifestations=None, paths=None)],
             states
         )
@@ -936,10 +954,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP.set("restart_policy", policy)]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(applications,
                          list(self.successResultOf(d)[0].applications))
@@ -953,16 +972,19 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         fake_docker = FakeDockerClient(units={APP_NAME: UNIT_FOR_APP})
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
         # Apparently we know nothing about manifestations one way or the
         # other:
         d = api.discover_state(NodeState(
+            uuid=api.node_uuid,
             hostname=api.hostname,
             manifestations=None, paths=None))
 
         self.assertEqual([NodeState(hostname=api.hostname,
+                                    uuid=api.node_uuid,
                                     # Can't do app discovery if don't know
                                     # about manifestations:
                                     applications=None,
@@ -978,6 +1000,9 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
     """
     def setUp(self):
         self.volume_service = create_volume_service(self)
+        self.node_uuid = uuid4()
+        self.EMPTY_NODESTATE = NodeState(hostname=u"example.com",
+                                         uuid=self.node_uuid)
 
     DATASET_ID = unicode(uuid4())
     DATASET_ID2 = unicode(uuid4())
@@ -987,11 +1012,12 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         Applications and ports are left as ``None`` in discovery results.
         """
         deployer = P2PManifestationDeployer(
-            u'example.com', self.volume_service)
+            u'example.com', self.volume_service, node_uuid=self.node_uuid)
         self.assertEqual(
             self.successResultOf(deployer.discover_state(
-                EMPTY_NODESTATE)),
+                self.EMPTY_NODESTATE)),
             [NodeState(hostname=deployer.hostname,
+                       uuid=deployer.node_uuid,
                        manifestations={}, paths={},
                        applications=None, used_ports=None)])
 
@@ -1012,14 +1038,25 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         return P2PManifestationDeployer(
             u'example.com',
             self.volume_service,
+            node_uuid=self.node_uuid
         )
+
+    def test_uuid(self):
+        """
+        The ``NodeState`` returned from discovery has same UUID as the
+        deployer.
+        """
+        deployer = self._setup_datasets()
+        nodes = self.successResultOf(
+            deployer.discover_state(self.EMPTY_NODESTATE))
+        self.assertEqual(nodes[0].uuid, deployer.node_uuid)
 
     def test_discover_datasets(self):
         """
         All datasets on the node are added to ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID: Manifestation(
@@ -1036,7 +1073,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID:
@@ -1069,8 +1106,9 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         api = P2PManifestationDeployer(
             u'example.com',
             self.volume_service,
+            node_uuid=self.node_uuid,
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(
             self.successResultOf(d)[0].manifestations[self.DATASET_ID],

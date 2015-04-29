@@ -9,6 +9,8 @@ from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
+from bitmath import MB
+
 import psutil
 
 from zope.interface import implementer
@@ -55,7 +57,7 @@ from ....control import (
     NonManifestDatasets,
 )
 
-LOOPBACK_BLOCKDEVICE_SIZE = 1024 * 1024 * 64
+LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -159,6 +161,7 @@ class BlockDeviceDeployerTests(
         ideployer_tests_factory(
             lambda test: BlockDeviceDeployer(
                 hostname=u"localhost",
+                node_uuid=uuid4(),
                 block_device_api=loopbackblockdeviceapi_for_test(test)
             )
         )
@@ -174,8 +177,10 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
     """
     def setUp(self):
         self.expected_hostname = u'192.0.2.123'
+        self.expected_uuid = uuid4()
         self.api = loopbackblockdeviceapi_for_test(self)
         self.deployer = BlockDeviceDeployer(
+            node_uuid=self.expected_uuid,
             hostname=self.expected_hostname,
             block_device_api=self.api,
             mountroot=mountroot_for_test(self),
@@ -205,6 +210,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             expected_paths[dataset_id] = mountpath
         expected = (
             NodeState(
+                uuid=deployer.node_uuid,
                 hostname=deployer.hostname,
                 manifestations={
                     m.dataset_id: m for m in expected_manifestations},
@@ -393,6 +399,7 @@ def assert_calculated_changes(case, node_state, node_config, expected_changes):
     api = UnusableAPI()
 
     deployer = BlockDeviceDeployer(
+        node_uuid=node_state.uuid,
         hostname=node_state.hostname,
         block_device_api=api,
     )
@@ -410,11 +417,13 @@ class ScenarioMixin(object):
     """
     DATASET_ID = uuid4()
     NODE = u"192.0.2.1"
+    NODE_UUID = uuid4()
 
     # The state of a single node which has a single primary manifestation for a
     # dataset.  Common starting point for several of the test scenarios.
     ONE_DATASET_STATE = NodeState(
         hostname=NODE,
+        uuid=NODE_UUID,
         manifestations={
             unicode(DATASET_ID): Manifestation(
                 dataset=Dataset(
@@ -539,6 +548,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         deployer = BlockDeviceDeployer(
             # This deployer is responsible for *other_node*, not node.
             hostname=other_node,
+            node_uuid=uuid4(),
             block_device_api=api,
         )
 
@@ -587,11 +597,14 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             dataset=Dataset(dataset_id=dataset_id), primary=True
         )
         node = u"192.0.2.1"
+        node_uuid = uuid4()
         other_node = u"192.0.2.2"
+        other_node_uuid = uuid4()
         configuration = Deployment(
             nodes={
                 Node(
                     hostname=other_node,
+                    uuid=other_node_uuid,
                     manifestations={dataset_id: manifestation},
                 )
             }
@@ -599,6 +612,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         state = DeploymentState(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
+            node_uuid=node_uuid,
             hostname=node,
             block_device_api=api,
         )
@@ -610,6 +624,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         If no devices exist but a dataset is part of the configuration for the
         deployer's node, a ``CreateBlockDeviceDataset`` change is calculated.
         """
+        uuid = uuid4()
         dataset_id = unicode(uuid4())
         dataset = Dataset(dataset_id=dataset_id)
         manifestation = Manifestation(
@@ -619,6 +634,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         configuration = Deployment(
             nodes={
                 Node(
+                    uuid=uuid,
                     hostname=node,
                     manifestations={dataset_id: manifestation},
                 )
@@ -627,6 +643,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         state = DeploymentState(nodes=[])
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid,
             hostname=node,
             block_device_api=api,
         )
@@ -642,14 +659,16 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             changes
         )
 
-    def _calculate_changes(self, local_hostname, local_state,
+    def _calculate_changes(self, local_uuid, local_hostname, local_state,
                            desired_configuration):
         """
         Create a ``BlockDeviceDeployer`` and call its
         ``calculate_necessary_state_changes`` method with the given arguments
         and an empty cluster state.
 
-        :param unicode local_hostname: The node identifier to give to the
+        :param UUID local_uuid: The node identifier to give the to the
+            ``BlockDeviceDeployer``.
+        :param unicode local_hostname: The node IP to give to the
             ``BlockDeviceDeployer``.
         :param desired_configuration: As accepted by
             ``IDeployer.calculate_changes``.
@@ -662,6 +681,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
         api = LoopbackBlockDeviceAPI.from_path(self.mktemp())
         deployer = BlockDeviceDeployer(
+            node_uuid=local_uuid,
             hostname=local_hostname,
             block_device_api=api,
         )
@@ -681,6 +701,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
 
         local_state = NodeState(
             hostname=expected_hostname,
+            uuid=uuid4(),
             paths={
                 expected_dataset_id: FilePath(b"/flocker").child(
                     expected_dataset_id.encode("ascii")),
@@ -705,11 +726,13 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         # it from the representation in local_state.
         desired_configuration = Deployment(nodes=[Node(
             hostname=expected_hostname,
+            uuid=local_state.uuid,
             manifestations=local_state.manifestations.transform(
                 (expected_dataset_id, "dataset", "metadata"),
                 {u"name": u"my_volume"}
             ))])
         actual_changes = self._calculate_changes(
+            local_state.uuid,
             expected_hostname,
             local_state,
             desired_configuration
@@ -1791,6 +1814,7 @@ class DestroyBlockDeviceDatasetTests(
         mount(device, mountpoint)
 
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
             mountroot=mountroot,
@@ -1813,6 +1837,7 @@ class DestroyBlockDeviceDatasetTests(
         dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(self)
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
         )
@@ -1920,6 +1945,7 @@ class _MountScenario(PRecord):
         api.attach_volume(volume.blockdevice_id, host)
 
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=host,
             block_device_api=api,
             mountroot=mountpoint.parent(),
@@ -2061,6 +2087,7 @@ class UnmountBlockDeviceTests(
         check_output([b"mount", device.path, mountpoint.path])
 
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
             mountroot=mountroot,
@@ -2114,6 +2141,7 @@ class DetachVolumeTests(
         volume = api.attach_volume(volume.blockdevice_id, node)
 
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
         )
@@ -2160,6 +2188,7 @@ class DestroyVolumeTests(
         )
 
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
         )
@@ -2222,6 +2251,7 @@ class CreateBlockDeviceDatasetTests(
         )
 
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=host,
             block_device_api=api,
             mountroot=mountroot
@@ -2401,6 +2431,7 @@ class ResizeBlockDeviceDatasetTests(
 
         mountroot = mountroot_for_test(self)
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=node,
             block_device_api=api,
             mountroot=mountroot,
@@ -2470,6 +2501,7 @@ class ResizeVolumeTests(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
         )
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=u"192.0.7.8",
             block_device_api=api,
             mountroot=mountroot_for_test(self),
@@ -2516,6 +2548,7 @@ class AttachVolumeTests(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
         )
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=host,
             block_device_api=api,
             mountroot=mountroot_for_test(self),
@@ -2565,6 +2598,7 @@ class ResizeFilesystemTests(
         mountpoint = mountroot.child(b"resized-filesystem")
         filesystem = u"ext4"
         deployer = BlockDeviceDeployer(
+            node_uuid=uuid4(),
             hostname=host,
             block_device_api=api,
             mountroot=mountroot,
@@ -2590,9 +2624,17 @@ class ResizeFilesystemTests(
 
         after = statvfs(mountpoint.path)
 
+        inodes_before = before.f_files
+        inodes_after = after.f_files
+        expected_inodes_after = 2 * inodes_before
+
         self.assertEqual(
-            before.f_favail / 10,
-            after.f_favail / 2 / 10,
-            "Available inodes before ({}) is not roughly half available "
-            "inodes after".format(before.f_favail, after.f_favail)
+            expected_inodes_after,
+            inodes_after,
+            "Unexpected inode count. "
+            "Before: {}, "
+            "After: {}, "
+            "Expected: {}.".format(
+                inodes_before, inodes_after, expected_inodes_after
+            )
         )

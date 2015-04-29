@@ -80,6 +80,18 @@ class GenericDockerClientTests(TestCase):
         # disable namespacing for these tests.
         return DockerClient(namespace=self.namespacing_prefix)
 
+    def create_container(self, client, name, image):
+        """
+        Create (but don't start) a container via the supplied client.
+
+        :param DockerClient client: The Docker API client.
+        :param unicode name: The container name.
+        :param unicode image: The image name.
+        """
+        container_name = client._to_container_name(name)
+        client._client.create_container(
+            name=container_name, image=image)
+
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
                         ports=None, expected_states=(u'active',),
@@ -368,6 +380,32 @@ CMD sh -c "trap \"\" 2; sleep 3"
             self.assertTrue(
                 docker.inspect_container(self.namespacing_prefix + name))
         d.addCallback(added)
+        return d
+
+    def test_null_environment(self):
+        """
+        A container that does not include any environment variables contains
+        an empty ``environment`` in the return ``Unit``.
+        """
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM scratch\n'
+            b'MAINTAINER info@clusterhq.com\n'
+            b'CMD ["/bin/doesnotexist"]'
+        )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+        client = self.make_client()
+        name = random_name()
+        self.create_container(client, name, image_name)
+        self.addCleanup(client.remove, name)
+        d = client.list()
+
+        def got_list(units):
+            unit = [unit for unit in units if unit.name == name][0]
+            self.assertIsNone(unit.environment)
+        d.addCallback(got_list)
         return d
 
     def test_container_name(self):
@@ -761,6 +799,18 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
 
     def make_client(self):
         return NamespacedDockerClient(self.namespace)
+
+    def create_container(self, client, name, image):
+        """
+        Create (but don't start) a container via the supplied client.
+
+        :param DockerClient client: The Docker API client.
+        :param unicode name: The container name.
+        :param unicode image: The image name.
+        """
+        container_name = client._client._to_container_name(name)
+        client._client._client.create_container(
+            name=container_name, image=image)
 
     def test_isolated_namespaces(self):
         """

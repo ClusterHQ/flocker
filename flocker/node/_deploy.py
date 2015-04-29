@@ -6,6 +6,7 @@ Deploy applications on nodes.
 """
 
 from itertools import chain
+from warnings import warn
 
 from zope.interface import Interface, implementer, Attribute
 
@@ -23,7 +24,7 @@ from . import IStateChange, in_parallel, sequentially
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
     NodeState, DockerImage, Port, Link, Manifestation, Dataset,
-    pset_field,
+    pset_field, ip_to_uuid
     )
 from ..route import make_host_network, Proxy, OpenPort
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -55,10 +56,12 @@ class IDeployer(Interface):
     changes to bring local state and desired cluster configuration into
     alignment.
 
-    :ivar unicode hostname: The hostname of the node this deployer is
-        managing.
+    :ivar UUID node_uuid: The UUID of the node this deployer is running.
+    :ivar unicode hostname: The hostname (really, IP) of the node this
+        deployer is managing.
     """
-    hostname = Attribute("The hostname for this node.")
+    node_uuid = Attribute("The UUID of thise node, a ``UUID`` instance.")
+    hostname = Attribute("The public IP address of this node.")
 
     def discover_state(local_state):
         """
@@ -441,7 +444,13 @@ class P2PManifestationDeployer(object):
     :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
     """
-    def __init__(self, hostname, volume_service):
+    def __init__(self, hostname, volume_service, node_uuid=None):
+        if node_uuid is None:
+            warn("UUID is required, this is for backwards compat with existing"
+                 " tests only. If you see this in production code that's "
+                 "a bug.", DeprecationWarning, stacklevel=2)
+            node_uuid = ip_to_uuid(hostname)
+        self.node_uuid = node_uuid
         self.hostname = hostname
         self.volume_service = volume_service
 
@@ -477,6 +486,7 @@ class P2PManifestationDeployer(object):
                 available_manifestations.values())
 
             return [NodeState(
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,
@@ -496,7 +506,7 @@ class P2PManifestationDeployer(object):
         https://clusterhq.atlassian.net/browse/FLOC-1425 for leases, a
         better solution.
         """
-        local_state = cluster_state.get_node(self.hostname)
+        local_state = cluster_state.get_node(self.node_uuid)
         # We need to know applications (for now) to see if we should delay
         # deletion or handoffs. Eventually this will rely on leases instead.
         if local_state.applications is None:
@@ -514,7 +524,7 @@ class P2PManifestationDeployer(object):
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.
         dataset_changes = find_dataset_changes(
-            self.hostname, cluster_state, configuration)
+            self.node_uuid, cluster_state, configuration)
 
         resizing = [dataset for dataset in dataset_changes.resizing
                     if dataset.dataset_id not in in_use_datasets]
@@ -558,7 +568,14 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, hostname, docker_client=None, network=None):
+    def __init__(self, hostname, docker_client=None, network=None,
+                 node_uuid=None):
+        if node_uuid is None:
+            warn("UUID is required, this is for backwards compat with existing"
+                 " tests only. If you see this in production code that's "
+                 "a bug.", DeprecationWarning, stacklevel=2)
+            node_uuid = ip_to_uuid(hostname)
+        self.node_uuid = node_uuid
         self.hostname = hostname
         if docker_client is None:
             docker_client = DockerClient()
@@ -595,6 +612,7 @@ class ApplicationNodeDeployer(object):
             # convergence agent for datasets will discover the information
             # and then we can proceed.
             return succeed([NodeState(
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,
@@ -675,6 +693,7 @@ class ApplicationNodeDeployer(object):
                 ))
 
             return [NodeState(
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=applications,
                 used_ports=self.network.enumerate_used_ports(),
@@ -698,7 +717,8 @@ class ApplicationNodeDeployer(object):
            locally, so long as their required datasets are available.
         """
         # We are a node-specific IDeployer:
-        current_node_state = current_cluster_state.get_node(self.hostname)
+        current_node_state = current_cluster_state.get_node(
+            self.node_uuid, hostname=self.hostname)
         if current_node_state.applications is None:
             # We don't know current application state, so can't calculate
             # anything. This will be the case if we don't know the local
@@ -809,7 +829,7 @@ class ApplicationNodeDeployer(object):
         return sequentially(changes=phases)
 
 
-def find_dataset_changes(hostname, current_state, desired_state):
+def find_dataset_changes(uuid, current_state, desired_state):
     """
     Find what actions need to be taken to deal with changes in dataset
     manifestations between current state and desired state of the cluster.
@@ -823,7 +843,7 @@ def find_dataset_changes(hostname, current_state, desired_state):
     coverage for those situations is not implemented. See
     https://clusterhq.atlassian.net/browse/FLOC-352 for more details.
 
-    :param unicode hostname: The name of the node for which to find changes.
+    :param UUID uuid: The uuid of the node for which to find changes.
 
     :param Deployment current_state: The old state of the cluster on which the
         changes are based.
@@ -834,22 +854,24 @@ def find_dataset_changes(hostname, current_state, desired_state):
     :return DatasetChanges: Changes to datasets that will be needed in
          order to match desired configuration.
     """
-    desired_datasets = {node.hostname:
+    uuid_to_hostnames = {node.uuid: node.hostname
+                         for node in current_state.nodes}
+    desired_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             in node.manifestations.values())
                         for node in desired_state.nodes}
-    current_datasets = {node.hostname:
+    current_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             in node.manifestations.values())
                         for node in current_state.nodes}
-    local_desired_datasets = desired_datasets.get(hostname, set())
+    local_desired_datasets = desired_datasets.get(uuid, set())
     local_desired_dataset_ids = set(dataset.dataset_id for dataset in
                                     local_desired_datasets)
     local_current_dataset_ids = set(dataset.dataset_id for dataset in
-                                    current_datasets.get(hostname, set()))
+                                    current_datasets.get(uuid, set()))
     remote_current_dataset_ids = set()
-    for dataset_hostname, current in current_datasets.items():
-        if dataset_hostname != hostname:
+    for dataset_node_uuid, current in current_datasets.items():
+        if dataset_node_uuid != uuid:
             remote_current_dataset_ids |= set(
                 dataset.dataset_id for dataset in current)
 
@@ -861,7 +883,7 @@ def find_dataset_changes(hostname, current_state, desired_state):
     for desired in desired_datasets.values():
         for new_dataset in desired:
             if new_dataset.dataset_id in local_current_dataset_ids:
-                for cur_dataset in current_datasets[hostname]:
+                for cur_dataset in current_datasets[uuid]:
                     if cur_dataset.dataset_id != new_dataset.dataset_id:
                         continue
                     if cur_dataset.maximum_size != new_dataset.maximum_size:
@@ -870,12 +892,13 @@ def find_dataset_changes(hostname, current_state, desired_state):
     # Look at each dataset that is going to be running elsewhere and is
     # currently running here, and add a DatasetHandoff for it to `going`.
     going = set()
-    for dataset_hostname, desired in desired_datasets.items():
-        if dataset_hostname != hostname:
+    for dataset_node_uuid, desired in desired_datasets.items():
+        if dataset_node_uuid != uuid:
+            hostname = uuid_to_hostnames[dataset_node_uuid]
             for dataset in desired:
                 if dataset.dataset_id in local_current_dataset_ids:
-                    going.add(DatasetHandoff(dataset=dataset,
-                                             hostname=dataset_hostname))
+                    going.add(DatasetHandoff(
+                        dataset=dataset, hostname=hostname))
 
     # Look at each dataset that is going to be hosted on this node.  If it
     # was running somewhere else, we want that dataset to be in `coming`.
