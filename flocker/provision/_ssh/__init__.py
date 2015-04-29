@@ -18,10 +18,14 @@ __all__ = [
 
 try:
     # for admin.packaging usage
-    from ._keys import check_agent_has_ssh_key
+    from ._keys import (
+        ensure_agent_has_ssh_key,
+        AgentNotFound, KeyNotFound
+    )
 
     __all__ += [
-        "check_agent_has_ssh_key",
+        "ensure_agent_has_ssh_key",
+        "AgentNotFound", "KeyNotFound"
     ]
 except ImportError:
     pass

@@ -7,6 +7,8 @@ Tools for dealing with ssh keys.
 
 import os
 
+from characteristic import attributes, Attribute
+
 from eliot import start_action, Message
 from eliot.twisted import DeferredContext
 
@@ -22,7 +24,19 @@ class AgentNotFound(Exception):
     """
 
 
-def check_agent_has_ssh_key(reactor, key):
+@attributes([
+    Attribute("expected_key", instance_of=Key),
+], apply_immutable=True)
+class KeyNotFound(Exception):
+    """
+    Raised if the given key is not in the running ssh-agent.
+    """
+    def __str__(self):
+        return "Expected key fingerprint: {}".format(
+            self.expected_key.fingerprint())
+
+
+def ensure_agent_has_ssh_key(reactor, key):
     """
     Check that the running ssh-agent has the private key corresponding to the
     provided key.
@@ -30,8 +44,8 @@ def check_agent_has_ssh_key(reactor, key):
     :param reactor: The reactor to use to connect to the agent.
     :param Key key: The ssh key to check for in the agent.
 
-    :return bool: Wether the key is in the agent.
-    :raises AgentNotFound: if there is not a running agent.
+    :return Deferred: That fires with a succesful result if the key is found.
+       Otherwise, fires with ``AgentNotFound`` or ``KeyNotFound``.
     """
     try:
         agent_socket = os.environ["SSH_AUTH_SOCK"]
@@ -63,6 +77,6 @@ def check_agent_has_ssh_key(reactor, key):
                     commnet=comment).write()
                 if agent_key == key:
                     return True
-            return False
+            raise KeyNotFound(expected_key=key)
         connected.addCallback(check_keys)
         return connected.addActionFinish()
