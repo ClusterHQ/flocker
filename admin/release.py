@@ -49,6 +49,7 @@ from .aws import (
     DeleteS3Keys,
     CopyS3Keys,
     DownloadS3KeyRecursively,
+    UploadToS3,
     UploadToS3Recursively,
     CreateCloudFrontInvalidation,
 
@@ -343,7 +344,7 @@ class UploadOptions(Options):
     """
     optParameters = [
         ["flocker-version", None, flocker.__version__,
-         "The version of Flocker to upload RPMs for."
+         "The version of Flocker to upload packages for."
          "Python packages for " + flocker.__version__ + "will be uploaded.\n"],
         ["target", None, ARCHIVE_BUCKET,
          "The bucket to upload artifacts to.\n"],
@@ -494,6 +495,7 @@ packages_template = (
 
 
 class PackagesElement(template.Element):
+    """A Twisted Web template element to render the Pip index file."""
 
     def __init__(self, packages):
         template.Element.__init__(self, template.XMLString(packages_template))
@@ -541,11 +543,11 @@ def upload_pip_index(scratch_directory, target_bucket):
         packages=packages)
 
     yield Effect(
-        UploadToS3Recursively(
+        UploadToS3(
             source_path=scratch_directory,
             target_bucket=target_bucket,
-            target_key='python',
-            files=set([index_path.basename()]),
+            target_key='python/index.html',
+            file=index_path,
         ))
 
 
