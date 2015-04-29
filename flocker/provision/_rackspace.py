@@ -8,7 +8,7 @@ from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import (
     provision,
     task_open_control_firewall,
-    task_upgrade_kernel_centos,
+    task_upgrade_kernel,
 )
 from ._ssh import run_remotely
 
@@ -32,7 +32,7 @@ def provision_rackspace(node, package_source, distribution, variants):
             username='root',
             address=node.address,
             commands=sequence([
-                task_upgrade_kernel_centos(),
+                task_upgrade_kernel(node.distribution),
                 Effect(Func(node.reboot)),
             ]),
         ))
@@ -48,7 +48,7 @@ def provision_rackspace(node, package_source, distribution, variants):
             ),
             # https://clusterhq.atlassian.net/browse/FLOC-1550
             # This should be part of ._install.configure_cluster
-            task_open_control_firewall(),
+            task_open_control_firewall(node.distribution),
         ]),
     ))
 
@@ -58,6 +58,7 @@ def provision_rackspace(node, package_source, distribution, variants):
 IMAGE_NAMES = {
     'fedora-20': u'Fedora 20 (Heisenbug) (PVHVM)',
     'centos-7': u'CentOS 7 (PVHVM)',
+    'ubuntu-14.04': u'Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)'
 }
 
 

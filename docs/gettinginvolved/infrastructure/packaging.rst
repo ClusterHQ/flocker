@@ -1,12 +1,12 @@
-Building Omnibus RPMs
-=====================
+Building Omnibus Packages
+=========================
 
 Flocker depends on a number of Python packages which aren't available in Fedora,
 or newer versions than are available there.
-So the ``build-package`` script bundles those packages into the RPM.
+So the ``build-package`` script bundles those packages into the operating system package.
 We refer to these as "Omnibus" packages.
 
-To build omnibus RPMs, create a VirtualEnv and install Flocker then its release dependencies:
+To build omnibus packages, create a VirtualEnv and install Flocker then its release dependencies:
 
 .. code-block:: sh
 
@@ -21,7 +21,8 @@ Then run the following command from a clean checkout of the Flocker repository:
 
    ./admin/build-package --distribution=fedora-20 $PWD
 
-This will generate three RPM files in the current working directory. E.g.
+The distribution can be any of the supported distributions (see ``./admin/build-package --help`` for a list).
+This will generate three packages files in the current working directory. E.g.
 
 * ``clusterhq-python-flocker-0.3.0-0.dev.1.307.gb6d6e9f.dirty.x86_64.rpm``
 
@@ -65,19 +66,19 @@ To enable yum to find them, put the `repo file <https://copr.fedoraproject.org/c
 Package Hosting
 ===============
 
-Some packages are hosted on Google Cloud Storage and others are hosted on Amazon S3.
+New packages are hosted on Amazon S3 in directories in the ``clusterhq-archive`` bucket.
 
-The Homebrew installation script for OS X downloads packages from `Google Cloud Storage <https://console.developers.google.com/project/hybridcluster-docker/storage/browser/archive.clusterhq.com/downloads/flocker/?authuser=1>`_.
+The Homebrew installation script for OS X downloads packages from the ``python`` directory.
 
-Fedora 20 and CentOS client and node packages are hosted on Amazon S3.
-These are in the `clusterhq-archive` bucket.
-Within this bucket there are `development` and `marketing` keys.
-Within each of these are keys for each supported operating system.
+Fedora, CentOS and Ubuntu client and node packages are hosted on Amazon S3.
 
-`clusterhq-archive`
--------------------
+``clusterhq-archive``
+---------------------
 
-This bucket has the following policy::
+For each distribution, there are ``<distribution>`` and ``<distribution>-testing`` folders.
+Each contains sub-folders for the distribution version and architecture, which finally contain package repositories.
+
+To make the entire bucket public, this bucket has the following policy::
 
    {
    	"Version": "2008-10-17",
@@ -98,31 +99,11 @@ A policy can be set by going to a bucket's "Properties", "Permissions", then "Ad
 ``clusterhq-dev-archive``
 -------------------------
 
-BuildBot puts Vagrant boxes in the ``clusterhq-dev-archive``.
-This has a similar policy to the ``clusterhq-archive`` bucket but is more restrictive in that only the keys with the prefix "vagrant/" are public.
-
-This bucket has the following policy::
-
-   {
-   	"Version": "2008-10-17",
-   	"Id": "PolicyForPublicAccess",
-   	"Statement": [
-   		{
-   			"Sid": "1",
-   			"Effect": "Allow",
-   			"Principal": "*",
-   			"Action": "s3:GetObject",
-   			"Resource": "arn:aws:s3:::clusterhq-dev-archive/vagrant/*"
-   		}
-   	]
-   }
-
-`clusterhq-release package`
----------------------------
+RPM-based distributions tend to bundle ``yum`` repository definitions in ``*-release`` packages.
 
 There are meta-packages which contain the yum repository definitions for `archive.clusterhq.com`.
 
-XXX This should be a Python script with tests which can be run on the :doc:`Flocker development machine <vagrant>` https://clusterhq.atlassian.net/browse/FLOC-1530
+XXX This should be a Python script with tests which can be run on the :doc:`Flocker development machine <vagrant>`, see :issue:`1530`.
 
 To build and upload these packages, on a machine with the operating system which the package is for
 (an easy way to do this is to use the :doc:`Flocker development machine <vagrant>` and an old Fedora 20 version of it),
@@ -143,3 +124,5 @@ Legacy
 
 Old versions of Flocker for Fedora 20 (until 0.3.2) are hosted on Google Cloud Storage.
 The legacy ClusterHQ release package creation files and other packages which were formerly necessary are in https://github.com/ClusterHQ/fedora-packages.
+
+Old versions of Flocker source and binary distributions are hosted on Google Cloud Storage.
