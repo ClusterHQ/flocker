@@ -68,7 +68,6 @@ dev_requirements = [
     # The cloud acceptance test runner needs these
     "fabric==1.10.0",
     "apache-libcloud==0.16.0",
-    "digitalocean-python==0.1.5",
 
     # Packages are downloaded from Buildbot
     "requests==2.4.3",
@@ -138,7 +137,7 @@ setup(
     install_requires=[
         "setuptools >= 1.4",
 
-        "eliot == 0.6.0",
+        "eliot == 0.7.1",
         "machinist == 0.2.0",
         "zope.interface >= 4.0.5",
         "pytz",

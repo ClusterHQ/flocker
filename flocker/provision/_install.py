@@ -10,7 +10,7 @@ from textwrap import dedent
 from urlparse import urljoin
 from effect import Func, Effect
 
-from ._common import PackageSource, Variants, Kernel
+from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
     sudo_from_args,
@@ -91,51 +91,6 @@ def task_upgrade_kernel(distribution):
         ])
     else:
         raise NotImplementedError()
-
-
-KOJI_URL_TEMPLATE = (
-    'https://kojipkgs.fedoraproject.org/packages/kernel'
-    '/{version}/{release}.{distribution}/{architecture}'
-    '/kernel-{version}-{release}.{distribution}.{architecture}.rpm'
-)
-
-
-def koji_kernel_url(kernel):
-    """
-    Return the koji URL for the given kernel version.
-    """
-    url = KOJI_URL_TEMPLATE.format(
-        version=kernel.version,
-        release=kernel.release,
-        distribution=kernel.distribution,
-        architecture=kernel.architecture
-    )
-    return url
-
-
-DIGITALOCEAN_KERNEL = Kernel(
-    version="3.17.8",
-    release="200",
-    distribution="fc20",
-    architecture="x86_64"
-)
-
-
-DIGITALOCEAN_KERNEL_TITLE = (
-    "Fedora 20 x64 "
-    "vmlinuz-{kernel.version}-{kernel.release}"
-    ".{kernel.distribution}.{kernel.architecture}"
-).format(kernel=DIGITALOCEAN_KERNEL)
-
-
-def task_install_digitalocean_kernel():
-    """
-    Install a specific Fedora kernel version for DigitalOcean.
-    """
-    url = koji_kernel_url(DIGITALOCEAN_KERNEL)
-    return sequence([
-        run_from_args(['yum', 'update', '-y', url]),
-    ])
 
 
 def task_install_kernel_devel():
