@@ -539,7 +539,7 @@ class MountBlockDevice(PRecord):
         except OSError as e:
             if EEXIST != e.errno:
                 return fail()
-        # This should be asynchronous.  XXX File an issue.
+        # This should be asynchronous.  FLOC-1797
         check_output([b"mount", device.path, self.mountpoint.path])
         return succeed(None)
 
@@ -584,7 +584,7 @@ class UnmountBlockDevice(PRecord):
             UNMOUNT_BLOCK_DEVICE_DETAILS(
                 volume=volume, block_device_path=device
             ).write(_logger)
-            # This should be asynchronous. XXX File an issue.
+            # This should be asynchronous. FLOC-1797
             check_output([b"umount", device.path])
         listing.addCallback(got_device)
         return listing
