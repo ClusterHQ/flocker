@@ -1472,6 +1472,11 @@ class IBlockDeviceAPITestsMixin(object):
         )
 
         old_cluster_id = self.api.cluster_id
+        if old_cluster_id is None:
+            raise SkipTest(
+                "Cluster ID does not exist for this block device API. "
+                "Possibly running ``LoopbackBlockDeviceAPI`` tests. "
+            )
         self.api.cluster_id = uuid4()
         flocker_volume2 = self.api.create_volume(
             dataset_id=uuid4(),

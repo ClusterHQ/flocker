@@ -52,6 +52,10 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     """
     Helper function to convert Volume information from
     EBS format to Flocker block device format.
+
+    :param boto.ec2.volume ebs_volume: Volume in EC2 format.
+
+    :return: Input volume in BlockDeviceVolume format.
     """
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
@@ -67,6 +71,16 @@ def _wait_for_volume(expected_volume,
     """
     Helper function to wait for up to 60s for given volume
     to be in 'available' state.
+
+    :param boto.ec2.volume expected_volume: Volume to check
+        status for.
+    :param str expected_status: Target state of the input
+        volume. Default target state is ''available''.
+    :param int time_limit: Upper bound of wait time for input
+        volume to reach expected state. Defaults to 60 seconds.
+
+    :raises Exception: When input volume did not reach
+        expected state within time limit.
     """
     start_time = time.time()
     expected_volume.update()
@@ -94,6 +108,14 @@ def _is_cluster_volume(cluster_id, ebs_volume):
     """
     Helper function to check if given volume belongs to
     given cluster.
+
+    :param UUID cluster_id: UUID of Flocker cluster to check for
+        membership.
+    :param boto.ec2.volume ebs_volume: EBS volume to check for
+        input cluster membership.
+
+    :return bool: True if input volume belongs to input
+        Flocker cluster. False otherwise.
     """
     actual_cluster_id = ebs_volume.tags.get(CLUSTER_ID_LABEL)
     if actual_cluster_id is not None:
@@ -113,8 +135,8 @@ class EBSBlockDeviceAPI(object):
         """
         Initialize EBS block device API instance.
 
-        :param ``_EC2`` ec2_client: A record of EC2 connection and zone.
-        :param String cluster_id: UUID of cluster for this
+        :param _EC2 ec2_client: A record of EC2 connection and zone.
+        :param UUID cluster_id: UUID of cluster for this
             API instance.
         """
         self.connection = ec2_client.connection
@@ -139,12 +161,6 @@ class EBSBlockDeviceAPI(object):
         {metadata version, cluster id, dataset id} for the volume
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
-
-        :param String dataset_id: Dataset_id for the volume.
-        :param int size: Requested volume size in Bytes.
-
-        :return BlockDeviceVolume volume: Created volume in
-            BlockDeviceVolume format.
         """
         requested_volume = self.connection.create_volume(
             size=int(Byte(size).to_GB().value), zone=self.zone)
