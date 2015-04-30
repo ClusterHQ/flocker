@@ -1411,15 +1411,9 @@ class BlockDeviceDeployer(PRecord):
             in manifestations_to_create
         )
 
-        # FLOC-1593
-        #
-        # Find datasets that local_state indicates are locally manifest but
-        # which local_config indicates should not be.  For each of them, make a
-        #
-        # sequentially(changes=[DetachVolume()])
-        #
-        # to include in the final ``in_parallel`` returned below.
-
+        detaches = list(self._calculate_detaches(
+            local_state.devices, local_state.paths, configured_manifestations,
+        ))
         deletes = self._calculate_deletes(configured_manifestations)
         resizes = list(self._calculate_resizes(
             configured_manifestations, local_state
@@ -1428,7 +1422,33 @@ class BlockDeviceDeployer(PRecord):
         # TODO Prevent changes to volumes that are currently being used by
         # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
 
-        return in_parallel(changes=attaches + creates + deletes + resizes)
+        return in_parallel(
+            changes=detaches + attaches + creates + deletes + resizes
+        )
+
+    def _calculate_detaches(self, devices, paths, configured):
+        """
+        :param PMap devices: The datasets with volumes attached to this node
+            and the device files at which they are available.  This is the same
+            as ``NodeState.devices``.
+        :param PMap paths: The paths at which datasets' filesystems are mounted
+            on this node.  This is the same as ``NodeState.paths``.
+        :param PMap configured: The manifestations which are configured on this
+            node.  This is the same as ``NodeState.manifestations``.
+
+        :return: A generator of ``DetachVolume`` instances, one for each
+            dataset which exists, is attached to this node, is not mounted, and
+            is configured to not have a manifestation on this node.
+        """
+        for attached_dataset_id in devices:
+            if unicode(attached_dataset_id) in configured:
+                # It is supposed to be here.
+                continue
+            if unicode(attached_dataset_id) in paths:
+                # It is mounted and needs to unmounted before it can be
+                # detached.
+                continue
+            yield DetachVolume(dataset_id=attached_dataset_id)
 
     def _calculate_attaches(self, configured, nonmanifest):
         """
