@@ -959,6 +959,28 @@ class PMapFieldTests(SynchronousTestCase):
             value = pmap_field(int, int)
         assert Record() == Record(value={})
 
+    def test_override_initial_value(self):
+        """
+        The initial value can be set to a non-empty map by passing the desired
+        value to the ``initial`` parameter.
+        """
+        initial = {1: 2, 3: 4}
+
+        class Record(PRecord):
+            value = pmap_field(int, int, initial=initial)
+        assert Record() == Record(value=initial)
+
+    def test_none_initial_value(self):
+        """
+        The initial value for an optional field can be set to ``None`` by
+        passing ``None`` to the ``initial`` parameter.
+        """
+        initial = None
+
+        class Record(PRecord):
+            value = pmap_field(int, int, optional=True, initial=initial)
+        assert Record() == Record(value=initial)
+
     def test_factory(self):
         """
         ``pmap_field`` has a factory that creates a ``PMap``.

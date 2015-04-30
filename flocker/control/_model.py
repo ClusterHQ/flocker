@@ -94,15 +94,24 @@ def pvector_field(item_type, optional=False, initial=()):
 _valid = lambda item: (True, "")
 
 
-def pmap_field(key_type, value_type, optional=False, invariant=_valid):
+_UNDEFINED = object()
+
+
+def pmap_field(
+    key_type, value_type, optional=False, invariant=_valid,
+    initial=_UNDEFINED
+):
     """
     Create a checked ``PMap`` field.
 
     :param key: The required type for the keys of the map.
     :param value: The required type for the values of the map.
-    :param bool optional: If true, ``None`` can be used as a value for
-        this field.
+    :param bool optional: If true, ``None`` can be used as a value for this
+        field.
     :param invariant: Pass-through to ``field``.
+    :param initial: An initial value for the field.  This will first be coerced
+        using the field's factory.  If not given, the initial value is an empty
+        map.
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
@@ -120,7 +129,13 @@ def pmap_field(key_type, value_type, optional=False, invariant=_valid):
                 return TheMap(argument)
     else:
         factory = TheMap
-    return field(mandatory=True, initial=TheMap(),
+
+    if initial is _UNDEFINED:
+        initial = TheMap()
+    else:
+        initial = factory(initial)
+
+    return field(mandatory=True, initial=initial,
                  type=optional_type(TheMap) if optional else TheMap,
                  factory=factory, invariant=invariant)
 
