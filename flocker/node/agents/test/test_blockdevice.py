@@ -2255,7 +2255,8 @@ class UnmountBlockDeviceTests(
         """
         node = u"192.0.2.1"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+        deployer = create_blockdevicedeployer(self, hostname=node)
+        api = deployer.block_device_api
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
