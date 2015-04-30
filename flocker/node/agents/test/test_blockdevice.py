@@ -240,7 +240,7 @@ class BlockDeviceDeployerAsyncAPITests(SynchronousTestCase):
 
 
 def assert_discovered_state(case,
-                            deployer, expected_hostname,
+                            deployer,
                             expected_manifestations,
                             expected_nonmanifest_datasets=None,
                             expected_devices=pmap()):
@@ -250,8 +250,6 @@ def assert_discovered_state(case,
 
     :param TestCase case: The running test.
     :param IDeployer deployer: The object to use to discover the state.
-    :param unicode expected_hostname: The hostname the deployer is configured
-        with.
     :param list expected_manifestations: The ``Manifestation``\ s expected to
         be discovered on the deployer's node.
     :param dict expected_nonmanifest_datasets: The ``Dataset``\ s expected to
@@ -263,9 +261,12 @@ def assert_discovered_state(case,
     :raise: A test failure exception if the manifestations are not what is
         expected.
     """
-    discovering = deployer.discover_state(
-        NodeState(hostname=expected_hostname)
+    previous_state = NodeState(
+        node_uuid=deployer.node_uuid, hostname=deployer.hostname,
+        applications=None, used_ports=None, manifestations=None, paths=None,
+        devices=None,
     )
+    discovering = deployer.discover_state(previous_state)
     state = case.successResultOf(discovering)
     expected_paths = {}
     for manifestation in expected_manifestations:
@@ -314,9 +315,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         empty ``manifestations`` if the ``api`` reports no locally attached
         volumes.
         """
-        assert_discovered_state(
-            self, self.deployer, self.expected_hostname, []
-        )
+        assert_discovered_state(self, self.deployer, [])
 
     def test_attached_unmounted_device(self):
         """
@@ -332,7 +331,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             unmounted.blockdevice_id, self.expected_hostname
         )
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             expected_manifestations=[],
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
@@ -367,7 +366,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mount(device, mountpoint)
 
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             expected_manifestations=[],
             expected_nonmanifest_datasets=[unexpected.dataset_id],
             expected_devices={
@@ -400,7 +399,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mount(unrelated_device, mountpoint)
 
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             expected_manifestations=[],
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
@@ -436,7 +435,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset=expected_dataset, primary=True
         )
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             [expected_manifestation],
             expected_devices={
                 dataset_id: device,
@@ -454,9 +453,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
         self.api.attach_volume(new_volume.blockdevice_id, u'some.other.host')
-        assert_discovered_state(
-            self, self.deployer, self.expected_hostname, [],
-        )
+        assert_discovered_state(self, self.deployer, [])
 
     def test_only_unattached_devices(self):
         """
@@ -469,7 +466,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset_id=dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE)
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             expected_manifestations=[],
             expected_nonmanifest_datasets=[dataset_id],
         )
