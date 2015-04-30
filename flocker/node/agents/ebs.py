@@ -138,6 +138,7 @@ class EBSBlockDeviceAPI(object):
         Create a volume on EBS. Store Flocker-specific
         {metadata version, cluster id, dataset id} for the volume
         as volume tag data.
+        Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
 
         :param String dataset_id: Dataset_id for the volume.
         :param int size: Requested volume size in Bytes.
@@ -194,6 +195,8 @@ class EBSBlockDeviceAPI(object):
 
         :raises UnknownVolume: If there does not exist a Flocker cluster
             volume identified by input blockdevice_id.
+        :raises Exception: If we failed to destroy Flocker cluster volume
+            corresponding to input blockdevice_id.
         """
         for volume in self.list_volumes():
             if volume.blockdevice_id == blockdevice_id:
