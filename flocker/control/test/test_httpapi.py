@@ -558,6 +558,22 @@ class CreateContainerTestsMixin(APITestsMixin):
             dict(container_json), CREATED, dict(container_json_response)
         )
 
+    def test_create_container_with_command_line_response(self):
+        """
+        A valid API request to create a container including a command line
+        returns the command line supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"host": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"command_line": [u"a", u"bc"],
+            u"restart_policy": {u"name": u"never"},
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
     def test_create_container_with_links(self):
         """
         An API request to create a container including links to be injected in
@@ -2753,6 +2769,18 @@ class DatasetsStateTestsMixin(APITestsMixin):
             b"GET", b"/state/datasets", None, OK, response
         )
 
+    def test_unknown_datasets(self):
+        """
+        When the cluster state is ignorant about datasets on a node, the
+        endpoint does not list information for that node.
+        """
+        self.cluster_state_service.apply_changes([
+            NodeState(hostname=u"192.0.2.101", uuid=uuid4(),
+                      manifestations=None, paths=None)])
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, []
+        )
+
     def test_one_dataset(self):
         """
         When the cluster state includes one dataset, the endpoint
@@ -3085,6 +3113,18 @@ class ContainerStateTestsMixin(APITestsMixin):
         response = []
         return self.assertResult(
             b"GET", b"/state/containers", None, OK, response
+        )
+
+    def test_unknown_containers(self):
+        """
+        When the cluster state is ignorant about containers on a node, the
+        endpoint does not list information for that node.
+        """
+        self.cluster_state_service.apply_changes([
+            NodeState(hostname=u"192.0.2.101", uuid=uuid4(),
+                      applications=None)])
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, []
         )
 
     def test_one_container(self):

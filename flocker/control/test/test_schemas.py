@@ -370,6 +370,20 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'volumes': [{'dataset_id': "y" * 36,
                          'mountpoint': 'var/db2'}],
         },
+        # Command line must be array
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'command_line': 'xx'
+        },
+        # Command line must be array of strings
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'command_line': ['xx', 123]
+        }
     ],
     passing_instances=[
         {
@@ -471,6 +485,12 @@ ConfigurationContainersSchemaTests = build_schema_test(
             'image': 'postgres',
             'name': 'postgres',
             'volumes': [],
+        },
+        {
+            'host': '192.168.0.3',
+            'image': 'postgres',
+            'name': 'postgres',
+            'command_line': ['ls', '/data'],
         },
     ],
 )
