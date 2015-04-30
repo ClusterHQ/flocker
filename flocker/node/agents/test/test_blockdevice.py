@@ -262,7 +262,7 @@ def assert_discovered_state(case,
         expected.
     """
     previous_state = NodeState(
-        node_uuid=deployer.node_uuid, hostname=deployer.hostname,
+        uuid=deployer.node_uuid, hostname=deployer.hostname,
         applications=None, used_ports=None, manifestations=None, paths=None,
         devices=None,
     )
