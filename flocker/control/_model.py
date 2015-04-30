@@ -686,6 +686,7 @@ class NodeState(PRecord):
     applications = pset_field(Application, optional=True)
     manifestations = pmap_field(unicode, Manifestation, optional=True)
     paths = pmap_field(unicode, FilePath, optional=True)
+    devices = pmap_field(UUID, FilePath, optional=True, initial=None)
 
     def update_cluster_state(self, cluster_state):
         return cluster_state.update_node(self)

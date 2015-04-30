@@ -1289,9 +1289,16 @@ class BlockDeviceDeployer(PRecord):
         return a ``NodeState`` containing only ``Manifestation`` instances and
         their mount paths.
         """
-        volumes = self.block_device_api.list_volumes()
+        api = self.block_device_api
+        volumes = api.list_volumes()
         manifestations = {}
         nonmanifest = {}
+        devices = {
+            volume.dataset_id: api.get_device_path(volume.blockdevice_id)
+            for volume
+            in volumes
+            if volume.host == self.hostname
+        }
 
         for volume in volumes:
             dataset_id = unicode(volume.dataset_id)
@@ -1335,6 +1342,7 @@ class BlockDeviceDeployer(PRecord):
                 hostname=self.hostname,
                 manifestations=manifestations,
                 paths=paths,
+                devices=devices,
             ),
         )
 
