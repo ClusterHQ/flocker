@@ -28,7 +28,7 @@ To configure firewalld to allow access to the control service REST API, and for 
 (On AWS, an external firewall is used instead, which will need to be configured similarity).
 For more details on configuring the firewall, see Fedora's `firewalld documentation <https://fedoraproject.org/wiki/FirewallD>`_.
 
-To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/dataset-agent.yml``.
+To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node:
 
 .. code-block:: yaml
@@ -44,7 +44,6 @@ Ubuntu
 TODO
 
 TODO? Move most of this document somewhere?
-TODO? Change the name of the file?
 TODO Make the service file assert the file exists
 TODO Make the provision._install code use the config
 

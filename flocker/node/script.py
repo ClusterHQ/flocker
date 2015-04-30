@@ -50,7 +50,7 @@ class ZFSAgentOptions(Options):
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
-        ["control-service-config", "c", "/etc/flocker/dataset-agent.yml",
+        ["control-service-config", "c", "/etc/flocker/agent.yml",
          "The configuration file to set the control service."],
     ]
 
@@ -122,7 +122,7 @@ class _AgentOptions(Options):
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
-        ["control-service-config", "c", "/etc/flocker/dataset-agent.yml",
+        ["control-service-config", "c", "/etc/flocker/agent.yml",
          "The configuration file to set the control service."],
     ]
 

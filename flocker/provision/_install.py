@@ -232,7 +232,7 @@ def task_enable_flocker_agent(distribution, control_node):
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
             put(
-                path='/etc/flocker/dataset-agent.yml',
+                path='/etc/flocker/agent.yml',
                 content=yaml.safe_dump(
                     {
                         "control-service-endpoint": control_node,

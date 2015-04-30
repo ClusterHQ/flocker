@@ -280,12 +280,12 @@ def make_amp_agent_options_tests(options_type):
         def test_default_config_file(self):
             """
             The default config file is a FilePath with path
-            ``/etc/flocker/dataset-agent.yml``.
+            ``/etc/flocker/agent.yml``.
             """
             self.options.parseOptions([])
             self.assertEqual(
                 self.options["control-service-config"],
-                FilePath("/etc/flocker/dataset-agent.yml"))
+                FilePath("/etc/flocker/agent.yml"))
 
         def test_custom_config_file(self):
             """
