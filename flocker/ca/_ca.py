@@ -106,7 +106,7 @@ def create_certificate_authority(keypair, dn, request, serial,
         Defaults to current date and time.
     """
     if start is None:
-        start = datetime.datetime.now()
+        start = datetime.datetime.utcnow()
     expire = start + datetime.timedelta(seconds=validity_period)
     start = start.strftime(b"%Y%m%d%H%M%SZ")
     expire = expire.strftime(b"%Y%m%d%H%M%SZ")
@@ -161,7 +161,7 @@ def sign_certificate_request(keypair, dn, request, serial,
         Defaults to current date and time.
     """
     if start is None:
-        start = datetime.datetime.now()
+        start = datetime.datetime.utcnow()
     expire = start + datetime.timedelta(seconds=validity_period)
     start = start.strftime(b"%Y%m%d%H%M%SZ")
     expire = expire.strftime(b"%Y%m%d%H%M%SZ")

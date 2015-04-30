@@ -30,7 +30,7 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
         Base test case for credential tests.
         """
         def setUp(self):
-            self.start_date = datetime.datetime.now()
+            self.start_date = datetime.datetime.utcnow()
             self.expiry_date = self.start_date + datetime.timedelta(
                 seconds=EXPIRY_20_YEARS)
             self.cert_file_name = expected_file_name + b".crt"
@@ -294,7 +294,7 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
 
 
 class UserCredentialTests(
-        make_credential_tests(UserCredential, b"alice", username=b"alice")):
+        make_credential_tests(UserCredential, b"alice", username=u"alice")):
     """
     Tests for ``flocker.ca._ca.UserCredential``.
     """
@@ -306,7 +306,7 @@ class UserCredentialTests(
         """
         cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
-        self.assertEqual(subject.CN, b"user-{user}".format(
+        self.assertEqual(subject.CN, u"user-{user}".format(
             user=self.credential.username))
 
 
@@ -580,7 +580,7 @@ class RootCredentialTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         path.makedirs()
-        start_date = datetime.datetime.now()
+        start_date = datetime.datetime.utcnow()
         expected_expiry = start_date + datetime.timedelta(
             seconds=EXPIRY_20_YEARS)
         expected_expiry = expected_expiry.strftime("%Y%m%d%H%M%SZ")
