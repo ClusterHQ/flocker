@@ -30,7 +30,7 @@ from ...testtools import (
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE, Volume)
+    BASE_NAMESPACE, Volume, logger as docker_logger)
 from ...control._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
 
@@ -41,7 +41,8 @@ import logging
 handler = logging.StreamHandler()
 handler.setFormatter(
     logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
-logging.getLogger('flocker.node._docker').addHandler(handler)
+docker_logger.addHandler(handler)
+docker_logger.setLevel(logging.DEBUG)
 requests.packages.urllib3.add_stderr_logger()
 
 
