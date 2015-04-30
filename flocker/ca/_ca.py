@@ -309,6 +309,7 @@ class UserCredential(PRecord):
         :param bytes username: A UTF-8 encoded username to be included in
             the certificate.
         """
+        username = unicode(username, "utf-8")
         key_filename = username + b".key"
         cert_filename = username + b".crt"
         # The common name for the node certificate.
