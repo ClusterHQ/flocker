@@ -44,8 +44,7 @@ class ZFSAgentOptions(Options):
     """
 
     synopsis = (
-        "Usage: flocker-zfs-agent [OPTIONS] <local-hostname> "
-        "<control-service-hostname>")
+        "Usage: flocker-zfs-agent [OPTIONS] <control-service-hostname>")
 
     optParameters = [
         ["destination-port", "p", 4524,
