@@ -229,18 +229,19 @@ def task_enable_flocker_agent(distribution, control_node):
 
     :param bytes control_node: The address of the control agent.
     """
+    put_config_file = put(
+        path='/etc/flocker/agent.yml',
+        content=yaml.safe_dump(
+            {
+                "control-service-endpoint": control_node,
+            },
+            # Don't wrap the whole thing in braces
+            default_flow_style=False,
+        ),
+    )
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
-            put(
-                path='/etc/flocker/agent.yml',
-                content=yaml.safe_dump(
-                    {
-                        "control-service-endpoint": control_node,
-                    },
-                    # Don't wrap the whole thing in braces
-                    default_flow_style=False,
-                ),
-            ),
+            put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-agent']),
             run_from_args(['systemctl', 'start', 'flocker-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
@@ -248,16 +249,7 @@ def task_enable_flocker_agent(distribution, control_node):
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            put(
-                path='/etc/flocker/agent.yml',
-                content=yaml.safe_dump(
-                    {
-                        "control-service-endpoint": control_node,
-                    },
-                    # Don't wrap the whole thing in braces
-                    default_flow_style=False,
-                ),
-            ),
+            put_config_file,
             run_from_args(['service', 'flocker-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
