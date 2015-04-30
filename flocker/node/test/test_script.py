@@ -41,7 +41,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"--config-file", self.config.path])
+        options.parseOptions([b"--control-service-config", self.config.path])
         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
@@ -51,7 +51,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         script = ZFSAgentScript()
         options = ZFSAgentOptions()
-        options.parseOptions([b"--config-file", self.config.path])
+        options.parseOptions([b"--control-service-config", self.config.path])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
                                         Service()))
 
@@ -63,7 +63,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         options = ZFSAgentOptions()
         options.parseOptions(
             [b"--destination-port", b"1234",
-             b"--config-file", self.config.path])
+             b"--control-service-config", self.config.path])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
@@ -126,7 +126,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([
-            b"--destination-port", b"1234", b"--config-file", self.config.path,
+            b"--destination-port", b"1234",
+            b"--control-service-config", self.config.path,
         ])
         service_factory = AgentServiceFactory(
             deployer_factory=factory
@@ -154,7 +155,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
-        options.parseOptions([b"--config-file", self.config.path])
+        options.parseOptions([b"--control-service-config", self.config.path])
         agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
         self.assertIn(spied[0], get_all_ips())
@@ -283,7 +284,7 @@ def make_amp_agent_options_tests(options_type):
             """
             self.options.parseOptions([])
             self.assertEqual(
-                self.options["config-file"],
+                self.options["control-service-config"],
                 FilePath("/etc/flocker/dataset-agent.yml"))
 
         def test_custom_config_file(self):
@@ -291,9 +292,10 @@ def make_amp_agent_options_tests(options_type):
             The ``--config-file`` command-line option allows configuring
             the config file.
             """
-            self.options.parseOptions([b"--config-file", b"/etc/foo.yml"])
+            self.options.parseOptions(
+                [b"--control-service-config", b"/etc/foo.yml"])
             self.assertEqual(
-                self.options["config-file"],
+                self.options["control-service-config"],
                 FilePath("/etc/foo.yml"))
 
     return Tests
