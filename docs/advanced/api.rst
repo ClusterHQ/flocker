@@ -67,9 +67,8 @@ This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the
 .. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
-TODO Change upstart file
-
-TODO? Move most of this document somewhere?
+- Quotes around yml - looks bad with option
+- We're not moving this document but agree that it should be moved and have asked David to look into this for before the story is submitted
 
 API Details
 ===========
