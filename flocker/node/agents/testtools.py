@@ -82,7 +82,7 @@ def make_icindervolumemanager_tests(client_factory):
     return Tests
 
 
-def load_client_config_from_environment():
+def get_client(provider):
     """
     Validate and load cloud provider's yml config file.
     Default to ``~/acceptance.yml`` in the current user home directory, since
@@ -105,7 +105,20 @@ def load_client_config_from_environment():
         )
 
     config = yaml.safe_load(config_file.read())
-    return config
+
+    provider_env = os.environ.get('CLOUD_PROVIDER')
+    if provider == provider_env == 'aws':
+        provider_config = config[provider_env]
+        return ec2_client(**provider_config)
+    elif provider == 'openstack':
+        if provider_env in [DEFAULT_OPENSTACK_PROVIDER]:
+            provider_config = config[provider_env]
+            cinder_client_factory = CINDER_CLIENT_FACTORIES[provider_env]
+            return cinder_client_factory(**provider_config)
+
+    raise SkipTest(
+        'CLOUD_PROVIDER({!r}) is not {!r}.'.format(provider_env, provider)
+    )
 
 
 def ec2_client_from_environment():
@@ -117,15 +130,7 @@ def ec2_client_from_environment():
     :returns: An instance of EC2 Boto client
         using provider specific credentials found in ``CLOUD_CONFIG_FILE``.
     """
-    config = load_client_config_from_environment()
-    provider_name = os.environ.get('CLOUD_PROVIDER')
-    if provider_name == 'aws':
-        provider_config = config[provider_name]
-        return ec2_client(**provider_config)
-    else:
-        raise SkipTest(
-            'CLOUD_PROVIDER({!r}) is not AWS. '.format(provider_name)
-        )
+    return get_client('aws')
 
 
 def cinder_client_from_environment():
@@ -134,16 +139,7 @@ def cinder_client_from_environment():
     file path which may be supplied as an environment variable.
     See ``load_config`` for details on where config is populated from.
     """
-    config = load_client_config_from_environment()
-    provider_name = os.environ.get('CLOUD_PROVIDER')
-    if provider_name in [DEFAULT_OPENSTACK_PROVIDER]:
-        provider_config = config[provider_name]
-        cinder_client_factory = CINDER_CLIENT_FACTORIES[provider_name]
-        return cinder_client_factory(**provider_config)
-    else:
-        raise SkipTest(
-            'CLOUD_PROVIDER({!r}) is not OpenStack. '.format(provider_name)
-        )
+    return get_client('openstack')
 
 
 def tidy_cinder_client_for_test(test_case):

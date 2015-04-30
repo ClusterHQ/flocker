@@ -59,19 +59,6 @@ class EBSBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``EBSBlockDeviceAPI``.
     """
-    def test_foreign_cluster_volume(self):
-        """
-        Test that volumes created for two Flocker clusters
-        using two ``EBSBlockDeviceAPI``s are listed
-        separate in ``list_volumes``.
-        """
-        block_device_api2 = ebsblockdeviceapi_for_test(
-            test_case=self,
-            cluster_id=uuid4(),
-        )
-
-        self.assert_volumes_distinct(block_device_api2)
-
     def test_foreign_volume(self):
         """
         Test that ``list_volumes`` lists only those volumes
