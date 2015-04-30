@@ -192,6 +192,8 @@ def make_idockerclient_tests(fixture):
             """
             Each container also records the container name twice.
             """
+            # This is silly behavior.  Get rid of it when fixing
+            # <https://clusterhq.atlassian.net/browse/FLOC-819>.
             client = fixture(self)
             name = random_name(self)
             self.addCleanup(client.remove, name)
