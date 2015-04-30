@@ -15,15 +15,18 @@ from twisted.python.log import LogPublisher
 from twisted.python import log as twisted_log
 from twisted.internet.defer import Deferred
 from twisted.application.service import Service
+from twisted.python.usage import Options
 
 from ..script import (
-    flocker_standard_options, FlockerScriptRunner, main_for_service,
+    FlockerScriptRunner, main_for_service,
     EliotObserver, TWISTED_LOG_MESSAGE,
+    _flocker_standard_options,
     )
 from ...testtools import (
-    help_problems, FakeSysModule, StandardOptionsTestsMixin,
+    help_problems, FakeSysModule,
     MemoryCoreReactor,
     )
+from ... import __version__
 
 
 class FlockerScriptRunnerInitTests(SynchronousTestCase):
@@ -36,7 +39,7 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         self.assertIs(
             sys,
             FlockerScriptRunner(
-                script=None, options=None).sys_module
+                script=None, options=Options).sys_module
         )
 
     def test_sys_override(self):
@@ -46,7 +49,7 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         dummySys = object()
         self.assertIs(
             dummySys,
-            FlockerScriptRunner(script=None, options=None,
+            FlockerScriptRunner(script=None, options=Options,
                                 sys_module=dummySys).sys_module
         )
 
@@ -56,7 +59,7 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         """
         self.assertIs(
             task.react,
-            FlockerScriptRunner(script=None, options=None)._react
+            FlockerScriptRunner(script=None, options=Options)._react
         )
 
 
@@ -74,7 +77,7 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
                 self.parseOptionsArguments = arguments
 
         expectedArguments = [object(), object()]
-        runner = FlockerScriptRunner(script=None, options=OptionsSpy())
+        runner = FlockerScriptRunner(script=None, options=OptionsSpy)
         options = runner._parse_options(expectedArguments)
         self.assertEqual(expectedArguments, options.parseOptionsArguments)
 
@@ -95,7 +98,7 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
 
         fake_sys = FakeSysModule()
 
-        runner = FlockerScriptRunner(script=None, options=FakeOptions(),
+        runner = FlockerScriptRunner(script=None, options=FakeOptions,
                                      sys_module=fake_sys)
         error = self.assertRaises(SystemExit, runner._parse_options, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
@@ -125,7 +128,7 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
                 self.arguments = arguments
                 return succeed(None)
 
-        options = SpyOptions()
+        options = SpyOptions
         script = SpyScript()
         sys = FakeSysModule(argv=[b"flocker", b"--hello", b"world"])
         # XXX: We shouldn't be using this private fake and Twisted probably
@@ -156,25 +159,58 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         # https://twistedmatrix.com/trac/ticket/7527
         from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(script, usage.Options(),
+        runner = FlockerScriptRunner(script, usage.Options,
                                      reactor=fakeReactor, sys_module=sys,
                                      logging=False)
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(sys.stdout.getvalue(), b"")
 
 
-@flocker_standard_options
 class TestOptions(usage.Options):
     """An unmodified ``usage.Options`` subclass for use in testing."""
 
 
-class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
-                                  SynchronousTestCase):
-    """Tests for ``flocker_standard_options``
+class FlockerStandardOptionsTests(SynchronousTestCase):
+    """Tests for ``_flocker_standard_options``
 
     Using a decorating an unmodified ``usage.Options`` subclass.
     """
-    options = TestOptions
+    options = _flocker_standard_options(TestOptions)
+
+    def test_sys_module_default(self):
+        """
+        ``flocker_standard_options`` adds a ``_sys_module`` attribute which is
+        ``sys`` by default.
+        """
+        self.assertIs(sys, self.options()._sys_module)
+
+    def test_sys_module_override(self):
+        """
+        ``flocker_standard_options`` adds a ``sys_module`` argument to the
+        initialiser which is assigned to ``_sys_module``.
+        """
+        dummy_sys_module = object()
+        self.assertIs(
+            dummy_sys_module,
+            self.options(sys_module=dummy_sys_module)._sys_module
+        )
+
+    def test_version(self):
+        """
+        Flocker commands have a `--version` option which prints the current
+        version string to stdout and causes the command to exit with status
+        `0`.
+        """
+        sys = FakeSysModule()
+        error = self.assertRaises(
+            SystemExit,
+            self.options(sys_module=sys).parseOptions,
+            ['--version']
+        )
+        self.assertEqual(
+            (__version__ + '\n', 0),
+            (sys.stdout.getvalue(), error.code)
+        )
 
 
 class AsyncStopService(Service):

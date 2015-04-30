@@ -5,14 +5,13 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from ..script import ControlOptions, ControlScript
-from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin
+from ...testtools import MemoryCoreReactor
 from .._clusterstate import ClusterStateService
 from .._protocol import ControlAMP, ControlAMPService
 from ..httpapi import REST_API_PORT
 
 
-class ControlOptionsTests(StandardOptionsTestsMixin,
-                          SynchronousTestCase):
+class ControlOptionsTests(SynchronousTestCase):
     """
     Tests for ``ControlOptions``.
     """

@@ -9,9 +9,6 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.python.usage import Options
 
-from ...testtools import (
-    StandardOptionsTestsMixin
-)
 from ..testtools import (
     make_volume_options_tests
 )
@@ -36,7 +33,7 @@ class VolumeManagerScriptMainTests(SynchronousTestCase):
         self.assertIs(None, self.successResultOf(result))
 
 
-class VolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class VolumeOptionsTests(SynchronousTestCase):
     """
     Tests for :class:`VolumeOptions`.
     """

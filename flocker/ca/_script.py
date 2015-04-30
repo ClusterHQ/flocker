@@ -15,7 +15,7 @@ from twisted.python.usage import Options, UsageError
 
 from zope.interface import implementer
 
-from ..common.script import (flocker_standard_options, ICommandLineScript,
+from ..common.script import (ICommandLineScript,
                              FlockerScriptRunner)
 
 from ._ca import (RootCredential, ControlCredential, NodeCredential,
@@ -89,7 +89,6 @@ class PrettyOptions(Options):
         return synopsis
 
 
-@flocker_standard_options
 class NodeCertificateOptions(PrettyOptions):
     """
     Command line options for ``flocker-ca create-node-certificate``.
@@ -145,7 +144,6 @@ class NodeCertificateOptions(PrettyOptions):
         return succeed(None)
 
 
-@flocker_standard_options
 class ControlCertificateOptions(PrettyOptions):
     """
     Command line options for ``flocker-ca create-control-certificate``.
@@ -205,7 +203,6 @@ class ControlCertificateOptions(PrettyOptions):
         return succeed(None)
 
 
-@flocker_standard_options
 class InitializeOptions(PrettyOptions):
     """
     Command line options for ``flocker-ca initialize``.
@@ -255,7 +252,6 @@ class InitializeOptions(PrettyOptions):
         return succeed(None)
 
 
-@flocker_standard_options
 class CAOptions(PrettyOptions):
     """
     Command line options for ``flocker-ca``.
@@ -292,4 +288,4 @@ class CAScript(object):
 
 def flocker_ca_main():
     return FlockerScriptRunner(
-        CAScript(), CAOptions(), logging=False).main()
+        CAScript(), CAOptions, logging=False).main()

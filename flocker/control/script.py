@@ -14,11 +14,10 @@ from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
 from ..common.script import (
-    flocker_standard_options, FlockerScriptRunner, main_for_service)
+    FlockerScriptRunner, main_for_service)
 from ._protocol import ControlAMPService
 
 
-@flocker_standard_options
 class ControlOptions(Options):
     """
     Command line options for ``flocker-control`` cluster management process.
@@ -57,5 +56,5 @@ class ControlScript(object):
 def flocker_control_main():
     return FlockerScriptRunner(
         script=ControlScript(),
-        options=ControlOptions()
+        options=ControlOptions,
     ).main()

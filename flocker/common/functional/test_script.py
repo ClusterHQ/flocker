@@ -83,7 +83,7 @@ from flocker.common.script import FlockerScriptRunner
 
 from flocker.common.functional.test_script import {}
 
-FlockerScriptRunner({}(), Options()).main()
+FlockerScriptRunner({}(), Options).main()
 '''.format(script.__name__, script.__name__)
         d = getProcessOutput(sys.executable, [b"-c", code], env=os.environ,
                              errortoo=True)

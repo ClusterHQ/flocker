@@ -19,41 +19,37 @@ from .. import __version__
 
 
 __all__ = [
-    'flocker_standard_options',
     'ICommandLineScript',
     'FlockerScriptRunner',
     'main_for_service',
 ]
 
 
-def flocker_standard_options(cls):
+def _flocker_standard_options(cls):
     """Add various standard command line options to flocker commands.
 
     :param type cls: The `class` to decorate.
     :return: The decorated `class`.
     """
-    original_init = cls.__init__
+    class FlockerStandardOptions(cls):
 
-    def __init__(self, *args, **kwargs):
-        """Set the default verbosity to `0`
+        def __init__(self, *args, **kwargs):
+            """Set the default verbosity to `0`
 
-        Calls the original ``cls.__init__`` method finally.
+            Calls the original ``cls.__init__`` method finally.
 
-        :param sys_module: An optional ``sys`` like module for use in
-            testing. Defaults to ``sys``.
-        """
-        self._sys_module = kwargs.pop('sys_module', sys)
-        self['verbosity'] = 0
-        original_init(self, *args, **kwargs)
-    cls.__init__ = __init__
+            :param sys_module: An optional ``sys`` like module for use in
+                testing. Defaults to ``sys``.
+            """
+            self._sys_module = kwargs.pop('sys_module', sys)
+            cls.__init__(self, *args, **kwargs)
 
-    def opt_version(self):
-        """Print the program's version and exit."""
-        self._sys_module.stdout.write(__version__.encode('utf-8') + b'\n')
-        raise SystemExit(0)
-    cls.opt_version = opt_version
+        def opt_version(self):
+            """Print the program's version and exit."""
+            self._sys_module.stdout.write(__version__.encode('utf-8') + b'\n')
+            raise SystemExit(0)
 
-    return cls
+    return FlockerStandardOptions
 
 
 class ICommandLineScript(Interface):
@@ -113,14 +109,14 @@ class FlockerScriptRunner(object):
                  reactor=None, sys_module=None):
         """
         :param ICommandLineScript script: The script object to be run.
-        :param usage.Options options: An option parser object.
+        :param type options: ``usage.Options`` subclass.
         :param logging: If ``True``, log to stdout; otherwise don't log.
         :param reactor: Optional reactor to override default one.
         :param sys_module: An optional ``sys`` like module for use in
             testing. Defaults to ``sys``.
         """
         self.script = script
-        self.options = options
+        self.options_class = _flocker_standard_options(options)
         self.logging = logging
         if reactor is None:
             reactor = global_reactor
@@ -140,13 +136,14 @@ class FlockerScriptRunner(object):
         :return: A ``dict`` of configuration options.
         """
         try:
-            self.options.parseOptions(arguments)
+            options = self.options_class()
+            options.parseOptions(arguments)
         except usage.UsageError as e:
-            self.sys_module.stderr.write(unicode(self.options).encode('utf-8'))
+            self.sys_module.stderr.write(unicode(options).encode('utf-8'))
             self.sys_module.stderr.write(
                 b'ERROR: ' + e.message.encode('utf-8') + b'\n')
             raise SystemExit(1)
-        return self.options
+        return options
 
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
