@@ -896,6 +896,22 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         configured to have a manifestation on the deployer's node and returns a
         state change to detach the volume.
         """
+        # Give it a state that says it has no manifestations but it does have
+        # some attached volumes.
+        node_state = NodeState(
+            uuid=self.NODE_UUID, hostname=self.NODE,
+            manifestations={},
+            devices={self.DATASET_ID: FilePath(b"/dev/xda")},
+        )
+
+        # Give it a configuration that says no datasets should be manifest on
+        # the deployer's node.
+        node_config = to_node(node_state)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            in_parallel(changes=[DetachVolume(dataset_id=self.DATASET_ID)])
+        )
 
 
 class BlockDeviceDeployerResizeCalculateChangesTests(
