@@ -44,8 +44,11 @@ Ubuntu
 TODO
 
 TODO? Move most of this document somewhere?
-TODO? Make the service file assert the file exists
-TODO? Make the provision code use the config?
+TODO? Change the name of the file?
+TODO Make the service file assert the file exists
+TODO Make the provision._install code use the config
+
+
 
 API Details
 ===========
