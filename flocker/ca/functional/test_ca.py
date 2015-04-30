@@ -148,7 +148,7 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
                 openssl_verify(b"cluster.crt", b"alice.crt")
             )
         except CalledProcessError as e:
-            print str(e)
+            print e.output
         os.remove(b"alice.crt")
         os.remove(b"alice.key")
 
