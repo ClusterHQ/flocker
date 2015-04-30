@@ -24,7 +24,7 @@ class VolumesCreateTests(SynchronousTestCase):
         ``metadata`` supplied when creating a volume is included when that
         volume is subsequently listed.
         """
-        expected_metadata = {random_name(): "bar"}
+        expected_metadata = {random_name(self): "bar"}
 
         new_volume = self.cinder_client.volumes.create(
             size=100,
@@ -62,7 +62,7 @@ class VolumesSetMetadataTests(SynchronousTestCase):
         ``metadata`` supplied to update_metadata is included when that
         volume is subsequently listed.
         """
-        expected_metadata = {random_name(): u"bar"}
+        expected_metadata = {random_name(self): u"bar"}
 
         new_volume = self.cinder_client.volumes.create(size=100,)
 

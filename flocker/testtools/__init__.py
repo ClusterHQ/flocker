@@ -14,7 +14,7 @@ import os
 import pwd
 from collections import namedtuple
 from contextlib import contextmanager
-from random import random
+from random import randrange
 import shutil
 from functools import wraps
 from unittest import skipIf, skipUnless
@@ -24,6 +24,8 @@ from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 from bitmath import GB
 
 from pyrsistent import PRecord, field
+
+from docker import Client as DockerClient
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
@@ -44,8 +46,6 @@ from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.protocols.amp import AMP, InvalidSignature
 from twisted.python.log import msg
-
-from characteristic import attributes
 
 from .. import __version__
 from ..common.script import (
@@ -215,12 +215,16 @@ def loop_until(predicate):
     return d
 
 
-def random_name():
-    """Return a short, random name.
+def random_name(case):
+    """
+    Return a short, random name.
+
+    :param TestCase case: The test case being run.  The test method that is
+        running will be mixed into the name.
 
     :return name: A random ``unicode`` name.
     """
-    return u"%d" % (int(random() * 1e12),)
+    return u"{}-{}".format(case.id().replace(u".", u"_"), randrange(10 ** 6))
 
 
 def help_problems(command_name, help_text):
@@ -548,15 +552,19 @@ class ProtocolPoppingFactory(Factory):
         return self.protocols.pop()
 
 
-@attributes(['test', 'source_dir'])
-class DockerImageBuilder(object):
+class DockerImageBuilder(PRecord):
     """
     Build a docker image, tag it, and remove the image later.
 
     :ivar TestCase test: The test the builder is being used in.
     :ivar FilePath source_dir: The path to the directory containing a
         ``Dockerfile.in`` file.
+    :ivar bool cleanup: If ``True`` then cleanup after the test is done.
     """
+    test = field(mandatory=True)
+    source_dir = field(mandatory=True)
+    cleanup = field(mandatory=True, initial=True)
+
     def _process_template(self, template_file, target_file, replacements):
         """
         Fill in the placeholders in `template_file` with the `replacements` and
@@ -595,7 +603,7 @@ class DockerImageBuilder(object):
         if template_file.exists() and not docker_file.exists():
             self._process_template(
                 template_file, docker_file, dockerfile_variables)
-        tag = b"flockerlocaltests/" + random_name()
+        tag = b"flockerlocaltests/" + random_name(self.test).lower()
 
         # XXX: This dumps lots of debug output to stderr which messes up the
         # test results output. It's useful debug info incase of a test failure
@@ -609,7 +617,14 @@ class DockerImageBuilder(object):
             docker_dir.path
         ]
         run_process(command)
-        self.test.addCleanup(run_process, [b"docker", b"rmi", tag])
+        if self.cleanup:
+            def remove_image():
+                client = DockerClient()
+                for container in client.containers():
+                    if container[u"Image"] == tag + ":latest":
+                        client.remove_container(container[u"Names"][0])
+                client.remove_image(tag, force=True)
+            self.test.addCleanup(remove_image)
         return tag
 
 
