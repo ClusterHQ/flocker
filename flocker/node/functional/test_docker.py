@@ -220,7 +220,7 @@ class GenericDockerClientTests(TestCase):
             b"FROM busybox\nCMD /bin/true\n")
         image_name = DockerImageBuilder(test=self, source_dir=path,
                                         cleanup=False).build()
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(unit_name=name, image_name=image_name,
                                  expected_states=(u'inactive',))
 
@@ -831,7 +831,7 @@ class DockerClientTests(TestCase):
         :param str method_name: Method of a docker ``Client``.
         :return: ``Deferred`` firing on test success.
         """
-        name = random_name()
+        name = random_name(self)
         client = DockerClient()
         self.addCleanup(client.remove, name)
         d = client.add(name, u"busybox:latest")
