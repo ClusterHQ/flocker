@@ -84,6 +84,9 @@ def _get_external_ip(host, port):
         sock.close()
 
 
+def configuration_from_options(options):
+    # TODO this can be tested to check for version, incorrect yml etc
+
 @implementer(ICommandLineVolumeScript)
 class ZFSAgentScript(object):
     """
@@ -91,8 +94,8 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        config = yaml.safe_load(options['control-service-config'].getContent())
-        host = config['control-service-hostname']
+        configuration = configuration_from_options(options)
+        host = configuration['control-service-hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then

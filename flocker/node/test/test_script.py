@@ -260,15 +260,15 @@ def make_amp_agent_options_tests(options_type):
     class Tests(SynchronousTestCase):
         def setUp(self):
             self.options = options_type()
-            scratch_directory = FilePath(self.mktemp())
-            scratch_directory.makedirs()
+            self.scratch_directory = FilePath(self.mktemp())
+            self.scratch_directory.makedirs()
             self.sample_content = yaml.safe_dump(
                 {
                     b"control-service-hostname": b"10.0.0.1",
                     b"version": 1,
                 }
             )
-            self.config = scratch_directory.child('dataset-config.yml')
+            self.config = self.scratch_directory.child('dataset-config.yml')
             self.config.setContent(self.sample_content)
 
         def test_default_port(self):
