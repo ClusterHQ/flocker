@@ -893,32 +893,6 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         configured to have a manifestation on the deployer's node and returns a
         state change to detach the volume.
         """
-        deployer = create_blockdevicedeployer(
-            self, hostname=self.NODE, node_uuid=self.NODE_UUID
-        )
-        api = deployer.block_device_api
-
-        # A "trap" volume.  It's not attached, it shouldn't trip up the
-        # discovery.
-        unattached = api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
-        )
-        volume = api.create_volume(
-            dataset_id=self.DATASET_ID,
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-        api.attach_volume(
-            volume.blockdevice_id, deployer.hostname,
-        )
-        assert_discovered_state(
-            self, deployer, deployer.hostname, expected_manifestations=[],
-            expected_nonmanifest_datasets=[
-                unattached.dataset_id, volume.dataset_id,
-            ],
-            expected_devices={
-                self.DATASET_ID: api.get_device_path(volume.blockdevice_id),
-            }
-        )
 
 
 class BlockDeviceDeployerResizeCalculateChangesTests(
