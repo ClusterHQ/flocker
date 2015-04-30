@@ -4,6 +4,8 @@
 
 import sys
 
+from appdirs import user_log_dir
+
 from eliot import MessageType, fields, Logger
 from eliot.logwriter import ThreadedFileWriter
 
@@ -12,6 +14,7 @@ from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
 from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
+from twisted.python.constants import Names, NamedConstant
 
 from zope.interface import Interface
 
@@ -24,6 +27,23 @@ __all__ = [
     'FlockerScriptRunner',
     'main_for_service',
 ]
+
+
+class LoggingPolicy(Names):
+    """
+    Logging policy to use.
+
+    :cvar DISCARD: Discard all logs.
+    :cvar STDOUT: Log to standard out.
+    :cvar FILE: Log to a file. Defaults to a file in XDG_CACHE_HOME, but
+        overrideable on the command line.
+    """
+    # Used by legacy flocker-volume
+    DISCARD = NamedConstant()
+    # Used by daemons (flocker-control, flocker-*-agent)
+    STDOUT = NamedConstant()
+    # Used by CLI scripts (flocker, flocker-ca, flocker-deploy, flocker-provision)
+    FILE = NamedConstant()
 
 
 def flocker_standard_options(cls):
@@ -53,11 +73,18 @@ def flocker_standard_options(cls):
         raise SystemExit(0)
     cls.opt_version = opt_version
 
+    # verbose and log-dir should be in a separate decorator
+    # that is only applied to CLI scripts
     def opt_verbose(self):
         """Turn on verbose logging."""
         self['verbosity'] += 1
     cls.opt_verbose = opt_verbose
     cls.opt_v = opt_verbose
+
+    cls.optParameters = getattr(cls, 'optParameters', [])
+    cls.optParameters.append(
+        ['log-dir', None, user_log_dir("Flocker", "ClusterHQ"),
+         "Directory to put log-files in."])
 
     return cls
 
@@ -115,7 +142,7 @@ class FlockerScriptRunner(object):
     """
     _react = staticmethod(task.react)
 
-    def __init__(self, script, options, logging=True,
+    def __init__(self, script, options, logging=LoggingPolicy.STDOUT,
                  reactor=None, sys_module=None):
         """
         :param ICommandLineScript script: The script object to be run.
@@ -131,6 +158,10 @@ class FlockerScriptRunner(object):
         if reactor is None:
             reactor = global_reactor
         self._reactor = reactor
+
+        if logging is LoggingPolicy.FILE:
+            # This adds log-dir (and verbose?) to the provided options.
+            self.options = flocker_logging_options(options)
 
         if sys_module is None:
             sys_module = sys
@@ -160,7 +191,8 @@ class FlockerScriptRunner(object):
         # always do this first before any side-effecty code is run:
         options = self._parse_options(self.sys_module.argv[1:])
 
-        if self.logging:
+        # TODO Factor this out to dispatch on LoggingPolicy
+        if self.logging is LoggingPolicy.STDOUT:
             log_writer = ThreadedFileWriter(self.sys_module.stdout,
                                             self._reactor)
             log_writer.startService()
@@ -170,6 +202,12 @@ class FlockerScriptRunner(object):
             # contrast needs to be shutdown because it starts a thread
             # that will keep the process from exiting.
             observer.start()
+        elif self.logging is LoggingPolicy.STDOUT:
+            log_dir = FilePath(self.options['log-dir'])
+            log_file = log_dir.child(
+                b"%s-%d.log" % (os.path.basename(self.sys_module.argv[0]),
+                                os.getpid())).open("a")
+            # Start logging to log_file
 
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
