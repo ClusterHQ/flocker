@@ -818,9 +818,6 @@ class ConfigurationAPIUserV1(object):
         :param deployment: Configuration of which applications run on
             which nodes.
         """
-        # XXX we're going to have to deal with UUIDs better,
-        # somehow... look up state of cluster? Change deployment
-        # configuration format?
         try:
             configuration = FigConfiguration(applications)
             if not configuration.is_valid_format():
