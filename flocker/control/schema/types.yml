@@ -195,10 +195,27 @@ definitions:
     oneOf:
       - format: ipv4
 
+  node_host:
+    title: "Host"
+    description: |
+      The IP address of a node in the cluster.
+    type: string
+    oneOf:
+      - format: ipv4
+
   node_uuid:
     title: "Node"
     description: |
-      The UUID of the node where the container will run.
+      The UUID of a node in the cluster.
+    type: string
+    # The length of a stringified uuid
+    minLength: 36
+    maxLength: 36
+
+  container_node_uuid:
+    title: "Node"
+    description: |
+      The UUID of a node in the cluster where the container will run.
     type: string
     # The length of a stringified uuid
     minLength: 36

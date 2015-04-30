@@ -17,7 +17,7 @@ definitions:
     type: object
     properties:
       node_uuid:
-        '$ref': 'types.json#/definitions/node_uuid'
+        '$ref': 'types.json#/definitions/container_node_uuid'
       name:
         '$ref': 'types.json#/definitions/container_name'
       image:
@@ -62,7 +62,7 @@ definitions:
     type: object
     properties:
       node_uuid:
-        '$ref': 'types.json#/definitions/node_uuid'
+        '$ref': 'types.json#/definitions/container_node_uuid'
     required:
       - node_uuid
     additionalProperties: false
@@ -74,7 +74,7 @@ definitions:
       type: object
       properties:
         host:
-          '$ref': 'types.json#/definitions/host'
+          '$ref': 'types.json#/definitions/node_host'
         uuid:
           '$ref': 'types.json#/definitions/node_uuid'
       required:
@@ -86,7 +86,7 @@ definitions:
     type: object
     properties:
       node_uuid:
-        '$ref': 'types.json#/definitions/node_uuid'
+        '$ref': 'types.json#/definitions/container_node_uuid'
       host:
         '$ref': 'types.json#/definitions/host'
       name:
