@@ -17,9 +17,6 @@ from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
 
 
 EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
-EXPIRY_DATE = datetime.datetime.now()
-EXPIRY_DATE = EXPIRY_DATE + datetime.timedelta(seconds=EXPIRY_20_YEARS)
-EXPIRY_DATE = EXPIRY_DATE.strftime(b"%Y%m%d%H%M%SZ")
 
 AUTHORITY_CERTIFICATE_FILENAME = b"cluster.crt"
 AUTHORITY_KEY_FILENAME = b"cluster.key"
@@ -80,7 +77,8 @@ class ComparableKeyPair(object):
         return not self.__eq__(other)
 
 
-def create_certificate_authority(keypair, dn, request, serial, expiry, digest):
+def create_certificate_authority(keypair, dn, request, serial,
+                                 validity_period, digest, start=None):
     """
     Sign a CertificateRequest with extensions for use as a CA certificate.
 
@@ -99,18 +97,26 @@ def create_certificate_authority(keypair, dn, request, serial, expiry, digest):
 
     :param int serial: The certificate serial number.
 
-    :param bytes expiry: ASN1 formatted datetime string representing the
-        certificate's expiry date, e.g. "20150430132453Z"
+    :param int validity_period: The number of seconds from ``start`` after
+        which the certificate expires.
 
     :param bytes digest: The digest algorithm to use.
+
+    :param datetime start: The datetime from which the certificate is valid.
+        Defaults to current date and time.
     """
+    if start is None:
+        start = datetime.datetime.now()
+    expire = start + datetime.timedelta(seconds=validity_period)
+    start = start.strftime(b"%Y%m%d%H%M%SZ")
+    expire = expire.strftime(b"%Y%m%d%H%M%SZ")
     req = request.original
     cert = crypto.X509()
     dn._copyInto(cert.get_issuer())
     cert.set_subject(req.get_subject())
     cert.set_pubkey(req.get_pubkey())
-    cert.gmtime_adj_notBefore(0)
-    cert.set_notAfter(expiry)
+    cert.set_notBefore(start)
+    cert.set_notAfter(expire)
     cert.set_serial_number(serial)
     cert.add_extensions([
         crypto.X509Extension("basicConstraints", True,
@@ -130,7 +136,8 @@ def create_certificate_authority(keypair, dn, request, serial, expiry, digest):
     return Certificate(cert)
 
 
-def sign_certificate_request(keypair, dn, request, serial, expiry, digest):
+def sign_certificate_request(keypair, dn, request, serial,
+                             validity_period, digest, start=None):
     """
     Sign a CertificateRequest and return a Certificate.
 
@@ -145,18 +152,26 @@ def sign_certificate_request(keypair, dn, request, serial, expiry, digest):
 
     :param int serial: The certificate serial number.
 
-    :param bytes expiry: ASN1 formatted datetime string representing the
-        certificate's expiry date, i.e. "20150430132453Z"
+    :param int validity_period: The number of seconds from ``start`` after
+        which the certificate expires.
 
     :param bytes digest: The digest algorithm to use.
+
+    :param datetime start: The datetime from which the certificate is valid.
+        Defaults to current date and time.
     """
+    if start is None:
+        start = datetime.datetime.now()
+    expire = start + datetime.timedelta(seconds=validity_period)
+    start = start.strftime(b"%Y%m%d%H%M%SZ")
+    expire = expire.strftime(b"%Y%m%d%H%M%SZ")
     req = request.original
     cert = crypto.X509()
     dn._copyInto(cert.get_issuer())
     cert.set_subject(req.get_subject())
     cert.set_pubkey(req.get_pubkey())
-    cert.gmtime_adj_notBefore(0)
-    cert.set_notAfter(expiry)
+    cert.set_notBefore(start)
+    cert.set_notAfter(expire)
     cert.set_serial_number(serial)
     cert.sign(keypair.original, digest)
     return Certificate(cert)
@@ -288,9 +303,9 @@ class UserCredential(PRecord):
             files are stored.
         :param bytes username: A UTF-8 encoded username.
         """
-        username = unicode(username, "utf-8")
-        key_filename = username + b".key"
-        cert_filename = username + b".crt"
+        username = username.decode("utf-8")
+        key_filename = username + u".key"
+        cert_filename = username + u".crt"
         keypair, certificate = load_certificate_from_path(
             path, key_filename, cert_filename
         )
@@ -299,7 +314,7 @@ class UserCredential(PRecord):
         return cls(credential=credential, username=username)
 
     @classmethod
-    def initialize(cls, output_path, authority, username):
+    def initialize(cls, output_path, authority, username, begin=None):
         """
         Generate a certificate signed by the supplied root certificate.
 
@@ -309,12 +324,14 @@ class UserCredential(PRecord):
             which this certificate will be signed.
         :param bytes username: A UTF-8 encoded username to be included in
             the certificate.
+        :param datetime begin: The datetime from which the generated
+            certificate should be valid.
         """
-        username = unicode(username, "utf-8")
-        key_filename = username + b".key"
-        cert_filename = username + b".crt"
+        username = username.decode("utf-8")
+        key_filename = username + u".key"
+        cert_filename = username + u".crt"
         # The common name for the node certificate.
-        name = b"user-" + username
+        name = u"user-" + username
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
@@ -329,7 +346,7 @@ class UserCredential(PRecord):
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_DATE, b'sha256'
+            serial, EXPIRY_20_YEARS, b'sha256', start=begin
         )
         credential = FlockerCredential(
             path=output_path, keypair=keypair, certificate=cert
@@ -368,19 +385,24 @@ class NodeCredential(PRecord):
         return cls(credential=credential, uuid=uuid)
 
     @classmethod
-    def initialize(cls, path, authority, **kwargs):
+    def initialize(cls, path, authority, begin=None, uuid=None):
         """
         Generate a certificate signed by the supplied root certificate.
 
         :param FilePath path: Directory where the certificate will be stored.
         :param CertificateAuthority authority: The certificate authority with
             which this certificate will be signed.
+        :param datetime begin: The datetime from which the generated
+            certificate should be valid.
+        :param bytes uuid: The UUID to be included in this certificate.
+            Generated if not supplied.
         """
-        node_uuid = kwargs.pop("uuid", str(uuid4()))
-        key_filename = b"{uuid}.key".format(uuid=node_uuid)
-        cert_filename = b"{uuid}.crt".format(uuid=node_uuid)
+        if uuid is None:
+            uuid = bytes(uuid4())
+        key_filename = b"{uuid}.key".format(uuid=uuid)
+        cert_filename = b"{uuid}.crt".format(uuid=uuid)
         # The common name for the node certificate.
-        name = b"node-{uuid}".format(uuid=node_uuid)
+        name = b"node-{uuid}".format(uuid=uuid)
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
@@ -395,13 +417,13 @@ class NodeCredential(PRecord):
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_DATE, 'sha256'
+            serial, EXPIRY_20_YEARS, 'sha256', start=begin
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
             key_filename, cert_filename)
-        instance = cls(credential=credential, uuid=node_uuid)
+        instance = cls(credential=credential, uuid=uuid)
         return instance
 
 
@@ -425,13 +447,15 @@ class ControlCredential(PRecord):
         return cls(credential=credential)
 
     @classmethod
-    def initialize(cls, path, authority):
+    def initialize(cls, path, authority, begin=None):
         """
         Generate a certificate signed by the supplied root certificate.
 
         :param FilePath path: Directory where the certificate will be stored.
         :param RootCredential authority: The certificate authority with
             which this certificate will be signed.
+        :param datetime begin: The datetime from which the generated
+            certificate should be valid.
         """
         # The common name for the control service certificate.
         # This is used to distinguish between control service and node
@@ -451,7 +475,7 @@ class ControlCredential(PRecord):
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_DATE, 'sha256'
+            serial, EXPIRY_20_YEARS, 'sha256', start=begin
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
@@ -491,7 +515,7 @@ class RootCredential(PRecord):
         return cls(credential=credential)
 
     @classmethod
-    def initialize(cls, path, name):
+    def initialize(cls, path, name, begin=None):
         """
         Generate new private/public key pair and self-sign, then store in
         given directory.
@@ -500,6 +524,8 @@ class RootCredential(PRecord):
             stored.
         :param bytes name: The name of the cluster. This is used as the
             subject and issuer identities of the generated root certificate.
+        :param datetime begin: The datetime from which the generated
+            certificate should be valid.
 
         :return RootCredential: Initialized certificate authority.
         """
@@ -509,7 +535,8 @@ class RootCredential(PRecord):
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
         certificate = create_certificate_authority(
-            keypair.keypair, dn, request, serial, EXPIRY_DATE, 'sha256'
+            keypair.keypair, dn, request, serial,
+            EXPIRY_20_YEARS, b'sha256', start=begin
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=certificate)
