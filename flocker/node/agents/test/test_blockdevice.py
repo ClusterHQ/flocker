@@ -535,6 +535,9 @@ class ScenarioMixin(object):
             unicode(DATASET_ID):
             FilePath(b"/flocker/").child(bytes(DATASET_ID)),
         },
+        devices={
+            DATASET_ID: FilePath(b"/dev/sda"),
+        }
     )
 
 
