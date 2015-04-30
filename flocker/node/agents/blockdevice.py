@@ -534,12 +534,12 @@ class MountBlockDevice(PRecord):
             volume=volume, block_device_path=device,
         ).write(_logger)
 
-        # This should be asynchronous.  Do it as part of FLOC-1499.
         try:
             self.mountpoint.makedirs()
         except OSError as e:
             if EEXIST != e.errno:
                 return fail()
+        # This should be asynchronous.  XXX File an issue.
         check_output([b"mount", device.path, self.mountpoint.path])
         return succeed(None)
 
