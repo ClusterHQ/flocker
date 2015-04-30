@@ -1923,7 +1923,10 @@ class DestroyBlockDeviceDatasetTests(
 
         node = u"192.0.2.3"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+
+        deployer = create_blockdevicedeployer(self, hostname=node)
+        api = deployer.block_device_api
+
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
@@ -1935,12 +1938,6 @@ class DestroyBlockDeviceDatasetTests(
         make_filesystem(device, block_device=True)
         mount(device, mountpoint)
 
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-            mountroot=mountroot,
-        )
         change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
         self.successResultOf(run_state_change(change, deployer))
 
@@ -2229,9 +2226,9 @@ class UnmountBlockDeviceTests(
 
 class DetachVolumeInitTests(
     make_with_init_tests(
-        DetachVolume,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(),
+        record_type=DetachVolume,
+        kwargs=dict(dataset_id=uuid4()),
+        expected_defaults=dict(),
     )
 ):
     """
@@ -2242,8 +2239,8 @@ class DetachVolumeInitTests(
 class DetachVolumeTests(
     make_istatechange_tests(
         DetachVolume,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz")),
+        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4()),
     )
 ):
     """
@@ -2256,23 +2253,18 @@ class DetachVolumeTests(
         """
         node = u"192.0.2.1"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+        deployer = create_blockdevicedeployer(self, hostname=node)
+        api = deployer.block_device_api
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        volume = api.attach_volume(volume.blockdevice_id, node)
+        api.attach_volume(volume.blockdevice_id, node)
 
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-        )
+        change = DetachVolume(dataset_id=dataset_id)
+        self.successResultOf(run_state_change(change, deployer))
 
-        change = DetachVolume(volume=volume)
-        self.successResultOf(change.run(deployer))
-
-        [volume] = api.list_volumes()
-        self.assertIs(None, volume.host)
+        [listed_volume] = api.list_volumes()
+        self.assertIs(None, listed_volume.host)
 
 
 class DestroyVolumeInitTests(
@@ -2732,7 +2724,7 @@ class ResizeFilesystemTests(
         mount = MountBlockDevice(dataset_id=dataset_id, mountpoint=mountpoint)
 
         unmount = UnmountBlockDevice(volume=volume)
-        detach = DetachVolume(volume=volume)
+        detach = DetachVolume(dataset_id=dataset_id)
         resize = ResizeVolume(
             volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2
         )
