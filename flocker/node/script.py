@@ -12,6 +12,7 @@ from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
 from ..volume.service import (
@@ -113,15 +114,17 @@ class _AgentOptions(Options):
     common options with ``ZFSAgentOptions``.
     """
     # Use as basis for subclass' synopsis:
-    synopsis = "Usage: {} [OPTIONS] <control-service-hostname>"
+    synopsis = "Usage: {} [OPTIONS]"
 
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
+        ["config-file", "c", "/etc/flocker/dataset-agent.yml",
+         "The configuration file for the dataset agent."],
     ]
 
-    def parseArgs(self, host):
-        self["destination-host"] = unicode(host, "ascii")
+    def parseArgs(self):
+        self['config-file'] = FilePath(self['config-file'])
 
 
 class DatasetAgentOptions(_AgentOptions):
