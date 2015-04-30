@@ -82,7 +82,7 @@ class GetChecksumTests(SynchronousTestCase):
             filename=example_file.path, mode="wb", mtime=0)
         self.addCleanup(gzip_file.close)
         gzip_file.write("Some content")
-        uri = 'file://' + file.path
+        uri = 'file://' + example_file.path
 
         self.assertEqual(
             'da39a3ee5e6b4b0d3255bfef95601890afd80709',
