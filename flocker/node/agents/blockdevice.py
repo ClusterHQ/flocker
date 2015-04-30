@@ -186,6 +186,12 @@ UNMOUNT_BLOCK_DEVICE = ActionType(
     u"A block-device-backed dataset is being unmounted.",
 )
 
+UNMOUNT_BLOCK_DEVICE_DETAILS = MessageType(
+    u"agent:blockdevice:unmount:details",
+    [VOLUME, BLOCK_DEVICE_PATH],
+    u"The device file for a block-device-backed dataset has been discovered."
+)
+
 MOUNT_BLOCK_DEVICE = ActionType(
     u"agent:blockdevice:mount",
     [DATASET_ID],
@@ -559,12 +565,29 @@ class UnmountBlockDevice(PRecord):
         device.  The volume must be attached to this node and the corresponding
         block device mounted.
         """
-        device = deployer.block_device_api.get_device_path(
-            self.volume.blockdevice_id
+        api = deployer.async_block_device_api
+        listing = api.list_volumes()
+        listing.addCallback(
+            _blockdevice_volume_from_datasetid, self.dataset_id
         )
-        # This should be asynchronous.  Do it as part of FLOC-1499.
-        check_output([b"umount", device.path])
-        return succeed(None)
+
+        def found(volume):
+            if volume is None:
+                # It was not actually found.
+                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
+            d = api.get_device_path(volume.blockdevice_id)
+            d.addCallback(lambda device: (volume, device))
+            return d
+        listing.addCallback(found)
+
+        def got_device((volume, device)):
+            UNMOUNT_BLOCK_DEVICE_DETAILS(
+                volume=volume, block_device_path=device
+            ).write(_logger)
+            # This should be asynchronous. XXX File an issue.
+            check_output([b"umount", device.path])
+        listing.addCallback(got_device)
+        return listing
 
 
 @implementer(IStateChange)
