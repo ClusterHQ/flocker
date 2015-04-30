@@ -4,6 +4,7 @@
 Tests for :module:`flocker.node.script`.
 """
 import netifaces
+import yaml
 
 from zope.interface.verify import verifyObject
 
@@ -27,13 +28,20 @@ class ZFSAgentScriptTests(SynchronousTestCase):
     """
     Tests for ``ZFSAgentScript``.
     """
+    def setUp(self):
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+        self.config = scratch_directory.child('dataset-config.yml')
+        self.config.setContent(
+            yaml.safe_dump({b"control-service-hostname": b"10.0.0.1"}))
+
     def test_main_starts_service(self):
         """
         ``ZFSAgentScript.main`` starts the given service.
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"127.0.0.1"])
+        options.parseOptions([b"--config-file", self.config.path])
         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
@@ -43,7 +51,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         script = ZFSAgentScript()
         options = ZFSAgentOptions()
-        options.parseOptions([b"127.0.0.1"])
+        options.parseOptions([b"--config-file", self.config.path])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
                                         Service()))
 
@@ -53,7 +61,9 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"--destination-port", b"1234", b"10.0.0.1"])
+        options.parseOptions(
+            [b"--destination-port", b"1234",
+             b"--config-file", self.config.path])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
         parent_service = service.parent

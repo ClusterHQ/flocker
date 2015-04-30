@@ -86,7 +86,9 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        host = options["destination-host"]
+        import yaml
+        config = yaml.safe_load(options['config-file'].getContent())
+        host = config['control-service-hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then
