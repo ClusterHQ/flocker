@@ -69,7 +69,7 @@ def openssl_verify(cafile, certificatefile):
         result = run_process(command)
         return result.output.strip() == b"{}: OK".format(certificatefile)
     except CalledProcessError:
-        raise
+        return False
 
 
 class FlockerCATests(make_script_tests(EXECUTABLE)):
@@ -143,12 +143,9 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         signed by the previously generated certificate authority.
         """
         flocker_ca(b"create-api-certificate", b"alice")
-        try:
-            self.assertTrue(
-                openssl_verify(b"cluster.crt", b"alice.crt")
-            )
-        except CalledProcessError as e:
-            print e.output
+        self.assertTrue(
+            openssl_verify(b"cluster.crt", b"alice.crt")
+        )
         os.remove(b"alice.crt")
         os.remove(b"alice.key")
 

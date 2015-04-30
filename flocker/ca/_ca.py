@@ -350,7 +350,9 @@ class UserCredential(PRecord):
             path=output_path, keypair=keypair, certificate=cert
         )
         credential.write_credential_files(
-            key_filename, cert_filename)
+            key_filename.encode('unicode_escape'),
+            cert_filename.encode('unicode_escape')
+        )
         instance = cls(credential=credential, username=username)
         return instance
 
