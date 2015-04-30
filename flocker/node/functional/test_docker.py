@@ -36,6 +36,12 @@ from ..testtools import if_docker_configured, wait_for_unit_state
 
 import requests.packages.urllib3
 
+# During testing, log details of HTTP requests to stderr
+import logging
+handler = logging.StreamHandler()
+handler.setFormatter(
+    logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+logging.getLogger('flocker.node._docker').addHandler(handler)
 requests.packages.urllib3.add_stderr_logger()
 
 

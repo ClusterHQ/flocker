@@ -7,6 +7,7 @@ Docker API client.
 
 from __future__ import absolute_import
 
+import logging
 from time import sleep
 
 from zope.interface import Interface, implementer
@@ -16,8 +17,6 @@ from docker.errors import APIError
 from docker.utils import create_host_config
 
 from pyrsistent import field, PRecord
-
-from eliot import Logger, Message
 
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
@@ -29,7 +28,7 @@ from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
 
 
-logger = Logger()
+logger = logging.getLogger(__name__)
 
 
 class AlreadyExists(Exception):
@@ -504,11 +503,7 @@ class DockerClient(object):
         :return: ``True`` if container is running, otherwise ``False``.
         """
         result = self._client.inspect_container(container_name)
-        Message.new(
-            type=u'flocker:docker:container_state',
-            name=container_name,
-            state=result,
-        ).write(logger)
+        logger.debug('Container %s state %s', container_name, result)
         return result['State']['Running']
 
     def remove(self, unit_name):
@@ -523,19 +518,25 @@ class DockerClient(object):
                 # Docker will return NOT_MODIFIED (which isn't an error) in
                 # that case.
                 try:
+                    logger.debug('Request container %s stop', container_name)
                     self._client.stop(container_name)
                 except APIError as e:
                     if e.response.status_code == NOT_FOUND:
                         # If the container doesn't exist, we swallow the error,
                         # since this method is supposed to be idempotent.
+                        logger.debug('Container %s not found', container_name)
                         break
                     elif e.response.status_code == INTERNAL_SERVER_ERROR:
                         # Docker returns this if the process had died, but
                         # hasn't noticed it yet.
+                        logger.debug(
+                            'Container %s stop internal error - retry',
+                            container_name)
                         continue
                     else:
                         raise
                 else:
+                    logger.debug('Container %s stopped', container_name)
                     break
 
             try:
@@ -545,11 +546,14 @@ class DockerClient(object):
                 while self._blocking_container_runs(container_name):
                     sleep(0.01)
 
+                logger.debug('Container %s remove', container_name)
                 self._client.remove_container(container_name)
+                logger.debug('Container %s removed', container_name)
             except APIError as e:
                 # If the container doesn't exist, we swallow the error,
                 # since this method is supposed to be idempotent.
                 if e.response.status_code == NOT_FOUND:
+                    logger.debug('Container %s not found', container_name)
                     return
                 # Can't figure out how to get test coverage for this, but
                 # it's definitely necessary:
