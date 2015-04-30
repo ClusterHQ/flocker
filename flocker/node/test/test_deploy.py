@@ -1879,6 +1879,32 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         changes = api.calculate_changes(desired, current)
         self.assertEqual(sequentially(changes=[]), changes)
 
+    def test_no_handoff_if_destination_unknown(self):
+        """
+        If there is no known state for the destination of a handoff, then no
+        handoff is suggested by ``calculate_changes``.
+        """
+        node_state = NodeState(
+            uuid=uuid4(),
+            hostname=u"192.2.0.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = DeploymentState(nodes=[node_state])
+        desired = Deployment(nodes={
+            Node(uuid=uuid4(),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
+        })
+
+        api = P2PManifestationDeployer(
+            node_state.hostname, create_volume_service(self),
+            node_uuid=node_state.uuid,
+        )
+
+        changes = api.calculate_changes(desired, current)
+        self.assertEqual(sequentially(changes=[]), changes)
+
     def test_volume_handoff(self):
         """
         ``P2PManifestationDeployer.calculate_changes`` specifies that
