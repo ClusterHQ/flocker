@@ -277,7 +277,7 @@ class UserCredential(PRecord):
     :ivar bytes username: A username.
     """
     credential = field(mandatory=True, type=FlockerCredential)
-    username = field(mandatory=True, type=bytes)
+    username = field(mandatory=True, type=unicode)
 
     @classmethod
     def from_path(cls, path, username):
@@ -288,6 +288,7 @@ class UserCredential(PRecord):
             files are stored.
         :param bytes username: A UTF-8 encoded username.
         """
+        username = unicode(username, "utf-8")
         key_filename = username + b".key"
         cert_filename = username + b".crt"
         keypair, certificate = load_certificate_from_path(
