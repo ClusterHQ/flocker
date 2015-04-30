@@ -249,8 +249,14 @@ def task_enable_flocker_agent(distribution, control_node):
     elif distribution == 'ubuntu-14.04':
         return sequence([
             put(
-                path='/etc/default/flocker-agent.conf',
-                content=AGENT_CONFIG % {'control_node': control_node},
+                path='/etc/flocker/agent.yml',
+                content=yaml.safe_dump(
+                    {
+                        "control-service-endpoint": control_node,
+                    },
+                    # Don't wrap the whole thing in braces
+                    default_flow_style=False,
+                ),
             ),
             run_from_args(['service', 'flocker-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
