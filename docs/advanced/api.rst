@@ -34,7 +34,7 @@ This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the
 
 .. code-block:: yaml
 
-   "version": "0.1"
+   "version": 1
    "control-service-endpoint": "${CONTROL_NODE}"
 
 .. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
@@ -63,7 +63,7 @@ This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the
 
 .. code-block:: yaml
 
-   "version": "0.1"
+   "version": 1
    "control-service-endpoint": "${CONTROL_NODE}"
 
 .. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}

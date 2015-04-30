@@ -55,8 +55,13 @@ class ZFSAgentOptions(Options):
     ]
 
     def postOptions(self):
-        self['control-service-config'] = FilePath(
-            self['control-service-config'])
+        config_file = yaml.safe_load(FilePath(self['control-service-config']).getContent())
+        try:
+            self['control-service-endpoint'] = config_file[
+                'control-service-endpoint']
+        except KeyError:
+            raise ValueError("foo")
+            #raise ConfigurationError("message")
 
 
 def _get_external_ip(host, port):

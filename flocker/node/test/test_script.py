@@ -260,6 +260,16 @@ def make_amp_agent_options_tests(options_type):
     class Tests(SynchronousTestCase):
         def setUp(self):
             self.options = options_type()
+            scratch_directory = FilePath(self.mktemp())
+            scratch_directory.makedirs()
+            self.sample_content = yaml.safe_dump(
+                {
+                    b"control-service-hostname": b"10.0.0.1",
+                    b"version": 1,
+                }
+            )
+            self.config = scratch_directory.child('dataset-config.yml')
+            self.config.setContent(self.sample_content)
 
         def test_default_port(self):
             """
@@ -297,6 +307,82 @@ def make_amp_agent_options_tests(options_type):
             self.assertEqual(
                 self.options["control-service-config"],
                 FilePath("/etc/foo.yml"))
+
+        def test_error_on_file_does_not_exist(self):
+            """
+            A ``ConfigurationError`` is raised if the config file does not
+            contain a ``u"control-service-endpoint"`` key.
+            """
+            config = dict()
+            parser = FlockerConfiguration(config)
+            exception = self.assertRaises(ConfigurationError,
+                                          parser.applications)
+            self.assertEqual(
+                "Application configuration has an error. "
+                "Missing 'applications' key.",
+                exception.message
+            )
+
+        def test_error_on_invalid_yaml(self):
+            """
+            A ``ConfigurationError`` is raised if the config file does not
+            contain a ``u"control-service-endpoint"`` key.
+            """
+            config = dict()
+            parser = FlockerConfiguration(config)
+            exception = self.assertRaises(ConfigurationError,
+                                          parser.applications)
+            self.assertEqual(
+                "Application configuration has an error. "
+                "Missing 'applications' key.",
+                exception.message
+            )
+
+        def test_error_on_missing_endpoint_key(self):
+            """
+            A ``ConfigurationError`` is raised if the config file does not
+            contain a ``u"control-service-endpoint"`` key.
+            """
+            config = dict()
+            parser = FlockerConfiguration(config)
+            exception = self.assertRaises(ConfigurationError,
+                                          parser.applications)
+            self.assertEqual(
+                "Application configuration has an error. "
+                "Missing 'applications' key.",
+                exception.message
+            )
+
+        def test_error_on_missing_version_key(self):
+            """
+            ``Configuration.applications`` raises a
+            ``ConfigurationError`` if the application_configuration does not
+            contain an ``u"version"`` key.
+            """
+            config = dict(applications={})
+            parser = FlockerConfiguration(config)
+            exception = self.assertRaises(ConfigurationError,
+                                          parser.applications)
+            self.assertEqual(
+                "Application configuration has an error. "
+                "Missing 'version' key.",
+                exception.message
+            )
+
+        def test_error_on_incorrect_version(self):
+            """
+            ``Configuration.applications`` raises a
+            ``ConfigurationError`` if the version specified is not 1.
+            """
+            config = dict(applications={}, version=2)
+            parser = FlockerConfiguration(config)
+            exception = self.assertRaises(ConfigurationError,
+                                          parser.applications)
+            self.assertEqual(
+                "Application configuration has an error. "
+                "Incorrect version specified.",
+                exception.message
+            )
 
     return Tests
 

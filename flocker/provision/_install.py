@@ -233,6 +233,7 @@ def task_enable_flocker_agent(distribution, control_node):
         path='/etc/flocker/agent.yml',
         content=yaml.safe_dump(
             {
+                "version": 1,
                 "control-service-endpoint": control_node,
             },
             # Don't wrap the whole thing in braces
