@@ -43,16 +43,17 @@ class ZFSAgentOptions(Options):
     flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
     """
 
-    synopsis = (
-        "Usage: flocker-zfs-agent [OPTIONS] <control-service-hostname>")
+    synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
 
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
+        ["config-file", "c", "/etc/flocker/dataset-agent.yml",
+         "The configuration file for the dataset agent."],
     ]
 
-    def parseArgs(self, host):
-        self["destination-host"] = unicode(host, "ascii")
+    def parseArgs(self):
+        self['config-file'] = FilePath(self['config-file'])
 
 
 def _get_external_ip(host, port):
