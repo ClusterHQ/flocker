@@ -21,7 +21,8 @@ from .. import (RootCredential, ControlCredential, NodeCredential,
 
 from ...testtools import not_root, skip_on_broken_permissions
 
-NODE_UUID = str(uuid4())
+NODE_UUID = bytes(uuid4())
+CLUSTER_UUID = bytes(uuid4())
 
 
 def make_credential_tests(cls, expected_file_name, **kwargs):
@@ -323,18 +324,20 @@ class NodeCredentialTests(
 
 
 class ControlCredentialTests(
-        make_credential_tests(ControlCredential, b"control-service")):
+        make_credential_tests(ControlCredential, b"control-service",
+                              uuid=CLUSTER_UUID)):
     """
     Tests for ``flocker.ca._ca.ControlCredential``.
     """
-    def test_certificate_subject_control_service(self):
+    def test_certificate_subject(self):
         """
         A certificate written by ``ControlCredential.initialize`` has the
-        subject common name "control-service"
+        subject common name "control-service-{uuid}" where UUID is a v4
+        UUID generated for the cluster.
         """
         cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
-        self.assertEqual(subject.CN, b"control-service")
+        self.assertEqual(subject.CN, b"control-service-" + CLUSTER_UUID)
 
 
 class RootCredentialTests(SynchronousTestCase):

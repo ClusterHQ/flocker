@@ -376,7 +376,7 @@ class NodeCredential(PRecord):
         :param CertificateAuthority authority: The certificate authority with
             which this certificate will be signed.
         """
-        node_uuid = kwargs.pop("uuid", str(uuid4()))
+        node_uuid = kwargs.pop("uuid", bytes(uuid4()))
         key_filename = b"{uuid}.key".format(uuid=node_uuid)
         cert_filename = b"{uuid}.crt".format(uuid=node_uuid)
         # The common name for the node certificate.
@@ -412,20 +412,31 @@ class ControlCredential(PRecord):
 
     :ivar FlockerCredential credential: The certificate and key pair
         credential object.
+    :ivar bytes uuid: A unique identifier for the cluster this certificate
+        identifies, in the form of a version 4 UUID.
     """
     credential = field(mandatory=True)
+    uuid = field(mandatory=True, type=bytes)
 
     @classmethod
-    def from_path(cls, path):
+    def from_path(cls, path, **kwargs):
+        uuid = kwargs.pop("uuid", None)
         keypair, certificate = load_certificate_from_path(
             path, CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=certificate)
-        return cls(credential=credential)
+        if uuid is None:
+            subject = certificate.getSubject()
+            common_name = subject["commonName"]
+            # CN takes the format control-service-<UUID>, so we split
+            # up to the second dash to obtain the UUID for this cluster.
+            cn_parts = common_name.split("-", 2)
+            uuid = cn_parts[-1]
+        return cls(credential=credential, uuid=uuid)
 
     @classmethod
-    def initialize(cls, path, authority):
+    def initialize(cls, path, authority, **kwargs):
         """
         Generate a certificate signed by the supplied root certificate.
 
@@ -433,10 +444,11 @@ class ControlCredential(PRecord):
         :param RootCredential authority: The certificate authority with
             which this certificate will be signed.
         """
+        cluster_uuid = kwargs.pop("uuid", bytes(uuid4()))
         # The common name for the control service certificate.
         # This is used to distinguish between control service and node
-        # certificates.
-        name = b"control-service"
+        # certificates. Includes the UUID identifying this cluster.
+        name = b"control-service-" + cluster_uuid
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
@@ -457,7 +469,7 @@ class ControlCredential(PRecord):
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
             CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME)
-        instance = cls(credential=credential)
+        instance = cls(credential=credential, uuid=cluster_uuid)
         return instance
 
 
