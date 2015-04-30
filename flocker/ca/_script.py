@@ -136,16 +136,23 @@ class UserCertificateOptions(PrettyOptions):
 
         try:
             try:
+                self["name"] = self["name"].decode(
+                    self._sys_module.stdin.encoding)
                 ca = RootCredential.from_path(self["inputpath"])
                 uc = UserCredential.initialize(
                     self["outputpath"], ca, self["name"])
                 self._sys_module.stdout.write(
-                    b"Created {user}.crt. You can now give it to your "
-                    "API enduser so they can access the control service "
-                    "API.".format(user=uc.username)
+                    u"Created {user}.crt. You can now give it to your "
+                    u"API enduser so they can access the control service "
+                    u"API.".format(user=uc.username).encode(
+                        self._sys_module.stdout.encoding
+                    )
                 )
             except PathError as e:
                 raise UsageError(str(e))
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                raise UsageError(
+                    u"Invalid username: Could not be converted to UTF-8")
         except UsageError as e:
             raise SystemExit(u"Error: {error}".format(error=str(e)))
         return succeed(None)
@@ -195,8 +202,8 @@ class NodeCertificateOptions(PrettyOptions):
                 nc = NodeCredential.initialize(self["outputpath"], ca)
                 self._sys_module.stdout.write(
                     b"Created {uuid}.crt. Copy it over to "
-                    "/etc/flocker/node.crt on your node "
-                    "machine and make sure to chmod 0600 it.".format(
+                    b"/etc/flocker/node.crt on your node "
+                    b"machine and make sure to chmod 0600 it.".format(
                         uuid=nc.uuid
                     )
                 )
@@ -255,8 +262,8 @@ class ControlCertificateOptions(PrettyOptions):
                 ControlCredential.initialize(self["outputpath"], ca)
                 self._sys_module.stdout.write(
                     b"Created control-service.crt. Copy it over to "
-                    "/etc/flocker/control-service.crt on your control service "
-                    "machine and make sure to chmod 0600 it."
+                    b"/etc/flocker/control-service.crt on your control "
+                    b"service machine and make sure to chmod 0600 it."
                 )
             except (
                 CertificateAlreadyExistsError, KeyAlreadyExistsError, PathError
@@ -305,8 +312,8 @@ class InitializeOptions(PrettyOptions):
                 RootCredential.initialize(self["path"], self["name"])
                 self._sys_module.stdout.write(
                     b"Created cluster.key and cluster.crt. "
-                    "Please keep cluster.key secret, as anyone who can access "
-                    "it will be able to control your cluster."
+                    b"Please keep cluster.key secret, as anyone who can "
+                    b"access it will be able to control your cluster."
                 )
             except (
                 KeyAlreadyExistsError, CertificateAlreadyExistsError, PathError

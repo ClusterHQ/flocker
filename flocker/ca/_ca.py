@@ -301,9 +301,8 @@ class UserCredential(PRecord):
 
         :param FilePath path: Directory where user certificate and key
             files are stored.
-        :param bytes username: A UTF-8 encoded username.
+        :param unicode username: The UTF-8 encoded username.
         """
-        username = username.decode("utf-8")
         key_filename = username + u".key"
         cert_filename = username + u".crt"
         keypair, certificate = load_certificate_from_path(
@@ -322,12 +321,11 @@ class UserCredential(PRecord):
             written.
         :param CertificateAuthority authority: The certificate authority with
             which this certificate will be signed.
-        :param bytes username: A UTF-8 encoded username to be included in
+        :param unicode username: A UTF-8 encoded username to be included in
             the certificate.
         :param datetime begin: The datetime from which the generated
             certificate should be valid.
         """
-        username = username.decode("utf-8")
         key_filename = username + u".key"
         cert_filename = username + u".crt"
         # The common name for the node certificate.
