@@ -103,10 +103,18 @@ class AgentServiceFactoryTests(SynchronousTestCase):
     """
     Tests for ``AgentServiceFactory``.
     """
+    def setUp(self):
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+        self.config = scratch_directory.child('dataset-config.yml')
+        self.config.setContent(
+            yaml.safe_dump({b"control-service-hostname": b"10.0.0.2"}))
+
     def test_get_service(self):
         """
         ``AgentServiceFactory.get_service`` creates ``AgentLoopService``
-        configured with the destination given by the options.
+        configured with the destination given in the config file given by the
+        options.
         """
         deployer = object()
 
@@ -118,7 +126,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([
-            b"--destination-port", b"1234", b"10.0.0.2",
+            b"--destination-port", b"1234", b"--config-file", self.config.path,
         ])
         service_factory = AgentServiceFactory(
             deployer_factory=factory
@@ -146,7 +154,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
-        options.parseOptions([b"10.0.0.2"])
+        options.parseOptions([b"--config-file", self.config.path])
         agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
         self.assertIn(spied[0], get_all_ips())
@@ -314,7 +322,7 @@ class ZFSAgentOptionsTests(make_amp_agent_options_tests(ZFSAgentOptions)):
 
 
 class ZFSAgentOptionsVolumeTests(make_volume_options_tests(
-        ZFSAgentOptions, [b"1.2.3.4"])):
+        ZFSAgentOptions, [])):
     """
     Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """
