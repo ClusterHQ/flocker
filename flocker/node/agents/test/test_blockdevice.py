@@ -908,6 +908,8 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # some attached volumes.
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
+            applications={},
+            used_ports=set(),
             manifestations={},
             devices={self.DATASET_ID: FilePath(b"/dev/xda")},
         )
