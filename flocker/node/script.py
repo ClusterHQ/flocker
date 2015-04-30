@@ -7,6 +7,7 @@ The command-line ``flocker-*-agent`` tools.
 
 from functools import partial
 from socket import socket
+import yaml
 
 from pyrsistent import PRecord, field
 
@@ -49,8 +50,8 @@ class ZFSAgentOptions(Options):
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
-         # TODO we actually have --config from flocker_volume_options
-         # TODO also change the tests to use this
+         # TODO we actually have --config from flocker_volume_options,
+         # maybe that is confusing
         ["config-file", "c", "/etc/flocker/dataset-agent.yml",
          "The configuration file for the dataset agent."],
     ]
@@ -86,7 +87,6 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        import yaml
         config = yaml.safe_load(options['config-file'].getContent())
         host = config['control-service-hostname']
         port = options["destination-port"]
@@ -200,7 +200,8 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        host = options["destination-host"]
+        config = yaml.safe_load(options['config-file'].getContent())
+        host = config['control-service-hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         return AgentLoopService(
