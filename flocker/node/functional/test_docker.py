@@ -206,6 +206,39 @@ class GenericDockerClientTests(TestCase):
                                  expected_states=(u'inactive',))
         return d
 
+    def test_list_with_missing_image(self):
+        """
+        ``DockerClient.list()`` can list containers whose image is missing.
+
+        The resulting output may be inaccurate, but that's OK: this only
+        happens for non-running containers, who at worst we're going to
+        restart anyway.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.child(b"Dockerfile.in").setContent(
+            b"FROM busybox\nCMD /bin/true\n")
+        image_name = DockerImageBuilder(test=self, source_dir=path,
+                                        cleanup=False).build()
+        name = random_name()
+        d = self.start_container(unit_name=name, image_name=image_name,
+                                 expected_states=(u'inactive',))
+
+        def stopped_container_exists(_):
+            # Remove the image:
+            docker_client = Client()
+            docker_client.remove_image(image_name, force=True)
+
+            # Should be able to still list the container:
+            client = self.make_client()
+            listed = client.list()
+            listed.addCallback(lambda results: self.assertIn(
+                (name, "inactive"),
+                [(unit.name, unit.activation_state) for unit in results]))
+            return listed
+        d.addCallback(stopped_container_exists)
+        return d
+
     def test_dead_is_removed(self):
         """
         ``DockerClient.remove()`` removes dead units without error.
@@ -350,11 +383,13 @@ CMD sh -c "trap \"\" 2; sleep 3"
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        image = u"busybox:latest"
+        # Use an image that isn't likely to be in use by anything, since
+        # it's old, and isn't used by other tests:
+        image = u"busybox:ubuntu-12.04"
         # Make sure image is gone:
         docker = Client()
         try:
-            docker.remove_image(image)
+            docker.remove_image(image, force=True)
         except APIError as e:
             if e.response.status_code != 404:
                 raise
@@ -787,6 +822,46 @@ class DockerClientTests(TestCase):
         running_assertions = listing_units.addCallback(check_list)
 
         return running_assertions
+
+    def error_passthrough_test(self, method_name):
+        """
+        If the given method name on the underyling ``Docker`` client has a
+        non-404 error, that gets passed through to ``Docker.list()``.
+
+        :param str method_name: Method of a docker ``Client``.
+        :return: ``Deferred`` firing on test success.
+        """
+        name = random_name()
+        client = DockerClient()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox:latest")
+
+        class Response(object):
+            status_code = 500
+            content = ""
+
+        def error(name):
+            raise APIError("", Response())
+
+        def added(_):
+            # Monekypatch cause triggering non-404 errors from
+            # inspect_container is hard.
+            setattr(client._client, method_name, error)
+            return client.list()
+        d.addCallback(added)
+        return self.assertFailure(d, APIError)
+
+    def test_list_error_inspecting_container(self):
+        """
+        If an error occurs inspecting a container it is passed through.
+        """
+        return self.error_passthrough_test("inspect_container")
+
+    def test_list_error_inspecting_image(self):
+        """
+        If an error occurs inspecting an image it is passed through.
+        """
+        return self.error_passthrough_test("inspect_image")
 
 
 class NamespacedDockerClientTests(GenericDockerClientTests):
