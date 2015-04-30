@@ -53,12 +53,6 @@ def flocker_standard_options(cls):
         raise SystemExit(0)
     cls.opt_version = opt_version
 
-    def opt_verbose(self):
-        """Turn on verbose logging."""
-        self['verbosity'] += 1
-    cls.opt_verbose = opt_verbose
-    cls.opt_v = opt_verbose
-
     return cls
 
 

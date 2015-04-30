@@ -354,54 +354,6 @@ class StandardOptionsTestsMixin(object):
             (sys.stdout.getvalue(), error.code)
         )
 
-    def test_verbosity_default(self):
-        """
-        Flocker commands have `verbosity` of `0` by default.
-        """
-        options = self.options()
-        self.assertEqual(0, options['verbosity'])
-
-    def test_verbosity_option(self):
-        """
-        Flocker commands have a `--verbose` option which increments the
-        configured verbosity by `1`.
-        """
-        options = self.options()
-        # The command may otherwise give a UsageError
-        # "Wrong number of arguments." if there are arguments required.
-        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
-        # which does not involve patching.
-        self.patch(options, "parseArgs", lambda: None)
-        options.parseOptions(['--verbose'])
-        self.assertEqual(1, options['verbosity'])
-
-    def test_verbosity_option_short(self):
-        """
-        Flocker commands have a `-v` option which increments the configured
-        verbosity by 1.
-        """
-        options = self.options()
-        # The command may otherwise give a UsageError
-        # "Wrong number of arguments." if there are arguments required.
-        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
-        # which does not involve patching.
-        self.patch(options, "parseArgs", lambda: None)
-        options.parseOptions(['-v'])
-        self.assertEqual(1, options['verbosity'])
-
-    def test_verbosity_multiple(self):
-        """
-        `--verbose` can be supplied multiple times to increase the verbosity.
-        """
-        options = self.options()
-        # The command may otherwise give a UsageError
-        # "Wrong number of arguments." if there are arguments required.
-        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
-        # which does not involve patching.
-        self.patch(options, "parseArgs", lambda: None)
-        options.parseOptions(['-v', '--verbose'])
-        self.assertEqual(2, options['verbosity'])
-
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
     """
