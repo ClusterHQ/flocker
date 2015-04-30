@@ -248,15 +248,20 @@ def assert_discovered_state(case,
     Assert that the manifestations on the state object returned by
     ``deployer.discover_state`` equals the given list of manifestations.
 
+    :param TestCase case: The running test.
     :param IDeployer deployer: The object to use to discover the state.
-    :param list expected_manifestations: The ``Manifestation``\ s expected
-        to be discovered.
-    :param dict expected_devices: The OS device files which are expected to
-        be discovered as allocated to volumes attached to the node.  See
+    :param unicode expected_hostname: The hostname the deployer is configured
+        with.
+    :param list expected_manifestations: The ``Manifestation``\ s expected to
+        be discovered on the deployer's node.
+    :param dict expected_nonmanifest_datasets: The ``Dataset``\ s expected to
+        be discovered on the cluster but not attached to any node.
+    :param dict expected_devices: The OS device files which are expected to be
+        discovered as allocated to volumes attached to the node.  See
         ``NodeState.devices``.
 
     :raise: A test failure exception if the manifestations are not what is
-            expected.
+        expected.
     """
     discovering = deployer.discover_state(
         NodeState(hostname=expected_hostname)
