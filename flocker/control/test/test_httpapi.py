@@ -3342,8 +3342,8 @@ class NodesStateTestsMixin(APITestsMixin):
              NodeState(uuid=uuid2, hostname=hostname2)])
         return self.assertResultItems(
             b"GET", b"/state/nodes", None, OK,
-            [{u"hostname": hostname1, "uuid": unicode(uuid1)},
-             {u"hostname": hostname2, "uuid": unicode(uuid2)}],
+            [{u"host": hostname1, "uuid": unicode(uuid1)},
+             {u"host": hostname2, "uuid": unicode(uuid2)}],
         )
 
 

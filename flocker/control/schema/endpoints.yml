@@ -67,18 +67,20 @@ definitions:
       - node_uuid
     additionalProperties: false
 
-  # This will be improved and tested in
-  # https://clusterhq.atlassian.net/browse/FLOC-1632
   nodes_array:
-    description: "An array of nodes in the cluster."
+    decription: "An array of known nodes in the cluster."
     type: array
     items:
       type: object
       properties:
-        hostname:
+        host:
           '$ref': 'types.json#/definitions/host'
         uuid:
           '$ref': 'types.json#/definitions/node_uuid'
+      required:
+        - uuid
+        - host
+      additionalProperties: false
 
   state_container:
     type: object
