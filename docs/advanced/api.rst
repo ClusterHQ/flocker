@@ -41,10 +41,9 @@ This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the
 Ubuntu
 ------
 
-TODO
+TODO (including changing upstart file)
 
 TODO? Move most of this document somewhere?
-TODO Make the service file assert the file exists
 
 API Details
 ===========
