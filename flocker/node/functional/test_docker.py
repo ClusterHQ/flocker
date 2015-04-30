@@ -36,7 +36,7 @@ from ..testtools import if_docker_configured, wait_for_unit_state
 
 
 def namespace_for_test(test_case):
-    return u"ns-" + random_name(test_case).replace(u".", u"-")
+    return u"ns-" + random_name(test_case)
 
 
 class IDockerClientTests(make_idockerclient_tests(
