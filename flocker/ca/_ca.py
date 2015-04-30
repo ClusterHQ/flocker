@@ -99,10 +99,10 @@ def create_certificate_authority(keypair, dn, request, serial, expiry, digest):
 
     :param int serial: The certificate serial number.
 
-    :param str expiry: ASN1 formatted datetime string representing the
-        certificate's expiry date, i.e. "%Y%m%d%H%M%SZ"
+    :param bytes expiry: ASN1 formatted datetime string representing the
+        certificate's expiry date, e.g. "20150430132453Z"
 
-    :param str digest: The digest algorithm to use.
+    :param bytes digest: The digest algorithm to use.
     """
     req = request.original
     cert = crypto.X509()
@@ -145,10 +145,10 @@ def sign_certificate_request(keypair, dn, request, serial, expiry, digest):
 
     :param int serial: The certificate serial number.
 
-    :param str expiry: ASN1 formatted datetime string representing the
-        certificate's expiry date, i.e. "%Y%m%d%H%M%SZ"
+    :param bytes expiry: ASN1 formatted datetime string representing the
+        certificate's expiry date, i.e. "20150430132453Z"
 
-    :param str digest: The digest algorithm to use.
+    :param bytes digest: The digest algorithm to use.
     """
     req = request.original
     cert = crypto.X509()
@@ -231,9 +231,9 @@ class FlockerCredential(PRecord):
         Write PEM encoded certificate and private key files for this credential
         instance.
 
-        :param str key_filename: The name of the private key file to write,
+        :param bytes key_filename: The name of the private key file to write,
             e.g. "cluster.key"
-        :param str certificate_filename: The name of the certificate file to
+        :param bytes certificate_filename: The name of the certificate file to
             write, e.g. "cluster.crt"
         """
         key_path = self.path.child(key_filename)
