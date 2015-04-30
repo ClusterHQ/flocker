@@ -419,8 +419,6 @@ class Node(PRecord):
     def __new__(cls, hostname=None, **kwargs):
         # PRecord does some crazy stuff, thus _precord_buckets; see
         # PRecord.__new__.
-        if hostname is not None:
-            raise RuntimeError()
         if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
             # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
             warn("UUID is required, this is for backwards compat with existing"
