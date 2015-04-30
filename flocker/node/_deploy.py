@@ -446,6 +446,7 @@ class P2PManifestationDeployer(object):
     """
     def __init__(self, hostname, volume_service, node_uuid=None):
         if node_uuid is None:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
             warn("UUID is required, this is for backwards compat with existing"
                  " tests only. If you see this in production code that's "
                  "a bug.", DeprecationWarning, stacklevel=2)
@@ -571,6 +572,7 @@ class ApplicationNodeDeployer(object):
     def __init__(self, hostname, docker_client=None, network=None,
                  node_uuid=None):
         if node_uuid is None:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
             warn("UUID is required, this is for backwards compat with existing"
                  " tests only. If you see this in production code that's "
                  "a bug.", DeprecationWarning, stacklevel=2)
@@ -898,7 +900,13 @@ def find_dataset_changes(uuid, current_state, desired_state):
     going = set()
     for dataset_node_uuid, desired in desired_datasets.items():
         if dataset_node_uuid != uuid:
-            hostname = uuid_to_hostnames[dataset_node_uuid]
+            try:
+                hostname = uuid_to_hostnames[dataset_node_uuid]
+            except KeyError:
+                # Apparently we don't know NodeState for this
+                # node. Hopefully we'll learn this information eventually
+                # but until we do we can't proceed.
+                continue
             for dataset in desired:
                 if dataset.dataset_id in local_current_dataset_ids:
                     going.add(DatasetHandoff(
