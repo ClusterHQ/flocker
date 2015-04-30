@@ -14,7 +14,7 @@ import os
 import pwd
 from collections import namedtuple
 from contextlib import contextmanager
-from random import random
+from random import randrange
 import shutil
 from functools import wraps
 from unittest import skipIf, skipUnless
@@ -215,12 +215,16 @@ def loop_until(predicate):
     return d
 
 
-def random_name():
-    """Return a short, random name.
+def random_name(case):
+    """
+    Return a short, random name.
+
+    :param TestCase case: The test case being run.  The test method that is
+        running will be mixed into the name.
 
     :return name: A random ``unicode`` name.
     """
-    return u"%d" % (int(random() * 1e12),)
+    return u"{}-{}".format(case.id().replace(u".", u"_"), randrange(10 ** 6))
 
 
 def help_problems(command_name, help_text):
@@ -599,7 +603,7 @@ class DockerImageBuilder(PRecord):
         if template_file.exists() and not docker_file.exists():
             self._process_template(
                 template_file, docker_file, dockerfile_variables)
-        tag = b"flockerlocaltests/" + random_name()
+        tag = b"flockerlocaltests/" + random_name(self.test).lower()
 
         # XXX: This dumps lots of debug output to stderr which messes up the
         # test results output. It's useful debug info incase of a test failure
