@@ -49,11 +49,13 @@ class ZFSAgentOptions(Options):
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
+         # TODO we actually have --config from flocker_volume_options
+         # TODO also change the tests to use this
         ["config-file", "c", "/etc/flocker/dataset-agent.yml",
          "The configuration file for the dataset agent."],
     ]
 
-    def parseArgs(self):
+    def postOptions(self):
         self['config-file'] = FilePath(self['config-file'])
 
 
@@ -123,7 +125,7 @@ class _AgentOptions(Options):
          "The configuration file for the dataset agent."],
     ]
 
-    def parseArgs(self):
+    def postOptions(self):
         self['config-file'] = FilePath(self['config-file'])
 
 
