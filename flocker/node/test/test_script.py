@@ -8,6 +8,7 @@ import netifaces
 from zope.interface.verify import verifyObject
 
 from twisted.internet.defer import Deferred
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
 
@@ -246,7 +247,7 @@ def make_amp_agent_options_tests(options_type):
             The default AMP destination port configured by the command line
             options is 4524.
             """
-            self.options.parseOptions([b"127.0.0.1"])
+            self.options.parseOptions([])
             self.assertEqual(self.options["destination-port"], 4524)
 
         def test_custom_port(self):
@@ -254,19 +255,28 @@ def make_amp_agent_options_tests(options_type):
             The ``--destination-port`` command-line option allows configuring
             the destination port.
             """
-            self.options.parseOptions([b"--destination-port", b"1234",
-                                       b"127.0.0.1"])
+            self.options.parseOptions([b"--destination-port", b"1234"])
             self.assertEqual(self.options["destination-port"], 1234)
 
-        def test_host(self):
+        def test_default_config_file(self):
             """
-            The second required command-line argument allows configuring the
-            destination host.
+            The default config file is a FilePath with path
+            ``/etc/flocker/dataset-agent.yml``.
             """
-            self.options.parseOptions([b"10.0.0.1"])
+            self.options.parseOptions([])
             self.assertEqual(
-                self.options["destination-host"], u"10.0.0.1",
-            )
+                self.options["config-file"],
+                FilePath("/etc/flocker/dataset-agent.yml"))
+
+        def test_custom_config_file(self):
+            """
+            The ``--config-file`` command-line option allows configuring
+            the config file.
+            """
+            self.options.parseOptions([b"--config-file", b"/etc/foo.yml"])
+            self.assertEqual(
+                self.options["config-file"],
+                FilePath("/etc/foo.yml"))
 
     return Tests
 
