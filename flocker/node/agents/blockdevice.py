@@ -1509,7 +1509,11 @@ class BlockDeviceDeployer(PRecord):
             different to the configuration)
         """
         for (dataset_id, manifestation) in local_state.manifestations.items():
-            dataset_config = configured_manifestations[dataset_id].dataset
+            try:
+                manifestation_config = configured_manifestations[dataset_id]
+            except KeyError:
+                continue
+            dataset_config = manifestation_config.dataset
             if dataset_config.deleted:
                 continue
             configured_size = dataset_config.maximum_size

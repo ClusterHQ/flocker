@@ -980,6 +980,19 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
             ])
         )
 
+    def test_manifestation_removed(self):
+        """
+        No changes are calculated for a manifestation which exists on the node
+        but for which the configuration has been removed.
+        """
+        local_state = self.ONE_DATASET_STATE
+        local_config = to_node(local_state).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+        assert_calculated_changes(
+            self, local_state, local_config, in_parallel(changes=[])
+        )
+
 
 class BlockDeviceInterfaceTests(SynchronousTestCase):
     """
