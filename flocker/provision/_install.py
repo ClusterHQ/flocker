@@ -9,6 +9,7 @@ import posixpath
 from textwrap import dedent
 from urlparse import urljoin
 from effect import Func, Effect
+import yaml
 
 from ._common import PackageSource, Variants
 from ._ssh import (
@@ -231,8 +232,14 @@ def task_enable_flocker_agent(distribution, control_node):
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
             put(
-                path='/etc/sysconfig/flocker-agent',
-                content=AGENT_CONFIG % {'control_node': control_node},
+                path='/etc/flocker/dataset-agent.yml',
+                content=yaml.safe_dump(
+                    {
+                        "control-service-endpoint": control_node,
+                    },
+                    # Don't wrap the whole thing in braces
+                    default_flow_style=False,
+                ),
             ),
             run_from_args(['systemctl', 'enable', 'flocker-agent']),
             run_from_args(['systemctl', 'start', 'flocker-agent']),

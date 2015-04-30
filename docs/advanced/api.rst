@@ -11,8 +11,8 @@ While this API is not yet directly accessible in a standard Flocker setup, the d
 Installation
 ============
 
-Fedora/CentOS
--------------
+Fedora / CentOS
+---------------
 
 To enable the Flocker control service.
 
@@ -28,10 +28,20 @@ To configure firewalld to allow access to the control service REST API, and for 
 (On AWS, an external firewall is used instead, which will need to be configured similarity).
 For more details on configuring the firewall, see Fedora's `firewalld documentation <https://fedoraproject.org/wiki/FirewallD>`_.
 
-To start the agents on a node, where ``${CONTROL_NODE}`` is the address of the control node:
+To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/dataset-agent.yml``.
+This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node:
+
+.. code-block:: yaml
+
+   "control-service-endpoint": "${CONTROL_NODE}"
 
 .. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
+
+Ubuntu
+------
+
+TODO
 
 API Details
 ===========
