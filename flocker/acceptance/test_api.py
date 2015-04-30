@@ -51,7 +51,7 @@ class ContainerAPITests(TestCase):
         and container dictionary once the container is up and running.
         """
         data = {
-            u"name": random_name(),
+            u"name": random_name(self),
             u"image": "clusterhq/flask:latest",
             u"ports": [{u"internal": 80, u"external": 8080}],
             u'restart_policy': {u'name': u'never'}
@@ -90,7 +90,7 @@ class ContainerAPITests(TestCase):
         cluster.
         """
         data = {
-            u"name": random_name(),
+            u"name": random_name(self),
             u"image": "clusterhq/flaskenv:latest",
             u"ports": [{u"internal": 8080, u"external": 8081}],
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'},
@@ -149,7 +149,7 @@ class ContainerAPITests(TestCase):
         def created_dataset(result):
             cluster, dataset = result
             mongodb = {
-                u"name": random_name(),
+                u"name": random_name(self),
                 u"node_uuid": cluster.nodes[0].uuid,
                 u"image": MONGO_IMAGE,
                 u"ports": [{u"internal": 27017, u"external": 27017}],
@@ -224,7 +224,7 @@ class ContainerAPITests(TestCase):
         def created_dataset(result):
             cluster, dataset = result
             mongodb = {
-                u"name": random_name(),
+                u"name": random_name(self),
                 u"node_uuid": cluster.nodes[0].uuid,
                 u"image": MONGO_IMAGE,
                 u"ports": [{u"internal": 27017, u"external": 27017}],

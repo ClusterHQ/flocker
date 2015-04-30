@@ -110,7 +110,7 @@ class DeployerTests(TestCase):
         Stopped applications that are supposed to be running are restarted
         when the calcualted actions are run.
         """
-        name = random_name()
+        name = random_name(self)
         docker_client = DockerClient()
         deployer = ApplicationNodeDeployer(
             u"localhost", docker_client, make_memory_network(),
@@ -158,7 +158,7 @@ class DeployerTests(TestCase):
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
 
-        application_name = random_name()
+        application_name = random_name(self)
 
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
@@ -225,7 +225,7 @@ class DeployerTests(TestCase):
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
 
-        application_name = random_name()
+        application_name = random_name(self)
 
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
@@ -296,7 +296,7 @@ class DeployerTests(TestCase):
         EXPECTED_MEMORY_LIMIT = 100000000
         image = DockerImage.from_string(u"openshift/busybox-http-app")
 
-        application_name = random_name()
+        application_name = random_name(self)
 
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
@@ -342,7 +342,7 @@ class DeployerTests(TestCase):
 
         image = DockerImage.from_string(u"openshift/busybox-http-app")
 
-        application_name = random_name()
+        application_name = random_name(self)
 
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
