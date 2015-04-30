@@ -362,7 +362,7 @@
   request: |
     POST /v1/configuration/containers/webserver HTTP/1.1
 
-    {"host": "%(NODE_1)s"}
+    {"node_uuid": "%(NODE_1)s"}
 
   response: |
     HTTP/1.1 200 OK
