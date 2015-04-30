@@ -2227,9 +2227,9 @@ class MountBlockDeviceTests(
 
 class UnmountBlockDeviceInitTests(
     make_with_init_tests(
-        UnmountBlockDevice,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(),
+        record_type=UnmountBlockDevice,
+        kwargs=dict(dataset_id=uuid4()),
+        expected_defaults=dict(),
     )
 ):
     """
@@ -2240,8 +2240,8 @@ class UnmountBlockDeviceInitTests(
 class UnmountBlockDeviceTests(
     make_istatechange_tests(
         UnmountBlockDevice,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz")),
+        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4()),
     )
 ):
     """
@@ -2267,15 +2267,8 @@ class UnmountBlockDeviceTests(
         make_filesystem(device, block_device=True)
         check_output([b"mount", device.path, mountpoint.path])
 
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-            mountroot=mountroot,
-        )
-
-        change = UnmountBlockDevice(volume=volume)
-        self.successResultOf(change.run(deployer))
+        change = UnmountBlockDevice(dataset_id=dataset_id)
+        self.successResultOf(run_state_change(change, deployer))
         self.assertNotIn(
             device,
             list(
@@ -2785,7 +2778,7 @@ class ResizeFilesystemTests(
         createfs = CreateFilesystem(volume=volume, filesystem=filesystem)
         mount = MountBlockDevice(dataset_id=dataset_id, mountpoint=mountpoint)
 
-        unmount = UnmountBlockDevice(volume=volume)
+        unmount = UnmountBlockDevice(dataset_id=dataset_id)
         detach = DetachVolume(dataset_id=dataset_id)
         resize = ResizeVolume(
             volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2

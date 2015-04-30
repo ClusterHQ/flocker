@@ -181,7 +181,7 @@ DESTROY_BLOCK_DEVICE_DATASET = ActionType(
 
 UNMOUNT_BLOCK_DEVICE = ActionType(
     u"agent:blockdevice:unmount",
-    [VOLUME],
+    [DATASET_ID],
     [],
     u"A block-device-backed dataset is being unmounted.",
 )
@@ -341,7 +341,7 @@ class DestroyBlockDeviceDataset(PRecord):
         return run_state_change(
             sequentially(
                 changes=[
-                    UnmountBlockDevice(volume=volume),
+                    UnmountBlockDevice(dataset_id=self.dataset_id),
                     DetachVolume(dataset_id=self.dataset_id),
                     DestroyVolume(volume=volume),
                 ]
@@ -479,11 +479,12 @@ class ResizeBlockDeviceDataset(PRecord):
                 unicode(self.dataset_id)
             )
         )
+        unmount = UnmountBlockDevice(dataset_id=self.dataset_id)
         detach = DetachVolume(dataset_id=self.dataset_id)
         return run_state_change(
             sequentially(
                 changes=[
-                    UnmountBlockDevice(volume=volume),
+                    unmount,
                     detach,
                     ResizeVolume(volume=volume, size=self.size),
                     attach,
@@ -543,14 +544,14 @@ class UnmountBlockDevice(PRecord):
     Unmount the filesystem mounted from the block device backed by a particular
     volume.
 
-    :ivar BlockDeviceVolume volume: The volume associated with the dataset
-        which will be unmounted.
+    :ivar UUID dataset_id: The unique identifier of the dataset associated with
+        the filesystem to unmount.
     """
-    volume = _volume_field()
+    dataset_id = field(type=UUID, mandatory=True)
 
     @property
     def eliot_action(self):
-        return UNMOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
+        return UNMOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
 
     def run(self, deployer):
         """
