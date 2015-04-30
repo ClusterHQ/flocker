@@ -1423,6 +1423,9 @@ class BlockDeviceDeployer(PRecord):
             configured_manifestations,
             cluster_state.nonmanifest_datasets
         ))
+        unmounts = list(self._calculate_unmounts(
+            local_state.paths, configured_manifestations,
+        ))
 
         # TODO prevent the configuration of unsized datasets on blockdevice
         # backends; cannot create block devices of unspecified size. FLOC-1579
@@ -1446,9 +1449,24 @@ class BlockDeviceDeployer(PRecord):
         # TODO Prevent changes to volumes that are currently being used by
         # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
 
-        return in_parallel(
-            changes=detaches + attaches + creates + deletes + resizes
-        )
+        return in_parallel(changes=(
+            unmounts + detaches + attaches + creates + deletes + resizes
+        ))
+
+    def _calculate_unmounts(self, paths, configured):
+        """
+        :param PMap paths: The paths at which datasets' filesystems are mounted
+            on this node.  This is the same as ``NodeState.paths``.
+        :param PMap configured: The manifestations which are configured on this
+            node.  This is the same as ``NodeState.manifestations``.
+
+        :return: A generator of ``UnmountBlockDevice`` instances, one for each
+            dataset which exists, is attached to this node, has its filesystem
+            mount, and is configured to not have a manifestation on this node.
+        """
+        for mounted_dataset_id in paths:
+            if mounted_dataset_id not in configured:
+                yield UnmountBlockDevice(dataset_id=UUID(mounted_dataset_id))
 
     def _calculate_detaches(self, devices, paths, configured):
         """
