@@ -34,6 +34,7 @@ This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the
 
 .. code-block:: yaml
 
+   "version": "0.1"
    "control-service-endpoint": "${CONTROL_NODE}"
 
 .. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
@@ -62,13 +63,14 @@ This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the
 
 .. code-block:: yaml
 
+   "version": "0.1"
    "control-service-endpoint": "${CONTROL_NODE}"
 
 .. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
-- Quotes around yml - looks bad with option
-- We're not moving this document but agree that it should be moved and have asked David to look into this for before the story is submitted
+TODO port option
+TODO version
 
 API Details
 ===========
