@@ -423,6 +423,8 @@ class ResizeFilesystem(PRecord):
     """
     volume = _volume_field()
 
+    # FLOC-1503 - Add a size attribute to support the shrinking case.
+
     @property
     def eliot_action(self):
         return RESIZE_FILESYSTEM(_logger, volume=self.volume)
@@ -446,6 +448,10 @@ class ResizeFilesystem(PRecord):
         check_output([b"e2fsck", b"-f", b"-y", device.path])
         # When passed no explicit size argument, resize2fs resizes the
         # filesystem to the size of the device it lives on.
+
+        # FLOC-1503 Pass self.size here, if it is not None, necessary for
+        # shrinking, to tell resize2fs to make the filesystem smaller than its
+        # block device.
         check_output([b"resize2fs", device.path])
         return succeed(None)
 
@@ -505,6 +511,7 @@ class ResizeBlockDeviceDataset(PRecord):
                     detach,
                     ResizeVolume(volume=volume, size=self.size),
                     attach,
+                    # FLOC-1503 - If and only if shrinking, pass size here too
                     ResizeFilesystem(volume=volume),
                     mount,
                 ]
