@@ -36,16 +36,16 @@ class FlockerCAMainTests(TestCase):
         # files already created in previous tests.
         path = FilePath(self.mktemp())
         path.makedirs()
+
         cwd = os.getcwd()
         os.chdir(path.path)
+        self.addCleanup(os.chdir, cwd)
 
         options = CAOptions()
         options.parseOptions(["initialize", "mycluster"])
 
         script = CAScript()
         dummy_reactor = object()
-
-        self.addCleanup(os.chdir, cwd)
 
         self.assertEqual(
             None,
