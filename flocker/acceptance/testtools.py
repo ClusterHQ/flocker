@@ -379,6 +379,7 @@ def assert_expected_deployment(test_case, expected_deployment):
                              for app in apps]
             for app in expected:
                 app[u"running"] = True
+                app[u"host"] = hostname
             return sorted(existing_containers) == sorted(expected)
 
         def configuration_matches_state():
