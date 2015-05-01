@@ -105,16 +105,17 @@ def configuration_from_options(options):
         configuration['control-service-hostname'] = options_yaml[
             u'control-service-hostname']
     except (TypeError, KeyError):
-        raise ConfigurationError("Configuration has an error. "
+        raise ConfigurationError(
+            "Configuration has an error. "
             "Missing 'control-service-hostname' key.")
 
     try:
-        if  options_yaml[u'version'] != 1:
+        if options_yaml[u'version'] != 1:
             raise ConfigurationError(
                 "Configuration has an error. Incorrect version specified.")
     except KeyError:
-        raise ConfigurationError("Configuration has an error. "
-            "Missing 'version' key.")
+        raise ConfigurationError(
+            "Configuration has an error. Missing 'version' key.")
 
     return configuration
 
