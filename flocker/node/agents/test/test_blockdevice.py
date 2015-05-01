@@ -185,6 +185,18 @@ def create_blockdevicedeployer(
     )
 
 
+def detach_destroy_volumes(api):
+        """
+        Detach and destroy all volumes known to this API.
+        """
+        volumes = api.list_volumes()
+
+        for volume in volumes:
+            if volume.host is not None:
+                api.detach_volume(volume.blockdevice_id)
+            api.destroy_volume(volume.blockdevice_id)
+
+
 class BlockDeviceDeployerTests(
         ideployer_tests_factory(create_blockdevicedeployer)
 ):
@@ -954,15 +966,6 @@ class IBlockDeviceAPITestsMixin(object):
     """
     Tests to perform on ``IBlockDeviceAPI`` providers.
     """
-    def tearDown(self):
-        """
-        Destroy volumes created for the cluster used by the test.
-        """
-        volumes = self.api.list_volumes()
-
-        for volume in volumes:
-            self.api.destroy_volume(volume.blockdevice_id)
-
     def test_interface(self):
         """
         ``api`` instances provide ``IBlockDeviceAPI``.
@@ -1460,34 +1463,24 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
-    def test_foreign_cluster_volume(self):
+    def assert_foreign_volume(self, flocker_volume):
         """
-        Test that list_volumes() excludes volumes belonging to
-        other Flocker clusters.
+        Test that input Flocker volume does not belong to
+        current Flocker cluster.
+
+        :param ``BlockDeviceVolume`` flocker_volume: input volume
+            to check for membership in current Flocker cluster.
+
+        :returns: True if input Flocker volume belongs to current
+            Flocker cluster. False otherwise.
         """
 
-        flocker_volume1 = self.api.create_volume(
+        cluster_flocker_volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=REALISTIC_BLOCKDEVICE_SIZE,
         )
 
-        try:
-            old_cluster_id = self.api.cluster_id
-        except AttributeError:
-            raise SkipTest(
-                "Cluster ID does not exist for this block device API. "
-                "Possibly running ``LoopbackBlockDeviceAPI`` tests. "
-            )
-        self.api.cluster_id = uuid4()
-        flocker_volume2 = self.api.create_volume(
-            dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-
-        self.addCleanup(self.api.destroy_volume,
-                        flocker_volume1.blockdevice_id)
-        self.assertEqual([flocker_volume2], self.api.list_volumes())
-        self.api.cluster_id = old_cluster_id
+        self.assertEqual([cluster_flocker_volume], self.api.list_volumes())
 
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
@@ -1584,8 +1577,10 @@ def loopbackblockdeviceapi_for_test(test_case):
         )
 
     root_path = test_case.mktemp()
-    test_case.addCleanup(losetup_detach_all, FilePath(root_path))
-    return LoopbackBlockDeviceAPI.from_path(root_path=root_path)
+    loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
+        root_path=root_path)
+    test_case.addCleanup(detach_destroy_volumes, loopback_blockdevice_api)
+    return loopback_blockdevice_api
 
 
 class LoopbackBlockDeviceAPITests(

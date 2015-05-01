@@ -19,11 +19,13 @@ from bitmath import Byte
 
 from ....testtools import skip_except
 from ..cinder import cinder_api, wait_for_volume
-from ..test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 from ..testtools import tidy_cinder_client_for_test
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
-from ..test.test_blockdevice import make_iblockdeviceapi_tests
+from ..test.test_blockdevice import (
+    make_iblockdeviceapi_tests, detach_destroy_volumes,
+    REALISTIC_BLOCKDEVICE_SIZE
+)
 
 
 def cinderblockdeviceapi_for_test(test_case, cluster_id):
@@ -37,10 +39,12 @@ def cinderblockdeviceapi_for_test(test_case, cluster_id):
         by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
         are created during the course of ``test_case``
     """
-    return cinder_api(
+    cinder_blockdevice_api = cinder_api(
         cinder_client=tidy_cinder_client_for_test(test_case),
         cluster_id=cluster_id,
     )
+    test_case.addCleanup(detach_destroy_volumes, cinder_blockdevice_api)
+    return cinder_blockdevice_api
 
 
 # ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
@@ -84,4 +88,23 @@ class CinderBlockDeviceAPIInterfaceTests(
 
         self.assertEqual([], self.api.list_volumes())
 
-        cinder_client.connection.delete_volume(requested_volume.id)
+        self.addCleanup(cinder_client.connection.delete_volume,
+                        requested_volume.id)
+
+    def test_foreign_cluster_volume(self):
+        """
+        Test that list_volumes() excludes volumes belonging to
+        other Flocker clusters.
+        """
+        blockdevice_api2 = cinderblockdeviceapi_for_test(
+            test_case=self,
+            cluster_id=uuid4(),
+            )
+        flocker_volume = blockdevice_api2.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+            )
+
+        self.addCleanup(blockdevice_api2.destroy_volume,
+                        flocker_volume.blockdevice_id)
+        self.assert_foreign_volume(flocker_volume)

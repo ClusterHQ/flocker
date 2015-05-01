@@ -4,10 +4,10 @@
 An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
-from bitmath import Byte, GB
 import time
-from uuid import UUID
 
+from bitmath import Byte, GB
+from uuid import UUID
 from boto import ec2
 from pyrsistent import PRecord, field
 from zope.interface import implementer
