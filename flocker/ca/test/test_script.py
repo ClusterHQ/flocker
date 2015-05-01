@@ -36,6 +36,7 @@ class FlockerCAMainTests(TestCase):
         # files already created in previous tests.
         path = FilePath(self.mktemp())
         path.makedirs()
+        cwd = os.getcwd()
         os.chdir(path.path)
 
         options = CAOptions()
@@ -48,3 +49,4 @@ class FlockerCAMainTests(TestCase):
             None,
             self.successResultOf(script.main(dummy_reactor, options))
         )
+        os.chdir(cwd)
