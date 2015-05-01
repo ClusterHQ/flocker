@@ -240,8 +240,8 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        config = yaml.safe_load(options['control-service-config'].getContent())
-        host = config['control-service-hostname']
+        configuration = configuration_from_options(options)
+        host = configuration['control-service-hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         return AgentLoopService(

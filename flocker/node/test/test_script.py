@@ -112,7 +112,10 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         scratch_directory.makedirs()
         self.config = scratch_directory.child('dataset-config.yml')
         self.config.setContent(
-            yaml.safe_dump({u"control-service-hostname": u"10.0.0.2"}))
+            yaml.safe_dump({
+                u"control-service-hostname": u"10.0.0.2",
+                u"version": 1,
+        }))
 
     def test_get_service(self):
         """
