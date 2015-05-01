@@ -290,7 +290,7 @@ def assert_discovered_state(case,
         ),
     )
     if expected_nonmanifest_datasets is not None:
-        # FLOC-1503 - Make this actually be a dictionary (callers pass a list
+        # FLOC-1503-x - Make this actually be a dictionary (callers pass a list
         # instead, despite the docs, and this is used like an iterable) and
         # construct the ``NonManifestDatasets`` with the ``Dataset`` instances
         # that are present as values.
@@ -343,7 +343,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1503 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
+            # FLOC-1503-x Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
                 unmounted.dataset_id:
@@ -379,7 +379,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1503 Expect dataset with size LOOPBACK_BLOCKDEVICE_SIZE
+            # FLOC-1503-x Expect dataset with size LOOPBACK_BLOCKDEVICE_SIZE
             expected_nonmanifest_datasets=[unexpected.dataset_id],
             expected_devices={
                 unexpected.dataset_id: device,
@@ -413,7 +413,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1503 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
+            # FLOC-1503-x Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
                 unmounted.dataset_id:
@@ -481,7 +481,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
-            # FLOC-1503 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
+            # FLOC-1503-x Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
             expected_nonmanifest_datasets=[dataset_id],
         )
 
