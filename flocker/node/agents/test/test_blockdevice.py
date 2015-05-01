@@ -1471,8 +1471,9 @@ class IBlockDeviceAPITestsMixin(object):
             size=REALISTIC_BLOCKDEVICE_SIZE,
         )
 
-        old_cluster_id = self.api.cluster_id
-        if old_cluster_id is None:
+        try:
+            old_cluster_id = self.api.cluster_id
+        except AttributeError:
             raise SkipTest(
                 "Cluster ID does not exist for this block device API. "
                 "Possibly running ``LoopbackBlockDeviceAPI`` tests. "
