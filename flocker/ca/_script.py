@@ -136,17 +136,14 @@ class UserCertificateOptions(PrettyOptions):
 
         try:
             try:
-                self["name"] = self["name"].decode(
-                    self._sys_module.stdin.encoding)
+                self["name"] = self["name"].decode("utf-8")
                 ca = RootCredential.from_path(self["inputpath"])
                 uc = UserCredential.initialize(
                     self["outputpath"], ca, self["name"])
                 self._sys_module.stdout.write(
                     u"Created {user}.crt. You can now give it to your "
                     u"API enduser so they can access the control service "
-                    u"API.".format(user=uc.username).encode(
-                        self._sys_module.stdout.encoding
-                    )
+                    u"API.".format(user=uc.username).encode("utf-8")
                 )
             except PathError as e:
                 raise UsageError(str(e))

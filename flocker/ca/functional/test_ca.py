@@ -142,8 +142,7 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         to verify the generated control certificate and private key is
         signed by the previously generated certificate authority.
         """
-        status, output = flocker_ca(b"create-api-certificate", b"alice")
-        print output
+        flocker_ca(b"create-api-certificate", b"alice")
         self.assertTrue(
             openssl_verify(b"cluster.crt", b"alice.crt")
         )

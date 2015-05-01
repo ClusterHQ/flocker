@@ -349,10 +349,7 @@ class UserCredential(PRecord):
         credential = FlockerCredential(
             path=output_path, keypair=keypair, certificate=cert
         )
-        credential.write_credential_files(
-            key_filename.encode('unicode_escape'),
-            cert_filename.encode('unicode_escape')
-        )
+        credential.write_credential_files(key_filename, cert_filename)
         instance = cls(credential=credential, username=username)
         return instance
 
