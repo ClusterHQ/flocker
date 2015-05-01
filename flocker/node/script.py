@@ -56,7 +56,8 @@ class ZFSAgentOptions(Options):
     ]
 
     def postOptions(self):
-        self['control-service-config'] = FilePath(self['control-service-config'])
+        self['control-service-config'] = FilePath(
+            self['control-service-config'])
 
 
 def _get_external_ip(host, port):
@@ -96,7 +97,8 @@ def configuration_from_options(options):
     configuration = {}
     # nice error message if this fails
     try:
-        configuration['control-service-hostname'] = options_yaml[u'control-service-hostname']
+        configuration['control-service-hostname'] = options_yaml[
+            u'control-service-hostname']
     except (TypeError, KeyError):
         raise ConfigurationError("Configuration has an error. "
             "Missing 'control-service-hostname' key.")
