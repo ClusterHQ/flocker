@@ -69,8 +69,6 @@ This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the
 .. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
-TODO port option
-TODO version
 
 API Details
 ===========
