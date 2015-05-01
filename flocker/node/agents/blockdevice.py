@@ -492,11 +492,11 @@ class ResizeBlockDeviceDataset(PRecord):
         #
         # If the volume is shrinking, arrange the changes like
         #
-        # unmount, detach, resize volume, attach, resize filesystem, mount
+        # unmount, resize filesystem, detach, resize volume, attach, mount
         #
         # If the volume is growing, arrange the changes like [
         #
-        # unmount, resize filesystem, detach, resize volume, attach, mount
+        # unmount, detach, resize volume, attach, resize filesystem, mount
 
         return run_state_change(
             sequentially(
