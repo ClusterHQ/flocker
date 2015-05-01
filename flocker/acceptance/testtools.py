@@ -20,7 +20,7 @@ from twisted.python.procutils import which
 from eliot import Logger, start_action
 from eliot.twisted import DeferredContext
 
-from treq import get, post, delete, json_content
+from treq import get, post, delete, json_content, content
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
 from ..control import (
@@ -445,8 +445,15 @@ def check_and_decode_json(result, response_code):
 
     :return: ``Deferred`` firing with decoded JSON.
     """
+    def error(body):
+        raise ValueError("Unexpected response code {}:\n{}\n".format(
+            result.code, body))
+
     if result.code != response_code:
-        raise ValueError("Unexpected response code:", result.code)
+        d = content(result)
+        d.addCallback(error)
+        return d
+
     return json_content(result)
 
 
