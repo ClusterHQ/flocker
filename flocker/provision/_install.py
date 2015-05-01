@@ -218,11 +218,6 @@ def task_open_control_firewall(distribution):
     ])
 
 
-AGENT_CONFIG = """\
-FLOCKER_CONTROL_NODE=%(control_node)s
-"""
-
-
 def task_enable_flocker_agent(distribution, control_node):
     """
     Configure and enable the flocker agents.
