@@ -16,7 +16,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (RootCredential, ControlCredential, NodeCredential,
-                UserCredential, PathError, EXPIRY_DATE,
+                UserCredential, PathError, EXPIRY_20_YEARS,
                 AUTHORITY_CERTIFICATE_FILENAME, AUTHORITY_KEY_FILENAME)
 
 from ...testtools import not_root, skip_on_broken_permissions
@@ -31,12 +31,19 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
         Base test case for credential tests.
         """
         def setUp(self):
+            self.start_date = datetime.datetime.utcnow()
+            self.expiry_date = self.start_date + datetime.timedelta(
+                seconds=EXPIRY_20_YEARS)
             self.cert_file_name = expected_file_name + b".crt"
             self.key_file_name = expected_file_name + b".key"
             self.path = FilePath(self.mktemp())
             self.path.makedirs()
-            self.ca = RootCredential.initialize(self.path, b"mycluster")
-            self.credential = cls.initialize(self.path, self.ca, **kwargs)
+            self.ca = RootCredential.initialize(
+                self.path, b"mycluster", begin=self.start_date
+            )
+            self.credential = cls.initialize(
+                self.path, self.ca, begin=self.start_date, **kwargs
+            )
             for k, v in kwargs.iteritems():
                 setattr(self, k, v)
 
@@ -237,12 +244,10 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
             A certificate written by ``UserCredential.initialize`` has an
             expiry date 20 years from the date of signing.
             """
-            expected_expiry = datetime.datetime.strptime(
-                EXPIRY_DATE, "%Y%m%d%H%M%SZ")
             cert = self.credential.credential.certificate.original
             date_str = cert.get_notAfter()
-            expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
-            self.assertEqual(expiry_date, expected_expiry)
+            expected_expiry = self.expiry_date.strftime("%Y%m%d%H%M%SZ")
+            self.assertEqual(date_str, expected_expiry)
 
         def test_certificate_is_rsa_4096_sha_256(self):
             """
@@ -290,7 +295,7 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
 
 
 class UserCredentialTests(
-        make_credential_tests(UserCredential, b"alice", username=b"alice")):
+        make_credential_tests(UserCredential, b"alice", username=u"alice")):
     """
     Tests for ``flocker.ca._ca.UserCredential``.
     """
@@ -302,7 +307,7 @@ class UserCredentialTests(
         """
         cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
-        self.assertEqual(subject.CN, b"user-{user}".format(
+        self.assertEqual(subject.CN, u"user-{user}".format(
             user=self.credential.username))
 
 
@@ -576,15 +581,16 @@ class RootCredentialTests(SynchronousTestCase):
         of day it is run. Fixed in
         https://github.com/ClusterHQ/flocker/pull/1339
         """
-        expected_expiry = datetime.datetime.strptime(
-            EXPIRY_DATE, "%Y%m%d%H%M%SZ")
         path = FilePath(self.mktemp())
         path.makedirs()
-        ca = RootCredential.initialize(path, b"mycluster")
+        start_date = datetime.datetime.utcnow()
+        expected_expiry = start_date + datetime.timedelta(
+            seconds=EXPIRY_20_YEARS)
+        expected_expiry = expected_expiry.strftime("%Y%m%d%H%M%SZ")
+        ca = RootCredential.initialize(path, b"mycluster", begin=start_date)
         cert = ca.credential.certificate.original
         date_str = cert.get_notAfter()
-        expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d%H%M%SZ")
-        self.assertEqual(expiry_date, expected_expiry)
+        self.assertEqual(date_str, expected_expiry)
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """

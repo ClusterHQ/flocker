@@ -376,6 +376,10 @@ class ConfigurationAPIUserV1(object):
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
         Get current cluster datasets.
+
+        The result reflects the control service's knowledge, which may be
+        out of date or incomplete. E.g. a dataset agent has not connected
+        or updated the control service yet.
         """, examples=[u"get state datasets"])
     @structured(
         inputSchema={},
@@ -431,6 +435,10 @@ class ConfigurationAPIUserV1(object):
     @user_documentation(
         """
         Get the cluster's actual containers.
+
+        This reflects the control service's knowledge of the cluster,
+        which may be out of date or incomplete, e.g. if a container agent
+        has not connected or updated the control service yet.
         """,
         examples=[u"get actual containers"],
     )
@@ -452,6 +460,8 @@ class ConfigurationAPIUserV1(object):
         result = []
         deployment = self.cluster_state_service.as_deployment()
         for node in deployment.nodes:
+            if node.applications is None:
+                continue
             for application in node.applications:
                 container = container_configuration_response(
                     application, node.hostname)
@@ -914,7 +924,7 @@ def manifestations_from_deployment(deployment, dataset_id):
     """
     for node in deployment.nodes:
         if dataset_id in node.manifestations:
-                yield node.manifestations[dataset_id], node
+            yield node.manifestations[dataset_id], node
 
 
 def datasets_from_deployment(deployment):
@@ -931,6 +941,8 @@ def datasets_from_deployment(deployment):
     :return: Iterable returning all datasets.
     """
     for node in deployment.nodes:
+        if node.manifestations is None:
+            continue
         for manifestation in node.manifestations.values():
             if manifestation.primary:
                 # There may be multiple datasets marked as primary until we
