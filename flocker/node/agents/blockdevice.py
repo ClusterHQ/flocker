@@ -508,8 +508,8 @@ class MountBlockDevice(PRecord):
     Mount the filesystem mounted from the block device backed by a particular
     volume.
 
-    :ivar BlockDeviceVolume volume: The volume associated with the dataset
-        which will be unmounted.
+    :ivar UUID dataset_id: The unique identifier of the dataset associated with
+        the filesystem to mount.
     :ivar FilePath mountpoint: The filesystem location at which to mount the
         volume's filesystem.  If this does not exist, it is created.
     """
