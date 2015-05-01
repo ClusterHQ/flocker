@@ -3,6 +3,7 @@
 from twisted.web.server import Site
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
+from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from ..script import ControlOptions, ControlScript
 from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin
@@ -87,7 +88,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         server = reactor.tcpServers[0]
         port = server[0]
         factory = server[1].__class__
-        self.assertEqual((port, factory), (8001, Site))
+        self.assertEqual((port, factory), (8001, TLSMemoryBIOFactory))
 
     def test_no_immediate_stop(self):
         """
