@@ -588,6 +588,9 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         local_state = self.ONE_DATASET_STATE.transform(
             # Remove the dataset.  This reflects its deletedness.
             ["manifestations", unicode(self.DATASET_ID)], discard
+        ).transform(
+            # Remove its device too.
+            ["devices", self.DATASET_ID], discard
         )
 
         local_config = to_node(self.ONE_DATASET_STATE).transform(
@@ -724,6 +727,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         # Give the node an empty state.
         node_state = self.ONE_DATASET_STATE.transform(
             ["manifestations", unicode(self.DATASET_ID)], discard
+        ).transform(
+            ["devices", self.DATASET_ID], discard
         )
 
         # Take the dataset in the configuration and make it part of the
