@@ -486,7 +486,9 @@ class UnusableAPI(object):
     """
 
 
-def assert_calculated_changes(case, node_state, node_config, expected_changes):
+def assert_calculated_changes(
+    case, node_state, node_config, nonmanifest_datasets, expected_changes
+):
     """
     Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
     changes when it is invoked with the given state and configuration.
@@ -497,9 +499,17 @@ def assert_calculated_changes(case, node_state, node_config, expected_changes):
         calculate changes for a node that has this state.
     :param Node node_config: The ``BlockDeviceDeployer`` will be asked to
         calculate changes for a node with this desired configuration.
+    :param set nonmanifest_datasets: Datasets which will be presented as part
+        of the cluster state without manifestations on any node.
     :param expected_changes: The ``IStateChange`` expected to be returned.
     """
-    cluster_state = DeploymentState(nodes={node_state})
+    cluster_state = DeploymentState(
+        nodes={node_state},
+        nonmanifest_datasets={
+            dataset.dataset_id: dataset
+            for dataset in nonmanifest_datasets
+        },
+    )
     cluster_configuration = Deployment(nodes={node_config})
 
     api = UnusableAPI()
@@ -566,7 +576,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         local_config = to_node(local_state)
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[])
         )
 
@@ -592,7 +602,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[]),
         )
     test_deleted_ignored.skip = (
@@ -621,7 +631,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             True
         )
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ]),
@@ -682,7 +692,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             lambda d: d.set(deleted=True, maximum_size=d.maximum_size * 2)
         )
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ])
@@ -764,7 +774,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, node_state, node_config,
+            self, node_state, node_config, set(),
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID)
             ])
@@ -951,6 +961,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
 
         assert_calculated_changes(
             self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
             in_parallel(changes=[DetachVolume(dataset_id=self.DATASET_ID)])
         )
 
@@ -977,7 +988,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=self.DATASET_ID,
@@ -1008,7 +1019,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=dataset_id,
