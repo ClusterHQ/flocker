@@ -34,7 +34,10 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         scratch_directory.makedirs()
         self.config = scratch_directory.child('dataset-config.yml')
         self.config.setContent(
-            yaml.safe_dump({b"control-service-hostname": b"10.0.0.1"}))
+            yaml.safe_dump({
+                u"control-service-hostname": u"10.0.0.1",
+                u"version": 1,
+            }))
 
     def test_main_starts_service(self):
         """
@@ -109,7 +112,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         scratch_directory.makedirs()
         self.config = scratch_directory.child('dataset-config.yml')
         self.config.setContent(
-            yaml.safe_dump({b"control-service-hostname": b"10.0.0.2"}))
+            yaml.safe_dump({u"control-service-hostname": u"10.0.0.2"}))
 
     def test_get_service(self):
         """
@@ -265,8 +268,8 @@ def make_amp_agent_options_tests(options_type):
             self.scratch_directory.makedirs()
             self.sample_content = yaml.safe_dump(
                 {
-                    b"control-service-hostname": b"10.0.0.1",
-                    b"version": 1,
+                    u"control-service-hostname": u"10.0.0.1",
+                    u"version": 1,
                 }
             )
             self.config = self.scratch_directory.child('dataset-config.yml')
@@ -317,83 +320,100 @@ class ConfigurationFromOptionsTests(SynchronousTestCase):
     Tests for :func:`configuration_from_options`.
     """
 
+    def setUp(self):
+        self.scratch_directory = FilePath(self.mktemp())
+        self.scratch_directory.makedirs()
+        self.config = self.scratch_directory.child('config.yml')
+        self.options = {
+            'control-service-config': self.config,
+        }
+
     def test_error_on_file_does_not_exist(self):
         """
         An error is raised if the config file does not exist.
         """
-        scratch_directory = FilePath(self.mktemp())
-
-        options = {
-            'control-service-config':
-                scratch_directory.child('does-not-exist'),
-        }
-
         exception = self.assertRaises(
             ConfigurationError,
-            configuration_from_options, options)
+            configuration_from_options, self.options)
 
         self.assertEqual(
-            "Configuration file does not exist at '{}'.".format(options['control-service-config'].path),
+            "Configuration file does not exist at '{}'.".format(self.config.path),
             exception.message
         )
 
-    # def test_error_on_invalid_yaml(self):
-    #     """
-    #     An error is raised if the config file is not valid YAML.
-    #     """
-    #     config = dict()
-    #     parser = FlockerConfiguration(config)
-    #     exception = self.assertRaises(ConfigurationError,
-    #                                   parser.applications)
-    #     self.assertEqual(
-    #         "Application configuration has an error. "
-    #         "Missing 'applications' key.",
-    #         exception.message
-    #     )
-    #
-    # def test_error_on_missing_hostname(self):
-    #     """
-    #     A ``ConfigurationError`` is raised if the config file does not
-    #     contain a ``u"control-service-hostname"`` key.
-    #     """
-    #     config = dict()
-    #     parser = FlockerConfiguration(config)
-    #     exception = self.assertRaises(ConfigurationError,
-    #                                   parser.applications)
-    #     self.assertEqual(
-    #         "Application configuration has an error. "
-    #         "Missing 'applications' key.",
-    #         exception.message
-    #     )
-    #
-    # def test_error_on_missing_version(self):
-    #     """
-    #     A ``ConfigurationError`` is raised if the config file does not contain
-    #     a ``u"version"`` key.
-    #     """
-    #     config = dict(applications={})
-    #     parser = FlockerConfiguration(config)
-    #     exception = self.assertRaises(ConfigurationError,
-    #                                   parser.applications)
-    #     self.assertEqual(
-    #         "Application configuration has an error. "
-    #         "Missing 'version' key.",
-    #         exception.message
-    #     )
-    #
-    # def test_error_on_incorrect_version(self):
-    #     """
-    #     A ``ConfigurationError`` is raised if the version specified is not 1.
-    #     """
-    #     config = dict(applications={}, version=2)
-    #     parser = FlockerConfiguration(config)
-    #     exception = self.assertRaises(ConfigurationError,
-    #                                   parser.applications)
-    #     self.assertEqual(
-    #         "Application configuration has an error. "
-    #         "Incorrect version specified.",
-    #         exception.message
-    #     )
+    def test_error_on_invalid_config(self):
+        """
+        A ``ConfigurationError`` is raised if the config file is not formatted
+        as a dictionary.
+        """
+        configuration = yaml.safe_dump("INVALID")
+
+        self.config.setContent(configuration)
+
+        self.assertRaises(
+            ConfigurationError,
+            configuration_from_options, self.options)
+
+    def test_error_on_missing_hostname(self):
+        """
+        A ``ConfigurationError`` is raised if the config file does not
+        contain a ``u"control-service-hostname"`` key.
+        """
+        configuration = yaml.safe_dump({
+            "version": 1,
+        })
+
+        self.config.setContent(configuration)
+
+        exception = self.assertRaises(
+            ConfigurationError,
+            configuration_from_options, self.options)
+
+        self.assertEqual(
+            "Configuration has an error. "
+            "Missing 'control-service-hostname' key.",
+            exception.message
+        )
+
+    def test_error_on_missing_version(self):
+        """
+        A ``ConfigurationError`` is raised if the config file does not contain
+        a ``u"version"`` key.
+        """
+        configuration = yaml.safe_dump({
+            "control-service-hostname": "192.0.2.1",
+        })
+
+        self.config.setContent(configuration)
+
+        exception = self.assertRaises(
+            ConfigurationError,
+            configuration_from_options, self.options)
+
+        self.assertEqual(
+            "Configuration has an error. Missing 'version' key.",
+            exception.message
+        )
+
+    def test_error_on_incorrect_version(self):
+        """
+        A ``ConfigurationError`` is raised if the version specified is not 1.
+        """
+        configuration = yaml.safe_dump({
+            "control-service-hostname": "192.0.2.1",
+            "version": 2,
+        })
+
+        self.config.setContent(configuration)
+
+        exception = self.assertRaises(
+            ConfigurationError,
+            configuration_from_options, self.options)
+
+        self.assertEqual(
+            "Configuration has an error. Incorrect version specified.",
+            exception.message
+        )
 
 
 class DatasetAgentOptionsTests(

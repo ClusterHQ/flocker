@@ -82,7 +82,7 @@ def _get_external_ip(host, port):
 def configuration_from_options(options):
     """
     """
-    options_file = options['control-service-config']
+    options_file = options[u'control-service-config']
     # handle if this load doesn't work
     try:
         options_content = options_file.getContent()
@@ -95,7 +95,19 @@ def configuration_from_options(options):
     # check version
     configuration = {}
     # nice error message if this fails
-    configuration['control-service-hostname'] = options_yaml['control-service-hostname']
+    try:
+        configuration['control-service-hostname'] = options_yaml[u'control-service-hostname']
+    except (TypeError, KeyError):
+        raise ConfigurationError("Configuration has an error. "
+            "Missing 'control-service-hostname' key.")
+
+    try:
+        if  options_yaml[u'version'] != 1:
+            raise ConfigurationError(
+                "Configuration has an error. Incorrect version specified.")
+    except KeyError:
+        raise ConfigurationError("Configuration has an error. "
+            "Missing 'version' key.")
 
     return configuration
 
