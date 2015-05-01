@@ -1420,6 +1420,7 @@ class BlockDeviceDeployer(PRecord):
         )
 
         attaches = list(self._calculate_attaches(
+            local_state.devices,
             configured_manifestations,
             cluster_state.nonmanifest_datasets
         ))
@@ -1492,8 +1493,11 @@ class BlockDeviceDeployer(PRecord):
                 continue
             yield DetachVolume(dataset_id=attached_dataset_id)
 
-    def _calculate_attaches(self, configured, nonmanifest):
+    def _calculate_attaches(self, devices, configured, nonmanifest):
         """
+        :param PMap devices: The datasets with volumes attached to this node
+            and the device files at which they are available.  This is the same
+            as ``NodeState.devices``.
         :param PMap configured: The manifestations which are configured on this
             node.  This is the same as ``NodeState.manifestations``.
         :param PMap nonmanifest: The datasets which exist in the cluster but
@@ -1504,7 +1508,11 @@ class BlockDeviceDeployer(PRecord):
                  attached to this node.
         """
         for manifestation in configured.values():
+            if UUID(manifestation.dataset_id) in devices:
+                # It's already attached here.
+                continue
             if manifestation.dataset_id in nonmanifest:
+                # It exists and doesn't belong to anyone else.
                 yield AttachVolume(
                     dataset_id=UUID(manifestation.dataset_id),
                     hostname=self.hostname,
