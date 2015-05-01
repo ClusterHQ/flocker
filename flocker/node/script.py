@@ -27,6 +27,7 @@ from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 from ..control._model import ip_to_uuid
+from ..control import ConfigurationError
 
 
 __all__ = [
@@ -55,13 +56,7 @@ class ZFSAgentOptions(Options):
     ]
 
     def postOptions(self):
-        config_file = yaml.safe_load(FilePath(self['control-service-config']).getContent())
-        try:
-            self['control-service-endpoint'] = config_file[
-                'control-service-endpoint']
-        except KeyError:
-            raise ValueError("foo")
-            #raise ConfigurationError("message")
+        self['control-service-config'] = FilePath(self['control-service-config'])
 
 
 def _get_external_ip(host, port):
@@ -85,7 +80,25 @@ def _get_external_ip(host, port):
 
 
 def configuration_from_options(options):
-    # TODO this can be tested to check for version, incorrect yml etc
+    """
+    """
+    options_file = options['control-service-config']
+    # handle if this load doesn't work
+    try:
+        options_content = options_file.getContent()
+    except IOError:
+        raise ConfigurationError(
+            "Configuration file does not exist at '{}'.".format(
+                options_file.path))
+
+    options_yaml = yaml.safe_load(options_content)
+    # check version
+    configuration = {}
+    # nice error message if this fails
+    configuration['control-service-hostname'] = options_yaml['control-service-hostname']
+
+    return configuration
+
 
 @implementer(ICommandLineVolumeScript)
 class ZFSAgentScript(object):
