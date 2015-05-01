@@ -434,15 +434,15 @@ Release
       git merge origin/release/flocker-${VERSION}
       git push
 
-#. Copy the ``boto`` configuration file to your local home directory:
+#. Copy the AWS configuration to your local home directory:
 
-   If the ``boto`` configuration is on your workstation it will not have to be recreated next time you do a release.
+   If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
 
    .. prompt:: bash [vagrant@localhost]$,$ auto
 
       [vagrant@localhost]$ logout
       Connection to 127.0.0.1 closed.
-      $ vagrant scp default:/home/vagrant/.boto ~/
+      $ vagrant scp default:/home/vagrant/.aws ~/
 
 #. Submit the release pull request for review again.
 
