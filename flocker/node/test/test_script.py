@@ -337,7 +337,8 @@ class ConfigurationFromOptionsTests(SynchronousTestCase):
             configuration_from_options, self.options)
 
         self.assertEqual(
-            "Configuration file does not exist at '{}'.".format(self.config.path),
+            "Configuration file does not exist at '{}'.".format(
+                self.config.path),
             exception.message
         )
 
