@@ -755,6 +755,45 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         )
 
 
+class BlockDeviceDeployerMountCalculateChangesTests(
+    SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to mounting of filesystems.
+    """
+    def test_mount_manifestation(self):
+        """
+        If the volume for a dataset is attached to the node but the filesystem
+        is not mounted and the configuration says the dataset is meant to be
+        manifest on the node, ``BlockDeviceDeployer.calculate_changes`` returns
+        a state change to mount the filesystem.
+        """
+        # Give it a state that says the volume is attached but nothing is
+        # mounted.
+        node_state = self.ONE_DATASET_STATE.set(
+            manifestations={},
+            paths={},
+            devices={self.DATASET_ID: FilePath(b"/dev/sda")},
+        )
+
+        # Give it a configuration that says there should be a manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            in_parallel(changes=[
+                MountBlockDevice(
+                    dataset_id=self.DATASET_ID,
+                    mountpoint=FilePath(b"/flocker/").child(
+                        bytes(self.DATASET_ID)
+                    )
+                ),
+            ])
+        )
+
+
 class BlockDeviceDeployerUnmountCalculateChangesTests(
     SynchronousTestCase, ScenarioMixin
 ):
