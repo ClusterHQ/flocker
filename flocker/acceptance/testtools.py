@@ -41,7 +41,7 @@ except ImportError:
 __all__ = [
     'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
-    'require_flocker_cli', 'get_node_state', 'create_application',
+    'require_flocker_cli', 'create_application',
     'create_attached_volume'
     ]
 
@@ -113,23 +113,6 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
         ),
         mountpoint=FilePath(mountpoint),
     )
-
-
-def get_node_state(cluster, hostname):
-    """
-    Get the applications on a node using the HTTP API.
-
-    :param Cluster cluster: The cluster to talk to.
-    :param hostname: The hostname of the node.
-
-    :return: ``Deferred`` that fires with a tuple of the ``Cluster`` and a
-        ``list`` of ``Application`` currently on that node.
-    """
-    d = cluster.current_containers()
-    d.addCallback(
-        lambda result: (cluster, {app["name"]: app for app in result[1]
-                                  if app[u"host"] == hostname}))
-    return d
 
 
 class SSHCommandFailed(Exception):
