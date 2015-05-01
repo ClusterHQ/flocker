@@ -45,8 +45,9 @@ class FlockerCAMainTests(TestCase):
         script = CAScript()
         dummy_reactor = object()
 
+        self.addCleanup(os.chdir, cwd)
+
         self.assertEqual(
             None,
             self.successResultOf(script.main(dummy_reactor, options))
         )
-        os.chdir(cwd)
