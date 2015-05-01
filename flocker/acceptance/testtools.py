@@ -631,18 +631,19 @@ class Cluster(PRecord):
         return request
 
     @log_method
-    def move_container(self, name, host):
+    def move_container(self, name, node_uuid):
         """
         Move a container.
 
         :param unicode name: The name of the container to move.
-        :param unicode host: The host to which the container should be moved.
+        :param unicode node_uuid: The UUID to which the container should
+            be moved.
         :returns: A tuple of (cluster, api_response)
         """
         request = post(
             self.base_url + b"/configuration/containers/" +
             name.encode("ascii"),
-            data=dumps({u"host": host}),
+            data=dumps({u"node_uuid": node_uuid}),
             headers={b"content-type": b"application/json"},
             persistent=False
         )
