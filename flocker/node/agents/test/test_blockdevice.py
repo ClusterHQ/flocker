@@ -240,7 +240,7 @@ class BlockDeviceDeployerAsyncAPITests(SynchronousTestCase):
 
 
 def assert_discovered_state(case,
-                            deployer, expected_hostname,
+                            deployer,
                             expected_manifestations,
                             expected_nonmanifest_datasets=None,
                             expected_devices=pmap()):
@@ -248,19 +248,25 @@ def assert_discovered_state(case,
     Assert that the manifestations on the state object returned by
     ``deployer.discover_state`` equals the given list of manifestations.
 
+    :param TestCase case: The running test.
     :param IDeployer deployer: The object to use to discover the state.
-    :param list expected_manifestations: The ``Manifestation``\ s expected
-        to be discovered.
-    :param dict expected_devices: The OS device files which are expected to
-        be discovered as allocated to volumes attached to the node.  See
+    :param list expected_manifestations: The ``Manifestation``\ s expected to
+        be discovered on the deployer's node.
+    :param dict expected_nonmanifest_datasets: The ``Dataset``\ s expected to
+        be discovered on the cluster but not attached to any node.
+    :param dict expected_devices: The OS device files which are expected to be
+        discovered as allocated to volumes attached to the node.  See
         ``NodeState.devices``.
 
     :raise: A test failure exception if the manifestations are not what is
-            expected.
+        expected.
     """
-    discovering = deployer.discover_state(
-        NodeState(hostname=expected_hostname)
+    previous_state = NodeState(
+        uuid=deployer.node_uuid, hostname=deployer.hostname,
+        applications=None, used_ports=None, manifestations=None, paths=None,
+        devices=None,
     )
+    discovering = deployer.discover_state(previous_state)
     state = case.successResultOf(discovering)
     expected_paths = {}
     for manifestation in expected_manifestations:
@@ -269,6 +275,12 @@ def assert_discovered_state(case,
         expected_paths[dataset_id] = mountpath
     expected = (
         NodeState(
+            # This fails to specify "unknown" values for application-related
+            # NodeState.  Therefore the assertion is incorrect (and the
+            # implementation is wrong): it is specifying that no applications
+            # exist when it should be specifying it doesn't know anything about
+            # applications.
+            # FLOC-1798
             uuid=deployer.node_uuid,
             hostname=deployer.hostname,
             manifestations={
@@ -309,9 +321,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         empty ``manifestations`` if the ``api`` reports no locally attached
         volumes.
         """
-        assert_discovered_state(
-            self, self.deployer, self.expected_hostname, []
-        )
+        assert_discovered_state(self, self.deployer, [])
 
     def test_attached_unmounted_device(self):
         """
@@ -327,7 +337,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             unmounted.blockdevice_id, self.expected_hostname
         )
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             expected_manifestations=[],
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
@@ -362,7 +372,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mount(device, mountpoint)
 
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             expected_manifestations=[],
             expected_nonmanifest_datasets=[unexpected.dataset_id],
             expected_devices={
@@ -395,7 +405,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mount(unrelated_device, mountpoint)
 
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             expected_manifestations=[],
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
@@ -431,7 +441,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset=expected_dataset, primary=True
         )
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             [expected_manifestation],
             expected_devices={
                 dataset_id: device,
@@ -449,9 +459,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
         self.api.attach_volume(new_volume.blockdevice_id, u'some.other.host')
-        assert_discovered_state(
-            self, self.deployer, self.expected_hostname, [],
-        )
+        assert_discovered_state(self, self.deployer, [])
 
     def test_only_unattached_devices(self):
         """
@@ -464,7 +472,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             dataset_id=dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE)
         assert_discovered_state(
-            self, self.deployer, self.expected_hostname,
+            self, self.deployer,
             expected_manifestations=[],
             expected_nonmanifest_datasets=[dataset_id],
         )
@@ -931,6 +939,8 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         # some attached volumes.
         node_state = NodeState(
             uuid=self.NODE_UUID, hostname=self.NODE,
+            applications={},
+            used_ports=set(),
             manifestations={},
             devices={self.DATASET_ID: FilePath(b"/dev/xda")},
         )
