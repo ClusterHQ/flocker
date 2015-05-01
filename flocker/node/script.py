@@ -82,20 +82,25 @@ def _get_external_ip(host, port):
 
 def configuration_from_options(options):
     """
+    Extract configuration from provided options.
+
+    :param dict options: Dictionary containing command line options.
+
+    :return dict: Dictionary containing the desired configuration.
     """
-    options_file = options[u'control-service-config']
-    # handle if this load doesn't work
+    control_service_options_file = options[u'control-service-config']
+
     try:
-        options_content = options_file.getContent()
+        options_content = control_service_options_file.getContent()
     except IOError:
         raise ConfigurationError(
             "Configuration file does not exist at '{}'.".format(
-                options_file.path))
+                control_service_options_file.path))
 
     options_yaml = yaml.safe_load(options_content)
-    # check version
+
     configuration = {}
-    # nice error message if this fails
+
     try:
         configuration['control-service-hostname'] = options_yaml[
             u'control-service-hostname']
