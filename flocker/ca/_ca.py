@@ -438,8 +438,7 @@ class ControlCredential(PRecord):
     uuid = field(mandatory=True, type=bytes)
 
     @classmethod
-    def from_path(cls, path, **kwargs):
-        uuid = kwargs.pop("uuid", None)
+    def from_path(cls, path, uuid=None):
         keypair, certificate = load_certificate_from_path(
             path, CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME
         )
@@ -455,7 +454,7 @@ class ControlCredential(PRecord):
         return cls(credential=credential, uuid=uuid)
 
     @classmethod
-    def initialize(cls, path, authority, begin=None, **kwargs):
+    def initialize(cls, path, authority, begin=None, uuid=None):
         """
         Generate a certificate signed by the supplied root certificate.
 
@@ -465,11 +464,12 @@ class ControlCredential(PRecord):
         :param datetime begin: The datetime from which the generated
             certificate should be valid.
         """
-        cluster_uuid = kwargs.pop("uuid", bytes(uuid4()))
+        if uuid is None:
+            uuid = bytes(uuid4())
         # The common name for the control service certificate.
         # This is used to distinguish between control service and node
         # certificates. Includes the UUID identifying this cluster.
-        name = b"control-service-" + cluster_uuid
+        name = b"control-service-" + uuid
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
@@ -490,7 +490,7 @@ class ControlCredential(PRecord):
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
             CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME)
-        instance = cls(credential=credential, uuid=cluster_uuid)
+        instance = cls(credential=credential, uuid=uuid)
         return instance
 
 
