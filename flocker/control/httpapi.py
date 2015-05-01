@@ -8,6 +8,11 @@ from uuid import uuid4
 
 from pyrsistent import pmap, thaw
 
+from twisted.internet.ssl import (
+    Certificate, PrivateCertificate
+)
+from twisted.protocols.tls import TLSMemoryBIOFactory
+
 from twisted.python.filepath import FilePath
 from twisted.web.http import (
     CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
@@ -20,6 +25,8 @@ from twisted.application.internet import StreamServerEndpointService
 from klein import Klein
 
 from pyrsistent import discard
+
+from ..ca import ControlCredential
 
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
@@ -1019,7 +1026,8 @@ def api_dataset_from_dataset_and_node(dataset, node_hostname):
     return result
 
 
-def create_api_service(persistence_service, cluster_state_service, endpoint):
+def create_api_service(persistence_service, cluster_state_service, endpoint,
+                       certificate_path=b"/etc/flocker"):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 
@@ -1031,10 +1039,31 @@ def create_api_service(persistence_service, cluster_state_service, endpoint):
 
     :param endpoint: Twisted endpoint to listen on.
 
+    :param bytes certificate_path: Absolute path to directory containing
+        the cluster root certificate and the control service's certificate
+        and private key.
+
     :return: Service that will listen on the endpoint using HTTP API server.
     """
+    certificate_path = FilePath(certificate_path)
+    root_certificate_path = certificate_path.child(b"cluster.crt")
+    root_certificate = None
+    with root_certificate_path.open() as root_file:
+        root_certificate = Certificate.loadPEM(root_file.read())
+    control_credential = ControlCredential.from_path(certificate_path)
+    control_certificate = PrivateCertificate.fromCertificateAndKeyPair(
+        control_credential.credential.certificate,
+        control_credential.credential.keypair.keypair
+    )
     api_root = Resource()
     user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
     api_root.putChild('v1', user.app.resource())
     api_root._v1_user = user  # For unit testing purposes, alas
-    return StreamServerEndpointService(endpoint, Site(api_root))
+    return StreamServerEndpointService(
+        endpoint,
+        TLSMemoryBIOFactory(
+            control_certificate.options(root_certificate),
+            False,
+            Site(api_root)
+        )
+    )

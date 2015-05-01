@@ -14,6 +14,7 @@ from zope.interface.verify import verifyObject
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.http import (
@@ -21,7 +22,6 @@ from twisted.web.http import (
     NOT_ALLOWED as METHOD_NOT_ALLOWED
 )
 from twisted.web.http_headers import Headers
-from twisted.web.server import Site
 from twisted.web.client import FileBodyProducer, readBody
 from twisted.application.service import IService
 from twisted.python.filepath import FilePath
@@ -29,6 +29,7 @@ from twisted.python.filepath import FilePath
 from ...restapi.testtools import (
     buildIntegrationTests, dumps, loads)
 
+from ...ca import RootCredential, ControlCredential
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
@@ -2734,24 +2735,33 @@ class CreateAPIServiceTests(SynchronousTestCase):
         """
         ``create_api_service`` returns an object providing ``IService``.
         """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        authority = RootCredential.initialize(path, b"mycluster")
+        ControlCredential.initialize(path, authority)
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        verifyObject(IService, create_api_service(None, None, endpoint))
+        verifyObject(IService, create_api_service(
+            None, None, endpoint, path.path))
 
     def test_listens_endpoint(self):
         """
         ``create_api_service`` returns a service that listens using the given
         endpoint with a HTTP server.
         """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        authority = RootCredential.initialize(path, b"mycluster")
+        ControlCredential.initialize(path, authority)
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        service = create_api_service(None, None, endpoint)
+        service = create_api_service(None, None, endpoint, path.path)
         self.addCleanup(service.stopService)
         service.startService()
         server = reactor.tcpServers[0]
         port = server[0]
         factory = server[1].__class__
-        self.assertEqual((port, factory), (6789, Site))
+        self.assertEqual((port, factory), (6789, TLSMemoryBIOFactory))
 
 
 class DatasetsStateTestsMixin(APITestsMixin):
