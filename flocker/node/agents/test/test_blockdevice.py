@@ -740,6 +740,37 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         )
 
 
+class BlockDeviceDeployerUnmountCalculateChangesTests(
+    SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to unmounting of filesystems.
+    """
+    def test_unmount_manifestation(self):
+        """
+        If the filesystem for a dataset is mounted on the node and the
+        configuration says the dataset is not meant to be manifest on that
+        node, ``BlockDeviceDeployer.calculate_changes`` returns a state change
+        to unmount the filesystem.
+        """
+        # Give it a state that says it has a manifestation of the dataset.
+        node_state = self.ONE_DATASET_STATE
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            in_parallel(changes=[
+                UnmountBlockDevice(dataset_id=self.DATASET_ID)
+            ])
+        )
+
+
 class BlockDeviceDeployerCreationCalculateChangesTests(
         SynchronousTestCase
 ):
@@ -2224,9 +2255,9 @@ class MountBlockDeviceTests(
 
 class UnmountBlockDeviceInitTests(
     make_with_init_tests(
-        UnmountBlockDevice,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(),
+        record_type=UnmountBlockDevice,
+        kwargs=dict(dataset_id=uuid4()),
+        expected_defaults=dict(),
     )
 ):
     """
@@ -2237,22 +2268,34 @@ class UnmountBlockDeviceInitTests(
 class UnmountBlockDeviceTests(
     make_istatechange_tests(
         UnmountBlockDevice,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz")),
+        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4()),
     )
 ):
     """
     Tests for ``UnmountBlockDevice``.
     """
-    def test_run(self):
+    @validate_logging(
+        lambda self, logger:
+            self.assertEqual(
+                1,
+                len(LoggedAction.of_type(
+                    logger.messages, UNMOUNT_BLOCK_DEVICE
+                ))
+            )
+    )
+    def test_run(self, logger):
         """
         ``UnmountBlockDevice.run`` unmounts the filesystem / block device
         associated with the volume passed to it (association as determined by
         the deployer's ``IBlockDeviceAPI`` provider).
         """
+        self.patch(blockdevice, "_logger", logger)
+
         node = u"192.0.2.1"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+        deployer = create_blockdevicedeployer(self, hostname=node)
+        api = deployer.block_device_api
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
@@ -2264,15 +2307,8 @@ class UnmountBlockDeviceTests(
         make_filesystem(device, block_device=True)
         check_output([b"mount", device.path, mountpoint.path])
 
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-            mountroot=mountroot,
-        )
-
-        change = UnmountBlockDevice(volume=volume)
-        self.successResultOf(change.run(deployer))
+        change = UnmountBlockDevice(dataset_id=dataset_id)
+        self.successResultOf(run_state_change(change, deployer))
         self.assertNotIn(
             device,
             list(
@@ -2782,7 +2818,7 @@ class ResizeFilesystemTests(
         createfs = CreateFilesystem(volume=volume, filesystem=filesystem)
         mount = MountBlockDevice(dataset_id=dataset_id, mountpoint=mountpoint)
 
-        unmount = UnmountBlockDevice(volume=volume)
+        unmount = UnmountBlockDevice(dataset_id=dataset_id)
         detach = DetachVolume(dataset_id=dataset_id)
         resize = ResizeVolume(
             volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2
