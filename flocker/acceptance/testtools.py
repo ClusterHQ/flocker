@@ -368,18 +368,20 @@ def assert_expected_deployment(test_case, expected_deployment):
     d = get_test_cluster()
 
     def got_cluster(cluster):
-        nodes = {node.address: node.uuid for node in cluster.nodes}
+        ip_to_uuid = {node.address: node.uuid for node in cluster.nodes}
+        uuid_to_ip = {node.uuid: node.address for node in cluster.nodes}
 
         def got_results(results):
             cluster, existing_containers = results
             expected = []
             for hostname, apps in expected_deployment.items():
-                node_uuid = nodes[hostname]
+                node_uuid = ip_to_uuid[hostname]
                 expected += [container_configuration_response(app, node_uuid)
                              for app in apps]
             for app in expected:
                 app[u"running"] = True
-                app[u"host"] = hostname
+                app[u"host"] = uuid_to_ip[app["node_uuid"]]
+
             return sorted(existing_containers) == sorted(expected)
 
         def configuration_matches_state():
