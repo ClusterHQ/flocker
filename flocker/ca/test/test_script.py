@@ -36,6 +36,9 @@ class FlockerCAMainTests(TestCase):
         # files already created in previous tests.
         path = FilePath(self.mktemp())
         path.makedirs()
+
+        cwd = os.getcwd()
+        self.addCleanup(os.chdir, cwd)
         os.chdir(path.path)
 
         options = CAOptions()
