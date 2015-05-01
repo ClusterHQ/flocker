@@ -38,8 +38,8 @@ class FlockerCAMainTests(TestCase):
         path.makedirs()
 
         cwd = os.getcwd()
-        os.chdir(path.path)
         self.addCleanup(os.chdir, cwd)
+        os.chdir(path.path)
 
         options = CAOptions()
         options.parseOptions(["initialize", "mycluster"])
