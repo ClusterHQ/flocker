@@ -1424,6 +1424,9 @@ class BlockDeviceDeployer(PRecord):
             configured_manifestations,
             cluster_state.nonmanifest_datasets
         ))
+        mounts = list(self._calculate_mounts(
+            local_state.devices, local_state.paths, configured_manifestations,
+        ))
         unmounts = list(self._calculate_unmounts(
             local_state.paths, configured_manifestations,
         ))
@@ -1451,8 +1454,38 @@ class BlockDeviceDeployer(PRecord):
         # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
 
         return in_parallel(changes=(
-            unmounts + detaches + attaches + creates + deletes + resizes
+            unmounts + detaches +
+            attaches + mounts +
+            creates + deletes +
+            resizes
         ))
+
+    def _calculate_mounts(self, devices, paths, configured):
+        """
+        :param PMap devices: The datasets with volumes attached to this node
+            and the device files at which they are available.  This is the same
+            as ``NodeState.devices``.
+        :param PMap paths: The paths at which datasets' filesystems are mounted
+            on this node.  This is the same as ``NodeState.paths``.
+        :param PMap configured: The manifestations which are configured on this
+            node.  This is the same as ``NodeState.manifestations``.
+
+        :return: A generator of ``MountBlockDevice`` instances, one for each
+            dataset which exists, is attached to this node, does not have its
+            filesystem mounted, and is configured to have a manifestation on
+            this node.
+        """
+        for configured_dataset_id in configured:
+            if configured_dataset_id in paths:
+                # It's mounted already.
+                continue
+            if UUID(configured_dataset_id) in devices:
+                # It's attached.
+                path = self._mountpath_for_dataset_id(configured_dataset_id)
+                yield MountBlockDevice(
+                    dataset_id=UUID(configured_dataset_id),
+                    mountpoint=path,
+                )
 
     def _calculate_unmounts(self, paths, configured):
         """
