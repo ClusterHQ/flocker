@@ -2275,12 +2275,23 @@ class UnmountBlockDeviceTests(
     """
     Tests for ``UnmountBlockDevice``.
     """
-    def test_run(self):
+    @validate_logging(
+        lambda self, logger:
+            self.assertEqual(
+                1,
+                len(LoggedAction.of_type(
+                    logger.messages, UNMOUNT_BLOCK_DEVICE
+                ))
+            )
+    )
+    def test_run(self, logger):
         """
         ``UnmountBlockDevice.run`` unmounts the filesystem / block device
         associated with the volume passed to it (association as determined by
         the deployer's ``IBlockDeviceAPI`` provider).
         """
+        self.patch(blockdevice, "_logger", logger)
+
         node = u"192.0.2.1"
         dataset_id = uuid4()
         deployer = create_blockdevicedeployer(self, hostname=node)
