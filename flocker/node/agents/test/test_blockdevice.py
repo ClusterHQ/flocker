@@ -290,6 +290,10 @@ def assert_discovered_state(case,
         ),
     )
     if expected_nonmanifest_datasets is not None:
+        # FLOC-1503 - Make this actually be a dictionary (callers pass a list
+        # instead, despite the docs, and this is used like an iterable) and
+        # construct the ``NonManifestDatasets`` with the ``Dataset`` instances
+        # that are present as values.
         expected += (
             NonManifestDatasets(datasets={
                 unicode(dataset_id):
@@ -339,6 +343,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
+            # FLOC-1503 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
                 unmounted.dataset_id:
@@ -374,6 +379,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
+            # FLOC-1503 Expect dataset with size LOOPBACK_BLOCKDEVICE_SIZE
             expected_nonmanifest_datasets=[unexpected.dataset_id],
             expected_devices={
                 unexpected.dataset_id: device,
@@ -407,6 +413,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
+            # FLOC-1503 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
             expected_nonmanifest_datasets=[unmounted.dataset_id],
             expected_devices={
                 unmounted.dataset_id:
@@ -474,6 +481,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         assert_discovered_state(
             self, self.deployer,
             expected_manifestations=[],
+            # FLOC-1503 Expect dataset with size REALISTIC_BLOCKDEVICE_SIZE
             expected_nonmanifest_datasets=[dataset_id],
         )
 
@@ -962,6 +970,8 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
     to resizing a dataset.
     """
+    # FLOC-1503 Change this to be increase/decrease indifferent.  Calculation
+    # logic is unchanged for grow vs shrink.
     def test_maximum_size_increased(self):
         """
         ``BlockDeviceDeployer.calculate_changes`` returns a
@@ -2657,6 +2667,12 @@ class ResizeBlockDeviceDatasetTests(
             self.assertEqual(REALISTIC_BLOCKDEVICE_SIZE * 2, volume.size)
         resizing.addCallback(resized)
         return resizing
+
+    # FLOC-1503 Add a test like test_run_grow but for shrinking.  Refactor
+    # existing test to share code.  Add more assertions about final state: we
+    # expect it to be resized but also attached and mounted.  In particular, if
+    # it isn't mounted then there's no evidence the filesystem was correctly
+    # resized.
 
 
 class ResizeVolumeInitTests(

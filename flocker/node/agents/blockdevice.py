@@ -487,6 +487,17 @@ class ResizeBlockDeviceDataset(PRecord):
         )
         unmount = UnmountBlockDevice(dataset_id=self.dataset_id)
         detach = DetachVolume(dataset_id=self.dataset_id)
+
+        # FLOC-1503
+        #
+        # If the volume is shrinking, arrange the changes like
+        #
+        # unmount, detach, resize volume, attach, resize filesystem, mount
+        #
+        # If the volume is growing, arrange the changes like [
+        #
+        # unmount, resize filesystem, detach, resize volume, attach, mount
+
         return run_state_change(
             sequentially(
                 changes=[
@@ -1358,6 +1369,8 @@ class BlockDeviceDeployer(PRecord):
                 paths[dataset_id] = mountpath
             else:
                 del manifestations[dataset_id]
+                # FLOC-1503 Populate the Dataset's size information from the
+                # volume object.
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         state = (
