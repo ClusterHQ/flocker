@@ -368,11 +368,14 @@ def assert_expected_deployment(test_case, expected_deployment):
     d = get_test_cluster()
 
     def got_cluster(cluster):
+        nodes = {node.address: node.uuid for node in cluster.nodes}
+
         def got_results(results):
             cluster, existing_containers = results
             expected = []
             for hostname, apps in expected_deployment.items():
-                expected += [container_configuration_response(app, hostname)
+                node_uuid = nodes[hostname]
+                expected += [container_configuration_response(app, node_uuid)
                              for app in apps]
             for app in expected:
                 app[u"running"] = True
@@ -418,6 +421,16 @@ class _NodeList(CheckedPVector):
     __type__ = Node
 
 
+class ResponseError(ValueError):
+    """
+    An unexpected response from the REST API.
+    """
+    def __init__(self, code, body):
+        ValueError.__init__(self, "Unexpected response code {}:\n{}\n".format(
+            code, body))
+        self.code = code
+
+
 def check_and_decode_json(result, response_code):
     """
     Given ``treq`` response object, extract JSON and ensure response code
@@ -429,8 +442,7 @@ def check_and_decode_json(result, response_code):
     :return: ``Deferred`` firing with decoded JSON.
     """
     def error(body):
-        raise ValueError("Unexpected response code {}:\n{}\n".format(
-            result.code, body))
+        raise ResponseError(result.code, body)
 
     if result.code != response_code:
         d = content(result)

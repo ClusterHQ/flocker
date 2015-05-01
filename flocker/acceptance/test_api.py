@@ -16,7 +16,7 @@ from treq import get, json_content
 
 from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
 from .testtools import (
-    MONGO_IMAGE, require_mongo, get_mongo_client,
+    MONGO_IMAGE, require_mongo, get_mongo_client, ResponseError,
     get_test_cluster, require_cluster,
 )
 
@@ -274,6 +274,7 @@ class ContainerAPITests(TestCase):
         def created(result):
             cluster, data = result
             data[u"running"] = True
+            data[u"host"] = cluster.nodes[0].address
 
             def in_current():
                 current = cluster.current_containers()
@@ -478,10 +479,10 @@ class DatasetAPITests(TestCase):
             )
             # Check for expected exception and response code.
             return self.assertFailure(
-                resizing, ValueError
+                resizing, ResponseError
             ).addCallback(
                 lambda exception: self.assertEqual(
-                    BAD_REQUEST, exception.args[1]
+                    BAD_REQUEST, exception.code
                 )
             )
 
