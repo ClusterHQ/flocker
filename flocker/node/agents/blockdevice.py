@@ -214,9 +214,15 @@ ATTACH_VOLUME_DETAILS = MessageType(
 
 DETACH_VOLUME = ActionType(
     u"agent:blockdevice:detach_volume",
-    [VOLUME],
+    [DATASET_ID],
     [],
     u"The volume for a block-device-backed dataset is being detached."
+)
+
+DETACH_VOLUME_DETAILS = MessageType(
+    u"agent:blockdevice:detach_volume:details",
+    [VOLUME],
+    u"The volume for a block-device-backed dataset has been discovered."
 )
 
 DESTROY_VOLUME = ActionType(
@@ -336,7 +342,7 @@ class DestroyBlockDeviceDataset(PRecord):
             sequentially(
                 changes=[
                     UnmountBlockDevice(volume=volume),
-                    DetachVolume(volume=volume),
+                    DetachVolume(dataset_id=self.dataset_id),
                     DestroyVolume(volume=volume),
                 ]
             ),
@@ -473,11 +479,12 @@ class ResizeBlockDeviceDataset(PRecord):
                 unicode(self.dataset_id)
             )
         )
+        detach = DetachVolume(dataset_id=self.dataset_id)
         return run_state_change(
             sequentially(
                 changes=[
                     UnmountBlockDevice(volume=volume),
-                    DetachVolume(volume=volume),
+                    detach,
                     ResizeVolume(volume=volume, size=self.size),
                     attach,
                     ResizeFilesystem(volume=volume),
@@ -564,7 +571,8 @@ class AttachVolume(PRecord):
     """
     Attach an unattached volume to a node.
 
-    :ivar BlockDeviceVolume volume: The volume to attach.
+    :ivar UUID dataset_id: The unique identifier of the dataset associated with
+        the volume to attach.
     :ivar unicode hostname: An identifier for the node to which the volume
         should be attached.  An IPv4 address literal.
     """
@@ -600,22 +608,33 @@ class DetachVolume(PRecord):
     """
     Detach a volume from the node it is currently attached to.
 
-    :ivar BlockDeviceVolume volume: The volume to destroy.
+    :ivar UUID dataset_id: The unique identifier of the dataset associated with
+        the volume to detach.
     """
-    volume = _volume_field()
+    dataset_id = field(type=UUID, mandatory=True)
 
     @property
     def eliot_action(self):
-        return DETACH_VOLUME(_logger, volume=self.volume)
+        return DETACH_VOLUME(_logger, dataset_id=self.dataset_id)
 
     def run(self, deployer):
         """
         Use the deployer's ``IBlockDeviceAPI`` to detach the volume.
         """
-        # Make this asynchronous after FLOC-1549, probably as part of
-        # FLOC-1593.
-        deployer.block_device_api.detach_volume(self.volume.blockdevice_id)
-        return succeed(None)
+        api = deployer.async_block_device_api
+        listing = api.list_volumes()
+        listing.addCallback(
+            _blockdevice_volume_from_datasetid, self.dataset_id
+        )
+
+        def found(volume):
+            if volume is None:
+                # It was not actually found.
+                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
+            DETACH_VOLUME_DETAILS(volume=volume).write(_logger)
+            return api.detach_volume(volume.blockdevice_id)
+        detaching = listing.addCallback(found)
+        return detaching
 
 
 @implementer(IStateChange)
@@ -1270,9 +1289,16 @@ class BlockDeviceDeployer(PRecord):
         return a ``NodeState`` containing only ``Manifestation`` instances and
         their mount paths.
         """
-        volumes = self.block_device_api.list_volumes()
+        api = self.block_device_api
+        volumes = api.list_volumes()
         manifestations = {}
         nonmanifest = {}
+        devices = {
+            volume.dataset_id: api.get_device_path(volume.blockdevice_id)
+            for volume
+            in volumes
+            if volume.host == self.hostname
+        }
 
         for volume in volumes:
             dataset_id = unicode(volume.dataset_id)
@@ -1316,6 +1342,7 @@ class BlockDeviceDeployer(PRecord):
                 hostname=self.hostname,
                 manifestations=manifestations,
                 paths=paths,
+                devices=devices,
             ),
         )
 
@@ -1384,6 +1411,9 @@ class BlockDeviceDeployer(PRecord):
             in manifestations_to_create
         )
 
+        detaches = list(self._calculate_detaches(
+            local_state.devices, local_state.paths, configured_manifestations,
+        ))
         deletes = self._calculate_deletes(configured_manifestations)
         resizes = list(self._calculate_resizes(
             configured_manifestations, local_state
@@ -1392,7 +1422,33 @@ class BlockDeviceDeployer(PRecord):
         # TODO Prevent changes to volumes that are currently being used by
         # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
 
-        return in_parallel(changes=attaches + creates + deletes + resizes)
+        return in_parallel(
+            changes=detaches + attaches + creates + deletes + resizes
+        )
+
+    def _calculate_detaches(self, devices, paths, configured):
+        """
+        :param PMap devices: The datasets with volumes attached to this node
+            and the device files at which they are available.  This is the same
+            as ``NodeState.devices``.
+        :param PMap paths: The paths at which datasets' filesystems are mounted
+            on this node.  This is the same as ``NodeState.paths``.
+        :param PMap configured: The manifestations which are configured on this
+            node.  This is the same as ``NodeState.manifestations``.
+
+        :return: A generator of ``DetachVolume`` instances, one for each
+            dataset which exists, is attached to this node, is not mounted, and
+            is configured to not have a manifestation on this node.
+        """
+        for attached_dataset_id in devices:
+            if unicode(attached_dataset_id) in configured:
+                # It is supposed to be here.
+                continue
+            if unicode(attached_dataset_id) in paths:
+                # It is mounted and needs to unmounted before it can be
+                # detached.
+                continue
+            yield DetachVolume(dataset_id=attached_dataset_id)
 
     def _calculate_attaches(self, configured, nonmanifest):
         """
