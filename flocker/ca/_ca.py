@@ -4,6 +4,25 @@
 Low-level logic for a certificate authority.
 
 Uses RSA 4096-bit + SHA 256.
+
+We have three categories of certificates:
+
+1. Control service. Needs to be validated over HTTP by 3rd party clients.
+2. Node agents. Needs to encode a node UUID.
+3. API clients. Used by HTTP API clients to authenticate.
+
+None of these should be able to impersonate the others. We therefore use
+the following Distinguised Name scheme:
+
+1. Control service: common name is "control-service", subjectAltName is
+   administrator-specifiable DNS hostname, to support standard HTTPS
+   client authentication, and extendedKeyUsage is set to "serverAuth".
+2. Node agents: no common name is set. subjectAltName has
+   "otherName:node-<uuid>", and extendedKeyUsage is set to
+   "clientAuth" (technically clientAuth means HTTPS, but whatevs).
+3. API clients: No common name is set. subjectAltName has
+   "otherName:user-<username>", and extendedKeyUsage is set to
+   "clientAuth".
 """
 
 import datetime
@@ -454,6 +473,8 @@ class ControlCredential(PRecord):
         :param datetime begin: The datetime from which the generated
             certificate should be valid.
         """
+        # XXX FLOC-1805 also take hostname.
+
         # The common name for the control service certificate.
         # This is used to distinguish between control service and node
         # certificates.
