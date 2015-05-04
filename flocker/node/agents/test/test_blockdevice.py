@@ -2828,6 +2828,38 @@ class ResizeFilesystemInitTests(
     """
 
 
+def get_filesystem_inodes(case, deployer, dataset_id):
+    """
+    Get the number of inodes in the filesystem associated with the given
+    mountpoint.
+
+    :param TestCase case: The running test method (used to resolve
+        synchronously fired Deferreds).
+    :param IDeployer deployer: A deployer to use to run changes.
+    :param UUID dataset_id: An existing dataset the filesystem of which to
+        inspect.
+
+    :return: An ``int`` giving the number of inodes in the dataset's filesystem
+        (via the ``f_files`` field of an ``os.statvfs`` result).
+    """
+    mountpoint = deployer.mountroot.child(b"resized-filesystem")
+    case.successResultOf(
+        run_state_change(
+            MountBlockDevice(dataset_id=dataset_id, mountpoint=mountpoint),
+            deployer
+        ),
+    )
+    try:
+        return statvfs(mountpoint.path).f_files
+    finally:
+        case.successResultOf(
+            run_state_change(
+                UnmountBlockDevice(dataset_id=dataset_id),
+                deployer
+            ),
+        )
+
+
 class ResizeFilesystemTests(
     make_istatechange_tests(
         ResizeFilesystem,
@@ -2841,55 +2873,82 @@ class ResizeFilesystemTests(
     """
     Tests for ``ResizeFilesystem``\ 's ``IStateChange`` implementation.
     """
-    def test_grow(self):
+    def _resize_test(self, size_factor):
         """
-        ``ResizeFilesystem.run`` increases the size of the filesystem on a
-        block device to the size of that block device.
+        Assert that ``ResizeFilesystem`` can change the size of an existing
+        dataset's filesystem.
+
+        :param size_factor: A multiplier to apply to the current size of the
+            filesystem to determine the new size that ``ResizeFilesystem`` will
+            be told to use.
+
+        :raise: A test-failing exception if ``ResizeFilesystem`` produces a
+            filesystem in which the number of inodes has not changed by a
+            factor of ``size_factor``.
         """
         host = u"192.0.7.8"
         dataset_id = uuid4()
 
-        deployer = create_blockdevicedeployer(self, hostname=host)
-        api = deployer.block_device_api
-        mountpoint = deployer.mountroot.child(b"resized-filesystem")
-
-        volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
         filesystem = u"ext4"
 
-        attach = AttachVolume(dataset_id=dataset_id, hostname=host)
-        createfs = CreateFilesystem(volume=volume, filesystem=filesystem)
-        mount = MountBlockDevice(dataset_id=dataset_id, mountpoint=mountpoint)
+        original_size = REALISTIC_BLOCKDEVICE_SIZE
+        new_size = int(original_size * size_factor)
 
-        unmount = UnmountBlockDevice(dataset_id=dataset_id)
-        detach = DetachVolume(dataset_id=dataset_id)
-        resize = ResizeVolume(
-            volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2
+        deployer = create_blockdevicedeployer(self, hostname=host)
+        api = deployer.block_device_api
+
+        volume = api.create_volume(
+            dataset_id=dataset_id, size=original_size,
         )
-        resizefs = ResizeFilesystem(volume=volume)
+        api.attach_volume(volume.blockdevice_id, host)
 
-        for change in [attach, createfs, mount]:
-            self.successResultOf(change.run(deployer))
+        self.successResultOf(run_state_change(
+            CreateFilesystem(
+                volume=volume, filesystem=filesystem,
+            ),
+            deployer
+        ))
 
-        before = statvfs(mountpoint.path)
+        if new_size > original_size:
+            api.detach_volume(volume.blockdevice_id)
+            api.resize_volume(volume.blockdevice_id, new_size)
+            api.attach_volume(volume.blockdevice_id, host)
 
-        for change in [unmount, detach, resize, attach, resizefs, mount]:
-            self.successResultOf(change.run(deployer))
+        before = get_filesystem_inodes(self, deployer, dataset_id)
 
-        after = statvfs(mountpoint.path)
+        # Test the state change.
+        self.successResultOf(run_state_change(
+            ResizeFilesystem(volume=volume, size=new_size),
+            deployer
+        ))
 
-        inodes_before = before.f_files
-        inodes_after = after.f_files
-        expected_inodes_after = 2 * inodes_before
+        after = get_filesystem_inodes(self, deployer, dataset_id)
+
+        expected_inodes_after = int(size_factor * before)
 
         self.assertEqual(
             expected_inodes_after,
-            inodes_after,
+            after,
             "Unexpected inode count. "
             "Before: {}, "
             "After: {}, "
             "Expected: {}.".format(
-                inodes_before, inodes_after, expected_inodes_after
+                before, after, expected_inodes_after
             )
         )
+
+    def test_grow(self):
+        """
+        ``ResizeFilesystem`` increases the size of the filesystem on a block
+        device if the ``size`` it is configured with is greater than the
+        current size of the filesystem.
+        """
+        self._resize_test(2)
+
+    def test_shrink(self):
+        """
+        ``ResizeFilesystem`` decreases the size of the filesystem on a block
+        device if the ``size`` it is configured with is less than the current
+        size of the filesystem.
+        """
+        self._resize_test(0.5)
