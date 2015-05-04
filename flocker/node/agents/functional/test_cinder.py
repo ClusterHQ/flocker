@@ -86,10 +86,9 @@ class CinderBlockDeviceAPIInterfaceTests(
             expected_volume=requested_volume
         )
 
-        self.assertEqual([], self.api.list_volumes())
-
         self.addCleanup(cinder_client.connection.delete_volume,
                         requested_volume.id)
+        self.assertEqual([], self.api.list_volumes())
 
     def test_foreign_cluster_volume(self):
         """
