@@ -972,18 +972,27 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
     """
     # FLOC-1503 Change this to be increase/decrease indifferent.  Calculation
     # logic is unchanged for grow vs shrink.
-    def test_maximum_size_increased(self):
+    def _maximum_size_change_test(self, size_factor):
         """
-        ``BlockDeviceDeployer.calculate_changes`` returns a
-        ``ResizeBlockDeviceDataset`` state change operation if the
-        ``maximum_size`` of the configured ``Dataset`` is larger than the size
-        reported in the local node state.
+        Assert that if the size of an existing dataset is changed by the
+        configuration, ``BlockDeviceDeployer.calculate_changes`` computes a
+        ``ResizeBlockDeviceDataset`` which will change that dataset's size to
+        the size in the configuration.
+
+        :param size_factor: A multiplier to apply to the current size of the
+            dataset to determine the new size that will appear in the
+            configuration used by the test.  For example, a value greater than
+            1 to test growing and a value between 0 and 1 to test shrinking.
+
+        :raise: A test-failing exception if a change to resize the dataset to
+            its new size is not calculated.
         """
+        new_size = int(REALISTIC_BLOCKDEVICE_SIZE * size_factor)
         local_state = self.ONE_DATASET_STATE
         local_config = to_node(local_state).transform(
             ["manifestations", unicode(self.DATASET_ID), "dataset",
              "maximum_size"],
-            REALISTIC_BLOCKDEVICE_SIZE * 2
+            new_size,
         )
 
         assert_calculated_changes(
@@ -991,10 +1000,28 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
             in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=self.DATASET_ID,
-                    size=REALISTIC_BLOCKDEVICE_SIZE * 2,
+                    size=new_size,
                 )]
             )
         )
+
+    def test_maximum_size_increased(self):
+        """
+        ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``ResizeBlockDeviceDataset`` state change operation if the
+        ``maximum_size`` of the configured ``Dataset`` is larger than the size
+        reported in the local node state.
+        """
+        self._maximum_size_change_test(2)
+
+    def test_maximum_size_decreased(self):
+        """
+        ``BlockDeviceDeployer.calculate_changes`` returns a
+        ``ResizeBlockDeviceDataset`` state change operation if the
+        ``maximum_size`` of the configured ``Dataset`` is smaller than the size
+        reported in the local node state.
+        """
+        self._maximum_size_change_test(0.5)
 
     def test_multiple_resize(self):
         """
