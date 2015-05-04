@@ -1103,9 +1103,13 @@ class LoopbackBlockDeviceAPI(object):
         if volume.host is None:
             raise UnattachedVolume(blockdevice_id)
 
-        check_output([
-            b"losetup", b"--detach", self.get_device_path(blockdevice_id).path
-        ])
+        # ``losetup --detach`` only if the file was used for a loop device.
+        if self.get_device_path(blockdevice_id) is not None:
+            check_output([
+                b"losetup", b"--detach",
+                self.get_device_path(blockdevice_id).path
+            ])
+
         volume_path = self._attached_directory.descendant([
             volume.host.encode("ascii"), volume.blockdevice_id.encode("ascii")
         ])
