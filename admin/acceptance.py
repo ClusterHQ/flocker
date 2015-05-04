@@ -416,11 +416,13 @@ def main(reactor, args, base_path, top_level):
 
     from flocker.common.script import EliotObserver
     from eliot.logwriter import ThreadedFileWriter
-    log_file = open("%s.logs" % base_path.base_name(), "a")
+    from twisted.python.log import startLoggingWithObserver
+
+    log_file = open("%s.log" % base_path.basename(), "a")
     log_writer = ThreadedFileWriter(log_file, reactor)
     log_writer.startService()
     observer = EliotObserver()
-    observer.start()
+    startLoggingWithObserver(observer, setStdout=False)
 
     try:
         nodes = yield runner.start_nodes(reactor)
