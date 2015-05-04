@@ -20,7 +20,7 @@ from twisted.python.procutils import which
 from eliot import Logger, start_action
 from eliot.twisted import DeferredContext
 
-from treq import get, post, delete, json_content
+from treq import get, post, delete, json_content, content
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
 from ..control import (
@@ -41,7 +41,7 @@ except ImportError:
 __all__ = [
     'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
-    'require_flocker_cli', 'get_node_state', 'create_application',
+    'require_flocker_cli', 'create_application',
     'create_attached_volume'
     ]
 
@@ -113,23 +113,6 @@ def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
         ),
         mountpoint=FilePath(mountpoint),
     )
-
-
-def get_node_state(cluster, hostname):
-    """
-    Get the applications on a node using the HTTP API.
-
-    :param Cluster cluster: The cluster to talk to.
-    :param hostname: The hostname of the node.
-
-    :return: ``Deferred`` that fires with a tuple of the ``Cluster`` and a
-        ``list`` of ``Application`` currently on that node.
-    """
-    d = cluster.current_containers()
-    d.addCallback(
-        lambda result: (cluster, {app["name"]: app for app in result[1]
-                                  if app[u"host"] == hostname}))
-    return d
 
 
 class SSHCommandFailed(Exception):
@@ -385,14 +368,20 @@ def assert_expected_deployment(test_case, expected_deployment):
     d = get_test_cluster()
 
     def got_cluster(cluster):
+        ip_to_uuid = {node.address: node.uuid for node in cluster.nodes}
+        uuid_to_ip = {node.uuid: node.address for node in cluster.nodes}
+
         def got_results(results):
             cluster, existing_containers = results
             expected = []
             for hostname, apps in expected_deployment.items():
-                expected += [container_configuration_response(app, hostname)
+                node_uuid = ip_to_uuid[hostname]
+                expected += [container_configuration_response(app, node_uuid)
                              for app in apps]
             for app in expected:
                 app[u"running"] = True
+                app[u"host"] = uuid_to_ip[app["node_uuid"]]
+
             return sorted(existing_containers) == sorted(expected)
 
         def configuration_matches_state():
@@ -435,6 +424,16 @@ class _NodeList(CheckedPVector):
     __type__ = Node
 
 
+class ResponseError(ValueError):
+    """
+    An unexpected response from the REST API.
+    """
+    def __init__(self, code, body):
+        ValueError.__init__(self, "Unexpected response code {}:\n{}\n".format(
+            code, body))
+        self.code = code
+
+
 def check_and_decode_json(result, response_code):
     """
     Given ``treq`` response object, extract JSON and ensure response code
@@ -445,8 +444,14 @@ def check_and_decode_json(result, response_code):
 
     :return: ``Deferred`` firing with decoded JSON.
     """
+    def error(body):
+        raise ResponseError(result.code, body)
+
     if result.code != response_code:
-        raise ValueError("Unexpected response code:", result.code)
+        d = content(result)
+        d.addCallback(error)
+        return d
+
     return json_content(result)
 
 
@@ -624,18 +629,19 @@ class Cluster(PRecord):
         return request
 
     @log_method
-    def move_container(self, name, host):
+    def move_container(self, name, node_uuid):
         """
         Move a container.
 
         :param unicode name: The name of the container to move.
-        :param unicode host: The host to which the container should be moved.
+        :param unicode node_uuid: The UUID to which the container should
+            be moved.
         :returns: A tuple of (cluster, api_response)
         """
         request = post(
             self.base_url + b"/configuration/containers/" +
             name.encode("ascii"),
-            data=dumps({u"host": host}),
+            data=dumps({u"node_uuid": node_uuid}),
             headers={b"content-type": b"application/json"},
             persistent=False
         )
