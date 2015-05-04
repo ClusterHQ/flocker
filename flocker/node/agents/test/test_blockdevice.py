@@ -486,7 +486,9 @@ class UnusableAPI(object):
     """
 
 
-def assert_calculated_changes(case, node_state, node_config, expected_changes):
+def assert_calculated_changes(
+    case, node_state, node_config, nonmanifest_datasets, expected_changes
+):
     """
     Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
     changes when it is invoked with the given state and configuration.
@@ -497,9 +499,17 @@ def assert_calculated_changes(case, node_state, node_config, expected_changes):
         calculate changes for a node that has this state.
     :param Node node_config: The ``BlockDeviceDeployer`` will be asked to
         calculate changes for a node with this desired configuration.
+    :param set nonmanifest_datasets: Datasets which will be presented as part
+        of the cluster state without manifestations on any node.
     :param expected_changes: The ``IStateChange`` expected to be returned.
     """
-    cluster_state = DeploymentState(nodes={node_state})
+    cluster_state = DeploymentState(
+        nodes={node_state},
+        nonmanifest_datasets={
+            dataset.dataset_id: dataset
+            for dataset in nonmanifest_datasets
+        },
+    )
     cluster_configuration = Deployment(nodes={node_config})
 
     api = UnusableAPI()
@@ -566,7 +576,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         local_config = to_node(local_state)
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[])
         )
 
@@ -578,6 +588,9 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         local_state = self.ONE_DATASET_STATE.transform(
             # Remove the dataset.  This reflects its deletedness.
             ["manifestations", unicode(self.DATASET_ID)], discard
+        ).transform(
+            # Remove its device too.
+            ["devices", self.DATASET_ID], discard
         )
 
         local_config = to_node(self.ONE_DATASET_STATE).transform(
@@ -592,7 +605,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[]),
         )
     test_deleted_ignored.skip = (
@@ -621,7 +634,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             True
         )
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ]),
@@ -682,7 +695,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             lambda d: d.set(deleted=True, maximum_size=d.maximum_size * 2)
         )
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ])
@@ -714,6 +727,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         # Give the node an empty state.
         node_state = self.ONE_DATASET_STATE.transform(
             ["manifestations", unicode(self.DATASET_ID)], discard
+        ).transform(
+            ["devices", self.DATASET_ID], discard
         )
 
         # Take the dataset in the configuration and make it part of the
@@ -737,6 +752,45 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
                 ),
             ]),
             changes
+        )
+
+
+class BlockDeviceDeployerMountCalculateChangesTests(
+    SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to mounting of filesystems.
+    """
+    def test_mount_manifestation(self):
+        """
+        If the volume for a dataset is attached to the node but the filesystem
+        is not mounted and the configuration says the dataset is meant to be
+        manifest on the node, ``BlockDeviceDeployer.calculate_changes`` returns
+        a state change to mount the filesystem.
+        """
+        # Give it a state that says the volume is attached but nothing is
+        # mounted.
+        node_state = self.ONE_DATASET_STATE.set(
+            manifestations={},
+            paths={},
+            devices={self.DATASET_ID: FilePath(b"/dev/sda")},
+        )
+
+        # Give it a configuration that says there should be a manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            in_parallel(changes=[
+                MountBlockDevice(
+                    dataset_id=self.DATASET_ID,
+                    mountpoint=FilePath(b"/flocker/").child(
+                        bytes(self.DATASET_ID)
+                    )
+                ),
+            ])
         )
 
 
@@ -764,7 +818,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, node_state, node_config,
+            self, node_state, node_config, set(),
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID)
             ])
@@ -951,6 +1005,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
 
         assert_calculated_changes(
             self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
             in_parallel(changes=[DetachVolume(dataset_id=self.DATASET_ID)])
         )
 
@@ -977,7 +1032,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=self.DATASET_ID,
@@ -1008,7 +1063,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=dataset_id,
