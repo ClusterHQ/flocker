@@ -2727,13 +2727,6 @@ class ResizeBlockDeviceDatasetTests(
         return self._run_resize_test(logger, 0.5)
 
 
-    # FLOC-1503 Add a test like test_run_grow but for shrinking.  Refactor
-    # existing test to share code.  Add more assertions about final state: we
-    # expect it to be resized but also attached and mounted.  In particular, if
-    # it isn't mounted then there's no evidence the filesystem was correctly
-    # resized.
-
-
 class ResizeVolumeInitTests(
     make_with_init_tests(
         ResizeVolume,
