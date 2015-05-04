@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from eliot import Message, Logger
 
-from pyrsistent import pmap, freeze, thaw
+from pyrsistent import freeze, thaw
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -22,7 +22,7 @@ from flocker.testtools import loop_until
 
 from .testtools import (
     assert_expected_deployment, flocker_deploy,
-    require_flocker_cli, get_test_cluster, require_cluster)
+    require_flocker_cli, require_cluster)
 
 try:
     from pymysql import connect
