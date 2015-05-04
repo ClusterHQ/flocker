@@ -2891,6 +2891,16 @@ class ResizeFilesystemTests(
     """
     Tests for ``ResizeFilesystem``\ 's ``IStateChange`` implementation.
     """
+    def test_size_invariant(self):
+        """
+        ``ResizeFilesystem.size`` must be a multiple of 512.
+        """
+        self.assertRaises(
+            InvariantException,
+            ResizeFilesystem,
+            volume=_ARBITRARY_VOLUME, size=513,
+        )
+
     def _resize_test(self, size_factor):
         """
         Assert that ``ResizeFilesystem`` can change the size of an existing
