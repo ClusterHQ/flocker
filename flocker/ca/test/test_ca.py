@@ -7,7 +7,7 @@ Tests for certification logic in ``flocker.ca._ca``
 import datetime
 import os
 
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from Crypto.Util import asn1
 from OpenSSL import crypto
@@ -603,3 +603,22 @@ class RootCredentialTests(SynchronousTestCase):
             (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
             (key.type(), key.bits(), cert.get_signature_algorithm())
         )
+
+    def test_cluster_uuid(self):
+        """
+        Each certificate created by ``RootCredential.initialize`` has a unique
+        cluster UUID, stored in the distinguished name organizational unit
+        name.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        ca = RootCredential.initialize(path, b"mycluster")
+        cert = ca.credential.certificate
+
+        path2 = FilePath(self.mktemp())
+        path2.makedirs()
+        ca2 = RootCredential.initialize(path2, b"mycluster2")
+        cert2 = ca2.credential.certificate
+
+        self.assertNotEqual(UUID(hex=cert.getSubject().OU),
+                            UUID(hex=cert2.getSubject().OU))

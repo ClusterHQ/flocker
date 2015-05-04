@@ -526,7 +526,8 @@ class RootCredential(PRecord):
 
         :return RootCredential: Initialized certificate authority.
         """
-        dn = DistinguishedName(commonName=name)
+        dn = DistinguishedName(commonName=name,
+                               organizationalUnitName=bytes(uuid4()))
         keypair = flocker_keypair()
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
