@@ -423,7 +423,7 @@ class ResizeFilesystem(PRecord):
     """
     volume = _volume_field()
 
-    size = field(type=(int, type(None)), initial=None, mandatory=True)
+    size = field(type=int, mandatory=True)
 
     @property
     def eliot_action(self):

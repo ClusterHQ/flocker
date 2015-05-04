@@ -2820,7 +2820,7 @@ class ResizeFilesystemInitTests(
     make_with_init_tests(
         ResizeFilesystem,
         dict(volume=_ARBITRARY_VOLUME, size=REALISTIC_BLOCKDEVICE_SIZE),
-        dict(size=None),
+        dict(),
     ),
 ):
     """
@@ -2831,8 +2831,11 @@ class ResizeFilesystemInitTests(
 class ResizeFilesystemTests(
     make_istatechange_tests(
         ResizeFilesystem,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz")),
+        dict(volume=_ARBITRARY_VOLUME, size=REALISTIC_BLOCKDEVICE_SIZE),
+        dict(
+            volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz"),
+            size=REALISTIC_BLOCKDEVICE_SIZE
+        ),
     ),
 ):
     """
