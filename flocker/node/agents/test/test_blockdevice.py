@@ -970,8 +970,6 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
     Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
     to resizing a dataset.
     """
-    # FLOC-1503 Change this to be increase/decrease indifferent.  Calculation
-    # logic is unchanged for grow vs shrink.
     def _maximum_size_change_test(self, size_factor):
         """
         Assert that if the size of an existing dataset is changed by the
