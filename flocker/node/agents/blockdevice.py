@@ -1380,7 +1380,7 @@ class BlockDeviceDeployer(PRecord):
                 paths[dataset_id] = mountpath
             else:
                 del manifestations[dataset_id]
-                # FLOC-1503-x Populate the Dataset's size information from the
+                # FLOC-1806 Populate the Dataset's size information from the
                 # volume object.
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
