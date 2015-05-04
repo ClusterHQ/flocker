@@ -412,9 +412,7 @@ class Node(PRecord):
     Manifestations attached to applications must also be present in the
     ``manifestations`` attribute.
 
-    :ivar unicode hostname: The hostname of the node.  This must be a
-        resolveable name so that Flocker can connect to the node.  This may be
-        a literal IP address instead of a proper hostname.
+    :ivar UUID uuid: The unique identifier for the node.
 
     :ivar applications: A ``PSet`` of ``Application`` instances describing
         the applications which are to run on this ``Node``.
@@ -433,18 +431,17 @@ class Node(PRecord):
                     return (False, '%r manifestation is not on node' % (app,))
         return (True, "")
 
-    def __new__(cls, **kwargs):
+    def __new__(cls, hostname=None, **kwargs):
         # PRecord does some crazy stuff, thus _precord_buckets; see
         # PRecord.__new__.
         if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
             warn("UUID is required, this is for backwards compat with existing"
                  " tests only. If you see this in production code that's "
                  "a bug.", DeprecationWarning, stacklevel=2)
-            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
+            kwargs["uuid"] = ip_to_uuid(hostname)
         return PRecord.__new__(cls, **kwargs)
 
-    # hostname will be removed in FLOC-1733 probably:
-    hostname = field(type=unicode, factory=unicode, mandatory=True)
     uuid = field(type=UUID, mandatory=True)
     applications = pset_field(Application)
     manifestations = pmap_field(
@@ -674,6 +671,7 @@ class NodeState(PRecord):
         # PRecord does some crazy stuff, thus _precord_buckets; see
         # PRecord.__new__.
         if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
             warn("UUID is required, this is for backwards compat with existing"
                  " tests only. If you see this in production code that's "
                  "a bug.", DeprecationWarning, stacklevel=2)
