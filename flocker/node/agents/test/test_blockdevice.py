@@ -17,7 +17,7 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from pyrsistent import (
-    InvariantException, PRecord, field, ny as match_anything, discard
+    InvariantException, PRecord, field, ny as match_anything, discard, pmap,
 )
 
 from twisted.python.runtime import platform
@@ -253,6 +253,67 @@ class BlockDeviceDeployerAsyncAPITests(SynchronousTestCase):
         self.assertIs(async_api, deployer.async_block_device_api)
 
 
+def assert_discovered_state(case,
+                            deployer,
+                            expected_manifestations,
+                            expected_nonmanifest_datasets=None,
+                            expected_devices=pmap()):
+    """
+    Assert that the manifestations on the state object returned by
+    ``deployer.discover_state`` equals the given list of manifestations.
+
+    :param TestCase case: The running test.
+    :param IDeployer deployer: The object to use to discover the state.
+    :param list expected_manifestations: The ``Manifestation``\ s expected to
+        be discovered on the deployer's node.
+    :param dict expected_nonmanifest_datasets: The ``Dataset``\ s expected to
+        be discovered on the cluster but not attached to any node.
+    :param dict expected_devices: The OS device files which are expected to be
+        discovered as allocated to volumes attached to the node.  See
+        ``NodeState.devices``.
+
+    :raise: A test failure exception if the manifestations are not what is
+        expected.
+    """
+    previous_state = NodeState(
+        uuid=deployer.node_uuid, hostname=deployer.hostname,
+        applications=None, used_ports=None, manifestations=None, paths=None,
+        devices=None,
+    )
+    discovering = deployer.discover_state(previous_state)
+    state = case.successResultOf(discovering)
+    expected_paths = {}
+    for manifestation in expected_manifestations:
+        dataset_id = manifestation.dataset.dataset_id
+        mountpath = deployer._mountpath_for_manifestation(manifestation)
+        expected_paths[dataset_id] = mountpath
+    expected = (
+        NodeState(
+            # This fails to specify "unknown" values for application-related
+            # NodeState.  Therefore the assertion is incorrect (and the
+            # implementation is wrong): it is specifying that no applications
+            # exist when it should be specifying it doesn't know anything about
+            # applications.
+            # FLOC-1798
+            uuid=deployer.node_uuid,
+            hostname=deployer.hostname,
+            manifestations={
+                m.dataset_id: m for m in expected_manifestations},
+            paths=expected_paths,
+            devices=expected_devices,
+        ),
+    )
+    if expected_nonmanifest_datasets is not None:
+        expected += (
+            NonManifestDatasets(datasets={
+                unicode(dataset_id):
+                Dataset(dataset_id=unicode(dataset_id))
+                for dataset_id in expected_nonmanifest_datasets
+            }),
+        )
+    case.assertEqual(expected, state)
+
+
 class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
     """
     Tests for ``BlockDeviceDeployer.discover_state``.
@@ -268,54 +329,13 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             mountroot=mountroot_for_test(self),
         )
 
-    def assertDiscoveredState(self, deployer, expected_manifestations,
-                              expected_nonmanifest_datasets=None):
-        """
-        Assert that the manifestations on the state object returned by
-        ``deployer.discover_state`` equals the given list of manifestations.
-
-        :param IDeployer deployer: The object to use to discover the state.
-        :param list expected_manifestations: The ``Manifestation``\ s expected
-            to be discovered.
-
-        :raise: A test failure exception if the manifestations are not what is
-                expected.
-        """
-        discovering = deployer.discover_state(
-            NodeState(hostname=self.expected_hostname)
-        )
-        state = self.successResultOf(discovering)
-        expected_paths = {}
-        for manifestation in expected_manifestations:
-            dataset_id = manifestation.dataset.dataset_id
-            mountpath = deployer._mountpath_for_manifestation(manifestation)
-            expected_paths[dataset_id] = mountpath
-        expected = (
-            NodeState(
-                uuid=deployer.node_uuid,
-                hostname=deployer.hostname,
-                manifestations={
-                    m.dataset_id: m for m in expected_manifestations},
-                paths=expected_paths,
-            ),
-        )
-        if expected_nonmanifest_datasets is not None:
-            expected += (
-                NonManifestDatasets(datasets={
-                    unicode(dataset_id):
-                    Dataset(dataset_id=unicode(dataset_id))
-                    for dataset_id in expected_nonmanifest_datasets
-                }),
-            )
-        self.assertEqual(expected, state)
-
     def test_no_devices(self):
         """
         ``BlockDeviceDeployer.discover_state`` returns a ``NodeState`` with
         empty ``manifestations`` if the ``api`` reports no locally attached
         volumes.
         """
-        self.assertDiscoveredState(self.deployer, [])
+        assert_discovered_state(self, self.deployer, [])
 
     def test_attached_unmounted_device(self):
         """
@@ -330,9 +350,14 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api.attach_volume(
             unmounted.blockdevice_id, self.expected_hostname
         )
-        self.assertDiscoveredState(
-            self.deployer, expected_manifestations=[],
-            expected_nonmanifest_datasets=[unmounted.dataset_id]
+        assert_discovered_state(
+            self, self.deployer,
+            expected_manifestations=[],
+            expected_nonmanifest_datasets=[unmounted.dataset_id],
+            expected_devices={
+                unmounted.dataset_id:
+                    self.api.get_device_path(unmounted.blockdevice_id),
+            },
         )
 
     def test_attached_and_mismounted(self):
@@ -360,10 +385,13 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mountpoint.makedirs()
         mount(device, mountpoint)
 
-        self.assertDiscoveredState(
-            self.deployer,
+        assert_discovered_state(
+            self, self.deployer,
             expected_manifestations=[],
-            expected_nonmanifest_datasets=[unexpected.dataset_id]
+            expected_nonmanifest_datasets=[unexpected.dataset_id],
+            expected_devices={
+                unexpected.dataset_id: device,
+            },
         )
 
     def test_unrelated_mounted(self):
@@ -390,10 +418,14 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         make_filesystem(unrelated_device, block_device=False)
         mount(unrelated_device, mountpoint)
 
-        self.assertDiscoveredState(
-            self.deployer,
+        assert_discovered_state(
+            self, self.deployer,
             expected_manifestations=[],
-            expected_nonmanifest_datasets=[unmounted.dataset_id]
+            expected_nonmanifest_datasets=[unmounted.dataset_id],
+            expected_devices={
+                unmounted.dataset_id:
+                    self.api.get_device_path(unmounted.blockdevice_id),
+            }
         )
 
     def test_one_device(self):
@@ -422,7 +454,13 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         expected_manifestation = Manifestation(
             dataset=expected_dataset, primary=True
         )
-        self.assertDiscoveredState(self.deployer, [expected_manifestation])
+        assert_discovered_state(
+            self, self.deployer,
+            [expected_manifestation],
+            expected_devices={
+                dataset_id: device,
+            },
+        )
 
     def test_only_remote_device(self):
         """
@@ -435,7 +473,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
         self.api.attach_volume(new_volume.blockdevice_id, u'some.other.host')
-        self.assertDiscoveredState(self.deployer, [])
+        assert_discovered_state(self, self.deployer, [])
 
     def test_only_unattached_devices(self):
         """
@@ -447,10 +485,10 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api.create_volume(
             dataset_id=dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE)
-        self.assertDiscoveredState(
-            self.deployer,
+        assert_discovered_state(
+            self, self.deployer,
             expected_manifestations=[],
-            expected_nonmanifest_datasets=[dataset_id]
+            expected_nonmanifest_datasets=[dataset_id],
         )
 
 
@@ -462,7 +500,9 @@ class UnusableAPI(object):
     """
 
 
-def assert_calculated_changes(case, node_state, node_config, expected_changes):
+def assert_calculated_changes(
+    case, node_state, node_config, nonmanifest_datasets, expected_changes
+):
     """
     Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
     changes when it is invoked with the given state and configuration.
@@ -473,9 +513,17 @@ def assert_calculated_changes(case, node_state, node_config, expected_changes):
         calculate changes for a node that has this state.
     :param Node node_config: The ``BlockDeviceDeployer`` will be asked to
         calculate changes for a node with this desired configuration.
+    :param set nonmanifest_datasets: Datasets which will be presented as part
+        of the cluster state without manifestations on any node.
     :param expected_changes: The ``IStateChange`` expected to be returned.
     """
-    cluster_state = DeploymentState(nodes={node_state})
+    cluster_state = DeploymentState(
+        nodes={node_state},
+        nonmanifest_datasets={
+            dataset.dataset_id: dataset
+            for dataset in nonmanifest_datasets
+        },
+    )
     cluster_configuration = Deployment(nodes={node_config})
 
     api = UnusableAPI()
@@ -519,6 +567,9 @@ class ScenarioMixin(object):
             unicode(DATASET_ID):
             FilePath(b"/flocker/").child(bytes(DATASET_ID)),
         },
+        devices={
+            DATASET_ID: FilePath(b"/dev/sda"),
+        }
     )
 
 
@@ -539,7 +590,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         local_config = to_node(local_state)
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[])
         )
 
@@ -551,6 +602,9 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         local_state = self.ONE_DATASET_STATE.transform(
             # Remove the dataset.  This reflects its deletedness.
             ["manifestations", unicode(self.DATASET_ID)], discard
+        ).transform(
+            # Remove its device too.
+            ["devices", self.DATASET_ID], discard
         )
 
         local_config = to_node(self.ONE_DATASET_STATE).transform(
@@ -565,7 +619,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[]),
         )
     test_deleted_ignored.skip = (
@@ -594,7 +648,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             True
         )
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ]),
@@ -655,7 +709,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             lambda d: d.set(deleted=True, maximum_size=d.maximum_size * 2)
         )
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ])
@@ -687,6 +741,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         # Give the node an empty state.
         node_state = self.ONE_DATASET_STATE.transform(
             ["manifestations", unicode(self.DATASET_ID)], discard
+        ).transform(
+            ["devices", self.DATASET_ID], discard
         )
 
         # Take the dataset in the configuration and make it part of the
@@ -710,6 +766,76 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
                 ),
             ]),
             changes
+        )
+
+
+class BlockDeviceDeployerMountCalculateChangesTests(
+    SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to mounting of filesystems.
+    """
+    def test_mount_manifestation(self):
+        """
+        If the volume for a dataset is attached to the node but the filesystem
+        is not mounted and the configuration says the dataset is meant to be
+        manifest on the node, ``BlockDeviceDeployer.calculate_changes`` returns
+        a state change to mount the filesystem.
+        """
+        # Give it a state that says the volume is attached but nothing is
+        # mounted.
+        node_state = self.ONE_DATASET_STATE.set(
+            manifestations={},
+            paths={},
+            devices={self.DATASET_ID: FilePath(b"/dev/sda")},
+        )
+
+        # Give it a configuration that says there should be a manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            in_parallel(changes=[
+                MountBlockDevice(
+                    dataset_id=self.DATASET_ID,
+                    mountpoint=FilePath(b"/flocker/").child(
+                        bytes(self.DATASET_ID)
+                    )
+                ),
+            ])
+        )
+
+
+class BlockDeviceDeployerUnmountCalculateChangesTests(
+    SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to unmounting of filesystems.
+    """
+    def test_unmount_manifestation(self):
+        """
+        If the filesystem for a dataset is mounted on the node and the
+        configuration says the dataset is not meant to be manifest on that
+        node, ``BlockDeviceDeployer.calculate_changes`` returns a state change
+        to unmount the filesystem.
+        """
+        # Give it a state that says it has a manifestation of the dataset.
+        node_state = self.ONE_DATASET_STATE
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, node_state, node_config, set(),
+            in_parallel(changes=[
+                UnmountBlockDevice(dataset_id=self.DATASET_ID)
+            ])
         )
 
 
@@ -867,6 +993,37 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         self.assertEqual(expected_changes, actual_changes)
 
 
+class BlockDeviceDeployerDetachCalculateChangesTests(
+        SynchronousTestCase, ScenarioMixin
+):
+    def test_detach_manifestation(self):
+        """
+        ``BlockDeviceDeployer.calculate_changes`` recognizes a volume that is
+        attached but not mounted which is not associated with a dataset
+        configured to have a manifestation on the deployer's node and returns a
+        state change to detach the volume.
+        """
+        # Give it a state that says it has no manifestations but it does have
+        # some attached volumes.
+        node_state = NodeState(
+            uuid=self.NODE_UUID, hostname=self.NODE,
+            applications={},
+            used_ports=set(),
+            manifestations={},
+            devices={self.DATASET_ID: FilePath(b"/dev/xda")},
+        )
+
+        # Give it a configuration that says no datasets should be manifest on
+        # the deployer's node.
+        node_config = to_node(node_state)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            in_parallel(changes=[DetachVolume(dataset_id=self.DATASET_ID)])
+        )
+
+
 class BlockDeviceDeployerResizeCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
 ):
@@ -889,7 +1046,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=self.DATASET_ID,
@@ -920,7 +1077,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=dataset_id,
@@ -1950,7 +2107,10 @@ class DestroyBlockDeviceDatasetTests(
 
         node = u"192.0.2.3"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+
+        deployer = create_blockdevicedeployer(self, hostname=node)
+        api = deployer.block_device_api
+
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
@@ -1962,12 +2122,6 @@ class DestroyBlockDeviceDatasetTests(
         make_filesystem(device, block_device=True)
         mount(device, mountpoint)
 
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-            mountroot=mountroot,
-        )
         change = DestroyBlockDeviceDataset(dataset_id=dataset_id)
         self.successResultOf(run_state_change(change, deployer))
 
@@ -2195,9 +2349,9 @@ class MountBlockDeviceTests(
 
 class UnmountBlockDeviceInitTests(
     make_with_init_tests(
-        UnmountBlockDevice,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(),
+        record_type=UnmountBlockDevice,
+        kwargs=dict(dataset_id=uuid4()),
+        expected_defaults=dict(),
     )
 ):
     """
@@ -2208,22 +2362,34 @@ class UnmountBlockDeviceInitTests(
 class UnmountBlockDeviceTests(
     make_istatechange_tests(
         UnmountBlockDevice,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz")),
+        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4()),
     )
 ):
     """
     Tests for ``UnmountBlockDevice``.
     """
-    def test_run(self):
+    @validate_logging(
+        lambda self, logger:
+            self.assertEqual(
+                1,
+                len(LoggedAction.of_type(
+                    logger.messages, UNMOUNT_BLOCK_DEVICE
+                ))
+            )
+    )
+    def test_run(self, logger):
         """
         ``UnmountBlockDevice.run`` unmounts the filesystem / block device
         associated with the volume passed to it (association as determined by
         the deployer's ``IBlockDeviceAPI`` provider).
         """
+        self.patch(blockdevice, "_logger", logger)
+
         node = u"192.0.2.1"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+        deployer = create_blockdevicedeployer(self, hostname=node)
+        api = deployer.block_device_api
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
@@ -2235,15 +2401,8 @@ class UnmountBlockDeviceTests(
         make_filesystem(device, block_device=True)
         check_output([b"mount", device.path, mountpoint.path])
 
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-            mountroot=mountroot,
-        )
-
-        change = UnmountBlockDevice(volume=volume)
-        self.successResultOf(change.run(deployer))
+        change = UnmountBlockDevice(dataset_id=dataset_id)
+        self.successResultOf(run_state_change(change, deployer))
         self.assertNotIn(
             device,
             list(
@@ -2256,9 +2415,9 @@ class UnmountBlockDeviceTests(
 
 class DetachVolumeInitTests(
     make_with_init_tests(
-        DetachVolume,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(),
+        record_type=DetachVolume,
+        kwargs=dict(dataset_id=uuid4()),
+        expected_defaults=dict(),
     )
 ):
     """
@@ -2269,8 +2428,8 @@ class DetachVolumeInitTests(
 class DetachVolumeTests(
     make_istatechange_tests(
         DetachVolume,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(volume=_ARBITRARY_VOLUME.set(blockdevice_id=u"wxyz")),
+        dict(dataset_id=uuid4()),
+        dict(dataset_id=uuid4()),
     )
 ):
     """
@@ -2283,23 +2442,18 @@ class DetachVolumeTests(
         """
         node = u"192.0.2.1"
         dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(self)
+        deployer = create_blockdevicedeployer(self, hostname=node)
+        api = deployer.block_device_api
         volume = api.create_volume(
             dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE
         )
-        volume = api.attach_volume(volume.blockdevice_id, node)
+        api.attach_volume(volume.blockdevice_id, node)
 
-        deployer = BlockDeviceDeployer(
-            node_uuid=uuid4(),
-            hostname=node,
-            block_device_api=api,
-        )
+        change = DetachVolume(dataset_id=dataset_id)
+        self.successResultOf(run_state_change(change, deployer))
 
-        change = DetachVolume(volume=volume)
-        self.successResultOf(change.run(deployer))
-
-        [volume] = api.list_volumes()
-        self.assertIs(None, volume.host)
+        [listed_volume] = api.list_volumes()
+        self.assertIs(None, listed_volume.host)
 
 
 class DestroyVolumeInitTests(
@@ -2758,8 +2912,8 @@ class ResizeFilesystemTests(
         createfs = CreateFilesystem(volume=volume, filesystem=filesystem)
         mount = MountBlockDevice(dataset_id=dataset_id, mountpoint=mountpoint)
 
-        unmount = UnmountBlockDevice(volume=volume)
-        detach = DetachVolume(volume=volume)
+        unmount = UnmountBlockDevice(dataset_id=dataset_id)
+        detach = DetachVolume(dataset_id=dataset_id)
         resize = ResizeVolume(
             volume=volume, size=REALISTIC_BLOCKDEVICE_SIZE * 2
         )

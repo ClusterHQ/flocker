@@ -34,7 +34,7 @@ def api_configuration_to_flocker_deploy_configuration(api_configuration):
         k: v
         for k, v
         in api_configuration.items()
-        if k not in ('host', 'name', 'volumes')
+        if k not in ('host', 'name', 'volumes', 'node_uuid')
     }
     volumes = api_configuration.get('volumes', [])
     if volumes:
@@ -62,7 +62,7 @@ class DeploymentTests(TestCase):
         on the target node after the volume is successfully received.
         """
         node_1, node_2 = [node.address for node in cluster.nodes]
-
+        node_1_uuid, node_2_uuid = [node.uuid for node in cluster.nodes]
         # A mongo db without a quota
         application_1 = create_application(
             MONGO_APPLICATION, MONGO_IMAGE,
@@ -77,7 +77,7 @@ class DeploymentTests(TestCase):
         # A subset of the expected container state dictionary that we expect
         # when the application has been deployed on node_1
         expected_container_1 = container_configuration_response(
-            application_1, node_1
+            application_1, node_1_uuid
         )
 
         # The first configuration we supply to flocker-deploy
@@ -108,7 +108,7 @@ class DeploymentTests(TestCase):
         # A subset of the expected container state dictionary that we expect
         # when the application has been deployed on node_2
         expected_container_2 = container_configuration_response(
-            application_2, node_2
+            application_2, node_2_uuid
         )
 
         # The second configuration we supply to flocker-deploy
@@ -162,7 +162,7 @@ class DeploymentTests(TestCase):
                     u"metadata": None,
                     u"deleted": False,
                     u"maximum_size": int(SIZE_100_MB),
-                    u"primary": node_2
+                    u"primary": node_2_uuid
                 }
             )
 
@@ -191,7 +191,8 @@ class DeploymentTests(TestCase):
         In other words, the defined volume quota size is preserved from one
         node to the next.
         """
-        node_1, node_2 = [node.address for node in cluster.nodes]
+        (node_1, node_1_uuid), (node_2, node_2_uuid) = [
+            (node.address, node.uuid) for node in cluster.nodes]
         mongo_dataset_id = unicode(uuid4())
 
         # A mongo db without a quota
@@ -208,10 +209,10 @@ class DeploymentTests(TestCase):
         # A subset of the expected container state dictionary that we expect
         # when the application has been deployed on node_1
         expected_container_1 = container_configuration_response(
-            application_1, node_1
+            application_1, node_1_uuid
         )
         expected_container_2 = container_configuration_response(
-            application_1, node_2
+            application_1, node_2_uuid
         )
 
         container_configuration_1 = (
@@ -265,7 +266,7 @@ class DeploymentTests(TestCase):
                     u"metadata": None,
                     u"deleted": False,
                     u"maximum_size": int(SIZE_100_MB),
-                    u"primary": node_1
+                    u"primary": node_1_uuid
                 }
             )
 
@@ -291,7 +292,7 @@ class DeploymentTests(TestCase):
                     u"metadata": None,
                     u"deleted": False,
                     u"maximum_size": int(SIZE_100_MB),
-                    u"primary": node_2
+                    u"primary": node_2_uuid
                 }
             )
 

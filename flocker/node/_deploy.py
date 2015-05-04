@@ -446,6 +446,7 @@ class P2PManifestationDeployer(object):
     """
     def __init__(self, hostname, volume_service, node_uuid=None):
         if node_uuid is None:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
             warn("UUID is required, this is for backwards compat with existing"
                  " tests only. If you see this in production code that's "
                  "a bug.", DeprecationWarning, stacklevel=2)
@@ -571,6 +572,7 @@ class ApplicationNodeDeployer(object):
     def __init__(self, hostname, docker_client=None, network=None,
                  node_uuid=None):
         if node_uuid is None:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
             warn("UUID is required, this is for backwards compat with existing"
                  " tests only. If you see this in production code that's "
                  "a bug.", DeprecationWarning, stacklevel=2)
@@ -730,8 +732,10 @@ class ApplicationNodeDeployer(object):
         desired_proxies = set()
         desired_open_ports = set()
         desired_node_applications = []
+        node_states = {node.uuid: node for node in current_cluster_state.nodes}
+
         for node in desired_configuration.nodes:
-            if node.hostname == self.hostname:
+            if node.uuid == self.node_uuid:
                 desired_node_applications = node.applications
                 for application in node.applications:
                     for port in application.ports:
@@ -742,8 +746,10 @@ class ApplicationNodeDeployer(object):
                     for port in application.ports:
                         # XXX: also need to do DNS resolution. See
                         # https://clusterhq.atlassian.net/browse/FLOC-322
-                        desired_proxies.add(Proxy(ip=node.hostname,
-                                                  port=port.external_port))
+                        if node.uuid in node_states:
+                            desired_proxies.add(Proxy(
+                                ip=node_states[node.uuid].hostname,
+                                port=port.external_port))
 
         if desired_proxies != set(self.network.enumerate_proxies()):
             phases.append(SetProxies(ports=desired_proxies))
@@ -894,7 +900,13 @@ def find_dataset_changes(uuid, current_state, desired_state):
     going = set()
     for dataset_node_uuid, desired in desired_datasets.items():
         if dataset_node_uuid != uuid:
-            hostname = uuid_to_hostnames[dataset_node_uuid]
+            try:
+                hostname = uuid_to_hostnames[dataset_node_uuid]
+            except KeyError:
+                # Apparently we don't know NodeState for this
+                # node. Hopefully we'll learn this information eventually
+                # but until we do we can't proceed.
+                continue
             for dataset in desired:
                 if dataset.dataset_id in local_current_dataset_ids:
                     going.add(DatasetHandoff(
