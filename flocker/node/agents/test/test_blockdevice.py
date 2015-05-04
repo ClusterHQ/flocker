@@ -2657,15 +2657,10 @@ class ResizeBlockDeviceDatasetTests(
         resizes = [c, b, a]
         self.assertEqual([a, b, c], sorted(resizes))
 
-    @validate_logging(multistep_change_log(
-        RESIZE_BLOCK_DEVICE_DATASET,
-        [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, RESIZE_VOLUME, ATTACH_VOLUME,
-         RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE]
-    ))
-    def test_run_grow(self, logger):
+    def _run_resize_test(self, logger, size_factor):
         """
-        After running ``ResizeBlockDeviceDataset``, its volume has been
-        resized.
+        Assert that ``ResizeBlockDeviceDataset`` changes the size of the
+        dataset's volume (and filesystem?  XXX) to the specified size.
         """
         self.patch(blockdevice, "_logger", logger)
 
@@ -2673,6 +2668,7 @@ class ResizeBlockDeviceDatasetTests(
         dataset_id = uuid4()
         deployer = create_blockdevicedeployer(self, hostname=node)
         api = deployer.block_device_api
+        new_size = int(REALISTIC_BLOCKDEVICE_SIZE * size_factor)
 
         dataset = Dataset(
             dataset_id=dataset_id,
@@ -2692,7 +2688,7 @@ class ResizeBlockDeviceDatasetTests(
             return run_state_change(
                 ResizeBlockDeviceDataset(
                     dataset_id=dataset_id,
-                    size=REALISTIC_BLOCKDEVICE_SIZE * 2,
+                    size=new_size,
                 ),
                 deployer,
             )
@@ -2700,9 +2696,36 @@ class ResizeBlockDeviceDatasetTests(
 
         def resized(ignored):
             [volume] = api.list_volumes()
-            self.assertEqual(REALISTIC_BLOCKDEVICE_SIZE * 2, volume.size)
+            self.assertEqual(new_size, volume.size)
         resizing.addCallback(resized)
         return resizing
+
+    @validate_logging(multistep_change_log(
+        RESIZE_BLOCK_DEVICE_DATASET,
+        [UNMOUNT_BLOCK_DEVICE, DETACH_VOLUME, RESIZE_VOLUME, ATTACH_VOLUME,
+         RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE]
+    ))
+    def test_run_grow(self, logger):
+        """
+        After running ``ResizeBlockDeviceDataset`` configured with a size
+        larger than the dataset's existing size, the dataset's volume has been
+        increased in size.
+        """
+        return self._run_resize_test(logger, 2)
+
+    @validate_logging(multistep_change_log(
+        RESIZE_BLOCK_DEVICE_DATASET,
+        [UNMOUNT_BLOCK_DEVICE, RESIZE_FILESYSTEM, DETACH_VOLUME, RESIZE_VOLUME,
+         ATTACH_VOLUME, MOUNT_BLOCK_DEVICE]
+    ))
+    def test_run_shrink(self, logger):
+        """
+        After running ``ResizeBlockDeviceDataset`` configured with a size
+        smaller than the dataset's existing size, the dataset's volume has been
+        decreased in size.
+        """
+        return self._run_resize_test(logger, 0.5)
+
 
     # FLOC-1503 Add a test like test_run_grow but for shrinking.  Refactor
     # existing test to share code.  Add more assertions about final state: we

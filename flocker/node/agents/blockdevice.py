@@ -500,30 +500,28 @@ class ResizeBlockDeviceDataset(PRecord):
         unmount = UnmountBlockDevice(dataset_id=self.dataset_id)
         detach = DetachVolume(dataset_id=self.dataset_id)
 
-        # FLOC-1503
-        #
-        # If the volume is shrinking, arrange the changes like
-        #
-        # unmount, resize filesystem, detach, resize volume, attach, mount
-        #
-        # If the volume is growing, arrange the changes like [
-        #
-        # unmount, detach, resize volume, attach, resize filesystem, mount
+        resize_filesystem = ResizeFilesystem(volume=volume, size=self.size)
+        resize_volume = ResizeVolume(volume=volume, size=self.size)
+        if self.size < volume.size:
+            changes = [
+                unmount,
+                resize_filesystem,
+                detach,
+                resize_volume,
+                attach,
+                mount,
+            ]
+        else:
+            changes = [
+                unmount,
+                detach,
+                resize_volume,
+                attach,
+                resize_filesystem,
+                mount,
+            ]
 
-        return run_state_change(
-            sequentially(
-                changes=[
-                    unmount,
-                    detach,
-                    ResizeVolume(volume=volume, size=self.size),
-                    attach,
-                    # FLOC-1503 - If and only if shrinking, pass size here too
-                    ResizeFilesystem(volume=volume),
-                    mount,
-                ]
-            ),
-            deployer,
-        )
+        return run_state_change(sequentially(changes=changes), deployer)
 
 
 @implementer(IStateChange)
