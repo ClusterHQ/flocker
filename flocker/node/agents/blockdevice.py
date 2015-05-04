@@ -423,7 +423,7 @@ class ResizeFilesystem(PRecord):
     """
     volume = _volume_field()
 
-    # FLOC-1503 - Add a size attribute to support the shrinking case.
+    size = field(type=(int, type(None)), initial=None, mandatory=True)
 
     @property
     def eliot_action(self):

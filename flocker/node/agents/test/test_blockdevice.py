@@ -2819,8 +2819,8 @@ class AttachVolumeTests(
 class ResizeFilesystemInitTests(
     make_with_init_tests(
         ResizeFilesystem,
-        dict(volume=_ARBITRARY_VOLUME),
-        dict(),
+        dict(volume=_ARBITRARY_VOLUME, size=REALISTIC_BLOCKDEVICE_SIZE),
+        dict(size=None),
     ),
 ):
     """
