@@ -2660,7 +2660,7 @@ class ResizeBlockDeviceDatasetTests(
     def _run_resize_test(self, logger, size_factor):
         """
         Assert that ``ResizeBlockDeviceDataset`` changes the size of the
-        dataset's volume (and filesystem?  XXX) to the specified size.
+        dataset's volume to the specified size.
         """
         self.patch(blockdevice, "_logger", logger)
 
@@ -2697,6 +2697,8 @@ class ResizeBlockDeviceDatasetTests(
         def resized(ignored):
             [volume] = api.list_volumes()
             self.assertEqual(new_size, volume.size)
+            # FLOC-1807 Make an assertion about filesystem size and mounted
+            # state here, too.
         resizing.addCallback(resized)
         return resizing
 
