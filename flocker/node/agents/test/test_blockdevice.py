@@ -193,8 +193,9 @@ def detach_destroy_volumes(api):
 
         for volume in volumes:
             # If the volume is attached, detach it.
-            if api.get_device_path(volume.blockdevice_id) is not None:
-                api.detach_volume(volume.blockdevice_id)
+            if volume.host is not None:
+                if api.get_device_path(volume.blockdevice_id) is not None:
+                    api.detach_volume(volume.blockdevice_id)
             api.destroy_volume(volume.blockdevice_id)
 
 
