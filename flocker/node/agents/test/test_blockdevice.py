@@ -2954,7 +2954,15 @@ class ResizeFilesystemTests(
 
         expected_inodes_after = float(size_factor * before)
 
-        # The error should be less than one percent.
+        # The error should be less than one percent.  This is not an exact
+        # comparison because it's really hard to accurately measure the size of
+        # a filesystem, as it turns out.  Depending on irrelevant internal ext4
+        # details, we can easily mispredict what it means to "double" the size
+        # of a filesystem by as much as 4096 or 8192 inodes (which is how we're
+        # measuring size because it seems to be the *least* inaccurate).  Maybe
+        # this is because inodes get allocated to backup superblocks (just a
+        # guess).  So: accept some error, as long as it's not much we probably
+        # managed to accomplish the resize we wanted.
         self.assertLess(
             abs(after - expected_inodes_after) / expected_inodes_after,
             0.01,
