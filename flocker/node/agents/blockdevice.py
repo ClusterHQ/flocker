@@ -20,6 +20,7 @@ from pyrsistent import PRecord, field
 from characteristic import attributes, with_cmp
 
 import psutil
+from bitmath import Byte
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
@@ -447,12 +448,17 @@ class ResizeFilesystem(PRecord):
         #     e2fsck refuses to run non-interactively, though.
         check_output([b"e2fsck", b"-f", b"-y", device.path])
         # When passed no explicit size argument, resize2fs resizes the
-        # filesystem to the size of the device it lives on.
-
-        # FLOC-1503 Pass self.size here, if it is not None, necessary for
-        # shrinking, to tell resize2fs to make the filesystem smaller than its
-        # block device.
-        check_output([b"resize2fs", device.path])
+        # filesystem to the size of the device it lives on.  Be sure to use
+        # 1024 byte KiB conversion because that's what "K" means to resize2fs.
+        new_size = int(Byte(self.size).to_KiB().value)
+        check_output([
+            b"resize2fs",
+            # The path to the device file referring to the filesystem to
+            # resize.
+            device.path,
+            # The desired new size of that filesystem in units of 1024 bytes.
+            u"{}K".format(new_size).encode("ascii"),
+        ])
         return succeed(None)
 
 

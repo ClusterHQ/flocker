@@ -2924,16 +2924,19 @@ class ResizeFilesystemTests(
 
         after = get_filesystem_inodes(self, deployer, dataset_id)
 
-        expected_inodes_after = int(size_factor * before)
+        expected_inodes_after = float(size_factor * before)
 
-        self.assertEqual(
-            expected_inodes_after,
-            after,
-            "Unexpected inode count. "
-            "Before: {}, "
-            "After: {}, "
-            "Expected: {}.".format(
-                before, after, expected_inodes_after
+        # The error should be less than one percent.
+        self.assertLess(
+            abs(after - expected_inodes_after) / expected_inodes_after,
+            0.01,
+            msg=(
+                "Unexpected inode count. "
+                "Before: {}, "
+                "After: {}, "
+                "Expected: {}.".format(
+                    before, after, expected_inodes_after
+                )
             )
         )
 
