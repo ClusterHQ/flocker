@@ -411,6 +411,16 @@ class CreateFilesystem(PRecord):
         return succeed(None)
 
 
+def _valid_size(size):
+    """
+    Pyrsistent invariant for filesystem size, which must be a multiple of 512
+    bytes.
+    """
+    if size % 512 == 0:
+        return (True, "")
+    return (False, "Filesystem size must be multiple of 512, not %d" % (size,))
+
+
 @implementer(IStateChange)
 class ResizeFilesystem(PRecord):
     """
@@ -424,7 +434,11 @@ class ResizeFilesystem(PRecord):
     """
     volume = _volume_field()
 
-    size = field(type=int, mandatory=True)
+    size = field(
+        type=int, mandatory=True,
+        # It would be nice to compute this invariant from the API schema.
+        invariant=_valid_size,
+    )
 
     @property
     def eliot_action(self):

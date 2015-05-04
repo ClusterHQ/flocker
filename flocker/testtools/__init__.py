@@ -55,7 +55,7 @@ from ..common.script import (
 # This is currently set to the minimum size for a SATA based Rackspace Cloud
 # Block Storage volume. See:
 # * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
-REALISTIC_BLOCKDEVICE_SIZE = int(GB(75).to_Byte().value)
+REALISTIC_BLOCKDEVICE_SIZE = int(GB(100).to_Byte().value)
 
 
 @implementer(IProcessTransport)
