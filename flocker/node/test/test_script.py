@@ -371,6 +371,20 @@ class AgentConfigFromFileTests(SynchronousTestCase):
                      "'INVALID' is not of type 'object'."),
         )
 
+    def test_error_on_invalid_hostname(self):
+        """
+        A ``ConfigurationError`` is raised if the given control service
+        hostname is not a valid hostname.
+        """
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump({
+                "control-service-hostname": "-1",
+                "version": 1,
+            }),
+            exception=ConfigurationError,
+            message=("Configuration has an error: '-1' is not a 'hostname'."),
+        )
+
     def test_error_on_missing_hostname(self):
         """
         A ``ConfigurationError`` is raised if the config file does not

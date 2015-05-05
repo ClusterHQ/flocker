@@ -9,7 +9,7 @@ from functools import partial
 from socket import socket
 import yaml
 
-from jsonschema import validate
+from jsonschema import FormatChecker, validate
 from jsonschema.exceptions import ValidationError
 
 from pyrsistent import PRecord, field
@@ -99,16 +99,20 @@ def agent_config_from_file(path):
             "Configuration file does not exist at '{}'.".format(path.path))
 
     schema = {
+        "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
         "required": ["version", "control-service-hostname"],
         "properties": {
-            "version": {"type" : "number"},
-            "control-service-hostname": {"type": "string"},
+            "version": {"type": "number"},
+            "control-service-hostname": {
+                "type": "string",
+                "format": "hostname",
+            }
         }
     }
 
     try:
-        validate(options, schema)
+        validate(options, schema, format_checker=FormatChecker())
     except ValidationError as e:
         raise ConfigurationError(
             "Configuration has an error: {}.".format(e.message,)
@@ -121,6 +125,7 @@ def agent_config_from_file(path):
     return {
         'control-service-hostname': options[u'control-service-hostname'],
     }
+
 
 @implementer(ICommandLineVolumeScript)
 class ZFSAgentScript(object):
