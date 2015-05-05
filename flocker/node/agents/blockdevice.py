@@ -466,6 +466,12 @@ class ResizeFilesystem(PRecord):
         # When passed no explicit size argument, resize2fs resizes the
         # filesystem to the size of the device it lives on.  Be sure to use
         # 1024 byte KiB conversion because that's what "K" means to resize2fs.
+        # This will be come out as an integer because the API schema requires
+        # multiples of 1024 bytes for dataset sizes.  However, it would be nice
+        # the API schema could be informed by the backend somehow so that other
+        # constraints could be applied as well (for example, OpenStack volume
+        # sizes are in GB - so if you're using that the API should really
+        # require multiples of 1000000000).  See FLOC-1579.
         new_size = int(Byte(self.size).to_KiB().value)
         check_output([
             b"resize2fs",
