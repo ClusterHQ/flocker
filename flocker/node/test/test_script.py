@@ -45,7 +45,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"--control-service-config", self.config.path])
+        options.parseOptions([b"--agent-config", self.config.path])
         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
@@ -55,7 +55,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         script = ZFSAgentScript()
         options = ZFSAgentOptions()
-        options.parseOptions([b"--control-service-config", self.config.path])
+        options.parseOptions([b"--agent-config", self.config.path])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
                                         Service()))
 
@@ -67,7 +67,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         options = ZFSAgentOptions()
         options.parseOptions(
             [b"--destination-port", b"1234",
-             b"--control-service-config", self.config.path])
+             b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
@@ -134,7 +134,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         options = DatasetAgentOptions()
         options.parseOptions([
             b"--destination-port", b"1234",
-            b"--control-service-config", self.config.path,
+            b"--agent-config", self.config.path,
         ])
         service_factory = AgentServiceFactory(
             deployer_factory=factory
@@ -162,7 +162,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
-        options.parseOptions([b"--control-service-config", self.config.path])
+        options.parseOptions([b"--agent-config", self.config.path])
         agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
         self.assertIn(spied[0], get_all_ips())
@@ -301,7 +301,7 @@ def make_amp_agent_options_tests(options_type):
             """
             self.options.parseOptions([])
             self.assertEqual(
-                self.options["control-service-config"],
+                self.options["agent-config"],
                 FilePath("/etc/flocker/agent.yml"))
 
         def test_custom_config_file(self):
@@ -310,9 +310,9 @@ def make_amp_agent_options_tests(options_type):
             the config file.
             """
             self.options.parseOptions(
-                [b"--control-service-config", b"/etc/foo.yml"])
+                [b"--agent-config", b"/etc/foo.yml"])
             self.assertEqual(
-                self.options["control-service-config"],
+                self.options["agent-config"],
                 FilePath("/etc/foo.yml"))
 
     return Tests
@@ -328,7 +328,7 @@ class ConfigurationFromOptionsTests(SynchronousTestCase):
         self.scratch_directory.makedirs()
         self.config = self.scratch_directory.child('config.yml')
         self.options = {
-            'control-service-config': self.config,
+            'agent-config': self.config,
         }
 
     def assertErrorForConfig(self, exception, configuration=None, message=None):
@@ -339,8 +339,8 @@ class ConfigurationFromOptionsTests(SynchronousTestCase):
 
         :param Exception exception: The exception type which
             :func:`configuration_from_options` should fail with.
-        :param unicode configuration: The contents of the control service
-            configuration file. If ``None`` then the file will not exist.
+        :param unicode configuration: The contents of the agent configuration
+            file. If ``None`` then the file will not exist.
         :param bytes message: The expected exception message. If ``None`` then
             this will not be checked.
         """

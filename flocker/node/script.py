@@ -51,13 +51,13 @@ class ZFSAgentOptions(Options):
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
-        ["control-service-config", "c", "/etc/flocker/agent.yml",
+        ["agent-config", "c", "/etc/flocker/agent.yml",
          "The configuration file to set the control service."],
     ]
 
     def postOptions(self):
-        self['control-service-config'] = FilePath(
-            self['control-service-config'])
+        self['agent-config'] = FilePath(
+            self['agent-config'])
 
 
 def _get_external_ip(host, port):
@@ -88,7 +88,7 @@ def configuration_from_options(options):
 
     :return dict: Dictionary containing the desired configuration.
     """
-    control_service_options_file = options[u'control-service-config']
+    control_service_options_file = options[u'agent-config']
 
     try:
         options_content = control_service_options_file.getContent()
@@ -163,13 +163,13 @@ class _AgentOptions(Options):
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
-        ["control-service-config", "c", "/etc/flocker/agent.yml",
+        ["agent-config", "c", "/etc/flocker/agent.yml",
          "The configuration file to set the control service."],
     ]
 
     def postOptions(self):
-        self['control-service-config'] = FilePath(
-            self['control-service-config'])
+        self['agent-config'] = FilePath(
+            self['agent-config'])
 
 
 class DatasetAgentOptions(_AgentOptions):
