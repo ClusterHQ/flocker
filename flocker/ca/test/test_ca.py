@@ -327,8 +327,33 @@ class NodeCredentialTests(
             uuid=self.credential.uuid))
 
 
+def assert_has_extension(test, credential, name, value):
+    """
+    Assert that the ``X509Extension`` with the matching name from the
+    certificate has the given value.
+
+    :param TestCase test: The current test.
+    :param FlockerCredential certificate: Credential whose certificate we
+        should inspect.
+    :param bytes name: The name of the extension.
+    :param bytes value: The data encoded in the extension.
+
+    :raises AssertionError: If the extension is not found or has the wrong
+        value.
+    """
+    expected = crypto.X509Extension(name, False, value)
+    x509 = credential.certificate.original
+    for i in range(x509.get_extension_count()):
+        extension = x509.get_extension(i)
+        if extension.get_short_name() == name:
+            test.assertEqual(extension.get_data(), expected.get_data())
+            return
+    test.fail("Couldn't find extension {}.".format(name))
+
+
 class ControlCredentialTests(
-        make_credential_tests(ControlCredential, b"control-service")):
+        make_credential_tests(ControlCredential, b"control-service",
+                              hostname=b"control.example.com")):
     """
     Tests for ``flocker.ca._ca.ControlCredential``.
     """
@@ -340,6 +365,21 @@ class ControlCredentialTests(
         cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
         self.assertEqual(subject.CN, b"control-service")
+
+    def test_subjectAltName(self):
+        """
+        The written certificate has a subjectAltName containing the given
+        hostname.
+        """
+        assert_has_extension(self, self.credential.credential,
+                             b"subjectAltName", b"DNS:control.example.com")
+
+    def test_extendedKeyUsage(self):
+        """
+        The written certificate has extendedKeyUsage set to "serverAuth".
+        """
+        assert_has_extension(self, self.credential.credential,
+                             b"extendedKeyUsage", b"serverAuth")
 
 
 class RootCredentialTests(SynchronousTestCase):

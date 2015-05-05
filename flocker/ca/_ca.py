@@ -452,7 +452,7 @@ class ControlCredential(PRecord):
     :ivar FlockerCredential credential: The certificate and key pair
         credential object.
     """
-    credential = field(mandatory=True)
+    credential = field(mandatory=True, type=FlockerCredential)
 
     @classmethod
     def from_path(cls, path):
@@ -464,7 +464,7 @@ class ControlCredential(PRecord):
         return cls(credential=credential)
 
     @classmethod
-    def initialize(cls, path, authority, begin=None):
+    def initialize(cls, path, authority, hostname, begin=None):
         """
         Generate a certificate signed by the supplied root certificate.
 
@@ -473,6 +473,8 @@ class ControlCredential(PRecord):
             which this certificate will be signed.
         :param datetime begin: The datetime from which the generated
             certificate should be valid.
+        :param bytes hostname: The hostname of the node where the control
+            service will be running.
         """
         # XXX FLOC-1805 also take hostname.
 
@@ -496,6 +498,10 @@ class ControlCredential(PRecord):
             authority.credential.certificate.getSubject(), request,
             serial, EXPIRY_20_YEARS, 'sha256', start=begin
         )
+        cert.original.add_extensions([
+            crypto.X509Extension(b"subjectAltName", False, b"DNS:" + hostname),
+            crypto.X509Extension(b"extendedKeyUsage", False, b"serverAuth"),
+        ])
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
