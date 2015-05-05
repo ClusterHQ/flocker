@@ -20,6 +20,7 @@ from pyrsistent import PRecord, field
 from characteristic import attributes, with_cmp
 
 import psutil
+from bitmath import Byte
 
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
@@ -410,6 +411,18 @@ class CreateFilesystem(PRecord):
         return succeed(None)
 
 
+def _valid_size(size):
+    """
+    Pyrsistent invariant for filesystem size, which must be a multiple of 1024
+    bytes.
+    """
+    if size % 1024 == 0:
+        return (True, "")
+    return (
+        False, "Filesystem size must be multiple of 1024, not %d" % (size,)
+    )
+
+
 @implementer(IStateChange)
 class ResizeFilesystem(PRecord):
     """
@@ -422,6 +435,12 @@ class ResizeFilesystem(PRecord):
         resize.
     """
     volume = _volume_field()
+
+    size = field(
+        type=int, mandatory=True,
+        # It would be nice to compute this invariant from the API schema.
+        invariant=_valid_size,
+    )
 
     @property
     def eliot_action(self):
@@ -443,10 +462,29 @@ class ResizeFilesystem(PRecord):
         # -y automatically answers yes to every question.  There should be no
         #     questions since the filesystem isn't corrupt.  Without this,
         #     e2fsck refuses to run non-interactively, though.
+        #
+        # See FLOC-1814
         check_output([b"e2fsck", b"-f", b"-y", device.path])
         # When passed no explicit size argument, resize2fs resizes the
-        # filesystem to the size of the device it lives on.
-        check_output([b"resize2fs", device.path])
+        # filesystem to the size of the device it lives on.  Be sure to use
+        # 1024 byte KiB conversion because that's what "K" means to resize2fs.
+        # This will be come out as an integer because the API schema requires
+        # multiples of 1024 bytes for dataset sizes.  However, it would be nice
+        # the API schema could be informed by the backend somehow so that other
+        # constraints could be applied as well (for example, OpenStack volume
+        # sizes are in GB - so if you're using that the API should really
+        # require multiples of 1000000000).  See FLOC-1579.
+        new_size = int(Byte(self.size).to_KiB().value)
+        # The system could fail while this is running.  We don't presently have
+        # recovery logic for this case.  See FLOC-1815.
+        check_output([
+            b"resize2fs",
+            # The path to the device file referring to the filesystem to
+            # resize.
+            device.path,
+            # The desired new size of that filesystem in units of 1024 bytes.
+            u"{}K".format(new_size).encode("ascii"),
+        ])
         return succeed(None)
 
 
@@ -487,19 +525,29 @@ class ResizeBlockDeviceDataset(PRecord):
         )
         unmount = UnmountBlockDevice(dataset_id=self.dataset_id)
         detach = DetachVolume(dataset_id=self.dataset_id)
-        return run_state_change(
-            sequentially(
-                changes=[
-                    unmount,
-                    detach,
-                    ResizeVolume(volume=volume, size=self.size),
-                    attach,
-                    ResizeFilesystem(volume=volume),
-                    mount,
-                ]
-            ),
-            deployer,
-        )
+
+        resize_filesystem = ResizeFilesystem(volume=volume, size=self.size)
+        resize_volume = ResizeVolume(volume=volume, size=self.size)
+        if self.size < volume.size:
+            changes = [
+                unmount,
+                resize_filesystem,
+                detach,
+                resize_volume,
+                attach,
+                mount,
+            ]
+        else:
+            changes = [
+                unmount,
+                detach,
+                resize_volume,
+                attach,
+                resize_filesystem,
+                mount,
+            ]
+
+        return run_state_change(sequentially(changes=changes), deployer)
 
 
 @implementer(IStateChange)
@@ -1362,6 +1410,8 @@ class BlockDeviceDeployer(PRecord):
                 paths[dataset_id] = mountpath
             else:
                 del manifestations[dataset_id]
+                # FLOC-1806 Populate the Dataset's size information from the
+                # volume object.
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         state = (
@@ -1595,6 +1645,7 @@ class BlockDeviceDeployer(PRecord):
             and the actual state of volumes (ie which have a size that is
             different to the configuration)
         """
+        # This won't resize nonmanifest datasets.  See FLOC-1806.
         for (dataset_id, manifestation) in local_state.manifestations.items():
             try:
                 manifestation_config = configured_manifestations[dataset_id]
@@ -1604,6 +1655,9 @@ class BlockDeviceDeployer(PRecord):
             if dataset_config.deleted:
                 continue
             configured_size = dataset_config.maximum_size
+            # We only inspect volume size here.  A failure could mean the
+            # volume size is correct even though the filesystem size is not.
+            # See FLOC-1815.
             if manifestation.dataset.maximum_size != configured_size:
                 yield ResizeBlockDeviceDataset(
                     dataset_id=UUID(dataset_id),
