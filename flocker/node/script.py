@@ -104,11 +104,29 @@ def agent_config_from_file(path):
 
     :return dict: Dictionary containing the desired configuration.
     """
+    from jsonschema import validate
+    from jsonschema.exceptions import ValidationError
+
     try:
         options = yaml.safe_load(path.getContent())
     except IOError:
         raise ConfigurationError(
             "Configuration file does not exist at '{}'.".format(path.path))
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "version": {"type" : "number"},
+            "control-service-hostname": {"type": "string"},
+        }
+    }
+
+    try:
+        validate(options, schema)
+    except ValidationError:
+        raise ConfigurationError(
+            "Configuration has an error. It is not in a valid format.")
+
 
     if _lookup_key(configuration=options, key=u'version') != 1:
         raise ConfigurationError(

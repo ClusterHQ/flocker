@@ -328,8 +328,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         self.scratch_directory.makedirs()
         self.config = self.scratch_directory.child('config.yml')
 
-    def assertErrorForConfig(self, exception, configuration=None,
-                             message=None):
+    def assertErrorForConfig(self, exception, message, configuration=None):
         """
         Assert that given a particular configuration,
         :func:`agent_config_from_file` will fail with an expected exception
@@ -339,8 +338,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             :func:`agent_config_from_file` should fail with.
         :param unicode configuration: The contents of the agent configuration
             file. If ``None`` then the file will not exist.
-        :param bytes message: The expected exception message. If ``None`` then
-            this will not be checked.
+        :param bytes message: The expected exception message.
         """
         if configuration is not None:
             self.config.setContent(configuration)
@@ -349,8 +347,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             exception,
             agent_config_from_file, self.config)
 
-        if message is not None:
-            self.assertEqual(exception.message, message)
+        self.assertEqual(exception.message, message)
 
     def test_error_on_file_does_not_exist(self):
         """
@@ -370,6 +367,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         self.assertErrorForConfig(
             configuration=yaml.safe_dump("INVALID"),
             exception=ConfigurationError,
+            message="Configuration has an error. It is not in a valid format.",
         )
 
     def test_error_on_missing_hostname(self):
