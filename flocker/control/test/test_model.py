@@ -138,7 +138,7 @@ class ApplicationInitTests(make_with_init_tests(
 
 class NodeInitTests(make_with_init_tests(
         record_type=Node,
-        kwargs=dict(hostname=u'example.com', applications=pset([
+        kwargs=dict(uuid=uuid4(), applications=pset([
             Application(name=u'mysql-clusterhq', image=DockerImage.from_string(
                 u"image")),
             Application(name=u'site-clusterhq.com',
@@ -147,9 +147,6 @@ class NodeInitTests(make_with_init_tests(
 )):
     """
     Tests for ``Node.__init__``.
-
-    Note that hostname will no longer be required and should therefore be
-    removed from these tests in FLOC-1733.
     """
     def test_no_uuid(self):
         """
@@ -166,7 +163,7 @@ class NodeInitTests(make_with_init_tests(
         ``Node`` can be created with a UUID.
         """
         uuid = uuid4()
-        node = Node(hostname=u'1.2.3.4', uuid=uuid)
+        node = Node(uuid=uuid)
         self.assertEqual(node.uuid, uuid)
 
 

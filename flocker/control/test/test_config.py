@@ -24,7 +24,7 @@ from .._config import (
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
     NodeState, RestartNever, RestartAlways, RestartOnFailure, Dataset,
-    Manifestation,
+    Manifestation, DeploymentState,
 )
 
 
@@ -2333,7 +2333,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         """
         exception = self.assertRaises(ConfigurationError,
                                       deployment_from_configuration,
-                                      {}, set())
+                                      DeploymentState(), {}, set())
         self.assertEqual(
             "Deployment configuration has an error. Missing 'nodes' key.",
             exception.message
@@ -2348,7 +2348,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         config = dict(nodes={})
         exception = self.assertRaises(ConfigurationError,
                                       deployment_from_configuration,
-                                      config, set())
+                                      DeploymentState(), config, set())
         self.assertEqual(
             "Deployment configuration has an error. Missing 'version' key.",
             exception.message
@@ -2362,7 +2362,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         config = dict(nodes={}, version=2)
         exception = self.assertRaises(ConfigurationError,
                                       deployment_from_configuration,
-                                      config, set())
+                                      DeploymentState(), config, set())
         self.assertEqual(
             "Deployment configuration has an error. "
             "Incorrect version specified.",
@@ -2378,6 +2378,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(
             ConfigurationError,
             deployment_from_configuration,
+            DeploymentState(),
             dict(version=1, nodes={'node1.example.com': None}),
             set()
         )
@@ -2403,6 +2404,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(
             ConfigurationError,
             deployment_from_configuration,
+            DeploymentState(),
             dict(
                 version=1,
                 nodes={'node1.example.com': ['site-hybridcluster']}),
@@ -2411,6 +2413,25 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             'Node node1.example.com has a config error. '
             'Unrecognised application name: site-hybridcluster.',
+            exception.message
+        )
+
+    def test_error_on_unknown_ip(self):
+        """
+        ``deployment_from_configuration`` raises a ``ConfigurationError`` if
+        the deployment_configuration refers to a non-existent IP.
+        """
+        exception = self.assertRaises(
+            ConfigurationError,
+            deployment_from_configuration,
+            DeploymentState(),
+            dict(
+                version=1,
+                nodes={'1.2.3.4': []}),
+            {},
+        )
+        self.assertEqual(
+            'No known node with address 1.2.3.4.',
             exception.message
         )
 
@@ -2435,16 +2456,21 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                     manifestation=manifestation,
                     mountpoint=FilePath(b'/var/lib/db')))
         }
+        node_uuid = uuid4()
+        hostname = u'node1.example.com'
+
         result = deployment_from_configuration(
+            DeploymentState(
+                nodes=[NodeState(hostname=hostname, uuid=node_uuid)]),
             dict(
                 version=1,
-                nodes={'node1.example.com': ['mysql-hybridcluster']}),
+                nodes={hostname: ['mysql-hybridcluster']}),
             applications
         )
 
         expected = set([
             Node(
-                hostname='node1.example.com',
+                uuid=node_uuid,
                 applications=frozenset(applications.values()),
                 manifestations={manifestation.dataset_id: manifestation},
             )
@@ -2465,7 +2491,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         application_configuration = {}
         deployment_configuration = {'nodes': {}, 'version': 1}
         result = model_from_configuration(
-            application_configuration, deployment_configuration)
+            DeploymentState(), application_configuration,
+            deployment_configuration)
         expected_result = Deployment(nodes=frozenset())
         self.assertEqual(expected_result, result)
 
@@ -2488,14 +2515,19 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                 'node2.example.com': ['site-hybridcluster'],
             }
         }
+        node1_uuid = uuid4()
+        node2_uuid = uuid4()
         config = FlockerConfiguration(application_configuration)
         applications = config.applications()
         result = model_from_configuration(
+            DeploymentState(nodes=[
+                NodeState(uuid=node1_uuid, hostname=u"node1.example.com"),
+                NodeState(uuid=node2_uuid, hostname=u"node2.example.com")]),
             applications, deployment_configuration)
         expected_result = Deployment(
             nodes=frozenset([
                 Node(
-                    hostname='node1.example.com',
+                    uuid=node1_uuid,
                     applications=frozenset([
                         Application(
                             name='mysql-hybridcluster',
@@ -2509,7 +2541,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                     ])
                 ),
                 Node(
-                    hostname='node2.example.com',
+                    uuid=node2_uuid,
                     applications=frozenset([
                         Application(
                             name='site-hybridcluster',

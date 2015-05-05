@@ -181,9 +181,15 @@ DESTROY_BLOCK_DEVICE_DATASET = ActionType(
 
 UNMOUNT_BLOCK_DEVICE = ActionType(
     u"agent:blockdevice:unmount",
-    [VOLUME],
+    [DATASET_ID],
     [],
     u"A block-device-backed dataset is being unmounted.",
+)
+
+UNMOUNT_BLOCK_DEVICE_DETAILS = MessageType(
+    u"agent:blockdevice:unmount:details",
+    [VOLUME, BLOCK_DEVICE_PATH],
+    u"The device file for a block-device-backed dataset has been discovered."
 )
 
 MOUNT_BLOCK_DEVICE = ActionType(
@@ -341,7 +347,7 @@ class DestroyBlockDeviceDataset(PRecord):
         return run_state_change(
             sequentially(
                 changes=[
-                    UnmountBlockDevice(volume=volume),
+                    UnmountBlockDevice(dataset_id=self.dataset_id),
                     DetachVolume(dataset_id=self.dataset_id),
                     DestroyVolume(volume=volume),
                 ]
@@ -479,11 +485,12 @@ class ResizeBlockDeviceDataset(PRecord):
                 unicode(self.dataset_id)
             )
         )
+        unmount = UnmountBlockDevice(dataset_id=self.dataset_id)
         detach = DetachVolume(dataset_id=self.dataset_id)
         return run_state_change(
             sequentially(
                 changes=[
-                    UnmountBlockDevice(volume=volume),
+                    unmount,
                     detach,
                     ResizeVolume(volume=volume, size=self.size),
                     attach,
@@ -501,8 +508,8 @@ class MountBlockDevice(PRecord):
     Mount the filesystem mounted from the block device backed by a particular
     volume.
 
-    :ivar BlockDeviceVolume volume: The volume associated with the dataset
-        which will be unmounted.
+    :ivar UUID dataset_id: The unique identifier of the dataset associated with
+        the filesystem to mount.
     :ivar FilePath mountpoint: The filesystem location at which to mount the
         volume's filesystem.  If this does not exist, it is created.
     """
@@ -527,12 +534,12 @@ class MountBlockDevice(PRecord):
             volume=volume, block_device_path=device,
         ).write(_logger)
 
-        # This should be asynchronous.  Do it as part of FLOC-1499.
         try:
             self.mountpoint.makedirs()
         except OSError as e:
             if EEXIST != e.errno:
                 return fail()
+        # This should be asynchronous.  FLOC-1797
         check_output([b"mount", device.path, self.mountpoint.path])
         return succeed(None)
 
@@ -543,14 +550,14 @@ class UnmountBlockDevice(PRecord):
     Unmount the filesystem mounted from the block device backed by a particular
     volume.
 
-    :ivar BlockDeviceVolume volume: The volume associated with the dataset
-        which will be unmounted.
+    :ivar UUID dataset_id: The unique identifier of the dataset associated with
+        the filesystem to unmount.
     """
-    volume = _volume_field()
+    dataset_id = field(type=UUID, mandatory=True)
 
     @property
     def eliot_action(self):
-        return UNMOUNT_BLOCK_DEVICE(_logger, volume=self.volume)
+        return UNMOUNT_BLOCK_DEVICE(_logger, dataset_id=self.dataset_id)
 
     def run(self, deployer):
         """
@@ -558,12 +565,29 @@ class UnmountBlockDevice(PRecord):
         device.  The volume must be attached to this node and the corresponding
         block device mounted.
         """
-        device = deployer.block_device_api.get_device_path(
-            self.volume.blockdevice_id
+        api = deployer.async_block_device_api
+        listing = api.list_volumes()
+        listing.addCallback(
+            _blockdevice_volume_from_datasetid, self.dataset_id
         )
-        # This should be asynchronous.  Do it as part of FLOC-1499.
-        check_output([b"umount", device.path])
-        return succeed(None)
+
+        def found(volume):
+            if volume is None:
+                # It was not actually found.
+                raise DatasetWithoutVolume(dataset_id=self.dataset_id)
+            d = api.get_device_path(volume.blockdevice_id)
+            d.addCallback(lambda device: (volume, device))
+            return d
+        listing.addCallback(found)
+
+        def got_device((volume, device)):
+            UNMOUNT_BLOCK_DEVICE_DETAILS(
+                volume=volume, block_device_path=device
+            ).write(_logger)
+            # This should be asynchronous. FLOC-1797
+            check_output([b"umount", device.path])
+        listing.addCallback(got_device)
+        return listing
 
 
 @implementer(IStateChange)
@@ -1122,9 +1146,13 @@ class LoopbackBlockDeviceAPI(object):
         if volume.host is None:
             raise UnattachedVolume(blockdevice_id)
 
-        check_output([
-            b"losetup", b"--detach", self.get_device_path(blockdevice_id).path
-        ])
+        # ``losetup --detach`` only if the file was used for a loop device.
+        if self.get_device_path(blockdevice_id) is not None:
+            check_output([
+                b"losetup", b"--detach",
+                self.get_device_path(blockdevice_id).path
+            ])
+
         volume_path = self._attached_directory.descendant([
             volume.host.encode("ascii"), volume.blockdevice_id.encode("ascii")
         ])
@@ -1396,8 +1424,15 @@ class BlockDeviceDeployer(PRecord):
         )
 
         attaches = list(self._calculate_attaches(
+            local_state.devices,
             configured_manifestations,
             cluster_state.nonmanifest_datasets
+        ))
+        mounts = list(self._calculate_mounts(
+            local_state.devices, local_state.paths, configured_manifestations,
+        ))
+        unmounts = list(self._calculate_unmounts(
+            local_state.paths, configured_manifestations,
         ))
 
         # TODO prevent the configuration of unsized datasets on blockdevice
@@ -1422,9 +1457,54 @@ class BlockDeviceDeployer(PRecord):
         # TODO Prevent changes to volumes that are currently being used by
         # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
 
-        return in_parallel(
-            changes=detaches + attaches + creates + deletes + resizes
-        )
+        return in_parallel(changes=(
+            unmounts + detaches +
+            attaches + mounts +
+            creates + deletes +
+            resizes
+        ))
+
+    def _calculate_mounts(self, devices, paths, configured):
+        """
+        :param PMap devices: The datasets with volumes attached to this node
+            and the device files at which they are available.  This is the same
+            as ``NodeState.devices``.
+        :param PMap paths: The paths at which datasets' filesystems are mounted
+            on this node.  This is the same as ``NodeState.paths``.
+        :param PMap configured: The manifestations which are configured on this
+            node.  This is the same as ``NodeState.manifestations``.
+
+        :return: A generator of ``MountBlockDevice`` instances, one for each
+            dataset which exists, is attached to this node, does not have its
+            filesystem mounted, and is configured to have a manifestation on
+            this node.
+        """
+        for configured_dataset_id in configured:
+            if configured_dataset_id in paths:
+                # It's mounted already.
+                continue
+            if UUID(configured_dataset_id) in devices:
+                # It's attached.
+                path = self._mountpath_for_dataset_id(configured_dataset_id)
+                yield MountBlockDevice(
+                    dataset_id=UUID(configured_dataset_id),
+                    mountpoint=path,
+                )
+
+    def _calculate_unmounts(self, paths, configured):
+        """
+        :param PMap paths: The paths at which datasets' filesystems are mounted
+            on this node.  This is the same as ``NodeState.paths``.
+        :param PMap configured: The manifestations which are configured on this
+            node.  This is the same as ``NodeState.manifestations``.
+
+        :return: A generator of ``UnmountBlockDevice`` instances, one for each
+            dataset which exists, is attached to this node, has its filesystem
+            mount, and is configured to not have a manifestation on this node.
+        """
+        for mounted_dataset_id in paths:
+            if mounted_dataset_id not in configured:
+                yield UnmountBlockDevice(dataset_id=UUID(mounted_dataset_id))
 
     def _calculate_detaches(self, devices, paths, configured):
         """
@@ -1450,8 +1530,11 @@ class BlockDeviceDeployer(PRecord):
                 continue
             yield DetachVolume(dataset_id=attached_dataset_id)
 
-    def _calculate_attaches(self, configured, nonmanifest):
+    def _calculate_attaches(self, devices, configured, nonmanifest):
         """
+        :param PMap devices: The datasets with volumes attached to this node
+            and the device files at which they are available.  This is the same
+            as ``NodeState.devices``.
         :param PMap configured: The manifestations which are configured on this
             node.  This is the same as ``NodeState.manifestations``.
         :param PMap nonmanifest: The datasets which exist in the cluster but
@@ -1462,7 +1545,11 @@ class BlockDeviceDeployer(PRecord):
                  attached to this node.
         """
         for manifestation in configured.values():
+            if UUID(manifestation.dataset_id) in devices:
+                # It's already attached here.
+                continue
             if manifestation.dataset_id in nonmanifest:
+                # It exists and doesn't belong to anyone else.
                 yield AttachVolume(
                     dataset_id=UUID(manifestation.dataset_id),
                     hostname=self.hostname,
@@ -1509,7 +1596,11 @@ class BlockDeviceDeployer(PRecord):
             different to the configuration)
         """
         for (dataset_id, manifestation) in local_state.manifestations.items():
-            dataset_config = configured_manifestations[dataset_id].dataset
+            try:
+                manifestation_config = configured_manifestations[dataset_id]
+            except KeyError:
+                continue
+            dataset_config = manifestation_config.dataset
             if dataset_config.deleted:
                 continue
             configured_size = dataset_config.maximum_size
