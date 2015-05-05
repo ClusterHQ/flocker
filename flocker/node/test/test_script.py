@@ -331,18 +331,37 @@ class ConfigurationFromOptionsTests(SynchronousTestCase):
             'control-service-config': self.config,
         }
 
+    def assertErrorForConfig(self, exception, configuration=None, message=None):
+        """
+        Assert that given a particular configuration,
+        :func:`configuration_from_options` will fail with an expected exception
+        and message.
+
+        :param Exception exception: The exception type which
+            :func:`configuration_from_options` should fail with.
+        :param unicode configuration: The contents of the control service
+            configuration file. If ``None`` then the file will not exist.
+        :param bytes message: The expected exception message. If ``None`` then
+            this will not be checked.
+        """
+        if configuration is not None:
+            self.config.setContent(configuration)
+
+        exception = self.assertRaises(
+            exception,
+            configuration_from_options, self.options)
+
+        if message is not None:
+            self.assertEqual(exception.message, message)
+
     def test_error_on_file_does_not_exist(self):
         """
         An error is raised if the config file does not exist.
         """
-        exception = self.assertRaises(
-            ConfigurationError,
-            configuration_from_options, self.options)
-
-        self.assertEqual(
-            "Configuration file does not exist at '{}'.".format(
+        self.assertErrorForConfig(
+            exception=ConfigurationError,
+            message="Configuration file does not exist at '{}'.".format(
                 self.config.path),
-            exception.message
         )
 
     def test_error_on_invalid_config(self):
@@ -350,33 +369,21 @@ class ConfigurationFromOptionsTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the config file is not formatted
         as a dictionary.
         """
-        configuration = yaml.safe_dump("INVALID")
-
-        self.config.setContent(configuration)
-
-        self.assertRaises(
-            ConfigurationError,
-            configuration_from_options, self.options)
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump("INVALID"),
+            exception=ConfigurationError,
+        )
 
     def test_error_on_missing_hostname(self):
         """
         A ``ConfigurationError`` is raised if the config file does not
         contain a ``u"control-service-hostname"`` key.
         """
-        configuration = yaml.safe_dump({
-            "version": 1,
-        })
-
-        self.config.setContent(configuration)
-
-        exception = self.assertRaises(
-            ConfigurationError,
-            configuration_from_options, self.options)
-
-        self.assertEqual(
-            "Configuration has an error. "
-            "Missing 'control-service-hostname' key.",
-            exception.message
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump({"version": 1}),
+            exception=ConfigurationError,
+            message=("Configuration has an error. "
+                     "Missing 'control-service-hostname' key."),
         )
 
     def test_error_on_missing_version(self):
@@ -384,39 +391,26 @@ class ConfigurationFromOptionsTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the config file does not contain
         a ``u"version"`` key.
         """
-        configuration = yaml.safe_dump({
-            "control-service-hostname": "192.0.2.1",
-        })
-
-        self.config.setContent(configuration)
-
-        exception = self.assertRaises(
-            ConfigurationError,
-            configuration_from_options, self.options)
-
-        self.assertEqual(
-            "Configuration has an error. Missing 'version' key.",
-            exception.message
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump({
+                "control-service-hostname": "192.0.2.1"}),
+            exception=ConfigurationError,
+            message=("Configuration has an error. "
+                     "Missing 'version' key."),
         )
 
     def test_error_on_incorrect_version(self):
         """
         A ``ConfigurationError`` is raised if the version specified is not 1.
         """
-        configuration = yaml.safe_dump({
-            "control-service-hostname": "192.0.2.1",
-            "version": 2,
-        })
-
-        self.config.setContent(configuration)
-
-        exception = self.assertRaises(
-            ConfigurationError,
-            configuration_from_options, self.options)
-
-        self.assertEqual(
-            "Configuration has an error. Incorrect version specified.",
-            exception.message
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump({
+                "control-service-hostname": "192.0.2.1",
+                "version": 2,
+            }),
+            exception=ConfigurationError,
+            message=("Configuration has an error. "
+                     "Incorrect version specified."),
         )
 
 
