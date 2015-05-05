@@ -1641,6 +1641,7 @@ class BlockDeviceDeployer(PRecord):
             and the actual state of volumes (ie which have a size that is
             different to the configuration)
         """
+        # This won't resize nonmanifest datasets.  See FLOC-1806.
         for (dataset_id, manifestation) in local_state.manifestations.items():
             try:
                 manifestation_config = configured_manifestations[dataset_id]
