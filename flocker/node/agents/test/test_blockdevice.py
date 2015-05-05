@@ -1141,6 +1141,18 @@ class IBlockDeviceAPITestsMixin(object):
             verifyObject(IBlockDeviceAPI, self.api)
         )
 
+    def test_storage_backend_id_unicode(self):
+        """
+        ``storage_backend_id`` returns a ``unicode`` string.
+        """
+        self.assertIsInstance(self.this_node, unicode)
+
+    def test_storage_backend_id_nonempty(self):
+        """
+        ``storage_backend_id`` returns a non-empty string.
+        """
+        self.assertNotEqual(u"", self.this_node)
+
     def test_list_volume_empty(self):
         """
         ``list_volumes`` returns an empty ``list`` if no block devices have
