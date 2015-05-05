@@ -6,7 +6,7 @@ Tools for running commands.
 import os
 
 from characteristic import attributes
-from eliot import Logger, MessageType, ActionType, Field
+from eliot import MessageType, ActionType, Field
 from eliot.twisted import DeferredContext
 
 from twisted.internet.error import ConnectionDone
@@ -14,9 +14,6 @@ from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.defer import Deferred
 
 from twisted.protocols.basic import LineOnlyReceiver
-
-
-_logger = Logger()
 
 
 RUN_ACTION = ActionType(
@@ -64,7 +61,7 @@ class CommandProtocol(LineOnlyReceiver, object):
     def lineReceived(self, line):
         RUN_OUTPUT_MESSAGE(
             line=line,
-        ).write(_logger, action=self.action)
+        ).write(action=self.action)
 
 
 def run(reactor, command, **kwargs):
@@ -79,7 +76,7 @@ def run(reactor, command, **kwargs):
     if 'env' not in kwargs:
         kwargs['env'] = os.environ
 
-    action = RUN_ACTION(_logger, command=command)
+    action = RUN_ACTION(command=command)
 
     endpoint = ProcessEndpoint(reactor, command[0], command, **kwargs)
     protocol_done = Deferred()

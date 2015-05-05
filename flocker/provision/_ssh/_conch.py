@@ -2,7 +2,7 @@ from pipes import quote as shell_quote
 
 from characteristic import attributes
 
-from eliot import Logger, Message
+from eliot import Message
 
 from effect import (
     sync_performer, TypeDispatcher, ComposedDispatcher, Effect,
@@ -37,9 +37,6 @@ from ._model import Run, Sudo, Put, Comment, RunRemotely
 from .._effect import dispatcher as base_dispatcher
 
 
-_logger = Logger()
-
-
 @attributes([
     "deferred",
     "context",
@@ -68,7 +65,7 @@ class CommandProtocol(LineOnlyReceiver, object):
         self.context.bind(
             message_type="flocker.provision.ssh:run:output",
             line=line,
-        ).write(_logger)
+        ).write()
 
 
 @sync_performer
@@ -107,7 +104,7 @@ def get_ssh_dispatcher(connection, context):
         context.bind(
             message_type="flocker.provision.ssh:run",
             command=intent.command,
-        ).write(_logger)
+        ).write()
         endpoint = SSHCommandClientEndpoint.existingConnection(
             connection, intent.command)
         d = Deferred()
