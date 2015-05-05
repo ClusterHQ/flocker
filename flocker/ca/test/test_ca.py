@@ -309,6 +309,13 @@ class UserCredentialTests(
         self.assertEqual(subject.CN, u"user-{user}".format(
             user=self.credential.username))
 
+    def test_extendedKeyUsage(self):
+        """
+        The written certificate has extendedKeyUsage set to "serverAuth".
+        """
+        assert_has_extension(self, self.credential.credential,
+                             b"extendedKeyUsage", b"clientAuth")
+
 
 class NodeCredentialTests(
         make_credential_tests(NodeCredential, NODE_UUID, uuid=NODE_UUID)):
@@ -325,6 +332,13 @@ class NodeCredentialTests(
         subject = cert.get_subject()
         self.assertEqual(subject.CN, b"node-{uuid}".format(
             uuid=self.credential.uuid))
+
+    def test_extendedKeyUsage(self):
+        """
+        The written certificate has extendedKeyUsage set to "serverAuth".
+        """
+        assert_has_extension(self, self.credential.credential,
+                             b"extendedKeyUsage", b"clientAuth")
 
 
 def assert_has_extension(test, credential, name, value):
@@ -352,7 +366,7 @@ def assert_has_extension(test, credential, name, value):
 
 
 class ControlCredentialTests(
-        make_credential_tests(ControlCredential, b"control-service",
+        make_credential_tests(ControlCredential, b"control-control.example.com",
                               hostname=b"control.example.com")):
     """
     Tests for ``flocker.ca._ca.ControlCredential``.

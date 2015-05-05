@@ -18,12 +18,10 @@ the following Distinguised Name scheme:
 1. Control service: common name is "control-service", subjectAltName is
    administrator-specifiable DNS hostname, to support standard HTTPS
    client authentication, and extendedKeyUsage is set to "serverAuth".
-2. Node agents: no common name is set. subjectAltName has
-   "otherName:node-<uuid>", and extendedKeyUsage is set to
-   "clientAuth" (technically clientAuth means HTTPS, but whatevs).
-3. API clients: No common name is set. subjectAltName has
-   "otherName:user-<username>", and extendedKeyUsage is set to
-   "clientAuth".
+2. Node agents: common name is "node-<uuid>", and extendedKeyUsage is set
+   to "clientAuth" (technically clientAuth means HTTPS, but whatevs).
+3. API clients: Common name is set to "user-<username>", and
+   extendedKeyUsage is set to "clientAuth".
 """
 
 import datetime
@@ -40,8 +38,6 @@ EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
 
 AUTHORITY_CERTIFICATE_FILENAME = b"cluster.crt"
 AUTHORITY_KEY_FILENAME = b"cluster.key"
-CONTROL_CERTIFICATE_FILENAME = b"control-service.crt"
-CONTROL_KEY_FILENAME = b"control-service.key"
 
 
 class CertificateAlreadyExistsError(Exception):
@@ -366,6 +362,9 @@ class UserCredential(PRecord):
             authority.credential.certificate.getSubject(), request,
             serial, EXPIRY_20_YEARS, b'sha256', start=begin
         )
+        cert.original.add_extensions([
+            crypto.X509Extension(b"extendedKeyUsage", False, b"clientAuth"),
+        ])
         credential = FlockerCredential(
             path=output_path, keypair=keypair, certificate=cert
         )
@@ -436,6 +435,9 @@ class NodeCredential(PRecord):
             authority.credential.certificate.getSubject(), request,
             serial, EXPIRY_20_YEARS, 'sha256', start=begin
         )
+        cert.original.add_extensions([
+            crypto.X509Extension(b"extendedKeyUsage", False, b"clientAuth"),
+        ])
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
@@ -455,9 +457,10 @@ class ControlCredential(PRecord):
     credential = field(mandatory=True, type=FlockerCredential)
 
     @classmethod
-    def from_path(cls, path):
+    def from_path(cls, path, hostname):
         keypair, certificate = load_certificate_from_path(
-            path, CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME
+            path, b"control-{}.key".format(hostname),
+            b"control-{}.crt".format(hostname)
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=certificate)
@@ -505,7 +508,8 @@ class ControlCredential(PRecord):
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
-            CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME)
+            b"control-{}.key".format(hostname),
+            b"control-{}.crt".format(hostname))
         instance = cls(credential=credential)
         return instance
 
