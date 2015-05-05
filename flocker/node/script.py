@@ -105,20 +105,18 @@ def agent_config_from_file(path):
     :return dict: Dictionary containing the desired configuration.
     """
     try:
-        options_content = path.getContent()
+        options = yaml.safe_load(path.getContent())
     except IOError:
         raise ConfigurationError(
             "Configuration file does not exist at '{}'.".format(path.path))
 
-    options_yaml = yaml.safe_load(options_content)
-
-    if _lookup_key(configuration=options_yaml, key=u'version') != 1:
+    if _lookup_key(configuration=options, key=u'version') != 1:
         raise ConfigurationError(
             "Configuration has an error. Incorrect version specified.")
 
     return {
         'control-service-hostname': _lookup_key(
-            configuration=options_yaml, key=u'control-service-hostname')
+            configuration=options, key=u'control-service-hostname')
     }
 
 @implementer(ICommandLineVolumeScript)
