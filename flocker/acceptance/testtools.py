@@ -500,7 +500,7 @@ class Cluster(PRecord):
         :returns: The base url for API requests to this cluster's control
             service.
         """
-        return b"http://{}:{}/v1".format(
+        return b"https://{}:{}/v1".format(
             self.control_node.address, REST_API_PORT
         )
 
