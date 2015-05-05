@@ -10,7 +10,15 @@ __all__ = [
 
 from zope.interface.verify import verifyObject
 
+from zope.interface import implementer
+
+from eliot import Logger, start_action
+
+from pyrsistent import PRecord, field
+from characteristic import attributes
+
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.internet.defer import succeed
 
 from .. import IStateChange
 
@@ -21,27 +29,34 @@ def make_comparison_tests(klass, kwargs1, kwargs2):
     behavior.
 
     :param klass: Class that implements ``IStateChange``.
-    :param kwargs1: Keyword arguments to ``klass``.
+    :param kwargs1: Keyword arguments to ``klass``.  Either a ``dict`` or a
+        no-argument callable which returns keyword arguments to use.
     :param kwargs2: Keyword arguments to ``klass`` that create different change
-        than ``kwargs1``.
+        than ``kwargs1``.  Either a ``dict`` or a no-argument callable which
+        returns keyword arguments to use.
 
     :return: ``SynchronousTestCase`` subclass named
              ``<klassname>ComparisonTests``.
     """
+    def instance(kwargs):
+        if isinstance(kwargs, dict):
+            return klass(**kwargs)
+        return klass(**kwargs())
+
     class Tests(SynchronousTestCase):
         def test_equality(self):
             """
             Instances with the same arguments are equal.
             """
-            self.assertTrue(klass(**kwargs1) == klass(**kwargs1))
-            self.assertFalse(klass(**kwargs1) == klass(**kwargs2))
+            self.assertTrue(instance(kwargs1) == instance(kwargs1))
+            self.assertFalse(instance(kwargs1) == instance(kwargs2))
 
         def test_notequality(self):
             """
             Instance with different arguments are not equal.
             """
-            self.assertTrue(klass(**kwargs1) != klass(**kwargs2))
-            self.assertFalse(klass(**kwargs1) != klass(**kwargs1))
+            self.assertTrue(instance(kwargs1) != instance(kwargs2))
+            self.assertFalse(instance(kwargs1) != instance(kwargs1))
     Tests.__name__ = klass.__name__ + "ComparisonTests"
     return Tests
 
@@ -58,11 +73,46 @@ def make_istatechange_tests(klass, kwargs1, kwargs2):
     :return: ``SynchronousTestCase`` subclass named
         ``<klassname>IStateChangeTests``.
     """
+    def instance(kwargs):
+        if isinstance(kwargs, dict):
+            return klass(**kwargs)
+        return klass(**kwargs())
+
     class Tests(make_comparison_tests(klass, kwargs1, kwargs2)):
         def test_interface(self):
             """
             The class implements ``IStateChange``.
             """
-            self.assertTrue(verifyObject(IStateChange, klass(**kwargs1)))
+            self.assertTrue(verifyObject(IStateChange, instance(kwargs1)))
     Tests.__name__ = klass.__name__ + "IStateChangeTests"
     return Tests
+
+
+@implementer(IStateChange)
+class DummyStateChange(PRecord):
+    """
+    A do-nothing implementation of ``IStateChange``.
+    """
+    value = field()
+
+    @property
+    def eliot_action(self):
+        return start_action(Logger(), u"flocker:tests:dummy_state_change")
+
+    def run(self, deployer):
+        return succeed(None)
+
+
+@implementer(IStateChange)
+@attributes(["value"])
+class RunSpyStateChange(object):
+    """
+    An implementation of ``IStateChange`` that records its runs.
+    """
+    @property
+    def eliot_action(self):
+        return start_action(Logger(), u"flocker:tests:run_spy_state_change")
+
+    def run(self, deployer):
+        self.value += 1
+        return succeed(None)

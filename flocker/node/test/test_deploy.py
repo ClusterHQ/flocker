@@ -8,14 +8,16 @@ from uuid import uuid4
 
 from eliot.testing import validate_logging
 
-from pyrsistent import pset
+from ipaddr import IPAddress
+
+from pyrsistent import pset, pvector
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
-    P2PNodeDeployer, ApplicationNodeDeployer, P2PManifestationDeployer,
+    ApplicationNodeDeployer, P2PManifestationDeployer,
 )
 from ..testtools import (
     ControllableAction, ControllableDeployer, ideployer_tests_factory, EMPTY,
@@ -47,6 +49,45 @@ from ...volume.testtools import create_volume_service
 from ...volume._ipc import RemoteVolumeManager, standard_node
 
 from .istatechange import make_istatechange_tests
+
+
+# This models an application that has a volume.
+APPLICATION_WITH_VOLUME_NAME = u"psql-clusterhq"
+DATASET_ID = unicode(uuid4())
+DATASET = Dataset(dataset_id=DATASET_ID)
+APPLICATION_WITH_VOLUME_MOUNTPOINT = FilePath(b"/var/lib/postgresql")
+APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
+APPLICATION_WITH_VOLUME = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+    volume=AttachedVolume(
+        manifestation=Manifestation(dataset=DATASET, primary=True),
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    ),
+    links=frozenset(),
+)
+MANIFESTATION = APPLICATION_WITH_VOLUME.volume.manifestation
+
+DATASET_WITH_SIZE = Dataset(dataset_id=DATASET_ID,
+                            metadata=DATASET.metadata,
+                            maximum_size=1024 * 1024 * 100)
+
+APPLICATION_WITH_VOLUME_SIZE = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+    volume=AttachedVolume(
+        manifestation=Manifestation(dataset=DATASET_WITH_SIZE,
+                                    primary=True),
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    ),
+    links=frozenset(),
+)
+
+MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
+
+# Placeholder in case at some point discovered application is different
+# than requested application:
+DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
 
 class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):
@@ -98,26 +139,51 @@ class ApplicationNodeDeployerAttributesTests(SynchronousTestCase):
         )
 
 
+_DATASET_A = Dataset(dataset_id=unicode(uuid4()))
+_DATASET_B = Dataset(dataset_id=unicode(uuid4()))
+
+
 StartApplicationIStateChangeTests = make_istatechange_tests(
     StartApplication,
-    dict(application=1, node_state=NodeState(hostname="node1.example.com")),
-    dict(application=2, node_state=NodeState(hostname="node2.example.com")))
+    dict(
+        application=APPLICATION_WITH_VOLUME,
+        node_state=NodeState(hostname="node1.example.com")
+    ),
+    dict(
+        application=APPLICATION_WITH_VOLUME.set(name=u"throwaway-app"),
+        node_state=NodeState(hostname="node2.example.com")
+    )
+)
 StopApplicationIStageChangeTests = make_istatechange_tests(
-    StopApplication, dict(application=1), dict(application=2))
+    StopApplication,
+    dict(application=APPLICATION_WITH_VOLUME),
+    dict(application=APPLICATION_WITH_VOLUME.set(name=u"throwaway-app")),
+)
 SetProxiesIStateChangeTests = make_istatechange_tests(
-    SetProxies, dict(ports=[1]), dict(ports=[2]))
-CreateVolumeIStateChangeTests = make_istatechange_tests(
-    CreateDataset, dict(dataset=1), dict(dataset=2))
+    SetProxies,
+    dict(ports=[Proxy(ip=IPAddress("10.0.0.1"), port=1000)]),
+    dict(ports=[Proxy(ip=IPAddress("10.0.0.2"), port=2000)]),
+)
+CreateDatasetIStateChangeTests = make_istatechange_tests(
+    CreateDataset,
+    dict(dataset=_DATASET_A),
+    dict(dataset=_DATASET_B),
+)
 HandoffVolumeIStateChangeTests = make_istatechange_tests(
-    HandoffDataset, dict(dataset=1, hostname=b"123"),
-    dict(dataset=2, hostname=b"123"))
+    HandoffDataset,
+    dict(dataset=_DATASET_A, hostname=b"123"),
+    dict(dataset=_DATASET_B, hostname=b"123")
+)
 PushVolumeIStateChangeTests = make_istatechange_tests(
-    PushDataset, dict(dataset=1, hostname=b"123"),
-    dict(dataset=2, hostname=b"123"))
+    PushDataset,
+    dict(dataset=_DATASET_A, hostname=b"123"),
+    dict(dataset=_DATASET_B, hostname=b"123")
+)
 DeleteDatasetTests = make_istatechange_tests(
     DeleteDataset,
-    dict(dataset=Dataset(dataset_id=unicode(uuid4()))),
-    dict(dataset=Dataset(dataset_id=unicode(uuid4()))))
+    dict(dataset=_DATASET_A),
+    dict(dataset=_DATASET_B),
+)
 
 
 class ControllableActionIStateChangeTests(
@@ -391,6 +457,29 @@ class StartApplicationTests(SynchronousTestCase):
             fake_docker._units[application_name].restart_policy,
         )
 
+    def test_command_line(self):
+        """
+        ``StartApplication.run()`` passes an ``Application``'s
+        ``command_line`` to ``DockerClient.add``.
+        """
+        command_line = [u"hello", u"there"]
+        fake_docker = FakeDockerClient()
+        deployer = ApplicationNodeDeployer(u'example.com', fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage.from_string(u"postgresql"),
+            command_line=command_line)
+
+        StartApplication(application=application,
+                         node_state=EMPTY_NODESTATE).run(deployer)
+
+        self.assertEqual(
+            fake_docker._units[application_name].command_line,
+            pvector(command_line),
+        )
+
 
 class LinkEnviromentTests(SynchronousTestCase):
     """
@@ -512,33 +601,6 @@ MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
 # than requested application:
 DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
-
-class DeployerDiscoverStateTests(SynchronousTestCase):
-    """
-    Tests for ``P2PNodeDeployer.discover_state``.
-    """
-    def test_adapted_local_state(self):
-        """
-        ``P2PNodeDeployer.discover_state`` adapts the return value of
-        ``P2PNodeDeployer.discover_local_state`` to the type required by the
-        interface.
-        """
-        api = P2PNodeDeployer(
-            u"example.com",
-            create_volume_service(self),
-            docker_client=FakeDockerClient(units={}),
-            network=make_memory_network(),
-        )
-        known_local_state = NodeState(hostname=api.hostname)
-
-        old_result = api.discover_local_state(known_local_state)
-        new_result = api.discover_state(known_local_state)
-        self.assertEqual(
-            (self.successResultOf(old_result),),
-            self.successResultOf(new_result)
-        )
-
-
 APP_NAME = u"site-example.com"
 UNIT_FOR_APP = Unit(name=APP_NAME,
                     container_name=APP_NAME,
@@ -567,6 +629,9 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
     """
     def setUp(self):
         self.network = make_memory_network()
+        self.node_uuid = uuid4()
+        self.EMPTY_NODESTATE = NodeState(hostname=u"example.com",
+                                         uuid=self.node_uuid)
 
     def test_discover_none(self):
         """
@@ -576,12 +641,13 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         fake_docker = FakeDockerClient(units={})
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
-        self.assertEqual([NodeState(hostname=api.hostname,
+        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
                                     manifestations=None,
                                     paths=None)],
                          self.successResultOf(d))
@@ -595,12 +661,13 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         fake_docker = FakeDockerClient(units={APP_NAME: UNIT_FOR_APP})
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
-        self.assertEqual([NodeState(hostname=api.hostname,
+        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
                                     applications=[APP],
                                     manifestations=None,
                                     paths=None)],
@@ -618,10 +685,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP, APP2]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d)[0].applications)
@@ -643,10 +711,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP.set("environment", dict(environment_variables))]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d)[0].applications)
@@ -683,10 +752,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(pset(applications),
                               self.successResultOf(d)[0].applications)
@@ -702,14 +772,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         ])]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
         for app in applications:
             StartApplication(
-                node_state=NodeState(hostname=api.hostname), application=app
+                node_state=NodeState(uuid=api.node_uuid,
+                                     hostname=api.hostname),
+                application=app
             ).run(api)
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(applications,
                               self.successResultOf(d)[0].applications)
@@ -728,10 +801,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                                 [Port(internal_port=80, external_port=8080)])]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d)[0].applications))
@@ -753,7 +827,8 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                               primary=True,
                           )
                           for dataset_id in (DATASET_ID, DATASET_ID2)}
-        current_known_state = NodeState(hostname=u'example.com',
+        current_known_state = NodeState(uuid=self.node_uuid,
+                                        hostname=u'example.com',
                                         manifestations=manifestations,
                                         paths={DATASET_ID: path1,
                                                DATASET_ID2: path2})
@@ -781,6 +856,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
                                         (APP2, DATASET_ID2)]]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
@@ -806,10 +882,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d)[0].applications))
@@ -827,13 +904,14 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP.set("running", False), APP2.set("running", False)]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
         d = api.discover_state(EMPTY_NODESTATE)
         result = self.successResultOf(d)
 
-        self.assertEqual([NodeState(hostname=api.hostname,
+        self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
                                     applications=applications,
                                     manifestations=None,
                                     paths=None)],
@@ -848,15 +926,17 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         used_ports = frozenset([1, 3, 5, 1000])
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=FakeDockerClient(),
             network=make_memory_network(used_ports=used_ports)
         )
 
-        discovering = api.discover_state(EMPTY_NODESTATE)
+        discovering = api.discover_state(self.EMPTY_NODESTATE)
         states = self.successResultOf(discovering)
 
         self.assertEqual(
-            [NodeState(hostname=api.hostname, used_ports=used_ports,
+            [NodeState(uuid=api.node_uuid, hostname=api.hostname,
+                       used_ports=used_ports,
                        manifestations=None, paths=None)],
             states
         )
@@ -874,10 +954,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         applications = [APP.set("restart_policy", policy)]
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(applications,
                          list(self.successResultOf(d)[0].applications))
@@ -891,16 +972,19 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         fake_docker = FakeDockerClient(units={APP_NAME: UNIT_FOR_APP})
         api = ApplicationNodeDeployer(
             u'example.com',
+            node_uuid=self.node_uuid,
             docker_client=fake_docker,
             network=self.network
         )
         # Apparently we know nothing about manifestations one way or the
         # other:
         d = api.discover_state(NodeState(
+            uuid=api.node_uuid,
             hostname=api.hostname,
             manifestations=None, paths=None))
 
         self.assertEqual([NodeState(hostname=api.hostname,
+                                    uuid=api.node_uuid,
                                     # Can't do app discovery if don't know
                                     # about manifestations:
                                     applications=None,
@@ -916,6 +1000,9 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
     """
     def setUp(self):
         self.volume_service = create_volume_service(self)
+        self.node_uuid = uuid4()
+        self.EMPTY_NODESTATE = NodeState(hostname=u"example.com",
+                                         uuid=self.node_uuid)
 
     DATASET_ID = unicode(uuid4())
     DATASET_ID2 = unicode(uuid4())
@@ -925,11 +1012,12 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         Applications and ports are left as ``None`` in discovery results.
         """
         deployer = P2PManifestationDeployer(
-            u'example.com', self.volume_service)
+            u'example.com', self.volume_service, node_uuid=self.node_uuid)
         self.assertEqual(
             self.successResultOf(deployer.discover_state(
-                EMPTY_NODESTATE)),
+                self.EMPTY_NODESTATE)),
             [NodeState(hostname=deployer.hostname,
+                       uuid=deployer.node_uuid,
                        manifestations={}, paths={},
                        applications=None, used_ports=None)])
 
@@ -950,14 +1038,25 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         return P2PManifestationDeployer(
             u'example.com',
             self.volume_service,
+            node_uuid=self.node_uuid
         )
+
+    def test_uuid(self):
+        """
+        The ``NodeState`` returned from discovery has same UUID as the
+        deployer.
+        """
+        deployer = self._setup_datasets()
+        nodes = self.successResultOf(
+            deployer.discover_state(self.EMPTY_NODESTATE))
+        self.assertEqual(nodes[0].uuid, deployer.node_uuid)
 
     def test_discover_datasets(self):
         """
         All datasets on the node are added to ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID: Manifestation(
@@ -974,7 +1073,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         ``NodeState.manifestations``.
         """
         api = self._setup_datasets()
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual(
             {self.DATASET_ID:
@@ -1007,8 +1106,9 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
         api = P2PManifestationDeployer(
             u'example.com',
             self.volume_service,
+            node_uuid=self.node_uuid,
         )
-        d = api.discover_state(EMPTY_NODESTATE)
+        d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertItemsEqual(
             self.successResultOf(d)[0].manifestations[self.DATASET_ID],
@@ -1043,11 +1143,13 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
         """
-        api = ApplicationNodeDeployer(u'node2.example.com',
+        api = ApplicationNodeDeployer(u'192.168.1.1',
                                       docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      network=make_memory_network(),
+                                      node_uuid=uuid4())
         expected_destination_port = 1001
-        expected_destination_host = u'node1.example.com'
+        expected_destination_host = u'192.168.1.2'
+        destination_node_uuid = uuid4()
         port = Port(internal_port=3306,
                     external_port=expected_destination_port)
         application = Application(
@@ -1059,17 +1161,45 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         nodes = frozenset([
             Node(
-                hostname=expected_destination_host,
+                uuid=destination_node_uuid,
                 applications=frozenset([application])
             )
         ])
 
         desired = Deployment(nodes=nodes)
+        current = DeploymentState(nodes=[
+            NodeState(uuid=destination_node_uuid,
+                      hostname=expected_destination_host)])
         result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
+            desired_configuration=desired, current_cluster_state=current)
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
         expected = sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
+        self.assertEqual(expected, result)
+
+    def test_no_proxy_if_node_state_unknown(self):
+        """
+        ``ApplicationNodeDeployer.calculate_changes`` does not attempt to
+        create a proxy to a node whose state is unknown, since the
+        destination IP is unavailable.
+        """
+        api = ApplicationNodeDeployer(u'192.168.1.1', node_uuid=uuid4(),
+                                      docker_client=FakeDockerClient(),
+                                      network=make_memory_network())
+        expected_destination_port = 1001
+        port = Port(internal_port=3306,
+                    external_port=expected_destination_port)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'release-14.0'),
+            ports=frozenset([port]),
+        )
+        desired = Deployment(nodes=[Node(uuid=uuid4(),
+                                         applications=[application])])
+        result = api.calculate_changes(
+            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
+        expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
     def test_proxy_empty(self):
@@ -1349,7 +1479,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=make_memory_network()
+            network=make_memory_network(),
+            node_uuid=uuid4(),
         )
 
         old_postgres_app = Application(
@@ -1363,17 +1494,13 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             image=DockerImage.from_string(u'docker/postgres:7.6'),
         )
 
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
-
         desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
+            Node(uuid=api.node_uuid,
                  applications=frozenset({new_postgres_app})),
         }))
         node_state = NodeState(
             hostname=api.hostname,
+            uuid=api.node_uuid,
             applications={old_postgres_app})
 
         result = api.calculate_changes(
@@ -1400,7 +1527,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=make_memory_network()
+            network=make_memory_network(),
+            node_uuid=uuid4(),
         )
 
         old_postgres_app = Application(
@@ -1415,16 +1543,12 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             volume=None
         )
 
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
-
         desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
+            Node(uuid=api.node_uuid,
                  applications=frozenset({new_postgres_app})),
         }))
         node_state = NodeState(
+            uuid=api.node_uuid,
             hostname=api.hostname,
             applications={old_postgres_app})
         result = api.calculate_changes(
@@ -1674,19 +1798,20 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         than inspecting application configuration.
         """
         node = Node(
-            hostname=u"10.1.1.1",
+            uuid=uuid4(),
             manifestations={
                 MANIFESTATION.dataset_id:
                 MANIFESTATION.transform(("dataset", "deleted"), True)},
         )
         desired = Deployment(nodes=[node])
         current = DeploymentState(nodes=[NodeState(
-            hostname=node.hostname,
+            uuid=node.uuid,
+            hostname=u"10.1.1.1",
             applications={APPLICATION_WITH_VOLUME},
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION})])
 
         api = P2PManifestationDeployer(
-            node.hostname, create_volume_service(self),
+            u"10.1.1.1", create_volume_service(self), node_uuid=node.uuid,
         )
         changes = api.calculate_changes(desired, current)
         self.assertEqual(sequentially(changes=[]), changes)
@@ -1749,6 +1874,32 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
 
         api = P2PManifestationDeployer(
             node_state.hostname, create_volume_service(self),
+        )
+
+        changes = api.calculate_changes(desired, current)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_no_handoff_if_destination_unknown(self):
+        """
+        If there is no known state for the destination of a handoff, then no
+        handoff is suggested by ``calculate_changes``.
+        """
+        node_state = NodeState(
+            uuid=uuid4(),
+            hostname=u"192.2.0.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = DeploymentState(nodes=[node_state])
+        desired = Deployment(nodes={
+            Node(uuid=uuid4(),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
+        })
+
+        api = P2PManifestationDeployer(
+            node_state.hostname, create_volume_service(self),
+            node_uuid=node_state.uuid,
         )
 
         changes = api.calculate_changes(desired, current)
@@ -2492,16 +2643,6 @@ class PushVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)
-
-
-class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
-        lambda test: P2PNodeDeployer(u"localhost",
-                                     create_volume_service(test),
-                                     FakeDockerClient(),
-                                     make_memory_network()))):
-    """
-    ``IDeployer`` tests for ``P2PNodeDeployer``.
-    """
 
 
 class ControllableDeployerInterfaceTests(

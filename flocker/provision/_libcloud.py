@@ -4,6 +4,8 @@
 Helpers for using libcloud.
 """
 
+from zope.interface import (
+    Attribute as InterfaceAttribute, Interface, implementer)
 from characteristic import attributes, Attribute
 
 
@@ -131,6 +133,15 @@ def get_image(driver, image_name):
         raise ValueError("Unknown image.", image_name)
 
 
+class INode(Interface):
+    """
+    Interface for node for running acceptance tests.
+    """
+    address = InterfaceAttribute('ip address for node')
+    distribution = InterfaceAttribute('distribution on node')
+
+
+@implementer(INode)
 @attributes([
     # _node gets updated, so we can't make this immutable.
     Attribute('_node'),
@@ -241,12 +252,6 @@ class LibcloudProvisioner(object):
             name=name,
             image=get_image(self._driver, image_name),
             size=get_size(self._driver, size),
-            # XXX: ``ex_keyname`` is specific to EC2 and Rackspace
-            # drivers. DigitalOcean supports installation of multiple SSH keys
-            # and uses the alternative ``ex_ssh_key_ids`` arguments. This
-            # should probably be supplied by the driver specific
-            # ``_create_node_arguments`` function rather than hard coded here.
-            # See: https://clusterhq.atlassian.net/browse/FLOC-1228
             ex_keyname=keyname,
             ex_metadata=metadata,
             **create_node_arguments

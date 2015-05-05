@@ -12,7 +12,6 @@ from ._install import (
     provision,
     task_install_ssh_key,
     task_upgrade_kernel,
-    task_upgrade_kernel_centos,
     task_enable_updates_testing
 )
 
@@ -34,6 +33,7 @@ def provision_aws(node, package_source, distribution, variants):
     username = {
         'fedora-20': 'fedora',
         'centos-7': 'centos',
+        'ubuntu-14.04': 'ubuntu',
     }[distribution]
 
     commands = []
@@ -50,14 +50,9 @@ def provision_aws(node, package_source, distribution, variants):
             task_enable_updates_testing(distribution)
         )
 
-    if distribution in ('centos-7',):
+    if distribution in ('centos-7', 'fedora-20'):
         pre_reboot_commands.append(
-            task_upgrade_kernel_centos()
-        )
-
-    elif distribution in ('fedora-20',):
-        pre_reboot_commands.append(
-            task_upgrade_kernel(),
+            task_upgrade_kernel(distribution)
         )
 
     commands.append(run_remotely(
@@ -85,6 +80,7 @@ IMAGE_NAMES = {
     'fedora-20': 'Fedora-x86_64-20-20140407-sda',
     'centos-7': 'CentOS 7 x86_64 (2014_09_29) EBS HVM'
                 '-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d2a117ba.2',
+    'ubuntu-14.04': 'ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-20150325',  # noqa
 }
 
 

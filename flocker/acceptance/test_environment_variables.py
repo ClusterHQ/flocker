@@ -6,10 +6,13 @@ Tests for environment variables.
 from unittest import skipUnless
 from uuid import uuid4
 
-from pyrsistent import pmap
+from eliot import Message, Logger
+
+from pyrsistent import freeze, thaw
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import succeed
 
 from flocker.control import (
     Application, DockerImage, AttachedVolume, Port, Dataset,
@@ -17,12 +20,13 @@ from flocker.control import (
 from ..control.httpapi import container_configuration_response
 from flocker.testtools import loop_until
 
-from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        require_flocker_cli, get_test_cluster)
+from .testtools import (
+    assert_expected_deployment, flocker_deploy,
+    require_flocker_cli, require_cluster)
 
 try:
     from pymysql import connect
-    from pymysql.err import OperationalError
+    from pymysql.err import Error
     PYMYSQL_INSTALLED = True
 except ImportError:
     PYMYSQL_INSTALLED = False
@@ -47,8 +51,7 @@ MYSQL_APPLICATION = Application(
     volume=AttachedVolume(
         manifestation=Manifestation(
             dataset=Dataset(
-                dataset_id=unicode(uuid4()),
-                metadata=pmap({"name": MYSQL_APPLICATION_NAME})),
+                dataset_id=unicode(uuid4())),
             primary=True),
         mountpoint=FilePath(MYSQL_VOLUME_MOUNTPOINT),
     ),
@@ -62,20 +65,20 @@ class EnvironmentVariableTests(TestCase):
     """
     Tests for passing environment variables to containers, in particular
     passing a root password to MySQL.
-
-    Similar to:
-    http://doc-dev.clusterhq.com/gettingstarted/examples/environment.html
     """
     @require_flocker_cli
-    def setUp(self):
+    @require_cluster(num_nodes=2)
+    def setUp(self, cluster):
         """
         Deploy MySQL to one of two nodes.
         """
-        getting_nodes = get_nodes(self, num_nodes=2)
+        self.cluster = cluster
+        (self.node_1, self.node_1_uuid), (self.node_2, self.node_2_uuid) = [
+            (node.address, node.uuid) for node in cluster.nodes]
 
-        def deploy_mysql(node_ips):
-            self.node_1, self.node_2 = node_ips
+        getting_nodes = succeed(None)
 
+        def deploy_mysql(_):
             mysql_deployment = {
                 u"version": 1,
                 u"nodes": {
@@ -111,6 +114,10 @@ class EnvironmentVariableTests(TestCase):
                 },
             }
 
+            self.mysql_application_different_port = thaw(freeze(
+                self.mysql_application).transform(
+                    [u"applications", MYSQL_APPLICATION_NAME, u"ports", 0,
+                     u"external"], MYSQL_EXTERNAL_PORT + 1))
             flocker_deploy(self, mysql_deployment, self.mysql_application)
 
         deploying_mysql = getting_nodes.addCallback(deploy_mysql)
@@ -153,8 +160,8 @@ class EnvironmentVariableTests(TestCase):
         that MySQL has started.
         """
         expected_container = container_configuration_response(
-            MYSQL_APPLICATION, self.node_1)
-        waiting_for_cluster = get_test_cluster(node_count=1)
+            MYSQL_APPLICATION, self.node_1_uuid)
+        waiting_for_cluster = succeed(self.cluster)
 
         def got_cluster(cluster):
             waiting_for_container = cluster.wait_for_container(
@@ -166,19 +173,16 @@ class EnvironmentVariableTests(TestCase):
                     try:
                         return connect(
                             host=host,
-                            port=MYSQL_EXTERNAL_PORT,
+                            port=port,
                             user=user,
                             passwd=passwd,
                             db=db,
                         )
-                    except OperationalError as e:
-                        # PyMySQL doesn't provided a structured way to
-                        # get this.
-                        # https://github.com/PyMySQL/PyMySQL/issues/274
-                        if "Connection refused" in str(e):
-                            return False
-                        else:
-                            raise
+                    except Error as e:
+                        Message.new(
+                            message_type="acceptance:mysql_connect_error",
+                            error=str(e)).write(Logger())
+                        return False
                 dl = loop_until(mysql_can_connect)
                 return dl
             waiting_for_container.addCallback(mysql_connect)
@@ -199,7 +203,7 @@ class EnvironmentVariableTests(TestCase):
             user=b'root',
             passwd=MYSQL_PASSWORD,
         )
-        # No assetion, since _get_mysql_connection will fire with a failure,
+        # No assertion, since _get_mysql_connection will fire with a failure,
         # if the credentials are incorrect.
 
     @require_pymysql
@@ -247,12 +251,15 @@ class EnvironmentVariableTests(TestCase):
             Move MySQL to ``node_2`` and return a ``Deferred`` which fires
             with a connection to the previously created database on ``node_2``.
             """
+            # Listen on different port so it's clear we're connecting to
+            # newly moved container as opposed to being routed to one that
+            # is about to moved:
             flocker_deploy(self, self.mysql_deployment_moved,
-                           self.mysql_application)
+                           self.mysql_application_different_port)
 
             getting_mysql = self._get_mysql_connection(
                 host=self.node_2,
-                port=MYSQL_EXTERNAL_PORT,
+                port=MYSQL_EXTERNAL_PORT + 1,
                 user=user,
                 passwd=MYSQL_PASSWORD,
                 db=database,

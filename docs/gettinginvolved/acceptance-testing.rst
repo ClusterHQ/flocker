@@ -136,28 +136,3 @@ You will need a ssh agent running with access to the corresponding private key.
 .. prompt:: bash $
 
   admin/run-acceptance-tests --distribution fedora-20 --provider aws --config-file config.yml
-
-
-DigitalOcean
-------------
-
-To run the acceptance tests on DigitalOcean, you need:
-
-- a DigitalOcean account,
-- a "Legacy API v1" Client ID and API key
-  (https://cloud.digitalocean.com/api_access),
-- an "API v2" token, which will be used to update the kernel of new droplets,
-  (https://cloud.digitalocean.com/settings/applications), and
-- an SSH key registered with the DigitalOcean account.
-  (https://cloud.digitalocean.com/ssh_keys)
-
-.. code-block:: yaml
-
-   digitalocean:
-     client_id: <DigitalOcean API v1 client id>
-     api_key: <DigitalOcean API v1 api key>
-     token: <DigitalOcean API v2 api token>
-     location: <DigitalOcean location slug e.g. lon1, nyc2, or sfo1>
-     keyname: <ssh-key-name>
-   metadata:
-     creator: <your-name>

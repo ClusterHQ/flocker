@@ -5,10 +5,8 @@ The command-line ``flocker-deploy`` tool.
 """
 
 import sys
-from subprocess import CalledProcessError
 from json import dumps
 
-from twisted.internet.threads import deferToThread
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -25,8 +23,6 @@ from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..common import gather_deferreds
-from ._sshconfig import OpenSSHConfiguration
 from ..control.httpapi import REST_API_PORT
 
 
@@ -64,7 +60,6 @@ class DeployOptions(Options):
                 "<control-host> <deployment.yml-path> <application.yml-path>"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
-    optFlags = [["nossh", None, "Disable SSH setup stage."]]
     optParameters = [["port", "p", REST_API_PORT,
                       "The REST API port on the server.", int]]
 
@@ -113,12 +108,6 @@ class DeployScript(object):
     """
     A script to start configured deployments on a Flocker cluster.
     """
-    def __init__(self, ssh_configuration=None, ssh_port=22):
-        if ssh_configuration is None:
-            ssh_configuration = OpenSSHConfiguration.defaults()
-        self.ssh_configuration = ssh_configuration
-        self.ssh_port = ssh_port
-
     def main(self, reactor, options):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
@@ -126,18 +115,11 @@ class DeployScript(object):
         :return: A ``Deferred`` which fires when the deployment is complete or
                  has encountered an error.
         """
-        if options["nossh"]:
-            ready = succeed(None)
-        else:
-            ready = self._configure_ssh(
-                options["deployment_config"]["nodes"].keys())
-
         body = dumps({"applications": options["application_config"],
                       "deployment": options["deployment_config"]})
-        ready.addCallback(
-            lambda _: post(options["url"], data=body,
-                           headers={b"content-type": b"application/json"},
-                           persistent=False))
+        posted = post(options["url"], data=body,
+                      headers={b"content-type": b"application/json"},
+                      persistent=False)
 
         def fail(msg):
             raise SystemExit(msg)
@@ -145,44 +127,19 @@ class DeployScript(object):
         def got_response(response):
             if response.code != OK:
                 d = json_content(response)
-                d.addCallback(
-                    lambda error: fail(error[u"description"] + u"\n"))
+
+                def got_error(error):
+                    if isinstance(error, dict):
+                        error = error[u"description"] + u"\n"
+                    else:
+                        error = u"Unknown error: " + unicode(error) + "\n"
+                    fail(error)
+                d.addCallback(got_error)
                 return d
             else:
                 sys.stdout.write(_OK_MESSAGE)
-        ready.addCallback(got_response)
-        return ready
-
-    def _configure_ssh(self, hostnames):
-        """
-        :param list hostnames: The addresses of the machines for which to
-            configure SSH keys.
-
-        :return: A ``Deferred`` which fires when all nodes have been configured
-            with ssh keys.
-        """
-        self.ssh_configuration.create_keypair()
-        results = []
-        for hostname in hostnames:
-            results.append(
-                deferToThread(
-                    self.ssh_configuration.configure_ssh,
-                    hostname.encode("ascii"), self.ssh_port
-                )
-            )
-        d = gather_deferreds(results)
-
-        # Exit with ssh's output if it failed for some reason:
-        def got_failure(failure):
-            if failure.value.subFailure.check(CalledProcessError):
-                raise SystemExit(
-                    b"Error connecting to cluster node: " +
-                    failure.value.subFailure.value.output)
-            else:
-                return failure
-
-        d.addErrback(got_failure)
-        return d
+        posted.addCallback(got_response)
+        return posted
 
 
 @flocker_standard_options
