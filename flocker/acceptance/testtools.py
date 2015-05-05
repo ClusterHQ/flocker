@@ -14,13 +14,18 @@ from unittest import SkipTest, skipUnless
 from yaml import safe_dump
 
 from twisted.web.http import OK, CREATED
+from twisted.web.client import Agent
+from twisted.internet.ssl import ClientContextFactory
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.internet import reactor
 
 from eliot import Logger, start_action
 from eliot.twisted import DeferredContext
 
-from treq import get, post, delete, json_content, content
+from treq import json_content, content
+from treq.client import HTTPClient
+
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
 from ..control import (
@@ -60,6 +65,12 @@ require_mongo = skipUnless(
 # https://clusterhq.atlassian.net/browse/FLOC-947
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
+
+# treq client that does insecure HTTPS authentication; will be switched
+# to something better in FLOC-1805:
+_treq_client = HTTPClient(Agent(reactor,
+                                contextFactory=ClientContextFactory()))
+get, post, delete = _treq_client.get, _treq_client.post, _treq_client.delete
 
 
 def get_mongo_application():
