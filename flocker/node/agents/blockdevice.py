@@ -413,12 +413,14 @@ class CreateFilesystem(PRecord):
 
 def _valid_size(size):
     """
-    Pyrsistent invariant for filesystem size, which must be a multiple of 512
+    Pyrsistent invariant for filesystem size, which must be a multiple of 1024
     bytes.
     """
-    if size % 512 == 0:
+    if size % 1024 == 0:
         return (True, "")
-    return (False, "Filesystem size must be multiple of 512, not %d" % (size,))
+    return (
+        False, "Filesystem size must be multiple of 1024, not %d" % (size,)
+    )
 
 
 @implementer(IStateChange)

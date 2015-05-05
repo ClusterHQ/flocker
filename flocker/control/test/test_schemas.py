@@ -528,12 +528,12 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     # wrong numeric type for maximum size
     {u"primary": u"10.0.0.1", u"maximum_size": 1024 * 1024 * 64 + 0.5},
 
-    # too-small (but multiple of 512) value for maximum size
+    # too-small (but multiple of 1024) value for maximum size
     {u"primary": u"10.0.0.1", u"maximum_size": 1024},
 
-    # Value for maximum_size that is not a multiple of 512 (but is larger than
+    # Value for maximum_size that is not a multiple of 1024 (but is larger than
     # the minimum allowed)
-    {u"primary": u"10.0.0.1", u"maximum_size": 1024 * 1024 * 64 + 511},
+    {u"primary": u"10.0.0.1", u"maximum_size": 1024 * 1024 * 64 + 1023},
 
     # wrong type for primary
     {u"primary": 10,

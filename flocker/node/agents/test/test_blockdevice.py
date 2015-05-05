@@ -2893,12 +2893,12 @@ class ResizeFilesystemTests(
     """
     def test_size_invariant(self):
         """
-        ``ResizeFilesystem.size`` must be a multiple of 512.
+        ``ResizeFilesystem.size`` must be a multiple of 1024.
         """
         self.assertRaises(
             InvariantException,
             ResizeFilesystem,
-            volume=_ARBITRARY_VOLUME, size=513,
+            volume=_ARBITRARY_VOLUME, size=1025,
         )
 
     def _resize_test(self, size_factor):

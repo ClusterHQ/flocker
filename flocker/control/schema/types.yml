@@ -218,8 +218,9 @@ definitions:
     # considered more carefully.
     minimum: 67108864
     # Filesystem initialization in the block device backend requires sizes to
-    # be a multiple of 512.
-    multipleOf: 512
+    # be a multiple of 512 and for ease of implementation we'll tighten that
+    # constraint so it's multiples of 1024 (1 KiB).
+    multipleOf: 1024
 
 
   running:

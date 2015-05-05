@@ -2362,13 +2362,13 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         """
         return self.assert_dataset_resize(
             original_size=67108864,
-            new_size=67108864 - 512,
+            new_size=67108864 - 1024,
             expected_code=BAD_REQUEST,
             expected_result={
                 u'description':
                 u"The provided JSON doesn't match the required schema.",
                 u'errors':
-                [u'67108352 is less than the minimum of 67108864']
+                [u'67107840 is less than the minimum of 67108864']
             }
         )
 
