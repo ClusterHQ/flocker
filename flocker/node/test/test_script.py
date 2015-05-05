@@ -18,7 +18,7 @@ from ...common.script import ICommandLineScript
 
 from ..script import (
     ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
-    AgentServiceFactory, DatasetAgentOptions, configuration_from_options)
+    AgentServiceFactory, DatasetAgentOptions, agent_config_from_file)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
 from ...control import ConfigurationError
@@ -318,28 +318,25 @@ def make_amp_agent_options_tests(options_type):
     return Tests
 
 
-class ConfigurationFromOptionsTests(SynchronousTestCase):
+class AgentConfigFromFileTests(SynchronousTestCase):
     """
-    Tests for :func:`configuration_from_options`.
+    Tests for :func:`agent_config_from_file`.
     """
 
     def setUp(self):
         self.scratch_directory = FilePath(self.mktemp())
         self.scratch_directory.makedirs()
         self.config = self.scratch_directory.child('config.yml')
-        self.options = {
-            'agent-config': self.config,
-        }
 
     def assertErrorForConfig(self, exception, configuration=None,
                              message=None):
         """
         Assert that given a particular configuration,
-        :func:`configuration_from_options` will fail with an expected exception
+        :func:`agent_config_from_file` will fail with an expected exception
         and message.
 
         :param Exception exception: The exception type which
-            :func:`configuration_from_options` should fail with.
+            :func:`agent_config_from_file` should fail with.
         :param unicode configuration: The contents of the agent configuration
             file. If ``None`` then the file will not exist.
         :param bytes message: The expected exception message. If ``None`` then
@@ -350,7 +347,7 @@ class ConfigurationFromOptionsTests(SynchronousTestCase):
 
         exception = self.assertRaises(
             exception,
-            configuration_from_options, self.options)
+            agent_config_from_file, self.config)
 
         if message is not None:
             self.assertEqual(exception.message, message)
