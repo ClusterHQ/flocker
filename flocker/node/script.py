@@ -132,7 +132,7 @@ class ZFSAgentScript(object):
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then
-        # we'll just do a temporary hack (probably to be fixed in FLOC-1733).
+        # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
         node_uuid = ip_to_uuid(ip)
         deployer = P2PManifestationDeployer(ip, volume_service,
                                             node_uuid=node_uuid)
@@ -247,7 +247,7 @@ class AgentServiceFactory(PRecord):
         ip = _get_external_ip(host, port)
         return AgentLoopService(
             reactor=reactor,
-            # Temporary hack, to be fixed in FLOC-1733 probably:
+            # Temporary hack, to be fixed in FLOC-1783 probably:
             deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
                                            hostname=ip),
             host=host, port=port,
