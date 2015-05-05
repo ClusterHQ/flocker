@@ -546,8 +546,8 @@ class MountBlockDevice(PRecord):
     Mount the filesystem mounted from the block device backed by a particular
     volume.
 
-    :ivar BlockDeviceVolume volume: The volume associated with the dataset
-        which will be unmounted.
+    :ivar UUID dataset_id: The unique identifier of the dataset associated with
+        the filesystem to mount.
     :ivar FilePath mountpoint: The filesystem location at which to mount the
         volume's filesystem.  If this does not exist, it is created.
     """
@@ -1184,9 +1184,13 @@ class LoopbackBlockDeviceAPI(object):
         if volume.host is None:
             raise UnattachedVolume(blockdevice_id)
 
-        check_output([
-            b"losetup", b"--detach", self.get_device_path(blockdevice_id).path
-        ])
+        # ``losetup --detach`` only if the file was used for a loop device.
+        if self.get_device_path(blockdevice_id) is not None:
+            check_output([
+                b"losetup", b"--detach",
+                self.get_device_path(blockdevice_id).path
+            ])
+
         volume_path = self._attached_directory.descendant([
             volume.host.encode("ascii"), volume.blockdevice_id.encode("ascii")
         ])
@@ -1460,8 +1464,12 @@ class BlockDeviceDeployer(PRecord):
         )
 
         attaches = list(self._calculate_attaches(
+            local_state.devices,
             configured_manifestations,
             cluster_state.nonmanifest_datasets
+        ))
+        mounts = list(self._calculate_mounts(
+            local_state.devices, local_state.paths, configured_manifestations,
         ))
         unmounts = list(self._calculate_unmounts(
             local_state.paths, configured_manifestations,
@@ -1490,8 +1498,38 @@ class BlockDeviceDeployer(PRecord):
         # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
 
         return in_parallel(changes=(
-            unmounts + detaches + attaches + creates + deletes + resizes
+            unmounts + detaches +
+            attaches + mounts +
+            creates + deletes +
+            resizes
         ))
+
+    def _calculate_mounts(self, devices, paths, configured):
+        """
+        :param PMap devices: The datasets with volumes attached to this node
+            and the device files at which they are available.  This is the same
+            as ``NodeState.devices``.
+        :param PMap paths: The paths at which datasets' filesystems are mounted
+            on this node.  This is the same as ``NodeState.paths``.
+        :param PMap configured: The manifestations which are configured on this
+            node.  This is the same as ``NodeState.manifestations``.
+
+        :return: A generator of ``MountBlockDevice`` instances, one for each
+            dataset which exists, is attached to this node, does not have its
+            filesystem mounted, and is configured to have a manifestation on
+            this node.
+        """
+        for configured_dataset_id in configured:
+            if configured_dataset_id in paths:
+                # It's mounted already.
+                continue
+            if UUID(configured_dataset_id) in devices:
+                # It's attached.
+                path = self._mountpath_for_dataset_id(configured_dataset_id)
+                yield MountBlockDevice(
+                    dataset_id=UUID(configured_dataset_id),
+                    mountpoint=path,
+                )
 
     def _calculate_unmounts(self, paths, configured):
         """
@@ -1532,8 +1570,11 @@ class BlockDeviceDeployer(PRecord):
                 continue
             yield DetachVolume(dataset_id=attached_dataset_id)
 
-    def _calculate_attaches(self, configured, nonmanifest):
+    def _calculate_attaches(self, devices, configured, nonmanifest):
         """
+        :param PMap devices: The datasets with volumes attached to this node
+            and the device files at which they are available.  This is the same
+            as ``NodeState.devices``.
         :param PMap configured: The manifestations which are configured on this
             node.  This is the same as ``NodeState.manifestations``.
         :param PMap nonmanifest: The datasets which exist in the cluster but
@@ -1544,7 +1585,11 @@ class BlockDeviceDeployer(PRecord):
                  attached to this node.
         """
         for manifestation in configured.values():
+            if UUID(manifestation.dataset_id) in devices:
+                # It's already attached here.
+                continue
             if manifestation.dataset_id in nonmanifest:
+                # It exists and doesn't belong to anyone else.
                 yield AttachVolume(
                     dataset_id=UUID(manifestation.dataset_id),
                     hostname=self.hostname,

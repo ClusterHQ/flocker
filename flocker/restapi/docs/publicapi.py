@@ -308,8 +308,8 @@ def _formatRouteBody(data, schema_store):
     """
     baseSubstitutions = {
         u"DOMAIN": u"example.com",
-        u"NODE_0": u"192.0.2.1",
-        u"NODE_1": u"192.0.2.2",
+        u"NODE_0": u"cf0f0346-17b2-4812-beca-1434997d6c3f",
+        u"NODE_1": u"7ec3c4eb-6b1c-43da-8015-a163f7d15244",
         }
 
     for line in data['description']:

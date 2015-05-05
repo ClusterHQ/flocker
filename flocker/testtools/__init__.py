@@ -619,7 +619,7 @@ class DockerImageBuilder(PRecord):
         run_process(command)
         if self.cleanup:
             def remove_image():
-                client = DockerClient()
+                client = DockerClient(version="1.15")
                 for container in client.containers():
                     if container[u"Image"] == tag + ":latest":
                         client.remove_container(container[u"Names"][0])

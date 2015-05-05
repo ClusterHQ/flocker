@@ -185,6 +185,20 @@ def create_blockdevicedeployer(
     )
 
 
+def detach_destroy_volumes(api):
+        """
+        Detach and destroy all volumes known to this API.
+        """
+        volumes = api.list_volumes()
+
+        for volume in volumes:
+            # If the volume is attached, detach it.
+            if volume.host is not None:
+                api.detach_volume(volume.blockdevice_id)
+
+            api.destroy_volume(volume.blockdevice_id)
+
+
 class BlockDeviceDeployerTests(
         ideployer_tests_factory(create_blockdevicedeployer)
 ):
@@ -494,7 +508,9 @@ class UnusableAPI(object):
     """
 
 
-def assert_calculated_changes(case, node_state, node_config, expected_changes):
+def assert_calculated_changes(
+    case, node_state, node_config, nonmanifest_datasets, expected_changes
+):
     """
     Assert that ``BlockDeviceDeployer.calculate_changes`` returns certain
     changes when it is invoked with the given state and configuration.
@@ -505,9 +521,17 @@ def assert_calculated_changes(case, node_state, node_config, expected_changes):
         calculate changes for a node that has this state.
     :param Node node_config: The ``BlockDeviceDeployer`` will be asked to
         calculate changes for a node with this desired configuration.
+    :param set nonmanifest_datasets: Datasets which will be presented as part
+        of the cluster state without manifestations on any node.
     :param expected_changes: The ``IStateChange`` expected to be returned.
     """
-    cluster_state = DeploymentState(nodes={node_state})
+    cluster_state = DeploymentState(
+        nodes={node_state},
+        nonmanifest_datasets={
+            dataset.dataset_id: dataset
+            for dataset in nonmanifest_datasets
+        },
+    )
     cluster_configuration = Deployment(nodes={node_config})
 
     api = UnusableAPI()
@@ -574,7 +598,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         local_config = to_node(local_state)
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[])
         )
 
@@ -586,6 +610,9 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         local_state = self.ONE_DATASET_STATE.transform(
             # Remove the dataset.  This reflects its deletedness.
             ["manifestations", unicode(self.DATASET_ID)], discard
+        ).transform(
+            # Remove its device too.
+            ["devices", self.DATASET_ID], discard
         )
 
         local_config = to_node(self.ONE_DATASET_STATE).transform(
@@ -600,7 +627,7 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[]),
         )
     test_deleted_ignored.skip = (
@@ -629,7 +656,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             True
         )
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ]),
@@ -690,7 +717,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             lambda d: d.set(deleted=True, maximum_size=d.maximum_size * 2)
         )
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ])
@@ -722,6 +749,8 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
         # Give the node an empty state.
         node_state = self.ONE_DATASET_STATE.transform(
             ["manifestations", unicode(self.DATASET_ID)], discard
+        ).transform(
+            ["devices", self.DATASET_ID], discard
         )
 
         # Take the dataset in the configuration and make it part of the
@@ -745,6 +774,45 @@ class BlockDeviceDeployerAttachCalculateChangesTests(
                 ),
             ]),
             changes
+        )
+
+
+class BlockDeviceDeployerMountCalculateChangesTests(
+    SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for ``BlockDeviceDeployer.calculate_changes`` in the cases relating
+    to mounting of filesystems.
+    """
+    def test_mount_manifestation(self):
+        """
+        If the volume for a dataset is attached to the node but the filesystem
+        is not mounted and the configuration says the dataset is meant to be
+        manifest on the node, ``BlockDeviceDeployer.calculate_changes`` returns
+        a state change to mount the filesystem.
+        """
+        # Give it a state that says the volume is attached but nothing is
+        # mounted.
+        node_state = self.ONE_DATASET_STATE.set(
+            manifestations={},
+            paths={},
+            devices={self.DATASET_ID: FilePath(b"/dev/sda")},
+        )
+
+        # Give it a configuration that says there should be a manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE)
+
+        assert_calculated_changes(
+            self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
+            in_parallel(changes=[
+                MountBlockDevice(
+                    dataset_id=self.DATASET_ID,
+                    mountpoint=FilePath(b"/flocker/").child(
+                        bytes(self.DATASET_ID)
+                    )
+                ),
+            ])
         )
 
 
@@ -772,7 +840,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, node_state, node_config,
+            self, node_state, node_config, set(),
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID)
             ])
@@ -959,6 +1027,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
 
         assert_calculated_changes(
             self, node_state, node_config,
+            {Dataset(dataset_id=unicode(self.DATASET_ID))},
             in_parallel(changes=[DetachVolume(dataset_id=self.DATASET_ID)])
         )
 
@@ -994,7 +1063,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=self.DATASET_ID,
@@ -1043,7 +1112,7 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
         )
 
         assert_calculated_changes(
-            self, local_state, local_config,
+            self, local_state, local_config, set(),
             in_parallel(changes=[
                 ResizeBlockDeviceDataset(
                     dataset_id=dataset_id,
@@ -1371,12 +1440,16 @@ class IBlockDeviceAPITestsMixin(object):
         ``destroy_volume`` raises ``UnknownVolume`` if the supplied
         ``blockdevice_id`` does not exist.
         """
-        blockdevice_id = unicode(uuid4)
+        volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.api.destroy_volume(volume.blockdevice_id)
         exception = self.assertRaises(
             UnknownVolume,
-            self.api.destroy_volume, blockdevice_id=blockdevice_id
+            self.api.destroy_volume, blockdevice_id=volume.blockdevice_id
         )
-        self.assertEqual(exception.args, (blockdevice_id,))
+        self.assertEqual(exception.args, (volume.blockdevice_id,))
 
     def test_destroy_volume(self):
         """
@@ -1584,6 +1657,25 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
+    def assert_foreign_volume(self, flocker_volume):
+        """
+        Test that input Flocker volume does not belong to
+        current Flocker cluster.
+
+        :param ``BlockDeviceVolume`` flocker_volume: input volume
+            to check for membership in current Flocker cluster.
+
+        :returns: True if input Flocker volume belongs to current
+            Flocker cluster. False otherwise.
+        """
+
+        cluster_flocker_volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+
+        self.assertEqual([cluster_flocker_volume], self.api.list_volumes())
+
 
 def make_iblockdeviceapi_tests(blockdevice_api_factory):
     """
@@ -1679,8 +1771,10 @@ def loopbackblockdeviceapi_for_test(test_case):
         )
 
     root_path = test_case.mktemp()
-    test_case.addCleanup(losetup_detach_all, FilePath(root_path))
-    return LoopbackBlockDeviceAPI.from_path(root_path=root_path)
+    loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
+        root_path=root_path)
+    test_case.addCleanup(detach_destroy_volumes, loopback_blockdevice_api)
+    return loopback_blockdevice_api
 
 
 class LoopbackBlockDeviceAPITests(
