@@ -226,8 +226,11 @@ definitions:
     # on what this can be set to for the ZFS backend.  Could probably be
     # considered more carefully.
     minimum: 67108864
-    # This is how you require integers, of course.
-    divisibleBy: 1
+    # Filesystem initialization in the block device backend requires sizes to
+    # be a multiple of 512 and for ease of implementation we'll tighten that
+    # constraint so it's multiples of 1024 (1 KiB).
+    multipleOf: 1024
+
 
   running:
     title: "Running"
