@@ -5,6 +5,7 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 import time
 from uuid import UUID
+from subprocess import check_output
 
 from bitmath import Byte, GB
 
@@ -115,10 +116,12 @@ class CinderBlockDeviceAPI(object):
         self.volume_manager = volume_manager
         self.cluster_id = cluster_id
 
-    # def cloud_instance_id(self):
-    #     """
-    #     xen-read instance_id, parse output and return the bytes
-    #     """
+    def storage_backend_id(self):
+        """
+        Look up the Xen instance ID for this node.
+        """
+        command = [b"xenstore-read", b"name"]
+        return check_output(command).strip().decode("ascii")
 
     def create_volume(self, dataset_id, size):
         """
