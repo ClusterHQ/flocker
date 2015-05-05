@@ -3,13 +3,14 @@
 """
 Low-level logic for a certificate authority.
 
-Uses RSA 4096-bit + SHA 256.
-
 We have three categories of certificates:
 
-1. Control service. Needs to be validated over HTTP by 3rd party clients.
-2. Node agents. Needs to encode a node UUID.
-3. API clients. Used by HTTP API clients to authenticate.
+1. Control service, used by AMP and REST API servers. Needs to be
+   validated over HTTP by 3rd party clients, as well as by AMP clients.
+2. Node agents, used by AMP clients in agents. Needs to encode a node
+   UUID, and is validated by the control service.
+3. API clients. Used by HTTP API clients to authenticate, so the control
+   service REST API needs to validate them.
 
 None of these should be able to impersonate the others. We therefore use
 the following Distinguised Name scheme:
