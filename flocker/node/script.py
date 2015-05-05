@@ -80,6 +80,21 @@ def _get_external_ip(host, port):
         sock.close()
 
 
+def _lookup_key(configuration, key):
+    """
+    Given configuration and a key, return the contents of that key from the
+    configuration or raise a suitable exception.
+
+    :param dict configuration: Configuration options.
+    :param unicode key: Option name.
+    """
+    try:
+        return configuration[key]
+    except (TypeError, KeyError):
+        raise ConfigurationError(
+            "Configuration has an error. Missing '{}' key.".format(key))
+
+
 def configuration_from_options(options):
     """
     Extract configuration from provided options.
@@ -99,26 +114,14 @@ def configuration_from_options(options):
 
     options_yaml = yaml.safe_load(options_content)
 
-    configuration = {}
-
-    try:
-        configuration['control-service-hostname'] = options_yaml[
-            u'control-service-hostname']
-    except (TypeError, KeyError):
+    if _lookup_key(configuration=options_yaml, key=u'version') != 1:
         raise ConfigurationError(
-            "Configuration has an error. "
-            "Missing 'control-service-hostname' key.")
+            "Configuration has an error. Incorrect version specified.")
 
-    try:
-        if options_yaml[u'version'] != 1:
-            raise ConfigurationError(
-                "Configuration has an error. Incorrect version specified.")
-    except KeyError:
-        raise ConfigurationError(
-            "Configuration has an error. Missing 'version' key.")
-
-    return configuration
-
+    return {
+        'control-service-hostname': _lookup_key(
+            configuration=options_yaml, key=u'control-service-hostname')
+    }
 
 @implementer(ICommandLineVolumeScript)
 class ZFSAgentScript(object):

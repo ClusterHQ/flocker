@@ -331,7 +331,8 @@ class ConfigurationFromOptionsTests(SynchronousTestCase):
             'agent-config': self.config,
         }
 
-    def assertErrorForConfig(self, exception, configuration=None, message=None):
+    def assertErrorForConfig(self, exception, configuration=None,
+                             message=None):
         """
         Assert that given a particular configuration,
         :func:`configuration_from_options` will fail with an expected exception
