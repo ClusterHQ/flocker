@@ -115,7 +115,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
             yaml.safe_dump({
                 u"control-service-hostname": u"10.0.0.2",
                 u"version": 1,
-        }))
+            }))
 
     def test_get_service(self):
         """
