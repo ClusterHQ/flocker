@@ -15,7 +15,9 @@ from OpenSSL import crypto
 from pyrsistent import PRecord, field
 
 from twisted.python.filepath import FilePath
-from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
+from twisted.internet.ssl import (
+    DistinguishedName, KeyPair, Certificate, PrivateCertificate,
+)
 
 
 EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
@@ -301,7 +303,7 @@ class UserCredential(PRecord):
     @classmethod
     def from_path(cls, path, username):
         """
-        Load a node certificate from a specified path.
+        Load a user certificate from a specified path.
 
         :param FilePath path: Directory where user certificate and key
             files are stored.
@@ -375,6 +377,11 @@ class NodeCredential(PRecord):
     def from_path(cls, path, uuid):
         """
         Load a node certificate from a specified path.
+
+        :param FilePath path: Directory where user certificate and key
+            files are stored.
+        :param bytes uuid: The UUID of the node.
+
         """
         key_filename = b"{uuid}.key".format(uuid=uuid)
         cert_filename = b"{uuid}.crt".format(uuid=uuid)
@@ -442,7 +449,40 @@ class ControlCredential(PRecord):
     uuid = field(mandatory=True, type=bytes)
 
     @classmethod
+    def certificate_options(cls, path=None):
+        """
+        Create the security properties context factory for a ControlCredential
+        TLS connection using the authority certificate found in the supplied
+        path.
+
+        :param FilePath path: Absolute path to directory containing a cluster
+            root certificate file and control service certificate and private
+            key files.
+
+        :return CertificateOptions: A context factory that will use the
+            authority certificate as a trusted authority.
+        """
+        if path is None:
+            path = DEFAULT_CERTIFICATE_PATH
+        root_certificate_path = path.child(b"cluster.crt")
+        root_certificate = None
+        with root_certificate_path.open() as root_file:
+            root_certificate = Certificate.loadPEM(root_file.read())
+        control_credential = cls.from_path(path)
+        control_certificate = PrivateCertificate.fromCertificateAndKeyPair(
+            control_credential.credential.certificate,
+            control_credential.credential.keypair.keypair
+        )
+        return control_certificate.options(root_certificate)
+
+    @classmethod
     def from_path(cls, path, uuid=None):
+        """
+        Load a control service certificate and key from the supplied path.
+
+        :param FilePath path: Directory where user certificate and key
+            files are stored.
+        """
         keypair, certificate = load_certificate_from_path(
             path, CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME
         )

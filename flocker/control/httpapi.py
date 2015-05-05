@@ -8,9 +8,6 @@ from uuid import uuid4
 
 from pyrsistent import pmap, thaw
 
-from twisted.internet.ssl import (
-    Certificate, PrivateCertificate
-)
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from twisted.python.filepath import FilePath
@@ -26,7 +23,7 @@ from klein import Klein
 
 from pyrsistent import discard
 
-from ..ca import ControlCredential, DEFAULT_CERTIFICATE_PATH
+from ..ca import ControlCredential
 
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
@@ -1045,17 +1042,6 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
 
     :return: Service that will listen on the endpoint using HTTP API server.
     """
-    if certificate_path is None:
-        certificate_path = DEFAULT_CERTIFICATE_PATH
-    root_certificate_path = certificate_path.child(b"cluster.crt")
-    root_certificate = None
-    with root_certificate_path.open() as root_file:
-        root_certificate = Certificate.loadPEM(root_file.read())
-    control_credential = ControlCredential.from_path(certificate_path)
-    control_certificate = PrivateCertificate.fromCertificateAndKeyPair(
-        control_credential.credential.certificate,
-        control_credential.credential.keypair.keypair
-    )
     api_root = Resource()
     user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
     api_root.putChild('v1', user.app.resource())
@@ -1063,7 +1049,7 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
     return StreamServerEndpointService(
         endpoint,
         TLSMemoryBIOFactory(
-            control_certificate.options(root_certificate),
+            ControlCredential.certificate_options(certificate_path),
             False,
             Site(api_root)
         )

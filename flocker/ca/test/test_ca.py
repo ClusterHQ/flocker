@@ -341,6 +341,29 @@ class ControlCredentialTests(
         subject = cert.get_subject()
         self.assertEqual(subject.CN, b"control-service")
 
+    def test_certificate_options_certificate(self):
+        """
+        ``ControlCredential.certificate_options`` returns a context factory
+        that uses the control service certificate found in the supplied path.
+        """
+        result = self.credential.certificate_options(self.path)
+        self.assertEqual(
+            result.certificate.get_subject().CN,
+            self.credential.credential.certificate.getSubject().CN
+        )
+
+    def test_certificate_options_trusted_authority(self):
+        """
+        ``ControlCredential.certificate_options`` returns a context factory
+        that uses the root certificate found in the supplied path as a trusted
+        authority.
+        """
+        result = self.credential.certificate_options(self.path)
+        self.assertEqual(
+            result.trustRoot._caCerts[0].get_subject().CN,
+            self.ca.credential.certificate.getSubject().CN
+        )
+
 
 class RootCredentialTests(SynchronousTestCase):
     """

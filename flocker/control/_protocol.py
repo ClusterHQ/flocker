@@ -38,9 +38,8 @@ from twisted.protocols.amp import (
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
-from twisted.internet.ssl import Certificate, PrivateCertificate
 from twisted.protocols.tls import TLSMemoryBIOFactory
-from ..ca import ControlCredential, DEFAULT_CERTIFICATE_PATH
+from ..ca import ControlCredential
 
 from ._persistence import wire_encode, wire_decode
 from ._model import Deployment, NodeState, DeploymentState, NonManifestDatasets
@@ -212,24 +211,13 @@ class ControlAMPService(Service):
             containing the cluster root certificate and the control service's
             certificate and private key.
         """
-        if certificate_path is None:
-            certificate_path = DEFAULT_CERTIFICATE_PATH
-        root_certificate_path = certificate_path.child(b"cluster.crt")
-        root_certificate = None
-        with root_certificate_path.open() as root_file:
-            root_certificate = Certificate.loadPEM(root_file.read())
-        control_credential = ControlCredential.from_path(certificate_path)
-        control_certificate = PrivateCertificate.fromCertificateAndKeyPair(
-            control_credential.credential.certificate,
-            control_credential.credential.keypair.keypair
-        )
         self.connections = set()
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
             endpoint,
             TLSMemoryBIOFactory(
-                control_certificate.options(root_certificate),
+                ControlCredential.certificate_options(certificate_path),
                 False,
                 ServerFactory.forProtocol(lambda: ControlAMP(self))
             )
