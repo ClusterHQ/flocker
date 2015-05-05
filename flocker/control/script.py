@@ -33,7 +33,7 @@ class ControlOptions(Options):
         ["certificate-path", "c", None,
          ("Absolute path to directory containing the cluster "
           "root certificate and control service certificate "
-          "and private key.")],
+          "and private key. Defaults to /etc/flocker")],
     ]
 
 
