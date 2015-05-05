@@ -21,7 +21,7 @@ from zope.interface import implementer
 
 from twisted.python.log import err
 from twisted.web.iweb import IAgent, IResponse
-from twisted.internet.endpoints import TCP4ClientEndpoint
+from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.internet import defer
 from twisted.web.client import ProxyAgent, readBody
 from twisted.web.server import NOT_DONE_YET, Site
@@ -33,11 +33,14 @@ from twisted.test.proto_helpers import StringTransport
 from twisted.web.client import ResponseDone
 from twisted.internet.interfaces import IPushProducer
 from twisted.python.failure import Failure
+from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.web.http_headers import Headers
+from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from flocker.restapi._schema import getValidator
 
+from ..ca import RootCredential, ControlCredential
 
 def loads(s):
     try:
@@ -179,13 +182,23 @@ def buildIntegrationTests(mixinClass, name, fixture):
         """
         def setUp(self):
             self.app = fixture(self)
-            self.port = reactor.listenTCP(0, Site(self.app.resource()),
-                                          interface="127.0.0.1")
+            path = FilePath(self.mktemp())
+            path.makedirs()
+            authority = RootCredential.initialize(path, b"mycluster")
+            ControlCredential.initialize(path, authority)
+            self.port = reactor.listenSSL(
+                0, Site(self.app.resource()),
+                ControlCredential.certificate_options(path)
+            )
             self.addCleanup(self.port.stopListening)
             portno = self.port.getHost().port
             self.agent = ProxyAgent(
-                TCP4ClientEndpoint(reactor, "127.0.0.1", portno),
-                reactor)
+                SSL4ClientEndpoint(
+                    reactor, "127.0.0.1",
+                    portno, ControlCredential.certificate_options(path)
+                ),
+                reactor
+            )
             super(RealTests, self).setUp()
 
     class MemoryTests(mixinClass, TestCase):
