@@ -757,23 +757,22 @@ class ApplicationNodeDeployer(object):
         if desired_open_ports != set(self.network.enumerate_open_ports()):
             phases.append(OpenPorts(ports=desired_open_ports))
 
-        current_node_applications = set(
+        running_applications = set(
             app for app in current_node_state.applications if app.running)
         all_applications = current_node_state.applications
 
         # Compare the applications being changed by name only.  Other
         # configuration changes aren't important at this point.
-        current_state = {app.name for app in current_node_applications}
+        running = {app.name for app in running_applications}
         desired_local_state = {app.name for app in
                                desired_node_applications}
         not_running = {
             app.name for app
-            in all_applications.difference(current_node_applications)}
+            in all_applications.difference(running_applications)}
 
         # Don't start applications that exist on this node but aren't
-        # running; instead they should be restarted:
-        start_names = desired_local_state.difference(
-            current_state | not_running)
+        # running; Docker is in charge of restarts:
+        start_names = desired_local_state.difference(running | not_running)
         stop_names = {app.name for app in all_applications}.difference(
             desired_local_state)
 
@@ -792,19 +791,12 @@ class ApplicationNodeDeployer(object):
             if app.name in stop_names
         ]
 
-        restart_containers = [
-            sequentially(changes=[
-                StopApplication(application=app),
-                StartApplication(application=app,
-                                 node_state=current_node_state)])
-            for app in desired_node_applications
-            if app.name in not_running
-        ]
+        restart_containers = []
 
-        applications_to_inspect = current_state & desired_local_state
+        applications_to_inspect = (
+            {app.name for app in all_applications} & desired_local_state)
         current_applications_dict = dict(zip(
-            [a.name for a in current_node_applications],
-            current_node_applications
+            [a.name for a in all_applications], all_applications
         ))
         desired_applications_dict = dict(zip(
             [a.name for a in desired_node_applications],
@@ -813,19 +805,22 @@ class ApplicationNodeDeployer(object):
         for application_name in applications_to_inspect:
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
-            # Current state never has metadata, but that's OK:
-            if inspect_desired.volume is not None:
-                inspect_desired = inspect_desired.transform(
+            # For our purposes what we care about is if configuration has
+            # changed, so if it's not running but it's otherwise the same
+            # we don't want to do anything:
+            comparable_current = inspect_current.transform(["running"], True)
+            # Current state never has metadata on datasets, so remove from
+            # configuration:
+            comparable_desired = inspect_desired
+            if comparable_desired.volume is not None:
+                comparable_desired = comparable_desired.transform(
                     ["volume", "manifestation", "dataset", "metadata"], {})
-            if inspect_desired != inspect_current:
-                changes = [
+            if comparable_desired != comparable_current:
+                restart_containers.append(sequentially(changes=[
                     StopApplication(application=inspect_current),
                     StartApplication(application=inspect_desired,
                                      node_state=current_node_state),
-                ]
-                sequence = sequentially(changes=changes)
-                if sequence not in restart_containers:
-                    restart_containers.append(sequence)
+                ]))
 
         if stop_containers:
             phases.append(in_parallel(changes=stop_containers))
