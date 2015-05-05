@@ -15,6 +15,8 @@ from docker import Client
 from docker.errors import APIError
 from docker.utils import create_host_config
 
+from eliot import Message
+
 from pyrsistent import field, PRecord
 
 from twisted.python.components import proxyForInterface
@@ -24,7 +26,7 @@ from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 from ..control._model import (
-    RestartNever, RestartAlways, RestartOnFailure, pset_field)
+    RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
 
 
 class AlreadyExists(Exception):
@@ -121,6 +123,9 @@ class Unit(PRecord):
         is probably 1024).
 
     :ivar IRestartPolicy restart_policy: The restart policy of the container.
+
+    :ivar command_line: Custom command to run using the image, a ``PVector``
+        of ``unicode``. ``None`` means use default.
     """
     name = field(mandatory=True)
     container_name = field(mandatory=True)
@@ -132,6 +137,7 @@ class Unit(PRecord):
     mem_limit = field(mandatory=True, initial=None)
     cpu_shares = field(mandatory=True, initial=None)
     restart_policy = field(mandatory=True, initial=RestartNever())
+    command_line = pvector_field(unicode, optional=True, initial=None)
 
 
 class IDockerClient(Interface):
@@ -145,7 +151,8 @@ class IDockerClient(Interface):
     """
 
     def add(unit_name, image_name, ports=None, environment=None, volumes=(),
-            mem_limit=None, cpu_shares=None, restart_policy=RestartNever()):
+            mem_limit=None, cpu_shares=None, restart_policy=RestartNever(),
+            command_line=None):
         """
         Install and start a new unit.
 
@@ -181,6 +188,9 @@ class IDockerClient(Interface):
 
         :param IRestartPolicy restart_policy: The restart policy of the
             container.
+
+        :ivar command_line: Custom command to run using the image, a sequence
+            of ``unicode``, or ``None`` to use default image command line.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -240,7 +250,7 @@ class FakeDockerClient(object):
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
             volumes=frozenset(), mem_limit=None, cpu_shares=None,
-            restart_policy=RestartNever()):
+            restart_policy=RestartNever(), command_line=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -254,6 +264,7 @@ class FakeDockerClient(object):
             mem_limit=mem_limit,
             cpu_shares=cpu_shares,
             restart_policy=restart_policy,
+            command_line=command_line,
         )
         return succeed(None)
 
@@ -393,7 +404,7 @@ class DockerClient(object):
 
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
-            restart_policy=RestartNever()):
+            restart_policy=RestartNever(), command_line=None):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -423,7 +434,7 @@ class DockerClient(object):
             self._client.create_container(
                 name=container_name,
                 image=image_name,
-                command=None,
+                command=command_line,
                 environment=environment,
                 ports=[p.internal_port for p in ports],
                 mem_limit=mem_limit,
@@ -534,11 +545,34 @@ class DockerClient(object):
                     # have been removed in another thread.
                     if e.response.status_code == NOT_FOUND:
                         continue
+                    else:
+                        raise
 
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
                 name = data[u"Name"]
-                image = data[u"Config"][u"Image"]
+                # Since tags (e.g. "busybox") aren't stable, ensure we're
+                # looking at the actual image by using the hash:
+                image = data[u"Image"]
+                image_tag = data[u"Config"][u"Image"]
+                command = data[u"Config"][u"Cmd"]
+                try:
+                    image_data = self._client.inspect_image(image)
+                except APIError as e:
+                    if e.response.status_code == NOT_FOUND:
+                        # Image has been deleted, so just fill in some
+                        # stub data so we can return *something*. This
+                        # should happen only for stopped containers so
+                        # some inaccuracy is acceptable.
+                        Message.new(
+                            message_type="flocker:docker:image_not_found",
+                            container=i, running=data[u"State"][u"Running"]
+                        ).write()
+                        image_data = {u"Config": {u"Env": [], u"Cmd": []}}
+                    else:
+                        raise
+                if image_data[u"Config"][u"Cmd"] == command:
+                    command = None
                 port_bindings = data[u"HostConfig"][u"PortBindings"]
                 if port_bindings is not None:
                     ports = self._parse_container_ports(port_bindings)
@@ -561,14 +595,17 @@ class DockerClient(object):
                 # Retrieve environment variables for this container,
                 # disregarding any environment variables that are part
                 # of the image, rather than supplied in the configuration.
-                image_data = self._client.inspect_image(image)
                 unit_environment = []
                 container_environment = data[u"Config"][u"Env"]
-                image_environment = image_data[u"Config"]["Env"]
-                for environment in container_environment:
-                    if environment not in image_environment:
-                        env_key, env_value = environment.split('=', 1)
-                        unit_environment.append((env_key, env_value))
+                if image_data[u"Config"]["Env"] is None:
+                    image_environment = []
+                else:
+                    image_environment = image_data[u"Config"]["Env"]
+                if container_environment is not None:
+                    for environment in container_environment:
+                        if environment not in image_environment:
+                            env_key, env_value = environment.split('=', 1)
+                            unit_environment.append((env_key, env_value))
                 unit_environment = (
                     Environment(variables=frozenset(unit_environment))
                     if unit_environment else None
@@ -587,13 +624,14 @@ class DockerClient(object):
                     name=name,
                     container_name=self._to_container_name(name),
                     activation_state=state,
-                    container_image=image,
+                    container_image=image_tag,
                     ports=frozenset(ports),
                     volumes=frozenset(volumes),
                     environment=unit_environment,
                     mem_limit=mem_limit,
                     cpu_shares=cpu_shares,
-                    restart_policy=restart_policy)
+                    restart_policy=restart_policy,
+                    command_line=command)
                 )
             return result
         return deferToThread(_list)

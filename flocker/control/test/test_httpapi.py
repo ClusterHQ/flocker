@@ -32,7 +32,7 @@ from ...restapi.testtools import (
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
-    RestartAlways, RestartNever, Link
+    RestartAlways, RestartNever, Link, same_node, DeploymentState
 )
 from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
@@ -52,8 +52,12 @@ class APITestsMixin(object):
     Helpers for writing integration tests for the Dataset Manager API.
     """
     # These addresses taken from RFC 5737 (TEST-NET-1)
-    NODE_A = u"192.0.2.1"
-    NODE_B = u"192.0.2.2"
+    NODE_A_IP = u"192.0.2.1"
+    NODE_B_IP = u"192.0.2.2"
+    NODE_A_UUID = uuid4()
+    NODE_B_UUID = uuid4()
+    NODE_A = unicode(NODE_A_UUID)
+    NODE_B = unicode(NODE_B_UUID)
 
     def initialize(self):
         """
@@ -192,7 +196,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         return self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A,
+                u"node_uuid": self.NODE_A,
                 u"name": u'postgres',
                 u'image': u'postgres',
                 u"junk": u"garbage"
@@ -215,14 +219,15 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": node1, u"name": u"postgres", u"image": u"postgres"
+                u"node_uuid": unicode(node1), u"name": u"postgres",
+                u"image": u"postgres"
             }, CREATED
         )
         # try to create another container with the same name
         d.addCallback(lambda _: self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": node2,
+                u"node_uuid": unicode(node2),
                 u"name": u'postgres',
                 u'image': u'postgres',
             },
@@ -249,8 +254,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         saving = self.persistence_service.save(Deployment(
             nodes={
-                Node(hostname=self.NODE_A),
-                Node(hostname=self.NODE_B),
+                Node(uuid=self.NODE_A_UUID),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
@@ -292,8 +297,8 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         saving = self.persistence_service.save(Deployment(
             nodes={
-                Node(hostname=self.NODE_A),
-                Node(hostname=self.NODE_B),
+                Node(uuid=self.NODE_A_UUID),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
@@ -305,7 +310,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         saving.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"webserver",
+                u"node_uuid": self.NODE_A, u"name": u"webserver",
                 u"image": u"nginx", u"environment": environment
             }, CREATED
         ))
@@ -315,7 +320,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             expected = Deployment(
                 nodes={
                     Node(
-                        hostname=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         applications=[
                             Application(
                                 name='webserver',
@@ -324,7 +329,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                             ),
                         ]
                     ),
-                    Node(hostname=self.NODE_B),
+                    Node(uuid=self.NODE_B_UUID),
                 }
             )
             self.assertEqual(deployment, expected)
@@ -343,11 +348,11 @@ class CreateContainerTestsMixin(APITestsMixin):
             u'CONFIG_FILE': u'/etc/nginx/nginx.conf',
         }
         container_json = {
-            u"host": self.NODE_B, u"name": u"webserver",
+            u"node_uuid": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx", u"environment": environment
         }
         container_json_result = {
-            u"host": self.NODE_B, u"name": u"webserver",
+            u"node_uuid": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"environment": environment,
             u"restart_policy": {u"name": u"never"}
         }
@@ -362,14 +367,14 @@ class CreateContainerTestsMixin(APITestsMixin):
         of "always" results in an updated configuration.
         """
         request_data = [{
-            u"host": self.NODE_A, u"name": u"webserver",
+            u"node_uuid": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"restart_policy": {
                 u"name": u"always"
             }
         }]
         node_data = {
             Node(
-                hostname=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -378,7 +383,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(hostname=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -388,14 +393,14 @@ class CreateContainerTestsMixin(APITestsMixin):
         of "on-failure" results in an updated configuration.
         """
         request_data = [{
-            u"host": self.NODE_A, u"name": u"webserver",
+            u"node_uuid": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"restart_policy": {
                 u"name": u"on-failure", u"maximum_retry_count": 5
             }
         }]
         node_data = {
             Node(
-                hostname=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -406,7 +411,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(hostname=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -416,14 +421,14 @@ class CreateContainerTestsMixin(APITestsMixin):
         of "never" results in an updated configuration.
         """
         request_data = [{
-            u"host": self.NODE_A, u"name": u"webserver",
+            u"node_uuid": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"restart_policy": {
                 u"name": u"never"
             }
         }]
         node_data = {
             Node(
-                hostname=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -432,7 +437,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(hostname=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -443,12 +448,12 @@ class CreateContainerTestsMixin(APITestsMixin):
         policy for this container of "never".
         """
         request_data = [{
-            u"host": self.NODE_A, u"name": u"webserver",
+            u"node_uuid": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx"
         }]
         node_data = {
             Node(
-                hostname=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -457,7 +462,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(hostname=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -468,7 +473,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         JSON, including the max retry count for an on-failure policy.
         """
         container_json = {
-            u"host": self.NODE_B, u"name": u"webserver",
+            u"node_uuid": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"restart_policy": {
                 u"name": u"on-failure", u"maximum_retry_count": 10
             }
@@ -485,7 +490,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         JSON.
         """
         container_json = {
-            u"host": self.NODE_B, u"name": u"webserver",
+            u"node_uuid": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"restart_policy": {u"name": u"never"}
         }
         return self.assertResult(
@@ -499,12 +504,12 @@ class CreateContainerTestsMixin(APITestsMixin):
         results in an updated configuration.
         """
         request_data = [{
-            u"host": self.NODE_A, u"name": u"webserver",
+            u"node_uuid": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"cpu_shares": 512
         }]
         node_data = {
             Node(
-                hostname=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -513,7 +518,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(hostname=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -524,7 +529,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         JSON.
         """
         container_json = pmap({
-            u"host": self.NODE_B, u"name": u"webserver",
+            u"node_uuid": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"cpu_shares": 512
         })
         container_json_response = container_json.set(
@@ -541,7 +546,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         to the container returns the link information in the response JSON.
         """
         container_json = pmap({
-            u"host": self.NODE_B, u"name": u"webserver",
+            u"node_uuid": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"links": [
                 {
                     u'alias': u'postgres',
@@ -558,13 +563,29 @@ class CreateContainerTestsMixin(APITestsMixin):
             dict(container_json), CREATED, dict(container_json_response)
         )
 
+    def test_create_container_with_command_line_response(self):
+        """
+        A valid API request to create a container including a command line
+        returns the command line supplied in the request in the response
+        JSON.
+        """
+        container_json = {
+            u"node_uuid": self.NODE_B, u"name": u"webserver",
+            u"image": u"nginx:latest", u"command_line": [u"a", u"bc"],
+            u"restart_policy": {u"name": u"never"},
+        }
+        return self.assertResult(
+            b"POST", b"/configuration/containers",
+            container_json, CREATED, container_json
+        )
+
     def test_create_container_with_links(self):
         """
         An API request to create a container including links to be injected in
         to the container results in an updated configuration.
         """
         request_data = [{
-            u"host": self.NODE_A, u"name": u"webserver",
+            u"node_uuid": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"links": [
                 {
                     u'alias': u'postgres',
@@ -580,7 +601,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         }]
         node_data = {
             Node(
-                hostname=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -600,7 +621,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(hostname=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -612,7 +633,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"webserver",
+                u"node_uuid": self.NODE_A, u"name": u"webserver",
                 u"image": u"nginx:latest", u"links": [
                     {
                         u"alias": u"postgres", u"local_port": 5432,
@@ -635,7 +656,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"webserver",
+                u"node_uuid": self.NODE_A, u"name": u"webserver",
                 u"image": u"nginx:latest", u"links": [
                     {
                         u"alias": u"postgres", u"local_port": 5432,
@@ -659,12 +680,12 @@ class CreateContainerTestsMixin(APITestsMixin):
         results in an updated configuration.
         """
         request_data = [{
-            u"host": self.NODE_A, u"name": u"webserver",
+            u"node_uuid": self.NODE_A, u"name": u"webserver",
             u"image": u"nginx", u"memory_limit": 262144000
         }]
         node_data = {
             Node(
-                hostname=self.NODE_A,
+                uuid=self.NODE_A_UUID,
                 applications=[
                     Application(
                         name='webserver',
@@ -673,7 +694,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                     ),
                 ]
             ),
-            Node(hostname=self.NODE_B),
+            Node(uuid=self.NODE_B_UUID),
         }
         return self._test_create_container(request_data, node_data)
 
@@ -684,11 +705,11 @@ class CreateContainerTestsMixin(APITestsMixin):
         JSON.
         """
         container_json = {
-            u"host": self.NODE_B, u"name": u"webserver",
+            u"node_uuid": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"memory_limit": 262144000
         }
         container_json_response = {
-            u"host": self.NODE_B, u"name": u"webserver",
+            u"node_uuid": self.NODE_B, u"name": u"webserver",
             u"image": u"nginx:latest", u"memory_limit": 262144000,
             u"restart_policy": {u"name": "never"}
         }
@@ -705,7 +726,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": node1, u"name": u"postgres",
+                u"node_uuid": node1, u"name": u"postgres",
                 u"image": u"postgres",
                 u"ports": [{u'internal': 5432, u'external': 54320}]
             }, CREATED
@@ -714,7 +735,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d.addCallback(lambda _: self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": node2,
+                u"node_uuid": node2,
                 u"name": u'another_postgres',
                 u'image': u'postgres',
                 u'ports': [{u'internal': 5432, u'external': 54320}]
@@ -752,13 +773,13 @@ class CreateContainerTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         Application(name='postgres',
                                     image=DockerImage.from_string('postgres'))
                     ]
                 ),
-                Node(hostname=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
@@ -769,7 +790,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         saving.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"node_uuid": self.NODE_A, u"name": u"another_postgres",
                 u"image": u"postgres", u"ports": ports
             }, CREATED
         ))
@@ -780,7 +801,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             expected = Deployment(
                 nodes={
                     Node(
-                        hostname=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         applications=[
                             Application(
                                 name='postgres',
@@ -793,7 +814,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                             )
                         ]
                     ),
-                    Node(hostname=self.NODE_B),
+                    Node(uuid=self.NODE_B_UUID),
                 }
             )
             self.assertEqual(deployment, expected)
@@ -810,11 +831,11 @@ class CreateContainerTestsMixin(APITestsMixin):
             {'internal': 5432, 'external': 54320},
         ]
         container_json = {
-            u"host": self.NODE_B, u"name": u"postgres",
+            u"node_uuid": self.NODE_B, u"name": u"postgres",
             u"image": u"postgres", u"ports": ports
         }
         container_json_result = {
-            u"host": self.NODE_B, u"name": u"postgres",
+            u"node_uuid": self.NODE_B, u"name": u"postgres",
             u"image": u"postgres:latest", u"ports": ports,
             u"restart_policy": {u"name": u"never"}
         }
@@ -831,20 +852,20 @@ class CreateContainerTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         Application(name='postgres',
                                     image=DockerImage.from_string('postgres'))
                     ]
                 ),
-                Node(hostname=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
         saving.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"another_postgres",
+                u"node_uuid": self.NODE_A, u"name": u"another_postgres",
                 u"image": u"postgres"
             }, CREATED
         ))
@@ -854,7 +875,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             expected = Deployment(
                 nodes={
                     Node(
-                        hostname=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         applications=[
                             Application(
                                 name='postgres',
@@ -866,7 +887,7 @@ class CreateContainerTestsMixin(APITestsMixin):
                             )
                         ]
                     ),
-                    Node(hostname=self.NODE_B),
+                    Node(uuid=self.NODE_B_UUID),
                 }
             )
             self.assertEqual(deployment, expected)
@@ -882,7 +903,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_B, u"name": u"postgres",
+                u"node_uuid": self.NODE_B, u"name": u"postgres",
                 u"image": u"postgres"
             }, CREATED
         )
@@ -892,7 +913,7 @@ class CreateContainerTestsMixin(APITestsMixin):
             expected = Deployment(
                 nodes={
                     Node(
-                        hostname=self.NODE_B,
+                        uuid=self.NODE_B_UUID,
                         applications=[
                             Application(
                                 name='postgres',
@@ -913,11 +934,11 @@ class CreateContainerTestsMixin(APITestsMixin):
         expected JSON response.
         """
         container_json = {
-            u"host": self.NODE_B, u"name": u"postgres",
+            u"node_uuid": self.NODE_B, u"name": u"postgres",
             u"image": u"postgres"
         }
         container_json_result = {
-            u"host": self.NODE_B, u"name": u"postgres",
+            u"node_uuid": self.NODE_B, u"name": u"postgres",
             u"image": u"postgres:latest",
             u"restart_policy": {u"name": u"never"}
         }
@@ -934,7 +955,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         return self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"postgres",
+                u"node_uuid": self.NODE_A, u"name": u"postgres",
                 u"image": u"postgres",
                 u"volumes": [
                     {u'dataset_id': unicode(uuid4()), u'mountpoint': u'/db'}]
@@ -961,7 +982,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d.addCallback(lambda _: self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"postgres",
+                u"node_uuid": self.NODE_A, u"name": u"postgres",
                 u"image": u"postgres",
                 u"volumes": [
                     {u'dataset_id': dataset_id,
@@ -984,7 +1005,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d.addCallback(lambda _: self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_B, u"name": u"postgres",
+                u"node_uuid": self.NODE_B, u"name": u"postgres",
                 u"image": u"postgres",
                 u"volumes": [
                     {u'dataset_id': dataset_id,
@@ -1007,7 +1028,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"postgres",
+                u"node_uuid": self.NODE_A, u"name": u"postgres",
                 u"image": u"postgres",
                 u"volumes": [
                     {u'dataset_id': dataset_id,
@@ -1017,7 +1038,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d.addCallback(lambda _: self.assertResult(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"postgres2",
+                u"node_uuid": self.NODE_A, u"name": u"postgres2",
                 u"image": u"postgres",
                 u"volumes": [
                     {u'dataset_id': dataset_id,
@@ -1041,7 +1062,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         d.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"postgres",
+                u"node_uuid": self.NODE_A, u"name": u"postgres",
                 u"image": u"postgres",
                 u"volumes": [
                     {u'dataset_id': dataset_id,
@@ -1068,7 +1089,7 @@ class CreateContainerTestsMixin(APITestsMixin):
         """
         dataset_id = unicode(uuid4())
         json = {
-            u"host": self.NODE_A, u"name": u"postgres",
+            u"node_uuid": self.NODE_A, u"name": u"postgres",
             u"image": u"postgres:latest",
             u"volumes": [
                 {u'dataset_id': dataset_id,
@@ -1143,7 +1164,7 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         application
                     ]
@@ -1171,12 +1192,12 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         application
                     ]
                 ),
-                Node(hostname=self.NODE_B)
+                Node(uuid=self.NODE_B_UUID)
             },
         )
         expected = [
@@ -1206,7 +1227,7 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=applications
                 ),
             },
@@ -1251,11 +1272,11 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=applications[self.NODE_A]
                 ),
                 Node(
-                    hostname=self.NODE_B,
+                    uuid=self.NODE_B_UUID,
                     applications=applications[self.NODE_B]
                 ),
             },
@@ -1290,12 +1311,12 @@ class GetContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={manifestation.dataset_id:
                                     manifestation},
                     applications=[application]
                 ),
-                Node(hostname=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             },
         )
         expected = [
@@ -1329,7 +1350,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     applications=[
                         Application(
                             name=u'leavemealone',
@@ -1337,14 +1358,14 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                         ),
                     ]
                 ),
-                Node(hostname=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
         saving.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A,
+                u"node_uuid": self.NODE_A,
                 u"name": u"mycontainer",
                 u"image": u"busybox"
             }, CREATED
@@ -1364,7 +1385,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         def handle_expected(expected):
             dr = self.assertResponseCode(
                 b"POST", b"/configuration/containers/mycontainer",
-                {u"host": self.NODE_A}, OK
+                {u"node_uuid": self.NODE_A}, OK
             )
 
             def updated(_):
@@ -1389,7 +1410,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         def handle_expected(expected):
             dr = self.assertResponseCode(
                 b"POST", b"/configuration/containers/mycontainer",
-                {u"host": self.NODE_B}, OK
+                {u"node_uuid": self.NODE_B}, OK
             )
 
             def updated(_):
@@ -1400,7 +1421,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                 )
                 real_expected = expected
                 for node in expected.nodes:
-                    if node.hostname == self.NODE_B:
+                    if node.uuid == self.NODE_B_UUID:
                         node = node.transform(
                             ["applications"], lambda s: s.add(application)
                         )
@@ -1437,12 +1458,12 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={manifestation.dataset_id:
                                     manifestation},
                     applications=[application]
                 ),
-                Node(hostname=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             },
         )
 
@@ -1450,16 +1471,16 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
 
         d.addCallback(lambda _: self.assertResponseCode(
             b"POST", b"/configuration/containers/postgres",
-            {u"host": self.NODE_B}, OK
+            {u"node_uuid": self.NODE_B}, OK
         ))
 
         def updated(_):
             deployment = self.persistence_service.get()
             expected = Deployment(
                 nodes={
-                    Node(hostname=self.NODE_A),
+                    Node(uuid=self.NODE_A_UUID),
                     Node(
-                        hostname=self.NODE_B,
+                        uuid=self.NODE_B_UUID,
                         manifestations={manifestation.dataset_id:
                                         manifestation},
                         applications=[application]
@@ -1477,6 +1498,8 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         unknown host results in an updated configuration, with the new Node
         added to the deployment configuration.
         """
+        new_uuid = uuid4()
+
         d = self._create_container()
 
         d.addCallback(lambda _: self.persistence_service.get())
@@ -1484,7 +1507,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         def handle_expected(expected):
             dr = self.assertResponseCode(
                 b"POST", b"/configuration/containers/mycontainer",
-                {u"host": u"192.0.2.3"}, OK
+                {u"node_uuid": unicode(new_uuid)}, OK
             )
 
             def updated(_):
@@ -1493,10 +1516,10 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
                     name=u'mycontainer',
                     image=DockerImage.from_string(u'busybox')
                 )
-                node = Node(hostname=u"192.0.2.3", applications=[application])
+                node = Node(uuid=new_uuid, applications=[application])
                 real_expected = expected.update_node(node)
                 for node in expected.nodes:
-                    if node.hostname == self.NODE_A:
+                    if node.uuid == self.NODE_A_UUID:
                         node = node.transform(
                             ["applications"], lambda s: s.remove(application)
                         )
@@ -1516,7 +1539,7 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         """
         return self.assertResult(
             b"POST", b"/configuration/containers/somecontainer",
-            {u"host": self.NODE_A}, NOT_FOUND,
+            {u"node_uuid": self.NODE_A}, NOT_FOUND,
             {u"description": u"Container not found."},
         )
 
@@ -1528,9 +1551,9 @@ class UpdateContainerConfigurationTestsMixin(APITestsMixin):
         d = self._create_container()
 
         def update_container(_):
-            request = {u"host": self.NODE_B}
+            request = {u"node_uuid": self.NODE_B}
             result = {
-                u"host": self.NODE_B,
+                u"node_uuid": self.NODE_B,
                 u"name": u"mycontainer",
                 u"image": u"busybox:latest",
                 u"restart_policy": {u"name": u"never"}
@@ -1582,7 +1605,7 @@ class DeleteContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": name,
+                u"node_uuid": self.NODE_A, u"name": name,
                 u"image": u"postgres"
             }, CREATED
         )
@@ -1614,7 +1637,7 @@ class DeleteContainerTestsMixin(APITestsMixin):
         d = self.assertResponseCode(
             b"POST", b"/configuration/containers",
             {
-                u"host": self.NODE_A, u"name": u"somecontainer",
+                u"node_uuid": self.NODE_A, u"name": u"somecontainer",
                 u"image": u"postgres"
             }, CREATED
         )
@@ -1699,18 +1722,19 @@ class CreateDatasetTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={existing_manifestation.dataset_id:
                                     existing_manifestation}
                 ),
-                Node(hostname=self.NODE_B),
+                Node(uuid=self.NODE_B_UUID),
             }
         ))
 
         def saved(ignored):
             return self.assertResult(
                 b"POST", b"/configuration/datasets",
-                {u"primary": primary, u"dataset_id": modifier(dataset_id)},
+                {u"primary": unicode(primary),
+                 u"dataset_id": modifier(dataset_id)},
                 CONFLICT,
                 {u"description": u"The provided dataset_id is already in use."}
             )
@@ -1719,10 +1743,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
         def failed(reason):
             deployment = self.persistence_service.get()
             (node_a, node_b) = deployment.nodes
-            if node_a.hostname != self.NODE_A:
+            if node_a.uuid != self.NODE_A_UUID:
                 # They came out of the set backwards.
                 node_a, node_b = node_b, node_a
-            self.assertEqual(
+            self.assertItemsEqual(
                 ({existing_manifestation.dataset_id: existing_manifestation},
                  {}),
                 (node_a.manifestations, node_b.manifestations)
@@ -1812,12 +1836,13 @@ class CreateDatasetTestsMixin(APITestsMixin):
         operation.
         """
         saving = self.persistence_service.save(Deployment(nodes={
-            Node(hostname=self.NODE_A)
+            Node(uuid=self.NODE_A_UUID)
         }))
 
         def saved(ignored):
             return self.assertResponseCode(
-                b"POST", b"/configuration/datasets", {u"primary": self.NODE_B},
+                b"POST", b"/configuration/datasets",
+                {u"primary": self.NODE_B},
                 CREATED
             )
         saving.addCallback(saved)
@@ -1828,11 +1853,11 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 node
                 for node
                 in deployment.nodes
-                if node.hostname == self.NODE_A
+                if node.uuid == self.NODE_A_UUID
             )
             self.assertEqual(
                 # No state, just like it started.
-                Node(hostname=self.NODE_A),
+                Node(uuid=self.NODE_A_UUID),
                 node_a
             )
         saving.addCallback(created)
@@ -1845,11 +1870,13 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         creating = gatherResults([
             self.assertResponseCode(
-                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+                b"POST", b"/configuration/datasets",
+                {u"primary": self.NODE_A},
                 CREATED
             ).addCallback(readBody).addCallback(loads),
             self.assertResponseCode(
-                b"POST", b"/configuration/datasets", {u"primary": self.NODE_A},
+                b"POST", b"/configuration/datasets",
+                {u"primary": self.NODE_A},
                 CREATED
             ).addCallback(readBody).addCallback(loads),
         ])
@@ -1884,7 +1911,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             self.assertEqual(
                 Deployment(nodes=frozenset({
                     Node(
-                        hostname=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         manifestations={
                             dataset_id: Manifestation(
                                 dataset=Dataset(
@@ -1925,7 +1952,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             self.assertEqual(
                 Deployment(nodes=frozenset({
                     Node(
-                        hostname=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         manifestations={
                             dataset_id: Manifestation(
                                 dataset=Dataset(
@@ -1968,7 +1995,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             self.assertEqual(
                 Deployment(nodes=frozenset({
                     Node(
-                        hostname=self.NODE_A,
+                        uuid=self.NODE_A_UUID,
                         manifestations={
                             dataset_id: Manifestation(
                                 dataset=Dataset(
@@ -2028,9 +2055,9 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         :param Dataset dataset: The dataset which will be moved.
         :param Deployment deployment: The deployment that contains the dataset.
-        :param bytes origin: The node IP address of the node that holds the
+        :param UUID origin: The node UUID of the node that holds the
             current primary manifestation of the ``dataset``.
-        :param bytes target: The node IP address of the node to which the
+        :param UUID target: The node UUID of the node to which the
             dataset will be moved.
         :returns: A ``Deferred`` which fires when all assertions have been
             executed.
@@ -2039,7 +2066,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         expected_dataset = {
             u"dataset_id": expected_dataset_id,
-            u"primary": target,
+            u"primary": unicode(target),
             u"metadata": {},
             u"deleted": False,
         }
@@ -2051,7 +2078,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
                 b"POST",
                 b"/configuration/datasets/%s" % (
                     expected_dataset_id.encode('ascii'),),
-                {u"primary": target},
+                {u"primary": unicode(target)},
                 OK,
                 expected_dataset
             )
@@ -2059,7 +2086,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
             def got_result(result):
                 deployment = self.persistence_service.get()
                 for node in deployment.nodes:
-                    if node.hostname == target:
+                    if node.uuid == target:
                         dataset_ids = [
                             (m.primary, m.dataset.dataset_id)
                             for m in node.manifestations.values()
@@ -2082,7 +2109,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         current_primary_node = Node(
-            hostname=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2091,7 +2118,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 
         return self._test_change_primary(
             expected_manifestation.dataset, deployment,
-            self.NODE_A, self.NODE_B
+            self.NODE_A_UUID, self.NODE_B_UUID
         )
 
     def test_unknown_primary_node(self):
@@ -2106,7 +2133,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            hostname=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2143,16 +2170,16 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            hostname=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
         )
-        node_b = Node(hostname=self.NODE_B)
+        node_b = Node(uuid=self.NODE_B_UUID)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
         return self._test_change_primary(
             expected_manifestation.dataset, deployment,
-            self.NODE_A, self.NODE_B
+            self.NODE_A_UUID, self.NODE_B_UUID
         )
 
     def test_primary_unchanged(self):
@@ -2162,16 +2189,16 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            hostname=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
         )
-        node_b = Node(hostname=self.NODE_B)
+        node_b = Node(uuid=self.NODE_B_UUID)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
         return self._test_change_primary(
             expected_manifestation.dataset, deployment,
-            self.NODE_A, self.NODE_A
+            self.NODE_A_UUID, self.NODE_A_UUID
         )
 
     def test_only_replicas(self):
@@ -2188,12 +2215,12 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation(primary=False)
         node_a = Node(
-            hostname=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
         )
-        node_b = Node(hostname=self.NODE_B)
+        node_b = Node(uuid=self.NODE_B_UUID)
         deployment = Deployment(nodes=frozenset([node_a, node_b]))
         saving = self.persistence_service.save(deployment)
 
@@ -2226,7 +2253,7 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            hostname=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2302,7 +2329,7 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
                 del expected_result[u'maximum_size']
 
         current_primary_node = Node(
-            hostname=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=[],
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2408,7 +2435,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
 
         expected_dataset = {
             u"dataset_id": expected_dataset_id,
-            u"primary": origin.hostname,
+            u"primary": unicode(origin.uuid),
             u"metadata": {},
             u"deleted": True,
         }
@@ -2423,7 +2450,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         def got_result(result):
             deployment = self.persistence_service.get()
             for node in deployment.nodes:
-                if node.hostname == origin.hostname:
+                if same_node(node, origin):
                     dataset_ids = [
                         (m.dataset.deleted, m.dataset.dataset_id)
                         for m in node.manifestations.values()
@@ -2431,7 +2458,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
                     self.assertIn((True, expected_dataset_id), dataset_ids)
                     break
             else:
-                self.fail('Node not found. {}'.format(node.hostname))
+                self.fail('Node not found. {}'.format(node.uuid))
 
         deleting.addCallback(got_result)
         return deleting
@@ -2446,7 +2473,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
         """
         expected_manifestation = _manifestation()
         node_a = Node(
-            hostname=self.NODE_A,
+            uuid=self.NODE_A_UUID,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation}
@@ -2494,7 +2521,7 @@ class DeleteDatasetTestsMixin(APITestsMixin):
                 b"/configuration/datasets/%s" % (
                     expected_manifestation.dataset_id.encode('ascii')
                 ),
-                {u"primary": u"192.168.1.1"},
+                {u"primary": unicode(self.NODE_A)},
                 METHOD_NOT_ALLOWED, {
                     u"description":
                     u"The dataset has been deleted."
@@ -2611,7 +2638,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={manifestation.dataset_id:
                                     manifestation},
                 ),
@@ -2651,12 +2678,12 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={manifestation_a.dataset_id:
                                     manifestation_a},
                 ),
                 Node(
-                    hostname=self.NODE_B,
+                    uuid=self.NODE_B_UUID,
                     manifestations={manifestation_b.dataset_id:
                                     manifestation_b},
                 ),
@@ -2683,7 +2710,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         deployment = Deployment(
             nodes={
                 Node(
-                    hostname=self.NODE_A,
+                    uuid=self.NODE_A_UUID,
                     manifestations={
                         manifestation_a.dataset_id: manifestation_a,
                         manifestation_b.dataset_id: manifestation_b,
@@ -2753,6 +2780,18 @@ class DatasetsStateTestsMixin(APITestsMixin):
             b"GET", b"/state/datasets", None, OK, response
         )
 
+    def test_unknown_datasets(self):
+        """
+        When the cluster state is ignorant about datasets on a node, the
+        endpoint does not list information for that node.
+        """
+        self.cluster_state_service.apply_changes([
+            NodeState(hostname=u"192.0.2.101", uuid=uuid4(),
+                      manifestations=None, paths=None)])
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, []
+        )
+
     def test_one_dataset(self):
         """
         When the cluster state includes one dataset, the endpoint
@@ -2762,9 +2801,11 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_manifestation = Manifestation(
             dataset=expected_dataset, primary=True)
         expected_hostname = u"192.0.2.101"
+        expected_uuid = uuid4()
         self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
+                uuid=expected_uuid,
                 manifestations={expected_dataset.dataset_id:
                                 expected_manifestation},
                 paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
@@ -2772,7 +2813,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
         ])
         expected_dict = dict(
             dataset_id=expected_dataset.dataset_id,
-            primary=expected_hostname,
+            primary=unicode(expected_uuid),
             path=u"/path/dataset",
         )
         response = [expected_dict]
@@ -2786,6 +2827,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
         returns a list containing the datasets in arbitrary order.
         """
         expected_dataset1 = Dataset(dataset_id=unicode(uuid4()))
+        expected_uuid1 = uuid4()
         expected_manifestation1 = Manifestation(
             dataset=expected_dataset1, primary=True)
         expected_hostname1 = u"192.0.2.101"
@@ -2793,14 +2835,17 @@ class DatasetsStateTestsMixin(APITestsMixin):
         expected_manifestation2 = Manifestation(
             dataset=expected_dataset2, primary=True)
         expected_hostname2 = u"192.0.2.102"
+        expected_uuid2 = uuid4()
         self.cluster_state_service.apply_changes([
             NodeState(
+                uuid=expected_uuid1,
                 hostname=expected_hostname1,
                 manifestations={expected_dataset1.dataset_id:
                                 expected_manifestation1},
                 paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
             ),
             NodeState(
+                uuid=expected_uuid2,
                 hostname=expected_hostname2,
                 manifestations={expected_dataset2.dataset_id:
                                 expected_manifestation2},
@@ -2809,12 +2854,12 @@ class DatasetsStateTestsMixin(APITestsMixin):
         ])
         expected_dict1 = dict(
             dataset_id=expected_dataset1.dataset_id,
-            primary=expected_hostname1,
+            primary=unicode(expected_uuid1),
             path=u"/aa",
         )
         expected_dict2 = dict(
             dataset_id=expected_dataset2.dataset_id,
-            primary=expected_hostname2,
+            primary=unicode(expected_uuid2),
             path=u"/bb",
         )
         response = [expected_dict1, expected_dict2]
@@ -2844,7 +2889,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         ``datasets_from_deployment`` returns dataset dictionaries for the
         volumes attached to applications on all nodes.
         """
-        expected_hostname = u"node1.example.com"
+        expected_uuid = uuid4()
         expected_dataset = Dataset(dataset_id=u"jalkjlk")
         volume = AttachedVolume(
             manifestation=Manifestation(dataset=expected_dataset,
@@ -2852,7 +2897,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
             mountpoint=FilePath(b"/blah"))
 
         node = Node(
-            hostname=expected_hostname,
+            uuid=expected_uuid,
             applications={
                 Application(
                     name=u'mysql-clusterhq',
@@ -2867,7 +2912,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         deployment = Deployment(nodes=frozenset([node]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
-            primary=expected_hostname,
+            primary=unicode(expected_uuid),
             metadata=thaw(expected_dataset.metadata),
             deleted=False,
         )
@@ -2879,12 +2924,12 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         ``datasets_from_deployment`` returns dataset dictionaries for the
         other_manifestations on all nodes.
         """
-        expected_hostname = u"node1.example.com"
+        expected_uuid = uuid4()
         expected_dataset = Dataset(dataset_id=u"jalkjlk")
         expected_manifestation = Manifestation(dataset=expected_dataset,
                                                primary=True)
         node = Node(
-            hostname=expected_hostname,
+            uuid=expected_uuid,
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation},
@@ -2893,7 +2938,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         deployment = Deployment(nodes=frozenset([node]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
-            primary=expected_hostname,
+            primary=unicode(expected_uuid),
             metadata=thaw(expected_dataset.metadata),
             deleted=False,
         )
@@ -2905,8 +2950,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         ``datasets_from_deployment`` does not return replica manifestations
         on other nodes.
         """
-
-        expected_hostname = u"node1.example.com"
+        expected_uuid = uuid4()
         expected_dataset = Dataset(dataset_id=u"jalkjlk")
         volume = AttachedVolume(
             manifestation=Manifestation(dataset=expected_dataset,
@@ -2914,7 +2958,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
             mountpoint=FilePath(b"/blah"))
 
         node1 = Node(
-            hostname=expected_hostname,
+            uuid=expected_uuid,
             applications=frozenset({
                 Application(
                     name=u'mysql-clusterhq',
@@ -2927,7 +2971,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         expected_manifestation = Manifestation(dataset=expected_dataset,
                                                primary=False)
         node2 = Node(
-            hostname=u"node2.example.com",
+            uuid=uuid4(),
             applications=frozenset(),
             manifestations={expected_manifestation.dataset_id:
                             expected_manifestation},
@@ -2936,7 +2980,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         deployment = Deployment(nodes=frozenset([node1, node2]))
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
-            primary=expected_hostname,
+            primary=unicode(expected_uuid),
             metadata=thaw(expected_dataset.metadata),
             deleted=False,
         )
@@ -2958,14 +3002,14 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         )
 
         node1 = Node(
-            hostname=u"node1.example.com",
+            uuid=uuid4(),
             applications=frozenset(),
             manifestations={manifestation1.dataset_id:
                             manifestation1},
         )
 
         node2 = Node(
-            hostname=u"node2.example.com",
+            uuid=uuid4(),
             applications=frozenset(),
             manifestations={manifestation2.dataset_id:
                             manifestation2},
@@ -2989,14 +3033,14 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         )
 
         node1 = Node(
-            hostname=u"node1.example.com",
+            uuid=uuid4(),
             applications=frozenset(),
             manifestations={manifestation1.dataset_id:
                             manifestation1},
         )
 
         node2 = Node(
-            hostname=u"node2.example.com",
+            uuid=uuid4(),
             applications=frozenset(),
             manifestations={manifestation2.dataset_id:
                             manifestation2},
@@ -3020,16 +3064,16 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
         maximum_size is None.
         """
         dataset = Dataset(dataset_id=unicode(uuid4()))
-        expected_hostname = u'192.0.2.101'
+        expected_uuid = uuid4()
         expected = dict(
             dataset_id=dataset.dataset_id,
-            primary=expected_hostname,
+            primary=unicode(expected_uuid),
             metadata={},
             deleted=False,
         )
         self.assertEqual(
             expected,
-            api_dataset_from_dataset_and_node(dataset, expected_hostname)
+            api_dataset_from_dataset_and_node(dataset, expected_uuid)
         )
 
     def test_with_maximum_size(self):
@@ -3042,17 +3086,17 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             dataset_id=unicode(uuid4()),
             maximum_size=expected_size,
         )
-        expected_hostname = u'192.0.2.101'
+        expected_uuid = uuid4()
         expected = dict(
             dataset_id=dataset.dataset_id,
-            primary=expected_hostname,
+            primary=unicode(expected_uuid),
             maximum_size=expected_size,
             metadata={},
             deleted=False,
         )
         self.assertEqual(
             expected,
-            api_dataset_from_dataset_and_node(dataset, expected_hostname)
+            api_dataset_from_dataset_and_node(dataset, expected_uuid)
         )
 
     def test_deleted(self):
@@ -3060,16 +3104,16 @@ class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
         ``deleted`` key is set to True if the dataset is deleted.
         """
         dataset = Dataset(dataset_id=unicode(uuid4()), deleted=True)
-        expected_hostname = u'192.0.2.101'
+        expected_uuid = uuid4(),
         expected = dict(
             dataset_id=dataset.dataset_id,
-            primary=expected_hostname,
+            primary=unicode(expected_uuid),
             metadata={},
             deleted=True,
         )
         self.assertEqual(
             expected,
-            api_dataset_from_dataset_and_node(dataset, expected_hostname)
+            api_dataset_from_dataset_and_node(dataset, expected_uuid)
         )
 
 
@@ -3087,6 +3131,18 @@ class ContainerStateTestsMixin(APITestsMixin):
             b"GET", b"/state/containers", None, OK, response
         )
 
+    def test_unknown_containers(self):
+        """
+        When the cluster state is ignorant about containers on a node, the
+        endpoint does not list information for that node.
+        """
+        self.cluster_state_service.apply_changes([
+            NodeState(hostname=u"192.0.2.101", uuid=uuid4(),
+                      applications=None)])
+        return self.assertResult(
+            b"GET", b"/state/containers", None, OK, []
+        )
+
     def test_one_container(self):
         """
         When the cluster state includes one container, the endpoint
@@ -3094,7 +3150,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         """
         manifestation = Manifestation(
             dataset=Dataset(dataset_id=unicode(uuid4())),
-            primary=False
+            primary=True
         )
         expected_application = Application(
             name=u"myapp", image=DockerImage.from_string(u"busybox:1.2"),
@@ -3106,9 +3162,11 @@ class ContainerStateTestsMixin(APITestsMixin):
             restart_policy=RestartAlways(),
         )
         expected_hostname = u"192.0.2.101"
+        expected_uuid = uuid4()
         self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
+                uuid=expected_uuid,
                 applications={expected_application},
                 manifestations={manifestation.dataset_id: manifestation},
             )
@@ -3116,6 +3174,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
+            node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
             restart_policy={u"name": u"always"},
@@ -3143,7 +3202,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         manifestation = Manifestation(
             dataset=Dataset(dataset_id=unicode(uuid4()),
                             maximum_size=1234),
-            primary=False
+            primary=True
         )
         expected_application = Application(
             name=u"myapp", image=DockerImage.from_string(u"busybox:1.2"),
@@ -3151,9 +3210,11 @@ class ContainerStateTestsMixin(APITestsMixin):
                                   mountpoint=FilePath(b"/xxx/yyy")),
         )
         expected_hostname = u"192.0.2.101"
+        expected_uuid = uuid4()
         self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname,
+                uuid=expected_uuid,
                 applications={expected_application},
                 manifestations={manifestation.dataset_id: manifestation},
             )
@@ -3161,6 +3222,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
+            node_uuid=unicode(expected_uuid),
             image=u"busybox:1.2",
             running=True,
             restart_policy={u"name": u"never"},
@@ -3182,8 +3244,10 @@ class ContainerStateTestsMixin(APITestsMixin):
             name=u"myapp", image=DockerImage.from_string(u"busybox"),
             running=False)
         expected_hostname = u"192.0.2.101"
+        expected_uuid = uuid4()
         self.cluster_state_service.apply_changes([
             NodeState(
+                uuid=expected_uuid,
                 hostname=expected_hostname,
                 applications={expected_application},
             )
@@ -3191,6 +3255,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_dict = dict(
             name=u"myapp",
             host=expected_hostname,
+            node_uuid=unicode(expected_uuid),
             image=u"busybox:latest",
             running=False,
             restart_policy={u"name": u"never"},
@@ -3208,22 +3273,27 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_application1 = Application(
             name=u"myapp", image=DockerImage.from_string(u"busybox"))
         expected_hostname1 = u"192.0.2.101"
+        expected_uuid1 = uuid4()
         expected_application2 = Application(
             name=u"myapp2", image=DockerImage.from_string(u"busybox2"))
         expected_hostname2 = u"192.0.2.102"
+        expected_uuid2 = uuid4()
         self.cluster_state_service.apply_changes([
             NodeState(
                 hostname=expected_hostname1,
+                uuid=expected_uuid1,
                 applications={expected_application1},
             ),
             NodeState(
                 hostname=expected_hostname2,
+                uuid=expected_uuid2,
                 applications={expected_application2},
             )
         ])
         expected_dict1 = dict(
             name=u"myapp",
             host=expected_hostname1,
+            node_uuid=unicode(expected_uuid1),
             image=u"busybox:latest",
             running=True,
             restart_policy={u"name": u"never"},
@@ -3231,6 +3301,7 @@ class ContainerStateTestsMixin(APITestsMixin):
         expected_dict2 = dict(
             name=u"myapp2",
             host=expected_hostname2,
+            node_uuid=unicode(expected_uuid2),
             image=u"busybox2:latest",
             running=True,
             restart_policy={u"name": u"never"},
@@ -3263,13 +3334,16 @@ class NodesStateTestsMixin(APITestsMixin):
         All nodes in the current cluster state are returned.
         """
         hostname1 = u"192.0.2.101"
+        uuid1 = uuid4()
         hostname2 = u"192.0.2.102"
+        uuid2 = uuid4()
         self.cluster_state_service.apply_changes(
-            [NodeState(hostname=hostname1),
-             NodeState(hostname=hostname2)])
+            [NodeState(uuid=uuid1, hostname=hostname1),
+             NodeState(uuid=uuid2, hostname=hostname2)])
         return self.assertResultItems(
             b"GET", b"/state/nodes", None, OK,
-            [{u"hostname": hostname1}, {u"hostname": hostname2}],
+            [{u"hostname": hostname1, "uuid": unicode(uuid1)},
+             {u"hostname": hostname2, "uuid": unicode(uuid2)}],
         )
 
 
@@ -3283,6 +3357,12 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
     Tests for the container configuration endpoint at
     ``/configuration/_compose``.
     """
+    # Match COMPLEX_DEPLOYMENT_YAML:
+    DEPLOYMENT_STATE = DeploymentState(nodes=[
+        NodeState(uuid=uuid4(), hostname=u"node1.example.com"),
+        NodeState(uuid=uuid4(), hostname=u"node2.example.com"),
+        ])
+
     def configuration_test(self):
         """
         POSTing to ``/configuration/_compose`` in Flocker's custom
@@ -3290,6 +3370,9 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         parsing the given JSON in Flocker's custom configuration format
         and using it to replace the existing configuration.
         """
+        self.cluster_state_service.apply_changes(
+            self.DEPLOYMENT_STATE.nodes)
+
         configuration = {u"applications": COMPLEX_APPLICATION_YAML,
                          u"deployment": COMPLEX_DEPLOYMENT_YAML}
         setting = self.assertResponseCode(
@@ -3301,6 +3384,7 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
             apps = FlockerConfiguration(
                 deepcopy(COMPLEX_APPLICATION_YAML)).applications()
             expected = model_from_configuration(
+                self.DEPLOYMENT_STATE,
                 applications=apps,
                 deployment_configuration=deepcopy(COMPLEX_DEPLOYMENT_YAML))
             self.assertEqual(actual, expected)
@@ -3321,6 +3405,9 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
         configuration format changes the deployment configuration
         appropriately.
         """
+        self.cluster_state_service.apply_changes(
+            self.DEPLOYMENT_STATE.nodes)
+
         fig_config = {
             u'wordpress': {
                 u'environment': {u'WORDPRESS_ADMIN_PASSWORD': u'admin'},
@@ -3345,6 +3432,7 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
             actual = self.persistence_service.get()
             apps = FigConfiguration(fig_config).applications()
             expected = model_from_configuration(
+                self.DEPLOYMENT_STATE,
                 applications=apps,
                 deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
             self.assertEqual(actual, expected)
@@ -3360,10 +3448,9 @@ class ConfigurationComposeTestsMixin(APITestsMixin):
             running=False)
         dataset = Dataset(dataset_id=unicode(uuid4()))
         manifestation = Manifestation(dataset=dataset, primary=True)
-        expected_hostname = u"192.0.2.101"
         saved = self.persistence_service.save(Deployment(nodes=[
             Node(
-                hostname=expected_hostname,
+                uuid=uuid4(),
                 applications={application},
                 manifestations={manifestation.dataset_id: manifestation}
             )

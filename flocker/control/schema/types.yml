@@ -175,25 +175,44 @@ definitions:
       and optional tag, e.g. "clusterhq/redis:latest".
     type: string
 
+  command_line:
+    title: "Command line"
+    description: |
+      Alternate command-line to run using the Docker image's entry point.
+    type: array
+    maxItems: 4096
+    items:
+      type: string
+      maxLength: 4096
+
   host:
     title: "Host"
     description: |
-      The address of the node where the container will run.
+      The IP address of a node where the container will run.
       This must be the address of a node that has introduced itself
       to the cluster.
     type: string
     oneOf:
       - format: ipv4
 
-  primary:
-    title: "Primary manifestation"
+  node_uuid:
+    title: "Node"
     description: |
-      The address of the node which will be given the primary manifestation
-      of the newly created dataset.  This must be the address of a node
-      that has introduced itself to the cluster.
+      The UUID of the node where the container will run.
     type: string
-    oneOf:
-      - format: ipv4
+    # The length of a stringified uuid
+    minLength: 36
+    maxLength: 36
+
+  primary:
+    title: "Primary manifestation (node UUID)"
+    description: |
+      The UUID of the node which will be given the primary manifestation
+      of the newly created dataset.
+    type: string
+    # The length of a stringified uuid
+    minLength: 36
+    maxLength: 36
 
   maximum_size:
     title: "Maximum size"
