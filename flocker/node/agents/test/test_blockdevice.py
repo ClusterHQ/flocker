@@ -1195,6 +1195,8 @@ class IBlockDeviceAPITestsMixin(object):
             # XXX This IP address and others in following tests need to be
             # parameterized so that these tests can be run against real cloud
             # nodes.
+            # We'll Change host to cloud_instance_id throughout these tests,
+            # so addressing the comment above.
             host=u'192.0.2.123'
         )
 
