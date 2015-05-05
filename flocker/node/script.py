@@ -95,22 +95,20 @@ def _lookup_key(configuration, key):
             "Configuration has an error. Missing '{}' key.".format(key))
 
 
-def configuration_from_options(options):
+def agent_config_from_file(path):
     """
     Extract configuration from provided options.
 
-    :param dict options: Dictionary containing command line options.
+    :param FilePath path: Path to a file containing specified options for an
+        agent.
 
     :return dict: Dictionary containing the desired configuration.
     """
-    control_service_options_file = options[u'agent-config']
-
     try:
-        options_content = control_service_options_file.getContent()
+        options_content = path.getContent()
     except IOError:
         raise ConfigurationError(
-            "Configuration file does not exist at '{}'.".format(
-                control_service_options_file.path))
+            "Configuration file does not exist at '{}'.".format(path.path))
 
     options_yaml = yaml.safe_load(options_content)
 
@@ -130,7 +128,7 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        configuration = configuration_from_options(options)
+        configuration = agent_config_from_file(path=options[u'agent-config'])
         host = configuration['control-service-hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
@@ -244,7 +242,7 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        configuration = configuration_from_options(options)
+        configuration = agent_config_from_file(path=options[u'agent-config'])
         host = configuration['control-service-hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
