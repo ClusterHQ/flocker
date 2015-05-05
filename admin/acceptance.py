@@ -414,16 +414,6 @@ def main(reactor, args, base_path, top_level):
 
     runner = options.runner
 
-    from flocker.common.script import EliotObserver
-    from eliot.logwriter import ThreadedFileWriter
-    from twisted.python.log import startLoggingWithObserver
-
-    log_file = open("%s.log" % base_path.basename(), "a")
-    log_writer = ThreadedFileWriter(log_file, reactor)
-    log_writer.startService()
-    observer = EliotObserver()
-    startLoggingWithObserver(observer, setStdout=False)
-
     try:
         nodes = yield runner.start_nodes(reactor)
         yield perform(
@@ -444,6 +434,4 @@ def main(reactor, args, base_path, top_level):
             runner.stop_nodes(reactor)
         elif options['keep']:
             print "--keep specified, not destroying nodes."
-
-        log_writer.stopService()
     raise SystemExit(result)
