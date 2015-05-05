@@ -21,7 +21,7 @@ from zope.interface import implementer
 
 from twisted.python.log import err
 from twisted.web.iweb import IAgent, IResponse
-from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
+from twisted.internet.endpoints import SSL4ClientEndpoint
 from twisted.internet import defer
 from twisted.web.client import ProxyAgent, readBody
 from twisted.web.server import NOT_DONE_YET, Site
@@ -36,11 +36,11 @@ from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.web.http_headers import Headers
-from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from flocker.restapi._schema import getValidator
 
 from ..ca import RootCredential, ControlCredential
+
 
 def loads(s):
     try:

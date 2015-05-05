@@ -340,7 +340,7 @@ class ControlCredentialTests(
         cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
         self.assertEqual(
-            subject.CN, b"control-service-" + self.credential.uuid)
+            subject.CN, b"control-service")
 
     def test_certificate_options_certificate(self):
         """

@@ -442,11 +442,8 @@ class ControlCredential(PRecord):
 
     :ivar FlockerCredential credential: The certificate and key pair
         credential object.
-    :ivar bytes uuid: A unique identifier for the cluster this certificate
-        identifies, in the form of a version 4 UUID.
     """
     credential = field(mandatory=True)
-    uuid = field(mandatory=True, type=bytes)
 
     @classmethod
     def certificate_options(cls, path=None):
@@ -476,7 +473,7 @@ class ControlCredential(PRecord):
         return control_certificate.options(root_certificate)
 
     @classmethod
-    def from_path(cls, path, uuid=None):
+    def from_path(cls, path):
         """
         Load a control service certificate and key from the supplied path.
 
@@ -488,17 +485,10 @@ class ControlCredential(PRecord):
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=certificate)
-        if uuid is None:
-            subject = certificate.getSubject()
-            common_name = subject["commonName"]
-            # CN takes the format control-service-<UUID>, so we split
-            # up to the second dash to obtain the UUID for this cluster.
-            cn_parts = common_name.split("-", 2)
-            uuid = cn_parts[-1]
-        return cls(credential=credential, uuid=uuid)
+        return cls(credential=credential)
 
     @classmethod
-    def initialize(cls, path, authority, begin=None, uuid=None):
+    def initialize(cls, path, authority, begin=None):
         """
         Generate a certificate signed by the supplied root certificate.
 
@@ -508,12 +498,10 @@ class ControlCredential(PRecord):
         :param datetime begin: The datetime from which the generated
             certificate should be valid.
         """
-        if uuid is None:
-            uuid = bytes(uuid4())
         # The common name for the control service certificate.
         # This is used to distinguish between control service and node
-        # certificates. Includes the UUID identifying this cluster.
-        name = b"control-service-" + uuid
+        # certificates.
+        name = b"control-service"
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
@@ -534,7 +522,7 @@ class ControlCredential(PRecord):
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
             CONTROL_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME)
-        instance = cls(credential=credential, uuid=uuid)
+        instance = cls(credential=credential)
         return instance
 
 
