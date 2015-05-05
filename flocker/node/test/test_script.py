@@ -367,7 +367,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         self.assertErrorForConfig(
             configuration=yaml.safe_dump("INVALID"),
             exception=ConfigurationError,
-            message="Configuration has an error. It is not in a valid format.",
+            message=("Configuration has an error: "
+                     "'INVALID' is not of type 'object'."),
         )
 
     def test_error_on_missing_hostname(self):
@@ -378,8 +379,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         self.assertErrorForConfig(
             configuration=yaml.safe_dump({"version": 1}),
             exception=ConfigurationError,
-            message=("Configuration has an error. "
-                     "Missing 'control-service-hostname' key."),
+            message=("Configuration has an error: "
+                     "'control-service-hostname' is a required property."),
         )
 
     def test_error_on_missing_version(self):
@@ -391,8 +392,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             configuration=yaml.safe_dump({
                 "control-service-hostname": "192.0.2.1"}),
             exception=ConfigurationError,
-            message=("Configuration has an error. "
-                     "Missing 'version' key."),
+            message=("Configuration has an error: "
+                     "'version' is a required property."),
         )
 
     def test_error_on_incorrect_version(self):

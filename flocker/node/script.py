@@ -9,6 +9,9 @@ from functools import partial
 from socket import socket
 import yaml
 
+from jsonschema import validate
+from jsonschema.exceptions import ValidationError
+
 from pyrsistent import PRecord, field
 
 from zope.interface import implementer
@@ -80,21 +83,6 @@ def _get_external_ip(host, port):
         sock.close()
 
 
-def _lookup_key(configuration, key):
-    """
-    Given configuration and a key, return the contents of that key from the
-    configuration or raise a suitable exception.
-
-    :param dict configuration: Configuration options.
-    :param unicode key: Option name.
-    """
-    try:
-        return configuration[key]
-    except (TypeError, KeyError):
-        raise ConfigurationError(
-            "Configuration has an error. Missing '{}' key.".format(key))
-
-
 def agent_config_from_file(path):
     """
     Extract configuration from provided options.
@@ -104,9 +92,6 @@ def agent_config_from_file(path):
 
     :return dict: Dictionary containing the desired configuration.
     """
-    from jsonschema import validate
-    from jsonschema.exceptions import ValidationError
-
     try:
         options = yaml.safe_load(path.getContent())
     except IOError:
@@ -115,6 +100,7 @@ def agent_config_from_file(path):
 
     schema = {
         "type": "object",
+        "required": ["version", "control-service-hostname"],
         "properties": {
             "version": {"type" : "number"},
             "control-service-hostname": {"type": "string"},
@@ -123,18 +109,17 @@ def agent_config_from_file(path):
 
     try:
         validate(options, schema)
-    except ValidationError:
+    except ValidationError as e:
         raise ConfigurationError(
-            "Configuration has an error. It is not in a valid format.")
+            "Configuration has an error: {}.".format(e.message,)
+        )
 
-
-    if _lookup_key(configuration=options, key=u'version') != 1:
+    if options[u'version'] != 1:
         raise ConfigurationError(
             "Configuration has an error. Incorrect version specified.")
 
     return {
-        'control-service-hostname': _lookup_key(
-            configuration=options, key=u'control-service-hostname')
+        'control-service-hostname': options[u'control-service-hostname'],
     }
 
 @implementer(ICommandLineVolumeScript)
