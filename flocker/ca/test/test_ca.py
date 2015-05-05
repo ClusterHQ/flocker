@@ -216,13 +216,14 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
         def test_certificate_ou_matches_ca(self):
             """
             A certificate written by ``UserCredential.initialize`` has the
-            issuing authority's common name as its organizational unit name.
+            issuing authority's organizational unit as its organizational
+            unit name.
             """
             cert = self.credential.credential.certificate.original
             issuer = cert.get_issuer()
             subject = cert.get_subject()
             self.assertEqual(
-                issuer.CN,
+                issuer.OU,
                 subject.OU
             )
 
@@ -622,3 +623,14 @@ class RootCredentialTests(SynchronousTestCase):
 
         self.assertNotEqual(UUID(hex=cert.getSubject().OU),
                             UUID(hex=cert2.getSubject().OU))
+
+    def test_organizational_unit(self):
+        """
+        ``RootCredential.organizational_unit`` is its organizational unit.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        RootCredential.initialize(path, b"mycluster")
+        ca = RootCredential.from_path(path)
+        self.assertEqual(ca.organizational_unit,
+                         ca.credential.certificate.getSubject().OU)
