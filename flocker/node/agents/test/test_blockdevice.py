@@ -193,6 +193,7 @@ def detach_destroy_volumes(api):
 
         for volume in volumes:
             # If the volume is attached, detach it.
+            # cloud_instance_id here too
             if volume.host is not None:
                 api.detach_volume(volume.blockdevice_id)
 
@@ -1736,6 +1737,9 @@ def loopbackblockdeviceapi_for_test(test_case):
         )
 
     root_path = test_case.mktemp()
+    # Generate a random cloud_instance_id here using random_name and supply to
+    # from_path
+    # Similar change to other from_path callers
     loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
         root_path=root_path)
     test_case.addCleanup(detach_destroy_volumes, loopback_blockdevice_api)
@@ -1897,12 +1901,15 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         file.
         """
         expected_size = REALISTIC_BLOCKDEVICE_SIZE
+        # this can be removed because...
         expected_host = u'192.0.2.123'
         expected_dataset_id = uuid4()
+        # loopbackblockdeviceapi_for_test will generate a cloud_instance_id
         api = loopbackblockdeviceapi_for_test(test_case=self)
 
         blockdevice_volume = _blockdevicevolume_from_dataset_id(
             size=expected_size,
+            # Supply api.cloud_instance_id() here
             host=expected_host,
             dataset_id=expected_dataset_id,
         )
@@ -2533,6 +2540,7 @@ class CreateBlockDeviceDatasetTests(
     """
     Tests for ``CreateBlockDeviceDataset``.
     """
+    # No need to supply host here....
     def _create_blockdevice_dataset(self, host, dataset_id, maximum_size):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.
@@ -2547,6 +2555,7 @@ class CreateBlockDeviceDatasetTests(
             * The ``FilePath`` of the device where the volume is attached.
             * The ``FilePath`` where the volume is expected to be mounted.
         """
+        # loopbackblockdeviceapi_for_test will auto generate cloud_instance_id
         api = loopbackblockdeviceapi_for_test(self)
         mountroot = mountroot_for_test(self)
         expected_mountpoint = mountroot.child(
@@ -2573,7 +2582,7 @@ class CreateBlockDeviceDatasetTests(
 
         [volume] = api.list_volumes()
         device_path = api.get_device_path(volume.blockdevice_id)
-
+        # return cloud_instance_id too.
         return volume, device_path, expected_mountpoint
 
     def test_run_create(self):
@@ -2581,10 +2590,12 @@ class CreateBlockDeviceDatasetTests(
         ``CreateBlockDeviceDataset.run`` uses the ``IDeployer``\ 's API object
         to create a new volume.
         """
+        # No need to supply host, _create_blockdevice_dataset will return
+        # cloud_instance_id
         host = u"192.0.2.1"
         dataset_id = uuid4()
         maximum_size = REALISTIC_BLOCKDEVICE_SIZE
-
+        # Return the cloud_instance_id here
         (volume,
          device_path,
          expected_mountpoint) = self._create_blockdevice_dataset(
@@ -2594,6 +2605,7 @@ class CreateBlockDeviceDatasetTests(
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
+            # Supply cloud_instance_id here
             dataset_id=dataset_id, host=host, size=maximum_size,
         )
 
@@ -2604,6 +2616,7 @@ class CreateBlockDeviceDatasetTests(
         ``CreateBlockDeviceDataset.run`` initializes the attached block device
         with an ext4 filesystem and mounts it.
         """
+        # Same as test_run_create
         host = u"192.0.2.1"
         dataset_id = uuid4()
         maximum_size = REALISTIC_BLOCKDEVICE_SIZE

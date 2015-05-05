@@ -295,6 +295,8 @@ class BlockDeviceVolume(PRecord):
     """
     blockdevice_id = field(type=unicode, mandatory=True)
     size = field(type=int, mandatory=True)
+    # Replace with cloud_instance_id
+    # type bytes
     host = field(type=(unicode, type(None)), initial=None)
     dataset_id = field(type=UUID, mandatory=True)
 
@@ -601,6 +603,10 @@ class AttachVolume(PRecord):
         should be attached.  An IPv4 address literal.
     """
     dataset_id = field(type=UUID, mandatory=True)
+    # Remove hostname attribute.
+    # It was never necessary in this implementation.
+    # It may be needed in a future Single Coordinating OpenStack agent
+    # Instead we'll ask the api for cloud_id
     hostname = field(type=unicode, mandatory=True)
 
     @property
@@ -622,6 +628,9 @@ class AttachVolume(PRecord):
                 # It was not actually found.
                 raise DatasetWithoutVolume(dataset_id=self.dataset_id)
             ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
+            # Lookup cloud_id asynchronously here.
+            # cloud_id = api.cloud_instance_id()
+            # Attach to the cloud_id instead... in a callback
             return api.attach_volume(volume.blockdevice_id, self.hostname)
         attaching = listing.addCallback(found)
         return attaching
@@ -750,6 +759,13 @@ class IBlockDeviceAsyncAPI(Interface):
     Common operations provided by all block device backends, exposed via
     asynchronous methods.
     """
+    # def cloud_instance_id():
+    #     """
+    #     See ``IBlockDeviceAPI.cloud_instance_id``.
+    #     :returns: A ``Deferred`` that fires with ``bytes`` of a provider
+    #         specific cloud node identifier.
+    #     """
+
     def create_volume(dataset_id, size):
         """
         See ``IBlockDeviceAPI.create_volume``.
@@ -765,6 +781,7 @@ class IBlockDeviceAsyncAPI(Interface):
         :return: A ``Deferred`` that fires when the volume has been destroyed.
         """
 
+    # host argument becomes cloud_instance_id
     def attach_volume(blockdevice_id, host):
         """
         See ``IBlockDeviceAPI.attach_volume``.
@@ -811,6 +828,13 @@ class IBlockDeviceAPI(Interface):
     Note: This is an early sketch of the interface and it'll be refined as we
     real blockdevice providers are implemented.
     """
+    # def cloud_instance_id():
+    #     """
+    #     See ``IBlockDeviceAPI.cloud_instance_id``.
+    #     :returns: A ``Deferred`` that fires with ``bytes`` of a provider
+    #         specific cloud node identifier.
+    #     """
+
     def create_volume(dataset_id, size):
         """
         Create a new volume.
@@ -837,6 +861,7 @@ class IBlockDeviceAPI(Interface):
         :return: ``None``
         """
 
+    # host argument becomes cloud_instance_id
     def attach_volume(blockdevice_id, host):
         """
         Attach ``blockdevice_id`` to ``host``.
@@ -917,6 +942,7 @@ class _SyncToThreadedAsyncAPIAdapter(PRecord):
     _threadpool = field()
 
 
+# replace host with cloud_instance_id
 def _blockdevicevolume_from_dataset_id(dataset_id, size, host=None):
     """
     Create a new ``BlockDeviceVolume`` with a ``blockdevice_id`` derived
@@ -930,11 +956,13 @@ def _blockdevicevolume_from_dataset_id(dataset_id, size, host=None):
     ``BlockDeviceVolume``.
     """
     return BlockDeviceVolume(
+        # replace host with cloud_instance_id
         size=size, host=host, dataset_id=dataset_id,
         blockdevice_id=u"block-{0}".format(dataset_id),
     )
 
 
+# Supply cloud_instance_id instead....optionally
 def _blockdevicevolume_from_blockdevice_id(blockdevice_id, size, host=None):
     """
     Create a new ``BlockDeviceVolume`` with a ``dataset_id`` derived from
@@ -949,6 +977,7 @@ def _blockdevicevolume_from_blockdevice_id(blockdevice_id, size, host=None):
     # Strip the "block-" prefix we added.
     dataset_id = UUID(blockdevice_id[6:])
     return BlockDeviceVolume(
+        # Supply cloud_instance_id here
         size=size, host=host, dataset_id=dataset_id,
         blockdevice_id=blockdevice_id,
     )
@@ -1029,6 +1058,7 @@ class LoopbackBlockDeviceAPI(object):
     _attached_directory_name = 'attached'
     _unattached_directory_name = 'unattached'
 
+    # Add cloud_instance_id required argument here
     def __init__(self, root_path):
         """
         :param FilePath root_path: The path beneath which all loopback backing
@@ -1036,6 +1066,7 @@ class LoopbackBlockDeviceAPI(object):
         """
         self._root_path = root_path
 
+    # Add cloud_instance_id required argument here
     @classmethod
     def from_path(cls, root_path):
         """
@@ -1068,6 +1099,11 @@ class LoopbackBlockDeviceAPI(object):
             self._attached_directory.makedirs()
         except OSError:
             pass
+
+    # def cloud_instance_id(self):
+    #     """
+    #     Return self._cloud_instance_id
+    #     """
 
     def create_volume(self, dataset_id, size):
         """
@@ -1102,6 +1138,7 @@ class LoopbackBlockDeviceAPI(object):
                 return volume
         raise UnknownVolume(blockdevice_id)
 
+    # host argument becomes cloud_instance_id
     def attach_volume(self, blockdevice_id, host):
         """
         Move an existing ``unattached`` file into a per-host directory and
@@ -1121,6 +1158,8 @@ class LoopbackBlockDeviceAPI(object):
         if volume.host is None:
             old_path = self._unattached_directory.child(blockdevice_id)
             host_directory = self._attached_directory.child(
+                # Use cloud_instance_id instead....bytes...so no encoding
+                # necessary
                 host.encode("utf-8")
             )
             try:
@@ -1132,6 +1171,7 @@ class LoopbackBlockDeviceAPI(object):
             # The --find option allocates the next available /dev/loopX device
             # name to the device.
             check_output(["losetup", "--find", new_path.path])
+            # Supply cloud_instance_id here
             attached_volume = volume.set(host=host)
             return attached_volume
 
@@ -1143,6 +1183,7 @@ class LoopbackBlockDeviceAPI(object):
         directory and release the loopback device backed by that file.
         """
         volume = self._get(blockdevice_id)
+        # Look at cloud_instance_id instead
         if volume.host is None:
             raise UnattachedVolume(blockdevice_id)
 
@@ -1154,6 +1195,7 @@ class LoopbackBlockDeviceAPI(object):
             ])
 
         volume_path = self._attached_directory.descendant([
+            # cloud_instance_id here too
             volume.host.encode("ascii"), volume.blockdevice_id.encode("ascii")
         ])
         new_path = self._unattached_directory.child(
@@ -1201,12 +1243,15 @@ class LoopbackBlockDeviceAPI(object):
             volumes.append(volume)
 
         for host_directory in self._root_path.child('attached').children():
+            # Directory names are now cloud_instance_id instead and don't need
+            # decoding.
             host_name = host_directory.basename().decode('ascii')
             for child in host_directory.children():
                 blockdevice_id = child.basename().decode('ascii')
                 volume = _blockdevicevolume_from_blockdevice_id(
                     blockdevice_id=blockdevice_id,
                     size=child.getsize(),
+                    # Supply cloud_instance_id here
                     host=host_name,
                 )
                 volumes.append(volume)
@@ -1215,6 +1260,7 @@ class LoopbackBlockDeviceAPI(object):
 
     def get_device_path(self, blockdevice_id):
         volume = self._get(blockdevice_id)
+        # cloud_instance_id here too
         if volume.host is None:
             raise UnattachedVolume(blockdevice_id)
 
@@ -1318,6 +1364,7 @@ class BlockDeviceDeployer(PRecord):
         their mount paths.
         """
         api = self.block_device_api
+        # cloud_id = api.get_cloud_id()
         volumes = api.list_volumes()
         manifestations = {}
         nonmanifest = {}
@@ -1325,15 +1372,18 @@ class BlockDeviceDeployer(PRecord):
             volume.dataset_id: api.get_device_path(volume.blockdevice_id)
             for volume
             in volumes
+            # volume.cloud_id == cloud_id
             if volume.host == self.hostname
         }
 
         for volume in volumes:
             dataset_id = unicode(volume.dataset_id)
+            # volume.cloud_id == cloud_id
             if volume.host == self.hostname:
                 manifestations[dataset_id] = _manifestation_from_volume(
                     volume
                 )
+            # Check for empty cloud_id
             elif volume.host is None:
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
@@ -1367,6 +1417,7 @@ class BlockDeviceDeployer(PRecord):
         state = (
             NodeState(
                 uuid=self.node_uuid,
+                # No need to store cloud_id in NodeState ...yet.
                 hostname=self.hostname,
                 manifestations=manifestations,
                 paths=paths,

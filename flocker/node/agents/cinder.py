@@ -115,6 +115,11 @@ class CinderBlockDeviceAPI(object):
         self.volume_manager = volume_manager
         self.cluster_id = cluster_id
 
+    # def cloud_instance_id(self):
+    #     """
+    #     xen-read instance_id, parse output and return the bytes
+    #     """
+
     def create_volume(self, dataset_id, size):
         """
         Create a block device using the ICinderVolumeManager.
@@ -199,6 +204,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
         size=int(GB(cinder_volume.size).to_Byte().value),
+        # cloud_instance_id=None here
         host=None,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )

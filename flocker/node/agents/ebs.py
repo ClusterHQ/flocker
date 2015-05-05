@@ -61,6 +61,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GB(ebs_volume.size).to_Byte().value),
+        # cloud_instance_id here too
         host=None,
         dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
     )
@@ -144,6 +145,7 @@ class EBSBlockDeviceAPI(object):
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
 
+    # This is now a free function....remove
     def _blockdevicevolume_from_ebs_volume(self, ebs_volume):
         """
         Helper function to convert Volume information from
@@ -155,6 +157,12 @@ class EBSBlockDeviceAPI(object):
             host=None,
             dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
         )
+
+    # def cloud_instance_id(self):
+    #     """
+    #     Look up the EC2 instance ID....somehow...maybe boto has an API for
+    #     this.
+    #     """
 
     def create_volume(self, dataset_id, size):
         """
@@ -198,6 +206,7 @@ class EBSBlockDeviceAPI(object):
     def resize_volume(self, blockdevice_id, size):
         pass
 
+    # cloud_instance_id here too
     def attach_volume(self, blockdevice_id, host):
         pass
 
