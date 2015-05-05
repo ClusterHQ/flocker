@@ -462,6 +462,8 @@ class ResizeFilesystem(PRecord):
         # -y automatically answers yes to every question.  There should be no
         #     questions since the filesystem isn't corrupt.  Without this,
         #     e2fsck refuses to run non-interactively, though.
+        #
+        # See FLOC-1814
         check_output([b"e2fsck", b"-f", b"-y", device.path])
         # When passed no explicit size argument, resize2fs resizes the
         # filesystem to the size of the device it lives on.  Be sure to use
