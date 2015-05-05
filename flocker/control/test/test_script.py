@@ -10,6 +10,8 @@ from .._clusterstate import ClusterStateService
 from .._protocol import ControlAMP, ControlAMPService
 from ..httpapi import REST_API_PORT
 
+from ...ca import RootCredential, ControlCredential
+
 
 class ControlOptionsTests(StandardOptionsTestsMixin,
                           SynchronousTestCase):
@@ -75,13 +77,25 @@ class ControlScriptEffectsTests(SynchronousTestCase):
     """
     Tests for effects ``ControlScript``.
     """
+    def setUp(self):
+        """
+        Create some certificates to use when creating the control service.
+        """
+        self.certificate_path = FilePath(self.mktemp())
+        self.certificate_path.makedirs()
+        authority = RootCredential.initialize(
+            self.certificate_path, b"mycluster")
+        ControlCredential.initialize(self.certificate_path, authority)
+
     def test_starts_http_api_server(self):
         """
         ``ControlScript.main`` starts a HTTP server on the given port.
         """
         options = ControlOptions()
-        options.parseOptions(
-            [b"--port", b"tcp:8001", b"--data-path", self.mktemp()])
+        options.parseOptions([
+            b"--port", b"tcp:8001", b"--data-path", self.mktemp(),
+            b"--certificate-path", self.certificate_path.path
+        ])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
         server = reactor.tcpServers[0]
@@ -95,7 +109,10 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         """
         script = ControlScript()
         options = ControlOptions()
-        options.parseOptions([b"--data-path", self.mktemp()])
+        options.parseOptions([
+            b"--data-path", self.mktemp(),
+            b"--certificate-path", self.certificate_path.path
+        ])
         self.assertNoResult(script.main(MemoryCoreReactor(), options))
 
     def test_starts_persistence_service(self):
@@ -104,7 +121,10 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         """
         path = FilePath(self.mktemp())
         options = ControlOptions()
-        options.parseOptions([b"--data-path", path.path])
+        options.parseOptions([
+            b"--data-path", path.path,
+            b"--certificate-path", self.certificate_path.path
+        ])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
         self.assertTrue(path.isdir())
@@ -114,8 +134,10 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         ``ControlScript.main`` starts a cluster state service.
         """
         options = ControlOptions()
-        options.parseOptions(
-            [b"--port", b"tcp:8001", b"--data-path", self.mktemp()])
+        options.parseOptions([
+            b"--port", b"tcp:8001", b"--data-path", self.mktemp(),
+            b"--certificate-path", self.certificate_path.path
+        ])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
         server = reactor.tcpServers[0]
@@ -129,8 +151,10 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         ``ControlScript.main`` starts a AMP service on the given port.
         """
         options = ControlOptions()
-        options.parseOptions(
-            [b"--agent-port", b"tcp:8001", b"--data-path", self.mktemp()])
+        options.parseOptions([
+            b"--agent-port", b"tcp:8001", b"--data-path", self.mktemp(),
+            b"--certificate-path", self.certificate_path.path
+        ])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
         server = reactor.tcpServers[1]

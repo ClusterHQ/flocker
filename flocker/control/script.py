@@ -30,6 +30,10 @@ class ControlOptions(Options):
          "The external API port to listen on."],
         ["agent-port", "a", 'tcp:4524',
          "The port convergence agents will connect to."],
+        ["certificate-path", "c", None,
+         ("Absolute path to directory containing the cluster "
+          "root certificate and control service certificate "
+          "and private key.")],
     ]
 
 
@@ -39,6 +43,10 @@ class ControlScript(object):
     cluster.
     """
     def main(self, reactor, options):
+        if options["certificate-path"] is None:
+            certificate_path = None
+        else:
+            certificate_path = FilePath(options["certificate-path"])
         top_service = MultiService()
         persistence = ConfigurationPersistenceService(
             reactor, options["data-path"])
@@ -46,10 +54,11 @@ class ControlScript(object):
         cluster_state = ClusterStateService()
         cluster_state.setServiceParent(top_service)
         create_api_service(persistence, cluster_state, serverFromString(
-            reactor, options["port"])).setServiceParent(top_service)
+            reactor, options["port"]), certificate_path).setServiceParent(
+                top_service)
         amp_service = ControlAMPService(
             cluster_state, persistence, serverFromString(
-                reactor, options["agent-port"]))
+                reactor, options["agent-port"]), certificate_path)
         amp_service.setServiceParent(top_service)
         return main_for_service(reactor, top_service)
 
