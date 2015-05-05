@@ -475,6 +475,8 @@ class ResizeFilesystem(PRecord):
         # sizes are in GB - so if you're using that the API should really
         # require multiples of 1000000000).  See FLOC-1579.
         new_size = int(Byte(self.size).to_KiB().value)
+        # The system could fail while this is running.  We don't presently have
+        # recovery logic for this case.  See FLOC-1815.
         check_output([
             b"resize2fs",
             # The path to the device file referring to the filesystem to
@@ -1653,6 +1655,9 @@ class BlockDeviceDeployer(PRecord):
             if dataset_config.deleted:
                 continue
             configured_size = dataset_config.maximum_size
+            # We only inspect volume size here.  A failure could mean the
+            # volume size is correct even though the filesystem size is not.
+            # See FLOC-1815.
             if manifestation.dataset.maximum_size != configured_size:
                 yield ResizeBlockDeviceDataset(
                     dataset_id=UUID(dataset_id),
