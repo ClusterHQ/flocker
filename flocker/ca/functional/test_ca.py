@@ -4,7 +4,6 @@
 Functional tests for ``flocker-ca`` CLI.
 """
 
-import os
 import re
 
 from subprocess import CalledProcessError
@@ -82,13 +81,6 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         """
         flocker_ca(b"initialize", b"mycluster")
 
-    def tearDown(self):
-        """
-        Delete the previously created root certificate.
-        """
-        os.remove(b"cluster.crt")
-        os.remove(b"cluster.key")
-
     @requireCA
     def test_initialize(self):
         """
@@ -109,12 +101,10 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         to verify the generated control certificate and private key is
         signed by the previously generated certificate authority.
         """
-        flocker_ca(b"create-control-certificate")
+        flocker_ca(b"create-control-certificate", b"my.example.com")
         self.assertTrue(
-            openssl_verify(b"cluster.crt", b"control-service.crt")
+            openssl_verify(b"cluster.crt", b"control-my.example.com.crt")
         )
-        os.remove(b"control-service.crt")
-        os.remove(b"control-service.key")
 
     @requireCA
     def test_node_certificate(self):
@@ -146,8 +136,6 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
         self.assertTrue(
             openssl_verify(b"cluster.crt", b"alice.crt")
         )
-        os.remove(b"alice.crt")
-        os.remove(b"alice.key")
 
     @requireCA
     def test_help_description(self):
