@@ -153,7 +153,8 @@ def create_certificate_authority(keypair, dn, request, serial,
 
 
 def sign_certificate_request(keypair, dn, request, serial,
-                             validity_period, digest, start=None):
+                             validity_period, digest, start=None,
+                             additional_extensions=()):
     """
     Sign a CertificateRequest and return a Certificate.
 
@@ -175,6 +176,9 @@ def sign_certificate_request(keypair, dn, request, serial,
 
     :param datetime start: The datetime from which the certificate is valid.
         Defaults to current date and time.
+
+    :param additional_extensions: A sequence of additional
+         ``X509Extension`` objects to add to the certificate.
     """
     if start is None:
         start = datetime.datetime.utcnow()
@@ -189,6 +193,7 @@ def sign_certificate_request(keypair, dn, request, serial,
     cert.set_notBefore(start)
     cert.set_notAfter(expire)
     cert.set_serial_number(serial)
+    cert.add_extensions(additional_extensions)
     cert.sign(keypair.original, digest)
     return Certificate(cert)
 
@@ -360,11 +365,9 @@ class UserCredential(PRecord):
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_20_YEARS, b'sha256', start=begin
-        )
-        cert.original.add_extensions([
-            crypto.X509Extension(b"extendedKeyUsage", False, b"clientAuth"),
-        ])
+            serial, EXPIRY_20_YEARS, b'sha256', start=begin,
+            additional_extensions=[crypto.X509Extension(
+                b"extendedKeyUsage", False, b"clientAuth")])
         credential = FlockerCredential(
             path=output_path, keypair=keypair, certificate=cert
         )
@@ -433,11 +436,9 @@ class NodeCredential(PRecord):
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_20_YEARS, 'sha256', start=begin
-        )
-        cert.original.add_extensions([
-            crypto.X509Extension(b"extendedKeyUsage", False, b"clientAuth"),
-        ])
+            serial, EXPIRY_20_YEARS, 'sha256', start=begin,
+            additional_extensions=[crypto.X509Extension(
+                b"extendedKeyUsage", False, b"clientAuth")])
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
@@ -499,12 +500,13 @@ class ControlCredential(PRecord):
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_20_YEARS, 'sha256', start=begin
-        )
-        cert.original.add_extensions([
-            crypto.X509Extension(b"subjectAltName", False, b"DNS:" + hostname),
-            crypto.X509Extension(b"extendedKeyUsage", False, b"serverAuth"),
-        ])
+            serial, EXPIRY_20_YEARS, 'sha256', start=begin,
+            additional_extensions=[
+                crypto.X509Extension(
+                    b"subjectAltName", False, b"DNS:" + hostname),
+                crypto.X509Extension(
+                    b"extendedKeyUsage", False, b"serverAuth"),
+            ])
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
