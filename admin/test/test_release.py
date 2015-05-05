@@ -1844,7 +1844,7 @@ class CopyTutorialVagrantBox(SynchronousTestCase):
             s3_buckets={
                 target_bucket: {},
                 dev_bucket: {
-                    'vagrant/tutorial/flocker-tutorial-0.3.0.box': '',
+                    'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content',
                 },
             })
 
@@ -1857,5 +1857,5 @@ class CopyTutorialVagrantBox(SynchronousTestCase):
 
         self.assertEqual(
             aws.s3_buckets[target_bucket],
-            {'vagrant/tutorial/flocker-tutorial-0.3.0.box': ''}
+            {'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content'}
         )
