@@ -2742,7 +2742,7 @@ class CreateAPIServiceTests(SynchronousTestCase):
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
         verifyObject(IService, create_api_service(
-            None, None, endpoint, path.path))
+            None, None, endpoint, path))
 
     def test_listens_endpoint(self):
         """
@@ -2755,7 +2755,7 @@ class CreateAPIServiceTests(SynchronousTestCase):
         ControlCredential.initialize(path, authority)
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        service = create_api_service(None, None, endpoint, path.path)
+        service = create_api_service(None, None, endpoint, path)
         self.addCleanup(service.stopService)
         service.startService()
         server = reactor.tcpServers[0]

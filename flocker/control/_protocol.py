@@ -38,10 +38,9 @@ from twisted.protocols.amp import (
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
-from twisted.python.filepath import FilePath
 from twisted.internet.ssl import Certificate, PrivateCertificate
 from twisted.protocols.tls import TLSMemoryBIOFactory
-from ..ca import ControlCredential
+from ..ca import ControlCredential, DEFAULT_CERTIFICATE_PATH
 
 from ._persistence import wire_encode, wire_decode
 from ._model import Deployment, NodeState, DeploymentState, NonManifestDatasets
@@ -202,18 +201,19 @@ class ControlAMPService(Service):
     logger = Logger()
 
     def __init__(self, cluster_state, configuration_service,
-                 endpoint, certificate_path=b"/etc/flocker"):
+                 endpoint, certificate_path=None):
         """
         :param ClusterStateService cluster_state: Object that records known
             cluster state.
         :param ConfigurationPersistenceService configuration_service:
             Persistence service for desired cluster configuration.
         :param endpoint: Endpoint to listen on.
-        :param bytes certificate_path: Absolute path to directory containing
-            the cluster root certificate and the control service's certificate
-            and private key.
+        :param FilePath certificate_path: Absolute path to directory
+            containing the cluster root certificate and the control service's
+            certificate and private key.
         """
-        certificate_path = FilePath(certificate_path)
+        if certificate_path is None:
+            certificate_path = DEFAULT_CERTIFICATE_PATH
         root_certificate_path = certificate_path.child(b"cluster.crt")
         root_certificate = None
         with root_certificate_path.open() as root_file:

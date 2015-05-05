@@ -26,7 +26,7 @@ from klein import Klein
 
 from pyrsistent import discard
 
-from ..ca import ControlCredential
+from ..ca import ControlCredential, DEFAULT_CERTIFICATE_PATH
 
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
@@ -1027,7 +1027,7 @@ def api_dataset_from_dataset_and_node(dataset, node_hostname):
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint,
-                       certificate_path=b"/etc/flocker"):
+                       certificate_path=None):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 
@@ -1039,13 +1039,14 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
 
     :param endpoint: Twisted endpoint to listen on.
 
-    :param bytes certificate_path: Absolute path to directory containing
+    :param FilePath certificate_path: Absolute path to directory containing
         the cluster root certificate and the control service's certificate
         and private key.
 
     :return: Service that will listen on the endpoint using HTTP API server.
     """
-    certificate_path = FilePath(certificate_path)
+    if certificate_path is None:
+        certificate_path = DEFAULT_CERTIFICATE_PATH
     root_certificate_path = certificate_path.child(b"cluster.crt")
     root_certificate = None
     with root_certificate_path.open() as root_file:

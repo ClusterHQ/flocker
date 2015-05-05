@@ -1,6 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-from twisted.web.server import Site
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.protocols.tls import TLSMemoryBIOFactory
@@ -120,7 +119,8 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
         server = reactor.tcpServers[0]
-        service = server[1].resource._v1_user.cluster_state_service
+        control_resource = server[1].wrappedFactory.resource
+        service = control_resource._v1_user.cluster_state_service
         self.assertEqual((service.__class__, service.running),
                          (ClusterStateService, True))
 
@@ -135,7 +135,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         ControlScript().main(reactor, options)
         server = reactor.tcpServers[1]
         port = server[0]
-        protocol = server[1].buildProtocol(None)
+        protocol = server[1].wrappedFactory.buildProtocol(None)
         self.assertEqual(
             (port, protocol.__class__, protocol.control_amp_service.__class__),
             (8001, ControlAMP, ControlAMPService))
