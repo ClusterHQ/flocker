@@ -77,9 +77,6 @@ class DeployOptions(Options):
                      ["api-user", "a", b"user", "The API username."], ]
 
     def parseArgs(self, control_host, deployment_config, application_config):
-        cert_path = FilePath(self["certificate-path"])
-        self["cert_opts"] = UserCredential.certificate_options(
-            self["api-user"], path=cert_path)
         deployment_config = FilePath(deployment_config)
         application_config = FilePath(application_config)
 
@@ -117,6 +114,9 @@ class DeployOptions(Options):
                     error=str(e)
                 )
             )
+        cert_path = FilePath(self["certificate-path"])
+        self["cert_opts"] = UserCredential.certificate_options(
+            self["api-user"], path=cert_path)
 
 
 @implementer(ICommandLineScript)
