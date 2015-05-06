@@ -1,3 +1,4 @@
+# -*- test-case-name: flocker.node.agents.functional.test_ebs -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
