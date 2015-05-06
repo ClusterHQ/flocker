@@ -265,9 +265,8 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     if cinder_volume.attachments:
         # There should only be one.
         [attachment_info] = cinder_volume.attachments
-        # Nova and Cinder APIs return ID strings. Convert to UUID
-        # before looking up.
-        server_id = UUID(attachment_info['server_id'])
+        # Nova and Cinder APIs return ID strings. Convert to unicode.
+        server_id = attachment_info['server_id'].decode("ascii")
     else:
         server_id = None
 
