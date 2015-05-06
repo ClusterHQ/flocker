@@ -740,7 +740,7 @@ NodesTests = build_schema_test(
         [{'host': '192.168.1.10', 'uuid': 123}],
         # Wrong host type
         [{'host': 192, 'uuid': unicode(uuid4())}],
-        # Extra kye
+        # Extra key
         [{'host': '192.168.1.10', 'uuid': unicode(uuid4()), 'x': 'y'}],
     ],
     passing_instances=[
