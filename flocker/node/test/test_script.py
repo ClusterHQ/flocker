@@ -4,10 +4,12 @@
 Tests for :module:`flocker.node.script`.
 """
 import netifaces
+import yaml
 
 from zope.interface.verify import verifyObject
 
 from twisted.internet.defer import Deferred
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
 
@@ -16,9 +18,10 @@ from ...common.script import ICommandLineScript
 
 from ..script import (
     ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
-    AgentServiceFactory, DatasetAgentOptions)
+    AgentServiceFactory, DatasetAgentOptions, agent_config_from_file)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
+from ...control import ConfigurationError
 from ...testtools import MemoryCoreReactor
 
 
@@ -26,13 +29,23 @@ class ZFSAgentScriptTests(SynchronousTestCase):
     """
     Tests for ``ZFSAgentScript``.
     """
+    def setUp(self):
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+        self.config = scratch_directory.child('dataset-config.yml')
+        self.config.setContent(
+            yaml.safe_dump({
+                u"control-service-hostname": u"10.0.0.1",
+                u"version": 1,
+            }))
+
     def test_main_starts_service(self):
         """
         ``ZFSAgentScript.main`` starts the given service.
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"127.0.0.1"])
+        options.parseOptions([b"--agent-config", self.config.path])
         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
@@ -42,7 +55,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         script = ZFSAgentScript()
         options = ZFSAgentOptions()
-        options.parseOptions([b"127.0.0.1"])
+        options.parseOptions([b"--agent-config", self.config.path])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
                                         Service()))
 
@@ -52,7 +65,9 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions([b"--destination-port", b"1234", b"10.0.0.1"])
+        options.parseOptions(
+            [b"--destination-port", b"1234",
+             b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
@@ -92,10 +107,21 @@ class AgentServiceFactoryTests(SynchronousTestCase):
     """
     Tests for ``AgentServiceFactory``.
     """
+    def setUp(self):
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+        self.config = scratch_directory.child('dataset-config.yml')
+        self.config.setContent(
+            yaml.safe_dump({
+                u"control-service-hostname": u"10.0.0.2",
+                u"version": 1,
+            }))
+
     def test_get_service(self):
         """
         ``AgentServiceFactory.get_service`` creates ``AgentLoopService``
-        configured with the destination given by the options.
+        configured with the destination given in the config file given by the
+        options.
         """
         deployer = object()
 
@@ -107,7 +133,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([
-            b"--destination-port", b"1234", b"10.0.0.2",
+            b"--destination-port", b"1234",
+            b"--agent-config", self.config.path,
         ])
         service_factory = AgentServiceFactory(
             deployer_factory=factory
@@ -135,7 +162,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
-        options.parseOptions([b"10.0.0.2"])
+        options.parseOptions([b"--agent-config", self.config.path])
         agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
         self.assertIn(spied[0], get_all_ips())
@@ -240,13 +267,23 @@ def make_amp_agent_options_tests(options_type):
     class Tests(SynchronousTestCase):
         def setUp(self):
             self.options = options_type()
+            self.scratch_directory = FilePath(self.mktemp())
+            self.scratch_directory.makedirs()
+            self.sample_content = yaml.safe_dump(
+                {
+                    u"control-service-hostname": u"10.0.0.1",
+                    u"version": 1,
+                }
+            )
+            self.config = self.scratch_directory.child('dataset-config.yml')
+            self.config.setContent(self.sample_content)
 
         def test_default_port(self):
             """
             The default AMP destination port configured by the command line
             options is 4524.
             """
-            self.options.parseOptions([b"127.0.0.1"])
+            self.options.parseOptions([])
             self.assertEqual(self.options["destination-port"], 4524)
 
         def test_custom_port(self):
@@ -254,21 +291,138 @@ def make_amp_agent_options_tests(options_type):
             The ``--destination-port`` command-line option allows configuring
             the destination port.
             """
-            self.options.parseOptions([b"--destination-port", b"1234",
-                                       b"127.0.0.1"])
+            self.options.parseOptions([b"--destination-port", b"1234"])
             self.assertEqual(self.options["destination-port"], 1234)
 
-        def test_host(self):
+        def test_default_config_file(self):
             """
-            The second required command-line argument allows configuring the
-            destination host.
+            The default config file is a FilePath with path
+            ``/etc/flocker/agent.yml``.
             """
-            self.options.parseOptions([b"10.0.0.1"])
+            self.options.parseOptions([])
             self.assertEqual(
-                self.options["destination-host"], u"10.0.0.1",
-            )
+                self.options["agent-config"],
+                FilePath("/etc/flocker/agent.yml"))
+
+        def test_custom_config_file(self):
+            """
+            The ``--config-file`` command-line option allows configuring
+            the config file.
+            """
+            self.options.parseOptions(
+                [b"--agent-config", b"/etc/foo.yml"])
+            self.assertEqual(
+                self.options["agent-config"],
+                FilePath("/etc/foo.yml"))
 
     return Tests
+
+
+class AgentConfigFromFileTests(SynchronousTestCase):
+    """
+    Tests for :func:`agent_config_from_file`.
+    """
+
+    def setUp(self):
+        self.scratch_directory = FilePath(self.mktemp())
+        self.scratch_directory.makedirs()
+        self.config = self.scratch_directory.child('config.yml')
+
+    def assertErrorForConfig(self, exception, message, configuration=None):
+        """
+        Assert that given a particular configuration,
+        :func:`agent_config_from_file` will fail with an expected exception
+        and message.
+
+        :param Exception exception: The exception type which
+            :func:`agent_config_from_file` should fail with.
+        :param unicode configuration: The contents of the agent configuration
+            file. If ``None`` then the file will not exist.
+        :param bytes message: The expected exception message.
+        """
+        if configuration is not None:
+            self.config.setContent(configuration)
+
+        exception = self.assertRaises(
+            exception,
+            agent_config_from_file, self.config)
+
+        self.assertEqual(exception.message, message)
+
+    def test_error_on_file_does_not_exist(self):
+        """
+        An error is raised if the config file does not exist.
+        """
+        self.assertErrorForConfig(
+            exception=ConfigurationError,
+            message="Configuration file does not exist at '{}'.".format(
+                self.config.path),
+        )
+
+    def test_error_on_invalid_config(self):
+        """
+        A ``ConfigurationError`` is raised if the config file is not formatted
+        as a dictionary.
+        """
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump("INVALID"),
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "'INVALID' is not of type 'object'."),
+        )
+
+    def test_error_on_invalid_hostname(self):
+        """
+        A ``ConfigurationError`` is raised if the given control service
+        hostname is not a valid hostname.
+        """
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump({
+                "control-service-hostname": "-1",
+                "version": 1,
+            }),
+            exception=ConfigurationError,
+            message=("Configuration has an error: '-1' is not a 'hostname'."),
+        )
+
+    def test_error_on_missing_hostname(self):
+        """
+        A ``ConfigurationError`` is raised if the config file does not
+        contain a ``u"control-service-hostname"`` key.
+        """
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump({"version": 1}),
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "'control-service-hostname' is a required property."),
+        )
+
+    def test_error_on_missing_version(self):
+        """
+        A ``ConfigurationError`` is raised if the config file does not contain
+        a ``u"version"`` key.
+        """
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump({
+                "control-service-hostname": "192.0.2.1"}),
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "'version' is a required property."),
+        )
+
+    def test_error_on_incorrect_version(self):
+        """
+        A ``ConfigurationError`` is raised if the version specified is not 1.
+        """
+        self.assertErrorForConfig(
+            configuration=yaml.safe_dump({
+                "control-service-hostname": "192.0.2.1",
+                "version": 2,
+            }),
+            exception=ConfigurationError,
+            message=("Configuration has an error. "
+                     "Incorrect version specified."),
+        )
 
 
 class DatasetAgentOptionsTests(
@@ -294,7 +448,7 @@ class ZFSAgentOptionsTests(make_amp_agent_options_tests(ZFSAgentOptions)):
 
 
 class ZFSAgentOptionsVolumeTests(make_volume_options_tests(
-        ZFSAgentOptions, [b"1.2.3.4"])):
+        ZFSAgentOptions, [])):
     """
     Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """
