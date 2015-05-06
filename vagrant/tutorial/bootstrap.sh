@@ -13,3 +13,6 @@ yum install -y epel-release
 
 # Rebuild VirtualBox Additions
 /etc/init.d/vboxadd setup
+
+# Create the 'docker' group
+groupadd docker

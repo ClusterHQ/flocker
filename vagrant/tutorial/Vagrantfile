@@ -48,8 +48,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
           ENV.fetch('FLOCKER_BRANCH', ''),
           ENV.fetch('FLOCKER_BUILD_SERVER', '')
       ]
-  # Prepare caches
-  config.vm.provision :shell, :path => "cache.sh", :privileged => true
+
+  config.vm.provision "docker", images: [
+    "busybox", "clusterhq/mongodb", "redis", "clusterhq/flask"]
+
   # Cleanup
   config.vm.provision :shell, :path => "../cleanup.sh", :privileged => true
   #
