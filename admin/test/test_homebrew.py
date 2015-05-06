@@ -111,7 +111,7 @@ class GetDependencyGraphTests(SynchronousTestCase):
         # We can be sure that flocker is installed if we are running this,
         # and pretty sure that setuptools is a dependency with no dependencies
         # of its own.
-        # Perhaps a better test would installe a canned package.
+        # Perhaps a better test would install a canned package.
         self.assertEqual(graph['setuptools'], {})
 
     def test_application_removed(self):
