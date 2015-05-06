@@ -62,7 +62,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GB(ebs_volume.size).to_Byte().value),
-        storage_backend_id=None,
+        attached_to=None,
         dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
     )
 

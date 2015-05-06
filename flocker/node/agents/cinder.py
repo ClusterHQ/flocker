@@ -207,7 +207,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
         size=int(GB(cinder_volume.size).to_Byte().value),
-        storage_backend_id=None,
+        attached_to=None,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
 

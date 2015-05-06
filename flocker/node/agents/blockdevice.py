@@ -291,16 +291,16 @@ class BlockDeviceVolume(PRecord):
         identifier (``vol-4282672b``).  This is used to address the block
         device for operations like attach and detach.
     :ivar int size: The size, in bytes, of the block device.
-    :ivar unicode storage_backend_id: An opaque identifier for the node to
-        which the volume is attached or ``None`` if it is currently unattached.
-        The identifier is supplied by the ``IBlockDeviceAPI`` based on the
-        underlying infrastructure services (for example, if the cluster runs on
-        AWS, this is very likely an EC2 instance id).
+    :ivar unicode attached_to: An opaque identifier for the node to which the
+        volume is attached or ``None`` if it is currently unattached.  The
+        identifier is supplied by the ``IBlockDeviceAPI.compute_instance_id``
+        method based on the underlying infrastructure services (for example, if
+        the cluster runs on AWS, this is very likely an EC2 instance id).
     :ivar UUID dataset_id: The Flocker dataset ID associated with this volume.
     """
     blockdevice_id = field(type=unicode, mandatory=True)
     size = field(type=int, mandatory=True)
-    storage_backend_id = field(
+    attached_to = field(
         type=(unicode, type(None)), initial=None, mandatory=True
     )
     dataset_id = field(type=UUID, mandatory=True)
@@ -796,7 +796,7 @@ class CreateBlockDeviceDataset(PRecord):
             block_device_id=volume.blockdevice_id,
             dataset_id=volume.dataset_id,
             block_device_size=volume.size,
-            block_device_compute_instance_id=volume.storage_backend_id,
+            block_device_compute_instance_id=volume.attached_to,
         ).write(_logger)
         return succeed(None)
 
@@ -835,7 +835,7 @@ class IBlockDeviceAsyncAPI(Interface):
         See ``IBlockDeviceAPI.attach_volume``.
 
         :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` with a
-            ``storage_backend_id`` attribute set to ``storage_backend_id``.
+            ``attached_to`` attribute set to ``storage_backend_id``.
         """
 
     def detach_volume(blockdevice_id):
@@ -880,7 +880,7 @@ class IBlockDeviceAPI(Interface):
         """
         Get an identifier for this node.
 
-        This will be compared against ``BlockDeviceVolume.storage_backend_id``
+        This will be compared against ``BlockDeviceVolume.attached_to``
         to determine which volumes are locally attached and it will be used
         with ``attach_volume`` to locally attach volumes.
 
@@ -922,7 +922,7 @@ class IBlockDeviceAPI(Interface):
         :param unicode blockdevice_id: The unique identifier for the block
             device being attached.
         :param unicode storage_backend_id: An identifier like the one returned
-            by the ``storage_backend_id`` method indicating the node to which
+            by the ``compute_instance_id`` method indicating the node to which
             to attach the volume.
 
         :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
@@ -930,7 +930,7 @@ class IBlockDeviceAPI(Interface):
         :raises AlreadyAttachedVolume: If the supplied ``blockdevice_id`` is
             already attached.
 
-        :returns: A ``BlockDeviceVolume`` with a ``storage_backend_id``
+        :returns: A ``BlockDeviceVolume`` with a ``attached_to``
             attribute set to ``storage_backend_id``.
         """
 
@@ -1000,7 +1000,7 @@ class _SyncToThreadedAsyncAPIAdapter(PRecord):
 
 
 def _blockdevicevolume_from_dataset_id(dataset_id, size,
-                                       storage_backend_id=None):
+                                       attached_to=None):
     """
     Create a new ``BlockDeviceVolume`` with a ``blockdevice_id`` derived
     from the given ``dataset_id``.
@@ -1013,13 +1013,13 @@ def _blockdevicevolume_from_dataset_id(dataset_id, size,
     ``BlockDeviceVolume``.
     """
     return BlockDeviceVolume(
-        size=size, storage_backend_id=storage_backend_id,
+        size=size, attached_to=attached_to,
         dataset_id=dataset_id, blockdevice_id=u"block-{0}".format(dataset_id),
     )
 
 
 def _blockdevicevolume_from_blockdevice_id(blockdevice_id, size,
-                                           storage_backend_id=None):
+                                           attached_to=None):
     """
     Create a new ``BlockDeviceVolume`` with a ``dataset_id`` derived from
     the given ``blockdevice_id``.
@@ -1033,7 +1033,7 @@ def _blockdevicevolume_from_blockdevice_id(blockdevice_id, size,
     # Strip the "block-" prefix we added.
     dataset_id = UUID(blockdevice_id[6:])
     return BlockDeviceVolume(
-        size=size, storage_backend_id=storage_backend_id,
+        size=size, attached_to=attached_to,
         dataset_id=dataset_id,
         blockdevice_id=blockdevice_id,
     )
@@ -1217,7 +1217,7 @@ class LoopbackBlockDeviceAPI(object):
         documentation.
         """
         volume = self._get(blockdevice_id)
-        if volume.storage_backend_id is None:
+        if volume.attached_to is None:
             old_path = self._unattached_directory.child(blockdevice_id)
             host_directory = self._attached_directory.child(
                 storage_backend_id.encode("ascii"),
@@ -1231,7 +1231,7 @@ class LoopbackBlockDeviceAPI(object):
             # The --find option allocates the next available /dev/loopX device
             # name to the device.
             check_output(["losetup", "--find", new_path.path])
-            attached_volume = volume.set(storage_backend_id=storage_backend_id)
+            attached_volume = volume.set(attached_to=storage_backend_id)
             return attached_volume
 
         raise AlreadyAttachedVolume(blockdevice_id)
@@ -1242,7 +1242,7 @@ class LoopbackBlockDeviceAPI(object):
         directory and release the loopback device backed by that file.
         """
         volume = self._get(blockdevice_id)
-        if volume.storage_backend_id is None:
+        if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
         # ``losetup --detach`` only if the file was used for a loop device.
@@ -1253,7 +1253,7 @@ class LoopbackBlockDeviceAPI(object):
             ])
 
         volume_path = self._attached_directory.descendant([
-            volume.storage_backend_id.encode("ascii"),
+            volume.attached_to.encode("ascii"),
             volume.blockdevice_id.encode("ascii"),
         ])
         new_path = self._unattached_directory.child(
@@ -1307,7 +1307,7 @@ class LoopbackBlockDeviceAPI(object):
                 volume = _blockdevicevolume_from_blockdevice_id(
                     blockdevice_id=blockdevice_id,
                     size=child.getsize(),
-                    storage_backend_id=compute_instance_id,
+                    attached_to=compute_instance_id,
                 )
                 volumes.append(volume)
 
@@ -1315,11 +1315,11 @@ class LoopbackBlockDeviceAPI(object):
 
     def get_device_path(self, blockdevice_id):
         volume = self._get(blockdevice_id)
-        if volume.storage_backend_id is None:
+        if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
         volume_path = self._attached_directory.descendant(
-            [volume.storage_backend_id.encode("ascii"),
+            [volume.attached_to.encode("ascii"),
              volume.blockdevice_id.encode("ascii")]
         )
         # May be None if the file hasn't been used for a loop device.
@@ -1403,7 +1403,7 @@ class BlockDeviceDeployer(PRecord):
                 volume.dataset_id
             for volume
             in volumes
-            if volume.storage_backend_id == compute_instance_id
+            if volume.attached_to == compute_instance_id
         }
         return {
             FilePath(partition.mountpoint):
@@ -1428,16 +1428,16 @@ class BlockDeviceDeployer(PRecord):
             volume.dataset_id: api.get_device_path(volume.blockdevice_id)
             for volume
             in volumes
-            if volume.storage_backend_id == compute_instance_id
+            if volume.attached_to == compute_instance_id
         }
 
         for volume in volumes:
             dataset_id = unicode(volume.dataset_id)
-            if volume.storage_backend_id == compute_instance_id:
+            if volume.attached_to == compute_instance_id:
                 manifestations[dataset_id] = _manifestation_from_volume(
                     volume
                 )
-            elif volume.storage_backend_id is None:
+            elif volume.attached_to is None:
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         system_mounts = self._get_system_mounts(volumes, compute_instance_id)

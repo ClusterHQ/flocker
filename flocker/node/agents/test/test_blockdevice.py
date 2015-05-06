@@ -192,7 +192,7 @@ def detach_destroy_volumes(api):
     volumes = api.list_volumes()
 
     for volume in volumes:
-        if volume.storage_backend_id is not None:
+        if volume.attached_to is not None:
             api.detach_volume(volume.blockdevice_id)
 
         api.destroy_volume(volume.blockdevice_id)
@@ -1307,7 +1307,7 @@ class IBlockDeviceAPITestsMixin(object):
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
-            storage_backend_id=self.this_node,
+            attached_to=self.this_node,
             dataset_id=dataset_id
         )
         attached_volume = self.api.attach_volume(
@@ -1328,7 +1328,7 @@ class IBlockDeviceAPITestsMixin(object):
         expected_volume = BlockDeviceVolume(
             blockdevice_id=new_volume.blockdevice_id,
             size=new_volume.size,
-            storage_backend_id=self.this_node,
+            attached_to=self.this_node,
             dataset_id=dataset_id,
         )
         self.api.attach_volume(
@@ -1571,7 +1571,7 @@ class IBlockDeviceAPITestsMixin(object):
         self.api.detach_volume(volume.blockdevice_id)
 
         self.assertEqual(
-            {unrelated, volume.set(storage_backend_id=None)},
+            {unrelated, volume.set(attached_to=None)},
             set(self.api.list_volumes())
         )
 
@@ -1957,7 +1957,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
 
         blockdevice_volume = _blockdevicevolume_from_dataset_id(
             size=expected_size,
-            storage_backend_id=this_node,
+            attached_to=this_node,
             dataset_id=expected_dataset_id,
         )
 
@@ -2509,7 +2509,7 @@ class DetachVolumeTests(
         self.successResultOf(run_state_change(change, deployer))
 
         [listed_volume] = api.list_volumes()
-        self.assertIs(None, listed_volume.storage_backend_id)
+        self.assertIs(None, listed_volume.attached_to)
 
 
 class DestroyVolumeInitTests(
@@ -2649,7 +2649,7 @@ class CreateBlockDeviceDatasetTests(
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
-            dataset_id=dataset_id, storage_backend_id=compute_instance_id,
+            dataset_id=dataset_id, attached_to=compute_instance_id,
             size=maximum_size,
         )
 
@@ -2927,7 +2927,7 @@ class AttachVolumeTests(
         self.successResultOf(run_state_change(change, deployer))
 
         expected_volume = volume.set(
-            storage_backend_id=api.compute_instance_id()
+            attached_to=api.compute_instance_id()
         )
         self.assertEqual([expected_volume], api.list_volumes())
 
