@@ -62,23 +62,26 @@ def task_install_cli(distribution, package_source=PackageSource()):
         base_url = None
     if distribution == 'ubuntu-14.04':
         commands = [
-            # Ensure add-apt-repository command is available
-            run_from_args([
-                "apt-get", "-y", "install", "software-properties-common"]),
-            run_from_args([
+            # Ensure add-apt-repository command and HTTPS URLs are supported
+            sudo_from_args([
+                "apt-get", "-y", "install", "apt-transport-https",
+                "software-properties-common"]),
+            # TODO - use clusterhq-archive rather than -testing
+            # TODO - use ARCHIVE_BUCKET variable
+            sudo_from_args([
                 'add-apt-repository', '-y',
-                'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'  # noqa
+                'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu 14.04/amd64/'  # noqa
                 ])
             ]
 
         if base_url:
             # Add BuildBot repo for running tests
-            commands.append(run_from_args([
+            commands.append(sudo_from_args([
                 "add-apt-repository", "-y", "deb {} /".format(base_url)]))
 
         commands += [
             # Update to read package info from new repos
-            run_from_args([
+            sudo_from_args([
                 "apt-get", "update"]),
             ]
 
@@ -89,7 +92,7 @@ def task_install_cli(distribution, package_source=PackageSource()):
             package = 'clusterhq-flocker-cli'
 
         # Install Flocker node and all dependencies
-        commands.append(run_from_args([
+        commands.append(sudo_from_args([
             'apt-get', '-y', '--force-yes', 'install', package]))
 
         return sequence(commands)
@@ -125,8 +128,9 @@ def task_install_cli(distribution, package_source=PackageSource()):
 
 
 def install_cli(package_source, node):
+    # TODO - change the username based on distribution and cloud environment
     return run_remotely(
-        'root', node.address,
+        'ubuntu', node.address,
         task_install_cli(node.distribution, package_source))
 
 
@@ -422,9 +426,10 @@ def task_install_flocker(
         base_url = None
     if distribution == 'ubuntu-14.04':
         commands = [
-            # Ensure add-apt-repository command is available
+            # Ensure add-apt-repository command and HTTPS URLs are supported
             run_from_args([
-                "apt-get", "-y", "install", "software-properties-common"]),
+                "apt-get", "-y", "install", "apt-transport-https",
+                "software-properties-common"]),
             # ZFS not available in base Ubuntu - add ZFS repo
             run_from_args([
                 "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
