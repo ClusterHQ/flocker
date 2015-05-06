@@ -16,7 +16,8 @@ from twisted.python.usage import Options, UsageError
 from zope.interface import implementer
 
 from ..common.script import (ICommandLineScript,
-                             FlockerScriptRunner)
+                             FlockerScriptRunner,
+                             NullLoggingPolicy)
 
 from ._ca import (RootCredential, ControlCredential, NodeCredential,
                   CertificateAlreadyExistsError, KeyAlreadyExistsError,
@@ -288,4 +289,4 @@ class CAScript(object):
 
 def flocker_ca_main():
     return FlockerScriptRunner(
-        CAScript(), CAOptions, logging=False).main()
+        CAScript(), CAOptions, logging_policy=NullLoggingPolicy()).main()

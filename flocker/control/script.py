@@ -14,7 +14,7 @@ from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
 from ..common.script import (
-    FlockerScriptRunner, main_for_service)
+    FlockerScriptRunner, main_for_service, StdoutLoggingPolicy)
 from ._protocol import ControlAMPService
 
 
@@ -57,4 +57,5 @@ def flocker_control_main():
     return FlockerScriptRunner(
         script=ControlScript(),
         options=ControlOptions,
+        logging_policy=StdoutLoggingPolicy(),
     ).main()

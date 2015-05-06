@@ -20,7 +20,9 @@ from ..volume.service import (
 from ..volume.script import flocker_volume_options
 from ..common.script import (
     ICommandLineScript,
-    FlockerScriptRunner, main_for_service)
+    FlockerScriptRunner, main_for_service,
+    StdoutLoggingPolicy,
+    )
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
@@ -100,6 +102,7 @@ def flocker_zfs_agent_main():
     return FlockerScriptRunner(
         script=VolumeScript(ZFSAgentScript()),
         options=ZFSAgentOptions,
+        logging_policy=StdoutLoggingPolicy(),
     ).main()
 
 
@@ -230,6 +233,7 @@ def flocker_dataset_agent_main():
     return FlockerScriptRunner(
         script=agent_script,
         options=DatasetAgentOptions,
+        logging_policy=StdoutLoggingPolicy(),
     ).main()
 
 
@@ -246,4 +250,5 @@ def flocker_container_agent_main():
     return FlockerScriptRunner(
         script=agent_script,
         options=ContainerAgentOptions,
+        logging_policy=StdoutLoggingPolicy(),
     ).main()

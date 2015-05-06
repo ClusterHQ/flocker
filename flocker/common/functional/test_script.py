@@ -79,14 +79,16 @@ class FlockerScriptRunnerTests(TestCase):
         """
         code = b'''\
 from twisted.python.usage import Options
-from flocker.common.script import FlockerScriptRunner
+from flocker.common.script import FlockerScriptRunner, StdoutLoggingPolicy
 
 from flocker.common.functional.test_script import {}
 
-FlockerScriptRunner({}(), Options).main()
+FlockerScriptRunner({}(), Options, logging_policy=StdoutLoggingPolicy()).main()
 '''.format(script.__name__, script.__name__)
         d = getProcessOutput(sys.executable, [b"-c", code], env=os.environ,
                              errortoo=True)
+        from twisted.python import log
+        d.addCallback(lambda _: (_, log.msg(_))[0])
         d.addCallback(lambda data: map(loads, data.splitlines()))
         return d
 

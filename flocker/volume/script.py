@@ -15,7 +15,8 @@ from .service import (
     Volume, VolumeScript, ICommandLineVolumeScript, VolumeName,
     )
 from ..common.script import (
-    FlockerScriptRunner
+    FlockerScriptRunner,
+    NullLoggingPolicy,
     )
 
 
@@ -248,5 +249,5 @@ def flocker_volume_main():
     return FlockerScriptRunner(
         script=VolumeScript(VolumeManagerScript()),
         options=VolumeOptions,
-        logging=False,
+        logging=NullLoggingPolicy(),
     ).main()

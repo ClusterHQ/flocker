@@ -1,12 +1,16 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.common.test.test_script -*-
 
 """Helpers for flocker shell commands."""
 
 import sys
 
+from pyrsistent import PRecord, field
+
 from eliot import MessageType, fields, Logger
 from eliot.logwriter import ThreadedFileWriter
 
+from twisted.application.service import Service, MultiService
 from twisted.internet import task, reactor as global_reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
@@ -68,7 +72,46 @@ TWISTED_LOG_MESSAGE = MessageType("twisted:log",
                                   u"A log message from Twisted.")
 
 
-class EliotObserver(object):
+def eliot_logging_service(log_file, reactor):
+    service = MultiService()
+    ThreadedFileWriter(log_file, reactor).setServiceParent(service)
+    EliotObserver().setServiceParent(service)
+    return service
+
+
+class ILoggingPolicy(Interface):
+    """
+    Logging policy for flocker commans.
+    """
+    def service(reactor):
+        """
+        Get a service that controls logging.
+
+        :param reactor: Reactor to use.
+
+        :return IService:
+        """
+
+
+class StdoutLoggingPolicy(PRecord):
+    """
+    Logging policy that logs to standard output.
+
+    :ivar sys_module: An optional ``sys`` like module for use in
+        testing. Defaults to ``sys``.
+    """
+    sys_module = field(mandatory=True, initial=sys)
+
+    def service(self, reactor):
+        return eliot_logging_service(self.sys_module.stdout, reactor)
+
+
+class NullLoggingPolicy(object):
+    def service(self, reactor):
+        return Service()
+
+
+class EliotObserver(Service):
     """
     A Twisted log observer that logs to Eliot.
     """
@@ -89,10 +132,11 @@ class EliotObserver(object):
         message = unicode(textFromEventDict(msg), "charmap")
         TWISTED_LOG_MESSAGE(error=error, message=message).write(self.logger)
 
-    def start(self):
+    def startService(self):
         """
         Start capturing Twisted logs.
         """
+        # We don't bother shutting this down.
         startLoggingWithObserver(self)
 
 
@@ -105,19 +149,19 @@ class FlockerScriptRunner(object):
     """
     _react = staticmethod(task.react)
 
-    def __init__(self, script, options, logging=True,
+    def __init__(self, script, options, logging_policy,
                  reactor=None, sys_module=None):
         """
         :param ICommandLineScript script: The script object to be run.
         :param type options: ``usage.Options`` subclass.
-        :param logging: If ``True``, log to stdout; otherwise don't log.
+        :param logging_policy: If ``True``, log to stdout; otherwise don't log.
         :param reactor: Optional reactor to override default one.
         :param sys_module: An optional ``sys`` like module for use in
             testing. Defaults to ``sys``.
         """
         self.script = script
         self.options_class = _flocker_standard_options(options)
-        self.logging = logging
+        self.logging_policy = logging_policy
         if reactor is None:
             reactor = global_reactor
         self._reactor = reactor
@@ -151,16 +195,8 @@ class FlockerScriptRunner(object):
         # always do this first before any side-effecty code is run:
         options = self._parse_options(self.sys_module.argv[1:])
 
-        if self.logging:
-            log_writer = ThreadedFileWriter(self.sys_module.stdout,
-                                            self._reactor)
-            log_writer.startService()
-            observer = EliotObserver()
-            # We don't bother shutting this down; the process will exit
-            # once we return from this function. The ThreadedFileWriter in
-            # contrast needs to be shutdown because it starts a thread
-            # that will keep the process from exiting.
-            observer.start()
+        log_writer = self.logging_policy.service(reactor=self._reactor)
+        log_writer.startService()
 
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
@@ -177,8 +213,7 @@ class FlockerScriptRunner(object):
         try:
             self._react(run_and_log, [], _reactor=self._reactor)
         finally:
-            if self.logging:
-                log_writer.stopService()
+            log_writer.stopService()
 
 
 def _chain_stop_result(service, stop):

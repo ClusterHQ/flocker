@@ -4,8 +4,11 @@
 
 import sys
 
+from zope.interface.verify import verifyObject
+
 from eliot.testing import validateLogging, assertHasMessage
 
+from twisted.application.service import IService
 from twisted.internet import task
 from twisted.internet.defer import succeed
 from twisted.python import usage
@@ -17,16 +20,76 @@ from twisted.internet.defer import Deferred
 from twisted.application.service import Service
 from twisted.python.usage import Options
 
+# XXX: We shouldn't be using this private fake and Twisted probably
+# shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
+# https://twistedmatrix.com/trac/ticket/7527
+from twisted.test.test_task import _FakeReactor
+
 from ..script import (
     FlockerScriptRunner, main_for_service,
     EliotObserver, TWISTED_LOG_MESSAGE,
     _flocker_standard_options,
+    ILoggingPolicy,
+    StdoutLoggingPolicy,
+    NullLoggingPolicy,
     )
 from ...testtools import (
     help_problems, FakeSysModule,
     MemoryCoreReactor,
     )
 from ... import __version__
+
+
+def make_ilogging_policy_tests(fixture):
+    """
+    Create tests for :class:`ILoggingPolicy` implementeers.
+
+    :param fixture: Function that creates an :class:`ILoggingPolicy` instance.
+    """
+
+    class ILoggingPolicyTests(SynchronousTestCase):
+        """
+        """
+
+        def test_interface(self):
+            verifyObject(ILoggingPolicy, fixture())
+
+        def test_service(self):
+            verifyObject(IService, fixture().service(_FakeReactor()))
+
+    return ILoggingPolicy
+
+
+class StdoutLoggingPolicyTests(
+        make_ilogging_policy_tests(StdoutLoggingPolicy)):
+    """
+    Tests for :class:`StdoutLoggingPolicy`.
+    """
+
+    def test_sys_default(self):
+        """
+        `StdoutLoggingPolicy.sys_module` is `sys` by default.
+        """
+        self.assertIs(
+            sys,
+            StdoutLoggingPolicy().sys_module)
+
+    def test_sys_override(self):
+        """
+        `StdoutLoggingPolict.sys_module` can be overridden in the constructor.
+        """
+        dummy_sys = object()
+        self.assertIs(
+            dummy_sys,
+            StdoutLoggingPolicy(sys_module=dummy_sys).sys_module
+        )
+
+
+class NullLoggingPolicyTests(
+        make_ilogging_policy_tests(NullLoggingPolicy)):
+    """
+    Tests for :class:`NullLoggingPolicy`.
+    """
 
 
 class FlockerScriptRunnerInitTests(SynchronousTestCase):
@@ -39,7 +102,9 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         self.assertIs(
             sys,
             FlockerScriptRunner(
-                script=None, options=Options).sys_module
+                script=None, options=Options,
+                logging_policy=NullLoggingPolicy(),
+                ).sys_module
         )
 
     def test_sys_override(self):
@@ -50,6 +115,7 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         self.assertIs(
             dummySys,
             FlockerScriptRunner(script=None, options=Options,
+                                logging_policy=NullLoggingPolicy(),
                                 sys_module=dummySys).sys_module
         )
 
@@ -59,7 +125,21 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         """
         self.assertIs(
             task.react,
-            FlockerScriptRunner(script=None, options=Options)._react
+            FlockerScriptRunner(script=None, options=Options,
+                                logging_policy=NullLoggingPolicy(),
+                                )._react
+        )
+
+    def test_logging_policy(self):
+        """
+        `FlockerScriptRunner.logging_policy` can be set in the constructor.
+        """
+        logging_policy = NullLoggingPolicy()
+        self.assertIs(
+            logging_policy,
+            FlockerScriptRunner(script=None, options=Options,
+                                logging_policy=logging_policy,
+                                ).logging_policy
         )
 
 
@@ -77,7 +157,8 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
                 self.parseOptionsArguments = arguments
 
         expectedArguments = [object(), object()]
-        runner = FlockerScriptRunner(script=None, options=OptionsSpy)
+        runner = FlockerScriptRunner(script=None, options=OptionsSpy,
+                                     logging_policy=NullLoggingPolicy())
         options = runner._parse_options(expectedArguments)
         self.assertEqual(expectedArguments, options.parseOptionsArguments)
 
@@ -99,7 +180,8 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
         fake_sys = FakeSysModule()
 
         runner = FlockerScriptRunner(script=None, options=FakeOptions,
-                                     sys_module=fake_sys)
+                                     sys_module=fake_sys,
+                                     logging_policy=NullLoggingPolicy())
         error = self.assertRaises(SystemExit, runner._parse_options, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
         errorText = fake_sys.stderr.getvalue()
@@ -131,14 +213,10 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         options = SpyOptions
         script = SpyScript()
         sys = FakeSysModule(argv=[b"flocker", b"--hello", b"world"])
-        # XXX: We shouldn't be using this private fake and Twisted probably
-        # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
-        # https://twistedmatrix.com/trac/ticket/7527
-        from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
         runner = FlockerScriptRunner(script, options,
                                      reactor=fakeReactor, sys_module=sys,
-                                     logging=False)
+                                     logging_policy=NullLoggingPolicy())
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(b"world", script.arguments.value)
 
@@ -154,14 +232,10 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
 
         script = Script()
         sys = FakeSysModule(argv=[])
-        # XXX: We shouldn't be using this private fake and Twisted probably
-        # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
-        # https://twistedmatrix.com/trac/ticket/7527
-        from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
         runner = FlockerScriptRunner(script, usage.Options,
                                      reactor=fakeReactor, sys_module=sys,
-                                     logging=False)
+                                     logging_policy=NullLoggingPolicy())
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(sys.stdout.getvalue(), b"")
 
