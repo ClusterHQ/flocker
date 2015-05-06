@@ -679,14 +679,16 @@ def publish_artifacts_main(args, base_path, top_level):
                     scratch_directory=scratch_directory.child('pip'),
                     target_bucket=options['target'],
                 ),
-                publish_homebrew_recipe(
-                    homebrew_repo_url=options['homebrew-tap'],
-                    version=options['flocker-version'],
-                    scratch_directory=scratch_directory.child('homebrew'),
-                    source_bucket=options['target'],
-                ),
             ]),
         )
+
+        publish_homebrew_recipe(
+            homebrew_repo_url=options['homebrew-tap'],
+            version=options['flocker-version'],
+            source_bucket=options['target'],
+            scratch_directory=scratch_directory.child('homebrew'),
+        )
+
     except IncorrectSetuptoolsVersion:
         sys.stderr.write("%s: setuptools version must be 3.6.\n"
             % (base_path.basename(),))
