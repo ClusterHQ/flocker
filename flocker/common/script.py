@@ -3,8 +3,8 @@
 
 """Helpers for flocker shell commands."""
 
-import os
 import sys
+import os
 
 from pyrsistent import PRecord, field
 

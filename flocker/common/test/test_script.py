@@ -3,6 +3,7 @@
 """Tests for :module:`flocker.common.script`."""
 
 import sys
+import os
 
 from zope.interface.verify import verifyObject
 
@@ -46,23 +47,35 @@ from ... import __version__
 
 def make_ilogging_policy_tests(fixture):
     """
-    Create tests for :class:`ILoggingPolicy` implementeers.
+    Create tests for :class:`ILoggingPolicy` providers.
 
-    :param fixture: Function that creates an :class:`ILoggingPolicy` instance.
+    :param fixture: Function that creates an :class:`ILoggingPolicy` provider.
     """
 
     class ILoggingPolicyTests(SynchronousTestCase):
         """
+        Tests for :class:`ILoggingPolicy` providers.
         """
         def test_interface(self):
+            """
+            The logging policy provides :class:`ILoggingPolicy`.
+            """
             verifyObject(ILoggingPolicy, fixture(self))
 
         def test_service(self):
+            """
+            :class:`ILoggingPolicy.service` returns an object that provides
+            :class:`IService`.
+            """
             policy = fixture(self)
             options = policy.options_wrapper(TestOptions)()
             verifyObject(IService, policy.service(_FakeReactor(), options))
 
         def test_options(self):
+            """
+            :class:`ILoggingPolicy.options_wrapper` returns a subclass of
+            the :class:`Options` subclass passed to it.
+            """
             self.assertIsInstance(
                 fixture(self).options_wrapper(TestOptions)(),
                 TestOptions)
@@ -86,7 +99,7 @@ class StdoutLoggingPolicyTests(
 
     def test_sys_override(self):
         """
-        `StdoutLoggingPolict.sys_module` can be overridden in the constructor.
+        `StdoutLoggingPolicy.sys_module` can be overridden in the constructor.
         """
         dummy_sys = object()
         self.assertIs(
@@ -103,15 +116,19 @@ class NullLoggingPolicyTests(
 
 
 class FakeAppDirs(object):
+    """
+    Fake implementation of :class:`appdirs.Appdirs`.
+
+    :ivar bytes user_log_dir: The directory where logs for this application
+        should be written.
+    """
     def __init__(self, case):
+        """
+        :param case: Test case to use for creating temporary directory.
+        """
         log_dir = FilePath(case.mktemp())
         log_dir.createDirectory()
         self.user_log_dir = log_dir.path
-
-    def user_log_dir(self):
-        log_dir = self.base_dir.child('user-log-dir')
-        log_dir.createDirectory()
-        return log_dir.path
 
 
 class CLILoggingPolicyTests(
@@ -131,9 +148,9 @@ class CLILoggingPolicyTests(
             AppDirs("Flocker", "ClusterHQ").user_log_dir,
             options['log-dir'])
 
-    def test_sys_override(self):
+    def test_appdirs_override(self):
         """
-        `CLILoggingPolict`s default log-dir can be overridden in the
+        `CLILoggingPolicy`s default log-dir can be overridden in the
         constructor.
         """
         appdirs = FakeAppDirs(self)
@@ -142,6 +159,24 @@ class CLILoggingPolicyTests(
         self.assertIs(
             appdirs.user_log_dir,
             options['log-dir'])
+
+    def test_getpid_default(self):
+        """
+        `CLILoggingPolicy._getpid` is `os.getpid` by default.
+        """
+        policy = CLILoggingPolicy()
+        self.assertEqual(
+            os.getpid, policy._getpid)
+
+    def test_getpid_override(self):
+        """
+        `CLILoggingPolicy._getpid` can be overridden in the constructor.
+        """
+        def getpid():
+            return 5
+        policy = CLILoggingPolicy(_getpid=getpid)
+        self.assertEqual(
+            getpid, policy._getpid)
 
 
 class FlockerScriptRunnerInitTests(SynchronousTestCase):
