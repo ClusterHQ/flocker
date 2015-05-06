@@ -7,6 +7,7 @@ The command-line ``flocker-*-agent`` tools.
 
 from functools import partial
 from socket import socket
+from os import getpid
 
 from pyrsistent import PRecord, field
 
@@ -216,7 +217,15 @@ def flocker_dataset_agent_main():
     # AgentServiceFactory.get_service where various options passed on
     # the command line could alter what is created and how it is initialized.
     api = LoopbackBlockDeviceAPI.from_path(
-        b"/var/lib/flocker/loopback"
+        b"/var/lib/flocker/loopback",
+        # Make up a new value every time this script starts.  This will ensure
+        # different instances of the script using this backend always appear to
+        # be running on different nodes (as far as attachment is concerned).
+        # This is a good thing since it makes it easy to simulate a multi-node
+        # cluster by running multiple instances of the script.  Similar effect
+        # could be achieved by making this id a command line argument but that
+        # would be harder to implement and harder to use.
+        storage_backend_id=bytes(getpid()),
     )
     deployer_factory = partial(
         BlockDeviceDeployer,
