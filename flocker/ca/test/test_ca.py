@@ -366,7 +366,8 @@ def assert_has_extension(test, credential, name, value):
 
 
 class ControlCredentialTests(
-        make_credential_tests(ControlCredential, b"control-control.example.com",
+        make_credential_tests(ControlCredential,
+                              b"control-control.example.com",
                               hostname=b"control.example.com")):
     """
     Tests for ``flocker.ca._ca.ControlCredential``.
