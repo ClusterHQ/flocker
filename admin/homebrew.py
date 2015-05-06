@@ -67,10 +67,17 @@ def get_class_name(version):
     """
     class_name = list('Flocker' + version)
     disallowed_characters = ['-', '.']
-    return u''.join([
-        character.upper() if class_name[index - 1] in disallowed_characters
-        else character for index, character in enumerate(class_name) if
-        character not in disallowed_characters])
+    characters = []
+
+    for index, character in enumerate(class_name):
+        if character not in disallowed_characters:
+            if class_name[index - 1] in disallowed_characters:
+                characters.append(character.upper())
+            else:
+                characters.append(character)
+
+    return u''.join(characters)
+
 
 
 def get_resources(dependency_graph):
