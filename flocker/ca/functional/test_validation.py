@@ -24,7 +24,7 @@ from twisted.internet.protocol import Protocol, ServerFactory
 from ...testtools import find_free_port
 from .._ca import (
     RootCredential, UserCredential, NodeCredential, ControlCredential)
-from .._validation import ControlServicePolicy
+from .._validation import ControlServicePolicy, AMPContextFactory
 
 
 EXPECTED_STRING = b"Mr. Watson, come here; I want to see you."
@@ -103,18 +103,22 @@ def get_sets():
     return get_sets()
 
 
-def make_validation_tests(validating_client_endpoint_fixture,
-                          good_certificate_name):
+def make_validation_tests(context_factory_fixture,
+                          good_certificate_name,
+                          validator_is_client):
     """
     Create a ``TestCase`` for the validator of a specific certificate type.
 
-    :param validating_client_endpoint_fixture: Create a client endpoint
-         that implements the required validation given a
-         ``CredentialSet``, given a port number on localhost to connect to
-         and a ``CertificateSet``.
+    :param context_factory_fixture: Create a context factory that
+         implements the required validation given a ``CredentialSet``,
+         given a port number on localhost and a ``CertificateSet``. For
+         server context factories the port number can be ignored.
 
     :param str good_certificate_name: Name of certificate (an attribute of
         ``CredentialSet``) that should validate successfully.
+
+    :param bool validator_is_client: Whether or not the context factory
+         being tested is a client.
 
     :return TestCase: Tests for given validator.
     """
@@ -145,15 +149,27 @@ def make_validation_tests(validating_client_endpoint_fixture,
             credential = credential.credential
             private_certificate = PrivateCertificate.fromCertificateAndKeyPair(
                 credential.certificate, credential.keypair.keypair)
+            peer_context_factory = private_certificate.options()
+
             port = find_free_port()[1]
+            validating_context_factory = context_factory_fixture(
+                port, self.good_ca)
+
+            if validator_is_client:
+                client_context_factory = validating_context_factory
+                server_context_factory = peer_context_factory
+            else:
+                server_context_factory = validating_context_factory
+                client_context_factory = peer_context_factory
+
             server_endpoint = SSL4ServerEndpoint(reactor, port,
-                                                 private_certificate.options(),
+                                                 server_context_factory,
                                                  interface='127.0.0.1')
             d = server_endpoint.listen(
                 ServerFactory.forProtocol(SendingProtocol))
             d.addCallback(lambda port: self.addCleanup(port.stopListening))
-            validating_endpoint = validating_client_endpoint_fixture(
-                port, self.good_ca)
+            validating_endpoint = SSL4ClientEndpoint(
+                reactor, b"127.0.0.1", port, client_context_factory)
             client_protocol = ReceivingProtocol()
             result = connectProtocol(validating_endpoint, client_protocol)
             result.addCallback(lambda _: client_protocol.result)
@@ -213,18 +229,30 @@ def make_validation_tests(validating_client_endpoint_fixture,
 
 class ControlServicePolicyValidationTests(
         make_validation_tests(
-            lambda port, good_ca: SSL4ClientEndpoint(
-                reactor, b"127.0.0.1", port, ControlServicePolicy(
-                    ca_certificate=good_ca.root.credential.certificate,
-                    # This value is irrelevant to the test, but required:
-                    client_certificate=PrivateCertificate.fromCertificateAndKeyPair(
-                        good_ca.user.credential.certificate,
-                        good_ca.user.credential.keypair.keypair)).creatorForNetloc(
-                            b"127.0.0.1", port)),
-            # We expect control certificate to validate correctly:
-            "control")):
+            lambda port, good_ca: ControlServicePolicy(
+                ca_certificate=good_ca.root.credential.certificate,
+                # This value is irrelevant to the test, but required:
+                client_certificate=PrivateCertificate.fromCertificateAndKeyPair(
+                    good_ca.user.credential.certificate,
+                    good_ca.user.credential.keypair.keypair)).creatorForNetloc(
+                        b"127.0.0.1", port),
+            # We are testing a client that is validating the control
+            # service certificate:
+            "control", validator_is_client=True)):
     """
     Tests for validation of the control service certificate by clients.
     """
 
 
+class AMPContextFactoryValidationTests(
+        make_validation_tests(
+            lambda port, good_ca: AMPContextFactory(
+                ca_certificate=good_ca.root.credential.certificate,
+                # This value is irrelevant to the test, but required:
+                control_credential=good_ca.control),
+            # We are testing a server validating node certificates:
+            "node", validator_is_client=False)):
+    """
+    Tests for validation of node agents (i.e. AMP clients connecting to
+    the control service).
+    """
