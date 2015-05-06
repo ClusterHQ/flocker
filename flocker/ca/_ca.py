@@ -301,6 +301,33 @@ class UserCredential(PRecord):
     username = field(mandatory=True, type=unicode)
 
     @classmethod
+    def certificate_options(cls, username, path=None):
+        """
+        Create the security properties context factory for a ControlCredential
+        TLS connection using the authority certificate found in the supplied
+        path.
+
+        :param FilePath path: Absolute path to directory containing a cluster
+            root certificate file and control service certificate and private
+            key files.
+
+        :return CertificateOptions: A context factory that will use the
+            authority certificate as a trusted authority.
+        """
+        if path is None:
+            path = DEFAULT_CERTIFICATE_PATH
+        root_certificate_path = path.child(b"cluster.crt")
+        root_certificate = None
+        with root_certificate_path.open() as root_file:
+            root_certificate = Certificate.loadPEM(root_file.read())
+        user_credential = cls.from_path(path, username)
+        user_certificate = PrivateCertificate.fromCertificateAndKeyPair(
+            user_credential.credential.certificate,
+            user_credential.credential.keypair.keypair
+        )
+        return user_certificate.options(root_certificate)
+
+    @classmethod
     def from_path(cls, path, username):
         """
         Load a user certificate from a specified path.

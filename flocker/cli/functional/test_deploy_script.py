@@ -28,6 +28,8 @@ from ...control._clusterstate import ClusterStateService
 from ...control.test.test_config import (
     COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML)
 
+from ...ca import RootCredential, ControlCredential, UserCredential
+
 from ..script import _OK_MESSAGE
 
 from ... import __version__
@@ -43,6 +45,11 @@ class FlockerDeployTests(TestCase):
     """
     @_require_installed
     def setUp(self):
+        self.certificate_path = FilePath(self.mktemp())
+        self.certificate_path.makedirs()
+        authority = RootCredential.initialize(self.certificate_path, b"mycluster")
+        ControlCredential.initialize(self.certificate_path, authority)
+        UserCredential.initialize(self.certificate_path, authority, u"alice")
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
@@ -57,8 +64,10 @@ class FlockerDeployTests(TestCase):
                                      self.cluster_state_service).app
         api_root = Resource()
         api_root.putChild('v1', app.resource())
-        self.port = reactor.listenTCP(0, Site(api_root),
-                                      interface="127.0.0.1")
+        self.port = reactor.listenSSL(
+            0, Site(api_root), ControlCredential.certificate_options(self.certificate_path),
+            interface="127.0.0.1"
+        )
         self.addCleanup(self.port.stopListening)
         self.port_number = self.port.getHost().port
 
@@ -85,6 +94,8 @@ class FlockerDeployTests(TestCase):
         deployment_config.setContent(safe_dump(deployment_config_yaml))
         return getProcessOutputAndValue(
             b"flocker-deploy", [
+                b"--certificate-path", self.certificate_path.path,
+                b"--api-user", b"alice",
                 b"--port", unicode(self.port_number).encode("ascii"),
                 b"localhost", deployment_config.path, app_config.path],
             env=environ)

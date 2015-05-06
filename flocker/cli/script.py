@@ -7,12 +7,16 @@ The command-line ``flocker-deploy`` tool.
 import sys
 from json import dumps
 
+from twisted.internet import reactor
 from twisted.internet.defer import succeed
+from twisted.internet.ssl import ClientContextFactory
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
+from twisted.web.client import Agent
 from twisted.web.http import OK
 
-from treq import post, json_content
+from treq import json_content
+from treq.client import HTTPClient
 
 from zope.interface import implementer
 
@@ -24,7 +28,7 @@ from characteristic import attributes
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..control.httpapi import REST_API_PORT
-
+from ..ca import RootCredential, UserCredential
 
 FEEDBACK_CLI_TEXT = (
     "\n\n"
@@ -36,6 +40,11 @@ _OK_MESSAGE = (
     b"The cluster configuration has been updated. It may take a short "
     b"while for changes to take effect, in particular if Docker "
     b"images need to be pulled.\n")
+
+
+class WebClientContextFactory(ClientContextFactory):
+    def getContext(self, hostname, port):
+        return ClientContextFactory.getContext(self)
 
 
 @attributes(['node', 'hostname'])
@@ -61,9 +70,13 @@ class DeployOptions(Options):
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
     optParameters = [["port", "p", REST_API_PORT,
-                      "The REST API port on the server.", int]]
+                      "The REST API port on the server.", int],
+                     ["certificate-path", "c", b"/etc/flocker", "Certificate path."],
+                     ["api-user", "a", b"user", "The API username."],]
 
     def parseArgs(self, control_host, deployment_config, application_config):
+        cert_path = FilePath(self["certificate-path"])
+        self["cert_opts"] = UserCredential.certificate_options(self["api-user"], path=cert_path)
         deployment_config = FilePath(deployment_config)
         application_config = FilePath(application_config)
 
@@ -117,9 +130,14 @@ class DeployScript(object):
         """
         body = dumps({"applications": options["application_config"],
                       "deployment": options["deployment_config"]})
-        posted = post(options["url"], data=body,
-                      headers={b"content-type": b"application/json"},
-                      persistent=False)
+        _treq_client = HTTPClient(
+            Agent(reactor, contextFactory=options["cert_opts"])
+        )
+        posted = _treq_client.post(
+            options["url"], data=body,
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
 
         def fail(msg):
             raise SystemExit(msg)
