@@ -1869,7 +1869,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(),
-            'Recipe for 0.3.0 at https://s3.amazonaws.com/bucket-name/python/Flocker-0.3.0.tar.gz')  # noqa
+            'Recipe for 0.3.0 at https://bucket-name.s3.amazonaws.com/python/Flocker-0.3.0.tar.gz')  # noqa
 
     def test_push_fails(self):
         """
