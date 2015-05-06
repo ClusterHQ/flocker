@@ -3,7 +3,6 @@
 """
 Test helpers for ``flocker.node.agents``.
 """
-from functools import partial
 import os
 import yaml
 
@@ -21,8 +20,10 @@ from .cinder import (
     wait_for_volume,
 )
 
+from .ebs import ec2_client
 
-DEFAULT_CLOUD_PROVIDER = 'rackspace'
+
+DEFAULT_OPENSTACK_PROVIDER = 'rackspace'
 
 
 @implementer(ICinderVolumeManager)
@@ -152,17 +153,16 @@ def make_inovavolumemanager_tests(client_factory):
     return Tests
 
 
-def client_from_environment(client_factory):
+def get_client(provider):
     """
-    Create an openstack API client using credentials from a config
-    file path which may be supplied as an environment variable.
+    Validate and load cloud provider's yml config file.
     Default to ``~/acceptance.yml`` in the current user home directory, since
     that's where buildbot puts its acceptance test credentials file.
 
-    :returns: An instance of ``keystoneclient.session.Session`` authenticated
-        using provider specific credentials found in ``CLOUD_CONFIG_FILE``.
     :raises: ``SkipTest`` if a ``CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
+
+    :returns: Loaded yml config.
     """
     config_file_path = os.environ.get('CLOUD_CONFIG_FILE')
     if config_file_path is not None:
@@ -176,13 +176,42 @@ def client_from_environment(client_factory):
             'for details of the expected format.'
         )
 
-    config = yaml.load(config_file.read())
-    provider_name = os.environ.get('CLOUD_PROVIDER', DEFAULT_CLOUD_PROVIDER)
-    provider_config = config[provider_name]
-    region_slug = provider_config.pop('region')
-    session_factory = SESSION_FACTORIES[provider_name]
-    session = session_factory(**provider_config)
-    return partial(client_factory, session=session, region_name=region_slug)
+    config = yaml.safe_load(config_file.read())
+
+    provider_env = os.environ.get('CLOUD_PROVIDER')
+    if provider == provider_env == 'aws':
+        provider_config = config[provider_env]
+        return ec2_client(**provider_config)
+    elif provider == 'openstack':
+        if provider_env in [DEFAULT_OPENSTACK_PROVIDER]:
+            provider_config = config[provider_env]
+            cinder_client_factory = SESSION_FACTORIES[provider_env]
+            return cinder_client_factory(**provider_config)
+
+    raise SkipTest(
+        'CLOUD_PROVIDER({!r}) is not {!r}.'.format(provider_env, provider)
+    )
+
+
+def ec2_client_from_environment():
+    """
+    Create an EC2 Boto client using credentials from a config
+    file path which may be supplied as an environment variable.
+    See ``load_config`` for details on where config is populated from.
+
+    :returns: An instance of EC2 Boto client
+        using provider specific credentials found in ``CLOUD_CONFIG_FILE``.
+    """
+    return get_client('aws')
+
+
+def cinder_client_from_environment():
+    """
+    Create a ``cinderclient.v1.client.Client`` using credentials from a config
+    file path which may be supplied as an environment variable.
+    See ``load_config`` for details on where config is populated from.
+    """
+    return get_client('openstack')
 
 
 def tidy_cinder_client_for_test(test_case):

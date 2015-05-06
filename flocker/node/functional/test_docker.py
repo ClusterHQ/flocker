@@ -36,14 +36,14 @@ from ..testtools import if_docker_configured, wait_for_unit_state
 
 
 def namespace_for_test(test_case):
-    namespace = u"%s-%s-%s" % (
-        test_case.__class__.__name__, test_case.id(), random_name())
-    namespace = namespace.replace(u".", u"-")
-    return namespace
+    return u"ns-" + random_name(test_case)
 
 
 class IDockerClientTests(make_idockerclient_tests(
-        lambda test_case: DockerClient(namespace=random_name()))):
+        lambda test_case: DockerClient(
+            namespace=namespace_for_test(test_case)
+        )
+)):
     """
     ``IDockerClient`` tests for ``DockerClient``.
     """
@@ -53,7 +53,10 @@ class IDockerClientTests(make_idockerclient_tests(
 
 
 class IDockerClientNamespacedTests(make_idockerclient_tests(
-        lambda test_case: NamespacedDockerClient(random_name()))):
+        lambda test_case: NamespacedDockerClient(
+            namespace=namespace_for_test(test_case)
+        )
+)):
     """
     ``IDockerClient`` tests for ``NamespacedDockerClient``.
     """
@@ -67,18 +70,26 @@ class GenericDockerClientTests(TestCase):
     Functional tests for ``DockerClient`` and other clients that talk to
     real Docker.
     """
-    @if_docker_configured
-    def setUp(self):
-        self.namespacing_prefix = u"%s-%s-%s--" % (self.__class__.__name__,
-                                                   self.id(), random_name())
-        self.namespacing_prefix = self.namespacing_prefix.replace(u".", u"-")
-
     clientException = APIError
 
+    @if_docker_configured
+    def setUp(self):
+        self.namespacing_prefix = namespace_for_test(self)
+
     def make_client(self):
-        # Some of the tests assume container name matches unit name, so we
-        # disable namespacing for these tests.
         return DockerClient(namespace=self.namespacing_prefix)
+
+    def create_container(self, client, name, image):
+        """
+        Create (but don't start) a container via the supplied client.
+
+        :param DockerClient client: The Docker API client.
+        :param unicode name: The container name.
+        :param unicode image: The image name.
+        """
+        container_name = client._to_container_name(name)
+        client._client.create_container(
+            name=container_name, image=image)
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
@@ -143,15 +154,17 @@ class GenericDockerClientTests(TestCase):
         self.assertEqual(client._client.base_url, b"http://127.0.0.1:2375")
 
     def test_add_starts_container(self):
-        """``DockerClient.add`` starts the container."""
-        name = random_name()
+        """
+        ``DockerClient.add`` starts the container.
+        """
+        name = random_name(self)
         return self.start_container(name)
 
     def test_correct_image_used(self):
         """
         ``DockerClient.add`` creates a container with the specified image.
         """
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(name)
 
         def started(_):
@@ -188,9 +201,42 @@ class GenericDockerClientTests(TestCase):
         timeout if the unit with that expected state is never listed or if that
         unit never reaches that state.
         """
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(unit_name=name, image_name="busybox:latest",
                                  expected_states=(u'inactive',))
+        return d
+
+    def test_list_with_missing_image(self):
+        """
+        ``DockerClient.list()`` can list containers whose image is missing.
+
+        The resulting output may be inaccurate, but that's OK: this only
+        happens for non-running containers, who at worst we're going to
+        restart anyway.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.child(b"Dockerfile.in").setContent(
+            b"FROM busybox\nCMD /bin/true\n")
+        image_name = DockerImageBuilder(test=self, source_dir=path,
+                                        cleanup=False).build()
+        name = random_name(self)
+        d = self.start_container(unit_name=name, image_name=image_name,
+                                 expected_states=(u'inactive',))
+
+        def stopped_container_exists(_):
+            # Remove the image:
+            docker_client = Client()
+            docker_client.remove_image(image_name, force=True)
+
+            # Should be able to still list the container:
+            client = self.make_client()
+            listed = client.list()
+            listed.addCallback(lambda results: self.assertIn(
+                (name, "inactive"),
+                [(unit.name, unit.activation_state) for unit in results]))
+            return listed
+        d.addCallback(stopped_container_exists)
         return d
 
     def test_dead_is_removed(self):
@@ -200,7 +246,7 @@ class GenericDockerClientTests(TestCase):
         We use a `busybox` image here, because it will exit immediately and
         reach an `inactive` substate of `dead`.
         """
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(unit_name=name, image_name="busybox:latest",
                                  expected_states=(u'inactive',))
 
@@ -261,7 +307,7 @@ class GenericDockerClientTests(TestCase):
         """
         expected_response = b'Hello world!\n'
         external_port = find_free_port()[1]
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(
             name, ports=[PortMap(internal_port=8080,
                                  external_port=external_port)])
@@ -308,7 +354,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
-        unit_name = random_name()
+        unit_name = random_name(self)
         expected_variables = frozenset({
             'key1': 'value1',
             'key2': 'value2',
@@ -337,16 +383,18 @@ CMD sh -c "trap \"\" 2; sleep 3"
         """
         The Docker image is pulled if it is unavailable locally.
         """
-        image = u"busybox:latest"
+        # Use an image that isn't likely to be in use by anything, since
+        # it's old, and isn't used by other tests:
+        image = u"busybox:ubuntu-12.04"
         # Make sure image is gone:
         docker = Client()
         try:
-            docker.remove_image(image)
+            docker.remove_image(image, force=True)
         except APIError as e:
             if e.response.status_code != 404:
                 raise
 
-        name = random_name()
+        name = random_name(self)
         client = self.make_client()
         self.addCleanup(client.remove, name)
         d = client.add(name, image)
@@ -359,7 +407,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         name.
         """
         docker = Client()
-        name = random_name()
+        name = random_name(self)
         client = self.make_client()
         self.addCleanup(client.remove, name)
         d = client.add(name, u"busybox:latest")
@@ -370,13 +418,39 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(added)
         return d
 
+    def test_null_environment(self):
+        """
+        A container that does not include any environment variables contains
+        an empty ``environment`` in the return ``Unit``.
+        """
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM scratch\n'
+            b'MAINTAINER info@clusterhq.com\n'
+            b'CMD ["/bin/doesnotexist"]'
+        )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+        client = self.make_client()
+        name = random_name(self)
+        self.create_container(client, name, image_name)
+        self.addCleanup(client.remove, name)
+        d = client.list()
+
+        def got_list(units):
+            unit = [unit for unit in units if unit.name == name][0]
+            self.assertIsNone(unit.environment)
+        d.addCallback(got_list)
+        return d
+
     def test_container_name(self):
         """
         The container name stored on returned ``Unit`` instances matches the
         expected container name.
         """
         client = self.make_client()
-        name = random_name()
+        name = random_name(self)
         self.addCleanup(client.remove, name)
         d = client.add(name, u"busybox:latest")
         d.addCallback(lambda _: client.list())
@@ -396,7 +470,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         environment variables, leaving the ``Unit`` with an Environment of
         None.
         """
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(name)
 
         def started(client):
@@ -425,7 +499,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
 
         https://registry.hub.docker.com/u/openshift/busybox-http/dockerfile/
         """
-        name = random_name()
+        name = random_name(self)
         environment = {
             'my_variable': 'some value',
             'another_variable': '12345'
@@ -463,7 +537,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
-        unit_name = random_name()
+        unit_name = random_name(self)
 
         path1 = FilePath(self.mktemp())
         path1.makedirs()
@@ -498,7 +572,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         available to that container.
         """
         MEMORY_100MB = 100000000
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(name, mem_limit=MEMORY_100MB)
 
         def started(_):
@@ -518,7 +592,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         constrained container can still use 100% CPU if other containers are
         idle. Default shares when unspecified is 1024.
         """
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(name, cpu_shares=512)
 
         def started(_):
@@ -535,7 +609,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         limits, returning integer 0 as the values for Memory and CpuShares from
         its API when inspecting such a container.
         """
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(name)
 
         def started(_):
@@ -566,7 +640,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
 
-        name = random_name()
+        name = random_name(self)
 
         data = FilePath(self.mktemp())
         data.makedirs()
@@ -649,7 +723,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         A container with custom command line is run with those arguments.
         """
         external_port = find_free_port()[1]
-        name = random_name()
+        name = random_name(self)
         d = self.start_container(
             name, image_name=u"busybox",
             command_line=[u"sh", u"-c", u"""\
@@ -686,7 +760,7 @@ class DockerClientTests(TestCase):
         The default namespace is `u"flocker--"`.
         """
         docker = Client()
-        name = random_name()
+        name = random_name(self)
         client = DockerClient()
         self.addCleanup(client.remove, name)
         d = client.add(name, u"busybox:latest")
@@ -702,12 +776,12 @@ class DockerClientTests(TestCase):
         namespace = namespace_for_test(self)
         flocker_docker_client = DockerClient(namespace=namespace)
 
-        name1 = random_name()
+        name1 = random_name(self)
         adding_unit1 = flocker_docker_client.add(
             name1, u'openshift/busybox-http-app')
         self.addCleanup(flocker_docker_client.remove, name1)
 
-        name2 = random_name()
+        name2 = random_name(self)
         adding_unit2 = flocker_docker_client.add(
             name2, u'openshift/busybox-http-app')
         self.addCleanup(flocker_docker_client.remove, name2)
@@ -749,6 +823,46 @@ class DockerClientTests(TestCase):
 
         return running_assertions
 
+    def error_passthrough_test(self, method_name):
+        """
+        If the given method name on the underyling ``Docker`` client has a
+        non-404 error, that gets passed through to ``Docker.list()``.
+
+        :param str method_name: Method of a docker ``Client``.
+        :return: ``Deferred`` firing on test success.
+        """
+        name = random_name(self)
+        client = DockerClient()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox:latest")
+
+        class Response(object):
+            status_code = 500
+            content = ""
+
+        def error(name):
+            raise APIError("", Response())
+
+        def added(_):
+            # Monekypatch cause triggering non-404 errors from
+            # inspect_container is hard.
+            setattr(client._client, method_name, error)
+            return client.list()
+        d.addCallback(added)
+        return self.assertFailure(d, APIError)
+
+    def test_list_error_inspecting_container(self):
+        """
+        If an error occurs inspecting a container it is passed through.
+        """
+        return self.error_passthrough_test("inspect_container")
+
+    def test_list_error_inspecting_image(self):
+        """
+        If an error occurs inspecting an image it is passed through.
+        """
+        return self.error_passthrough_test("inspect_image")
+
 
 class NamespacedDockerClientTests(GenericDockerClientTests):
     """
@@ -762,16 +876,28 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
     def make_client(self):
         return NamespacedDockerClient(self.namespace)
 
+    def create_container(self, client, name, image):
+        """
+        Create (but don't start) a container via the supplied client.
+
+        :param DockerClient client: The Docker API client.
+        :param unicode name: The container name.
+        :param unicode image: The image name.
+        """
+        container_name = client._client._to_container_name(name)
+        client._client._client.create_container(
+            name=container_name, image=image)
+
     def test_isolated_namespaces(self):
         """
         Containers in one namespace are not visible in another namespace.
         """
-        client = NamespacedDockerClient(random_name())
-        client2 = NamespacedDockerClient(random_name())
-        name = random_name()
+        client = NamespacedDockerClient(namespace=namespace_for_test(self))
+        client2 = NamespacedDockerClient(namespace=namespace_for_test(self))
+        name = random_name(self)
 
-        d = client.add(name, u"busybox:latest")
         self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox:latest")
         d.addCallback(lambda _: client2.list())
         d.addCallback(self.assertEqual, set())
         return d

@@ -7,6 +7,7 @@ import string
 from subprocess import check_output
 import time
 from uuid import UUID
+from subprocess import check_output
 
 from bitmath import Byte, GB
 
@@ -175,6 +176,13 @@ class CinderBlockDeviceAPI(object):
         self.host_map = host_map
         self.reverse_host_map = dict((v, k) for k, v in host_map.items())
 
+    def compute_instance_id(self):
+        """
+        Look up the Xen instance ID for this node.
+        """
+        command = [b"xenstore-read", b"name"]
+        return check_output(command).strip().decode("ascii")
+
     def create_volume(self, dataset_id, size):
         """
         Create a block device using the ICinderVolumeManager.
@@ -304,7 +312,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume, host_map):
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
         size=int(GB(cinder_volume.size).to_Byte().value),
-        host=flocker_host,
+        attached_to=flocker_host,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
 
