@@ -8,6 +8,7 @@ from uuid import uuid4, UUID
 
 from pyrsistent import pmap, thaw
 
+from twisted.internet.ssl import Certificate, PrivateCertificate
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from twisted.python.filepath import FilePath
@@ -23,7 +24,9 @@ from klein import Klein
 
 from pyrsistent import discard
 
-from ..ca import ControlCredential
+from ._protocol import tls_context_factory
+
+from ..ca import UserCredential, DEFAULT_CERTIFICATE_PATH
 
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
@@ -84,6 +87,20 @@ DATASET_IN_USE = make_bad_request(
 
 
 _UNDEFINED_MAXIMUM_SIZE = object()
+
+
+class WebClientContextFactory(object):
+    """
+    Context factory wrapper for HTTPS requests via `twisted.web.client.Agent`.
+    """
+    def __init__(self, context_factory):
+        """
+        :param ContextFactory context_factory: The context factory to wrap.
+        """
+        self.context_factory = context_factory
+
+    def getContext(self, hostname, port):
+        return self.context_factory.getContext()
 
 
 class ConfigurationAPIUserV1(object):
@@ -1029,6 +1046,36 @@ def api_dataset_from_dataset_and_node(dataset, node_uuid):
     return result
 
 
+def tls_user_context_factory(path, username=u"client"):
+    """
+    Create the security properties context factory for a UserCredential
+    TLS connection using the authority certificate found in the supplied
+    path.
+
+    :param FilePath path: Absolute path to directory containing a cluster
+        root certificate file and control service certificate and private
+        key files.
+
+    :param unicode username: The API username this context factory is for.
+
+    :return CertificateOptions: A context factory that will use the
+        authority certificate as a trusted authority.
+    """
+    username = username.decode("utf-8")
+    if path is None:
+        path = DEFAULT_CERTIFICATE_PATH
+    root_certificate_path = path.child(b"cluster.crt")
+    root_certificate = None
+    with root_certificate_path.open() as root_file:
+        root_certificate = Certificate.loadPEM(root_file.read())
+    user_credential = UserCredential.from_path(path, username)
+    user_certificate = PrivateCertificate.fromCertificateAndKeyPair(
+        user_credential.credential.certificate,
+        user_credential.credential.keypair.keypair
+    )
+    return user_certificate.options(root_certificate)
+
+
 def create_api_service(persistence_service, cluster_state_service, endpoint,
                        certificate_path=None):
     """
@@ -1043,8 +1090,7 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
     :param endpoint: Twisted endpoint to listen on.
 
     :param FilePath certificate_path: Absolute path to directory containing
-        the cluster root certificate and the control service's certificate
-        and private key.
+        the control service's certificate and private key.
 
     :return: Service that will listen on the endpoint using HTTP API server.
     """
@@ -1052,10 +1098,11 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
     user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
     api_root.putChild('v1', user.app.resource())
     api_root._v1_user = user  # For unit testing purposes, alas
+    context_factory = tls_context_factory(certificate_path)
     return StreamServerEndpointService(
         endpoint,
         TLSMemoryBIOFactory(
-            ControlCredential.certificate_options(certificate_path),
+            context_factory,
             False,
             Site(api_root)
         )

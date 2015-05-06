@@ -39,6 +39,8 @@ from twisted.web.http_headers import Headers
 
 from flocker.restapi._schema import getValidator
 
+from ..control._protocol import tls_context_factory
+
 from ..ca import RootCredential, ControlCredential
 
 
@@ -188,14 +190,14 @@ def buildIntegrationTests(mixinClass, name, fixture):
             ControlCredential.initialize(path, authority)
             self.port = reactor.listenSSL(
                 0, Site(self.app.resource()),
-                ControlCredential.certificate_options(path)
+                tls_context_factory(path)
             )
             self.addCleanup(self.port.stopListening)
             portno = self.port.getHost().port
             self.agent = ProxyAgent(
                 SSL4ClientEndpoint(
                     reactor, "127.0.0.1",
-                    portno, ControlCredential.certificate_options(path)
+                    portno, tls_context_factory(path)
                 ),
                 reactor
             )

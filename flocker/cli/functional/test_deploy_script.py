@@ -23,6 +23,7 @@ from ...control import (
     FlockerConfiguration, model_from_configuration, NodeState)
 
 from ...control.httpapi import ConfigurationAPIUserV1
+from ...control._protocol import tls_context_factory
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.test.test_config import (
@@ -50,7 +51,7 @@ class FlockerDeployTests(TestCase):
         authority = RootCredential.initialize(
             self.certificate_path, b"mycluster")
         ControlCredential.initialize(self.certificate_path, authority)
-        UserCredential.initialize(self.certificate_path, authority, u"alice")
+        UserCredential.initialize(self.certificate_path, authority, u"client")
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
@@ -67,7 +68,7 @@ class FlockerDeployTests(TestCase):
         api_root.putChild('v1', app.resource())
         self.port = reactor.listenSSL(
             0, Site(api_root),
-            ControlCredential.certificate_options(self.certificate_path),
+            tls_context_factory(self.certificate_path),
             interface="127.0.0.1"
         )
         self.addCleanup(self.port.stopListening)
@@ -97,7 +98,6 @@ class FlockerDeployTests(TestCase):
         return getProcessOutputAndValue(
             b"flocker-deploy", [
                 b"--certificate-path", self.certificate_path.path,
-                b"--api-user", b"alice",
                 b"--port", unicode(self.port_number).encode("ascii"),
                 b"localhost", deployment_config.path, app_config.path],
             env=environ)

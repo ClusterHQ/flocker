@@ -4,6 +4,7 @@
 The command-line ``flocker-deploy`` tool.
 """
 
+import os
 import sys
 from json import dumps
 
@@ -25,8 +26,8 @@ from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..control.httpapi import REST_API_PORT
-from ..ca import UserCredential
+from ..control.httpapi import REST_API_PORT, WebClientContextFactory
+from ..control.httpapi import tls_user_context_factory
 
 FEEDBACK_CLI_TEXT = (
     "\n\n"
@@ -38,14 +39,6 @@ _OK_MESSAGE = (
     b"The cluster configuration has been updated. It may take a short "
     b"while for changes to take effect, in particular if Docker "
     b"images need to be pulled.\n")
-
-
-class WebClientContextFactory(object):
-    def __init__(self, context_factory):
-        self.context_factory = context_factory
-
-    def getContext(self, hostname, port):
-        return self.context_factory.getContext()
 
 
 @attributes(['node', 'hostname'])
@@ -70,11 +63,12 @@ class DeployOptions(Options):
                 "<control-host> <deployment.yml-path> <application.yml-path>"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
-    optParameters = [["port", "p", REST_API_PORT,
-                      "The REST API port on the server.", int],
-                     ["certificate-path", "c",
-                      b"/etc/flocker", "Certificate path."],
-                     ["api-user", "a", b"user", "The API username."], ]
+    optParameters = [
+        ["port", "p", REST_API_PORT,
+         "The REST API port on the server.", int],
+        ["certificate-path", "c",
+         None, "Certificate path, defaults to current directory."],
+    ]
 
     def parseArgs(self, control_host, deployment_config, application_config):
         deployment_config = FilePath(deployment_config)
@@ -114,9 +108,10 @@ class DeployOptions(Options):
                     error=str(e)
                 )
             )
+        if self["certificate-path"] is None:
+            self["certificate-path"] = os.getcwd()
         cert_path = FilePath(self["certificate-path"])
-        self["cert_opts"] = UserCredential.certificate_options(
-            self["api-user"], path=cert_path)
+        self["cert_opts"] = tls_user_context_factory(cert_path)
 
 
 @implementer(ICommandLineScript)
