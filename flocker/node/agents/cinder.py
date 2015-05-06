@@ -143,8 +143,9 @@ class CinderBlockDeviceAPI(object):
         # See http://wiki.christophchamp.com/index.php/Xenstore
         # $ sudo xenstore-read name
         # instance-6ddfb6c0-d264-4e77-846a-aa67e4fe89df
+        prefix = u"instance-"
         command = [b"xenstore-read", b"name"]
-        return check_output(command).strip().decode("ascii")
+        return check_output(command).strip().decode("ascii")[len(prefix):]
 
     def create_volume(self, dataset_id, size):
         """
