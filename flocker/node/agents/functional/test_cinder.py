@@ -17,15 +17,13 @@ from uuid import uuid4
 
 from bitmath import Byte
 
-from ....testtools import skip_except
-from ..cinder import cinder_api, wait_for_volume, _instance_uuid
+from ....testtools import REALISTIC_BLOCKDEVICE_SIZE, skip_except
+from ..cinder import cinder_api, wait_for_volume
 from ..testtools import tidy_cinder_client_for_test, tidy_nova_client_for_test
-from ..test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests, detach_destroy_volumes,
-    REALISTIC_BLOCKDEVICE_SIZE
 )
 
 
@@ -40,7 +38,6 @@ def cinderblockdeviceapi_for_test(test_case, cluster_id):
         by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
         are created during the course of ``test_case``
     """
-    local_instance_uuid = _instance_uuid()
     # Create the nova client last so that its cleanup method is
     # run first and detaches volumes before the cinder client
     # cleanup then deletes them.
@@ -51,9 +48,6 @@ def cinderblockdeviceapi_for_test(test_case, cluster_id):
         cinder_client=cinder_client,
         nova_client=nova_client,
         cluster_id=cluster_id,
-        host_map={
-            u'192.0.2.123': local_instance_uuid,
-        }
     )
     test_case.addCleanup(detach_destroy_volumes, cinder_blockdevice_api)
     return cinder_blockdevice_api

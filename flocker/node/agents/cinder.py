@@ -3,18 +3,15 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
-import string
 from subprocess import check_output
 import time
 from uuid import UUID
-from subprocess import check_output
 
 from bitmath import Byte, GB
 
 from keystoneclient_rackspace.v2_0 import RackspaceAuth
 from keystoneclient.session import Session
 
-from twisted.python.filepath import FilePath
 from zope.interface import implementer, Interface
 
 from .blockdevice import (
@@ -119,13 +116,13 @@ def wait_for_volume(volume_manager, expected_volume,
             )
 
 
-2@implementer(IBlockDeviceAPI)
+@implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
     in an OpenStack cluster using Cinder APIs.
     """
-    def __init__(self, cinder_volume_manager, nova_volume_manager, cluster_id, host_map):
+    def __init__(self, cinder_volume_manager, nova_volume_manager, cluster_id):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for interacting
             with Cinder API.
@@ -138,8 +135,6 @@ class CinderBlockDeviceAPI(object):
         self.cinder_volume_manager = cinder_volume_manager
         self.nova_volume_manager = nova_volume_manager
         self.cluster_id = cluster_id
-        self.host_map = host_map
-        self.reverse_host_map = dict((v, k) for k, v in host_map.items())
 
     def compute_instance_id(self):
         """
@@ -179,7 +174,6 @@ class CinderBlockDeviceAPI(object):
         # Use requested volume here, because it has the desired metadata.
         return _blockdevicevolume_from_cinder_volume(
             cinder_volume=requested_volume, 
-            host_map=self.reverse_host_map,
         )
 
     def list_volumes(self):
@@ -192,7 +186,9 @@ class CinderBlockDeviceAPI(object):
         flocker_volumes = []
         for cinder_volume in self.cinder_volume_manager.list():
             if _is_cluster_volume(self.cluster_id, cinder_volume):
-                flocker_volume = _blockdevicevolume_from_cinder_volume(cinder_volume, self.reverse_host_map)
+                flocker_volume = _blockdevicevolume_from_cinder_volume(
+                    cinder_volume
+                )
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
 
@@ -258,7 +254,7 @@ def _is_cluster_volume(cluster_id, cinder_volume):
     return False
 
 
-def _blockdevicevolume_from_cinder_volume(cinder_volume, host_map):
+def _blockdevicevolume_from_cinder_volume(cinder_volume):
     """
     :param Volume cinder_volume: The ``cinderclient.v1.volumes.Volume`` to
         convert.
@@ -271,14 +267,13 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume, host_map):
         # Nova and Cinder APIs return ID strings. Convert to UUID
         # before looking up.
         server_id = UUID(attachment_info['server_id'])
-        flocker_host = host_map[server_id]
     else:
-        flocker_host = None
-    
+        server_id = None
+
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
         size=int(GB(cinder_volume.size).to_Byte().value),
-        attached_to=flocker_host,
+        attached_to=server_id,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
 
@@ -308,7 +303,7 @@ SESSION_FACTORIES = {
 }
 
 
-def cinder_api(cinder_client, nova_client, cluster_id, host_map):
+def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
         whose ``volumes`` attribute will be supplied as the ``cinder_volume_manager``
@@ -323,5 +318,4 @@ def cinder_api(cinder_client, nova_client, cluster_id, host_map):
         cinder_volume_manager=cinder_client.volumes,
         nova_volume_manager=nova_client.volumes,
         cluster_id=cluster_id,
-        host_map=host_map,
     )
