@@ -144,8 +144,7 @@ class GetClassNameTests(SynchronousTestCase):
 
     def test_disallowed_at_end(self):
         """
-        If there is a letter following a disallowed character then it is
-        capitalised.
+        If there is a disallowed character at the end it is removed.
         """
         self.assertEqual(
             get_class_name(version='0.3.0-444-g05215b-'),
