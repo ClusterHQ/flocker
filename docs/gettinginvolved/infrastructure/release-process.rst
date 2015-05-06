@@ -49,6 +49,8 @@ Software
 Access
 ~~~~~~
 
+- Access to `Google Cloud Storage`_.
+
 - Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
@@ -56,7 +58,7 @@ Access
 
 - SSH access to ClusterHQ's GitHub repositories.
 
-.. note:: For a maintenance or documentation release, access to Atlas is not required.
+.. note:: For a maintenance or documentation release, access to Google Cloud Storage and Atlas is not required.
 
 .. _preparing-for-a-release:
 
@@ -88,7 +90,7 @@ Preparing For a Release
    This copies your local git configuration from ``~/.gitconfig``.
    If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
 
-   This copies your local configuration for `S3`_ from ``~/.aws``.
+   This copies your local configuration for `gsutil`_ and `S3`_ from ``~/.boto``.
    If this does not exist, a later step will create it.
 
    .. prompt:: bash $
@@ -97,7 +99,7 @@ Preparing For a Release
       cd flocker-${VERSION}
       vagrant up
       vagrant ssh -c "echo export VERSION=${VERSION} >> .bashrc"
-      if [ -d ~/.aws ]; then vagrant scp "~/.aws" /home/vagrant; fi
+      if [ -f ~/.boto ]; then vagrant scp "~/.boto" /home/vagrant; fi
       vagrant ssh -- -A
 
 #. Create a release branch, and create and activate a virtual environment:
@@ -204,14 +206,24 @@ Preparing For a Release
       git commit -am "Updated Vagrantfile"
       git push --set-upstream origin release/flocker-${VERSION}
 
-#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
+#. Set up Google Cloud Storage and Amazon S3 credentials:
 
-   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
-   This means that ``awscli`` may have correct defaults.
+   Creating the Vagrant machine attempts to copy the ``~/.boto`` configuration file from the host machine.
+
+   Run:
 
    .. prompt:: bash [vagrant@localhost]$
 
-      aws configure
+     gsutil ls gs:// s3://
+
+   If the credentials have been set up correctly, you should see ClusterHQ's ``gs://`` and ``s3://`` buckets.
+   If they have not, run:
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      gsutil config
+
+   and set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
 
 #. Update the staging documentation:
 
@@ -397,15 +409,15 @@ Release
       git merge origin/release/flocker-${VERSION}
       git push
 
-#. Copy the AWS configuration to your local home directory:
+#. Copy the ``boto`` configuration file to your local home directory:
 
-   If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
+   If the ``boto`` configuration is on your workstation it will not have to be recreated next time you do a release.
 
    .. prompt:: bash [vagrant@localhost]$,$ auto
 
       [vagrant@localhost]$ logout
       Connection to 127.0.0.1 closed.
-      $ vagrant scp default:/home/vagrant/.aws ~/
+      $ vagrant scp default:/home/vagrant/.boto ~/
 
 #. Submit the release pull request for review again.
 
@@ -460,6 +472,7 @@ Look at `existing issues relating to the release process <https://clusterhq.atla
 The issue(s) for the planned improvements should be put into the next sprint.
 
 
+.. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
