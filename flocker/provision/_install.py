@@ -131,6 +131,39 @@ def task_disable_selinux(distribution):
         raise NotImplementedError()
 
 
+def task_generate_certificate_authority(name):
+    """
+    Generate a root certificate with the supplied cluster name and
+    write to /etc/flocker/cluster.crt.
+    """
+    return sequence([
+        sudo_from_args(["flocker-ca", "initialize", name]),
+        sudo_from_args(["mv", "cluster.crt", "/etc/flocker/cluster.crt"]),
+    ])
+
+
+def task_generate_control_certificate(path=b"/etc/flocker"):
+    """
+    Generate a control certificate with the supplied CA path and
+    write to the same path.
+    """
+    return sudo_from_args([
+        "flocker-ca", "create-control-certificate",
+        "--inputpath", path, "--outputpath", path
+    ])
+
+
+def task_generate_node_certificate(path=b"/etc/flocker"):
+    """
+    Generate a node certificate with the supplied CA path and
+    write to the same path.
+    """
+    return sudo_from_args([
+        "flocker-ca", "create-node-certificate",
+        "--inputpath", path, "--outputpath", path
+    ])
+
+
 def task_enable_docker(distribution):
     """
     Start docker and configure it to start automatically.
