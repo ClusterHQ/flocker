@@ -5,10 +5,14 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipUnless
-from setuptools import __version__ as setuptools_version
+
+from gzip import GzipFile
+from StringIO import StringIO
 import tempfile
 from textwrap import dedent
+from unittest import skipUnless
+
+from setuptools import __version__ as setuptools_version
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import Repo
@@ -1130,6 +1134,9 @@ class UpdateRepoTests(SynchronousTestCase):
         """
         Calling :func:`update_repo` with real dpkg utilities creates a
         repository in S3.
+
+        The filenames in the respository metadata does not have the build directory
+        in them.
         """
         source_repo = FilePath(self.mktemp())
         source_repo.createDirectory()
@@ -1176,6 +1183,13 @@ class UpdateRepoTests(SynchronousTestCase):
         # This tests that CreateRepo creates the expected metadata files from
         # given RPMs, not that any metadata files are copied.
         self.assertEqual(expected_files, set(files_on_s3.keys()))
+
+        # The repository is build in self.packages_directory
+        # Ensure that that does not leak into the metadata.
+        packages_gz = files_on_s3[os.path.join(self.target_key, 'Packages.gz')]
+        with GzipFile(fileobj=StringIO(packages_gz), mode="r") as f:
+            packages_metadata = f.read()
+        self.assertNotIn(self.package_directory.path, packages_metadata)
 
 
 class UploadRPMsTests(SynchronousTestCase):
