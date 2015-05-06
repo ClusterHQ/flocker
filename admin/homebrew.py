@@ -198,7 +198,7 @@ end
 
 class HomebrewOptions(Options):
     """
-    Options for uploading packages.
+    Options for creating a Homebrew recipe.
     """
     optParameters = [
         ["flocker-version", None, None,
