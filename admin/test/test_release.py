@@ -6,6 +6,9 @@ Tests for ``admin.release``.
 
 import os
 from unittest import skipUnless
+from setuptools import __version__ as setuptools_version
+import tempfile
+from textwrap import dedent
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import Repo
@@ -17,18 +20,39 @@ from twisted.python.procutils import which
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import SynchronousTestCase
 
+from .. import release
+
 from ..release import (
-    upload_rpms, update_repo,
-    publish_docs, Environments, DOCUMENTATION_CONFIGURATIONS,
-    DocumentationRelease, NotTagged, NotARelease,
+    upload_python_packages, upload_rpms, update_repo,
+    publish_docs, Environments,
+    DocumentationRelease, DOCUMENTATION_CONFIGURATIONS, NotTagged, NotARelease,
     calculate_base_branch, create_release_branch,
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
+    UploadOptions, create_pip_index, upload_pip_index,
+    IncorrectSetuptoolsVersion, publish_homebrew_recipe, PushFailed,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 from ..yum import FakeYum, yum_dispatcher
 from hashlib import sha256
+
+
+def hard_linking_possible():
+    """
+    Return True if hard linking is possible in the current directory, else
+    return False.
+    """
+    scratch_directory = FilePath(tempfile.mkdtemp())
+    file = scratch_directory.child('src')
+    file.touch()
+    try:
+        os.link(file.path, scratch_directory.child('dst').path)
+        return True
+    except:
+        return False
+    finally:
+        scratch_directory.remove()
 
 
 class PublishDocsTests(SynchronousTestCase):
@@ -1187,38 +1211,6 @@ class UploadRPMsTests(SynchronousTestCase):
         self.target_bucket = 'test-target-bucket'
         self.build_server = 'http://test-build-server.example'
 
-    def test_upload_non_release_fails(self):
-        """
-        Calling :func:`upload_rpms` with a version that isn't a release fails.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={},
-        )
-        yum = FakeYum()
-
-        self.assertRaises(
-            NotARelease,
-            self.upload_rpms, aws, yum,
-            self.scratch_directory, self.target_bucket, '0.3.0-444-gf05215b',
-            self.build_server)
-
-    def test_upload_doc_release_fails(self):
-        """
-        Calling :func:`upload_rpms` with a documentation release version fails.
-        """
-        aws = FakeAWS(
-            routing_rules={},
-            s3_buckets={},
-        )
-        yum = FakeYum()
-
-        self.assertRaises(
-            DocumentationRelease,
-            self.upload_rpms, aws, yum,
-            self.scratch_directory, self.target_bucket, '0.3.0+doc1',
-            self.build_server)
-
     def test_development_repositories_created(self):
         """
         Calling :func:`upload_rpms` creates development repositories for
@@ -1403,6 +1395,110 @@ def create_fake_repository(test_case, files):
     return 'file://' + source_repo.path
 
 
+class UploadPythonPackagesTests(SynchronousTestCase):
+    """
+    Tests for :func:``upload_python_packages``.
+    """
+
+    def setUp(self):
+        self.target_bucket = 'test-target-bucket'
+        self.scratch_directory = FilePath(self.mktemp())
+        self.top_level = FilePath(self.mktemp())
+        self.top_level.makedirs()
+        self.aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                self.target_bucket: {},
+            })
+
+    def upload_python_packages(self):
+        """
+        Call :func:``upload_python_packages``, discarding output.
+
+        :param bytes version: Version to upload packages for.
+        See :py:func:`upload_python_packages` for other parameter
+        documentation.
+        """
+        dispatchers = [self.aws.get_dispatcher(), base_dispatcher]
+
+        with open(os.devnull, "w") as discard:
+            sync_perform(
+                ComposedDispatcher(dispatchers),
+                upload_python_packages(
+                    scratch_directory=self.scratch_directory,
+                    target_bucket=self.target_bucket,
+                    top_level=self.top_level,
+                    output=discard,
+                    error=discard,
+                )
+            )
+
+    @skipUnless(setuptools_version == "3.6", "setuptools must be version 3.6")
+    @skipUnless(hard_linking_possible(),
+                "Hard linking is not possible in the current directory.")
+    def test_distributions_uploaded(self):
+        """
+        Source and binary distributions of Flocker are uploaded to S3.
+        """
+        self.top_level.child('setup.py').setContent(
+            dedent("""
+                from setuptools import setup
+
+                setup(
+                    name="Flocker",
+                    version="{package_version}",
+                    py_modules=["Flocker"],
+                )
+                """).format(package_version='0.3.0')
+        )
+
+        self.upload_python_packages()
+
+        aws_keys = self.aws.s3_buckets[self.target_bucket].keys()
+        self.assertEqual(
+            sorted(aws_keys),
+            ['python/Flocker-0.3.0-py2-none-any.whl',
+             'python/Flocker-0.3.0.tar.gz'])
+
+    def test_setuptools_version_requirement(self):
+        """
+        When setuptools' version is not 3.6, an error is raised.
+        """
+        self.patch(
+            release, 'setuptools_version', '15.1')
+        self.assertRaises(
+            IncorrectSetuptoolsVersion,
+            self.upload_python_packages)
+
+
+class UploadOptionsTests(SynchronousTestCase):
+    """
+    Tests for :class:`UploadOptions`.
+    """
+
+    def test_must_be_release_version(self):
+          """
+          Trying to upload artifacts for a version which is not a release
+          fails.
+          """
+          options = UploadOptions()
+          self.assertRaises(
+              NotARelease,
+              options.parseOptions,
+              ['--flocker-version', '0.3.0-444-gf05215b'])
+
+
+    def test_documentation_release_fails(self):
+          """
+          Trying to upload artifacts for a documentation version fails.
+          """
+          options = UploadOptions()
+          self.assertRaises(
+              DocumentationRelease,
+              options.parseOptions,
+              ['--flocker-version', '0.3.0+doc1'])
+
+
 class CreateReleaseBranchOptionsTests(SynchronousTestCase):
     """
     Tests for :class:`CreateReleaseBranchOptions`.
@@ -1418,20 +1514,21 @@ class CreateReleaseBranchOptionsTests(SynchronousTestCase):
             options.parseOptions, [])
 
 
-def create_git_repository(test_case):
+def create_git_repository(test_case, bare=False):
     """
     Create a git repository with a ``master`` branch and ``README``.
 
     :param test_case: The ``TestCase`` calling this.
     """
     directory = FilePath(test_case.mktemp())
-    directory.child('README').makedirs()
-    directory.child('README').touch()
+    repository = Repo.init(path=directory.path, bare=bare)
 
-    repository = Repo.init(path=directory.path)
-    repository.index.add(['README'])
-    repository.index.commit('Initial commit')
-    repository.create_head('master')
+    if not bare:
+        directory.child('README').makedirs()
+        directory.child('README').touch()
+        repository.index.add(['README'])
+        repository.index.commit('Initial commit')
+        repository.create_head('master')
     return repository
 
 
@@ -1478,6 +1575,129 @@ class CreateReleaseBranchTests(SynchronousTestCase):
         master.checkout()
         create_release_branch(version='0.3.0', base_branch=branch)
         self.assertIn((u'NEW_FILE', 0), self.repo.index.entries)
+
+
+class CreatePipIndexTests(SynchronousTestCase):
+    """
+    Tests for :func:`create_pip_index`.
+    """
+    def setUp(self):
+        self.scratch_directory = FilePath(self.mktemp())
+        self.scratch_directory.makedirs()
+
+    def test_index_created(self):
+        """
+        A pip index file is created for all wheel files.
+        """
+        index = create_pip_index(
+            scratch_directory=self.scratch_directory,
+            packages=[
+                'Flocker-0.3.0-py2-none-any.whl',
+                'Flocker-0.3.1-py2-none-any.whl'
+            ]
+        )
+
+        expected = (
+            '<html>\nThis is an index for pip\n<div>'
+            '<a href="Flocker-0.3.0-py2-none-any.whl">'
+            'Flocker-0.3.0-py2-none-any.whl</a><br />\n</div><div>'
+            '<a href="Flocker-0.3.1-py2-none-any.whl">'
+            'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
+        )
+        self.assertEqual(expected, index.getContent())
+
+    def test_index_not_included(self):
+        """
+        The pip index file does not reference itself.
+        """
+        index = create_pip_index(
+            scratch_directory=self.scratch_directory,
+            packages=[
+                'Flocker-0.3.0-py2-none-any.whl',
+                'Flocker-0.3.1-py2-none-any.whl',
+                'index.html',
+            ]
+        )
+
+        expected = (
+            '<html>\nThis is an index for pip\n<div>'
+            '<a href="Flocker-0.3.0-py2-none-any.whl">'
+            'Flocker-0.3.0-py2-none-any.whl</a><br />\n</div><div>'
+            '<a href="Flocker-0.3.1-py2-none-any.whl">'
+            'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
+        )
+        self.assertEqual(expected, index.getContent())
+
+    def test_quoted_destination(self):
+        """
+        Destination links are quoted.
+        """
+        index = create_pip_index(
+            scratch_directory=self.scratch_directory,
+            packages=[
+                '"Flocker-0.3.0-py2-none-any.whl',
+            ]
+        )
+
+        expected = (
+            '<html>\nThis is an index for pip\n<div>'
+            '<a href="&quot;Flocker-0.3.0-py2-none-any.whl">'
+            '"Flocker-0.3.0-py2-none-any.whl</a><br />\n</div></html>'
+        )
+        self.assertEqual(expected, index.getContent())
+
+    def test_escaped_title(self):
+        """
+        Link titles are escaped.
+        """
+        index = create_pip_index(
+            scratch_directory=self.scratch_directory,
+            packages=[
+                '>Flocker-0.3.0-py2-none-any.whl',
+            ]
+        )
+
+        expected = (
+            '<html>\nThis is an index for pip\n<div>'
+            '<a href="&gt;Flocker-0.3.0-py2-none-any.whl">'
+            '&gt;Flocker-0.3.0-py2-none-any.whl</a><br />\n</div></html>'
+        )
+        self.assertEqual(expected, index.getContent())
+
+
+class UploadPipIndexTests(SynchronousTestCase):
+    """
+    Tests for :func:`upload_pip_index`.
+    """
+    def test_index_uploaded(self):
+        """
+        An index file is uploaded to S3.
+        """
+        bucket = 'clusterhq-archive'
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                bucket: {
+                    'python/Flocker-0.3.1-py2-none-any.whl': '',
+                },
+            })
+
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+
+        sync_perform(
+            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
+            upload_pip_index(
+                scratch_directory=scratch_directory,
+                target_bucket=bucket))
+
+        self.assertEqual(
+            aws.s3_buckets[bucket]['python/index.html'],
+            (
+                '<html>\nThis is an index for pip\n<div>'
+                '<a href="Flocker-0.3.1-py2-none-any.whl">'
+                'Flocker-0.3.1-py2-none-any.whl</a><br />\n</div></html>'
+            ))
 
 
 class CalculateBaseBranchTests(SynchronousTestCase):
@@ -1605,3 +1825,83 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.assertRaises(
             TagExists,
             self.calculate_base_branch, '0.3.0')
+
+
+class PublishHomebrewRecipeTests(SynchronousTestCase):
+    """
+    Tests for :func:`publish_homebrew_recipe`.
+    """
+
+    def setUp(self):
+        self.source_repo = create_git_repository(test_case=self, bare=True)
+        # Making a recipe involves interacting with PyPI, this should be
+        # a parameter, not a patch. See:
+        # https://clusterhq.atlassian.net/browse/FLOC-1759
+        self.patch(release, 'make_recipe',
+            lambda version, sdist_url:
+                "Recipe for " + version + " at " + sdist_url)
+
+    def test_commit_message(self):
+        """
+        The recipe is committed with a sensible message.
+        """
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+            source_bucket="archive",
+        )
+
+        self.assertEqual(
+            self.source_repo.head.commit.summary,
+            u'Add recipe for Flocker version 0.3.0')
+
+    def test_recipe_contents(self):
+        """
+        The passed in contents are in the recipe.
+        """
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+            source_bucket="bucket-name",
+        )
+
+        recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
+        self.assertEqual(recipe.data_stream.read(),
+            'Recipe for 0.3.0 at https://bucket-name.s3.amazonaws.com/python/Flocker-0.3.0.tar.gz')  # noqa
+
+    def test_push_fails(self):
+        """
+        If the push fails, an error is raised.
+        """
+        non_bare_repo = create_git_repository(test_case=self, bare=False)
+        self.assertRaises(
+            PushFailed,
+            publish_homebrew_recipe,
+            non_bare_repo.git_dir, '0.3.0', "archive", FilePath(self.mktemp()))
+
+
+    def test_recipe_already_exists(self):
+        """
+        If a recipe already exists with the same name, it is overwritten.
+        """
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+            source_bucket="archive",
+        )
+
+        self.patch(release, 'make_recipe',
+            lambda version, sdist_url: "New content")
+
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+            source_bucket="archive",
+        )
+
+        recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
+        self.assertEqual(recipe.data_stream.read(), 'New content')

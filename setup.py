@@ -73,7 +73,10 @@ dev_requirements = [
     "requests==2.4.3",
     "requests-file==1.0",
 
+    "wheel==0.24.0",
     "gitpython==1.0.0",
+    "tl.eggdeps==0.4",
+    "boto==2.30.0",
 ]
 
 # The test suite uses network namespaces
@@ -118,7 +121,7 @@ setup(
         'flocker.control': ['schema/*.yml'],
     },
 
-    entry_points = {
+    entry_points={
         # These are the command-line programs we want setuptools to install.
         # Don't forget to modify the omnibus packaging tool
         # (admin/packaging.py) if you make changes here.
@@ -126,8 +129,8 @@ setup(
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
-            'flocker-container-agent = flocker.node.script:flocker_container_agent_main',
-            'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',
+            'flocker-container-agent = flocker.node.script:flocker_container_agent_main',  # noqa
+            'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',  # noqa
             'flocker-control = flocker.control.script:flocker_control_main',
             'flocker-ca = flocker.ca._script:flocker_ca_main',
             'flocker = flocker.cli.script:flocker_cli_main',
@@ -135,8 +138,10 @@ setup(
     },
 
     install_requires=[
-        "setuptools >= 1.4",
-
+        # This is necessary for a release because our version scheme does not
+        # adhere to PEP440.
+        # See https://clusterhq.atlassian.net/browse/FLOC-1373
+        "setuptools==3.6",
         "eliot == 0.7.1",
         "machinist == 0.2.0",
         "zope.interface >= 4.0.5",
@@ -161,6 +166,7 @@ setup(
         "python-cinderclient==1.1.1",
         "python-keystoneclient-rackspace==0.1.3",
         "bitmath==1.2.3-4",
+        "boto==2.38.0",
         ],
 
     extras_require={
@@ -182,12 +188,12 @@ setup(
         "release": [
             "gitpython==1.0.0",
             "gsutil",
-            "wheel",
+            "wheel==0.24.0",
             "virtualenv",
             "PyCrypto",
             "pyasn1",
-            "tl.eggdeps",
-            "boto==2.30.0",
+            "tl.eggdeps==0.4",
+            "boto==2.38.0",
             # Packages are downloaded from Buildbot
             "requests==2.4.3",
             "requests-file==1.0",

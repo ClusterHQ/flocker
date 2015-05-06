@@ -127,8 +127,14 @@ class DeployScript(object):
         def got_response(response):
             if response.code != OK:
                 d = json_content(response)
-                d.addCallback(
-                    lambda error: fail(error[u"description"] + u"\n"))
+
+                def got_error(error):
+                    if isinstance(error, dict):
+                        error = error[u"description"] + u"\n"
+                    else:
+                        error = u"Unknown error: " + unicode(error) + "\n"
+                    fail(error)
+                d.addCallback(got_error)
                 return d
             else:
                 sys.stdout.write(_OK_MESSAGE)

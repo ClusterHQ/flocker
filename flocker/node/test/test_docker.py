@@ -36,21 +36,25 @@ def make_idockerclient_tests(fixture):
             self.assertTrue(verifyObject(IDockerClient, client))
 
         def test_add_and_remove(self):
-            """An added unit can be removed without an error."""
+            """
+            An added container can be removed without an error.
+            """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             d = client.add(name, u"busybox")
             d.addCallback(lambda _: client.remove(name))
             return d
 
         def test_no_double_add(self):
-            """Adding a unit with name that already exists results in error."""
+            """
+            Adding a container with name that already exists results in error.
+            """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
+            self.addCleanup(client.remove, name)
             d = client.add(name, u"busybox")
 
             def added(_):
-                self.addCleanup(client.remove, name)
                 return client.add(name, u"busybox")
             d.addCallback(added)
             d = self.assertFailure(d, AlreadyExists)
@@ -58,45 +62,55 @@ def make_idockerclient_tests(fixture):
             return d
 
         def test_remove_nonexistent_is_ok(self):
-            """Removing a non-existent unit does not result in a error."""
+            """
+            Removing a non-existent container does not result in a error.
+            """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             return client.remove(name)
 
         def test_double_remove_is_ok(self):
-            """Removing a unit twice in a row does not result in error."""
+            """
+            Removing a container twice in a row does not result in error.
+            """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             d = client.add(name, u"busybox")
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.remove(name))
             return d
 
         def test_unknown_does_not_exist(self):
-            """A unit that was never added does not exist."""
+            """
+            A container that was never added does not exist.
+            """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             d = client.exists(name)
             d.addCallback(self.assertFalse)
             return d
 
         def test_added_exists(self):
-            """An added unit exists."""
+            """
+            An added container exists.
+            """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
+            self.addCleanup(client.remove, name)
             d = client.add(name, u"busybox")
 
             def added(_):
-                self.addCleanup(client.remove, name)
                 return client.exists(name)
             d.addCallback(added)
             d.addCallback(self.assertTrue)
             return d
 
         def test_removed_does_not_exist(self):
-            """A removed unit does not exist."""
+            """
+            A removed container does not exist.
+            """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             d = client.add(name, u"openshift/busybox-http-app")
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.exists(name))
@@ -104,9 +118,11 @@ def make_idockerclient_tests(fixture):
             return d
 
         def test_added_is_listed(self):
-            """An added unit is included in the output of ``list()``."""
+            """
+            An added container is included in the output of ``list()``.
+            """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             image = u"openshift/busybox-http-app"
             portmaps = (
                 PortMap(internal_port=80, external_port=8080),
@@ -157,9 +173,11 @@ def make_idockerclient_tests(fixture):
             return d
 
         def test_removed_is_not_listed(self):
-            """A removed unit is not included in the output of ``list()``."""
+            """
+            A removed container is not included in the output of ``list()``.
+            """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
 
             d = client.add(name, u"openshift/busybox-http-app")
             d.addCallback(lambda _: client.remove(name))
@@ -172,10 +190,12 @@ def make_idockerclient_tests(fixture):
 
         def test_container_name(self):
             """
-            Each unit also records the name of the container it is running in.
+            Each container also records the container name twice.
             """
+            # This is silly behavior.  Get rid of it when fixing
+            # <https://clusterhq.atlassian.net/browse/FLOC-819>.
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             self.addCleanup(client.remove, name)
             d = client.add(name, u"busybox")
             d.addCallback(lambda _: client.list())
@@ -192,7 +212,7 @@ def make_idockerclient_tests(fixture):
             when listed.
             """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             self.addCleanup(client.remove, name)
             command_line = [u"nc", u"-l", u"-p", u"1234"]
             d = client.add(name, u"busybox", command_line=command_line)
@@ -212,7 +232,7 @@ def make_idockerclient_tests(fixture):
             :param IRestartPolicy restart_policy: The restart policy to test.
             """
             client = fixture(self)
-            name = random_name()
+            name = random_name(self)
             self.addCleanup(client.remove, name)
             d = client.add(name, u"busybox", restart_policy=restart_policy)
             d.addCallback(lambda _: client.list())
