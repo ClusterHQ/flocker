@@ -187,7 +187,7 @@ setup(
         # environment.
         "release": [
             "gitpython==1.0.0",
-            "awscli==1.7.25",
+            "gsutil",
             "wheel==0.24.0",
             "virtualenv",
             "PyCrypto",
