@@ -168,7 +168,8 @@ def get_recipe(sdist_url, sha1, class_name, resources):
     """
     dependencies = [resource['project_name'] for resource in resources]
 
-    return u"""require "formula"
+    return u"""\
+require "formula"
 
 class {class_name} < Formula
   homepage "https://clusterhq.com"
