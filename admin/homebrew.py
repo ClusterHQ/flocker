@@ -75,11 +75,12 @@ def get_class_name(version):
 
 def get_resources(dependency_graph):
     """
+    Get the URLs and checksums of Python dependencies.
+
     :param tl.eggdeps.graph.Graph dependency_graph: Graph of Python
         dependencies.
 
-    :return unicode: The part of the Homebrew recipe which defines the Python
-        packages to install.
+    :return list: Dictionaries mapping project names to URLs and checksums.
     """
     resources = []
     for name, node in sorted(dependency_graph.iteritems()):
