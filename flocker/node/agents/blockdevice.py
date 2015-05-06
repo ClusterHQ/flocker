@@ -408,6 +408,7 @@ class CreateFilesystem(PRecord):
         )
 
     def run(self, deployer):
+        # FLOC-1816 Make this asynchronous
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
@@ -453,6 +454,7 @@ class ResizeFilesystem(PRecord):
         return RESIZE_FILESYSTEM(_logger, volume=self.volume)
 
     def run(self, deployer):
+        # FLOC-1817 Make this asynchronous
         device = deployer.block_device_api.get_device_path(
             self.volume.blockdevice_id
         )
@@ -734,7 +736,7 @@ class DestroyVolume(PRecord):
         """
         Use the deployer's ``IBlockDeviceAPI`` to destroy the volume.
         """
-        # Make this asynchronous as part of FLOC-1549.
+        # FLOC-1818 Make this asynchronous
         deployer.block_device_api.destroy_volume(self.volume.blockdevice_id)
         return succeed(None)
 
@@ -1419,6 +1421,7 @@ class BlockDeviceDeployer(PRecord):
         return a ``NodeState`` containing only ``Manifestation`` instances and
         their mount paths.
         """
+        # FLOC-1819 Make this asynchronous
         api = self.block_device_api
         compute_instance_id = api.compute_instance_id()
         volumes = api.list_volumes()

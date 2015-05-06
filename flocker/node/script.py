@@ -9,10 +9,16 @@ from functools import partial
 from socket import socket
 from os import getpid
 
+import yaml
+
+from jsonschema import FormatChecker, validate
+from jsonschema.exceptions import ValidationError
+
 from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
 from ..volume.service import (
@@ -26,6 +32,7 @@ from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 from ..control._model import ip_to_uuid
+from ..control import ConfigurationError
 
 
 __all__ = [
@@ -44,16 +51,18 @@ class ZFSAgentOptions(Options):
     flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
     """
 
-    synopsis = (
-        "Usage: flocker-zfs-agent [OPTIONS] <control-service-hostname>")
+    synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
 
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
+        ["agent-config", "c", "/etc/flocker/agent.yml",
+         "The configuration file to set the control service."],
     ]
 
-    def parseArgs(self, host):
-        self["destination-host"] = unicode(host, "ascii")
+    def postOptions(self):
+        self['agent-config'] = FilePath(
+            self['agent-config'])
 
 
 def _get_external_ip(host, port):
@@ -76,6 +85,50 @@ def _get_external_ip(host, port):
         sock.close()
 
 
+def agent_config_from_file(path):
+    """
+    Extract configuration from provided options.
+
+    :param FilePath path: Path to a file containing specified options for an
+        agent.
+
+    :return dict: Dictionary containing the desired configuration.
+    """
+    try:
+        options = yaml.safe_load(path.getContent())
+    except IOError:
+        raise ConfigurationError(
+            "Configuration file does not exist at '{}'.".format(path.path))
+
+    schema = {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "required": ["version", "control-service-hostname"],
+        "properties": {
+            "version": {"type": "number"},
+            "control-service-hostname": {
+                "type": "string",
+                "format": "hostname",
+            }
+        }
+    }
+
+    try:
+        validate(options, schema, format_checker=FormatChecker())
+    except ValidationError as e:
+        raise ConfigurationError(
+            "Configuration has an error: {}.".format(e.message,)
+        )
+
+    if options[u'version'] != 1:
+        raise ConfigurationError(
+            "Configuration has an error. Incorrect version specified.")
+
+    return {
+        'control-service-hostname': options[u'control-service-hostname'],
+    }
+
+
 @implementer(ICommandLineVolumeScript)
 class ZFSAgentScript(object):
     """
@@ -83,7 +136,8 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        host = options["destination-host"]
+        configuration = agent_config_from_file(path=options[u'agent-config'])
+        host = configuration['control-service-hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then
@@ -113,15 +167,18 @@ class _AgentOptions(Options):
     common options with ``ZFSAgentOptions``.
     """
     # Use as basis for subclass' synopsis:
-    synopsis = "Usage: {} [OPTIONS] <control-service-hostname>"
+    synopsis = "Usage: {} [OPTIONS]"
 
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
+        ["agent-config", "c", "/etc/flocker/agent.yml",
+         "The configuration file to set the control service."],
     ]
 
-    def parseArgs(self, host):
-        self["destination-host"] = unicode(host, "ascii")
+    def postOptions(self):
+        self['agent-config'] = FilePath(
+            self['agent-config'])
 
 
 class DatasetAgentOptions(_AgentOptions):
@@ -193,7 +250,8 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        host = options["destination-host"]
+        configuration = agent_config_from_file(path=options[u'agent-config'])
+        host = configuration['control-service-hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         return AgentLoopService(

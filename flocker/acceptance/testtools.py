@@ -789,7 +789,7 @@ def get_test_cluster(node_count=0):
     agents_connected.addCallback(lambda _: cluster.current_nodes())
     agents_connected.addCallback(lambda (cluster, nodes): cluster.set(
         "nodes", [Node(uuid=node[u"uuid"],
-                       address=node["hostname"].encode("ascii"))
+                       address=node["host"].encode("ascii"))
                   for node in nodes]))
     return agents_connected
 

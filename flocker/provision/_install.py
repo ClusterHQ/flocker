@@ -9,6 +9,7 @@ import posixpath
 from textwrap import dedent
 from urlparse import urljoin
 from effect import Func, Effect
+import yaml
 
 from ._common import PackageSource, Variants
 from ._ssh import (
@@ -217,23 +218,26 @@ def task_open_control_firewall(distribution):
     ])
 
 
-AGENT_CONFIG = """\
-FLOCKER_CONTROL_NODE=%(control_node)s
-"""
-
-
 def task_enable_flocker_agent(distribution, control_node):
     """
     Configure and enable the flocker agents.
 
     :param bytes control_node: The address of the control agent.
     """
+    put_config_file = put(
+        path='/etc/flocker/agent.yml',
+        content=yaml.safe_dump(
+            {
+                "version": 1,
+                "control-service-hostname": control_node,
+            },
+            # Don't wrap the whole thing in braces
+            default_flow_style=False,
+        ),
+    )
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
-            put(
-                path='/etc/sysconfig/flocker-agent',
-                content=AGENT_CONFIG % {'control_node': control_node},
-            ),
+            put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-agent']),
             run_from_args(['systemctl', 'start', 'flocker-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
@@ -241,10 +245,7 @@ def task_enable_flocker_agent(distribution, control_node):
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            put(
-                path='/etc/default/flocker-agent.conf',
-                content=AGENT_CONFIG % {'control_node': control_node},
-            ),
+            put_config_file,
             run_from_args(['service', 'flocker-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
