@@ -79,7 +79,6 @@ def get_class_name(version):
     return u''.join(characters)
 
 
-
 def get_resources(dependency_graph):
     """
     Get the URLs and checksums of Python dependencies.
@@ -202,6 +201,7 @@ end
             class_name=class_name,
             resources=format_resource_stanzas(resources),
             dependencies=u' '.join(dependencies))
+
 
 class HomebrewOptions(Options):
     """
