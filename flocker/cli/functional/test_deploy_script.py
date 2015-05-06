@@ -47,7 +47,8 @@ class FlockerDeployTests(TestCase):
     def setUp(self):
         self.certificate_path = FilePath(self.mktemp())
         self.certificate_path.makedirs()
-        authority = RootCredential.initialize(self.certificate_path, b"mycluster")
+        authority = RootCredential.initialize(
+            self.certificate_path, b"mycluster")
         ControlCredential.initialize(self.certificate_path, authority)
         UserCredential.initialize(self.certificate_path, authority, u"alice")
         self.persistence_service = ConfigurationPersistenceService(
@@ -65,7 +66,8 @@ class FlockerDeployTests(TestCase):
         api_root = Resource()
         api_root.putChild('v1', app.resource())
         self.port = reactor.listenSSL(
-            0, Site(api_root), ControlCredential.certificate_options(self.certificate_path),
+            0, Site(api_root),
+            ControlCredential.certificate_options(self.certificate_path),
             interface="127.0.0.1"
         )
         self.addCleanup(self.port.stopListening)

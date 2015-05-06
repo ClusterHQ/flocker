@@ -314,6 +314,7 @@ class UserCredential(PRecord):
         :return CertificateOptions: A context factory that will use the
             authority certificate as a trusted authority.
         """
+        username = username.decode("utf-8")
         if path is None:
             path = DEFAULT_CERTIFICATE_PATH
         root_certificate_path = path.child(b"cluster.crt")
