@@ -56,7 +56,7 @@ Access
 
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
 
-- An OS X (most recent release) system.
+- SSH access to ClusterHQ's GitHub repositories.
 
 .. note:: For a maintenance or documentation release, access to Google Cloud Storage and Atlas is not required.
 
@@ -355,43 +355,6 @@ Release
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
-#. Create a version specific Homebrew recipe for this release:
-
-   .. note:: Skip this step for a maintenance or documentation release.
-
-   XXX This should be automated, see :issue:`1150`.
-
-   - Create a recipe file and push it to the `homebrew-tap`_ repository:
-
-     .. prompt:: bash [vagrant@localhost]$
-
-        cd
-        git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
-        cd homebrew-tap-${VERSION}
-        ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
-        git add flocker-${VERSION}.rb
-        git commit -m "New Homebrew recipe"
-        git push
-
-   - Test the Homebrew recipe on OS X:
-
-     ClusterHQ has a Mac Mini available to use for testing.
-     Follow the instructions at ClusterHQ > Infrastructure > OS X Development Machine for launching a Virtual Machine to do this with.
-
-     Export the version number of the release being completed as an environment variable:
-
-     .. prompt:: bash [osx-user]$
-
-        export VERSION=0.1.2
-
-     Install and test the Homebrew recipe:
-
-     .. task:: test_homebrew flocker-${VERSION}
-        :prompt: [osx-user]$
-
-     If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
-     The release process should not continue until the tests pass.
-
 #. Test the Getting Started Guide:
 
    XXX This process should be changed, see :issue:`1307`.
@@ -512,7 +475,6 @@ The issue(s) for the planned improvements should be put into the next sprint.
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
-.. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh
