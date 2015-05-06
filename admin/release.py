@@ -393,7 +393,7 @@ def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
     :param FilePath scratch_directory: Temporary directory to create a recipe
         in.
     """
-    url_template = 'https://s3.amazonaws.com/{bucket}/python/Flocker-{version}.tar.gz'  # noqa
+    url_template = 'https://{bucket}.s3.amazonaws.com/python/Flocker-{version}.tar.gz'  # noqa
     sdist_url = url_template.format(bucket=source_bucket, version=version)
     content = make_recipe(
         version=version,
