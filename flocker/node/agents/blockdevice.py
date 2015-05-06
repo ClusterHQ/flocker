@@ -143,8 +143,8 @@ BLOCK_DEVICE_SIZE = Field(
     u"The size of the underlying block device."
 )
 
-BLOCK_DEVICE_STORAGE_BACKEND_ID = Field(
-    u"block_device_storage_backend_id",
+BLOCK_DEVICE_COMPUTE_INSTANCE_ID = Field(
+    u"block_device_compute_instance_id",
     identity,
     u"An identifier for the host to which the underlying block device is "
     u"attached.",
@@ -170,7 +170,7 @@ CREATE_BLOCK_DEVICE_DATASET = ActionType(
 BLOCK_DEVICE_DATASET_CREATED = MessageType(
     u"agent:blockdevice:created",
     [DEVICE_PATH, BLOCK_DEVICE_ID, DATASET_ID, BLOCK_DEVICE_SIZE,
-     BLOCK_DEVICE_STORAGE_BACKEND_ID],
+     BLOCK_DEVICE_COMPUTE_INSTANCE_ID],
     u"A block-device-backed dataset has been created.",
 )
 
@@ -665,18 +665,18 @@ class AttachVolume(PRecord):
         listing.addCallback(
             _blockdevice_volume_from_datasetid, self.dataset_id
         )
-        getting_id = api.storage_backend_id()
+        getting_id = api.compute_instance_id()
 
         d = gatherResults([listing, getting_id])
 
-        def found((volume, storage_backend_id)):
+        def found((volume, compute_instance_id)):
             if volume is None:
                 # It was not actually found.
                 raise DatasetWithoutVolume(dataset_id=self.dataset_id)
             ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
             return api.attach_volume(
                 volume.blockdevice_id,
-                storage_backend_id=storage_backend_id,
+                storage_backend_id=compute_instance_id,
             )
         attaching = d.addCallback(found)
         return attaching
@@ -780,7 +780,7 @@ class CreateBlockDeviceDataset(PRecord):
         # This duplicates AttachVolume now.
         volume = api.attach_volume(
             volume.blockdevice_id,
-            storage_backend_id=api.storage_backend_id(),
+            storage_backend_id=api.compute_instance_id(),
         )
         device = api.get_device_path(volume.blockdevice_id)
 
@@ -796,7 +796,7 @@ class CreateBlockDeviceDataset(PRecord):
             block_device_id=volume.blockdevice_id,
             dataset_id=volume.dataset_id,
             block_device_size=volume.size,
-            block_device_storage_backend_id=volume.storage_backend_id,
+            block_device_compute_instance_id=volume.storage_backend_id,
         ).write(_logger)
         return succeed(None)
 
@@ -806,9 +806,9 @@ class IBlockDeviceAsyncAPI(Interface):
     Common operations provided by all block device backends, exposed via
     asynchronous methods.
     """
-    def storage_backend_id():
+    def compute_instance_id():
         """
-        See ``IBlockDeviceAPI.storage_backend_id``.
+        See ``IBlockDeviceAPI.compute_instance_id``.
 
         :returns: A ``Deferred`` that fires with ``unicode`` of a
             provider-specific node identifier which identifies the node where
@@ -876,9 +876,13 @@ class IBlockDeviceAPI(Interface):
     Note: This is an early sketch of the interface and it'll be refined as we
     real blockdevice providers are implemented.
     """
-    def storage_backend_id():
+    def compute_instance_id():
         """
-        See ``IBlockDeviceAPI.storage_backend_id``.
+        Get an identifier for this node.
+
+        This will be compared against ``BlockDeviceVolume.storage_backend_id``
+        to determine which volumes are locally attached and it will be used
+        with ``attach_volume`` to locally attach volumes.
 
         :returns: A ``unicode`` object giving a provider-specific node
             identifier which identifies the node where the method is run.
@@ -1110,32 +1114,32 @@ class LoopbackBlockDeviceAPI(object):
     _attached_directory_name = 'attached'
     _unattached_directory_name = 'unattached'
 
-    def __init__(self, root_path, storage_backend_id):
+    def __init__(self, root_path, compute_instance_id):
         """
         :param FilePath root_path: The path beneath which all loopback backing
             files and their organising directories will be created.
-        :param unicode storage_backend_id: An identifier to use to identify
+        :param unicode compute_instance_id: An identifier to use to identify
             "this" node amongst a collection of users of the same loopback
             storage area.  Instances which are meant to behave as though they
             are running on a separate node from each other should have
-            different ``storage_backend_id``.
+            different ``compute_instance_id``.
         """
         self._root_path = root_path
-        self._storage_backend_id = storage_backend_id
+        self._compute_instance_id = compute_instance_id
 
     @classmethod
-    def from_path(cls, root_path, storage_backend_id):
+    def from_path(cls, root_path, compute_instance_id):
         """
         :param bytes root_path: The path to a directory in which loop back
             backing files will be created.  The directory is created if it does
             not already exist.
-        :param storage_backend_id: See ``__init__``
+        :param compute_instance_id: See ``__init__``
 
         :returns: A ``LoopbackBlockDeviceAPI`` with the supplied ``root_path``.
         """
         api = cls(
             root_path=FilePath(root_path),
-            storage_backend_id=storage_backend_id,
+            compute_instance_id=compute_instance_id,
         )
         api._initialise_directories()
         return api
@@ -1161,8 +1165,8 @@ class LoopbackBlockDeviceAPI(object):
         except OSError:
             pass
 
-    def storage_backend_id(self):
-        return self._storage_backend_id
+    def compute_instance_id(self):
+        return self._compute_instance_id
 
     def create_volume(self, dataset_id, size):
         """
@@ -1297,13 +1301,13 @@ class LoopbackBlockDeviceAPI(object):
             volumes.append(volume)
 
         for host_directory in self._root_path.child('attached').children():
-            storage_backend_id = host_directory.basename().decode('ascii')
+            compute_instance_id = host_directory.basename().decode('ascii')
             for child in host_directory.children():
                 blockdevice_id = child.basename().decode('ascii')
                 volume = _blockdevicevolume_from_blockdevice_id(
                     blockdevice_id=blockdevice_id,
                     size=child.getsize(),
-                    storage_backend_id=storage_backend_id,
+                    storage_backend_id=compute_instance_id,
                 )
                 volumes.append(volume)
 
@@ -1377,7 +1381,7 @@ class BlockDeviceDeployer(PRecord):
             )
         return self._async_block_device_api
 
-    def _get_system_mounts(self, volumes, storage_backend_id):
+    def _get_system_mounts(self, volumes, compute_instance_id):
         """
         Load information about mounted filesystems related to the given
         volumes.
@@ -1386,7 +1390,7 @@ class BlockDeviceDeployer(PRecord):
             may or may not be attached to this host.  Only system mounts that
             related to these volumes will be returned.
 
-        :param unicode storage_backend_id: This node's identifier.
+        :param unicode compute_instance_id: This node's identifier.
 
         :return: A ``dict`` mapping mount points (directories represented using
             ``FilePath``) to dataset identifiers (as ``UUID``\ s) representing
@@ -1399,7 +1403,7 @@ class BlockDeviceDeployer(PRecord):
                 volume.dataset_id
             for volume
             in volumes
-            if volume.storage_backend_id == storage_backend_id
+            if volume.storage_backend_id == compute_instance_id
         }
         return {
             FilePath(partition.mountpoint):
@@ -1416,7 +1420,7 @@ class BlockDeviceDeployer(PRecord):
         their mount paths.
         """
         api = self.block_device_api
-        storage_backend_id = api.storage_backend_id()
+        compute_instance_id = api.compute_instance_id()
         volumes = api.list_volumes()
         manifestations = {}
         nonmanifest = {}
@@ -1424,19 +1428,19 @@ class BlockDeviceDeployer(PRecord):
             volume.dataset_id: api.get_device_path(volume.blockdevice_id)
             for volume
             in volumes
-            if volume.storage_backend_id == storage_backend_id
+            if volume.storage_backend_id == compute_instance_id
         }
 
         for volume in volumes:
             dataset_id = unicode(volume.dataset_id)
-            if volume.storage_backend_id == storage_backend_id:
+            if volume.storage_backend_id == compute_instance_id:
                 manifestations[dataset_id] = _manifestation_from_volume(
                     volume
                 )
             elif volume.storage_backend_id is None:
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
-        system_mounts = self._get_system_mounts(volumes, storage_backend_id)
+        system_mounts = self._get_system_mounts(volumes, compute_instance_id)
 
         paths = {}
         for manifestation in manifestations.values():

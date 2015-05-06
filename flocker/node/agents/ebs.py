@@ -145,7 +145,7 @@ class EBSBlockDeviceAPI(object):
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
 
-    def storage_backend_id(self):
+    def compute_instance_id(self):
         """
         Look up the EC2 instance ID for this node.
         """

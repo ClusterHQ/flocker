@@ -116,7 +116,7 @@ class CinderBlockDeviceAPI(object):
         self.volume_manager = volume_manager
         self.cluster_id = cluster_id
 
-    def storage_backend_id(self):
+    def compute_instance_id(self):
         """
         Look up the Xen instance ID for this node.
         """

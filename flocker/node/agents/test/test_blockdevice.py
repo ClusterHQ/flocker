@@ -325,7 +325,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.expected_hostname = u'192.0.2.123'
         self.expected_uuid = uuid4()
         self.api = loopbackblockdeviceapi_for_test(self)
-        self.this_node = self.api.storage_backend_id()
+        self.this_node = self.api.compute_instance_id()
         self.deployer = BlockDeviceDeployer(
             node_uuid=self.expected_uuid,
             hostname=self.expected_hostname,
@@ -1176,15 +1176,15 @@ class IBlockDeviceAPITestsMixin(object):
             verifyObject(IBlockDeviceAPI, self.api)
         )
 
-    def test_storage_backend_id_unicode(self):
+    def test_compute_instance_id_unicode(self):
         """
-        ``storage_backend_id`` returns a ``unicode`` string.
+        ``compute_instance_id`` returns a ``unicode`` string.
         """
         self.assertIsInstance(self.this_node, unicode)
 
-    def test_storage_backend_id_nonempty(self):
+    def test_compute_instance_id_nonempty(self):
         """
-        ``storage_backend_id`` returns a non-empty string.
+        ``compute_instance_id`` returns a non-empty string.
         """
         self.assertNotEqual(u"", self.this_node)
 
@@ -1695,7 +1695,7 @@ def make_iblockdeviceapi_tests(blockdevice_api_factory):
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
             self.api = blockdevice_api_factory(test_case=self)
-            self.this_node = self.api.storage_backend_id()
+            self.this_node = self.api.compute_instance_id()
 
     return Tests
 
@@ -1738,7 +1738,7 @@ class SyncToThreadedAsyncAPIAdapterTests(
                 # tests run even as non-root.
                 _sync=LoopbackBlockDeviceAPI.from_path(
                     root_path=test_case.mktemp(),
-                    storage_backend_id=u"sync-threaded-tests",
+                    compute_instance_id=u"sync-threaded-tests",
                 )
             )
     )
@@ -1787,7 +1787,7 @@ def loopbackblockdeviceapi_for_test(test_case):
     root_path = test_case.mktemp()
     loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
         root_path=root_path,
-        storage_backend_id=random_name(test_case),
+        compute_instance_id=random_name(test_case),
     )
     test_case.addCleanup(detach_destroy_volumes, loopback_blockdevice_api)
     return loopback_blockdevice_api
@@ -1821,7 +1821,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
 
         LoopbackBlockDeviceAPI.from_path(
             root_path=directory.path,
-            storage_backend_id=random_name(self),
+            compute_instance_id=random_name(self),
         )
 
         self.assertTrue(
@@ -1953,7 +1953,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         expected_size = REALISTIC_BLOCKDEVICE_SIZE
         expected_dataset_id = uuid4()
         api = loopbackblockdeviceapi_for_test(test_case=self)
-        this_node = api.storage_backend_id()
+        this_node = api.compute_instance_id()
 
         blockdevice_volume = _blockdevicevolume_from_dataset_id(
             size=expected_size,
@@ -2502,7 +2502,7 @@ class DetachVolumeTests(
         )
         api.attach_volume(
             volume.blockdevice_id,
-            storage_backend_id=api.storage_backend_id(),
+            storage_backend_id=api.compute_instance_id(),
         )
 
         change = DetachVolume(dataset_id=dataset_id)
@@ -2629,7 +2629,7 @@ class CreateBlockDeviceDatasetTests(
         [volume] = api.list_volumes()
         device_path = api.get_device_path(volume.blockdevice_id)
         return (
-            volume, device_path, expected_mountpoint, api.storage_backend_id()
+            volume, device_path, expected_mountpoint, api.compute_instance_id()
         )
 
     def test_run_create(self):
@@ -2643,13 +2643,13 @@ class CreateBlockDeviceDatasetTests(
         (volume,
          device_path,
          expected_mountpoint,
-         storage_backend_id) = self._create_blockdevice_dataset(
+         compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=maximum_size
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
-            dataset_id=dataset_id, storage_backend_id=storage_backend_id,
+            dataset_id=dataset_id, storage_backend_id=compute_instance_id,
             size=maximum_size,
         )
 
@@ -2666,7 +2666,7 @@ class CreateBlockDeviceDatasetTests(
         (volume,
          device_path,
          expected_mountpoint,
-         storage_backend_id) = self._create_blockdevice_dataset(
+         compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             maximum_size=maximum_size
         )
@@ -2927,7 +2927,7 @@ class AttachVolumeTests(
         self.successResultOf(run_state_change(change, deployer))
 
         expected_volume = volume.set(
-            storage_backend_id=api.storage_backend_id()
+            storage_backend_id=api.compute_instance_id()
         )
         self.assertEqual([expected_volume], api.list_volumes())
 
@@ -3037,7 +3037,7 @@ class ResizeFilesystemTests(
 
         deployer = create_blockdevicedeployer(self)
         api = deployer.block_device_api
-        this_node = api.storage_backend_id()
+        this_node = api.compute_instance_id()
 
         volume = api.create_volume(
             dataset_id=dataset_id, size=original_size,
