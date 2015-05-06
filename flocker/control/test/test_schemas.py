@@ -730,3 +730,30 @@ StateContainersArrayTests = build_schema_test(
              u'running': False}],
     ],
 )
+
+
+NodesTests = build_schema_test(
+    name="NodesTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/nodes_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Wrong type
+        {'host': '192.168.1.10', 'uuid': unicode(uuid4())},
+        # Missing host
+        [{"uuid": unicode(uuid4())}],
+        # Missing uuid
+        [{'host': '192.168.1.10'}],
+        # Wrong uuid type
+        [{'host': '192.168.1.10', 'uuid': 123}],
+        # Wrong host type
+        [{'host': 192, 'uuid': unicode(uuid4())}],
+        # Extra key
+        [{'host': '192.168.1.10', 'uuid': unicode(uuid4()), 'x': 'y'}],
+    ],
+    passing_instances=[
+        [],
+        [{'host': '192.168.1.10', 'uuid': unicode(uuid4())}],
+        [{'host': '192.168.1.10', 'uuid': unicode(uuid4())},
+         {'host': '192.168.1.11', 'uuid': unicode(uuid4())}],
+    ],
+)
