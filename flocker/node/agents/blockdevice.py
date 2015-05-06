@@ -645,7 +645,8 @@ class UnmountBlockDevice(PRecord):
 @implementer(IStateChange)
 class AttachVolume(PRecord):
     """
-    Attach an unattached volume to a node.
+    Attach an unattached volume to this node (the node of the deployer it is
+    run with).
 
     :ivar UUID dataset_id: The unique identifier of the dataset associated with
         the volume to attach.
