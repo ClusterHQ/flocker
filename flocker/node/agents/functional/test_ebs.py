@@ -9,29 +9,21 @@ from uuid import uuid4
 
 from bitmath import Byte
 
-from ..ebs import EBSBlockDeviceAPI, _wait_for_volume
-from ..testtools import ec2_client_from_environment
+from ..ebs import _wait_for_volume
 from ....testtools import skip_except
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests, detach_destroy_volumes,
+    make_iblockdeviceapi_tests,
     REALISTIC_BLOCKDEVICE_SIZE
 )
 
+from .blockdevicefactory import get_blockdeviceapi_args, get_blockdeviceapi
 
-def ebsblockdeviceapi_for_test(test_case, cluster_id):
+
+def ebsblockdeviceapi_for_test(test_case):
     """
     Create an ``EBSBlockDeviceAPI`` for use by tests.
-
-    :param string cluster_id: Flocker cluster id to be used
-        by the current set of tests.
     """
-    ebs_blockdevice_api = EBSBlockDeviceAPI(
-        ec2_client=ec2_client_from_environment(),
-        cluster_id=cluster_id
-        )
-
-    test_case.addCleanup(detach_destroy_volumes, ebs_blockdevice_api)
-    return ebs_blockdevice_api
+    return get_blockdeviceapi(test_case, "aws")
 
 
 # ``EBSBlockDeviceAPI`` only implements the ``create``, ``list``,
@@ -55,7 +47,6 @@ class EBSBlockDeviceAPIInterfaceTests(
             blockdevice_api_factory=(
                 lambda test_case: ebsblockdeviceapi_for_test(
                     test_case=test_case,
-                    cluster_id=uuid4()
                 )
             )
         )
@@ -69,7 +60,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         Test that ``list_volumes`` lists only those volumes
         belonging to the current Flocker cluster.
         """
-        ec2_client = ec2_client_from_environment()
+        ec2_client = get_blockdeviceapi_args(self, "aws")["ec2_client"]
         requested_volume = ec2_client.connection.create_volume(
             int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value),
             ec2_client.zone)
@@ -87,7 +78,6 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         blockdevice_api2 = ebsblockdeviceapi_for_test(
             test_case=self,
-            cluster_id=uuid4(),
             )
         flocker_volume = blockdevice_api2.create_volume(
             dataset_id=uuid4(),

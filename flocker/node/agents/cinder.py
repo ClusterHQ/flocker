@@ -9,9 +9,6 @@ from uuid import UUID
 
 from bitmath import Byte, GB
 
-from keystoneclient_rackspace.v2_0 import RackspaceAuth
-from keystoneclient.session import Session
-
 from zope.interface import implementer, Interface
 
 from .blockdevice import (
@@ -25,11 +22,6 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # The key name used for identifying the Flocker dataset_id in the metadata for
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
-
-# The Rackspace authentication endpoint
-# See http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/Authentication-d1e647.html # noqa
-RACKSPACE_AUTH_URL = "https://identity.api.rackspacecloud.com/v2.0"
-
 
 class ICinderVolumeManager(Interface):
     """
@@ -276,32 +268,6 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
         attached_to=server_id,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
-
-
-def rackspace_session(**kwargs):
-    """
-    Create a Keystone session capable of authenticating with Rackspace.
-
-    :param unicode username: A RackSpace API username.
-    :param unicode api_key: A RackSpace API key.
-    :param unicode region: A RackSpace region slug.
-    :return: A ``keystoneclient.session.Session``.
-    """
-    username = kwargs.pop('username')
-    api_key = kwargs.pop('key')
-
-    auth = RackspaceAuth(
-        auth_url=RACKSPACE_AUTH_URL,
-        username=username,
-        api_key=api_key
-    )
-    return Session(auth=auth)
-
-
-SESSION_FACTORIES = {
-    'rackspace': rackspace_session,
-}
-
 
 def cinder_api(cinder_client, nova_client, cluster_id):
     """

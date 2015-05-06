@@ -38,19 +38,7 @@ def cinderblockdeviceapi_for_test(test_case, cluster_id):
         by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
         are created during the course of ``test_case``
     """
-    # Create the nova client last so that its cleanup method is
-    # run first and detaches volumes before the cinder client
-    # cleanup then deletes them.
-    # Yuck!
-    cinder_client = tidy_cinder_client_for_test(test_case)
-    nova_client = tidy_nova_client_for_test(test_case)
-    cinder_blockdevice_api = cinder_api(
-        cinder_client=cinder_client,
-        nova_client=nova_client,
-        cluster_id=cluster_id,
-    )
-    test_case.addCleanup(detach_destroy_volumes, cinder_blockdevice_api)
-    return cinder_blockdevice_api
+    return get_blockdeviceapi(test_case, "openstack")
 
 
 # ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
