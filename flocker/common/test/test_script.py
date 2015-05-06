@@ -8,6 +8,8 @@ from zope.interface.verify import verifyObject
 
 from eliot.testing import validateLogging, assertHasMessage
 
+from appdirs import AppDirs
+
 from twisted.application.service import IService
 from twisted.internet import task
 from twisted.internet.defer import succeed
@@ -16,6 +18,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.failure import Failure
 from twisted.python.log import LogPublisher
 from twisted.python import log as twisted_log
+from twisted.python.filepath import FilePath
 from twisted.internet.defer import Deferred
 from twisted.application.service import Service
 from twisted.python.usage import Options
@@ -32,6 +35,7 @@ from ..script import (
     ILoggingPolicy,
     StdoutLoggingPolicy,
     NullLoggingPolicy,
+    CLILoggingPolicy,
     )
 from ...testtools import (
     help_problems, FakeSysModule,
@@ -50,18 +54,24 @@ def make_ilogging_policy_tests(fixture):
     class ILoggingPolicyTests(SynchronousTestCase):
         """
         """
-
         def test_interface(self):
-            verifyObject(ILoggingPolicy, fixture())
+            verifyObject(ILoggingPolicy, fixture(self))
 
         def test_service(self):
-            verifyObject(IService, fixture().service(_FakeReactor()))
+            policy = fixture(self)
+            options = policy.options_wrapper(TestOptions)()
+            verifyObject(IService, policy.service(_FakeReactor(), options))
 
-    return ILoggingPolicy
+        def test_options(self):
+            self.assertIsInstance(
+                fixture(self).options_wrapper(TestOptions)(),
+                TestOptions)
+
+    return ILoggingPolicyTests
 
 
 class StdoutLoggingPolicyTests(
-        make_ilogging_policy_tests(StdoutLoggingPolicy)):
+        make_ilogging_policy_tests(lambda self: StdoutLoggingPolicy())):
     """
     Tests for :class:`StdoutLoggingPolicy`.
     """
@@ -86,10 +96,52 @@ class StdoutLoggingPolicyTests(
 
 
 class NullLoggingPolicyTests(
-        make_ilogging_policy_tests(NullLoggingPolicy)):
+        make_ilogging_policy_tests(lambda self: NullLoggingPolicy())):
     """
     Tests for :class:`NullLoggingPolicy`.
     """
+
+
+class FakeAppDirs(object):
+    def __init__(self, case):
+        log_dir = FilePath(case.mktemp())
+        log_dir.createDirectory()
+        self.user_log_dir = log_dir.path
+
+    def user_log_dir(self):
+        log_dir = self.base_dir.child('user-log-dir')
+        log_dir.createDirectory()
+        return log_dir.path
+
+
+class CLILoggingPolicyTests(
+        make_ilogging_policy_tests(
+            lambda self: CLILoggingPolicy(appdirs=FakeAppDirs(self)))):
+    """
+    Tests for :class:`CLILoggingPolicy`.
+    """
+
+    def test_appdirs_default(self):
+        """
+        `CLILoggingPolicy`s default log-dir is from ``AppDirs.user_log_dir``.
+        """
+        policy = CLILoggingPolicy()
+        options = policy.options_wrapper(TestOptions)()
+        self.assertEqual(
+            AppDirs("Flocker", "ClusterHQ").user_log_dir,
+            options['log-dir'])
+
+    def test_sys_override(self):
+        """
+        `CLILoggingPolict`s default log-dir can be overridden in the
+        constructor.
+        """
+        appdirs = FakeAppDirs(self)
+        policy = CLILoggingPolicy(appdirs=appdirs)
+        options = policy.options_wrapper(TestOptions)()
+        self.assertIs(
+            appdirs.user_log_dir,
+            options['log-dir'])
 
 
 class FlockerScriptRunnerInitTests(SynchronousTestCase):

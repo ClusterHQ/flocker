@@ -23,7 +23,7 @@ from characteristic import attributes
 
 from ..common.script import (ICommandLineScript,
                              FlockerScriptRunner,
-                             NullLoggingPolicy)
+                             CLILoggingPolicy)
 from ..control.httpapi import REST_API_PORT
 
 
@@ -166,7 +166,7 @@ def flocker_deploy_main():
     return FlockerScriptRunner(
         script=DeployScript(),
         options=DeployOptions,
-        logging=NullLoggingPolicy(),
+        logging=CLILoggingPolicy(),
     ).main()
 
 
@@ -175,5 +175,5 @@ def flocker_cli_main():
     return FlockerScriptRunner(
         script=CLIScript(),
         options=CLIOptions(),
-        logging=NullLoggingPolicy(),
+        logging=CLILoggingPolicy(),
     ).main()

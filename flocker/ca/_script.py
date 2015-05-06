@@ -17,7 +17,7 @@ from zope.interface import implementer
 
 from ..common.script import (ICommandLineScript,
                              FlockerScriptRunner,
-                             NullLoggingPolicy)
+                             CLILoggingPolicy)
 
 from ._ca import (RootCredential, ControlCredential, NodeCredential,
                   CertificateAlreadyExistsError, KeyAlreadyExistsError,
@@ -289,4 +289,4 @@ class CAScript(object):
 
 def flocker_ca_main():
     return FlockerScriptRunner(
-        CAScript(), CAOptions, logging_policy=NullLoggingPolicy()).main()
+        CAScript(), CAOptions, logging_policy=CLILoggingPolicy()).main()
