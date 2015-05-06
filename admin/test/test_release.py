@@ -1841,9 +1841,6 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             lambda version, sdist_url:
                 "Recipe for " + version + " at " + sdist_url)
 
-
-
-
     def test_commit_message(self):
         """
         The recipe is committed with a sensible message.
@@ -1852,6 +1849,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             homebrew_repo_url=self.source_repo.git_dir,
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
+            source_bucket="archive",
         )
 
         self.assertEqual(
@@ -1866,11 +1864,12 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             homebrew_repo_url=self.source_repo.git_dir,
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
+            source_bucket="bucket-name",
         )
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
         self.assertEqual(recipe.data_stream.read(),
-            'Recipe for 0.3.0 at https://s3.amazonaws.com/clusterhq-archive/python/Flocker-0.3.0.tar.gz')  # noqa
+            'Recipe for 0.3.0 at https://s3.amazonaws.com/bucket-name/python/Flocker-0.3.0.tar.gz')  # noqa
 
     def test_push_fails(self):
         """
@@ -1880,7 +1879,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
         self.assertRaises(
             PushFailed,
             publish_homebrew_recipe,
-            non_bare_repo.git_dir, '0.3.0', FilePath(self.mktemp()))
+            non_bare_repo.git_dir, '0.3.0', "archive", FilePath(self.mktemp()))
 
 
     def test_recipe_already_exists(self):
@@ -1891,6 +1890,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             homebrew_repo_url=self.source_repo.git_dir,
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
+            source_bucket="archive",
         )
 
         self.patch(release, 'make_recipe',
@@ -1900,6 +1900,7 @@ class PublishHomebrewRecipeTests(SynchronousTestCase):
             homebrew_repo_url=self.source_repo.git_dir,
             version='0.3.0',
             scratch_directory=FilePath(self.mktemp()),
+            source_bucket="archive",
         )
 
         recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
