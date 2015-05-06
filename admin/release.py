@@ -358,6 +358,8 @@ class UploadOptions(Options):
         ["build-server", None,
          b'http://build.clusterhq.com',
          "The URL of the build-server.\n"],
+        ["homebrew-tap", None, "git@github.com:ClusterHQ/homebrew-tap.git",
+         "The Git repository to add a Homebrew recipe to.\n"],
     ]
 
     def parseArgs(self):
@@ -652,7 +654,6 @@ def publish_artifacts_main(args, base_path, top_level):
     scratch_directory.child('python').createDirectory()
     scratch_directory.child('pip').createDirectory()
     scratch_directory.child('homebrew').createDirectory()
-    homebrew_repo_url = "git@github.com:ClusterHQ/homebrew-tap.git"
 
     try:
         sync_perform(
@@ -676,9 +677,10 @@ def publish_artifacts_main(args, base_path, top_level):
                     target_bucket=options['target'],
                 ),
                 publish_homebrew_recipe(
-                    homebrew_repo_url=homebrew_repo_url,
+                    homebrew_repo_url=options['homebrew-tap'],
                     version=options['flocker-version'],
                     scratch_directory=scratch_directory.child('homebrew'),
+                    source_bucket=options['target'],
                 ),
             ]),
         )
