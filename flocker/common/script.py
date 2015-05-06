@@ -65,12 +65,6 @@ class ICommandLineScript(Interface):
         :return: A ``Deferred`` which fires when the script has completed.
         """
 
-# This should probably be built-in functionality in Eliot;
-# see https://github.com/ClusterHQ/eliot/issues/143
-TWISTED_LOG_MESSAGE = MessageType("twisted:log",
-                                  fields(error=bool, message=unicode),
-                                  u"A log message from Twisted.")
-
 
 def eliot_logging_service(log_file, reactor):
     service = MultiService()
@@ -109,6 +103,13 @@ class StdoutLoggingPolicy(PRecord):
 class NullLoggingPolicy(object):
     def service(self, reactor):
         return Service()
+
+
+# This should probably be built-in functionality in Eliot;
+# see https://github.com/ClusterHQ/eliot/issues/143
+TWISTED_LOG_MESSAGE = MessageType("twisted:log",
+                                  fields(error=bool, message=unicode),
+                                  u"A log message from Twisted.")
 
 
 class EliotObserver(Service):
