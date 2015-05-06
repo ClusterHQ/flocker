@@ -123,7 +123,8 @@ def perform_create_repository(dispatcher, intent):
         metadata = check_output([
             b'dpkg-scanpackages',
             b'--multiversion',
-            intent.repository_path.path])
+            b"."],
+            cwd=intent.repository_path.path)
 
         intent.repository_path.child('Release').setContent(
             "Origin: ClusterHQ\n")
