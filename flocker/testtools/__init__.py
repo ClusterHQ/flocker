@@ -850,6 +850,17 @@ class _ProcessResult(PRecord):
     status = field(type=int, mandatory=True)
 
 
+class _CalledProcessError(CalledProcessError):
+    """
+    Just like ``CalledProcessError`` except output is included in the string
+    representation.
+    """
+    def __str__(self):
+        base = super(_CalledProcessError, self).__str__()
+        lines = "\n".join("    |" + line for line in self.output.splitlines())
+        return base + " and output:\n" + lines
+
+
 def run_process(command, *args, **kwargs):
     """
     Run a child process, capturing its stdout and stderr.
@@ -868,7 +879,9 @@ def run_process(command, *args, **kwargs):
     status = process.wait()
     result = _ProcessResult(command=command, output=output, status=status)
     if result.status:
-        raise CalledProcessError(returncode=status, cmd=command, output=output)
+        raise _CalledProcessError(
+            returncode=status, cmd=command, output=output,
+        )
     return result
 
 
