@@ -333,7 +333,7 @@ class UserCredential(PRecord):
         # The organizational unit is set to the common name of the
         # authority, which in our case is a byte string identifying
         # the cluster.
-        organizational_unit = authority.common_name
+        organizational_unit = authority.organizational_unit
         dn = DistinguishedName(
             commonName=name, organizationalUnitName=organizational_unit
         )
@@ -400,10 +400,9 @@ class NodeCredential(PRecord):
         cert_filename = b"{uuid}.crt".format(uuid=uuid)
         # The common name for the node certificate.
         name = b"node-{uuid}".format(uuid=uuid)
-        # The organizational unit is set to the common name of the
-        # authority, which in our case is a byte string identifying
-        # the cluster.
-        organizational_unit = authority.common_name
+        # The organizational unit is set to the organizational unit of the
+        # authority, which in our case is cluster's UUID.
+        organizational_unit = authority.organizational_unit
         dn = DistinguishedName(
             commonName=name, organizationalUnitName=organizational_unit
         )
@@ -458,10 +457,9 @@ class ControlCredential(PRecord):
         # This is used to distinguish between control service and node
         # certificates.
         name = b"control-service"
-        # The organizational unit is set to the common name of the
-        # authority, which in our case is a byte string identifying
-        # the cluster.
-        organizational_unit = authority.common_name
+        # The organizational unit is set to the organizational_unit of the
+        # authority, which in our case is the cluster UUID.
+        organizational_unit = authority.organizational_unit
         dn = DistinguishedName(
             commonName=name, organizationalUnitName=organizational_unit
         )
@@ -493,6 +491,10 @@ class RootCredential(PRecord):
     @property
     def common_name(self):
         return self.credential.certificate.getSubject().CN
+
+    @property
+    def organizational_unit(self):
+        return self.credential.certificate.getSubject().OU
 
     @classmethod
     def from_path(cls, path):
@@ -526,7 +528,8 @@ class RootCredential(PRecord):
 
         :return RootCredential: Initialized certificate authority.
         """
-        dn = DistinguishedName(commonName=name)
+        dn = DistinguishedName(commonName=name,
+                               organizationalUnitName=bytes(uuid4()))
         keypair = flocker_keypair()
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")

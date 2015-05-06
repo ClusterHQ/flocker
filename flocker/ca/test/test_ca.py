@@ -7,7 +7,7 @@ Tests for certification logic in ``flocker.ca._ca``
 import datetime
 import os
 
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from Crypto.Util import asn1
 from OpenSSL import crypto
@@ -216,13 +216,14 @@ def make_credential_tests(cls, expected_file_name, **kwargs):
         def test_certificate_ou_matches_ca(self):
             """
             A certificate written by ``UserCredential.initialize`` has the
-            issuing authority's common name as its organizational unit name.
+            issuing authority's organizational unit as its organizational
+            unit name.
             """
             cert = self.credential.credential.certificate.original
             issuer = cert.get_issuer()
             subject = cert.get_subject()
             self.assertEqual(
-                issuer.CN,
+                issuer.OU,
                 subject.OU
             )
 
@@ -603,3 +604,33 @@ class RootCredentialTests(SynchronousTestCase):
             (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
             (key.type(), key.bits(), cert.get_signature_algorithm())
         )
+
+    def test_cluster_uuid(self):
+        """
+        Each certificate created by ``RootCredential.initialize`` has a unique
+        cluster UUID, stored in the distinguished name organizational unit
+        name.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        ca = RootCredential.initialize(path, b"mycluster")
+        cert = ca.credential.certificate
+
+        path2 = FilePath(self.mktemp())
+        path2.makedirs()
+        ca2 = RootCredential.initialize(path2, b"mycluster2")
+        cert2 = ca2.credential.certificate
+
+        self.assertNotEqual(UUID(hex=cert.getSubject().OU),
+                            UUID(hex=cert2.getSubject().OU))
+
+    def test_organizational_unit(self):
+        """
+        ``RootCredential.organizational_unit`` is its organizational unit.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        RootCredential.initialize(path, b"mycluster")
+        ca = RootCredential.from_path(path)
+        self.assertEqual(ca.organizational_unit,
+                         ca.credential.certificate.getSubject().OU)
