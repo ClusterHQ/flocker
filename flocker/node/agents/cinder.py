@@ -97,6 +97,8 @@ def wait_for_volume(volume_manager, expected_volume,
     """
     start_time = time.time()
     while True:
+        # Simplify this: use expected_volume.get() to update in place instead
+        # (MUTATION IS THE BEST).
         for listed_volume in volume_manager.list():
             if listed_volume.id == expected_volume.id:
                 if listed_volume.status == expected_status:
@@ -117,44 +119,7 @@ def wait_for_volume(volume_manager, expected_volume,
             )
 
 
-def _instance_uuid():
-    """
-    See http://wiki.christophchamp.com/index.php/Xenstore
-    $ sudo xenstore-read name
-    instance-6ddfb6c0-d264-4e77-846a-aa67e4fe89df
-
-    # This is how we can get the instance_uuid of this node.
-    # But to satisfy the current IBlockDeviceAPI.list API we'll need
-    # to match the OpenStack instance_uuid to the hostname (or soon,
-    # the Flocker Node UUD). How will we do that?
-    # We don't really want this implementation to have to query the
-    # OpenStack servers list and even if it could get that list, how
-    # is it going to match Flocker node UUIDs to OpenStack
-    # instance_uuid.
-    # Perhaps BlockDeviceVolume.host should have the OpenStack
-    # instance_uuid and there should be an extra
-    # IBlockDeviceAPI.is_local_volume method (or something)
-    """
-    prefix = 'instance-'
-    name = check_output(['xenstore-read', 'name']).rstrip()
-    return UUID(name[len(prefix):])
-
-
-def _next_device():
-    """
-    Can't just use the dataset name as the block device name
-    inside the node, nor volume.id nor random_name. You can't
-    even leave it blank; auto is not supported.
-    """
-    prefix = '/dev/xvd'
-    existing = [path for path in FilePath('/dev').children()
-                if path.path.startswith(prefix) 
-                and len(path.basename()) == 4]
-    letters = string.ascii_lowercase
-    return prefix + letters[len(existing)] 
-
-
-@implementer(IBlockDeviceAPI)
+2@implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
@@ -180,6 +145,9 @@ class CinderBlockDeviceAPI(object):
         """
         Look up the Xen instance ID for this node.
         """
+        # See http://wiki.christophchamp.com/index.php/Xenstore
+        # $ sudo xenstore-read name
+        # instance-6ddfb6c0-d264-4e77-846a-aa67e4fe89df
         command = [b"xenstore-read", b"name"]
         return check_output(command).strip().decode("ascii")
 
@@ -237,7 +205,7 @@ class CinderBlockDeviceAPI(object):
     def resize_volume(self, blockdevice_id, size):
         pass
 
-    def attach_volume(self, blockdevice_id, host):
+    def attach_volume(self, blockdevice_id, attach_to):
         """
         The attaching may have to be done via the nova client :-(
         See http://www.florentflament.com/blog/openstack-volume-in-use-although-vm-doesnt-exist.html # noqa
@@ -245,25 +213,23 @@ class CinderBlockDeviceAPI(object):
         When I attach using the cinder client the volumes become undetachable.
         """
         unattached_volume = self._get(blockdevice_id)
-        if unattached_volume.host is not None:
+        if unattached_volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
 
-        device_path = _next_device()
-        server_id = self.host_map[host]
         nova_volume = self.nova_volume_manager.create_server_volume(
             # Nova API expects an ID string not UUID.
-            server_id=unicode(server_id), 
-            volume_id=unattached_volume.blockdevice_id, 
-            device=device_path
+            server_id=attach_to,
+            volume_id=unattached_volume.blockdevice_id,
+            # Have Nova assign a device file for us.
+            device=None,
         )
-        wait_for_volume(
+        attached_volume = wait_for_volume(
             volume_manager=self.cinder_volume_manager,
             expected_volume=nova_volume,
             expected_status=u'in-use',
         )
-        assert FilePath(device_path).exists()
 
-        attached_volume = unattached_volume.set('host', host)
+        attached_volume = unattached_volume.set('attached_to', attach_to)
 
         return attached_volume
 
