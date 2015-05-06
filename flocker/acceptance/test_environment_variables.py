@@ -8,10 +8,11 @@ from uuid import uuid4
 
 from eliot import Message, Logger
 
-from pyrsistent import pmap, freeze, thaw
+from pyrsistent import freeze, thaw
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import succeed
 
 from flocker.control import (
     Application, DockerImage, AttachedVolume, Port, Dataset,
@@ -19,8 +20,9 @@ from flocker.control import (
 from ..control.httpapi import container_configuration_response
 from flocker.testtools import loop_until
 
-from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        require_flocker_cli, get_test_cluster)
+from .testtools import (
+    assert_expected_deployment, flocker_deploy,
+    require_flocker_cli, require_cluster)
 
 try:
     from pymysql import connect
@@ -49,8 +51,7 @@ MYSQL_APPLICATION = Application(
     volume=AttachedVolume(
         manifestation=Manifestation(
             dataset=Dataset(
-                dataset_id=unicode(uuid4()),
-                metadata=pmap({"name": MYSQL_APPLICATION_NAME})),
+                dataset_id=unicode(uuid4())),
             primary=True),
         mountpoint=FilePath(MYSQL_VOLUME_MOUNTPOINT),
     ),
@@ -66,15 +67,18 @@ class EnvironmentVariableTests(TestCase):
     passing a root password to MySQL.
     """
     @require_flocker_cli
-    def setUp(self):
+    @require_cluster(num_nodes=2)
+    def setUp(self, cluster):
         """
         Deploy MySQL to one of two nodes.
         """
-        getting_nodes = get_nodes(self, num_nodes=2)
+        self.cluster = cluster
+        (self.node_1, self.node_1_uuid), (self.node_2, self.node_2_uuid) = [
+            (node.address, node.uuid) for node in cluster.nodes]
 
-        def deploy_mysql(node_ips):
-            self.node_1, self.node_2 = node_ips
+        getting_nodes = succeed(None)
 
+        def deploy_mysql(_):
             mysql_deployment = {
                 u"version": 1,
                 u"nodes": {
@@ -156,8 +160,8 @@ class EnvironmentVariableTests(TestCase):
         that MySQL has started.
         """
         expected_container = container_configuration_response(
-            MYSQL_APPLICATION, self.node_1)
-        waiting_for_cluster = get_test_cluster(node_count=1)
+            MYSQL_APPLICATION, self.node_1_uuid)
+        waiting_for_cluster = succeed(self.cluster)
 
         def got_cluster(cluster):
             waiting_for_container = cluster.wait_for_container(

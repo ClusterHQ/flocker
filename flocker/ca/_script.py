@@ -19,8 +19,8 @@ from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 
 from ._ca import (RootCredential, ControlCredential, NodeCredential,
-                  CertificateAlreadyExistsError, KeyAlreadyExistsError,
-                  PathError)
+                  UserCredential, CertificateAlreadyExistsError,
+                  KeyAlreadyExistsError, PathError)
 
 
 class PrettyOptions(Options):
@@ -90,6 +90,72 @@ class PrettyOptions(Options):
 
 
 @flocker_standard_options
+class UserCertificateOptions(PrettyOptions):
+    """
+    Command line options for ``flocker-ca create-api-certificate``.
+    """
+
+    helptext = """Create a new certificate for an API end user.
+
+    Creates a certificate signed by a previously generated certificate
+    authority (see flocker-ca initialize command for more information).
+
+    Required parameters:
+
+    * name: A username for which the certificate should be created.
+    """
+
+    synopsis = "<name> [options]"
+
+    optParameters = [
+        ['inputpath', 'i', None,
+         ('Path to directory containing root certificate.'
+          'Defaults to current working directory.')],
+        ['outputpath', 'o', None,
+         ('Path to directory to write control service certificate.'
+          'Defaults to current working directory.')],
+    ]
+
+    def parseArgs(self, name):
+        self["name"] = name
+
+    def run(self):
+        """
+        Create a new node certificate signed by the root and write it out to
+        the current directory.
+
+        :raise PathError: When the root certificate and key cannot be found.
+        """
+        if self["inputpath"] is None:
+            self["inputpath"] = os.getcwd()
+        if self["outputpath"] is None:
+            self["outputpath"] = os.getcwd()
+
+        self["inputpath"] = FilePath(self["inputpath"])
+        self["outputpath"] = FilePath(self["outputpath"])
+
+        try:
+            try:
+                self["name"] = self["name"].decode("utf-8")
+                ca = RootCredential.from_path(self["inputpath"])
+                uc = UserCredential.initialize(
+                    self["outputpath"], ca, self["name"])
+                self._sys_module.stdout.write(
+                    u"Created {user}.crt. You can now give it to your "
+                    u"API enduser so they can access the control service "
+                    u"API.".format(user=uc.username).encode("utf-8")
+                )
+            except PathError as e:
+                raise UsageError(str(e))
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                raise UsageError(
+                    u"Invalid username: Could not be converted to UTF-8")
+        except UsageError as e:
+            raise SystemExit(u"Error: {error}".format(error=str(e)))
+        return succeed(None)
+
+
+@flocker_standard_options
 class NodeCertificateOptions(PrettyOptions):
     """
     Command line options for ``flocker-ca create-node-certificate``.
@@ -131,10 +197,10 @@ class NodeCertificateOptions(PrettyOptions):
             try:
                 ca = RootCredential.from_path(self["inputpath"])
                 nc = NodeCredential.initialize(self["outputpath"], ca)
-                print (
+                self._sys_module.stdout.write(
                     b"Created {uuid}.crt. Copy it over to "
-                    "/etc/flocker/node.crt on your node "
-                    "machine and make sure to chmod 0600 it.".format(
+                    b"/etc/flocker/node.crt on your node "
+                    b"machine and make sure to chmod 0600 it.".format(
                         uuid=nc.uuid
                     )
                 )
@@ -191,10 +257,10 @@ class ControlCertificateOptions(PrettyOptions):
             try:
                 ca = RootCredential.from_path(self["inputpath"])
                 ControlCredential.initialize(self["outputpath"], ca)
-                print (
+                self._sys_module.stdout.write(
                     b"Created control-service.crt. Copy it over to "
-                    "/etc/flocker/control-service.crt on your control service "
-                    "machine and make sure to chmod 0600 it."
+                    b"/etc/flocker/control-service.crt on your control "
+                    b"service machine and make sure to chmod 0600 it."
                 )
             except (
                 CertificateAlreadyExistsError, KeyAlreadyExistsError, PathError
@@ -241,10 +307,10 @@ class InitializeOptions(PrettyOptions):
         try:
             try:
                 RootCredential.initialize(self["path"], self["name"])
-                print (
+                self._sys_module.stdout.write(
                     b"Created cluster.key and cluster.crt. "
-                    "Please keep cluster.key secret, as anyone who can access "
-                    "it will be able to control your cluster."
+                    b"Please keep cluster.key secret, as anyone who can "
+                    b"access it will be able to control your cluster."
                 )
             except (
                 KeyAlreadyExistsError, CertificateAlreadyExistsError, PathError
@@ -275,6 +341,8 @@ class CAOptions(PrettyOptions):
          "Create a certificate for the control service."],
         ["create-node-certificate", None, NodeCertificateOptions,
          "Create a certificate for a node agent."],
+        ["create-api-certificate", None, UserCertificateOptions,
+         "Create a certificate for an API user."],
         ]
 
 
