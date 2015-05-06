@@ -7,6 +7,7 @@ from subprocess import check_output
 from unittest import skipUnless
 from os import environ
 from copy import deepcopy
+from uuid import uuid4
 
 from yaml import safe_dump
 
@@ -19,7 +20,7 @@ from twisted.web.resource import Resource
 from twisted.web.server import Site
 
 from ...control import (
-    FlockerConfiguration, model_from_configuration)
+    FlockerConfiguration, model_from_configuration, NodeState)
 
 from ...control.httpapi import ConfigurationAPIUserV1
 from ...control._persistence import ConfigurationPersistenceService
@@ -47,6 +48,9 @@ class FlockerDeployTests(TestCase):
         self.persistence_service.startService()
         self.cluster_state_service = ClusterStateService()
         self.cluster_state_service.startService()
+        self.cluster_state_service.apply_changes(
+            [NodeState(uuid=uuid4(), hostname=ip)
+             for ip in COMPLEX_DEPLOYMENT_YAML[u"nodes"].keys()])
         self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
         app = ConfigurationAPIUserV1(self.persistence_service,
@@ -94,6 +98,7 @@ class FlockerDeployTests(TestCase):
         apps = FlockerConfiguration(
             deepcopy(COMPLEX_APPLICATION_YAML)).applications()
         expected = model_from_configuration(
+            deployment_state=self.cluster_state_service.as_deployment(),
             applications=apps,
             deployment_configuration=deepcopy(COMPLEX_DEPLOYMENT_YAML))
         result.addCallback(lambda _: self.assertEqual(

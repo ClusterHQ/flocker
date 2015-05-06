@@ -212,7 +212,7 @@ def ideployer_tests_factory(fixture):
             ``IStateChange`` provider.
             """
             deployer = fixture(self)
-            result = deployer.calculate_changes(EMPTY, EMPTY)
+            result = deployer.calculate_changes(EMPTY, EMPTY_STATE)
             self.assertTrue(verifyObject(IStateChange, result))
 
     return IDeployerTests
