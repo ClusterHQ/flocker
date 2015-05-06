@@ -167,6 +167,7 @@ setup(
         "python-keystoneclient-rackspace==0.1.3",
         "bitmath==1.2.3-4",
         "boto==2.38.0",
+        "appdirs==1.4.0",
         ],
 
     extras_require={
