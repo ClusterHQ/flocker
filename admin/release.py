@@ -381,17 +381,20 @@ FLOCKER_PACKAGES = [
 ]
 
 
-def publish_homebrew_recipe(homebrew_repo_url, version, scratch_directory):
+def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
+                            scratch_directory):
     """
     Publish a Homebrew recipe to a Git repository.
 
     :param git.Repo homebrew_repo: Homebrew tap Git repository. This should
         be an SSH URL so as not to require a username and password.
     :param bytes version: Version of Flocker to publish a recipe for.
+    :param bytes source_bucket: S3 bucket to get source distribution from.
     :param FilePath scratch_directory: Temporary directory to create a recipe
         in.
     """
-    sdist_url = 'https://s3.amazonaws.com/clusterhq-archive/python/Flocker-{}.tar.gz'.format(version)  # noqa
+    url_template = 'https://s3.amazonaws.com/{bucket}/python/Flocker-{version}.tar.gz'  # noqa
+    sdist_url = url_template.format(bucket=source_bucket, version=version)
     content = make_recipe(
         version=version,
         sdist_url=sdist_url)
