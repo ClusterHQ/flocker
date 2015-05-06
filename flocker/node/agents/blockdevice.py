@@ -676,7 +676,7 @@ class AttachVolume(PRecord):
             ATTACH_VOLUME_DETAILS(volume=volume).write(_logger)
             return api.attach_volume(
                 volume.blockdevice_id,
-                storage_backend_id=compute_instance_id,
+                attach_to=compute_instance_id,
             )
         attaching = d.addCallback(found)
         return attaching
@@ -780,7 +780,7 @@ class CreateBlockDeviceDataset(PRecord):
         # This duplicates AttachVolume now.
         volume = api.attach_volume(
             volume.blockdevice_id,
-            storage_backend_id=api.compute_instance_id(),
+            attach_to=api.compute_instance_id(),
         )
         device = api.get_device_path(volume.blockdevice_id)
 
@@ -830,12 +830,12 @@ class IBlockDeviceAsyncAPI(Interface):
         :return: A ``Deferred`` that fires when the volume has been destroyed.
         """
 
-    def attach_volume(blockdevice_id, storage_backend_id):
+    def attach_volume(blockdevice_id, attach_to):
         """
         See ``IBlockDeviceAPI.attach_volume``.
 
         :returns: A ``Deferred`` that fires with a ``BlockDeviceVolume`` with a
-            ``attached_to`` attribute set to ``storage_backend_id``.
+            ``attached_to`` attribute set to ``attach_to``.
         """
 
     def detach_volume(blockdevice_id):
@@ -914,24 +914,23 @@ class IBlockDeviceAPI(Interface):
         :return: ``None``
         """
 
-    def attach_volume(blockdevice_id, storage_backend_id):
+    def attach_volume(blockdevice_id, attach_to):
         """
-        Attach ``blockdevice_id`` to the node indicated by
-        ``storage_backend_id``.
+        Attach ``blockdevice_id`` to the node indicated by ``attach_to``.
 
         :param unicode blockdevice_id: The unique identifier for the block
             device being attached.
-        :param unicode storage_backend_id: An identifier like the one returned
-            by the ``compute_instance_id`` method indicating the node to which
-            to attach the volume.
+        :param unicode attach_to: An identifier like the one returned by the
+            ``compute_instance_id`` method indicating the node to which to
+            attach the volume.
 
         :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
             exist.
         :raises AlreadyAttachedVolume: If the supplied ``blockdevice_id`` is
             already attached.
 
-        :returns: A ``BlockDeviceVolume`` with a ``attached_to``
-            attribute set to ``storage_backend_id``.
+        :returns: A ``BlockDeviceVolume`` with a ``attached_to`` attribute set
+            to ``attach_to``.
         """
 
     def detach_volume(blockdevice_id):
@@ -1201,7 +1200,7 @@ class LoopbackBlockDeviceAPI(object):
                 return volume
         raise UnknownVolume(blockdevice_id)
 
-    def attach_volume(self, blockdevice_id, storage_backend_id):
+    def attach_volume(self, blockdevice_id, attach_to):
         """
         Move an existing ``unattached`` file into a per-node directory and
         create a loopback device backed by that file.
@@ -1220,7 +1219,7 @@ class LoopbackBlockDeviceAPI(object):
         if volume.attached_to is None:
             old_path = self._unattached_directory.child(blockdevice_id)
             host_directory = self._attached_directory.child(
-                storage_backend_id.encode("ascii"),
+                attach_to.encode("ascii"),
             )
             try:
                 host_directory.makedirs()
@@ -1231,7 +1230,7 @@ class LoopbackBlockDeviceAPI(object):
             # The --find option allocates the next available /dev/loopX device
             # name to the device.
             check_output(["losetup", "--find", new_path.path])
-            attached_volume = volume.set(attached_to=storage_backend_id)
+            attached_volume = volume.set(attached_to=attach_to)
             return attached_volume
 
         raise AlreadyAttachedVolume(blockdevice_id)

@@ -353,7 +353,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
         self.api.attach_volume(
             unmounted.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
         assert_discovered_state(
             self, self.deployer,
@@ -380,7 +380,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
 
         self.api.attach_volume(
             unexpected.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
 
         device = self.api.get_device_path(unexpected.blockdevice_id)
@@ -421,7 +421,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mountpoint.makedirs()
         self.api.attach_volume(
             unmounted.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
 
         make_filesystem(unrelated_device, block_device=False)
@@ -451,7 +451,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         )
         self.api.attach_volume(
             new_volume.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
         device = self.api.get_device_path(new_volume.blockdevice_id)
         mountpoint = self.deployer.mountroot.child(bytes(dataset_id))
@@ -486,7 +486,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api.attach_volume(
             new_volume.blockdevice_id,
             # This is a hack.  We don't know any other IDs, though.
-            storage_backend_id=u'some.other.host',
+            attach_to=u'some.other.host',
         )
         assert_discovered_state(self, self.deployer, [])
 
@@ -1246,7 +1246,7 @@ class IBlockDeviceAPITestsMixin(object):
             UnknownVolume,
             self.api.attach_volume,
             blockdevice_id=unicode(uuid4()),
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
 
     def test_attach_attached_volume(self):
@@ -1261,14 +1261,14 @@ class IBlockDeviceAPITestsMixin(object):
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
         attached_volume = self.api.attach_volume(
-            new_volume.blockdevice_id, storage_backend_id=self.this_node,
+            new_volume.blockdevice_id, attach_to=self.this_node,
         )
 
         self.assertRaises(
             AlreadyAttachedVolume,
             self.api.attach_volume,
             blockdevice_id=attached_volume.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
 
     def test_attach_elsewhere_attached_volume(self):
@@ -1285,14 +1285,14 @@ class IBlockDeviceAPITestsMixin(object):
         )
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
 
         self.assertRaises(
             AlreadyAttachedVolume,
             self.api.attach_volume,
             blockdevice_id=attached_volume.blockdevice_id,
-            storage_backend_id=another_node,
+            attach_to=another_node,
         )
 
     def test_attach_unattached_volume(self):
@@ -1312,7 +1312,7 @@ class IBlockDeviceAPITestsMixin(object):
         )
         attached_volume = self.api.attach_volume(
             blockdevice_id=new_volume.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
         self.assertEqual(expected_volume, attached_volume)
 
@@ -1333,7 +1333,7 @@ class IBlockDeviceAPITestsMixin(object):
         )
         self.api.attach_volume(
             blockdevice_id=new_volume.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
         self.assertEqual([expected_volume], self.api.list_volumes())
 
@@ -1352,7 +1352,7 @@ class IBlockDeviceAPITestsMixin(object):
         )
         attached_volume = self.api.attach_volume(
             blockdevice_id=new_volume2.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
         self.assertItemsEqual(
             [new_volume1, attached_volume],
@@ -1372,10 +1372,10 @@ class IBlockDeviceAPITestsMixin(object):
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
         attached_volume1 = self.api.attach_volume(
-            volume1.blockdevice_id, storage_backend_id=self.this_node,
+            volume1.blockdevice_id, attach_to=self.this_node,
         )
         attached_volume2 = self.api.attach_volume(
-            volume2.blockdevice_id, storage_backend_id=self.this_node,
+            volume2.blockdevice_id, attach_to=self.this_node,
         )
 
         self.assertItemsEqual(
@@ -1423,7 +1423,7 @@ class IBlockDeviceAPITestsMixin(object):
         )
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
         device_path = self.api.get_device_path(attached_volume.blockdevice_id)
         self.assertTrue(
@@ -1442,7 +1442,7 @@ class IBlockDeviceAPITestsMixin(object):
         )
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
 
         device_path1 = self.api.get_device_path(attached_volume.blockdevice_id)
@@ -1553,7 +1553,7 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
         )
         unrelated = self.api.attach_volume(
-            unrelated.blockdevice_id, storage_backend_id=self.this_node
+            unrelated.blockdevice_id, attach_to=self.this_node
         )
 
         # Create the volume we'll detach.
@@ -1561,7 +1561,7 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
         )
         volume = self.api.attach_volume(
-            volume.blockdevice_id, storage_backend_id=self.this_node
+            volume.blockdevice_id, attach_to=self.this_node
         )
 
         device_path = self.api.get_device_path(volume.blockdevice_id)
@@ -1595,11 +1595,11 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
         )
         attached_volume = self.api.attach_volume(
-            volume.blockdevice_id, storage_backend_id=self.this_node
+            volume.blockdevice_id, attach_to=self.this_node
         )
         self.api.detach_volume(volume.blockdevice_id)
         reattached_volume = self.api.attach_volume(
-            volume.blockdevice_id, storage_backend_id=self.this_node
+            volume.blockdevice_id, attach_to=self.this_node
         )
         self.assertEqual(
             (attached_volume, [attached_volume]),
@@ -1615,7 +1615,7 @@ class IBlockDeviceAPITestsMixin(object):
         exception = self.assertRaises(
             UnknownVolume,
             self.api.attach_volume, volume.blockdevice_id,
-            storage_backend_id=self.this_node,
+            attach_to=self.this_node,
         )
         self.assertEqual(exception.args, (volume.blockdevice_id,))
 
@@ -2502,7 +2502,7 @@ class DetachVolumeTests(
         )
         api.attach_volume(
             volume.blockdevice_id,
-            storage_backend_id=api.compute_instance_id(),
+            attach_to=api.compute_instance_id(),
         )
 
         change = DetachVolume(dataset_id=dataset_id)
@@ -3043,7 +3043,7 @@ class ResizeFilesystemTests(
             dataset_id=dataset_id, size=original_size,
         )
         api.attach_volume(
-            volume.blockdevice_id, storage_backend_id=this_node,
+            volume.blockdevice_id, attach_to=this_node,
         )
 
         self.successResultOf(run_state_change(
