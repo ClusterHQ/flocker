@@ -30,6 +30,12 @@ from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
 
 
+class ConfigMissing(Exception):
+    """
+    The cloud configuration could not be found.
+    """
+
+
 class ProviderType(Names):
     """
     Kinds of compute/storage cloud providers for which this module is able to
@@ -44,9 +50,6 @@ def get_blockdeviceapi(provider):
     Validate and load cloud provider's yml config file.
     Default to ``~/acceptance.yml`` in the current user home directory, since
     that's where buildbot puts its acceptance test credentials file.
-
-    :raises: ``SkipTest`` if a ``CLOUD_CONFIG_FILE`` was not set and the
-        default config file could not be read.
     """
     cls, args = get_blockdeviceapi_args(provider)
     return cls(**args)
@@ -60,14 +63,16 @@ def get_blockdeviceapi_args(provider):
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
 
+    :raises: ``ConfigMissing`` if a ``CLOUD_CONFIG_FILE`` was not set and the
+        default config file could not be read.
+
     :return: A ``dict`` that can initialize the matching implementation.
     """
     config_file_path = environ.get('CLOUD_CONFIG_FILE')
     if config_file_path is not None:
         config_file = open(config_file_path)
     else:
-        # Raise a different exception
-        raise SkipTest(
+        raise ConfigMissing(
             'Supply the path to a cloud credentials file '
             'using the CLOUD_CONFIG_FILE environment variable. '
             'See: '
@@ -176,6 +181,9 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
     """
     # Handle the exception raised by get_blockdeviceapi_args and turn it into a
     # skip test
-    api = get_blockdeviceapi(provider)
+    try:
+        api = get_blockdeviceapi(provider)
+    except ConfigMissing as e:
+        raise SkipTest(str(e))
     test_case.addCleanup(detach_destroy_volumes, api)
     return api
