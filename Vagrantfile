@@ -16,6 +16,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-dev"
   config.vm.box_version = "> 0.3.2.1714"
 
+  # The following reduces the difference in network speed between the guest
+  # and the host. See https://github.com/mitchellh/vagrant/issues/1807.
+  config.vm.provider :virtualbox do |vb|
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+  end
+
   config.vm.provision :shell, :inline => $bootstrap, :privileged => true
   # Use the git configuration from the host in the VM, if it is in the expected
   # location
