@@ -14,7 +14,7 @@ import yaml
 from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
-    sudo_from_args,
+    sudo, sudo_from_args,
     put, comment,
     run_remotely
 )
@@ -67,8 +67,7 @@ def task_install_cli(distribution, package_source=PackageSource()):
             sudo_from_args([
                 "apt-get", "-y", "install", "apt-transport-https",
                 "software-properties-common"]),
-            # TODO - use clusterhq-archive rather than -testing
-            # TODO - use ARCHIVE_BUCKET variable
+            # FLOC-1742 TODO - use ARCHIVE_BUCKET rather than clusterhq-archive-testing  # noqa
             sudo_from_args([
                 'add-apt-repository', '-y',
                 'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu 14.04/amd64/'  # noqa
@@ -99,7 +98,7 @@ def task_install_cli(distribution, package_source=PackageSource()):
         return sequence(commands)
     else:
         commands = [
-            run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+            sudo(command="yum install -y " + CLUSTERHQ_REPO[distribution])
         ]
 
         if base_url:
@@ -111,7 +110,10 @@ def task_install_cli(distribution, package_source=PackageSource()):
                 enabled=0
                 """) % (base_url,)
             commands.append(put(content=repo,
-                                path='/etc/yum.repos.d/clusterhq-build.repo'))
+                                path='/tmp/clusterhq-build.repo'))
+            commands.append(sudo_from_args([
+                'cp', '/tmp/clusterhq-build.repo',
+                '/etc/yum.repos.d/clusterhq-build.repo']))
             branch_opt = ['--enablerepo=clusterhq-build']
         else:
             branch_opt = []
@@ -122,14 +124,13 @@ def task_install_cli(distribution, package_source=PackageSource()):
         else:
             package = 'clusterhq-flocker-cli'
 
-        commands.append(run_from_args(
+        commands.append(sudo_from_args(
             ["yum", "install"] + branch_opt + ["-y", package]))
 
         return sequence(commands)
 
 
 def install_cli(package_source, node):
-    # TODO - change the username based on distribution and cloud environment
     return run_remotely(
         node.get_default_username(), node.address,
         task_install_cli(node.distribution, package_source))
