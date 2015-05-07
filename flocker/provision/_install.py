@@ -233,6 +233,10 @@ def task_enable_flocker_agent(distribution, control_node):
                     "hostname": control_node,
                     "port": 4524,
                 },
+                "dataset": {
+                    "backend": "zfs",
+                    "zfs-pool": "flocker",
+                },
             },
         ),
     )
