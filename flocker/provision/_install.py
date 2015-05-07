@@ -73,7 +73,7 @@ def task_install_cli(distribution, package_source=PackageSource()):
             # FLOC-1742 TODO - use ARCHIVE_BUCKET rather than clusterhq-archive-testing  # noqa
             sudo_from_args([
                 'add-apt-repository', '-y',
-                'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu 14.04/amd64/'  # noqa
+                'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu/14.04/$(ARCH) /'  # noqa
                 ])
             ]
 
