@@ -107,11 +107,11 @@ def agent_config_from_file(path):
                 "type": "object",
                 "required": ["hostname", "port"],
                 "properties": {
-                      "hostname": {
-                          "type": "string",
-                          "format": "hostname",
-                      },
-                      "port": {"type": "integer"},
+                    "hostname": {
+                        "type": "string",
+                        "format": "hostname",
+                    },
+                    "port": {"type": "integer"},
                 }
             }
         }
