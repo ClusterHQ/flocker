@@ -279,7 +279,8 @@ class ConvergenceLoop(object):
             context.client, context.configuration, context.state)
 
     def output_CONVERGE(self, context):
-        known_local_state = self.cluster_state.get_node(self.deployer.hostname)
+        known_local_state = self.cluster_state.get_node(
+            self.deployer.node_uuid, hostname=self.deployer.hostname)
         d = DeferredContext(self.deployer.discover_state(known_local_state))
 
         def got_local_state(state_changes):

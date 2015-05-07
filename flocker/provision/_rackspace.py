@@ -37,7 +37,7 @@ def provision_rackspace(node, package_source, distribution, variants):
             username=get_default_username(distribution),
             address=node.address,
             commands=sequence([
-                task_upgrade_kernel('centos-7'),
+                task_upgrade_kernel(node.distribution),
                 Effect(Func(node.reboot)),
             ]),
         ))

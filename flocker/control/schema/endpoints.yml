@@ -16,8 +16,8 @@ definitions:
   configuration_container:
     type: object
     properties:
-      host:
-        '$ref': 'types.json#/definitions/host'
+      node_uuid:
+        '$ref': 'types.json#/definitions/container_node_uuid'
       name:
         '$ref': 'types.json#/definitions/container_name'
       image:
@@ -28,6 +28,8 @@ definitions:
         '$ref': 'types.json#/definitions/environment'
       restart_policy:
         '$ref': 'types.json#/definitions/restart_policy'
+      command_line:
+        '$ref': 'types.json#/definitions/command_line'
       volumes:
         title: Volumes to attach to the container
         description: |
@@ -45,7 +47,7 @@ definitions:
       links:
         '$ref': 'types.json#/definitions/container_links'
     required:
-      - host
+      - node_uuid
       - name
       - image
     additionalProperties: false
@@ -59,26 +61,32 @@ definitions:
     description: "The configuration for a named container."
     type: object
     properties:
-      host:
-        '$ref': 'types.json#/definitions/host'
+      node_uuid:
+        '$ref': 'types.json#/definitions/container_node_uuid'
     required:
-      - host
+      - node_uuid
     additionalProperties: false
 
-  # This will be improved and tested in
-  # https://clusterhq.atlassian.net/browse/FLOC-1632
   nodes_array:
-    description: "An array of nodes in the cluster."
+    decription: "An array of known nodes in the cluster."
     type: array
     items:
       type: object
       properties:
-        hostname:
-          '$ref': 'types.json#/definitions/host'
+        host:
+          '$ref': 'types.json#/definitions/node_host'
+        uuid:
+          '$ref': 'types.json#/definitions/node_uuid'
+      required:
+        - uuid
+        - host
+      additionalProperties: false
 
   state_container:
     type: object
     properties:
+      node_uuid:
+        '$ref': 'types.json#/definitions/container_node_uuid'
       host:
         '$ref': 'types.json#/definitions/host'
       name:
@@ -91,6 +99,8 @@ definitions:
         '$ref': 'types.json#/definitions/environment'
       restart_policy:
         '$ref': 'types.json#/definitions/restart_policy'
+      command_line:
+        '$ref': 'types.json#/definitions/command_line'
       volumes:
         title: Volumes to attach to the container
         description: |
@@ -110,6 +120,7 @@ definitions:
       running:
         '$ref': 'types.json#/definitions/running'
     required:
+      - node_uuid
       - host
       - name
       - image

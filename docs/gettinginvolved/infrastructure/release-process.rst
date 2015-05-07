@@ -14,9 +14,10 @@ Outcomes
 By the end of the release process we will have:
 
 - a tag in version control,
-- a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
+- a Python wheel on Amazon `S3`_,
 - Fedora 20 RPMs for software on the node and client,
 - CentOS 7 RPMs for software on the node and client,
+- Ubuntu 14.04 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
@@ -55,7 +56,7 @@ Access
 
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
 
-- An OS X (most recent release) system.
+- SSH access to ClusterHQ's GitHub repositories.
 
 .. note:: For a maintenance or documentation release, access to Google Cloud Storage and Atlas is not required.
 
@@ -109,10 +110,6 @@ Preparing For a Release
       cd flocker-${VERSION}
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
-      # This ensures that setuptools is a version that does not normalize
-      # version numbers according to PEP440.
-      # See https://clusterhq.atlassian.net/browse/FLOC-1331
-      pip install setuptools==3.6
       admin/create-release-branch --flocker-version="${VERSION}"
       git push --set-upstream origin release/flocker-${VERSION}
 
@@ -341,11 +338,8 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      # Build Python packages and upload them to ``archive.clusterhq.com``
-      python setup.py sdist bdist_wheel
-      gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
-      # Build RPM packages and upload them to Amazon S3
-      admin/publish-packages
+      # Build Python and RPM packages and upload them to Amazon S3
+      admin/publish-artifacts
       # Copy the tutorial box to the final location
       gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
@@ -360,43 +354,6 @@ Release
       echo https://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
-
-#. Create a version specific Homebrew recipe for this release:
-
-   .. note:: Skip this step for a maintenance or documentation release.
-
-   XXX This should be automated, see :issue:`1150`.
-
-   - Create a recipe file and push it to the `homebrew-tap`_ repository:
-
-     .. prompt:: bash [vagrant@localhost]$
-
-        cd
-        git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
-        cd homebrew-tap-${VERSION}
-        ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
-        git add flocker-${VERSION}.rb
-        git commit -m "New Homebrew recipe"
-        git push
-
-   - Test the Homebrew recipe on OS X:
-
-     ClusterHQ has a Mac Mini available to use for testing.
-     Follow the instructions at ClusterHQ > Infrastructure > OS X Development Machine for launching a Virtual Machine to do this with.
-
-     Export the version number of the release being completed as an environment variable:
-
-     .. prompt:: bash [osx-user]$
-
-        export VERSION=0.1.2
-
-     Install and test the Homebrew recipe:
-
-     .. task:: test_homebrew flocker-${VERSION}
-        :prompt: [osx-user]$
-
-     If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
-     The release process should not continue until the tests pass.
 
 #. Test the Getting Started Guide:
 
@@ -518,7 +475,6 @@ The issue(s) for the planned improvements should be put into the next sprint.
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
-.. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh

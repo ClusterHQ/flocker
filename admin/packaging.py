@@ -598,6 +598,11 @@ IGNORED_WARNINGS = {
 
         # Cryptography hazmat bindings
         'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
+
+        # We require an old version of setuptools
+        # XXX This should not be necessary after
+        # https://clusterhq.atlassian.net/browse/FLOC-1373
+        'backup-file-in-package /opt/flocker/lib/python2.7/site-packages/setuptools-3.6.dist-info/requires.txt.orig',  # noqa
     ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
     PackageTypes.DEB: (
@@ -1121,7 +1126,7 @@ class DockerBuildScript(object):
             raise SystemExit(1)
 
         # Currently we add system control files for both EL and Debian-based
-        # systems.  We should probabl;y be more specific.  See FLOC-1736.
+        # systems.  We should probably be more specific.  See FLOC-1736.
         self.build_command(
             distribution=CURRENT_DISTRIBUTION,
             destination_path=options['destination-path'],

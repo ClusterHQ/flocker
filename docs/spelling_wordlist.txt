@@ -3,11 +3,11 @@ app
 apps
 backend
 behaviour
+blog
 Btrfs
 bugfix
 Buildbot
 CentOS
-centos
 checksum
 chmod
 cli
@@ -16,6 +16,7 @@ clusterhq
 Copr
 dataset
 datasets
+Debian
 Deis
 devel
 DigitalOcean
@@ -64,12 +65,13 @@ Rackspace
 Redis
 redis
 resize
+routable
 snapshotting
 stateful
 sysadmin
 terabytes
 timestamp
-ubuntu
+Ubuntu
 username
 versioning
 virtualization

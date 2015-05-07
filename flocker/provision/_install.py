@@ -9,8 +9,9 @@ import posixpath
 from textwrap import dedent
 from urlparse import urljoin
 from effect import Func, Effect
+import yaml
 
-from ._common import PackageSource, Variants, Kernel
+from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
     sudo_from_args,
@@ -185,51 +186,6 @@ def task_upgrade_kernel(distribution):
         raise NotImplementedError()
 
 
-KOJI_URL_TEMPLATE = (
-    'https://kojipkgs.fedoraproject.org/packages/kernel'
-    '/{version}/{release}.{distribution}/{architecture}'
-    '/kernel-{version}-{release}.{distribution}.{architecture}.rpm'
-)
-
-
-def koji_kernel_url(kernel):
-    """
-    Return the koji URL for the given kernel version.
-    """
-    url = KOJI_URL_TEMPLATE.format(
-        version=kernel.version,
-        release=kernel.release,
-        distribution=kernel.distribution,
-        architecture=kernel.architecture
-    )
-    return url
-
-
-DIGITALOCEAN_KERNEL = Kernel(
-    version="3.17.8",
-    release="200",
-    distribution="fc20",
-    architecture="x86_64"
-)
-
-
-DIGITALOCEAN_KERNEL_TITLE = (
-    "Fedora 20 x64 "
-    "vmlinuz-{kernel.version}-{kernel.release}"
-    ".{kernel.distribution}.{kernel.architecture}"
-).format(kernel=DIGITALOCEAN_KERNEL)
-
-
-def task_install_digitalocean_kernel():
-    """
-    Install a specific Fedora kernel version for DigitalOcean.
-    """
-    url = koji_kernel_url(DIGITALOCEAN_KERNEL)
-    return sequence([
-        run_from_args(['yum', 'update', '-y', url]),
-    ])
-
-
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
@@ -354,28 +310,26 @@ def task_open_control_firewall(distribution):
     ])
 
 
-AGENT_CONFIG = """\
-FLOCKER_NODE_NAME=%(node_name)s
-FLOCKER_CONTROL_NODE=%(control_node)s
-"""
-
-
-def task_enable_flocker_agent(distribution, agent_node, control_node):
+def task_enable_flocker_agent(distribution, control_node):
     """
     Configure and enable the flocker agents.
 
-    :param INode agent_node: The flocker-agent node.
     :param bytes control_node: The address of the control agent.
     """
+    put_config_file = put(
+        path='/etc/flocker/agent.yml',
+        content=yaml.safe_dump(
+            {
+                "version": 1,
+                "control-service-hostname": control_node,
+            },
+            # Don't wrap the whole thing in braces
+            default_flow_style=False,
+        ),
+    )
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
-            put(
-                path='/etc/sysconfig/flocker-agent',
-                content=AGENT_CONFIG % {
-                    'node_name': agent_node,
-                    'control_node': control_node
-                },
-            ),
+            put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-agent']),
             run_from_args(['systemctl', 'start', 'flocker-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
@@ -383,13 +337,7 @@ def task_enable_flocker_agent(distribution, agent_node, control_node):
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            put(
-                path='/etc/default/flocker-agent.conf',
-                content=AGENT_CONFIG % {
-                    'node_name': agent_node,
-                    'control_node': control_node
-                },
-            ),
+            put_config_file,
             run_from_args(['service', 'flocker-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
@@ -436,12 +384,15 @@ def task_install_flocker(
             # Add Docker repo for recent Docker versions
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
+            # Add ClusterHQ repo for installation of Flocker packages.
+            run_from_args([
+                'add-apt-repository', '-y',
+                'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'  # noqa
+                ])
             ]
 
-        # Add ClusterHQ repo for installation of Flocker packages.
-        # TODO - this should be replaced by official repo when
-        # available. See [FLOC-1065]
         if base_url:
+            # Add BuildBot repo for testing
             commands.append(run_from_args([
                 "add-apt-repository", "-y", "deb {} /".format(base_url)]))
 
@@ -643,7 +594,6 @@ def configure_cluster(control_node, agent_nodes):
                     address=node.address,
                     commands=task_enable_flocker_agent(
                         distribution=node.distribution,
-                        agent_node=node.address,
                         control_node=control_node.address,
                     ),
                 ),
