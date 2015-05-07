@@ -64,7 +64,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         """
         Non-Flocker Volumes are not listed.
         """
-        cls, kwargs = get_blockdeviceapi_args(self, ProviderType.openstack)
+        cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
         cinder_client = kwargs["cinder_client"]
         requested_volume = cinder_client.volumes.create(
             size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
@@ -77,7 +77,6 @@ class CinderBlockDeviceAPIInterfaceTests(
             volume_manager=cinder_client.volumes,
             expected_volume=requested_volume
         )
-
         self.assertEqual([], self.api.list_volumes())
 
     def test_foreign_cluster_volume(self):
@@ -92,5 +91,4 @@ class CinderBlockDeviceAPIInterfaceTests(
             dataset_id=uuid4(),
             size=REALISTIC_BLOCKDEVICE_SIZE,
             )
-
         self.assert_foreign_volume(flocker_volume)
