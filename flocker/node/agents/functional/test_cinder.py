@@ -23,8 +23,7 @@ from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
 )
 from ..test.blockdevicefactory import (
-    ProviderType, get_blockdeviceapi_args,
-    get_blockdeviceapi_with_cleanup,
+    ProviderType, get_blockdeviceapi_args, get_blockdeviceapi_with_cleanup,
 )
 from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
 

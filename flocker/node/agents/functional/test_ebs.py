@@ -16,8 +16,8 @@ from ..test.test_blockdevice import (
     REALISTIC_BLOCKDEVICE_SIZE
 )
 
-from .blockdevicefactory import (
-    ProviderType, get_blockdeviceapi_args, get_blockdeviceapi,
+from ..test.blockdevicefactory import (
+    ProviderType, get_blockdeviceapi_args, get_blockdeviceapi_with_cleanup,
 )
 
 
@@ -25,7 +25,7 @@ def ebsblockdeviceapi_for_test(test_case):
     """
     Create an ``EBSBlockDeviceAPI`` for use by tests.
     """
-    return get_blockdeviceapi(test_case, ProviderType.aws)
+    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.aws)
 
 
 # ``EBSBlockDeviceAPI`` only implements the ``create``, ``list``,
