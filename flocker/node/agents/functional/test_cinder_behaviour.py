@@ -37,7 +37,7 @@ class VolumesCreateTests(SynchronousTestCase):
             size=100,
             metadata=expected_metadata
         )
-        self.addCleanup(self.self.cinder_volumes.delete, new_volume)
+        self.addCleanup(self.cinder_volumes.delete, new_volume)
         listed_volume = wait_for_volume(
             volume_manager=self.cinder_volumes,
             expected_volume=new_volume,
