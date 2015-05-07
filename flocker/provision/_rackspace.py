@@ -16,6 +16,11 @@ from ._effect import sequence
 from effect import Func, Effect
 
 
+def get_default_username(distribution):
+    """Return the username available by default on a system."""
+    return 'root'
+
+
 def provision_rackspace(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
@@ -29,7 +34,7 @@ def provision_rackspace(node, package_source, distribution, variants):
     commands = []
     if distribution in ('centos-7',):
         commands.append(run_remotely(
-            username='root',
+            username=get_default_username(distribution),
             address=node.address,
             commands=sequence([
                 task_upgrade_kernel('centos-7'),
@@ -38,7 +43,7 @@ def provision_rackspace(node, package_source, distribution, variants):
         ))
 
     commands.append(run_remotely(
-        username='root',
+        username=get_default_username(distribution),
         address=node.address,
         commands=sequence([
             provision(
@@ -91,6 +96,7 @@ def rackspace_provisioner(username, key, region, keyname):
         },
         provision=provision_rackspace,
         default_size="performance1-8",
+        default_user=get_default_username,
     )
 
     return provisioner

@@ -18,6 +18,11 @@ from effect import Effect, Func
 from ._effect import sequence
 
 
+def get_default_username(distribution):
+    """Return the username available by default on a system."""
+    return 'root'
+
+
 def retry_on_error(error_checkers, callable, *args, **kwargs):
     """
     This function repeats the API call if it raises an exception and if that
@@ -291,7 +296,7 @@ def provision_digitalocean(node, token,
         )),
         # Install the corresponding kernel package.
         run_remotely(
-            username='root',
+            username=get_default_username(distribution),
             address=node.address,
             commands=task_install_digitalocean_kernel()
         ),
@@ -301,7 +306,7 @@ def provision_digitalocean(node, token,
         )),
         # Finally run all the standard Fedora20 installation steps.
         run_remotely(
-            username='root',
+            username=get_default_username(distribution),
             address=node.address,
             commands=sequence([
                 provision(
@@ -424,6 +429,7 @@ def digitalocean_provisioner(client_id, api_key, token, location, keyname):
         # Tack the token on here because its not a standard part of the API.
         provision=partial(provision_digitalocean, token=token),
         default_size=size.id,
+        default_user=get_default_username,
     )
 
     return provisioner

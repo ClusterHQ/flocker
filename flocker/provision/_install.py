@@ -130,7 +130,7 @@ def task_install_cli(distribution, package_source=PackageSource()):
 def install_cli(package_source, node):
     # TODO - change the username based on distribution and cloud environment
     return run_remotely(
-        'ubuntu', node.address,
+        node.get_default_username(), node.address,
         task_install_cli(node.distribution, package_source))
 
 

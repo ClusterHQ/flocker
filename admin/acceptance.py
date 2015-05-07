@@ -84,7 +84,7 @@ def run_client_tests(reactor, node, trial_args):
             return f
 
     return perform(dispatcher, run_remotely(
-        username='root',
+        username=node.get_default_username(),
         address=node.address,
         commands=task_client_smoke_test()
         )).addCallbacks(
@@ -167,6 +167,9 @@ class VagrantNode(object):
     """
     Node run using VagrantRunner
     """
+    def get_default_username():
+        return 'vagrant'
+
     def provision(self, package_source, variants):
         """
         Provision the node.
