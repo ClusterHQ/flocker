@@ -84,19 +84,19 @@ from novaclient.client import Client as NovaClient
 RACKSPACE_AUTH_URL = "https://identity.api.rackspacecloud.com/v2.0"
 
 
-def _rackspace_session(username, api_key, **kwargs):
+def _rackspace_session(username, key, **kwargs):
     """
     Create a Keystone session capable of authenticating with Rackspace.
 
-    :param unicode username: A RackSpace API username.
-    :param unicode api_key: A RackSpace API key.
+    :param unicode keyname: A RackSpace API username.
+    :param unicode key: A RackSpace API key.
 
     :return: A ``keystoneclient.session.Session``.
     """
     auth = RackspaceAuth(
         auth_url=RACKSPACE_AUTH_URL,
         username=username,
-        api_key=api_key
+        api_key=key
     )
     return Session(auth=auth)
 
