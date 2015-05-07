@@ -95,11 +95,13 @@ def wait_for_volume(volume_manager, expected_volume,
     :returns: The listed ``Volume`` that matches ``expected_volume``.
     """
     start_time = time.time()
+    # Log stuff happening in this loop.  FLOC-1833.
     while True:
-        # Simplify this: use expected_volume.get() to update in place instead
-        # (MUTATION IS THE BEST).
+        # Could be more efficient.  FLOC-1831
         for listed_volume in volume_manager.list():
             if listed_volume.id == expected_volume.id:
+                # Could miss the expected status because race conditions.
+                # FLOC-1832
                 if listed_volume.status == expected_status:
                     return listed_volume
 
