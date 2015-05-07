@@ -105,7 +105,7 @@ def agent_config_from_file(path):
             "version": {"type": "number"},
             "control-service": {
                 "type": "object",
-                "required": ["hostname", "port"],
+                "required": ["hostname"],
                 "properties": {
                     "hostname": {
                         "type": "string",
@@ -128,10 +128,15 @@ def agent_config_from_file(path):
         raise ConfigurationError(
             "Configuration has an error. Incorrect version specified.")
 
+    try:
+        port = options['control-service']['port']
+    except KeyError:
+        port = 4524
+
     return {
         'control-service': {
             'hostname': options['control-service']['hostname'],
-            'port': options['control-service']['port'],
+            'port': port,
         },
     }
 

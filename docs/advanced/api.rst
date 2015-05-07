@@ -31,7 +31,7 @@ On AWS, an external firewall is used instead, which will need to be configured s
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The ``port`` variable is the port on the control node to connect to:
+The optional ``port`` variable is the port on the control node to connect to:
 
 .. code-block:: yaml
 
@@ -63,7 +63,7 @@ On AWS, an external firewall is used instead, which will need to be configured s
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The ``port`` variable is the port on the control node to connect to:
+The optional ``port`` variable is the port on the control node to connect to:
 
 .. code-block:: yaml
 

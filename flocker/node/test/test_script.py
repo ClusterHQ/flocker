@@ -444,10 +444,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
                      "Incorrect version specified."),
         )
 
-    def test_error_on_missing_port(self):
+    def test_default_port(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not contain
-        a port in the ``u"control-service"`` key.
+        If the config file does not contain a port in the
+        ``u"control-service"`` key, the default is 4524.
         """
         configuration = {
             u"control-service": {
@@ -456,12 +456,9 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             "version": 1,
         }
 
-        self.assertErrorForConfig(
-            configuration=configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'port' is a required property."),
-        )
+        self.config.setContent(yaml.safe_dump(configuration))
+        parsed = agent_config_from_file(path=self.config)
+        self.assertEqual(parsed['control-service']['port'], 4524)
 
     def test_error_on_invalid_port(self):
         """
