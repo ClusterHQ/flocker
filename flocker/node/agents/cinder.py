@@ -12,6 +12,8 @@ from bitmath import Byte, GB
 from keystoneclient.openstack.common.apiclient.exceptions import NotFound as CinderNotFound
 from novaclient.exceptions import NotFound as NovaNotFound
 
+from twisted.python.filepath import FilePath
+
 from zope.interface import implementer, Interface
 
 from .blockdevice import (
@@ -261,7 +263,22 @@ class CinderBlockDeviceAPI(object):
                 break
 
     def get_device_path(self, blockdevice_id):
-        pass
+        try:
+            cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
+        except CinderNotFound:
+            raise UnknownVolume(blockdevice_id)
+
+        # As far as we know you can not have more than one attachment,
+        # but, perhaps we're wrong and there should be a test for the
+        # multiple attachment case.
+        try:
+            [attachment] = cinder_volume.attachments
+        except ValueError:
+            # I wonder if this should be raised if it's not attached
+            # to *this* host or *any* host?
+            raise UnattachedVolume(blockdevice_id)
+        
+        return FilePath(attachment['device'])
 
 
 def _is_cluster_volume(cluster_id, cinder_volume):
