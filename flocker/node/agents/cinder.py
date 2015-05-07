@@ -9,6 +9,8 @@ from uuid import UUID
 
 from bitmath import Byte, GB
 
+from keystoneclient.openstack.common.apiclient.exceptions import NotFound
+
 from zope.interface import implementer, Interface
 
 from .blockdevice import (
@@ -226,7 +228,16 @@ class CinderBlockDeviceAPI(object):
         pass
 
     def destroy_volume(self, blockdevice_id):
-        pass
+        try:
+            self.cinder_volume_manager.delete(blockdevice_id)
+        except NotFound:
+            raise UnknownVolume(blockdevice_id)
+        
+        while True:
+            try:
+                self.cinder_volume_manager.get(blockdevice_id)
+            except NotFound:
+                break
 
     def get_device_path(self, blockdevice_id):
         pass
