@@ -3,6 +3,18 @@
 """
 Functionality for creating ``IBlockDeviceAPI`` providers suitable for use in
 the current execution environment.
+
+This depends on a ``CLOUD_CONFIG_FILE`` environment variable being set.
+
+See `acceptance testing <acceptance-testing>`_ for details.
+
+.. code-block:: python
+
+    from .blockdevicefactory import ProviderType, get_blockdeviceapi
+
+    api = get_blockdeviceapi(ProviderType.openstack)
+    volume = api.create_volume(...)
+
 """
 
 from os import environ
