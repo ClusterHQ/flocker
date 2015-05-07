@@ -336,12 +336,12 @@ class AgentConfigFromFileTests(SynchronousTestCase):
 
         :param Exception exception: The exception type which
             :func:`agent_config_from_file` should fail with.
-        :param unicode configuration: The contents of the agent configuration
+        :param dict configuration: The contents of the agent configuration
             file. If ``None`` then the file will not exist.
         :param bytes message: The expected exception message.
         """
         if configuration is not None:
-            self.config.setContent(configuration)
+            self.config.setContent(yaml.safe_dump(configuration))
 
         exception = self.assertRaises(
             exception,
@@ -365,7 +365,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         as a dictionary.
         """
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump("INVALID"),
+            configuration="INVALID",
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "'INVALID' is not of type 'object'."),
@@ -377,10 +377,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         hostname is not a valid hostname.
         """
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump({
+            configuration={
                 "control-service-hostname": "-1",
                 "version": 1,
-            }),
+            },
             exception=ConfigurationError,
             message=("Configuration has an error: '-1' is not a 'hostname'."),
         )
@@ -391,7 +391,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         contain a ``u"control-service-hostname"`` key.
         """
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump({"version": 1}),
+            configuration={"version": 1},
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "'control-service-hostname' is a required property."),
@@ -403,8 +403,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         a ``u"version"`` key.
         """
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump({
-                "control-service-hostname": "192.0.2.1"}),
+            configuration={
+                "control-service-hostname": "192.0.2.1"},
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "'version' is a required property."),
@@ -415,10 +415,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the version specified is not 1.
         """
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump({
+            configuration={
                 "control-service-hostname": "192.0.2.1",
                 "version": 2,
-            }),
+            },
             exception=ConfigurationError,
             message=("Configuration has an error. "
                      "Incorrect version specified."),
