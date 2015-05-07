@@ -6,7 +6,8 @@ from yaml import safe_load
 from twisted.trial.unittest import SkipTest
 
 from ..cinder import CinderBlockDeviceAPI
-from ..ebs import EBSBlockDeviceAPI
+from ..ebs import EBSBlockDeviceAPI, ec2_client
+
 
 _BLOCKDEVICETYPES = {
     "rackspace": CinderBlockDeviceAPI,
@@ -95,9 +96,6 @@ def rackspace(config):
         nova_client=nova_client,
         cluster_id=cluster_id,
     )
-
-
-from .ebs import ec2_client
 
 
 def aws(config):

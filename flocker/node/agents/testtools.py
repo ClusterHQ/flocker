@@ -13,8 +13,7 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.python.components import proxyForInterface
 
 from .cinder import (
-    ICinderVolumeManager, INovaVolumeManager, SESSION_FACTORIES,
-    wait_for_volume,
+    ICinderVolumeManager, INovaVolumeManager, wait_for_volume,
 )
 
 
