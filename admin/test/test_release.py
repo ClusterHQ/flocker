@@ -1135,8 +1135,8 @@ class UpdateRepoTests(SynchronousTestCase):
         Calling :func:`update_repo` with real dpkg utilities creates a
         repository in S3.
 
-        The filenames in the respository metadata does not have the build directory
-        in them.
+        The filenames in the repository metadata do not have the build
+        directory in them.
         """
         source_repo = FilePath(self.mktemp())
         source_repo.createDirectory()
@@ -1184,7 +1184,7 @@ class UpdateRepoTests(SynchronousTestCase):
         # given RPMs, not that any metadata files are copied.
         self.assertEqual(expected_files, set(files_on_s3.keys()))
 
-        # The repository is build in self.packages_directory
+        # The repository is built in self.packages_directory
         # Ensure that that does not leak into the metadata.
         packages_gz = files_on_s3[os.path.join(self.target_key, 'Packages.gz')]
         with GzipFile(fileobj=StringIO(packages_gz), mode="r") as f:
