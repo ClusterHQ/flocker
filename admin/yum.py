@@ -122,7 +122,10 @@ def perform_create_repository(dispatcher, intent):
     elif package_type == PackageTypes.DEB:
         metadata = check_output([
             b'dpkg-scanpackages',
+            # Include all versions of each package in the metadata
             b'--multiversion',
+            # Look for files in the current directory.
+            # Note: This path is included in the metadata.
             b"."],
             cwd=intent.repository_path.path)
 
