@@ -1,3 +1,4 @@
+# -*- test-case-name: flocker.node.agents.functional.test_cinder,flocker.node.agents.functional.test_cinder_behaviour -*- # noqa
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
@@ -5,6 +6,7 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 import time
 from uuid import UUID
+from subprocess import check_output
 
 from bitmath import Byte, GB
 
@@ -115,6 +117,13 @@ class CinderBlockDeviceAPI(object):
         self.volume_manager = volume_manager
         self.cluster_id = cluster_id
 
+    def compute_instance_id(self):
+        """
+        Look up the Xen instance ID for this node.
+        """
+        command = [b"xenstore-read", b"name"]
+        return check_output(command).strip().decode("ascii")
+
     def create_volume(self, dataset_id, size):
         """
         Create a block device using the ICinderVolumeManager.
@@ -199,7 +208,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
         size=int(GB(cinder_volume.size).to_Byte().value),
-        host=None,
+        attached_to=None,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
 

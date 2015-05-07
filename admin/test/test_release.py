@@ -30,7 +30,7 @@ from ..release import (
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
-    IncorrectSetuptoolsVersion,
+    IncorrectSetuptoolsVersion, publish_homebrew_recipe, PushFailed,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1514,20 +1514,21 @@ class CreateReleaseBranchOptionsTests(SynchronousTestCase):
             options.parseOptions, [])
 
 
-def create_git_repository(test_case):
+def create_git_repository(test_case, bare=False):
     """
     Create a git repository with a ``master`` branch and ``README``.
 
     :param test_case: The ``TestCase`` calling this.
     """
     directory = FilePath(test_case.mktemp())
-    directory.child('README').makedirs()
-    directory.child('README').touch()
+    repository = Repo.init(path=directory.path, bare=bare)
 
-    repository = Repo.init(path=directory.path)
-    repository.index.add(['README'])
-    repository.index.commit('Initial commit')
-    repository.create_head('master')
+    if not bare:
+        directory.child('README').makedirs()
+        directory.child('README').touch()
+        repository.index.add(['README'])
+        repository.index.commit('Initial commit')
+        repository.create_head('master')
     return repository
 
 
@@ -1824,3 +1825,83 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.assertRaises(
             TagExists,
             self.calculate_base_branch, '0.3.0')
+
+
+class PublishHomebrewRecipeTests(SynchronousTestCase):
+    """
+    Tests for :func:`publish_homebrew_recipe`.
+    """
+
+    def setUp(self):
+        self.source_repo = create_git_repository(test_case=self, bare=True)
+        # Making a recipe involves interacting with PyPI, this should be
+        # a parameter, not a patch. See:
+        # https://clusterhq.atlassian.net/browse/FLOC-1759
+        self.patch(release, 'make_recipe',
+            lambda version, sdist_url:
+                "Recipe for " + version + " at " + sdist_url)
+
+    def test_commit_message(self):
+        """
+        The recipe is committed with a sensible message.
+        """
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+            source_bucket="archive",
+        )
+
+        self.assertEqual(
+            self.source_repo.head.commit.summary,
+            u'Add recipe for Flocker version 0.3.0')
+
+    def test_recipe_contents(self):
+        """
+        The passed in contents are in the recipe.
+        """
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+            source_bucket="bucket-name",
+        )
+
+        recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
+        self.assertEqual(recipe.data_stream.read(),
+            'Recipe for 0.3.0 at https://bucket-name.s3.amazonaws.com/python/Flocker-0.3.0.tar.gz')  # noqa
+
+    def test_push_fails(self):
+        """
+        If the push fails, an error is raised.
+        """
+        non_bare_repo = create_git_repository(test_case=self, bare=False)
+        self.assertRaises(
+            PushFailed,
+            publish_homebrew_recipe,
+            non_bare_repo.git_dir, '0.3.0', "archive", FilePath(self.mktemp()))
+
+
+    def test_recipe_already_exists(self):
+        """
+        If a recipe already exists with the same name, it is overwritten.
+        """
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+            source_bucket="archive",
+        )
+
+        self.patch(release, 'make_recipe',
+            lambda version, sdist_url: "New content")
+
+        publish_homebrew_recipe(
+            homebrew_repo_url=self.source_repo.git_dir,
+            version='0.3.0',
+            scratch_directory=FilePath(self.mktemp()),
+            source_bucket="archive",
+        )
+
+        recipe = self.source_repo.head.commit.tree['flocker-0.3.0.rb']
+        self.assertEqual(recipe.data_stream.read(), 'New content')

@@ -61,6 +61,7 @@ from .yum import (
     DownloadPackagesFromRepository,
 )
 
+from .homebrew import make_recipe
 from .packaging import Distribution
 
 
@@ -121,6 +122,12 @@ class MissingPreRelease(Exception):
 class NoPreRelease(Exception):
     """
     Raised if trying to release a marketing release if no pre-release exists.
+    """
+
+
+class PushFailed(Exception):
+    """
+    Raised if pushing to Git fails.
     """
 
 
@@ -351,6 +358,8 @@ class UploadOptions(Options):
         ["build-server", None,
          b'http://build.clusterhq.com',
          "The URL of the build-server.\n"],
+        ["homebrew-tap", None, "git@github.com:ClusterHQ/homebrew-tap.git",
+         "The Git repository to add a Homebrew recipe to.\n"],
     ]
 
     def parseArgs(self):
@@ -370,6 +379,36 @@ FLOCKER_PACKAGES = [
     b'clusterhq-flocker-cli',
     b'clusterhq-flocker-node',
 ]
+
+
+def publish_homebrew_recipe(homebrew_repo_url, version, source_bucket,
+                            scratch_directory):
+    """
+    Publish a Homebrew recipe to a Git repository.
+
+    :param git.Repo homebrew_repo: Homebrew tap Git repository. This should
+        be an SSH URL so as not to require a username and password.
+    :param bytes version: Version of Flocker to publish a recipe for.
+    :param bytes source_bucket: S3 bucket to get source distribution from.
+    :param FilePath scratch_directory: Temporary directory to create a recipe
+        in.
+    """
+    url_template = 'https://{bucket}.s3.amazonaws.com/python/Flocker-{version}.tar.gz'  # noqa
+    sdist_url = url_template.format(bucket=source_bucket, version=version)
+    content = make_recipe(
+        version=version,
+        sdist_url=sdist_url)
+    homebrew_repo = Repo.clone_from(
+        url=homebrew_repo_url,
+        to_path=scratch_directory.path)
+    recipe = 'flocker-{version}.rb'.format(version=version)
+    FilePath(homebrew_repo.working_dir).child(recipe).setContent(content)
+
+    homebrew_repo.index.add([recipe])
+    homebrew_repo.index.commit('Add recipe for Flocker version ' + version)
+    push_info = homebrew_repo.remotes.origin.push(homebrew_repo.head)[0]
+    if (push_info.flags & push_info.ERROR) != 0:
+        raise PushFailed()
 
 
 @do
@@ -617,6 +656,7 @@ def publish_artifacts_main(args, base_path, top_level):
     scratch_directory.child('rpm').createDirectory()
     scratch_directory.child('python').createDirectory()
     scratch_directory.child('pip').createDirectory()
+    scratch_directory.child('homebrew').createDirectory()
 
     try:
         sync_perform(
@@ -641,6 +681,14 @@ def publish_artifacts_main(args, base_path, top_level):
                 ),
             ]),
         )
+
+        publish_homebrew_recipe(
+            homebrew_repo_url=options['homebrew-tap'],
+            version=options['flocker-version'],
+            source_bucket=options['target'],
+            scratch_directory=scratch_directory.child('homebrew'),
+        )
+
     except IncorrectSetuptoolsVersion:
         sys.stderr.write("%s: setuptools version must be 3.6.\n"
             % (base_path.basename(),))

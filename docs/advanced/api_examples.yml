@@ -658,3 +658,25 @@
     HTTP/1.1 404 Not Found
 
     {"description": "Container not found."}
+
+-
+  id: "list known nodes"
+
+  doc: |
+    A list of the known nodes in a cluster.
+
+  request: |
+    GET /v1/state/nodes
+
+  response: |
+    HTTP/1.1 200 OK
+
+    [
+      {
+        "uuid": "%(NODE_0)s",
+        "host": "10.0.0.3",
+      {
+        "uuid": "%(NODE_1)s",
+        "host": "10.0.0.4",
+      },
+    ]
