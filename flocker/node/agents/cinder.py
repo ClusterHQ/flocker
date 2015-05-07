@@ -201,7 +201,11 @@ class CinderBlockDeviceAPI(object):
         raise UnknownVolume(blockdevice_id)
 
     def resize_volume(self, blockdevice_id, size):
-        pass
+        size_gb = Byte(size).to_GB().value
+        try:
+            self.cinder_volume_manager.extend(blockdevice_id, size_gb)
+        except CinderNotFound:
+            raise UnknownVolume(blockdevice_id)
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
