@@ -52,10 +52,6 @@ class VolumesCreateTests(SynchronousTestCase):
                 actual_items, expected_items
             )
         )
-    test_create_metadata_is_listed.todo = (
-        'Rackspace API does not save the supplied metadata. '
-        'See support ticket: 150422-ord-0000495'
-    )
 
 
 class VolumesSetMetadataTests(SynchronousTestCase):

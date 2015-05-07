@@ -163,20 +163,14 @@ class CinderBlockDeviceAPI(object):
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
-        # We supply metadata here and it'll be included in the returned cinder
-        # volume record, but it'll be lost by Rackspace, so...
         requested_volume = self.cinder_volume_manager.create(
             size=Byte(size).to_GB().value,
             metadata=metadata,
         )
-        created_volume = wait_for_volume(
-            self.cinder_volume_manager, requested_volume,
+        wait_for_volume(
+            volume_manager=self.cinder_volume_manager,
+            expected_volume=requested_volume,
         )
-        # So once the volume has actually been created, we set the metadata
-        # again. One day we hope this won't be necessary.
-        # See Rackspace support ticket: 150422-ord-0000495'
-        self.cinder_volume_manager.set_metadata(created_volume, metadata)
-        # Use requested volume here, because it has the desired metadata.
         return _blockdevicevolume_from_cinder_volume(
             cinder_volume=requested_volume,
         )
