@@ -229,10 +229,11 @@ def task_enable_flocker_agent(distribution, control_node):
         content=yaml.safe_dump(
             {
                 "version": 1,
-                "control-service-hostname": control_node,
+                "control-service": {
+                    "hostname": control_node,
+                    "port": 4524,
+                },
             },
-            # Don't wrap the whole thing in braces
-            default_flow_style=False,
         ),
     )
     if distribution in ('centos-7', 'fedora-20'):

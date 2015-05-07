@@ -35,7 +35,10 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         self.config = scratch_directory.child('dataset-config.yml')
         self.config.setContent(
             yaml.safe_dump({
-                u"control-service-hostname": u"10.0.0.1",
+                u"control-service": {
+                    u"hostname": u"10.0.0.1",
+                    u"port": 1234,
+                },
                 u"version": 1,
             }))
 
@@ -65,9 +68,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         """
         service = Service()
         options = ZFSAgentOptions()
-        options.parseOptions(
-            [b"--destination-port", b"1234",
-             b"--agent-config", self.config.path])
+        options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
@@ -113,7 +114,10 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         self.config = scratch_directory.child('dataset-config.yml')
         self.config.setContent(
             yaml.safe_dump({
-                u"control-service-hostname": u"10.0.0.2",
+                u"control-service": {
+                    u"hostname": u"10.0.0.2",
+                    u"port": 1234,
+                },
                 u"version": 1,
             }))
 
@@ -132,10 +136,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
-        options.parseOptions([
-            b"--destination-port", b"1234",
-            b"--agent-config", self.config.path,
-        ])
+        options.parseOptions([b"--agent-config", self.config.path])
         service_factory = AgentServiceFactory(
             deployer_factory=factory
         )
@@ -269,30 +270,15 @@ def make_amp_agent_options_tests(options_type):
             self.options = options_type()
             self.scratch_directory = FilePath(self.mktemp())
             self.scratch_directory.makedirs()
-            self.sample_content = yaml.safe_dump(
-                {
-                    u"control-service-hostname": u"10.0.0.1",
-                    u"version": 1,
-                }
-            )
+            self.sample_content = yaml.safe_dump({
+                u"control-service": {
+                    u"hostname": u"10.0.0.1",
+                    u"port": 4524,
+                },
+                u"version": 1,
+            })
             self.config = self.scratch_directory.child('dataset-config.yml')
             self.config.setContent(self.sample_content)
-
-        def test_default_port(self):
-            """
-            The default AMP destination port configured by the command line
-            options is 4524.
-            """
-            self.options.parseOptions([])
-            self.assertEqual(self.options["destination-port"], 4524)
-
-        def test_custom_port(self):
-            """
-            The ``--destination-port`` command-line option allows configuring
-            the destination port.
-            """
-            self.options.parseOptions([b"--destination-port", b"1234"])
-            self.assertEqual(self.options["destination-port"], 1234)
 
         def test_default_config_file(self):
             """
@@ -336,12 +322,12 @@ class AgentConfigFromFileTests(SynchronousTestCase):
 
         :param Exception exception: The exception type which
             :func:`agent_config_from_file` should fail with.
-        :param unicode configuration: The contents of the agent configuration
+        :param dict configuration: The contents of the agent configuration
             file. If ``None`` then the file will not exist.
         :param bytes message: The expected exception message.
         """
         if configuration is not None:
-            self.config.setContent(configuration)
+            self.config.setContent(yaml.safe_dump(configuration))
 
         exception = self.assertRaises(
             exception,
@@ -365,7 +351,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         as a dictionary.
         """
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump("INVALID"),
+            configuration="INVALID",
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "'INVALID' is not of type 'object'."),
@@ -376,25 +362,49 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the given control service
         hostname is not a valid hostname.
         """
+        configuration = {
+            u"control-service": {
+                u"hostname": u"-1",
+                u"port": 1234,
+            },
+            "version": 1,
+        }
+
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump({
-                "control-service-hostname": "-1",
-                "version": 1,
-            }),
+            configuration=configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: '-1' is not a 'hostname'."),
+        )
+
+    def test_error_on_missing_control_service(self):
+        """
+        A ``ConfigurationError`` is raised if the config file does not
+        contain a ``u"control-service"`` key.
+        """
+        self.assertErrorForConfig(
+            configuration={"version": 1},
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "'control-service' is a required property."),
         )
 
     def test_error_on_missing_hostname(self):
         """
         A ``ConfigurationError`` is raised if the config file does not
-        contain a ``u"control-service-hostname"`` key.
+        contain a hostname in the ``u"control-service"`` key.
         """
+        configuration = {
+            u"control-service": {
+                u"port": 1234,
+            },
+            "version": 1,
+        }
+
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump({"version": 1}),
+            configuration=configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
-                     "'control-service-hostname' is a required property."),
+                     "'hostname' is a required property."),
         )
 
     def test_error_on_missing_version(self):
@@ -402,9 +412,15 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the config file does not contain
         a ``u"version"`` key.
         """
+        configuration = {
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+                u"port": 1234,
+            },
+        }
+
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump({
-                "control-service-hostname": "192.0.2.1"}),
+            configuration=configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "'version' is a required property."),
@@ -414,14 +430,53 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         A ``ConfigurationError`` is raised if the version specified is not 1.
         """
+        configuration = {
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+                u"port": 1234,
+            },
+            "version": 2,
+        }
         self.assertErrorForConfig(
-            configuration=yaml.safe_dump({
-                "control-service-hostname": "192.0.2.1",
-                "version": 2,
-            }),
+            configuration=configuration,
             exception=ConfigurationError,
             message=("Configuration has an error. "
                      "Incorrect version specified."),
+        )
+
+    def test_default_port(self):
+        """
+        If the config file does not contain a port in the
+        ``u"control-service"`` key, the default is 4524.
+        """
+        configuration = {
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+            },
+            "version": 1,
+        }
+
+        self.config.setContent(yaml.safe_dump(configuration))
+        parsed = agent_config_from_file(path=self.config)
+        self.assertEqual(parsed['control-service']['port'], 4524)
+
+    def test_error_on_invalid_port(self):
+        """
+        The control service agent's port must be an integer.
+        """
+        configuration = {
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+                u"port": 1.1,
+            },
+            "version": 1,
+        }
+
+        self.assertErrorForConfig(
+            configuration=configuration,
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "1.1 is not of type 'integer'."),
         )
 
 
