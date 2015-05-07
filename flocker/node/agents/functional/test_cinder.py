@@ -65,16 +65,16 @@ class CinderBlockDeviceAPIInterfaceTests(
         Non-Flocker Volumes are not listed.
         """
         cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
-        cinder_client = kwargs["cinder_client"]
-        requested_volume = cinder_client.volumes.create(
+        cinder_volumes = kwargs["cinder_volume_manager"]
+        requested_volume = cinder_volumes.create(
             size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
         )
         self.addCleanup(
-            cinder_client.connection.delete_volume,
+            cinder_volumes.delete_volume,
             requested_volume.id,
         )
         wait_for_volume(
-            volume_manager=cinder_client.volumes,
+            volume_manager=cinder_volumes,
             expected_volume=requested_volume
         )
         self.assertEqual([], self.api.list_volumes())
