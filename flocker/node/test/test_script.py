@@ -87,6 +87,9 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                           P2PManifestationDeployer, service, True))
 
 
+# TODO change put, change docs
+# TODO put port in the dictionary
+
 def get_all_ips():
     """
     Find all IPs for this machine.
