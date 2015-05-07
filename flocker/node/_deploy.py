@@ -439,8 +439,8 @@ class NotInUseDatasets(object):
     """
     Filter out datasets that are in use by applications.
 
-    For now we delay deletion and handoffs until we know application
-    isn't using the dataset. Later on we'll use leases to decouple
+    For now we delay things like deletion we know applications
+    aren't using the dataset. Later on we'll use leases to decouple
     the application and dataset logic better.
     """
     def __init__(self, node_state):
