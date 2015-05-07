@@ -9,12 +9,14 @@ from uuid import UUID
 
 from bitmath import Byte, GB
 
-from keystoneclient.openstack.common.apiclient.exceptions import NotFound
+from keystoneclient.openstack.common.apiclient.exceptions import NotFound as CinderNotFound
+from novaclient.exceptions import NotFound as NovaNotFound
 
 from zope.interface import implementer, Interface
 
 from .blockdevice import (
-    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume
+    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume, 
+    UnattachedVolume,
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -225,18 +227,37 @@ class CinderBlockDeviceAPI(object):
         return attached_volume
 
     def detach_volume(self, blockdevice_id):
-        pass
+        our_id = self.compute_instance_id()
+        try:
+            nova_volume = self.nova_volume_manager.get(blockdevice_id)
+        except NovaNotFound:
+            raise UnknownVolume(blockdevice_id)
+
+        try:
+            self.nova_volume_manager.delete_server_volume(
+                server_id=our_id,
+                attachment_id=blockdevice_id
+            )
+        except NovaNotFound:
+            raise UnattachedVolume(blockdevice_id)
+
+        # This'll blow up if the volume is deleted from elsewhere.
+        wait_for_volume(
+            volume_manager=self.nova_volume_manager,
+            expected_volume=nova_volume,
+            expected_status=u'available',
+        )
 
     def destroy_volume(self, blockdevice_id):
         try:
             self.cinder_volume_manager.delete(blockdevice_id)
-        except NotFound:
+        except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
         
         while True:
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
-            except NotFound:
+            except CinderNotFound:
                 break
 
     def get_device_path(self, blockdevice_id):

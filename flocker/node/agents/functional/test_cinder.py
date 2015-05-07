@@ -24,7 +24,7 @@ from ..cinder import cinder_api, wait_for_volume
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests, detach_destroy_volumes,
 )
-from ..test.blockdevicefactory import get_blockdeviceapi
+from ..test.blockdevicefactory import get_blockdeviceapi_with_cleanup
 
 
 def cinderblockdeviceapi_for_test(test_case, cluster_id):
@@ -38,28 +38,11 @@ def cinderblockdeviceapi_for_test(test_case, cluster_id):
         by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
         are created during the course of ``test_case``
     """
-    # XXX: Add a test cleanup here...detach_and_destroy?
-    return get_blockdeviceapi("openstack")
+    return get_blockdeviceapi_with_cleanup(test_case, "openstack")
 
 
 # ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
 # ``IBlockDeviceAPI``. Skip the rest of the tests for now.
-@skip_except(
-    supported_tests=[
-        'test_interface',
-        'test_created_is_listed',
-        'test_created_volume_attributes',
-        'test_list_volume_empty',
-        'test_listed_volume_attributes',
-        'test_attach_unknown_volume',
-        'test_attach_attached_volume',
-        'test_attach_elsewhere_attached_volume',
-        'test_attach_unattached_volume',
-        'test_attached_volume_listed',
-        'test_list_attached_and_unattached',
-        'test_multiple_volumes_attached_to_host',
-    ]
-)
 class CinderBlockDeviceAPIInterfaceTests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=(
