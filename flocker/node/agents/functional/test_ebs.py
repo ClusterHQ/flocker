@@ -86,7 +86,4 @@ class EBSBlockDeviceAPIInterfaceTests(
             dataset_id=uuid4(),
             size=REALISTIC_BLOCKDEVICE_SIZE,
         )
-
-        self.addCleanup(blockdevice_api2.destroy_volume,
-                        flocker_volume.blockdevice_id)
         self.assert_foreign_volume(flocker_volume)

@@ -13,14 +13,22 @@ Ideally, there'd be some in-memory tests too. Some ideas:
 See https://github.com/rackerlabs/mimic/issues/218
 """
 
+from uuid import uuid4
+
+from bitmath import Byte
+
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
 )
 from ..test.blockdevicefactory import (
-    ProviderType, get_blockdeviceapi_with_cleanup
+    ProviderType, get_blockdeviceapi_args,
+    get_blockdeviceapi_with_cleanup,
 )
+from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
+
+from ..cinder import wait_for_volume
 
 
 def cinderblockdeviceapi_for_test(test_case):
@@ -52,36 +60,37 @@ class CinderBlockDeviceAPIInterfaceTests(
     Block devices that are created in these tests will be cleaned up by
     ``TidyCinderVolumeManager``.
     """
-    # def test_foreign_volume(self):
-    #     """
-    #     Non-Flocker Volumes are not listed.
-    #     """
-    #     cinder_client = tidy_cinder_client_for_test(test_case=self)
-    #     requested_volume = cinder_client.volumes.create(
-    #         size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
-    #     )
-    #     wait_for_volume(
-    #         volume_manager=cinder_client.volumes,
-    #         expected_volume=requested_volume
-    #     )
+    def test_foreign_volume(self):
+        """
+        Non-Flocker Volumes are not listed.
+        """
+        cls, kwargs = get_blockdeviceapi_args(self, ProviderType.openstack)
+        cinder_client = kwargs["cinder_client"]
+        requested_volume = cinder_client.volumes.create(
+            size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
+        )
+        self.addCleanup(
+            cinder_client.connection.delete_volume,
+            requested_volume.id,
+        )
+        wait_for_volume(
+            volume_manager=cinder_client.volumes,
+            expected_volume=requested_volume
+        )
 
-    #     self.addCleanup(cinder_client.connection.delete_volume,
-    #                     requested_volume.id)
-    #     self.assertEqual([], self.api.list_volumes())
+        self.assertEqual([], self.api.list_volumes())
 
-    # def test_foreign_cluster_volume(self):
-    #     """
-    #     Test that list_volumes() excludes volumes belonging to
-    #     other Flocker clusters.
-    #     """
-    #     blockdevice_api2 = cinderblockdeviceapi_for_test(
-    #         test_case=self,
-    #         )
-    #     flocker_volume = blockdevice_api2.create_volume(
-    #         dataset_id=uuid4(),
-    #         size=REALISTIC_BLOCKDEVICE_SIZE,
-    #         )
+    def test_foreign_cluster_volume(self):
+        """
+        Test that list_volumes() excludes volumes belonging to
+        other Flocker clusters.
+        """
+        blockdevice_api2 = cinderblockdeviceapi_for_test(
+            test_case=self,
+            )
+        flocker_volume = blockdevice_api2.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+            )
 
-    #     self.addCleanup(blockdevice_api2.destroy_volume,
-    #                     flocker_volume.blockdevice_id)
-    #     self.assert_foreign_volume(flocker_volume)
+        self.assert_foreign_volume(flocker_volume)
