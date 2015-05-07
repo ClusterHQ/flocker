@@ -206,9 +206,6 @@ class CinderBlockDeviceAPI(object):
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Attach a volume to an instance using the Nova volume manager.
-
-        The Cinder volume manager
-        The attaching may have to be done via the nova client :-(
         """
         # The Cinder volume manager has an API for attaching volumes too.
         # However, it doesn't actually attach the volume: it only updates
