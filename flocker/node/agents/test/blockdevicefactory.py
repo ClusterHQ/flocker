@@ -10,7 +10,7 @@ from ..ebs import EBSBlockDeviceAPI, ec2_client
 
 
 _BLOCKDEVICETYPES = {
-    "rackspace": CinderBlockDeviceAPI,
+    "openstack": CinderBlockDeviceAPI,
     #    "pistoncloud": CinderBlockDeviceAPI,
     "aws": EBSBlockDeviceAPI,
 }
@@ -81,7 +81,7 @@ def rackspace_session(**kwargs):
     return Session(auth=auth)
 
 
-def rackspace(config):
+def openstack(config):
     region_slug = config.pop("region")
     session = rackspace_session(**config)
     cinder_client = CinderClient(
@@ -92,8 +92,8 @@ def rackspace(config):
     )
     cluster_id = uuid4()
     return dict(
-        cinder_client=cinder_client,
-        nova_client=nova_client,
+        cinder_volume_manager=cinder_client.volumes,
+        nova_volume_manager=nova_client.volumes,
         cluster_id=cluster_id,
     )
 
@@ -107,7 +107,7 @@ def aws(config):
 
 
 _BLOCKDEVICEAPIS = {
-    "rackspace": rackspace,
+    "openstack": openstack,
     #    "pistoncloud": pistoncloud,
     "aws": aws,
 }

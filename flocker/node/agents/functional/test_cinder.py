@@ -38,7 +38,8 @@ def cinderblockdeviceapi_for_test(test_case, cluster_id):
         by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
         are created during the course of ``test_case``
     """
-    return get_blockdeviceapi(test_case, "openstack")
+    # XXX: Add a test cleanup here...detach_and_destroy?
+    return get_blockdeviceapi("openstack")
 
 
 # ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
