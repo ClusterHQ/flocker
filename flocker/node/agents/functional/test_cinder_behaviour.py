@@ -1,8 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Test for real world behaviour of Cinder implementations, so we know when to
-update our workarounds.
+Test for real world behaviour of Cinder implementations to validate some of our
+basic assumptions/understandings of how Cinder works in the real world.
 """
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -15,6 +15,11 @@ from ....testtools import random_name
 
 
 def cinder_volume_manager():
+    """
+    Get an ``ICinderVolumeManager`` configured to work on this environment.
+
+    It will not automatically clean up after itself.
+    """
     cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
     return kwargs["cinder_volume_manager"]
 

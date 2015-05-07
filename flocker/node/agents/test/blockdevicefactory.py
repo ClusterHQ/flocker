@@ -25,9 +25,20 @@ from yaml import safe_load
 from twisted.trial.unittest import SkipTest
 from twisted.python.constants import Names, NamedConstant
 
+from keystoneclient_rackspace.v2_0 import RackspaceAuth
+from keystoneclient.session import Session
+
+from cinderclient.client import Client as CinderClient
+from novaclient.client import Client as NovaClient
+
 from ..cinder import CinderBlockDeviceAPI
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
+
+
+# The Rackspace authentication endpoint
+# See http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/Authentication-d1e647.html # noqa
+RACKSPACE_AUTH_URL = "https://identity.api.rackspacecloud.com/v2.0"
 
 
 class ConfigMissing(Exception):
@@ -69,9 +80,7 @@ def get_blockdeviceapi_args(provider):
     :return: A ``dict`` that can initialize the matching implementation.
     """
     config_file_path = environ.get('CLOUD_CONFIG_FILE')
-    if config_file_path is not None:
-        config_file = open(config_file_path)
-    else:
+    if config_file_path is None:
         raise ConfigMissing(
             'Supply the path to a cloud credentials file '
             'using the CLOUD_CONFIG_FILE environment variable. '
@@ -79,26 +88,15 @@ def get_blockdeviceapi_args(provider):
             'https://docs.clusterhq.com/en/latest/gettinginvolved/acceptance-testing.html '  # noqa
             'for details of the expected format.'
         )
-    config = safe_load(config_file.read())
+
+    with open(config_file_path) as config_file:
+        config = safe_load(config_file.read())
+
     section = config[provider.name]
-
     cls, get_kwargs = _BLOCKDEVICE_TYPES[provider]
-
     kwargs = dict(cluster_id=uuid4())
     kwargs.update(get_kwargs(**section))
-
     return cls, kwargs
-
-
-from keystoneclient_rackspace.v2_0 import RackspaceAuth
-from keystoneclient.session import Session
-
-from cinderclient.client import Client as CinderClient
-from novaclient.client import Client as NovaClient
-
-# The Rackspace authentication endpoint
-# See http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/Authentication-d1e647.html # noqa
-RACKSPACE_AUTH_URL = "https://identity.api.rackspacecloud.com/v2.0"
 
 
 def _rackspace_session(username, key, **kwargs):
@@ -172,15 +170,20 @@ _BLOCKDEVICE_TYPES = {
 
 def get_blockdeviceapi_with_cleanup(test_case, provider):
     """
-    Validate and load cloud provider's yml config file.
-    Default to ``~/acceptance.yml`` in the current user home directory, since
-    that's where buildbot puts its acceptance test credentials file.
+    Instantiate an ``IBlockDeviceAPI`` implementation appropriate to the given
+    provider and configured to work in the current environment.  Arrange for
+    all volumes created by it to be cleaned up at the end of the current test
+    run.
+
+    :param TestCase test_case: The running test.
+    :param provider: A provider type the ``IBlockDeviceAPI`` is to be
+        compatible with.  A value from ``ProviderType``.
 
     :raises: ``SkipTest`` if a ``CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
+
+    :return: The new ``IBlockDeviceAPI`` provider.
     """
-    # Handle the exception raised by get_blockdeviceapi_args and turn it into a
-    # skip test
     try:
         api = get_blockdeviceapi(provider)
     except ConfigMissing as e:
