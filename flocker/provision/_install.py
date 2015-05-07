@@ -44,6 +44,9 @@ CLUSTERHQ_REPO = {
 
 
 def task_client_smoke_test():
+    """
+    Check that the CLI is working.
+    """
     return run_from_args(['flocker', '--version'])
 
 

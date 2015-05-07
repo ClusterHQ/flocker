@@ -168,6 +168,9 @@ class VagrantNode(object):
     Node run using VagrantRunner
     """
     def get_default_username():
+        """
+        Return the default username on this node.
+        """
         return 'vagrant'
 
     def provision(self, package_source, variants):
