@@ -30,7 +30,8 @@ from ..release import (
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
-    IncorrectSetuptoolsVersion, publish_homebrew_recipe, PushFailed,
+    IncorrectSetuptoolsVersion, copy_tutorial_vagrant_box,
+    publish_homebrew_recipe, PushFailed,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1825,6 +1826,41 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.assertRaises(
             TagExists,
             self.calculate_base_branch, '0.3.0')
+
+
+class CopyTutorialVagrantBox(SynchronousTestCase):
+    """
+    Tests for :func:`copy_tutorial_vagrant_box`.
+    """
+
+    def test_vagrant_box_copied(self):
+        """
+        A Vagrant box for a given version of Flocker is copied to the
+        archive.
+        """
+        target_bucket = 'clusterhq-archive'
+        dev_bucket = 'clusterhq-dev-archive'
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                target_bucket: {},
+                dev_bucket: {
+                    'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content',
+                },
+            })
+
+        sync_perform(
+            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
+            copy_tutorial_vagrant_box(
+                target_bucket=target_bucket,
+                dev_bucket=dev_bucket,
+                version='0.3.0'))
+
+        self.assertEqual(
+            aws.s3_buckets[target_bucket],
+            {'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content'}
+        )
 
 
 class PublishHomebrewRecipeTests(SynchronousTestCase):

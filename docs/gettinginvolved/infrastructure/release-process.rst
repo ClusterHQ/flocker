@@ -1,3 +1,5 @@
+.. _release-process:
+
 Release Process
 ===============
 
@@ -332,16 +334,12 @@ Release
 
    Wait for the build to complete successfully.
 
-#. Build and upload artifacts:
-
-   .. note:: Skip this step for a maintenance or documentation release.
+#. Build Python and RPM packages and upload them to Amazon S3,
+   and copy the tutorial box to the final location:
 
    .. prompt:: bash [vagrant@localhost]$
 
-      # Build Python and RPM packages and upload them to Amazon S3
       admin/publish-artifacts
-      # Copy the tutorial box to the final location
-      gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
 
 #. Add the tutorial box to Atlas:
 
@@ -351,7 +349,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      echo https://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+      echo https://s3.amazonaws.com/clusterhq-archive/vagrant/tutorial/flocker-tutorial-${VERSION}.box
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
 
