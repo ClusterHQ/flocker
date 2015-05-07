@@ -435,6 +435,41 @@ class OpenPorts(PRecord):
         return gather_deferreds(results)
 
 
+class NotInUseDatasets(object):
+    """
+    Filter out datasets that are in use by applications.
+
+    For now we delay deletion and handoffs until we know application
+    isn't using the dataset. Later on we'll use leases to decouple
+    the application and dataset logic better.
+    """
+    def __init__(self, node_state):
+        """
+        :param NodeState node_state: Known local state.
+        """
+        self._in_use_datasets = {app.volume.manifestation.dataset_id
+                                 for app in node_state.applications
+                                 if app.volume is not None}
+
+    def __call__(self, objects,
+                 get_dataset_id=lambda d: unicode(d.dataset_id)):
+        """
+        Filter out all objects whose dataset_id is in use.
+
+        :param objects: Objects to filter.
+
+        :param get_dataset_id: Callable to extract a ``dataset_id`` from
+            an object. By default looks up ``dataset_id`` attribute.
+
+        :return list: Filtered objects.
+        """
+        result = []
+        for obj in objects:
+            if get_dataset_id(obj) not in self._in_use_datasets:
+                result.append(obj)
+        return result
+
+
 @implementer(IDeployer)
 class P2PManifestationDeployer(object):
     """
@@ -514,28 +549,21 @@ class P2PManifestationDeployer(object):
             return sequentially(changes=[])
         phases = []
 
-        # For now we delay deletion and handoffs until we know application
-        # isn't using the dataset. Later on we'll use leases to decouple
-        # the application and dataset logic better.
-        in_use_datasets = {app.volume.manifestation.dataset_id
-                           for node in cluster_state.nodes
-                           for app in node.applications
-                           if app.volume is not None}
+        not_in_use_datasets = NotInUseDatasets(local_state)
 
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.
         dataset_changes = find_dataset_changes(
             self.node_uuid, cluster_state, configuration)
 
-        resizing = [dataset for dataset in dataset_changes.resizing
-                    if dataset.dataset_id not in in_use_datasets]
+        resizing = not_in_use_datasets(dataset_changes.resizing)
         if resizing:
             phases.append(in_parallel(changes=[
                 ResizeDataset(dataset=dataset)
                 for dataset in resizing]))
 
-        going = [handoff for handoff in dataset_changes.going
-                 if handoff.dataset.dataset_id not in in_use_datasets]
+        going = not_in_use_datasets(dataset_changes.going,
+                                    lambda d: d.dataset.dataset_id)
         if going:
             phases.append(in_parallel(changes=[
                 HandoffDataset(dataset=handoff.dataset,
@@ -547,8 +575,7 @@ class P2PManifestationDeployer(object):
                 CreateDataset(dataset=dataset)
                 for dataset in dataset_changes.creating]))
 
-        deleting = [dataset for dataset in dataset_changes.deleting
-                    if dataset.dataset_id not in in_use_datasets]
+        deleting = not_in_use_datasets(dataset_changes.deleting)
         if deleting:
             phases.append(in_parallel(changes=[
                 DeleteDataset(dataset=dataset)
