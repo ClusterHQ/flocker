@@ -32,11 +32,15 @@ On AWS, an external firewall is used instead, which will need to be configured s
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node:
 
+# TODO document what the port variable is, here and in Ubuntu section
+# TODO maybe make port an option to
+
 .. code-block:: yaml
 
    "version": 1
    "control-service":
       "hostname": "${CONTROL_NODE}"
+      "port": 4524
 
 .. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
@@ -67,6 +71,7 @@ This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the
    "version": 1
    "control-service":
       "hostname": "${CONTROL_NODE}"
+      "port": 4524
 
 .. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
    :prompt: [root@agent-node]#

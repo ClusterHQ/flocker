@@ -231,6 +231,7 @@ def task_enable_flocker_agent(distribution, control_node):
                 "version": 1,
                 "control-service": {
                     "hostname": control_node,
+                    "port": 4524,
                 },
             },
         ),
