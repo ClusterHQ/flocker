@@ -70,7 +70,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
         )
         self.addCleanup(
-            cinder_volumes.delete_volume,
+            cinder_volumes.delete,
             requested_volume.id,
         )
         wait_for_volume(
