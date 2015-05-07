@@ -47,7 +47,7 @@ def task_client_smoke_test():
     """
     Check that the CLI is working.
     """
-    return run_from_args(['flocker', '--version'])
+    return run_from_args(['flocker-deploy', '--version'])
 
 
 def task_install_cli(distribution, package_source=PackageSource()):
