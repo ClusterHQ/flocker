@@ -100,6 +100,11 @@ def agent_config_from_file(path):
         raise ConfigurationError(
             "Configuration file does not exist at '{}'.".format(path.path))
 
+    # TODO change the schema here to have the options:
+    # zfs
+    #   zfs-pool
+    # loopback
+    #   loopback-pool
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
@@ -112,6 +117,10 @@ def agent_config_from_file(path):
             }
         }
     }
+
+    # TODO use these defaults if they are not set - they are not required
+    zfs_pool_default = 'flocker'
+    loopback_pool_default = '/var/lib/flocker/loopback'
 
     try:
         validate(options, schema, format_checker=FormatChecker())

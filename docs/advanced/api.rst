@@ -14,6 +14,8 @@ Installation
 Fedora / CentOS
 ---------------
 
+# TODO once the merge happens here, change this and the "put" command
+
 To enable the Flocker control service:
 
 .. task:: enable_flocker_control fedora-20
