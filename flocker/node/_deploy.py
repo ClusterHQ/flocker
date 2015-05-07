@@ -757,22 +757,16 @@ class ApplicationNodeDeployer(object):
         if desired_open_ports != set(self.network.enumerate_open_ports()):
             phases.append(OpenPorts(ports=desired_open_ports))
 
-        running_applications = set(
-            app for app in current_node_state.applications if app.running)
         all_applications = current_node_state.applications
 
         # Compare the applications being changed by name only.  Other
         # configuration changes aren't important at this point.
-        running = {app.name for app in running_applications}
+        local_application_names = {app.name for app in all_applications}
         desired_local_state = {app.name for app in
                                desired_node_applications}
-        not_running = {
-            app.name for app
-            in all_applications.difference(running_applications)}
-
         # Don't start applications that exist on this node but aren't
         # running; Docker is in charge of restarts:
-        start_names = desired_local_state.difference(running | not_running)
+        start_names = desired_local_state.difference(local_application_names)
         stop_names = {app.name for app in all_applications}.difference(
             desired_local_state)
 
