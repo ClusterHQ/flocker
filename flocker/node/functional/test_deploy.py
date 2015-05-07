@@ -14,12 +14,11 @@ from twisted.python.filepath import FilePath
 from .. import P2PManifestationDeployer, ApplicationNodeDeployer, sequentially
 from ...control._model import (
     Deployment, Application, DockerImage, Node, AttachedVolume, Link,
-    Manifestation, Dataset, DeploymentState, NodeState, RestartAlways)
+    Manifestation, Dataset, DeploymentState, NodeState)
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
-    random_name, DockerImageBuilder, assertContainsAll, loop_until,
-    run_process)
+    random_name, DockerImageBuilder, assertContainsAll, loop_until)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 
