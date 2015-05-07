@@ -287,10 +287,10 @@ class CinderBlockDeviceAPI(object):
         try:
             [attachment] = cinder_volume.attachments
         except ValueError:
-            # I wonder if this should be raised if it's not attached
-            # to *this* host or *any* host?
             raise UnattachedVolume(blockdevice_id)
 
+        # It could be attached somewher else...
+        # https://clusterhq.atlassian.net/browse/FLOC-1830
         return FilePath(attachment['device'])
 
 
