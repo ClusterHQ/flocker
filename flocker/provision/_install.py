@@ -70,7 +70,8 @@ def task_install_cli(distribution, package_source=PackageSource()):
             sudo_from_args([
                 "apt-get", "-y", "install", "apt-transport-https",
                 "software-properties-common"]),
-            # FLOC-1742 TODO - use ARCHIVE_BUCKET rather than clusterhq-archive-testing  # noqa
+            # FLOC-1828 TODO - use ARCHIVE_BUCKET rather than clusterhq-archive-testing  # noqa
+            # This needs a release to be done which adds .deb files to clusterhq-archive  # noqa
             sudo_from_args([
                 'add-apt-repository', '-y',
                 'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu/14.04/$(ARCH) /'  # noqa
@@ -389,9 +390,11 @@ def task_install_flocker(
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
+            # FLOC-1828 TODO - use ARCHIVE_BUCKET rather than clusterhq-archive-testing  # noqa
+            # This needs a release to be done which adds .deb files to clusterhq-archive  # noqa
             run_from_args([
                 'add-apt-repository', '-y',
-                'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'  # noqa
+                'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu/14.04/$(ARCH) /'  # noqa
                 ])
             ]
 

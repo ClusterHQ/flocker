@@ -62,7 +62,7 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y ppa:zfs-native/stable'),
             run(command='add-apt-repository -y ppa:james-page/docker'),
             run(command="add-apt-repository -y "
-                        "'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'"),  # noqa
+                        "'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu/14.04/$(ARCH) /'"),  # noqa
             run(command='apt-get update'),
             run(command='apt-get -y install libc6-dev'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
@@ -84,7 +84,7 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y ppa:zfs-native/stable'),
             run(command='add-apt-repository -y ppa:james-page/docker'),
             run(command="add-apt-repository -y "
-                        "'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'"),  # noqa
+                        "'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu/14.04/$(ARCH) /'"),  # noqa
             run(command='apt-get update'),
             run(command='apt-get -y install libc6-dev'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node=1.2.3-1'),  # noqa
@@ -105,7 +105,7 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command='add-apt-repository -y ppa:zfs-native/stable'),
             run(command='add-apt-repository -y ppa:james-page/docker'),
             run(command="add-apt-repository -y "
-                        "'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'"),  # noqa
+                        "'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu/14.04/$(ARCH) /'"),  # noqa
             run(command="add-apt-repository -y "
                         "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
             run(command='apt-get update'),
