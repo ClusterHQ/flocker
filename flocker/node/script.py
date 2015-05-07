@@ -103,15 +103,23 @@ def agent_config_from_file(path):
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
-        "required": ["version", "control-service-hostname"],
+        "required": ["version", "control-service"],
         "properties": {
             "version": {"type": "number"},
-            "control-service-hostname": {
-                "type": "string",
-                "format": "hostname",
+            "control-service": {
+                "type": "object",
+                "required": ["hostname"],
+                "properties": {
+                      "hostname": {
+                          "type": "string",
+                          "format": "hostname",
+                      },
+                }
             }
         }
     }
+
+#
 
     try:
         validate(options, schema, format_checker=FormatChecker())
@@ -125,7 +133,9 @@ def agent_config_from_file(path):
             "Configuration has an error. Incorrect version specified.")
 
     return {
-        'control-service-hostname': options[u'control-service-hostname'],
+        'control-service': {
+            'hostname': options[u'control-service']['hostname'],
+        },
     }
 
 
@@ -137,7 +147,7 @@ class ZFSAgentScript(object):
     """
     def main(self, reactor, options, volume_service):
         configuration = agent_config_from_file(path=options[u'agent-config'])
-        host = configuration['control-service-hostname']
+        host = configuration['control-service']['hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then
@@ -251,7 +261,7 @@ class AgentServiceFactory(PRecord):
         :return: The ``AgentLoopService`` instance.
         """
         configuration = agent_config_from_file(path=options[u'agent-config'])
-        host = configuration['control-service-hostname']
+        host = configuration['control-service']['hostname']
         port = options["destination-port"]
         ip = _get_external_ip(host, port)
         return AgentLoopService(

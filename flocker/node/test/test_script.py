@@ -35,7 +35,9 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         self.config = scratch_directory.child('dataset-config.yml')
         self.config.setContent(
             yaml.safe_dump({
-                u"control-service-hostname": u"10.0.0.1",
+                u"control-service": {
+                    u"hostname": u"10.0.0.1",
+                },
                 u"version": 1,
             }))
 
@@ -113,7 +115,9 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         self.config = scratch_directory.child('dataset-config.yml')
         self.config.setContent(
             yaml.safe_dump({
-                u"control-service-hostname": u"10.0.0.2",
+                u"control-service": {
+                    u"hostname": u"10.0.0.2",
+                },
                 u"version": 1,
             }))
 
@@ -269,12 +273,12 @@ def make_amp_agent_options_tests(options_type):
             self.options = options_type()
             self.scratch_directory = FilePath(self.mktemp())
             self.scratch_directory.makedirs()
-            self.sample_content = yaml.safe_dump(
-                {
-                    u"control-service-hostname": u"10.0.0.1",
-                    u"version": 1,
-                }
-            )
+            self.sample_content = yaml.safe_dump({
+                u"control-service": {
+                    u"hostname": u"10.0.0.1",
+                },
+                u"version": 1,
+            })
             self.config = self.scratch_directory.child('dataset-config.yml')
             self.config.setContent(self.sample_content)
 
@@ -376,25 +380,47 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the given control service
         hostname is not a valid hostname.
         """
-        self.assertErrorForConfig(
-            configuration={
-                "control-service-hostname": "-1",
-                "version": 1,
+        configuration = {
+            u"control-service": {
+                u"hostname": u"-1",
             },
+            "version": 1,
+        }
+
+        self.assertErrorForConfig(
+            configuration=configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: '-1' is not a 'hostname'."),
         )
 
-    def test_error_on_missing_hostname(self):
+    def test_error_on_missing_control_service(self):
         """
         A ``ConfigurationError`` is raised if the config file does not
-        contain a ``u"control-service-hostname"`` key.
+        contain a ``u"control-service"`` key.
         """
         self.assertErrorForConfig(
             configuration={"version": 1},
             exception=ConfigurationError,
             message=("Configuration has an error: "
-                     "'control-service-hostname' is a required property."),
+                     "'control-service' is a required property."),
+        )
+
+    def test_error_on_missing_hostname(self):
+        """
+        A ``ConfigurationError`` is raised if the config file does not
+        contain a hostname in the ``u"control-service"`` key.
+        """
+        configuration = {
+            u"control-service": {
+            },
+            "version": 1,
+        }
+
+        self.assertErrorForConfig(
+            configuration=configuration,
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "'hostname' is a required property."),
         )
 
     def test_error_on_missing_version(self):
@@ -402,9 +428,14 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the config file does not contain
         a ``u"version"`` key.
         """
+        configuration = {
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+            },
+        }
+
         self.assertErrorForConfig(
-            configuration={
-                "control-service-hostname": "192.0.2.1"},
+            configuration=configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "'version' is a required property."),
@@ -414,11 +445,14 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         A ``ConfigurationError`` is raised if the version specified is not 1.
         """
-        self.assertErrorForConfig(
-            configuration={
-                "control-service-hostname": "192.0.2.1",
-                "version": 2,
+        configuration = {
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
             },
+            "version": 2,
+        }
+        self.assertErrorForConfig(
+            configuration=configuration,
             exception=ConfigurationError,
             message=("Configuration has an error. "
                      "Incorrect version specified."),
