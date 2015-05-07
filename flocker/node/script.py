@@ -54,15 +54,12 @@ class ZFSAgentOptions(Options):
     synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
 
     optParameters = [
-        ["destination-port", "p", 4524,
-         "The port on the control service to connect to.", int],
         ["agent-config", "c", "/etc/flocker/agent.yml",
          "The configuration file to set the control service."],
     ]
 
     def postOptions(self):
-        self['agent-config'] = FilePath(
-            self['agent-config'])
+        self['agent-config'] = FilePath(self['agent-config'])
 
 
 def _get_external_ip(host, port):
@@ -103,12 +100,19 @@ def agent_config_from_file(path):
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
-        "required": ["version", "control-service-hostname"],
+        "required": ["version", "control-service"],
         "properties": {
             "version": {"type": "number"},
-            "control-service-hostname": {
-                "type": "string",
-                "format": "hostname",
+            "control-service": {
+                "type": "object",
+                "required": ["hostname"],
+                "properties": {
+                    "hostname": {
+                        "type": "string",
+                        "format": "hostname",
+                    },
+                    "port": {"type": "integer"},
+                }
             }
         }
     }
@@ -124,8 +128,16 @@ def agent_config_from_file(path):
         raise ConfigurationError(
             "Configuration has an error. Incorrect version specified.")
 
+    try:
+        port = options['control-service']['port']
+    except KeyError:
+        port = 4524
+
     return {
-        'control-service-hostname': options[u'control-service-hostname'],
+        'control-service': {
+            'hostname': options['control-service']['hostname'],
+            'port': port,
+        },
     }
 
 
@@ -137,8 +149,8 @@ class ZFSAgentScript(object):
     """
     def main(self, reactor, options, volume_service):
         configuration = agent_config_from_file(path=options[u'agent-config'])
-        host = configuration['control-service-hostname']
-        port = options["destination-port"]
+        host = configuration['control-service']['hostname']
+        port = configuration['control-service']["port"]
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then
         # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
@@ -170,15 +182,12 @@ class _AgentOptions(Options):
     synopsis = "Usage: {} [OPTIONS]"
 
     optParameters = [
-        ["destination-port", "p", 4524,
-         "The port on the control service to connect to.", int],
         ["agent-config", "c", "/etc/flocker/agent.yml",
          "The configuration file to set the control service."],
     ]
 
     def postOptions(self):
-        self['agent-config'] = FilePath(
-            self['agent-config'])
+        self['agent-config'] = FilePath(self['agent-config'])
 
 
 class DatasetAgentOptions(_AgentOptions):
@@ -251,8 +260,8 @@ class AgentServiceFactory(PRecord):
         :return: The ``AgentLoopService`` instance.
         """
         configuration = agent_config_from_file(path=options[u'agent-config'])
-        host = configuration['control-service-hostname']
-        port = options["destination-port"]
+        host = configuration['control-service']['hostname']
+        port = configuration['control-service']['port']
         ip = _get_external_ip(host, port)
         return AgentLoopService(
             reactor=reactor,
