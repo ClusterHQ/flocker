@@ -101,12 +101,12 @@ def _rackspace_session(username, api_key, **kwargs):
     return Session(auth=auth)
 
 
-def _openstack(region_slug, **config):
+def _openstack(region, **config):
     """
     Create Cinder and Nova volume managers suitable for use in the creation of
     a ``CinderBlockDeviceAPI``.
 
-    :param bytes region_slug: The name of the region to which to connect.
+    :param bytes region: The name of the region to which to connect.
     :param config: Any additional configuration (possibly provider-specific)
         necessary to authenticate a session for use with the CinderClient and
         NovaClient.
@@ -118,10 +118,10 @@ def _openstack(region_slug, **config):
     # instead of assuming Rackspace.
     session = _rackspace_session(**config)
     cinder_client = CinderClient(
-        session=session, region_name=region_slug, version=1
+        session=session, region_name=region, version=1
     )
     nova_client = NovaClient(
-        session=session, region_name=region_slug, version=2
+        session=session, region_name=region, version=2
     )
     return dict(
         cinder_volume_manager=cinder_client.volumes,
