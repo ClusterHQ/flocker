@@ -59,7 +59,7 @@ class InstallFlockerTests(SynchronousTestCase):
         distribution = 'ubuntu-14.04'
         commands = task_install_flocker(distribution=distribution)
         self.assertEqual(commands, sequence([
-            run(command='apt-get -y install software-properties-common'),
+            run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
             run(command='add-apt-repository -y ppa:zfs-native/stable'),
             run(command='add-apt-repository -y ppa:james-page/docker'),
             run(command='apt-get update'),
@@ -79,7 +79,7 @@ class InstallFlockerTests(SynchronousTestCase):
             package_source=source,
             distribution=distribution)
         self.assertEqual(commands, sequence([
-            run(command='apt-get -y install software-properties-common'),
+            run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
             run(command='add-apt-repository -y ppa:zfs-native/stable'),
             run(command='add-apt-repository -y ppa:james-page/docker'),
             run(command='apt-get update'),
