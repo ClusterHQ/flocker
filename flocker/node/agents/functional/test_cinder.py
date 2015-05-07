@@ -13,28 +13,27 @@ Ideally, there'd be some in-memory tests too. Some ideas:
 See https://github.com/rackerlabs/mimic/issues/218
 """
 
-from uuid import uuid4
-
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
 )
-from ..test.blockdevicefactory import get_blockdeviceapi_with_cleanup
+from ..test.blockdevicefactory import (
+    ProviderType, get_blockdeviceapi_with_cleanup
+)
 
 
-def cinderblockdeviceapi_for_test(test_case, cluster_id):
+def cinderblockdeviceapi_for_test(test_case):
     """
     Create a ``CinderBlockDeviceAPI`` instance for use in tests.
 
     :param TestCase test_case: The test being run.
-    :param UUID cluster_id: The Flocker cluster ID for Cinder volumes.
     :returns: A ``CinderBlockDeviceAPI`` instance whose underlying
         ``cinderclient.v1.client.Client`` has a ``volumes`` attribute wrapped
         by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
         are created during the course of ``test_case``
     """
-    return get_blockdeviceapi_with_cleanup(test_case, "openstack")
+    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
 
 
 # ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
@@ -44,7 +43,6 @@ class CinderBlockDeviceAPIInterfaceTests(
             blockdevice_api_factory=(
                 lambda test_case: cinderblockdeviceapi_for_test(
                     test_case=test_case,
-                    cluster_id=uuid4()
                 )
             )
         )
@@ -78,7 +76,6 @@ class CinderBlockDeviceAPIInterfaceTests(
     #     """
     #     blockdevice_api2 = cinderblockdeviceapi_for_test(
     #         test_case=self,
-    #         cluster_id=uuid4(),
     #         )
     #     flocker_volume = blockdevice_api2.create_volume(
     #         dataset_id=uuid4(),

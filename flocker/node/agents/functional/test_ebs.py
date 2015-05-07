@@ -16,14 +16,16 @@ from ..test.test_blockdevice import (
     REALISTIC_BLOCKDEVICE_SIZE
 )
 
-from .blockdevicefactory import get_blockdeviceapi_args, get_blockdeviceapi
+from .blockdevicefactory import (
+    ProviderType, get_blockdeviceapi_args, get_blockdeviceapi,
+)
 
 
 def ebsblockdeviceapi_for_test(test_case):
     """
     Create an ``EBSBlockDeviceAPI`` for use by tests.
     """
-    return get_blockdeviceapi(test_case, "aws")
+    return get_blockdeviceapi(test_case, ProviderType.aws)
 
 
 # ``EBSBlockDeviceAPI`` only implements the ``create``, ``list``,
@@ -60,15 +62,16 @@ class EBSBlockDeviceAPIInterfaceTests(
         Test that ``list_volumes`` lists only those volumes
         belonging to the current Flocker cluster.
         """
-        ec2_client = get_blockdeviceapi_args(self, "aws")["ec2_client"]
+        cls, kwargs = get_blockdeviceapi_args(ProviderType.aws)
+        ec2_client = kwargs["ec2_client"]
         requested_volume = ec2_client.connection.create_volume(
             int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value),
             ec2_client.zone)
+        self.addCleanup(ec2_client.connection.delete_volume,
+                        requested_volume.id)
 
         _wait_for_volume(requested_volume)
 
-        self.addCleanup(ec2_client.connection.delete_volume,
-                        requested_volume.id)
         self.assertEqual(self.api.list_volumes(), [])
 
     def test_foreign_cluster_volume(self):
@@ -78,7 +81,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         blockdevice_api2 = ebsblockdeviceapi_for_test(
             test_case=self,
-            )
+        )
         flocker_volume = blockdevice_api2.create_volume(
             dataset_id=uuid4(),
             size=REALISTIC_BLOCKDEVICE_SIZE,
