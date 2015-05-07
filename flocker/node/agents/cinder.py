@@ -3,13 +3,15 @@
 """
 A Cinder implementation of the ``IBlockDeviceAPI``.
 """
-from subprocess import check_output
 import time
 from uuid import UUID
+from subprocess import check_output
 
 from bitmath import Byte, GB
 
-from keystoneclient.openstack.common.apiclient.exceptions import NotFound as CinderNotFound
+from keystoneclient.openstack.common.apiclient.exceptions import (
+    NotFound as CinderNotFound,
+)
 from novaclient.exceptions import NotFound as NovaNotFound
 
 from twisted.python.filepath import FilePath
@@ -17,7 +19,7 @@ from twisted.python.filepath import FilePath
 from zope.interface import implementer, Interface
 
 from .blockdevice import (
-    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume, 
+    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume,
 )
 
@@ -28,6 +30,7 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # The key name used for identifying the Flocker dataset_id in the metadata for
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
+
 
 class ICinderVolumeManager(Interface):
     """
@@ -58,6 +61,7 @@ class ICinderVolumeManager(Interface):
         :param metadata: A list of keys to be set.
         """
 
+
 class INovaVolumeManager(Interface):
     """
     The parts of ``novaclient.v2.volumes.VolumeManager`` that we use.
@@ -70,7 +74,7 @@ class INovaVolumeManager(Interface):
         :param server_id: The ID of the server
         :param volume_id: The ID of the volume to attach.
         :param device: The device name
-        :rtype: :class:`Volume`        
+        :rtype: :class:`Volume`
         """
 
 
@@ -122,8 +126,8 @@ class CinderBlockDeviceAPI(object):
     """
     def __init__(self, cinder_volume_manager, nova_volume_manager, cluster_id):
         """
-        :param ICinderVolumeManager cinder_volume_manager: A client for interacting
-            with Cinder API.
+        :param ICinderVolumeManager cinder_volume_manager: A client for
+            interacting with Cinder API.
         :param INovaServerManager nova_volume_manager: A client for interacting
             with Nova volume API.
         :param UUID cluster_id: An ID that will be included in the names of
@@ -165,14 +169,16 @@ class CinderBlockDeviceAPI(object):
             size=Byte(size).to_GB().value,
             metadata=metadata,
         )
-        created_volume = wait_for_volume(self.cinder_volume_manager, requested_volume)
+        created_volume = wait_for_volume(
+            self.cinder_volume_manager, requested_volume,
+        )
         # So once the volume has actually been created, we set the metadata
         # again. One day we hope this won't be necessary.
         # See Rackspace support ticket: 150422-ord-0000495'
         self.cinder_volume_manager.set_metadata(created_volume, metadata)
         # Use requested volume here, because it has the desired metadata.
         return _blockdevicevolume_from_cinder_volume(
-            cinder_volume=requested_volume, 
+            cinder_volume=requested_volume,
         )
 
     def list_volumes(self):
@@ -243,7 +249,7 @@ class CinderBlockDeviceAPI(object):
         except NovaNotFound:
             raise UnattachedVolume(blockdevice_id)
 
-        # This'll blow up if the volume is deleted from elsewhere.
+        # TODO This'll blow up if the volume is deleted from elsewhere.
         wait_for_volume(
             volume_manager=self.nova_volume_manager,
             expected_volume=nova_volume,
@@ -255,7 +261,7 @@ class CinderBlockDeviceAPI(object):
             self.cinder_volume_manager.delete(blockdevice_id)
         except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
-        
+
         while True:
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
@@ -277,7 +283,7 @@ class CinderBlockDeviceAPI(object):
             # I wonder if this should be raised if it's not attached
             # to *this* host or *any* host?
             raise UnattachedVolume(blockdevice_id)
-        
+
         return FilePath(attachment['device'])
 
 
@@ -318,15 +324,17 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
 
+
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
-        whose ``volumes`` attribute will be supplied as the ``cinder_volume_manager``
-        parameter of ``CinderBlockDeviceAPI``.
-    :param novaclient.v2.client.Client nova_client: The Nova API client
-        whose ``volumes`` attribute will be supplied as the ``nova_volume_manager``
+        whose ``volumes`` attribute will be supplied as the
+        ``cinder_volume_manager`` parameter of ``CinderBlockDeviceAPI``.
+    :param novaclient.v2.client.Client nova_client: The Nova API client whose
+        ``volumes`` attribute will be supplied as the ``nova_volume_manager``
         parameter of ``CinderBlockDeviceAPI``.
     :param UUID cluster_id: A Flocker cluster ID.
+
     :returns: A ``CinderBlockDeviceAPI``.
     """
     return CinderBlockDeviceAPI(

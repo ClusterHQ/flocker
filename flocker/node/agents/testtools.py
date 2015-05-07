@@ -3,21 +3,14 @@
 """
 Test helpers for ``flocker.node.agents``.
 """
-import os
-import yaml
 
 from zope.interface.verify import verifyObject
-from zope.interface import implementer
 
-from twisted.trial.unittest import SynchronousTestCase, SkipTest
-from twisted.python.components import proxyForInterface
+from twisted.trial.unittest import SynchronousTestCase
 
 from .cinder import (
-    ICinderVolumeManager, INovaVolumeManager, wait_for_volume,
+    ICinderVolumeManager, INovaVolumeManager,
 )
-
-
-DEFAULT_OPENSTACK_PROVIDER = 'rackspace'
 
 
 class ICinderVolumeManagerTestsMixin(object):

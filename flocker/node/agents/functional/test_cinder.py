@@ -15,14 +15,10 @@ See https://github.com/rackerlabs/mimic/issues/218
 
 from uuid import uuid4
 
-from bitmath import Byte
-
-from ....testtools import REALISTIC_BLOCKDEVICE_SIZE, skip_except
-from ..cinder import cinder_api, wait_for_volume
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
 from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests, detach_destroy_volumes,
+    make_iblockdeviceapi_tests,
 )
 from ..test.blockdevicefactory import get_blockdeviceapi_with_cleanup
 
