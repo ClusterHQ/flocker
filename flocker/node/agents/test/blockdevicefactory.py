@@ -63,7 +63,7 @@ def get_blockdeviceapi_args(provider):
             'for details of the expected format.'
         )
     config = safe_load(config_file.read())
-    section = config[provider]
+    section = config[provider.name]
 
     cls, get_kwargs = _BLOCKDEVICE_TYPES[provider]
 
