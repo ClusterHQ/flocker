@@ -79,18 +79,12 @@ def get_blockdeviceapi_args(provider):
         ``dict`` of keyword arguments that can be used instantiate that
         implementation.
     """
-    provider_env_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if provider_env_name is None:
+    # ie cust0, rackspace, aws
+    platform_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PLATFORM')
+    if platform_name is None:
         raise InvalidConfig(
-            'Supply the provider running tests using the '
-            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER envionment variable.'
-        )
-
-    provider_env = ProviderType.lookupByName(provider_env_name)
-    if provider_env != provider:
-        raise InvalidConfig(
-            "The requested cloud provider (%s) is not the provider running "
-            "the tests (%s)." % (provider.name, provider_env.name)
+            'Supply the platform on which you are running tests using the '
+            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PLATFORM environment variable.'
         )
 
     config_file_path = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE')
@@ -106,7 +100,52 @@ def get_blockdeviceapi_args(provider):
     with open(config_file_path) as config_file:
         config = safe_load(config_file.read())
 
-    section = config[provider.name]
+    section = config.get(platform_name)
+    if section is None:
+        raise InvalidConfig(
+            "The requested cloud platform "
+            "was not found in the configuration file. "
+            "Platform: %s, "
+            "Configuration File: %s" % (platform_name, config_file_path)
+        )
+    provider_name = section.get('provider')
+    try:
+        provider = ProviderType.lookupByName(provider_name)
+    except ValueError:
+        raise InvalidConfig(
+            "Unsupported provider. "
+            "Supplied provider: %s, "
+            "Available providers: %s"% (
+                provider_name,
+                ', '.join(p.name for p in ProviderType.iterconstants())
+            )
+        )
+
+    provider_env_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+    if provider_env_name is None:
+        raise InvalidConfig(
+            'Supply the provider running tests using the '
+            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER envionment variable.'
+        )
+
+    try:
+        provider_environment = ProviderType.lookupByName(provider_env_name)
+    except ValueError:
+        raise InvalidConfig(
+            "Unsupported provider environment. "
+            "Supplied provider environment: %s, "
+            "Available providers: %s"% (
+                provider_name,
+                ', '.join(p.name for p in ProviderType.iterconstants())
+            )
+        )
+
+    if provider_environment != provider:
+        raise InvalidConfig(
+            "The requested cloud provider (%s) is not the provider running "
+            "the tests (%s)." % (provider.name, provider_environment.name)
+        )
+
     cls, get_kwargs = _BLOCKDEVICE_TYPES[provider]
     kwargs = dict(cluster_id=uuid4())
     kwargs.update(get_kwargs(**section))
