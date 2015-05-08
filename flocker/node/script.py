@@ -159,34 +159,16 @@ def agent_config_from_file(path):
             "Configuration has an error: {}.".format(e.message,)
         )
 
-    # Checking for KeyErrors is a useful way to set defaults. There are ways to
-    # extend jsonschema to allow defaults but these are conceptionally
-    # different to the rest of the validator.
-    # See https://python-jsonschema.readthedocs.org/en/latest/faq/?highlight=default#why-doesn-t-my-schema-that-has-a-default-property-actually-set-the-default-on-my-instance  # noqa
-    try:
-        port = options['control-service']['port']
-    except KeyError:
-        port = 4524
-
-    try:
-        zfs_pool = options['dataset']['zfs-pool']
-    except KeyError:
-        zfs_pool = 'flocker'
-
-    try:
-        loopback_pool = options['dataset']['loopback-pool']
-    except KeyError:
-        loopback_pool = '/var/lib/flocker/loopback'
-
     return {
         'control-service': {
             'hostname': options['control-service']['hostname'],
-            'port': port,
+            'port': options['control-service'].get('port', 4524),
         },
         'dataset': {
             "backend": options['dataset']['backend'],
-            'zfs-pool': zfs_pool,
-            'loopback-pool': loopback_pool,
+            'zfs-pool': options['dataset'].get('zfs-pool', 'flocker'),
+            'loopback-pool': options['dataset'].get(
+                'loopback-pool', '/var/lib/flocker/loopback'),
         }
     }
 
