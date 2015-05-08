@@ -70,10 +70,10 @@ class CredentialSet(PRecord):
     """
     A full set of credentials for a CA.
 
-    :param RootCredential root: The CA root credential.
-    :param ControlCredential control: A control service credential.
-    :param UserCredential user: A user credential.
-    :param NodeCredential node: A CA root credentials.
+    :ivar RootCredential root: The CA root credential.
+    :ivar ControlCredential control: A control service credential.
+    :ivar UserCredential user: A user credential.
+    :ivar NodeCredential node: A CA root credentials.
     """
     root = field()
     control = field()
