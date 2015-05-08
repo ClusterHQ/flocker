@@ -1522,6 +1522,7 @@ class BlockDeviceDeployer(PRecord):
 
         # We need to know applications (for now) to see if we should delay
         # deletion or handoffs. Eventually this will rely on leases instead.
+        # https://clusterhq.atlassian.net/browse/FLOC-1425.
         if local_state.applications is None:
             return in_parallel(changes=[])
 
