@@ -460,8 +460,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         self.assertErrorForConfig(
             configuration=self.configuration,
             exception=ConfigurationError,
-            message=("Configuration has an error. "
-                     "Incorrect version specified."),
+            message=("Configuration has an error: "
+                     "2 is greater than the maximum of 1."),
         )
 
     def test_default_port(self):

@@ -102,7 +102,11 @@ def agent_config_from_file(path):
         "type": "object",
         "required": ["version", "control-service", "dataset"],
         "properties": {
-            "version": {"type": "number"},
+            "version": {
+                "type": "number",
+                "maximum": 1,
+                "minimum": 1,
+            },
             "control-service": {
                 "type": "object",
                 "required": ["hostname"],
@@ -155,11 +159,7 @@ def agent_config_from_file(path):
             "Configuration has an error: {}.".format(e.message,)
         )
 
-    # TODO match version in schema
     # TODO add descriptions - does this help error handling?
-    if options[u'version'] != 1:
-        raise ConfigurationError(
-            "Configuration has an error. Incorrect version specified.")
 
     # Checking for KeyErrors is a useful way to set defaults. There are ways to
     # extend jsonschema to allow defaults but these are conceptionally
