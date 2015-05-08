@@ -439,9 +439,10 @@ class NotInUseDatasets(object):
     """
     Filter out datasets that are in use by applications.
 
-    For now we delay things like deletion we know applications
+    For now we delay things like deletion until we know applications
     aren't using the dataset. Later on we'll use leases to decouple
-    the application and dataset logic better.
+    the application and dataset logic better; see
+    https://clusterhq.atlassian.net/browse/FLOC-1425.
     """
     def __init__(self, node_state):
         """
