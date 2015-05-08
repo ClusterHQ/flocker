@@ -121,6 +121,15 @@ class CinderBlockDeviceAPI(object):
         """
         Look up the Xen instance ID for this node.
         """
+        # Get all the local IP addresses
+        # (maybe refactor the get_all_ips function from flocker.node.test.test_script)
+        # Ask for a detailed list of servers.
+        # http://developer.openstack.org/api-ref-compute-v2.html#listDetailServers
+        # Filter the list for the servers that have *all* our IP addresses.
+        # There should only be one...and return its ID (maybe hostID)
+        # which should already be unicode...but check.
+        # Cache the result and server the cached value next time? 
+        # (that's probably premature and will require extra tests)
         command = [b"xenstore-read", b"name"]
         return check_output(command).strip().decode("ascii")
 
