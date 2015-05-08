@@ -4,7 +4,8 @@
 Functionality for creating ``IBlockDeviceAPI`` providers suitable for use in
 the current execution environment.
 
-This depends on a ``CLOUD_CONFIG_FILE`` environment variable being set.
+This depends on a ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` environment
+variable being set.
 
 See `acceptance testing <acceptance-testing>`_ for details.
 
@@ -41,9 +42,10 @@ from ..test.test_blockdevice import detach_destroy_volumes
 RACKSPACE_AUTH_URL = "https://identity.api.rackspacecloud.com/v2.0"
 
 
-class ConfigMissing(Exception):
+class InvalidConfig(Exception):
     """
-    The cloud configuration could not be found.
+    The cloud configuration could not be found, or is not compatible with the
+    running environment.
     """
 
 
@@ -74,7 +76,7 @@ def get_blockdeviceapi_args(provider):
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
 
-    :raises: ``ConfigMissing`` if a
+    :raises: ``InvalidConfig`` if a
         ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
 
@@ -82,9 +84,23 @@ def get_blockdeviceapi_args(provider):
         ``dict`` of keyword arguments that can be used instantiate that
         implementation.
     """
+    provider_env_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+    if provider_env_name is None:
+        raise InvalidConfig(
+            'Supply the provider running tests using the '
+            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER envionment variable.'
+        )
+
+    provider_env = ProviderType.lookupByName(provider_env_name)
+    if provider_env != provider:
+        raise InvalidConfig(
+            "The requested cloud provider (%s) is not the provider running "
+            "the tests (%s)." % (provider.name, provider_env.name)
+        )
+
     config_file_path = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE')
     if config_file_path is None:
-        raise ConfigMissing(
+        raise InvalidConfig(
             'Supply the path to a cloud credentials file '
             'using the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE environment '
             'variable. See: '
@@ -195,14 +211,14 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
 
-    :raises: ``SkipTest`` if a ``CLOUD_CONFIG_FILE`` was not set and the
-        default config file could not be read.
+    :raises: ``SkipTest`` if a ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
+        was not set and the default config file could not be read.
 
     :return: The new ``IBlockDeviceAPI`` provider.
     """
     try:
         api = get_blockdeviceapi(provider)
-    except ConfigMissing as e:
+    except InvalidConfig as e:
         raise SkipTest(str(e))
     test_case.addCleanup(detach_destroy_volumes, api)
     return api
