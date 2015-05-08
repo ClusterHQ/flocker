@@ -57,7 +57,7 @@ class ReceivingProtocol(Protocol):
     def dataReceived(self, data):
         self._buffer += data
         if self._buffer == EXPECTED_STRING:
-            self.result.callback(None)
+            self.result.callback("handshake!")
             self.result = None
 
     def connectionLost(self, reason):
@@ -143,15 +143,15 @@ def make_validation_tests(context_factory_fixture,
         def setUp(self):
             self.good_ca, self.another_ca = get_sets()
 
-        def assert_validates(self, credential):
+        def _handshake(self, credential):
             """
-            Asserts that a TLS handshake is successfully established between a
-            client using the validation logic and a server based on the
-            given credential.
+            Run a TLS handshake between a client and server, one of which is
+            using the validation logic and the other the given credential.
 
             :param credential: The high-level credential to use.
 
-            :return ``Deferred``: Fires on success.
+            :return ``Deferred``: Fires when handshake succeeded or
+                failed.
             """
             credential = credential.credential
             private_certificate = PrivateCertificate.fromCertificateAndKeyPair(
@@ -182,6 +182,20 @@ def make_validation_tests(context_factory_fixture,
             result.addCallback(lambda _: client_protocol.result)
             return result
 
+        def assert_validates(self, credential):
+            """
+            Asserts that a TLS handshake is successfully established between a
+            client using the validation logic and a server based on the
+            given credential.
+
+            :param credential: The high-level credential to use.
+
+            :return ``Deferred``: Fires on success.
+            """
+            d = self._handshake(credential)
+            d.addCallback(self.assertEqual, "handshake!")
+            return d
+
         def assert_does_not_validate(self, credential):
             """
             Asserts that a TLS handshake fails to happen between a client using
@@ -194,7 +208,7 @@ def make_validation_tests(context_factory_fixture,
             :return ``Deferred``: Fires on success (i.e. if no TLS handshake is
                 established).
             """
-            return self.assertFailure(self.assert_validates(credential),
+            return self.assertFailure(self._handshake(credential),
                                       SSLError)
 
         def test_same_ca_correct_type(self):
