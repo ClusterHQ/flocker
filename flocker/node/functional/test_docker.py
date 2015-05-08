@@ -34,17 +34,6 @@ from .._docker import (
 from ...control._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
 
-import requests.packages.urllib3
-
-# During testing, log details of HTTP requests to stderr
-import logging
-handler = logging.StreamHandler()
-handler.setFormatter(
-    logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
-docker_logger.addHandler(handler)
-docker_logger.setLevel(logging.DEBUG)
-requests.packages.urllib3.add_stderr_logger()
-
 
 def namespace_for_test(test_case):
     return u"ns-" + random_name(test_case)
