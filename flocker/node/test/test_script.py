@@ -367,6 +367,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             'dataset': {
                 'backend': 'zfs',
                 'zfs-pool': 'custom-pool',
+                'loopback-pool': '/var/lib/flocker/loopback',
             },
         }
 
@@ -510,7 +511,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             configuration=self.configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
-                     "{} is not valid under any of the given schemas."),
+                     "'backend' is a required property."),
         )
 
     def test_error_on_invalid_dataset_type(self):
@@ -521,8 +522,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         self.assertErrorForConfig(
             configuration=self.configuration,
             exception=ConfigurationError,
-            message=("Configuration has an error: {'INVALID': None} "
-                     "is not valid under any of the given schemas."),
+            message="Configuration has an error. Invalid dataset backend.",
         )
 
     def test_default_zfs_pool(self):

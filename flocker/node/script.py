@@ -11,7 +11,7 @@ from os import getpid
 
 import yaml
 
-from jsonschema import FormatChecker, validate
+from jsonschema import FormatChecker, Draft4Validator
 from jsonschema.exceptions import ValidationError
 
 from pyrsistent import PRecord, field
@@ -97,11 +97,6 @@ def agent_config_from_file(path):
         raise ConfigurationError(
             "Configuration file does not exist at '{}'.".format(path.path))
 
-    # TODO change the schema here to have the options:
-    # zfs
-    #   zfs-pool
-    # loopback
-    #   loopback-pool
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
@@ -121,45 +116,49 @@ def agent_config_from_file(path):
             },
             "dataset": {
                 "type": "object",
-                "oneOf": [
-                    {
-                        "required": ["zfs"],
-                        "zfs": {
-                            "type": "object",
-                            "properties": {
-                                "zfs-pool": {
-                                    "type": "string",
-                                }
-                            }
-                        }
-                    },
-                    {
-                        "required": ["loopback"],
-                        "loopback": {
-                            "type": "object",
-                            "properties": {
-                                "loopback-pool": {
-                                    "type": "string",
-                                }
-                            }
-                        }
-                    }
-                ]
-            },
+                "required": ["backend"],
+                "properties": {
+                    "oneOf": [
+                        {
+                            "backend": {
+                                "type": "string",
+                            },
+                            "zfs-pool": {
+                                "type": "string",
+                            },
+                        },
+                        {
+                            "backend": {
+                                "type": "string",
+                            },
+                            "loopback-pool": {
+                                "type": "string",
+                            },
+                        },
+                    ]
+                },
+            }
         }
     }
 
+    v = Draft4Validator(schema, format_checker=FormatChecker())
     try:
-        validate(options, schema, format_checker=FormatChecker())
+        v.validate(options)
     except ValidationError as e:
         raise ConfigurationError(
             "Configuration has an error: {}.".format(e.message,)
         )
 
+    # TODO match version in schema
+    # TODO add descriptions - does this help error handling?
     if options[u'version'] != 1:
         raise ConfigurationError(
             "Configuration has an error. Incorrect version specified.")
 
+    # TODO This should be matched in the schema
+    if options['dataset']['backend'] not in ('zfs', 'loopback'):
+        raise ConfigurationError(
+            "Configuration has an error. Invalid dataset backend.")
     # Checking for KeyErrors is a useful way to set defaults. There are ways to
     # extend jsonschema to allow defaults but these are conceptionally
     # different to the rest of the validator.
@@ -170,24 +169,14 @@ def agent_config_from_file(path):
         port = 4524
 
     try:
-        zfs_pool = options['dataset']['zfs']['zfs-pool']
+        zfs_pool = options['dataset']['zfs-pool']
     except KeyError:
         zfs_pool = 'flocker'
 
     try:
-        loopback_pool = options['dataset']['loopback']['loopback-pool']
+        loopback_pool = options['dataset']['loopback-pool']
     except KeyError:
         loopback_pool = '/var/lib/flocker/loopback'
-
-    dataset_type = options['dataset'].keys()[0]
-    dataset_configurations = {
-        'zfs': {
-            'zfs-pool': zfs_pool,
-        },
-        'loopback': {
-            'loopback-pool': loopback_pool,
-        },
-    }
 
     return {
         'control-service': {
@@ -195,7 +184,9 @@ def agent_config_from_file(path):
             'port': port,
         },
         'dataset': {
-            dataset_type: dataset_configurations[dataset_type],
+            "backend": options['dataset']['backend'],
+            'zfs-pool': zfs_pool,
+            'loopback-pool': loopback_pool,
         }
     }
 
