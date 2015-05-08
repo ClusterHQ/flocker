@@ -37,11 +37,6 @@ from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
 
 
-# The Rackspace authentication endpoint
-# See http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/Authentication-d1e647.html # noqa
-RACKSPACE_AUTH_URL = "https://identity.api.rackspacecloud.com/v2.0"
-
-
 class InvalidConfig(Exception):
     """
     The cloud configuration could not be found, or is not compatible with the
