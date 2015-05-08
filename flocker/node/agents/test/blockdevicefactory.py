@@ -173,7 +173,7 @@ def _aws(**config):
 
 _BLOCKDEVICE_TYPES = {
     ProviderType.openstack: (CinderBlockDeviceAPI, _openstack),
-    ProviderType.aws: (_aws, EBSBlockDeviceAPI),
+    ProviderType.aws: (EBSBlockDeviceAPI, _aws),
 }
 
 # ^^^^^^^^^^^^^^^^^^^^ generally useful implementation code, put it somewhere
