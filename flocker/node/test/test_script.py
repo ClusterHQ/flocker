@@ -309,10 +309,20 @@ class AgentConfigFromFileTests(SynchronousTestCase):
     Tests for :func:`agent_config_from_file`.
     """
 
+    # TODO test state without error
+
     def setUp(self):
         self.scratch_directory = FilePath(self.mktemp())
         self.scratch_directory.makedirs()
         self.config_file = self.scratch_directory.child('config.yml')
+        # This is a sample working configuration which tests can modify.
+        self.configuration = {
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+                u"port": 1234,
+            },
+            "version": 1,
+        }
 
     def assertErrorForConfig(self, exception, message, configuration=None):
         """
@@ -362,16 +372,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the given control service
         hostname is not a valid hostname.
         """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"-1",
-                u"port": 1234,
-            },
-            "version": 1,
-        }
+        self.configuration['control-service']['hostname'] = u"-1"
 
         self.assertErrorForConfig(
-            configuration=configuration,
+            configuration=self.configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: '-1' is not a 'hostname'."),
         )
@@ -381,8 +385,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the config file does not
         contain a ``u"control-service"`` key.
         """
+        self.configuration.pop('control-service')
+
         self.assertErrorForConfig(
-            configuration={"version": 1},
+            configuration=self.configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "'control-service' is a required property."),
@@ -393,15 +399,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the config file does not
         contain a hostname in the ``u"control-service"`` key.
         """
-        configuration = {
-            u"control-service": {
-                u"port": 1234,
-            },
-            "version": 1,
-        }
+        self.configuration['control-service'].pop('hostname')
 
         self.assertErrorForConfig(
-            configuration=configuration,
+            configuration=self.configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "'hostname' is a required property."),
@@ -412,15 +413,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the config file does not contain
         a ``u"version"`` key.
         """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"10.0.0.1",
-                u"port": 1234,
-            },
-        }
+        self.configuration.pop('version')
 
         self.assertErrorForConfig(
-            configuration=configuration,
+            configuration=self.configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "'version' is a required property."),
@@ -430,15 +426,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         A ``ConfigurationError`` is raised if the version specified is not 1.
         """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"10.0.0.1",
-                u"port": 1234,
-            },
-            "version": 2,
-        }
+        self.configuration['version'] = 2
+
         self.assertErrorForConfig(
-            configuration=configuration,
+            configuration=self.configuration,
             exception=ConfigurationError,
             message=("Configuration has an error. "
                      "Incorrect version specified."),
@@ -449,14 +440,9 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         If the config file does not contain a port in the
         ``u"control-service"`` key, the default is 4524.
         """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"10.0.0.1",
-            },
-            "version": 1,
-        }
+        self.configuration['control-service'].pop('port')
 
-        self.config_file.setContent(yaml.safe_dump(configuration))
+        self.config_file.setContent(yaml.safe_dump(self.configuration))
         parsed = agent_config_from_file(path=self.config_file)
         self.assertEqual(parsed['control-service']['port'], 4524)
 
