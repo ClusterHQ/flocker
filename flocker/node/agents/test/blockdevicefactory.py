@@ -166,6 +166,7 @@ _BLOCKDEVICE_TYPES = {
 # ^^^^^^^^^^^^^^^^^^^^ generally useful implementation code, put it somewhere
 # nice and use it
 #
+# https://clusterhq.atlassian.net/browse/FLOC-1840
 #
 # vvvvvvvvvvvvvvvvvvvv testing helper that actually belongs in this module
 
