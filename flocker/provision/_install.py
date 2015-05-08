@@ -58,7 +58,7 @@ def task_wait_for_working_network():
         run("""\
 for count in $(seq 60); do
     host clusterhq.com
-    result = $?
+    result=$?
     if ${result}; then
         break
     fi
