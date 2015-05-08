@@ -542,9 +542,15 @@ class DockerClient(object):
                     break
 
             try:
-                # The ``docker.Client.stop`` method puts the container into
-                # a stopping state, but the container cannot be removed
-                # until the container has actually stopped running.
+                # The ``docker.Client.stop`` method sometimes returns a
+                # 404 error, even though the container exists.
+                # See https://github.com/docker/docker/issues/13088
+                # Wait until the container has actually stopped running
+                # before attempting to remove it.  Otherwise we are
+                # likely to see: 'docker.errors.APIError: 409 Client
+                # Error: Conflict ("Conflict, You cannot remove a
+                # running container. Stop the container before
+                # attempting removal or use -f")'
                 while self._blocking_container_runs(container_name):
                     sleep(0.01)
 
