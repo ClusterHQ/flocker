@@ -254,7 +254,6 @@ class ControlCertificateOptions(PrettyOptions):
         errors, create a new control service certificate signed by the root
         and write it out to the current directory.
         """
-        # XXX FLOC-1805 pass through the hostname
         if self["inputpath"] is None:
             self["inputpath"] = os.getcwd()
         if self["outputpath"] is None:

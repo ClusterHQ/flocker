@@ -480,8 +480,6 @@ class ControlCredential(PRecord):
         :param bytes hostname: The hostname of the node where the control
             service will be running.
         """
-        # XXX FLOC-1805 also take hostname.
-
         # The common name for the control service certificate.
         # This is used to distinguish between control service and node
         # certificates.
