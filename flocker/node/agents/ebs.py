@@ -16,7 +16,9 @@ from zope.interface import implementer
 from boto import ec2
 from boto.utils import get_instance_metadata
 
-from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume
+from .blockdevice import (
+        IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume
+)
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
@@ -64,7 +66,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GB(ebs_volume.size).to_Byte().value),
-        attached_to=None,
+        attached_to=ebs_volume.attach_data.instance_id,
         dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
     )
 
@@ -159,7 +161,15 @@ class EBSBlockDeviceAPI(object):
         for volume in self.list_volumes():
             if volume.blockdevice_id == blockdevice_id:
                 return volume
-        raise UnknownVolume(blockdevice_id)
+        return None
+
+    def _get_ebs_volume(self, blockdevice_id):
+        """
+        """
+        for volume in self.connection.get_all_volumes():
+            if volume.id == blockdevice_id:
+                return volume
+        return None
 
     def _next_device(self):
         """
@@ -223,20 +233,22 @@ class EBSBlockDeviceAPI(object):
             raise AlreadyAttachedVolume(blockdevice_id)
 
         device = self._next_device()
-        attached = self.connection.attach_volume(blockdevice_id, attach_to, device)
-        if attached == True:
-            _wait_for_volume(volume, expected_status=u'in-use')
-            volume.set('attached_to', attach_to)
+        self.connection.attach_volume(blockdevice_id, attach_to, device)
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        _wait_for_volume(ebs_volume, expected_status=u'in-use')
+        import pdb; pdb.set_trace()
+        attached_volume = volume.set('attached_to', attach_to)
         #   raise UnknownVolume(blockdevice_id)
         #   raise AlreadyAttachedVolume(blockdevice_id)
 
         import pdb; pdb.set_trace()
-        return volume
+        return attached_volume
 
     def detach_volume(self, blockdevice_id):
-        our_id = self.compute_instance_id()
+        volume = self._get(blockdevice_id)
         self.connection.detach_volume(blockdevice_id)
-        _wait_for_volume(volume, expected_status=u'available')
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        _wait_for_volume(ebs_volume, expected_status=u'available')
         #   raise UnknownVolume(blockdevice_id)
         #   raise UnattachedVolume(blockdevice_id)
 
