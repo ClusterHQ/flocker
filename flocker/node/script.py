@@ -323,7 +323,18 @@ def loopback_deployer_factory(loopback_pool):
     """
     TODO
     """
-    api = LoopbackBlockDeviceAPI.from_path(loopback_pool)
+    api = LoopbackBlockDeviceAPI.from_path(
+        loopback_pool,
+        # Make up a new value every time this script starts.  This will ensure
+        # different instances of the script using this backend always appear to
+        # be running on different nodes (as far as attachment is concerned).
+        # This is a good thing since it makes it easy to simulate a multi-node
+        # cluster by running multiple instances of the script.  Similar effect
+        # could be achieved by making this id a command line argument but that
+        # would be harder to implement and harder to use.
+        compute_instance_id=bytes(getpid()),
+    )
+
     return partial(BlockDeviceDeployer, block_device_api=api)
 
 def dataset_deployer_from_configuration(node_uuid, backend_configuration, reactor):
@@ -355,24 +366,6 @@ def flocker_dataset_agent_main():
     loopback block device backend.  Later it will be capable of starting a
     dataset agent using any of the support dataset backends.
     """
-    # # Later, construction of this object can be moved into
-    # # AgentServiceFactory.get_service where various options passed on
-    # # the command line could alter what is created and how it is initialized.
-    # api = LoopbackBlockDeviceAPI.from_path(
-    #     b"/var/lib/flocker/loopback",
-    #     # Make up a new value every time this script starts.  This will ensure
-    #     # different instances of the script using this backend always appear to
-    #     # be running on different nodes (as far as attachment is concerned).
-    #     # This is a good thing since it makes it easy to simulate a multi-node
-    #     # cluster by running multiple instances of the script.  Similar effect
-    #     # could be achieved by making this id a command line argument but that
-    #     # would be harder to implement and harder to use.
-    #     compute_instance_id=bytes(getpid()),
-    # )
-    # deployer_factory = partial(
-    #     BlockDeviceDeployer,
-    #     block_device_api=api,
-    # )
     service_factory = AgentServiceFactory(
         deployer_factory=dataset_deployer_from_configuration,
     ).get_service
