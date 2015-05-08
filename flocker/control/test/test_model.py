@@ -1281,3 +1281,39 @@ class NodeStateWipingTests(SynchronousTestCase):
         self.assertEqual(
             cluster,
             DeploymentState(nodes={node_2}))
+
+
+class NonManifestDatasetsWipingTests(SynchronousTestCase):
+    """
+    Tests for ``NonManifestDatasets.get_information_wipe()``.
+    """
+    NON_MANIFEST = NonManifestDatasets(datasets={MANIFESTATION.dataset_id:
+                                                 MANIFESTATION.dataset})
+    WIPE = NON_MANIFEST.get_information_wipe()
+
+    def test_interface(self):
+        """
+        The object returned from ``NodeStateWipe`` implements
+        ``IClusterStateWipe``.
+        """
+        self.assertTrue(verifyObject(IClusterStateWipe, self.WIPE))
+
+    def test_key_always_the_same(self):
+        """
+        The ``IClusterStateWipe`` always has the same key.
+        """
+        self.assertEqual(
+            NonManifestDatasets().get_information_wipe().key(),
+            self.WIPE.key())
+
+    def test_applying_does_nothing(self):
+        """
+        Applying the ``IClusterStateWipe`` does nothing to the cluster state.
+        """
+        # Cluster has some non-manifested datasets:
+        cluster_state = self.NON_MANIFEST.update_cluster_state(
+            DeploymentState())
+
+        # "Wiping" this information has no effect:
+        updated = self.WIPE.update_cluster_state(cluster_state)
+        self.assertEqual(updated, cluster_state)

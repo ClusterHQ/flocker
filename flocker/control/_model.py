@@ -849,8 +849,23 @@ class NonManifestDatasets(PRecord):
         return cluster_state.set(nonmanifest_datasets=self.datasets)
 
     def get_information_wipe(self):
-        # XXX return ``WipeNonManifestDatasets()``.
-        pass
+        return _NonManifestDatasetsWipe()
+
+
+@implementer(IClusterStateWipe)
+class _NonManifestDatasetsWipe(object):
+    """
+    Wipe object that does nothing.
+
+    There's no point in wiping this information. Even if no relevant
+    agents are connected the datasets probably still continue to exist
+    unchanged, since they're not node-specific.
+    """
+    def key(self):
+        return None
+
+    def update_cluster_state(self, cluster_state):
+        return cluster_state
 
 
 # Classes that can be serialized to disk or sent over the network:
