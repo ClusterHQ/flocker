@@ -63,7 +63,7 @@ class ReceivingProtocol(Protocol):
             self.result = None
 
     def connectionLost(self, reason):
-        if self.result:
+        if self.result is not None:
             self.result.errback(reason)
             self.result = None
 
