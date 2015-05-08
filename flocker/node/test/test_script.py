@@ -511,7 +511,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             configuration=self.configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
-                     "'backend' is a required property."),
+                     "{} is not valid under any of the given schemas."),
         )
 
     def test_error_on_invalid_dataset_type(self):
@@ -522,7 +522,9 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         self.assertErrorForConfig(
             configuration=self.configuration,
             exception=ConfigurationError,
-            message="Configuration has an error. Invalid dataset backend.",
+            message=("Configuration has an error: "
+                     "{'backend': 'invalid'} is not valid under any of the "
+                     "given schemas."),
         )
 
     def test_default_zfs_pool(self):

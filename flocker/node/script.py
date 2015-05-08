@@ -116,27 +116,33 @@ def agent_config_from_file(path):
             },
             "dataset": {
                 "type": "object",
-                "required": ["backend"],
-                "properties": {
-                    "oneOf": [
-                        {
+                "oneOf": [
+                    {
+                        "required": ["backend"],
+                        "properties": {
                             "backend": {
                                 "type": "string",
+                                "pattern": "zfs",
                             },
                             "zfs-pool": {
                                 "type": "string",
                             },
-                        },
-                        {
+                        }
+                    },
+                    {
+                        "required": ["backend"],
+                        "properties": {
                             "backend": {
                                 "type": "string",
+                                "pattern": "loopback",
                             },
                             "loopback-pool": {
                                 "type": "string",
                             },
-                        },
-                    ]
-                },
+                        }
+
+                    },
+                ]
             }
         }
     }
@@ -155,10 +161,6 @@ def agent_config_from_file(path):
         raise ConfigurationError(
             "Configuration has an error. Incorrect version specified.")
 
-    # TODO This should be matched in the schema
-    if options['dataset']['backend'] not in ('zfs', 'loopback'):
-        raise ConfigurationError(
-            "Configuration has an error. Invalid dataset backend.")
     # Checking for KeyErrors is a useful way to set defaults. There are ways to
     # extend jsonschema to allow defaults but these are conceptionally
     # different to the rest of the validator.
