@@ -12,7 +12,7 @@ from zope.interface import implementer
 from twisted.web.iweb import IPolicyForHTTPS
 from twisted.internet.ssl import (
     optionsForClientTLS, CertificateOptions,
-    )
+)
 
 from pyrsistent import PRecord, field
 
