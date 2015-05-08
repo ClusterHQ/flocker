@@ -226,7 +226,8 @@ def _aws(**config):
         ),
     }
 
-
+# Map provider labels to IBlockDeviceAPI factory and a corresponding argument
+# factory.
 _BLOCKDEVICE_TYPES = {
     ProviderType.openstack: (CinderBlockDeviceAPI, _openstack),
     ProviderType.aws: (EBSBlockDeviceAPI, _aws),
