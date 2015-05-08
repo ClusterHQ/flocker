@@ -501,6 +501,67 @@ class AgentConfigFromFileTests(SynchronousTestCase):
                      "'dataset' is a required property."),
         )
 
+    def test_error_on_missing_dataset_type(self):
+        """
+        The dataset key must contain dataset configuration.
+        """
+        self.configuration['dataset'] = {}
+        self.assertErrorForConfig(
+            configuration=self.configuration,
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "'dataset' is a required property."),
+        )
+
+    def test_error_on_invalid_dataset_type(self):
+        """
+        The dataset key must contain a valid dataset type.
+        """
+        self.configuration['dataset'] = {"INVALID": None}
+        self.assertErrorForConfig(
+            configuration=self.configuration,
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "'dataset' is a required property."),
+        )
+
+    def test_error_on_missing_zfs_pool(self):
+        """
+        If the dataset type is zfs there must be a zfs-pool.
+        """
+        self.configuration['dataset']['zfs'] = {
+            "INVALID": None
+        }
+        self.assertErrorForConfig(
+            configuration=self.configuration,
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "'dataset' is a required property."),
+        )
+
+    def test_loopback_dataset(self):
+        """
+        TODO
+        """
+        self.configuration['dataset'] = {
+            "loopback": {
+                "loopback-pool": "custom/loopback/pool"
+            }
+        }
+
+        self.config_file.setContent(yaml.safe_dump(self.configuration))
+        parsed = agent_config_from_file(path=self.config_file)
+        self.assertEqual(
+            parsed['dataset']['loopback']['loopback-pool'],
+            "custom/loopback/pool",
+        )
+
+    def test_error_on_missing_loopback_pool(self):
+        """
+        If the dataset type is zfs there must be a zfs-pool.
+        """
+
+# TODO look at using build_schema_test
 
 class DatasetAgentOptionsTests(
         make_amp_agent_options_tests(DatasetAgentOptions)

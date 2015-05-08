@@ -150,6 +150,9 @@ def agent_config_from_file(path):
             'hostname': options['control-service']['hostname'],
             'port': port,
         },
+        'dataset': {
+            "TODO"
+        }
     }
 
 
