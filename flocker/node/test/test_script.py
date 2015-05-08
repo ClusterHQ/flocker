@@ -90,6 +90,8 @@ def get_all_ips():
     """
     Find all IPs for this machine.
 
+    XXX: Move this to flocker.common.???
+
     :return: ``list`` of IP addresses (``bytes``).
     """
     ips = []
