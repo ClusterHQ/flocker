@@ -10,6 +10,8 @@ from subprocess import check_output
 
 from bitmath import Byte, GB
 
+from pyrsistent import PRecord, field
+
 from keystoneclient.openstack.common.apiclient.exceptions import (
     NotFound as CinderNotFound,
 )
@@ -19,6 +21,7 @@ from twisted.python.filepath import FilePath
 
 from zope.interface import implementer, Interface
 
+from ...common import auto_openstack_logging
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume,
@@ -131,7 +134,7 @@ class CinderBlockDeviceAPI(object):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for
             interacting with Cinder API.
-        :param INovaServerManager nova_volume_manager: A client for interacting
+        :param INovaVolumeManager nova_volume_manager: A client for interacting
             with Nova volume API.
         :param UUID cluster_id: An ID that will be included in the names of
             Cinder block devices in order to associate them with a particular
@@ -326,6 +329,16 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
+@auto_openstack_logging(ICinderVolumeManager, "_cinder_volumes")
+class _LoggingCinderVolumeManager(PRecord):
+    _cinder_volumes = field(mandatory=True)
+
+
+@auto_openstack_logging(INovaVolumeManager, "_nova_volumes")
+class _LoggingNovaVolumeManager(PRecord):
+    _nova_volumes = field(mandatory=True)
+
+
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
@@ -338,8 +351,14 @@ def cinder_api(cinder_client, nova_client, cluster_id):
 
     :returns: A ``CinderBlockDeviceAPI``.
     """
+    logging_cinder = _LoggingCinderVolumeManager(
+        _cinder_volumes=cinder_client.volumes
+    )
+    logging_nova = _LoggingNovaVolumeManager(
+        _nova_volumes=nova_client.volumes
+    )
     return CinderBlockDeviceAPI(
-        cinder_volume_manager=cinder_client.volumes,
-        nova_volume_manager=nova_client.volumes,
+        cinder_volume_manager=logging_cinder,
+        nova_volume_manager=logging_nova,
         cluster_id=cluster_id,
     )
