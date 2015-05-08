@@ -164,14 +164,11 @@ class EBSBlockDeviceAPI(object):
     def _next_device(self):
         """
         """
-        prefix = '/dev/sdf'
         for prefix in ['f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p']:
-            index = 1
-            while index < 7 :
-                file_name = u'/dev/sd%c%d' % (prefix, index)
-                if not os.path.exists(file_name):
-                    return file_name
-                index++
+            file_name = u'/dev/sd%c' % prefix
+            if not os.path.exists(file_name):
+                return file_name
+        # If all devices are occupied, return appropriate code
         return ''
 
     def create_volume(self, dataset_id, size):
@@ -221,18 +218,19 @@ class EBSBlockDeviceAPI(object):
         """
         """
         volume = self._get(blockdevice_id)
+        import pdb; pdb.set_trace()
         if volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
 
         device = self._next_device()
         attached = self.connection.attach_volume(blockdevice_id, attach_to, device)
-        import pdb; pdb.set_trace()
         if attached == True:
             _wait_for_volume(volume, expected_status=u'in-use')
             volume.set('attached_to', attach_to)
         #   raise UnknownVolume(blockdevice_id)
         #   raise AlreadyAttachedVolume(blockdevice_id)
 
+        import pdb; pdb.set_trace()
         return volume
 
     def detach_volume(self, blockdevice_id):
