@@ -463,16 +463,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         The control service agent's port must be an integer.
         """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"10.0.0.1",
-                u"port": 1.1,
-            },
-            "version": 1,
-        }
+        self.configuration['control-service']['port'] = 1.1
 
         self.assertErrorForConfig(
-            configuration=configuration,
+            configuration=self.configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "1.1 is not of type 'integer'."),
