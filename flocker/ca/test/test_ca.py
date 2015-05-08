@@ -311,7 +311,7 @@ class UserCredentialTests(
 
     def test_extendedKeyUsage(self):
         """
-        The written certificate has extendedKeyUsage set to "serverAuth".
+        The generated certificate has extendedKeyUsage set to "serverAuth".
         """
         assert_has_extension(self, self.credential.credential,
                              b"extendedKeyUsage", b"clientAuth")
@@ -335,7 +335,7 @@ class NodeCredentialTests(
 
     def test_extendedKeyUsage(self):
         """
-        The written certificate has extendedKeyUsage set to "serverAuth".
+        The generated certificate has extendedKeyUsage set to "serverAuth".
         """
         assert_has_extension(self, self.credential.credential,
                              b"extendedKeyUsage", b"clientAuth")
@@ -359,7 +359,7 @@ class ControlCredentialTests(
 
     def test_subjectAltName(self):
         """
-        The written certificate has a subjectAltName containing the given
+        The generated certificate has a subjectAltName containing the given
         hostname.
         """
         assert_has_extension(self, self.credential.credential,
@@ -367,7 +367,7 @@ class ControlCredentialTests(
 
     def test_extendedKeyUsage(self):
         """
-        The written certificate has extendedKeyUsage set to "serverAuth".
+        The generated certificate has extendedKeyUsage set to "serverAuth".
         """
         assert_has_extension(self, self.credential.credential,
                              b"extendedKeyUsage", b"serverAuth")
