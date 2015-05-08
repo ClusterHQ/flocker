@@ -333,13 +333,6 @@ class NodeCredentialTests(
         self.assertEqual(subject.CN, b"node-{uuid}".format(
             uuid=self.credential.uuid))
 
-    def test_extendedKeyUsage(self):
-        """
-        The generated certificate has extendedKeyUsage set to "clientAuth".
-        """
-        assert_has_extension(self, self.credential.credential,
-                             b"extendedKeyUsage", b"clientAuth")
-
 
 class ControlCredentialTests(
         make_credential_tests(ControlCredential,
@@ -364,13 +357,6 @@ class ControlCredentialTests(
         """
         assert_has_extension(self, self.credential.credential,
                              b"subjectAltName", b"DNS:control.example.com")
-
-    def test_extendedKeyUsage(self):
-        """
-        The generated certificate has extendedKeyUsage set to "serverAuth".
-        """
-        assert_has_extension(self, self.credential.credential,
-                             b"extendedKeyUsage", b"serverAuth")
 
 
 class RootCredentialTests(SynchronousTestCase):

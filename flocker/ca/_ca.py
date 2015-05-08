@@ -17,11 +17,14 @@ the following Distinguised Name scheme:
 
 1. Control service: common name is "control-service", subjectAltName is
    administrator-specifiable DNS hostname, to support standard HTTPS
-   client authentication, and extendedKeyUsage is set to "serverAuth".
-2. Node agents: common name is "node-<uuid>", and extendedKeyUsage is set
-   to "clientAuth" (technically clientAuth means HTTPS, but whatevs).
+   client authentication.
+2. Node agents: common name is "node-<uuid>".
 3. API clients: Common name is set to "user-<username>", and
-   extendedKeyUsage is set to "clientAuth".
+   extendedKeyUsage is set to "clientAuth" (under no circumstances should
+   a client certificate ever be a server.)
+
+It would be nice to use a custom x509v3 extension rather than abusing the
+common name, but that will have to wait for some future revision.
 """
 
 import datetime
@@ -436,9 +439,7 @@ class NodeCredential(PRecord):
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
             authority.credential.certificate.getSubject(), request,
-            serial, EXPIRY_20_YEARS, 'sha256', start=begin,
-            additional_extensions=[crypto.X509Extension(
-                b"extendedKeyUsage", False, b"clientAuth")])
+            serial, EXPIRY_20_YEARS, 'sha256', start=begin)
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
@@ -502,8 +503,6 @@ class ControlCredential(PRecord):
             additional_extensions=[
                 crypto.X509Extension(
                     b"subjectAltName", False, b"DNS:" + hostname),
-                crypto.X509Extension(
-                    b"extendedKeyUsage", False, b"serverAuth"),
             ])
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
