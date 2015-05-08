@@ -39,7 +39,8 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 class ICinderVolumeManager(Interface):
     """
     The parts of ``cinderclient.v1.volumes.VolumeManager`` that we use.
-    See: https://github.com/openstack/python-cinderclient/blob/master/cinderclient/v1/volumes.py#L135 # noqa
+    See:
+    https://github.com/openstack/python-cinderclient/blob/master/cinderclient/v1/volumes.py#L135
     """
     def create(size, metadata=None):
         """
@@ -69,7 +70,8 @@ class ICinderVolumeManager(Interface):
 class INovaVolumeManager(Interface):
     """
     The parts of ``novaclient.v2.volumes.VolumeManager`` that we use.
-    See: https://github.com/openstack/python-novaclient/blob/master/novaclient/v2/volumes.py # noqa
+    See:
+    https://github.com/openstack/python-novaclient/blob/master/novaclient/v2/volumes.py
     """
     def create_server_volume(server_id, volume_id, device):
         """
@@ -160,7 +162,9 @@ class CinderBlockDeviceAPI(object):
         Create a block device using the ICinderVolumeManager.
         The cluster_id and dataset_id are stored as metadata on the volume.
 
-        See: http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html # noqa
+        See:
+
+        http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html
 
         TODO:
          * Assign a Human readable name and description?
@@ -186,7 +190,9 @@ class CinderBlockDeviceAPI(object):
         Return ``BlockDeviceVolume`` instances for all the Cinder Volumes that
         have the expected ``cluster_id`` in their metadata.
 
-        See: http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html # noqa
+        See:
+
+        http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html
         """
         flocker_volumes = []
         for cinder_volume in self.cinder_volume_manager.list():
@@ -216,7 +222,8 @@ class CinderBlockDeviceAPI(object):
         # it is an implementation detail of how Nova attached volumes work and
         # no one outside of Nova has any business calling it.
         #
-        # See http://www.florentflament.com/blog/openstack-volume-in-use-although-vm-doesnt-exist.html # noqa
+        # See
+        # http://www.florentflament.com/blog/openstack-volume-in-use-although-vm-doesnt-exist.html
         unattached_volume = self._get(blockdevice_id)
         if unattached_volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
