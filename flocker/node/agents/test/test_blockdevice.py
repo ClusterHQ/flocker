@@ -482,6 +482,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         self.api.attach_volume(
             new_volume.blockdevice_id,
             # This is a hack.  We don't know any other IDs, though.
+            # https://clusterhq.atlassian.net/browse/FLOC-1839
             attach_to=u'some.other.host',
         )
         assert_discovered_state(self, self.deployer, [])
@@ -1273,6 +1274,7 @@ class IBlockDeviceAPITestsMixin(object):
         another host raises ``AlreadyAttachedVolume``.
         """
         # This is a hack.  We don't know any other IDs though.
+        # https://clusterhq.atlassian.net/browse/FLOC-1839
         another_node = self.this_node + u"-different"
 
         new_volume = self.api.create_volume(
