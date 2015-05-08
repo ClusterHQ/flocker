@@ -121,13 +121,33 @@ def agent_config_from_file(path):
             },
             "dataset": {
                 "type": "object",
+                "oneOf": [
+                    {
+                        "required": ["zfs"],
+                        "zfs": {
+                            "type": "object",
+                            "properties": {
+                                "zfs-pool": {
+                                    "type": "string",
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "required": ["loopback"],
+                        "loopback": {
+                            "type": "object",
+                            "properties": {
+                                "loopback-pool": {
+                                    "type": "string",
+                                }
+                            }
+                        }
+                    }
+                ]
             },
         }
     }
-
-    # TODO use these defaults if they are not set - they are not required
-    zfs_pool_default = 'flocker'
-    loopback_pool_default = '/var/lib/flocker/loopback'
 
     try:
         validate(options, schema, format_checker=FormatChecker())
@@ -145,13 +165,29 @@ def agent_config_from_file(path):
     except KeyError:
         port = 4524
 
+    dataset_configurations = {
+        'zfs': {},
+        'loopback': {},
+    }
+
+    try:
+        dataset_configurations['zfs']['zfs-pool'] = options['dataset']['zfs']['zfs-pool']
+    except KeyError:
+        dataset_configurations['zfs']['zfs-pool'] = 'flocker'
+
+    try:
+        dataset_configurations['loopback']['loopback-pool'] = options['dataset']['loopback']['loopback-pool']
+    except KeyError:
+        dataset_configurations['loopback']['loopback-pool'] = '/var/lib/flocker/loopback'
+
+    dataset_type = options['dataset'].keys()[0]
     return {
         'control-service': {
             'hostname': options['control-service']['hostname'],
             'port': port,
         },
         'dataset': {
-            "TODO"
+            dataset_type: dataset_configurations[dataset_type],
         }
     }
 

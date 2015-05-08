@@ -368,6 +368,11 @@ class AgentConfigFromFileTests(SynchronousTestCase):
                 'hostname': self.configuration['control-service']['hostname'],
                 'port': self.configuration['control-service']['port'],
             },
+            'dataset': {
+                'zfs': {
+                    'zfs-pool': 'custom-pool',
+                }
+            }
         }
 
         self.config_file.setContent(yaml.safe_dump(self.configuration))
@@ -510,7 +515,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             configuration=self.configuration,
             exception=ConfigurationError,
             message=("Configuration has an error: "
-                     "'dataset' is a required property."),
+                     "{} is not valid under any of the given schemas."),
         )
 
     def test_error_on_invalid_dataset_type(self):
@@ -521,27 +526,26 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         self.assertErrorForConfig(
             configuration=self.configuration,
             exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'dataset' is a required property."),
+            message=("Configuration has an error: {'INVALID': None} "
+                     "is not valid under any of the given schemas."),
         )
 
-    def test_error_on_missing_zfs_pool(self):
+    def test_default_zfs_pool(self):
         """
-        If the dataset type is zfs there must be a zfs-pool.
+        If no loopback pool is specified, 'flocker' is used.
         """
-        self.configuration['dataset']['zfs'] = {
-            "INVALID": None
-        }
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'dataset' is a required property."),
+        self.configuration['dataset'] = {"zfs": {}}
+
+        self.config_file.setContent(yaml.safe_dump(self.configuration))
+        parsed = agent_config_from_file(path=self.config_file)
+        self.assertEqual(
+            parsed['dataset']['zfs']['zfs-pool'],
+            'flocker',
         )
 
-    def test_loopback_dataset(self):
+    def test_custom_loopback_pool(self):
         """
-        TODO
+        A custom loopback pool can be set.
         """
         self.configuration['dataset'] = {
             "loopback": {
@@ -556,10 +560,18 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             "custom/loopback/pool",
         )
 
-    def test_error_on_missing_loopback_pool(self):
+    def test_default_loopback_pool(self):
         """
-        If the dataset type is zfs there must be a zfs-pool.
+        If no loopback pool is specified, /var/lib/flocker/loopback is used.
         """
+        self.configuration['dataset'] = {"loopback": {}}
+
+        self.config_file.setContent(yaml.safe_dump(self.configuration))
+        parsed = agent_config_from_file(path=self.config_file)
+        self.assertEqual(
+            parsed['dataset']['loopback']['loopback-pool'],
+            '/var/lib/flocker/loopback',
+        )
 
 # TODO look at using build_schema_test
 
