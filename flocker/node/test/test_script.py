@@ -39,6 +39,11 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                     u"hostname": u"10.0.0.1",
                     u"port": 1234,
                 },
+                u"dataset": {
+                    u"zfs": {
+                        u"zfs-pool": u"custom-pool",
+                    }
+                },
                 u"version": 1,
             }))
 
@@ -117,6 +122,11 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 u"control-service": {
                     u"hostname": u"10.0.0.2",
                     u"port": 1234,
+                },
+                u"dataset": {
+                    u"zfs": {
+                        u"zfs-pool": u"custom-pool",
+                    }
                 },
                 u"version": 1,
             }))
@@ -319,6 +329,11 @@ class AgentConfigFromFileTests(SynchronousTestCase):
                 u"hostname": u"10.0.0.1",
                 u"port": 1234,
             },
+            u"dataset": {
+                u"zfs": {
+                    u"zfs-pool": u"custom-pool",
+                }
+            },
             "version": 1,
         }
 
@@ -470,6 +485,20 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "1.1 is not of type 'integer'."),
+        )
+
+    def test_error_on_missing_dataset(self):
+        """
+        A ``ConfigurationError`` is raised if the config file does not contain
+        a ``u"dataset"`` key.
+        """
+        self.configuration.pop('dataset')
+
+        self.assertErrorForConfig(
+            configuration=self.configuration,
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "'dataset' is a required property."),
         )
 
 

@@ -105,7 +105,7 @@ def agent_config_from_file(path):
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
-        "required": ["version", "control-service"],
+        "required": ["version", "control-service", "dataset"],
         "properties": {
             "version": {"type": "number"},
             "control-service": {
@@ -119,9 +119,9 @@ def agent_config_from_file(path):
                     "port": {"type": "integer"},
                 }
             },
-            # "dataset": {
-            #     "type": "object",
-            # },
+            "dataset": {
+                "type": "object",
+            },
         }
     }
 
