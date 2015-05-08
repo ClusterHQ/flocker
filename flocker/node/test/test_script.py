@@ -33,19 +33,17 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         scratch_directory = FilePath(self.mktemp())
         scratch_directory.makedirs()
         self.config = scratch_directory.child('dataset-config.yml')
-        self.config.setContent(
-            yaml.safe_dump({
-                u"control-service": {
-                    u"hostname": u"10.0.0.1",
-                    u"port": 1234,
-                },
-                u"dataset": {
-                    u"zfs": {
-                        u"zfs-pool": u"custom-pool",
-                    }
-                },
-                u"version": 1,
-            }))
+        self.config.setContent(yaml.safe_dump({
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+                u"port": 1234,
+            },
+            u"dataset": {
+                u"backend": u"zfs",
+                u"zfs-pool": u"custom-pool",
+            },
+            u"version": 1,
+        }))
 
     def test_main_starts_service(self):
         """
@@ -124,9 +122,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                     u"port": 1234,
                 },
                 u"dataset": {
-                    u"zfs": {
-                        u"zfs-pool": u"custom-pool",
-                    }
+                    u"backend": u"zfs",
+                    u"zfs-pool": u"custom-pool",
                 },
                 u"version": 1,
             }))
@@ -330,9 +327,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
                 u"port": 1234,
             },
             u"dataset": {
-                u"zfs": {
-                    u"zfs-pool": u"custom-pool",
-                }
+                u"backend": u"zfs",
+                u"zfs-pool": u"custom-pool",
             },
             "version": 1,
         }
@@ -369,10 +365,9 @@ class AgentConfigFromFileTests(SynchronousTestCase):
                 'port': self.configuration['control-service']['port'],
             },
             'dataset': {
-                'zfs': {
-                    'zfs-pool': 'custom-pool',
-                }
-            }
+                'backend': 'zfs',
+                'zfs-pool': 'custom-pool',
+            },
         }
 
         self.config_file.setContent(yaml.safe_dump(self.configuration))
@@ -506,9 +501,9 @@ class AgentConfigFromFileTests(SynchronousTestCase):
                      "'dataset' is a required property."),
         )
 
-    def test_error_on_missing_dataset_type(self):
+    def test_error_on_missing_dataset_backend(self):
         """
-        The dataset key must contain dataset configuration.
+        The dataset key must contain a backend type.
         """
         self.configuration['dataset'] = {}
         self.assertErrorForConfig(
@@ -522,7 +517,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         The dataset key must contain a valid dataset type.
         """
-        self.configuration['dataset'] = {"INVALID": None}
+        self.configuration['dataset'] = {"backend": "invalid"}
         self.assertErrorForConfig(
             configuration=self.configuration,
             exception=ConfigurationError,
@@ -532,31 +527,27 @@ class AgentConfigFromFileTests(SynchronousTestCase):
 
     def test_default_zfs_pool(self):
         """
-        If no loopback pool is specified, 'flocker' is used.
+        If no zfs pool is specified, 'flocker' is used.
         """
-        self.configuration['dataset'] = {"zfs": {}}
+        self.configuration['dataset'] = {"backend": "zfs"}
 
         self.config_file.setContent(yaml.safe_dump(self.configuration))
         parsed = agent_config_from_file(path=self.config_file)
-        self.assertEqual(
-            parsed['dataset']['zfs']['zfs-pool'],
-            'flocker',
-        )
+        self.assertEqual(parsed['dataset']['zfs-pool'], 'flocker')
 
     def test_custom_loopback_pool(self):
         """
         A custom loopback pool can be set.
         """
         self.configuration['dataset'] = {
-            "loopback": {
-                "loopback-pool": "custom/loopback/pool"
-            }
+            "backend": "loopback",
+            "loopback-pool": "custom/loopback/pool",
         }
 
         self.config_file.setContent(yaml.safe_dump(self.configuration))
         parsed = agent_config_from_file(path=self.config_file)
         self.assertEqual(
-            parsed['dataset']['loopback']['loopback-pool'],
+            parsed['dataset']['loopback-pool'],
             "custom/loopback/pool",
         )
 
