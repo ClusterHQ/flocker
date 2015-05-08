@@ -21,8 +21,19 @@ class ClusterStateService(Service):
     :ivar DeploymentState _deployment_state: The current known cluster
         state.
     """
-    def __init__(self):
+    def __init__(self, reactor):
         self._deployment_state = DeploymentState()
+        # self._information_wipers = pmap() # map ``IClusterStateWipe.key`` to its instance.
+        # self._information_wipers_added = pmap() # map ``IClusterStateWipe.key`` to timestamp
+
+    def startService(self):
+        # Start LoopingCall that applies all wipers whose added time is
+        # more than ten seconds in the past.
+        pass
+
+    def stopService(self):
+        # Stop LoopingCall
+        pass
 
     def manifestation_path(self, node_uuid, dataset_id):
         """
@@ -58,3 +69,10 @@ class ClusterStateService(Service):
             self._deployment_state = change.update_cluster_state(
                 self._deployment_state
             )
+        # for change in changes:
+        #     wiper = change.get_information_wipe()
+        #     key = wiper.key()
+        #     self._information_wipers = self._information_wipers.set(
+        #         key, wiper)
+        #     self._information_wipers_added = self._information_wipers.set(
+        #         key, time())

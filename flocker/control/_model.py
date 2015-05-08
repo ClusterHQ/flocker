@@ -625,6 +625,43 @@ class IClusterStateChange(Interface):
             with changes from this object applied to it.
         """
 
+    def get_information_wipe():
+        """
+        Create a ``IClusterStateWipe`` that can wipe information added by
+        this change.
+
+        For example, if this update adds information to a particular node,
+        the returned ``IClusterStateChange`` will wipe out that
+        information indicating ignorance about that information. We need
+        this ability in order to expire out-of-date state information.
+
+        :return: A ``IClusterStateWipe`` that undoes this update.
+        """
+
+
+class IClusterStateWipe(Interface):
+    """
+    An ``IClusterStateWipe`` can remove some information from a
+    ``DeploymentState``.
+    """
+    def update_cluster_state(cluster_state):
+        """
+        :param DeploymentState cluster_state: Some current known state of the
+            cluster.
+
+        :return: A new ``DeploymentState`` similar to ``cluster_state`` but
+            with some information removed from it.
+        """
+
+    def key():
+        """
+        Return a key describing what information will be wiped.
+
+        Providers that wipe the same information should return the same
+        key, and providers that wipe different information should return
+        differing keys.
+        """
+
 
 def ip_to_uuid(ip):
     """
@@ -688,6 +725,13 @@ class NodeState(PRecord):
 
     def update_cluster_state(self, cluster_state):
         return cluster_state.update_node(self)
+
+    def get_information_wipe(self):
+        # XXX return ``WipeNodeState`` object that sets any not-None
+        # attributes this NodeState has set with None, removing the
+        # NodeState outright from the DeploymentState if all of them are
+        # None.
+        pass
 
 
 class DeploymentState(PRecord):
@@ -755,6 +799,10 @@ class NonManifestDatasets(PRecord):
 
     def update_cluster_state(self, cluster_state):
         return cluster_state.set(nonmanifest_datasets=self.datasets)
+
+    def get_information_wipe(self):
+        # XXX return ``WipeNonManifestDatasets()``.
+        pass
 
 
 # Classes that can be serialized to disk or sent over the network:
