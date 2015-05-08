@@ -9,6 +9,8 @@ from uuid import uuid4
 
 from bitmath import Byte
 
+from twisted.trial.unittest import SkipTest
+
 from ..ebs import _wait_for_volume
 from ....testtools import skip_except
 from ..test.test_blockdevice import (
@@ -17,7 +19,8 @@ from ..test.test_blockdevice import (
 )
 
 from ..test.blockdevicefactory import (
-    ProviderType, get_blockdeviceapi_args, get_blockdeviceapi_with_cleanup,
+    InvalidConfig, ProviderType, get_blockdeviceapi_args,
+    get_blockdeviceapi_with_cleanup,
 )
 
 
@@ -62,7 +65,10 @@ class EBSBlockDeviceAPIInterfaceTests(
         Test that ``list_volumes`` lists only those volumes
         belonging to the current Flocker cluster.
         """
-        cls, kwargs = get_blockdeviceapi_args(ProviderType.aws)
+        try:
+            cls, kwargs = get_blockdeviceapi_args(ProviderType.aws)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
         ec2_client = kwargs["ec2_client"]
         requested_volume = ec2_client.connection.create_volume(
             int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value),

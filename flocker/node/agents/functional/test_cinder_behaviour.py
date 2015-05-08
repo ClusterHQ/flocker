@@ -5,10 +5,11 @@ Test for real world behaviour of Cinder implementations to validate some of our
 basic assumptions/understandings of how Cinder works in the real world.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
 from ..cinder import wait_for_volume
 from ..test.blockdevicefactory import (
+    InvalidConfig,
     ProviderType, get_blockdeviceapi_args,
 )
 from ....testtools import random_name
@@ -20,7 +21,10 @@ def cinder_volume_manager():
 
     It will not automatically clean up after itself.
     """
-    cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
+    try:
+        cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
+    except InvalidConfig as e:
+        raise SkipTest(str(e))
     return kwargs["cinder_volume_manager"]
 
 

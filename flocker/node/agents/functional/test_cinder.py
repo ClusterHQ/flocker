@@ -17,13 +17,16 @@ from uuid import uuid4
 
 from bitmath import Byte
 
+from twisted.trial.unittest import SkipTest
+
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
 )
 from ..test.blockdevicefactory import (
-    ProviderType, get_blockdeviceapi_args, get_blockdeviceapi_with_cleanup,
+    InvalidConfig, ProviderType, get_blockdeviceapi_args,
+    get_blockdeviceapi_with_cleanup,
 )
 from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
 
@@ -63,7 +66,10 @@ class CinderBlockDeviceAPIInterfaceTests(
         """
         Non-Flocker Volumes are not listed.
         """
-        cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
+        try:
+            cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
         cinder_volumes = kwargs["cinder_volume_manager"]
         requested_volume = cinder_volumes.create(
             size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
