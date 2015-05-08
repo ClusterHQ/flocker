@@ -6,9 +6,10 @@ Shared flocker components.
 
 __all__ = [
     'INode', 'FakeNode', 'ProcessNode', 'gather_deferreds',
-    'auto_threaded',
+    'auto_threaded', 'get_all_ips',
 ]
 
 from ._ipc import INode, FakeNode, ProcessNode
 from ._defer import gather_deferreds
 from ._thread import auto_threaded
+from ._net import get_all_ips
