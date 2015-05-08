@@ -309,8 +309,6 @@ class AgentConfigFromFileTests(SynchronousTestCase):
     Tests for :func:`agent_config_from_file`.
     """
 
-    # TODO test state without error
-
     def setUp(self):
         self.scratch_directory = FilePath(self.mktemp())
         self.scratch_directory.makedirs()
@@ -344,6 +342,21 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             agent_config_from_file, self.config_file)
 
         self.assertEqual(exception.message, message)
+
+    def test_configuration_returned(self):
+        """
+        A dictionary specifying the desired agent configuration is returned
+        when a valid configuration file is given.
+        """
+        expected = {
+            'control-service': {
+                'hostname': self.configuration['control-service']['hostname'],
+                'port': self.configuration['control-service']['port'],
+            },
+        }
+
+        self.config_file.setContent(yaml.safe_dump(self.configuration))
+        self.assertEqual(expected, agent_config_from_file(self.config_file))
 
     def test_error_on_file_does_not_exist(self):
         """
