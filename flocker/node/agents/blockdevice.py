@@ -1481,6 +1481,10 @@ class BlockDeviceDeployer(PRecord):
                 manifestations=manifestations,
                 paths=paths,
                 devices=devices,
+                # Discovering these is ApplicationNodeDeployer's job, we
+                # don't anything about these:
+                applications=None,
+                used_ports=None,
             ),
         )
 

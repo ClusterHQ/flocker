@@ -288,12 +288,8 @@ def assert_discovered_state(case,
         expected_paths[dataset_id] = mountpath
     expected = (
         NodeState(
-            # This fails to specify "unknown" values for application-related
-            # NodeState.  Therefore the assertion is incorrect (and the
-            # implementation is wrong): it is specifying that no applications
-            # exist when it should be specifying it doesn't know anything about
-            # applications.
-            # FLOC-1798
+            applications=None,
+            used_ports=None,
             uuid=deployer.node_uuid,
             hostname=deployer.hostname,
             manifestations={
