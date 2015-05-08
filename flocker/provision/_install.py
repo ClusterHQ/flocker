@@ -43,6 +43,32 @@ CLUSTERHQ_REPO = {
 }
 
 
+def task_wait_for_working_network():
+    """
+    This command waits until hostnames can be resolved.
+
+    This is necessary because machines often become accessible via SSH before
+    their network has been fully configured.  Proceeding to installation steps
+    before the network is fully configured leads to failures.
+
+    :return Effect: Command which polls the network until it is working pretty
+        well or until a timeout is hit.
+    """
+    return sequence([
+        run("""\
+for count in $(seq 60); do
+    host clusterhq.com
+    result = $?
+    if ${result}; then
+        break
+    fi
+    sleep 1
+done
+exit ${result}
+"""),
+    ])
+
+
 def task_test_homebrew(recipe):
     """
     The commands used to install a Homebrew recipe for Flocker and test it.
@@ -457,6 +483,9 @@ def provision(distribution, package_source, variants):
         provisioning
     """
     commands = []
+
+    # Wait for the network to be completely configured.
+    commands.append(task_wait_for_working_network())
 
     if Variants.DISTRO_TESTING in variants:
         commands.append(task_enable_updates_testing(distribution))
