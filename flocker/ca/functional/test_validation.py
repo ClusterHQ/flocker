@@ -261,6 +261,23 @@ def make_validation_tests(context_factory_fixture,
             return self.assert_does_not_validate(
                 getattr(self.another_ca, another_bad_name))
 
+        def test_invalid_signature(self):
+            """
+            If a certificate of the correct type signed by the correct CA was
+            modified somehow, validation fails since the signature is no
+            longer valid.
+            """
+            credential = getattr(self.good_ca, good_certificate_name)
+            x509 = credential.credential.certificate.original
+            original_serial = x509.get_serial_number()
+            # Mutate the X509 certificate, invalidating the certificate
+            # authority's signature:
+            x509.set_serial_number(123)
+            # We reuse this object in future tests; hopefully resetting
+            # this makes the signature valid again:
+            self.addCleanup(x509.set_serial_number, original_serial)
+            return self.assert_does_not_validate(credential)
+
     return ValidationTests
 
 
