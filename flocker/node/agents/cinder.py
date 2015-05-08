@@ -10,6 +10,8 @@ from subprocess import check_output
 
 from bitmath import Byte, GB
 
+from eliot import Message, start_action
+
 from pyrsistent import PRecord, field
 
 from keystoneclient.openstack.common.apiclient.exceptions import (
@@ -173,14 +175,17 @@ class CinderBlockDeviceAPI(object):
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
             DATASET_ID_LABEL: unicode(dataset_id),
         }
-        requested_volume = self.cinder_volume_manager.create(
-            size=Byte(size).to_GB().value,
-            metadata=metadata,
-        )
-        wait_for_volume(
-            volume_manager=self.cinder_volume_manager,
-            expected_volume=requested_volume,
-        )
+        action_type = u"blockdevice:cinder:create_volume"
+        with start_action(action_type=action_type) as action:
+            requested_volume = self.cinder_volume_manager.create(
+                size=Byte(size).to_GB().value,
+                metadata=metadata,
+            )
+            Message.new(blockdevice_id=requested_volume.id).write()
+            wait_for_volume(
+                volume_manager=self.cinder_volume_manager,
+                expected_volume=requested_volume,
+            )
         return _blockdevicevolume_from_cinder_volume(
             cinder_volume=requested_volume,
         )
