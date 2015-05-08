@@ -118,21 +118,28 @@ def get_blockdeviceapi_args(provider):
     return cls, kwargs
 
 
-def _rackspace_session(username, key, **kwargs):
-    """
-    Create a Keystone session capable of authenticating with Rackspace.
+from keystoneclient.auth import get_plugin_class
+# from keystoneclient.exceptions import NoMatchingPlugin
 
-    :param unicode keyname: A RackSpace API username.
-    :param unicode key: A RackSpace API key.
+def _openstack_auth_from_config(**config):
+    auth_plugin_name = config.pop('auth_plugin', 'password')
 
-    :return: A ``keystoneclient.session.Session``.
-    """
-    auth = RackspaceAuth(
-        auth_url=RACKSPACE_AUTH_URL,
-        username=username,
-        api_key=key
-    )
-    return Session(auth=auth)
+    if auth_plugin_name == 'rackspace':
+        plugin_class = RackspaceAuth
+    else:
+        # XXX May raise NoMatchingPlugin...shall we handle that and return a
+        # nicer error?
+        plugin_class = get_plugin_class(auth_plugin_name)
+
+    plugin_options = plugin_class.get_options()
+    plugin_kwargs = {}
+    for option in plugin_options:
+        # option.dest is the python compatible attribute name in the plugin implementation.
+        # option.dest is option.name with hyphens replaced with underscores.
+        if option.dest in config:
+            plugin_kwargs[option.dest] = config[option.dest]
+
+    return plugin_class(**plugin_kwargs)
 
 
 def _openstack(region, **config):
@@ -148,9 +155,8 @@ def _openstack(region, **config):
     :return: A ``dict`` giving initializer arguments for
         ``CinderBlockDeviceAPI``.
     """
-    # TODO: Look up the right session factory in the config and use it here
-    # instead of assuming Rackspace.
-    session = _rackspace_session(**config)
+    auth = _openstack_auth_from_config(**config)
+    session = Session(auth=auth)
     cinder_client = CinderClient(
         session=session, region_name=region, version=1
     )
