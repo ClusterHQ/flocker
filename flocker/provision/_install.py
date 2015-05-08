@@ -85,9 +85,9 @@ def task_upgrade_kernel(distribution):
         ])
     elif distribution == 'centos-7':
         return sequence([
-            run_from_args([
+            sudo_from_args([
                 "yum", "install", "-y", "kernel-devel", "kernel"]),
-            run_from_args(['sync']),
+            sudo_from_args(['sync']),
         ])
     else:
         raise NotImplementedError()

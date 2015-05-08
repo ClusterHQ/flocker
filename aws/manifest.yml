@@ -1,0 +1,13 @@
+images:
+- name: tp-test-aws
+  base-ami: ami-6bcfc42e
+  size: t2.medium
+  username: centos
+  deploy:
+    flocker:
+      function: flocker.provision._aws.pre_provision
+      kwargs:
+        user: centos
+        distribution: centos-7
+  # Fedora 20 doesn't allow sudo without a terminal by default, so enable it.
+  userdata: "#!/bin/sh\nsed -i '/Defaults    requiretty/d' /etc/sudoers"

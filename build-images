@@ -1,0 +1,167 @@
+#!/usr/bin/env python
+
+import sys
+import time
+from datetime import datetime
+
+from common import aws_config, driver, wait_for_image, load_manifest
+
+from libcloud.compute.base import NodeImage
+from libcloud.compute.deployment import ScriptDeployment
+
+
+def get_size(size_name):
+    """
+    Return a ``NodeSize`` corresponding to the name of size.
+    """
+    try:
+        return [s for s in driver.list_sizes() if s.id == size_name][0]
+    except IndexError:
+        raise ValueError("Unknown EC2 size.", size_name)
+
+
+def deploy_node(name, base_ami, deploy, username, userdata=None,
+                size="t1.micro", disk_size=8,
+                private_key_file=aws_config['private_key_file'],
+                keyname=aws_config['keyname']):
+    """
+    Deploy a node.
+
+    :param str name: The name of the node.
+    :param str base_ami: The name of the ami to use.
+    :param Deployment deploy: The libcloud ``ScriptDeployment`` to run on the
+        node.
+    :param bytes userdata: User data to pass to the instance.
+    :param bytes size: The name of the size to use.
+    :param int disk_size: The size of disk to allocate.
+    """
+    node = driver.deploy_node(
+        name=name,
+        image=NodeImage(id=base_ami, name=None, driver=driver),
+        size=get_size(size),
+
+        ex_keyname=keyname,
+        ex_security_groups=['ssh'],
+        ex_blockdevicemappings=[
+            {"DeviceName": "/dev/sda1",
+             "Ebs": {"VolumeSize": disk_size,
+                     "DeleteOnTermination": True,
+                     "VolumeType": "gp2"}}
+        ],
+
+        ssh_key=private_key_file,
+        ssh_username=username,
+        # Deploy stuff
+        deploy=deploy,
+        ex_userdata=userdata,
+    )
+    if getattr(deploy, 'exit_status', 0):
+        print deploy.stdout
+        print deploy.stderr
+        print
+        print "Deploy failed."
+        driver.destroy_node(node)
+        sys.exit(1)
+    return node
+
+
+def stop_node(node):
+    driver.ex_stop_node(node)
+    while driver.list_nodes(
+            ex_node_ids=[node.id])[0].extra['status'] != 'stopped':
+        time.sleep(1)
+
+
+def create_image(node, name):
+    image = driver.create_image(node, name)
+    wait_for_image(image)
+    return image
+
+
+def build_image(name, base_ami, deploy, username,
+                userdata=None, size="t1.micro", disk_size=8):
+    """
+    Build an image by deploying a node, and then snapshoting the image.
+
+    See deploy node for arguments.
+    """
+    timestamp = datetime.utcnow().strftime('%Y%m%d.%H%M%S')
+    print "Deploying %(name)s-build." % dict(name=name)
+    node = deploy_node(
+        name=name + "-build",
+        base_ami=base_ami,
+        deploy=deploy,
+        userdata=userdata,
+        username=username,
+        size=size,
+        disk_size=disk_size,
+    )
+    try:
+        print "Stopping %(name)s-build." % dict(name=name)
+        stop_node(node)
+        ami_name = "%(name)s/%(timestamp)s" % {
+            'name': name,
+            'timestamp': timestamp,
+        }
+        print "Creating image %(name)s." % dict(name=ami_name)
+        image = create_image(node, ami_name)
+        driver.ex_create_tags(image, tags={
+            'base-name': name,
+            'timestamp': timestamp,
+            })
+    finally:
+        print "Destroying %(name)s-build." % dict(name=name)
+        driver.destroy_node(node)
+
+    print "%(name)s: %(ami)s" % dict(name=name, ami=image.id)
+    return image.id
+
+
+from libcloud.compute.deployment import Deployment
+from characteristic import attributes
+
+
+@attributes([
+    "function",
+    "kwargs",
+])
+class FlockerDeployment(Deployment):
+    def run(self, node, client):
+        from twisted.python.reflect import namedAny
+        function = namedAny(self.function)
+        address = node.public_ips[0]
+        function(address, **self.kwargs)
+
+
+def process_image(args):
+    global amis
+    image_name = args.pop('name')
+    base_ami = args.pop('base-ami')
+    if not base_ami.startswith('ami-'):
+        base_ami = amis[base_ami]
+
+    step = args.pop('deploy')
+    if 'script' in step:
+        deploy = ScriptDeployment(step['script'])
+    elif 'file' in step:
+        deploy = ScriptDeployment(
+            base.child(step['file']).getContent())
+    elif 'flocker' in step:
+        deploy = FlockerDeployment(**step['flocker'])
+    else:
+        raise ValueError('Unknown deploy type.')
+
+    amis[image_name] = build_image(
+        name=image_name,
+        base_ami=base_ami,
+        deploy=deploy,
+        **args
+    )
+
+
+DISTRO = sys.argv[1]
+base, manifest = load_manifest(DISTRO)
+
+amis = {}
+for image in manifest['images']:
+    process_image(image)

@@ -20,6 +20,18 @@ from ._effect import sequence
 from effect import Func, Effect
 
 
+def pre_provision(address, user, distribution):
+    commands = run_remotely(
+        username=user,
+        address=address,
+        commands=task_upgrade_kernel(distribution),
+    )
+    from flocker.provision._ssh._fabric import dispatcher
+    from effect import sync_perform
+    sync_perform(
+        dispatcher, commands)
+
+
 def provision_aws(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
@@ -55,13 +67,14 @@ def provision_aws(node, package_source, distribution, variants):
             task_upgrade_kernel(distribution)
         )
 
-    commands.append(run_remotely(
-        username='root',
-        address=node.address,
-        commands=sequence(pre_reboot_commands),
-    ))
+    if 0:
+        commands.append(run_remotely(
+            username='root',
+            address=node.address,
+            commands=sequence(pre_reboot_commands),
+        ))
 
-    commands.append(Effect(Func(node.reboot)))
+        commands.append(Effect(Func(node.reboot)))
 
     commands.append(run_remotely(
         username='root',
@@ -78,8 +91,7 @@ def provision_aws(node, package_source, distribution, variants):
 
 IMAGE_NAMES = {
     'fedora-20': 'Fedora-x86_64-20-20140407-sda',
-    'centos-7': 'CentOS 7 x86_64 (2014_09_29) EBS HVM'
-                '-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d2a117ba.2',
+    'centos-7': 'tp-test-aws/20150508.195011',
     'ubuntu-14.04': 'ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-20150325',  # noqa
 }
 
