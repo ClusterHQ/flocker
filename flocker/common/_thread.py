@@ -192,8 +192,10 @@ def _openstack_logged_method(method_name, original_name):
 
 def auto_openstack_logging(interface, original):
     """
-    Create a class decorator which will add thread-based asynchronous versions
-    of all of the methods on ``interface``.
+    Create a class decorator which will add OpenStack-specific exception
+    logging versions versions of all of the methods on ``interface``.
+    Specifically, some Nova and Cinder client exceptions will have all of their
+    details logged any time they are raised.
 
     :param zope.interface.InterfaceClass interface: The interface from which to
         take methods.
