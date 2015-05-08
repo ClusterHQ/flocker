@@ -17,7 +17,7 @@ definitions:
     type: object
     properties:
       node_uuid:
-        '$ref': 'types.json#/definitions/node_uuid'
+        '$ref': 'types.json#/definitions/container_node_uuid'
       name:
         '$ref': 'types.json#/definitions/container_name'
       image:
@@ -62,29 +62,31 @@ definitions:
     type: object
     properties:
       node_uuid:
-        '$ref': 'types.json#/definitions/node_uuid'
+        '$ref': 'types.json#/definitions/container_node_uuid'
     required:
       - node_uuid
     additionalProperties: false
 
-  # This will be improved and tested in
-  # https://clusterhq.atlassian.net/browse/FLOC-1632
   nodes_array:
-    description: "An array of nodes in the cluster."
+    decription: "An array of known nodes in the cluster."
     type: array
     items:
       type: object
       properties:
-        hostname:
-          '$ref': 'types.json#/definitions/host'
+        host:
+          '$ref': 'types.json#/definitions/node_host'
         uuid:
           '$ref': 'types.json#/definitions/node_uuid'
+      required:
+        - uuid
+        - host
+      additionalProperties: false
 
   state_container:
     type: object
     properties:
       node_uuid:
-        '$ref': 'types.json#/definitions/node_uuid'
+        '$ref': 'types.json#/definitions/container_node_uuid'
       host:
         '$ref': 'types.json#/definitions/host'
       name:

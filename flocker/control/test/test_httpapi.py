@@ -2373,13 +2373,13 @@ class UpdateSizeDatasetTestsMixin(APITestsMixin):
         """
         return self.assert_dataset_resize(
             original_size=67108864,
-            new_size=67108864 - 1,
+            new_size=67108864 - 1024,
             expected_code=BAD_REQUEST,
             expected_result={
                 u'description':
                 u"The provided JSON doesn't match the required schema.",
                 u'errors':
-                [u'67108863 is less than the minimum of 67108864']
+                [u'67107840 is less than the minimum of 67108864']
             }
         )
 
@@ -3342,8 +3342,8 @@ class NodesStateTestsMixin(APITestsMixin):
              NodeState(uuid=uuid2, hostname=hostname2)])
         return self.assertResultItems(
             b"GET", b"/state/nodes", None, OK,
-            [{u"hostname": hostname1, "uuid": unicode(uuid1)},
-             {u"hostname": hostname2, "uuid": unicode(uuid2)}],
+            [{u"host": hostname1, "uuid": unicode(uuid1)},
+             {u"host": hostname2, "uuid": unicode(uuid2)}],
         )
 
 
