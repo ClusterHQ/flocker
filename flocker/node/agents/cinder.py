@@ -10,11 +10,6 @@ from subprocess import check_output
 
 from bitmath import Byte, GB
 
-from keystoneclient_rackspace.v2_0 import RackspaceAuth
-from keystoneclient.session import Session
-
-from cinderclient.client import Client
-
 from zope.interface import implementer, Interface
 
 from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume
@@ -214,10 +209,6 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     )
 
 
-
-
-
-
 def cinder_api(cinder_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
@@ -228,6 +219,5 @@ def cinder_api(cinder_client, cluster_id):
     """
     return CinderBlockDeviceAPI(
         cinder_volume_manager=cinder_client.volumes,
-        nova_volume_manager=nova_client.volumes,
         cluster_id=cluster_id,
     )
