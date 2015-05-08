@@ -165,22 +165,26 @@ def agent_config_from_file(path):
     except KeyError:
         port = 4524
 
-    dataset_configurations = {
-        'zfs': {},
-        'loopback': {},
-    }
+    try:
+        zfs_pool = options['dataset']['zfs']['zfs-pool']
+    except KeyError:
+        zfs_pool = 'flocker'
 
     try:
-        dataset_configurations['zfs']['zfs-pool'] = options['dataset']['zfs']['zfs-pool']
+        loopback_pool = options['dataset']['loopback']['loopback-pool']
     except KeyError:
-        dataset_configurations['zfs']['zfs-pool'] = 'flocker'
-
-    try:
-        dataset_configurations['loopback']['loopback-pool'] = options['dataset']['loopback']['loopback-pool']
-    except KeyError:
-        dataset_configurations['loopback']['loopback-pool'] = '/var/lib/flocker/loopback'
+        loopback_pool = '/var/lib/flocker/loopback'
 
     dataset_type = options['dataset'].keys()[0]
+    dataset_configurations = {
+        'zfs': {
+            'zfs-pool': zfs_pool,
+        },
+        'loopback': {
+            'loopback-pool': loopback_pool,
+        },
+    }
+
     return {
         'control-service': {
             'hostname': options['control-service']['hostname'],
