@@ -176,7 +176,7 @@ def make_validation_tests(context_factory_fixture,
                 ServerFactory.forProtocol(SendingProtocol))
             d.addCallback(lambda port: self.addCleanup(port.stopListening))
             validating_endpoint = SSL4ClientEndpoint(
-                reactor, b"127.0.0.1", port, client_context_factory)
+                reactor, "127.0.0.1", port, client_context_factory)
             client_protocol = ReceivingProtocol()
             result = connectProtocol(validating_endpoint, client_protocol)
             result.addCallback(lambda _: client_protocol.result)
