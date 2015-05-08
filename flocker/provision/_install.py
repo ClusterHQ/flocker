@@ -57,7 +57,7 @@ def task_wait_for_working_network():
     return sequence([
         run("""\
 for count in $(seq 60); do
-    host clusterhq.com
+    ping -n 1 clusterhq.com
     result=$?
     if ${result}; then
         break
