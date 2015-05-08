@@ -49,6 +49,19 @@ def ebsblockdeviceapi_for_test(test_case, cluster_id):
         'test_destroy_unknown_volume',
         'test_destroy_volume',
         'test_destroy_destroyed_volume',
+        'test_attach_attached_volume',
+        'test_attach_unknown_volume',
+        'test_attach_elsewhere_attached_volume',
+        'test_attach_unattached_volume',
+        'test_attach_destroyed_volume',
+        'test_attached_volume_listed',
+        'test_list_attached_and_unattached',
+        'test_detach_detached_volume',
+        'test_detach_unknown_volume',
+        'test_reattach_detached_volume',
+        'test_multiple_volumes_attached_to_host',
+        'test_compute_instance_id_nonempty',
+        'test_compute_instance_id_unicode',
     ]
 )
 class EBSBlockDeviceAPIInterfaceTests(

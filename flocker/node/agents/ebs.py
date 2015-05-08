@@ -5,7 +5,7 @@
 An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
-import os.path
+import threading
 import time
 from uuid import UUID
 
@@ -17,7 +17,8 @@ from boto import ec2
 from boto.utils import get_instance_metadata
 
 from .blockdevice import (
-        IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume
+    IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
+    UnattachedVolume
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -63,6 +64,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
 
     :return: Input volume in BlockDeviceVolume format.
     """
+    ebs_volume.update()
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GB(ebs_volume.size).to_Byte().value),
@@ -148,6 +150,7 @@ class EBSBlockDeviceAPI(object):
         self.connection = ec2_client.connection
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
+        self.lock = threading.Lock()
 
     def compute_instance_id(self):
         """
@@ -157,29 +160,55 @@ class EBSBlockDeviceAPI(object):
 
     def _get(self, blockdevice_id):
         """
+        Lookup BlockDeviceVolume for given blockdevice_id.
+
+        :param unicode blockdevice_id: ID of a blockdevice that needs lookup.
+
+        :returns BlockDeviceVolume for the given input id.
         """
         for volume in self.list_volumes():
             if volume.blockdevice_id == blockdevice_id:
                 return volume
-        return None
+        raise UnknownVolume(blockdevice_id)
 
     def _get_ebs_volume(self, blockdevice_id):
         """
+        Lookup EBS Volume information for a given blockdevice_id.
+
+        :param unicode blockdevice_id: ID of a blockdevice that needs lookup.
+        :returns boto.ec2.volume.Volume for the input id.
         """
         for volume in self.connection.get_all_volumes():
             if volume.id == blockdevice_id:
+                # Sync volume for uptodate metadata
+                volume.update()
                 return volume
         return None
 
-    def _next_device(self):
+    def _next_device(self, instance_id):
         """
+        Get the next available EBS device name for a given EC2 instance.
+        Algorithm:
+        1. Get all ``Block devices`` currently in use by given instance:
+            a) List all volumes visible to this instance.
+            b) Gather device IDs of all devices attached to (a).
+        2. Devices available for EBS volume usage are ``/dev/sd[f-p]``.
+           Find the first device from this set that is currently not
+           in use.
+
+        :param unicode instance_id: EC2 instance ID.
+
+        :returns unicode file_name: available device name for attaching
+            EBS volume.
         """
+        volumes = self.connection.get_all_volumes()
+        devices = [v.attach_data.device for v in volumes
+                   if v.attach_data.instance_id == instance_id]
         for prefix in ['f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p']:
             file_name = u'/dev/sd%c' % prefix
-            if not os.path.exists(file_name):
+            if file_name not in devices:
                 return file_name
-        # If all devices are occupied, return appropriate code
-        return ''
+        return None
 
     def create_volume(self, dataset_id, size):
         """
@@ -226,31 +255,50 @@ class EBSBlockDeviceAPI(object):
     # cloud_instance_id here too
     def attach_volume(self, blockdevice_id, attach_to):
         """
+        Attach an EBS volume to given compute instance.
+
+        :param unicode blockdevice_id: EBS UUID for volume to be attached.
+        :param unicode attach_to: Instance id of AWS Compute instance to
+            attached the blockdevice to.
+
+        :raises UnknownVolume: If there does not exist a BlockDeviceVolume
+            corresponding to the input blockdevice_id.
+        :raises AlreadyAttachedVolume: If the input volume is already attached
+            to a device.
         """
         volume = self._get(blockdevice_id)
-        import pdb; pdb.set_trace()
         if volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
 
-        device = self._next_device()
+        self.lock.acquire()
+        device = self._next_device(attach_to)
         self.connection.attach_volume(blockdevice_id, attach_to, device)
+        self.lock.release()
+
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         _wait_for_volume(ebs_volume, expected_status=u'in-use')
-        import pdb; pdb.set_trace()
         attached_volume = volume.set('attached_to', attach_to)
-        #   raise UnknownVolume(blockdevice_id)
-        #   raise AlreadyAttachedVolume(blockdevice_id)
 
-        import pdb; pdb.set_trace()
         return attached_volume
 
     def detach_volume(self, blockdevice_id):
+        """
+        Detach EBS volume identified by blockdevice_id.
+
+        :param unicode blockdevice_id: EBS UUID for volume to be detached.
+
+        :raises UnknownVolume: If there does not exist a BlockDeviceVolume
+            corresponding to the input blockdevice_id.
+        :raises UnattachedVolume: If the BlockDeviceVolume for the
+            blockdevice_id is not currently 'in-use'.
+        """
         volume = self._get(blockdevice_id)
+        if volume.attached_to is None:
+            raise UnattachedVolume(blockdevice_id)
+
         self.connection.detach_volume(blockdevice_id)
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         _wait_for_volume(ebs_volume, expected_status=u'available')
-        #   raise UnknownVolume(blockdevice_id)
-        #   raise UnattachedVolume(blockdevice_id)
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -275,4 +323,5 @@ class EBSBlockDeviceAPI(object):
         raise UnknownVolume(blockdevice_id)
 
     def get_device_path(self, blockdevice_id):
-        pass
+        """
+        """
