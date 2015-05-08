@@ -127,7 +127,7 @@ def make_validation_tests(context_factory_fixture,
     :param bool validator_is_client: Whether or not the context factory
          being tested is a client.
 
-    :return TestCase: Tests for given validator.
+    :return: ``TestCase``-subclass with tests for given validator.
     """
     bad_name, another_bad_name = {"user", "node", "control"}.difference(
         {good_certificate_name})
