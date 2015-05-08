@@ -9,7 +9,7 @@ from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
 from ..cinder import wait_for_volume
 from ..test.blockdevicefactory import (
-    InvalidConfig,
+    MissingConfig,
     ProviderType, get_blockdeviceapi_args,
 )
 from ....testtools import random_name
@@ -23,7 +23,7 @@ def cinder_volume_manager():
     """
     try:
         cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
-    except InvalidConfig as e:
+    except MissingConfig as e:
         raise SkipTest(str(e))
     return kwargs["cinder_volume_manager"]
 
