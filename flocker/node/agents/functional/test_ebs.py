@@ -19,7 +19,7 @@ from ..test.test_blockdevice import (
 )
 
 from ..test.blockdevicefactory import (
-    MissingConfig, ProviderType, get_blockdeviceapi_args,
+    ConfigMissing, ProviderType, get_blockdeviceapi_args,
     get_blockdeviceapi_with_cleanup,
 )
 
@@ -67,7 +67,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         try:
             cls, kwargs = get_blockdeviceapi_args(ProviderType.aws)
-        except MissingConfig as e:
+        except ConfigMissing as e:
             raise SkipTest(str(e))
         ec2_client = kwargs["ec2_client"]
         requested_volume = ec2_client.connection.create_volume(
