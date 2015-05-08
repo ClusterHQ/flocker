@@ -160,6 +160,10 @@ def agent_config_from_file(path):
         raise ConfigurationError(
             "Configuration has an error. Incorrect version specified.")
 
+    # Checking for KeyErrors is a useful way to set defaults. There are ways to
+    # extend jsonschema to allow defaults but these are conceptionally
+    # different to the rest of the validator.
+    # See https://python-jsonschema.readthedocs.org/en/latest/faq/?highlight=default#why-doesn-t-my-schema-that-has-a-default-property-actually-set-the-default-on-my-instance  # noqa
     try:
         port = options['control-service']['port']
     except KeyError:
