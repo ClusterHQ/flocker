@@ -215,7 +215,23 @@ class CinderBlockDeviceAPI(object):
         raise UnknownVolume(blockdevice_id)
 
     def resize_volume(self, blockdevice_id, size):
-        pass
+        """
+        Replace an existing volume with a new one of the given size and holding
+        all the same data.
+
+        Cinder v1 doesn't support a resize operation.  Cinder v2 does support
+        the creation of a new volume derived from an existing volume but with a
+        different size.
+        """
+        old_volume = self._get(blockdevice_id)
+        new_volume = self.cinder_volume_manager.create(
+            source_volid=blockdevice_id, metadata=old_volume.metadata
+        )
+        wait_for_volume(
+            self.cinder_volume_manager,
+            new_volume,
+        )
+        self.cinder_volume_manager.destroy(blockdevice_id)
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
