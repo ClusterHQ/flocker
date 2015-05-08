@@ -118,7 +118,10 @@ def agent_config_from_file(path):
                     },
                     "port": {"type": "integer"},
                 }
-            }
+            },
+            # "dataset": {
+            #     "type": "object",
+            # },
         }
     }
 

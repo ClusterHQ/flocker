@@ -312,7 +312,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
     def setUp(self):
         self.scratch_directory = FilePath(self.mktemp())
         self.scratch_directory.makedirs()
-        self.config = self.scratch_directory.child('config.yml')
+        self.config_file = self.scratch_directory.child('config.yml')
 
     def assertErrorForConfig(self, exception, message, configuration=None):
         """
@@ -327,11 +327,11 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         :param bytes message: The expected exception message.
         """
         if configuration is not None:
-            self.config.setContent(yaml.safe_dump(configuration))
+            self.config_file.setContent(yaml.safe_dump(configuration))
 
         exception = self.assertRaises(
             exception,
-            agent_config_from_file, self.config)
+            agent_config_from_file, self.config_file)
 
         self.assertEqual(exception.message, message)
 
@@ -342,7 +342,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         self.assertErrorForConfig(
             exception=ConfigurationError,
             message="Configuration file does not exist at '{}'.".format(
-                self.config.path),
+                self.config_file.path),
         )
 
     def test_error_on_invalid_config(self):
@@ -456,8 +456,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             "version": 1,
         }
 
-        self.config.setContent(yaml.safe_dump(configuration))
-        parsed = agent_config_from_file(path=self.config)
+        self.config_file.setContent(yaml.safe_dump(configuration))
+        parsed = agent_config_from_file(path=self.config_file)
         self.assertEqual(parsed['control-service']['port'], 4524)
 
     def test_error_on_invalid_port(self):
