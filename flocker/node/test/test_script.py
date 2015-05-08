@@ -555,16 +555,14 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         If no loopback pool is specified, /var/lib/flocker/loopback is used.
         """
-        self.configuration['dataset'] = {"loopback": {}}
+        self.configuration['dataset'] = {"backend": "loopback"}
 
         self.config_file.setContent(yaml.safe_dump(self.configuration))
         parsed = agent_config_from_file(path=self.config_file)
         self.assertEqual(
-            parsed['dataset']['loopback']['loopback-pool'],
+            parsed['dataset']['loopback-pool'],
             '/var/lib/flocker/loopback',
         )
-
-# TODO look at using build_schema_test
 
 class DatasetAgentOptionsTests(
         make_amp_agent_options_tests(DatasetAgentOptions)
