@@ -451,9 +451,10 @@ class AgentConfigFromFileTests(SynchronousTestCase):
                      "'version' is a required property."),
         )
 
-    def test_error_on_incorrect_version(self):
+    def test_error_on_high_version(self):
         """
-        A ``ConfigurationError`` is raised if the version specified is not 1.
+        A ``ConfigurationError`` is raised if the version specified is greater
+        than 1.
         """
         self.configuration['version'] = 2
 
@@ -462,6 +463,20 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             exception=ConfigurationError,
             message=("Configuration has an error: "
                      "2 is greater than the maximum of 1."),
+        )
+
+    def test_error_on_low_version(self):
+        """
+        A ``ConfigurationError`` is raised if the version specified is lower
+        than 1.
+        """
+        self.configuration['version'] = 0.5
+
+        self.assertErrorForConfig(
+            configuration=self.configuration,
+            exception=ConfigurationError,
+            message=("Configuration has an error: "
+                     "0.5 is less than the minimum of 1."),
         )
 
     def test_default_port(self):
