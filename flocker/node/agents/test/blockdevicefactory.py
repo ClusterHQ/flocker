@@ -74,19 +74,20 @@ def get_blockdeviceapi_args(provider):
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
 
-    :raises: ``ConfigMissing`` if a ``CLOUD_CONFIG_FILE`` was not set and the
+    :raises: ``ConfigMissing`` if a
+        ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
 
     :return: A two-tuple of an ``IBlockDeviceAPI`` implementation and a
         ``dict`` of keyword arguments that can be used instantiate that
         implementation.
     """
-    config_file_path = environ.get('CLOUD_CONFIG_FILE')
+    config_file_path = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE')
     if config_file_path is None:
         raise ConfigMissing(
             'Supply the path to a cloud credentials file '
-            'using the CLOUD_CONFIG_FILE environment variable. '
-            'See: '
+            'using the FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE environment '
+            'variable. See: '
             'https://docs.clusterhq.com/en/latest/gettinginvolved/acceptance-testing.html '  # noqa
             'for details of the expected format.'
         )
@@ -151,11 +152,23 @@ def _aws(**config):
     Create an EC2 client suitable for use in the creation of an
     ``EBSBlockDeviceAPI``.
 
-    See ``flocker.node.agents.ebs.ec2_client`` for parameter documentation.
+    :param bytes access_key: "access_key" credential for EC2.
+    :param str secret_access_key: "secret_access_token" EC2 credential.
     """
-    return dict(
-        ec2_client=ec2_client(**config),
-    )
+    # We just get the credentials from the config file.
+    # We ignore the region specified in acceptance test configuration,
+    # and instead get the region from the zone of the host.
+    zone = environ['FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE']
+    # The region is the zone, without the trailing [abc].
+    region = zone[:-1]
+    return {
+        'ec2_client': ec2_client(
+            region=region,
+            zone=zone,
+            access_key_id=config['access_key'],
+            secret_access_key=config['secret_access_token'],
+        ),
+    }
 
 
 _BLOCKDEVICE_TYPES = {
