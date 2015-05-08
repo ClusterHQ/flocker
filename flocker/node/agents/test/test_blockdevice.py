@@ -586,23 +586,23 @@ class ScenarioMixin(object):
         }
     )
 
-    @staticmethod
-    def add_application_with_volume(node_state):
-        """
-        Add a matching application that has the current dataset attached as a
-        volume.
 
-        :param NodeState node_state: Has dataset with ID ``DATASET_ID``.
+def add_application_with_volume(node_state):
+    """
+    Add a matching application that has the current dataset attached as a
+    volume.
 
-        :return NodeState: With ``Application`` added.
-        """
-        manifestation = list(node_state.manifestations.values())[0]
-        return node_state.set(
-            "applications", {Application(
-                name=u"myapplication",
-                image=DockerImage.from_string(u"image"),
-                volume=AttachedVolume(manifestation=manifestation,
-                                      mountpoint=FilePath(b"/data")))})
+    :param NodeState node_state: Has dataset with ID ``DATASET_ID``.
+
+    :return NodeState: With ``Application`` added.
+    """
+    manifestation = list(node_state.manifestations.values())[0]
+    return node_state.set(
+        "applications", {Application(
+            name=u"myapplication",
+            image=DockerImage.from_string(u"image"),
+            volume=AttachedVolume(manifestation=manifestation,
+                                  mountpoint=FilePath(b"/data")))})
 
 
 class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
@@ -775,13 +775,13 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
         application, no changes are made.
         """
         # Application using a dataset:
-        local_state = self.add_application_with_volume(self.ONE_DATASET_STATE)
+        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
 
         # Dataset is deleted:
         local_config = to_node(self.ONE_DATASET_STATE).transform(
             ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
             True)
-        local_config = self.add_application_with_volume(local_config)
+        local_config = add_application_with_volume(local_config)
 
         assert_calculated_changes(
             self, local_state, local_config, set(),
@@ -915,7 +915,7 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
         no changes are made.
         """
         # State has a dataset in use by application
-        local_state = self.add_application_with_volume(self.ONE_DATASET_STATE)
+        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
 
         # Give it a configuration that says it shouldn't have that
         # manifestation.
@@ -1216,10 +1216,10 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
             return dataset.set(maximum_size=dataset.maximum_size * 2)
 
         # State has a dataset in use by application
-        local_state = self.add_application_with_volume(self.ONE_DATASET_STATE)
+        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
 
         # Give it a configuration that says it should be resized:
-        node_config = self.add_application_with_volume(
+        node_config = add_application_with_volume(
             to_node(self.ONE_DATASET_STATE).transform(
                 ["manifestations", match_anything, "dataset"], double_size))
 
