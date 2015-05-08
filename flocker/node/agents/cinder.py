@@ -223,9 +223,15 @@ class CinderBlockDeviceAPI(object):
         the creation of a new volume derived from an existing volume but with a
         different size.
         """
-        old_volume = self._get(blockdevice_id)
+        size_gb = Byte(size).to_GB().value
+        try:
+            old_volume = self._get(blockdevice_id)
+        except CinderNotFound:
+            raise UnknownVolume(blockdevice_id)
+
         new_volume = self.cinder_volume_manager.create(
-            source_volid=blockdevice_id, metadata=old_volume.metadata
+            source_volid=blockdevice_id, metadata=old_volume.metadata,
+            size=size_gb,
         )
         wait_for_volume(
             self.cinder_volume_manager,
