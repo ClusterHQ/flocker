@@ -30,7 +30,7 @@ from ...testtools import (
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE, Volume, logger as docker_logger)
+    BASE_NAMESPACE, Volume)
 from ...control._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
 
