@@ -460,6 +460,12 @@ class ControlCredential(PRecord):
 
     @classmethod
     def from_path(cls, path, hostname):
+        """
+        Load a ``ControlCredential`` from disk.
+
+        :param FilePath path: Directory where credentials are stored.
+        :param bytes hostname: The hostname of the control service certificate.
+        """
         keypair, certificate = load_certificate_from_path(
             path, b"control-{}.key".format(hostname),
             b"control-{}.crt".format(hostname)
