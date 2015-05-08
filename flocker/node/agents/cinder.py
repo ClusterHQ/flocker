@@ -176,7 +176,7 @@ class CinderBlockDeviceAPI(object):
             DATASET_ID_LABEL: unicode(dataset_id),
         }
         action_type = u"blockdevice:cinder:create_volume"
-        with start_action(action_type=action_type) as action:
+        with start_action(action_type=action_type):
             requested_volume = self.cinder_volume_manager.create(
                 size=Byte(size).to_GB().value,
                 metadata=metadata,

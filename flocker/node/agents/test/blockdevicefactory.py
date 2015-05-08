@@ -77,7 +77,9 @@ def get_blockdeviceapi_args(provider):
     :raises: ``ConfigMissing`` if a ``CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
 
-    :return: A ``dict`` that can initialize the matching implementation.
+    :return: A two-tuple of an ``IBlockDeviceAPI`` implementation and a
+        ``dict`` of keyword arguments that can be used instantiate that
+        implementation.
     """
     config_file_path = environ.get('CLOUD_CONFIG_FILE')
     if config_file_path is None:
@@ -164,6 +166,7 @@ _BLOCKDEVICE_TYPES = {
 # ^^^^^^^^^^^^^^^^^^^^ generally useful implementation code, put it somewhere
 # nice and use it
 #
+# https://clusterhq.atlassian.net/browse/FLOC-1840
 #
 # vvvvvvvvvvvvvvvvvvvv testing helper that actually belongs in this module
 

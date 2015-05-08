@@ -140,4 +140,3 @@ class AutoOpenStackLoggingTests(SynchronousTestCase):
                 u"response": "hello world",
             },
         )
-
