@@ -18,8 +18,9 @@ from zope.interface.verify import verifyObject
 
 from ...testtools import make_with_init_tests
 from .._model import pset_field, pmap_field, pvector_field, ip_to_uuid
+
 from .. import (
-    IClusterStateChange,
+    IClusterStateChange, IClusterStateWipe,
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
     NodeState, DeploymentState, NonManifestDatasets, same_node,
@@ -1187,3 +1188,96 @@ class SameNodeTests(SynchronousTestCase):
         node3 = NodeState(uuid=uuid4(), hostname=u"1.2.3.4")
         self.assertEqual([same_node(node1, node2), same_node(node1, node3)],
                          [True, False])
+
+
+class NodeStateWipingTests(SynchronousTestCase):
+    """
+    Tests for ``NodeState.get_information_wipe``.
+    """
+    NODE_FROM_APP_AGENT = NodeState(hostname=u"1.2.3.4", uuid=uuid4(),
+                                    applications={APP1},
+                                    used_ports={1, 2, 3},
+                                    manifestations=None,
+                                    paths=None,
+                                    devices=None)
+    APP_WIPE = NODE_FROM_APP_AGENT.get_information_wipe()
+
+    NODE_FROM_DATASET_AGENT = NodeState(hostname=NODE_FROM_APP_AGENT.hostname,
+                                        uuid=NODE_FROM_APP_AGENT.uuid,
+                                        applications=None, used_ports=None,
+                                        manifestations={
+                                            MANIFESTATION.dataset_id:
+                                            MANIFESTATION})
+    DATASET_WIPE = NODE_FROM_DATASET_AGENT.get_information_wipe()
+
+    def test_interface(self):
+        """
+        The object returned from ``NodeStateWipe`` implements
+        ``IClusterStateWipe``.
+        """
+        self.assertTrue(verifyObject(IClusterStateWipe, self.APP_WIPE))
+
+    def test_key_differs_by_uuid(self):
+        """
+        The ``IClusterStateWipe`` has different keys for different node UUIDs.
+        """
+        node2 = self.NODE_FROM_APP_AGENT.set("uuid", uuid4())
+        self.assertNotEqual(node2.get_information_wipe().key(),
+                            self.APP_WIPE.key())
+
+    def test_key_differs_by_attributes(self):
+        """
+        The ``IClusterStateWipe`` has different keys for different attributes
+        being wiped.
+        """
+        self.assertNotEqual(self.APP_WIPE.key(), self.DATASET_WIPE.key())
+
+    def test_key_same_by_attribute_contents(self):
+        """
+        The ``IClusterStateWipe`` has the same key if it is wiping same
+        attributes on same node.
+        """
+        different_apps_node = self.NODE_FROM_APP_AGENT.set(
+            "applications", {APP2}).set("used_ports", {4, 5})
+
+        self.assertEqual(self.APP_WIPE.key(),
+                         different_apps_node.get_information_wipe().key())
+
+    def test_applying_node_does_not_exist(self):
+        """
+        Applying the ``IClusterStateWipe`` when the node indicated does not
+        exist returns the same ``DeploymentState``.
+        """
+        cluster = DeploymentState()
+        self.assertEqual(cluster, self.APP_WIPE.update_cluster_state(cluster))
+
+    def test_applying_indicates_ignorance(self):
+        """
+        Applying the ``IClusterStateWipe`` removes attributes matching the
+        original ``NodeState`` information.
+        """
+        # Cluster has combination of application and dataset information:
+        cluster = DeploymentState(nodes={self.NODE_FROM_APP_AGENT})
+        cluster = self.NODE_FROM_DATASET_AGENT.update_cluster_state(cluster)
+        # We wipe application information:
+        cluster = self.APP_WIPE.update_cluster_state(cluster)
+        # Result should be same as just having dataset information:
+        self.assertEqual(
+            cluster,
+            DeploymentState(nodes=[self.NODE_FROM_DATASET_AGENT]))
+
+    def test_applying_removes_node(self):
+        """
+        Applying the ``IClusterStateWipe`` removes the ``NodeState`` outright
+        if nothing more is known about it.
+        """
+        node_2 = NodeState(hostname=u"1.2.3.5", uuid=uuid4())
+        # Cluster has only dataset information for a node:
+        cluster = DeploymentState(nodes=[
+            self.NODE_FROM_APP_AGENT, node_2])
+        # We wipe the dataset information:
+        cluster = self.APP_WIPE.update_cluster_state(cluster)
+        # Result should remove node about which we know nothing:
+        self.assertEqual(
+            cluster,
+            DeploymentState(nodes={node_2}))

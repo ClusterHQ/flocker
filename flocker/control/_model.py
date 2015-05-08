@@ -23,7 +23,7 @@ from twisted.python.filepath import FilePath
 
 from pyrsistent import (
     pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
-    optional as optional_type, CheckedPVector
+    optional as optional_type, CheckedPVector, ny as match_anything
     )
 
 from zope.interface import Interface, implementer
@@ -660,6 +660,10 @@ class IClusterStateWipe(Interface):
         Providers that wipe the same information should return the same
         key, and providers that wipe different information should return
         differing keys.
+
+        Different ``IClusterStateWipe`` implementors are presumed to
+        cover different information, so there is no need for the key to
+        express that differentation.
         """
 
 
@@ -726,12 +730,56 @@ class NodeState(PRecord):
     def update_cluster_state(self, cluster_state):
         return cluster_state.update_node(self)
 
+    # Attributes that may be set to None to indicate ignorance:
+    _POTENTIALLY_IGNORANT_ATTRIBUTES = ["used_ports", "applications",
+                                        "manifestations", "paths",
+                                        "devices"]
+
+    def _completely_ignorant(self):
+        """
+        Return whether the node is completely ignorant of anything.
+        """
+        return all(getattr(self, attr) is None
+                   for attr in self._POTENTIALLY_IGNORANT_ATTRIBUTES)
+
     def get_information_wipe(self):
-        # XXX return ``WipeNodeState`` object that sets any not-None
-        # attributes this NodeState has set with None, removing the
-        # NodeState outright from the DeploymentState if all of them are
-        # None.
-        pass
+        attributes = [attr for attr in
+                      self._POTENTIALLY_IGNORANT_ATTRIBUTES
+                      if getattr(self, attr) is not None]
+        return _WipeNodeState(node_uuid=self.uuid, attributes=attributes)
+
+
+@implementer(IClusterStateWipe)
+class _WipeNodeState(PRecord):
+    """
+    Wipe information about a specific node from a ``DeploymentState``.
+
+    Only specific attributes will be wiped. If all attributes have been
+    wiped off the relevant ``NodeState`` then it will also be removed from
+    the ``DeploymentState`` completely.
+
+    :ivar UUID node_uuid: The UUID of the node being wiped.
+    :ivar PSet attributes: Names of ``NodeState`` attributes to wipe.
+    """
+    node_uuid = field(mandatory=True, type=UUID)
+    attributes = pset_field(str)
+
+    def update_cluster_state(self, cluster_state):
+        nodes = {n for n in cluster_state.nodes
+                 if n.uuid == self.node_uuid}
+        if not nodes:
+            return cluster_state
+        [original_node] = nodes
+        updated_node = original_node
+        for attribute in self.attributes:
+            updated_node = updated_node.set(attribute, None)
+        final_nodes = cluster_state.nodes.discard(original_node)
+        if not updated_node._completely_ignorant():
+            final_nodes = final_nodes.add(updated_node)
+        return cluster_state.set("nodes", final_nodes)
+
+    def key(self):
+        return (self.node_uuid, self.attributes)
 
 
 class DeploymentState(PRecord):
