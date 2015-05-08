@@ -34,7 +34,9 @@ from uuid import uuid4
 
 from OpenSSL import crypto
 from pyrsistent import PRecord, field
-from twisted.internet.ssl import DistinguishedName, KeyPair, Certificate
+from twisted.internet.ssl import (
+    DistinguishedName, KeyPair, Certificate, CertificateOptions,
+)
 
 
 EXPIRY_20_YEARS = 60 * 60 * 24 * 365 * 20
@@ -259,7 +261,7 @@ class FlockerCredential(PRecord):
     :ivar FilePath path: A ``FilePath`` representing the absolute path of
         a directory containing the certificate and key files.
     :ivar Certificate certificate: A signed certificate.
-    :ivar FlockerKeyPair keypair: A private/public keypair.
+    :ivar ComparableKeyPair keypair: A private/public keypair.
     """
     path = field(mandatory=True)
     certificate = field(mandatory=True)
@@ -517,6 +519,21 @@ class ControlCredential(PRecord):
             b"control-{}.crt".format(hostname))
         instance = cls(credential=credential)
         return instance
+
+    def _default_options(self, trust_root):
+        """
+        Construct a ``CertificateOptions`` that exposes this credential's
+        certificate and keypair.
+
+        :param trust_root: Trust root to pass to ``CertificateOptions``.
+
+        :return: ``CertificateOptions`` instance with CA validation
+            configured.
+        """
+        key = self.credential.keypair.keypair.original
+        certificate = self.credential.certificate.original
+        return CertificateOptions(
+            privateKey=key, certificate=certificate, trustRoot=trust_root)
 
 
 class RootCredential(PRecord):

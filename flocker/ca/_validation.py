@@ -13,9 +13,7 @@ from OpenSSL.SSL import VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT
 from zope.interface import implementer
 
 from twisted.web.iweb import IPolicyForHTTPS
-from twisted.internet.ssl import (
-    optionsForClientTLS, CertificateOptions,
-)
+from twisted.internet.ssl import optionsForClientTLS
 
 from pyrsistent import PRecord, field
 
@@ -56,11 +54,9 @@ class _ClientContextFactory(object):
 
         :param bytes prefix: The required prefix on certificate common names.
         """
-        key = control_credential.credential.keypair.keypair.original
-        certificate = control_credential.credential.certificate.original
         self.prefix = prefix
-        self._default_options = CertificateOptions(
-            privateKey=key, certificate=certificate, trustRoot=ca_certificate)
+        self._default_options = control_credential._default_options(
+            ca_certificate)
 
     def getContext(self):
         def verify(conn, cert, errno, depth, preverify_ok):
