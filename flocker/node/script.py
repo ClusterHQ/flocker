@@ -159,8 +159,6 @@ def agent_config_from_file(path):
             "Configuration has an error: {}.".format(e.message,)
         )
 
-    # TODO add descriptions - does this help error handling?
-
     # Checking for KeyErrors is a useful way to set defaults. There are ways to
     # extend jsonschema to allow defaults but these are conceptionally
     # different to the rest of the validator.
