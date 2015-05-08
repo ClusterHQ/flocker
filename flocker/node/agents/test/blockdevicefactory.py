@@ -140,6 +140,20 @@ def _openstack(region, **config):
     nova_client = NovaClient(
         session=session, region_name=region, version=2
     )
+
+    nova_server_manager = nova_client.servers
+    from flocker.common import get_all_ips
+    def _combine_nova_addresses(addresses):
+        all_addresses = []
+        for category, addresses in addresses:
+            for address in addresses:
+                pass
+            
+    def compute_instance_id():
+        local_ips = set(get_all_ips())
+        for server in nova_server_manager.list(detailed=True):
+            reported_address
+        
     return dict(
         cinder_volume_manager=cinder_client.volumes,
         nova_volume_manager=nova_client.volumes,

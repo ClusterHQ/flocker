@@ -164,6 +164,7 @@ class CinderBlockDeviceAPI(object):
         # See http://wiki.christophchamp.com/index.php/Xenstore
         # $ sudo xenstore-read name
         # instance-6ddfb6c0-d264-4e77-846a-aa67e4fe89df
+        import pdb; pdb.set_trace()
         prefix = u"instance-"
         command = [b"xenstore-read", b"name"]
         return check_output(command).strip().decode("ascii")[len(prefix):]
