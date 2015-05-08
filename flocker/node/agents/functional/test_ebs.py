@@ -38,6 +38,7 @@ def ebsblockdeviceapi_for_test(test_case, cluster_id):
 # and ``destroy`` parts of ``IBlockDeviceAPI``.
 @skip_except(
     supported_tests=[
+        'test_attach_attached_volume',
         'test_interface',
         'test_created_is_listed',
         'test_created_volume_attributes',

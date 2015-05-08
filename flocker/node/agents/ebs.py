@@ -5,6 +5,7 @@
 An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
+import os.path
 import time
 from uuid import UUID
 
@@ -152,6 +153,27 @@ class EBSBlockDeviceAPI(object):
         """
         return get_instance_metadata()['instance-id'].decode("ascii")
 
+    def _get(self, blockdevice_id):
+        """
+        """
+        for volume in self.list_volumes():
+            if volume.blockdevice_id == blockdevice_id:
+                return volume
+        raise UnknownVolume(blockdevice_id)
+
+    def _next_device(self):
+        """
+        """
+        prefix = '/dev/sdf'
+        for prefix in ['f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p']:
+            index = 1
+            while index < 7 :
+                file_name = u'/dev/sd%c%d' % (prefix, index)
+                if not os.path.exists(file_name):
+                    return file_name
+                index++
+        return ''
+
     def create_volume(self, dataset_id, size):
         """
         Create a volume on EBS. Store Flocker-specific
@@ -195,11 +217,30 @@ class EBSBlockDeviceAPI(object):
         pass
 
     # cloud_instance_id here too
-    def attach_volume(self, blockdevice_id, host):
-        pass
+    def attach_volume(self, blockdevice_id, attach_to):
+        """
+        """
+        volume = self._get(blockdevice_id)
+        if volume.attached_to is not None:
+            raise AlreadyAttachedVolume(blockdevice_id)
+
+        device = self._next_device()
+        attached = self.connection.attach_volume(blockdevice_id, attach_to, device)
+        import pdb; pdb.set_trace()
+        if attached == True:
+            _wait_for_volume(volume, expected_status=u'in-use')
+            volume.set('attached_to', attach_to)
+        #   raise UnknownVolume(blockdevice_id)
+        #   raise AlreadyAttachedVolume(blockdevice_id)
+
+        return volume
 
     def detach_volume(self, blockdevice_id):
-        pass
+        our_id = self.compute_instance_id()
+        self.connection.detach_volume(blockdevice_id)
+        _wait_for_volume(volume, expected_status=u'available')
+        #   raise UnknownVolume(blockdevice_id)
+        #   raise UnattachedVolume(blockdevice_id)
 
     def destroy_volume(self, blockdevice_id):
         """
