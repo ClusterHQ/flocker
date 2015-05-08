@@ -38,10 +38,10 @@ def cinderblockdeviceapi_for_test(test_case):
     Create a ``CinderBlockDeviceAPI`` instance for use in tests.
 
     :param TestCase test_case: The test being run.
-    :returns: A ``CinderBlockDeviceAPI`` instance whose underlying
-        ``cinderclient.v1.client.Client`` has a ``volumes`` attribute wrapped
-        by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
-        are created during the course of ``test_case``
+
+    :returns: A ``CinderBlockDeviceAPI`` instance.  Any volumes it creates will
+        be cleaned up at the end of the test (using ``test_case``\ 's cleanup
+        features).
     """
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
 
