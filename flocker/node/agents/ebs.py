@@ -298,7 +298,8 @@ class EBSBlockDeviceAPI(object):
 
         self.connection.detach_volume(blockdevice_id)
         ebs_volume = self._get_ebs_volume(blockdevice_id)
-        _wait_for_volume(ebs_volume, expected_status=u'available')
+        _wait_for_volume(ebs_volume, expected_status=u'available',
+                         time_limit=120)
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -323,5 +324,4 @@ class EBSBlockDeviceAPI(object):
         raise UnknownVolume(blockdevice_id)
 
     def get_device_path(self, blockdevice_id):
-        """
-        """
+        pass
