@@ -176,7 +176,9 @@ class EBSBlockDeviceAPI(object):
         Lookup EBS Volume information for a given blockdevice_id.
 
         :param unicode blockdevice_id: ID of a blockdevice that needs lookup.
-        :returns boto.ec2.volume.Volume for the input id.
+
+        :returns boto.ec2.volume.Volume for the input id. ``None`` if
+            no boto.ec2.volume.Volume was found for the given id.
         """
         for volume in self.connection.get_all_volumes():
             if volume.id == blockdevice_id:
@@ -200,6 +202,8 @@ class EBSBlockDeviceAPI(object):
 
         :returns unicode file_name: available device name for attaching
             EBS volume.
+        :returns ``None`` if suitable EBS device names on this EC2
+            instance are currently occupied.
         """
         volumes = self.connection.get_all_volumes()
         devices = [v.attach_data.device for v in volumes
