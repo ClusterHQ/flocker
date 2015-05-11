@@ -30,7 +30,7 @@ def cinder_volume_manager():
 
 # All of the following tests could be part of the suite returned by
 # ``make_icindervolumemanager_tests`` instead.
-
+# https://clusterhq.atlassian.net/browse/FLOC-1846
 
 class VolumesCreateTests(SynchronousTestCase):
     """
