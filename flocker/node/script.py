@@ -309,36 +309,36 @@ class AgentServiceFactory(PRecord):
         validate_configuration(configuration=configuration)
 
         host = configuration['control-service']['hostname']
-        port = configuration['control-service']['port']
+        port = configuration['control-service'].get('port', 4524)
         ip = _get_external_ip(host, port)
         return AgentLoopService(
             reactor=reactor,
             # Temporary hack, to be fixed in FLOC-1783 probably:
             deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
-                                           backend_configuration=configuration,
-                                           reactor=reactor),
+                                           backend_configuration=configuration['dataset'],
+                                           reactor=reactor, hostname=ip),
             host=host, port=port,
         )
 
 
-def zfs_deployer_factory(reactor, zfs_pool):
+def zfs_deployer_factory(reactor, configuration):
     """
     TODO
     """
     volume_service = VolumeService(
         config_path=DEFAULT_CONFIG_PATH,
-        pool=zfs_pool,
+        pool=configuration.get('zfs-pool', FLOCKER_POOL),
         reactor=reactor,
     )
 
     return partial(P2PManifestationDeployer, volume_service=volume_service)
 
-def loopback_deployer_factory(loopback_pool):
+def loopback_deployer_factory(reactor, configuration):
     """
     TODO
     """
     api = LoopbackBlockDeviceAPI.from_path(
-        loopback_pool,
+        configuration.get('loopback-pool', '/var/lib/flocker/loopback'),
         # Make up a new value every time this script starts.  This will ensure
         # different instances of the script using this backend always appear to
         # be running on different nodes (as far as attachment is concerned).
