@@ -192,6 +192,7 @@ def buildIntegrationTests(mixinClass, name, fixture):
                 0, Site(self.app.resource()),
                 tls_context_factory(path)
             )
+            self.addCleanup(self.port.factory.stopFactory)
             self.addCleanup(self.port.stopListening)
             portno = self.port.getHost().port
             self.agent = ProxyAgent(
