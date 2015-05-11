@@ -32,6 +32,7 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 from ..control.httpapi import container_configuration_response, REST_API_PORT
+from ..control.httpapi import WebClientContextFactory
 
 from flocker.testtools import loop_until
 
@@ -68,8 +69,9 @@ MONGO_IMAGE = u"clusterhq/mongodb"
 
 # treq client that does insecure HTTPS authentication; will be switched
 # to something better in FLOC-1805:
+context_factory = WebClientContextFactory(ClientContextFactory())
 _treq_client = HTTPClient(Agent(reactor,
-                                contextFactory=ClientContextFactory()))
+                                contextFactory=context_factory))
 get, post, delete = _treq_client.get, _treq_client.post, _treq_client.delete
 
 
@@ -310,8 +312,7 @@ def flocker_deploy(test_case, deployment_config, application_config):
     :param dict application_config: The desired application configuration.
     """
     control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
-    certificate_path = control_node = environ.get(
-        "FLOCKER_ACCEPTANCE_API_CERTIFICATE_PATH")
+    certificate_path = environ.get("FLOCKER_ACCEPTANCE_API_CERTIFICATE_PATH")
     if control_node is None:
         raise SkipTest("Set control node address using "
                        "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
@@ -324,9 +325,9 @@ def flocker_deploy(test_case, deployment_config, application_config):
 
     application = temp.child(b"application.yml")
     application.setContent(safe_dump(application_config))
-
-    check_call([b"flocker-deploy", b"--certificate-path", certificate_path,
-                control_node, deployment.path, application.path])
+    check_call([b"flocker-deploy", b"--certificate-directory",
+               certificate_path, control_node, deployment.path,
+               application.path])
 
 
 def get_mongo_client(host, port=27017):
