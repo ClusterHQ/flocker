@@ -37,31 +37,8 @@ from ..control import ConfigurationError
 
 
 __all__ = [
-    "flocker_zfs_agent_main",
     "flocker_dataset_agent_main",
 ]
-
-
-@flocker_standard_options
-@flocker_volume_options
-class ZFSAgentOptions(Options):
-    """
-    Command line options for ``flocker-zfs-agent`` cluster management process.
-    """
-    longdesc = """\
-    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
-    """
-
-    synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
-
-    optParameters = [
-        ["agent-config", "c", "/etc/flocker/agent.yml",
-         "The configuration file to set the control service."],
-    ]
-
-    def postOptions(self):
-        self['agent-config'] = FilePath(self['agent-config'])
-
 
 def _get_external_ip(host, port):
     """
@@ -150,63 +127,6 @@ def validate_configuration(configuration):
 
     v = Draft4Validator(schema, format_checker=FormatChecker())
     v.validate(configuration)
-    # try:
-    #     v.validate(options)
-    # except ValidationError as e:
-    #     raise ConfigurationError(
-    #         "Configuration has an error: {}.".format(e.message,)
-    #     )
-    #
-    # return {
-    #     'control-service': {
-    #         'hostname': options['control-service']['hostname'],
-    #         'port': options['control-service'].get('port', 4524),
-    #     },
-    #     'dataset': {
-    #         "backend": options['dataset']['backend'],
-    #         'zfs-pool': options['dataset'].get('zfs-pool', FLOCKER_POOL),
-    #         'loopback-pool': options['dataset'].get(
-    #             'loopback-pool', '/var/lib/flocker/loopback'),
-    #     }
-    # }
-
-
-@implementer(ICommandLineVolumeScript)
-class ZFSAgentScript(object):
-    """
-    A command to start a long-running process to manage volumes on one node of
-    a Flocker cluster.
-    """
-    def main(self, reactor, options, volume_service):
-        try:
-            agent_config = options[u'agent-config']
-            configuration = yaml.safe_load(agent_config.getContent())
-        except IOError:
-            # TODO test for this
-            raise ConfigurationError(
-                "Configuration file does not exist at '{}'.".format(path.path))
-
-        validate_configuration(configuration=configuration)
-        # configuration = agent_config_from_file(path=options[u'agent-config'])
-        host = configuration['control-service']['hostname']
-        port = configuration['control-service']["port"]
-        ip = _get_external_ip(host, port)
-        # Soon we'll extract this from TLS certificate for node.  Until then
-        # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
-        node_uuid = ip_to_uuid(ip)
-        deployer = P2PManifestationDeployer(ip, volume_service,
-                                            node_uuid=node_uuid)
-        loop = AgentLoopService(reactor=reactor, deployer=deployer,
-                                host=host, port=port)
-        volume_service.setServiceParent(loop)
-        return main_for_service(reactor, loop)
-
-
-def flocker_zfs_agent_main():
-    return FlockerScriptRunner(
-        script=VolumeScript(ZFSAgentScript()),
-        options=ZFSAgentOptions()
-    ).main()
 
 
 @flocker_standard_options
@@ -351,26 +271,23 @@ def loopback_deployer_factory(reactor, configuration):
 
     return partial(BlockDeviceDeployer, block_device_api=api)
 
-def dataset_deployer_from_configuration(node_uuid, backend_configuration, reactor):
+def dataset_deployer_from_configuration(node_uuid, dataset_configuration, reactor, host):
     """
     TODO
     """
     # TODO do what with node uuid?
     # TODO do what with compute_instance_id?
-    dataset_configuration = backend_configuration['dataset']
     # TODO maybe pass each of these individually to this function
-    zfs_pool = dataset_configuration['zfs-pool']
-    loopback_pool = dataset_configuration['loopback-pool']
-
     deployer_factories = {
-        "zfs": zfs_deployer_factory(reactor, zfs_pool),
-        "loopback": loopback_deployer_factory(loopback_pool),
+        "zfs": zfs_deployer_factory,
+        "loopback": loopback_deployer_factory,
     }
 
-    backend = backend_configuration['dataset']['backend']
+    backend = dataset_configuration['backend']
     deployer_factory = deployer_factories[backend]
-    hostname = backend_configuration['control-service']['hostname']
-    return deployer_factory(hostname=hostname)
+    deployer_partial = deployer_factory(reactor, dataset_configuration)
+    # TODO isn't host meant to be the IP of this node, not the control service?
+    return deployer_partial(hostname=host)
 
 def flocker_dataset_agent_main():
     """
