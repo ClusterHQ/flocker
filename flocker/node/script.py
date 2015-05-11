@@ -280,7 +280,7 @@ def dataset_deployer_from_configuration(node_uuid, dataset_configuration,
     """
     # TODO do what with node uuid?
     # TODO do what with compute_instance_id?
-    # TODO maybe pass each of these individually to this function
+
     deployer_factories = {
         "zfs": zfs_deployer_factory,
         "loopback": loopback_deployer_factory,
@@ -289,7 +289,6 @@ def dataset_deployer_from_configuration(node_uuid, dataset_configuration,
     backend = dataset_configuration['backend']
     deployer_factory = deployer_factories[backend]
     deployer_partial = deployer_factory(reactor, dataset_configuration)
-    # TODO isn't host meant to be the IP of this node, not the control service?
     return deployer_partial(hostname=host)
 
 
