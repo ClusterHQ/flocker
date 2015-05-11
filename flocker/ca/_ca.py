@@ -36,6 +36,7 @@ from OpenSSL import crypto
 from pyrsistent import PRecord, field
 from twisted.internet.ssl import (
     DistinguishedName, KeyPair, Certificate, CertificateOptions,
+    PrivateCertificate,
 )
 
 
@@ -306,6 +307,15 @@ class FlockerCredential(PRecord):
             )
         finally:
             os.umask(original_umask)
+
+    def private_certificate(self):
+        """
+        Combine private key and certificate into a ``PrivateCertificate``.
+
+        :return: ``PrivateCertificate`` instance.
+        """
+        return PrivateCertificate.fromCertificateAndKeyPair(
+            self.certificate, self.keypair.keypair)
 
 
 class UserCredential(PRecord):
