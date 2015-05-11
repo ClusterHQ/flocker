@@ -28,6 +28,10 @@ def cinder_volume_manager():
     return kwargs["cinder_volume_manager"]
 
 
+# All of the following tests could be part of the suite returned by
+# ``make_icindervolumemanager_tests`` instead.
+
+
 class VolumesCreateTests(SynchronousTestCase):
     """
     Tests for ``cinder.Client.volumes.create``.
