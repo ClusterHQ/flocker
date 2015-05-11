@@ -11,6 +11,8 @@ from urlparse import urljoin
 from effect import Func, Effect
 import yaml
 
+from characteristic import attributes
+
 from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
@@ -41,6 +43,18 @@ CLUSTERHQ_REPO = {
                     archive_bucket=ARCHIVE_BUCKET,
                     ),
 }
+
+
+@attributes(['distribution'])
+class DistributionNotSupported(NotImplementedError):
+    """
+    Raised when the provisioning step is not supported on the given
+    distribution.
+
+    :ivar bytes distribution: The distribution that isn't supported.
+    """
+    def __str__(self):
+        return "Distribution not supported: %s" % (self.distribution,)
 
 
 def task_test_homebrew(recipe):
@@ -91,7 +105,7 @@ def task_upgrade_kernel(distribution):
             run_from_args(['sync']),
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_install_kernel_devel():
@@ -129,7 +143,7 @@ def task_disable_selinux(distribution):
         # Fedora and Ubuntu do not have SELinux enabled
         return sequence([])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_enable_docker(distribution):
@@ -145,7 +159,7 @@ def task_enable_docker(distribution):
         # Ubuntu enables docker service during installation
         return sequence([])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def open_firewalld(service):
@@ -198,7 +212,7 @@ def task_enable_flocker_control(distribution):
             run_from_args(['service', 'flocker-control', 'start']),
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_open_control_firewall(distribution):
@@ -210,7 +224,7 @@ def task_open_control_firewall(distribution):
     elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
     return sequence([
         open_firewall(service)
@@ -251,7 +265,7 @@ def task_enable_flocker_agent(distribution, control_node):
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_create_flocker_pool_file():
@@ -392,7 +406,7 @@ def task_enable_updates_testing(distribution):
                 'yum-config-manager', '--enable', 'updates-testing'])
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_enable_docker_head_repository(distribution):
@@ -423,7 +437,7 @@ def task_enable_docker_head_repository(distribution):
                 path="/etc/yum.repos.d/virt7-testing.repo")
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_enable_zfs_testing(distribution):
@@ -439,7 +453,7 @@ def task_enable_zfs_testing(distribution):
                 'yum-config-manager', '--enable', 'zfs-testing'])
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def provision(distribution, package_source, variants):
