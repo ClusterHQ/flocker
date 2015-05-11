@@ -285,10 +285,8 @@ class ControlServicePolicyValidationTests(make_validation_tests(
         lambda port, good_ca: ControlServicePolicy(
             ca_certificate=good_ca.root.credential.certificate,
             # This value is irrelevant to the test, but required:
-            client_certificate=PrivateCertificate.fromCertificateAndKeyPair(
-                good_ca.user.credential.certificate,
-                good_ca.user.credential.keypair.keypair)).creatorForNetloc(
-                    b"127.0.0.1", port),
+            client_credential=good_ca.user.credential).creatorForNetloc(
+                b"127.0.0.1", port),
         # We are testing a client that is validating the control
         # service certificate:
         "control", validator_is_client=True)):

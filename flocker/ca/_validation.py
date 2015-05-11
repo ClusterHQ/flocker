@@ -27,16 +27,17 @@ class ControlServicePolicy(PRecord):
     :ivar Certificate ca_certificate: The certificate authority's
         certificate.
 
-    :ivar PrivateCertificate client_certificate: Client's
-        certificate/private key pair.
+    :ivar FlockerCredential client_credential: Client's certificate and
+        private key pair.
     """
     ca_certificate = field(mandatory=True)
-    client_certificate = field(mandatory=True)
+    client_credential = field(mandatory=True)
 
     def creatorForNetloc(self, hostname, port):
-        return optionsForClientTLS(u"control-service",
-                                   trustRoot=self.ca_certificate,
-                                   clientCertificate=self.client_certificate)
+        return optionsForClientTLS(
+            u"control-service",
+            trustRoot=self.ca_certificate,
+            clientCertificate=self.client_credential.private_certificate())
 
 
 class _ClientContextFactory(object):
