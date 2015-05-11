@@ -7,7 +7,6 @@ Docker API client.
 
 from __future__ import absolute_import
 
-import logging
 from time import sleep
 
 from zope.interface import Interface, implementer
@@ -28,9 +27,6 @@ from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 from ..control._model import (
     RestartNever, RestartAlways, RestartOnFailure, pset_field, pvector_field)
-
-
-logger = logging.getLogger(__name__)
 
 
 class AlreadyExists(Exception):
@@ -505,7 +501,11 @@ class DockerClient(object):
         :return: ``True`` if container is running, otherwise ``False``.
         """
         result = self._client.inspect_container(container_name)
-        logger.debug('Container %s state %s', container_name, result)
+        Message.new(
+            message_type="flocker:docker:container_state",
+            container=container_name,
+            state=result
+        ).write()
         return result['State']['Running']
 
     def remove(self, unit_name):
@@ -520,25 +520,35 @@ class DockerClient(object):
                 # Docker will return NOT_MODIFIED (which isn't an error) in
                 # that case.
                 try:
-                    logger.debug('Request container %s stop', container_name)
+                    Message.new(
+                        message_type="flocker:docker:container_stop",
+                        container=container_name
+                    ).write()
                     self._client.stop(container_name)
                 except APIError as e:
                     if e.response.status_code == NOT_FOUND:
                         # If the container doesn't exist, we swallow the error,
                         # since this method is supposed to be idempotent.
-                        logger.debug('Container %s not found', container_name)
+                        Message.new(
+                            message_type="flocker:docker:container_not_found",
+                            container=container_name
+                        ).write()
                         break
                     elif e.response.status_code == INTERNAL_SERVER_ERROR:
                         # Docker returns this if the process had died, but
                         # hasn't noticed it yet.
-                        logger.debug(
-                            'Container %s stop internal error - retry',
-                            container_name)
+                        Message.new(
+                            message_type="flocker:docker:container_stop_internal_error",  # noqa
+                            container=container_name
+                        ).write()
                         continue
                     else:
                         raise
                 else:
-                    logger.debug('Container %s stopped', container_name)
+                    Message.new(
+                        message_type="flocker:docker:container_stopped",
+                        container=container_name
+                    ).write()
                     break
 
             try:
@@ -554,17 +564,24 @@ class DockerClient(object):
                 while self._blocking_container_runs(container_name):
                     sleep(0.01)
 
-                logger.debug('Container %s remove', container_name)
+                Message.new(
+                    message_type="flocker:docker:container_remove",
+                    container=container_name
+                ).write()
                 self._client.remove_container(container_name)
-                logger.debug('Container %s removed', container_name)
+                Message.new(
+                    message_type="flocker:docker:container_removed",
+                    container=container_name
+                ).write()
             except APIError as e:
                 # If the container doesn't exist, we swallow the error,
                 # since this method is supposed to be idempotent.
                 if e.response.status_code == NOT_FOUND:
-                    logger.debug('Container %s not found', container_name)
+                    Message.new(
+                        message_type="flocker:docker:container_not_found",
+                        container=container_name
+                    ).write()
                     return
-                # Can't figure out how to get test coverage for this, but
-                # it's definitely necessary:
                 raise
         d = deferToThread(_remove)
         return d
