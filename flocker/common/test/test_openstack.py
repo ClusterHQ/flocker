@@ -22,7 +22,7 @@ except ImportError as e:
     dependency_skip = str(e)
 
     def auto_openstack_logging(*a, **kw):
-        pass
+        return lambda cls: cls
 else:
     dependency_skip = None
 
