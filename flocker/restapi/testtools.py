@@ -21,7 +21,7 @@ from zope.interface import implementer
 
 from twisted.python.log import err
 from twisted.web.iweb import IAgent, IResponse
-from twisted.internet.endpoints import SSL4ClientEndpoint
+from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet import defer
 from twisted.web.client import ProxyAgent, readBody
 from twisted.web.server import NOT_DONE_YET, Site
@@ -38,10 +38,6 @@ from twisted.internet import reactor
 from twisted.web.http_headers import Headers
 
 from flocker.restapi._schema import getValidator
-
-from ..control._protocol import tls_context_factory
-
-from ..ca import RootCredential, ControlCredential
 
 
 def loads(s):
@@ -186,19 +182,16 @@ def buildIntegrationTests(mixinClass, name, fixture):
             self.app = fixture(self)
             path = FilePath(self.mktemp())
             path.makedirs()
-            authority = RootCredential.initialize(path, b"mycluster")
-            ControlCredential.initialize(path, authority)
-            self.port = reactor.listenSSL(
+            self.port = reactor.listenTCP(
                 0, Site(self.app.resource()),
-                tls_context_factory(path)
+                interface=b"127.0.0.1",
             )
             self.addCleanup(self.port.factory.stopFactory)
             self.addCleanup(self.port.stopListening)
             portno = self.port.getHost().port
             self.agent = ProxyAgent(
-                SSL4ClientEndpoint(
-                    reactor, "127.0.0.1",
-                    portno, tls_context_factory(path)
+                TCP4ClientEndpoint(
+                    reactor, "127.0.0.1", portno,
                 ),
                 reactor
             )
