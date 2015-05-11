@@ -298,22 +298,26 @@ def flocker_deploy(test_case, deployment_config, application_config):
     :param dict deployment_config: The desired deployment configuration.
     :param dict application_config: The desired application configuration.
     """
-    control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
-    if control_node is None:
-        raise SkipTest("Set control node address using "
-                       "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
+    with start_action(action_type="acceptance:flocker-deploy",
+                      deployment_config=deployment_config,
+                      application_config=application_config):
+        control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
+        if control_node is None:
+            raise SkipTest("Set control node address using "
+                           "FLOCKER_ACCEPTANCE_CONTROL_NODE "
+                           "environment variable.")
 
-    temp = FilePath(test_case.mktemp())
-    temp.makedirs()
+        temp = FilePath(test_case.mktemp())
+        temp.makedirs()
 
-    deployment = temp.child(b"deployment.yml")
-    deployment.setContent(safe_dump(deployment_config))
+        deployment = temp.child(b"deployment.yml")
+        deployment.setContent(safe_dump(deployment_config))
 
-    application = temp.child(b"application.yml")
-    application.setContent(safe_dump(application_config))
+        application = temp.child(b"application.yml")
+        application.setContent(safe_dump(application_config))
 
-    check_call([b"flocker-deploy", control_node, deployment.path,
-                application.path])
+        check_call([b"flocker-deploy", control_node, deployment.path,
+                    application.path])
 
 
 def get_mongo_client(host, port=27017):
