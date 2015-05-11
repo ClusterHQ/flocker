@@ -6,6 +6,8 @@ Tests for :module:`flocker.node.script`.
 import netifaces
 import yaml
 
+from jsonschema.exceptions import ValidationError
+
 from zope.interface.verify import verifyObject
 
 from twisted.internet.defer import Deferred
@@ -18,7 +20,7 @@ from ...common.script import ICommandLineScript
 
 from ..script import (
     ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
-    AgentServiceFactory, DatasetAgentOptions, agent_config_from_file)
+    AgentServiceFactory, DatasetAgentOptions, validate_configuration)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
 from ...control import ConfigurationError
@@ -333,7 +335,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             "version": 1,
         }
 
-    def assertErrorForConfig(self, exception, message, configuration=None):
+    def assertErrorForConfig(self):
         """
         Assert that given a particular configuration,
         :func:`agent_config_from_file` will fail with an expected exception
@@ -345,56 +347,30 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             file. If ``None`` then the file will not exist.
         :param bytes message: The expected exception message.
         """
-        if configuration is not None:
-            self.config_file.setContent(yaml.safe_dump(configuration))
-
-        exception = self.assertRaises(
-            exception,
-            agent_config_from_file, self.config_file)
-
-        self.assertEqual(exception.message, message)
+        self.assertRaises(
+            ValidationError,
+            validate_configuration, self.configuration)
 
     def test_configuration_returned(self):
         """
         A dictionary specifying the desired agent configuration is returned
         when a valid configuration file is given.
         """
-        expected = {
-            'control-service': {
-                'hostname': self.configuration['control-service']['hostname'],
-                'port': self.configuration['control-service']['port'],
-            },
-            'dataset': {
-                'backend': 'zfs',
-                'zfs-pool': 'custom-pool',
-                'loopback-pool': '/var/lib/flocker/loopback',
-            },
-        }
+        # TODO change docstring
+        # TODO test with other options, use build_schema test
+        # like loopback option
+        # TODO separate out checking for existance and validation
 
-        self.config_file.setContent(yaml.safe_dump(self.configuration))
-        self.assertEqual(expected, agent_config_from_file(self.config_file))
-
-    def test_error_on_file_does_not_exist(self):
-        """
-        An error is raised if the config file does not exist.
-        """
-        self.assertErrorForConfig(
-            exception=ConfigurationError,
-            message="Configuration file does not exist at '{}'.".format(
-                self.config_file.path),
-        )
+        # Nothing is raised
+        validate_configuration(self.configuration)
 
     def test_error_on_invalid_config(self):
         """
         A ``ConfigurationError`` is raised if the config file is not formatted
         as a dictionary.
         """
-        self.assertErrorForConfig(
-            configuration="INVALID",
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'INVALID' is not of type 'object'."),
-        )
+        self.configuration = "INVALID"
+        self.assertErrorForConfig()
 
     def test_error_on_invalid_hostname(self):
         """
@@ -403,11 +379,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         self.configuration['control-service']['hostname'] = u"-1"
 
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: '-1' is not a 'hostname'."),
-        )
+        self.assertErrorForConfig()
 
     def test_error_on_missing_control_service(self):
         """
@@ -416,12 +388,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         self.configuration.pop('control-service')
 
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'control-service' is a required property."),
-        )
+        self.assertErrorForConfig()
 
     def test_error_on_missing_hostname(self):
         """
@@ -429,13 +396,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         contain a hostname in the ``u"control-service"`` key.
         """
         self.configuration['control-service'].pop('hostname')
-
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'hostname' is a required property."),
-        )
+        self.assertErrorForConfig()
 
     def test_error_on_missing_version(self):
         """
@@ -444,12 +405,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         self.configuration.pop('version')
 
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'version' is a required property."),
-        )
+        self.assertErrorForConfig()
 
     def test_error_on_high_version(self):
         """
@@ -458,12 +414,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         self.configuration['version'] = 2
 
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "2 is greater than the maximum of 1."),
-        )
+        self.assertErrorForConfig()
 
     def test_error_on_low_version(self):
         """
@@ -472,23 +423,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         self.configuration['version'] = 0.5
 
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "0.5 is less than the minimum of 1."),
-        )
-
-    def test_default_port(self):
-        """
-        If the config file does not contain a port in the
-        ``u"control-service"`` key, the default is 4524.
-        """
-        self.configuration['control-service'].pop('port')
-
-        self.config_file.setContent(yaml.safe_dump(self.configuration))
-        parsed = agent_config_from_file(path=self.config_file)
-        self.assertEqual(parsed['control-service']['port'], 4524)
+        self.assertErrorForConfig()
 
     def test_error_on_invalid_port(self):
         """
@@ -496,12 +431,7 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         self.configuration['control-service']['port'] = 1.1
 
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "1.1 is not of type 'integer'."),
-        )
+        self.assertErrorForConfig()
 
     def test_error_on_missing_dataset(self):
         """
@@ -510,76 +440,22 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         """
         self.configuration.pop('dataset')
 
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'dataset' is a required property."),
-        )
+        self.assertErrorForConfig()
 
     def test_error_on_missing_dataset_backend(self):
         """
         The dataset key must contain a backend type.
         """
         self.configuration['dataset'] = {}
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "{} is not valid under any of the given schemas."),
-        )
+        self.assertErrorForConfig()
 
     def test_error_on_invalid_dataset_type(self):
         """
         The dataset key must contain a valid dataset type.
         """
         self.configuration['dataset'] = {"backend": "invalid"}
-        self.assertErrorForConfig(
-            configuration=self.configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "{'backend': 'invalid'} is not valid under any of the "
-                     "given schemas."),
-        )
+        self.assertErrorForConfig()
 
-    def test_default_zfs_pool(self):
-        """
-        If no zfs pool is specified, 'flocker' is used.
-        """
-        self.configuration['dataset'] = {"backend": "zfs"}
-
-        self.config_file.setContent(yaml.safe_dump(self.configuration))
-        parsed = agent_config_from_file(path=self.config_file)
-        self.assertEqual(parsed['dataset']['zfs-pool'], 'flocker')
-
-    def test_custom_loopback_pool(self):
-        """
-        A custom loopback pool can be set.
-        """
-        self.configuration['dataset'] = {
-            "backend": "loopback",
-            "loopback-pool": "custom/loopback/pool",
-        }
-
-        self.config_file.setContent(yaml.safe_dump(self.configuration))
-        parsed = agent_config_from_file(path=self.config_file)
-        self.assertEqual(
-            parsed['dataset']['loopback-pool'],
-            "custom/loopback/pool",
-        )
-
-    def test_default_loopback_pool(self):
-        """
-        If no loopback pool is specified, /var/lib/flocker/loopback is used.
-        """
-        self.configuration['dataset'] = {"backend": "loopback"}
-
-        self.config_file.setContent(yaml.safe_dump(self.configuration))
-        parsed = agent_config_from_file(path=self.config_file)
-        self.assertEqual(
-            parsed['dataset']['loopback-pool'],
-            '/var/lib/flocker/loopback',
-        )
 
 class DatasetAgentOptionsTests(
         make_amp_agent_options_tests(DatasetAgentOptions)

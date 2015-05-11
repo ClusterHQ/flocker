@@ -83,8 +83,10 @@ def _get_external_ip(host, port):
         sock.close()
 
 
-def agent_config_from_file(path):
+def validate_configuration(configuration):
     """
+    # TODO change
+
     Extract configuration from provided options.
 
     :param FilePath path: Path to a file containing specified options for an
@@ -92,12 +94,6 @@ def agent_config_from_file(path):
 
     :return dict: Dictionary containing the desired configuration.
     """
-    try:
-        options = yaml.safe_load(path.getContent())
-    except IOError:
-        raise ConfigurationError(
-            "Configuration file does not exist at '{}'.".format(path.path))
-
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
@@ -153,25 +149,26 @@ def agent_config_from_file(path):
     }
 
     v = Draft4Validator(schema, format_checker=FormatChecker())
-    try:
-        v.validate(options)
-    except ValidationError as e:
-        raise ConfigurationError(
-            "Configuration has an error: {}.".format(e.message,)
-        )
-
-    return {
-        'control-service': {
-            'hostname': options['control-service']['hostname'],
-            'port': options['control-service'].get('port', 4524),
-        },
-        'dataset': {
-            "backend": options['dataset']['backend'],
-            'zfs-pool': options['dataset'].get('zfs-pool', FLOCKER_POOL),
-            'loopback-pool': options['dataset'].get(
-                'loopback-pool', '/var/lib/flocker/loopback'),
-        }
-    }
+    v.validate(configuration)
+    # try:
+    #     v.validate(options)
+    # except ValidationError as e:
+    #     raise ConfigurationError(
+    #         "Configuration has an error: {}.".format(e.message,)
+    #     )
+    #
+    # return {
+    #     'control-service': {
+    #         'hostname': options['control-service']['hostname'],
+    #         'port': options['control-service'].get('port', 4524),
+    #     },
+    #     'dataset': {
+    #         "backend": options['dataset']['backend'],
+    #         'zfs-pool': options['dataset'].get('zfs-pool', FLOCKER_POOL),
+    #         'loopback-pool': options['dataset'].get(
+    #             'loopback-pool', '/var/lib/flocker/loopback'),
+    #     }
+    # }
 
 
 @implementer(ICommandLineVolumeScript)
@@ -181,7 +178,16 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        configuration = agent_config_from_file(path=options[u'agent-config'])
+        try:
+            agent_config = options[u'agent-config']
+            configuration = yaml.safe_load(agent_config.getContent())
+        except IOError:
+            # TODO test for this
+            raise ConfigurationError(
+                "Configuration file does not exist at '{}'.".format(path.path))
+
+        validate_configuration(configuration=configuration)
+        # configuration = agent_config_from_file(path=options[u'agent-config'])
         host = configuration['control-service']['hostname']
         port = configuration['control-service']["port"]
         ip = _get_external_ip(host, port)
@@ -292,7 +298,16 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        configuration = agent_config_from_file(path=options[u'agent-config'])
+        try:
+            agent_config = options[u'agent-config']
+            configuration = yaml.safe_load(agent_config.getContent())
+        except IOError:
+            # TODO test for this
+            raise ConfigurationError(
+                "Configuration file does not exist at '{}'.".format(path.path))
+
+        validate_configuration(configuration=configuration)
+
         host = configuration['control-service']['hostname']
         port = configuration['control-service']['port']
         ip = _get_external_ip(host, port)
