@@ -5,6 +5,9 @@
 An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
+import glob
+import os
+import re
 import threading
 import time
 from uuid import UUID
@@ -15,6 +18,7 @@ from pyrsistent import PRecord, field
 from zope.interface import implementer
 from boto import ec2
 from boto.utils import get_instance_metadata
+from twisted.python.filepath import FilePath
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -24,6 +28,7 @@ from .blockdevice import (
 DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
+ATTACHED_DEVICE_LABEL = u'attached-device-name'
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -110,6 +115,44 @@ def _wait_for_volume(expected_volume,
                     time_limit
                 )
             )
+
+
+def _wait_for_new_device(base, time_limit=60):
+    """
+    Helper function to wait for up to 60s for new
+    EBS block device (`/dev/sd*` or `/dev/xvd*`) to
+    manifest in the OS.
+
+    :param list base: List of baseline block devices
+        that existed before execution of operation that expects
+        to create a new block device.
+
+    :returns unicode device: Name of the new block device
+        we are interested in.
+
+    :raises Exception: When new EBS block device did not
+        manifest in OS within time limit.
+
+    """
+    patterns = ['sd.*', 'xvd.*']
+    start_time = time.time()
+    elapsed_time = time.time() - start_time
+    while elapsed_time < time_limit:
+        for device in list(set(glob.glob('/sys/block/*')) - set(base)):
+            for pattern in patterns:
+                if re.compile(pattern).match(os.path.basename(device)):
+                    new_device = '/dev/%s' % os.path.basename(device)
+                    return new_device
+        time.sleep(0.1)
+        elapsed_time = time.time() - start_time
+
+    raise Exception(
+        'Timed out while waiting for OS block device to manifest. '
+        'Elapsed Time: {!r}, '
+        'Time Limit: {!r}.'.format(
+            elapsed_time, time_limit
+        )
+    )
 
 
 def _is_cluster_volume(cluster_id, ebs_volume):
@@ -275,14 +318,29 @@ class EBSBlockDeviceAPI(object):
             raise AlreadyAttachedVolume(blockdevice_id)
 
         self.lock.acquire()
+        blockdevices = glob.glob('/sys/block/*')
         device = self._next_device(attach_to)
         self.connection.attach_volume(blockdevice_id, attach_to, device)
+
+        # Wait for new device to manifest in the OS. Since there
+        # is currently no standardized protocol across Linux guests
+        # in EC2 for mapping `device` to the name device driver picked (see
+        # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html)
+        # let us wait for a new block device to be available to the OS,
+        # and interpret it as ours.
+        # Wait under lock scope to reduce false positives.
+        new_device = _wait_for_new_device(blockdevices)
         self.lock.release()
 
+        # Stamp EBS volume with attached device name tag.
         ebs_volume = self._get_ebs_volume(blockdevice_id)
+        metadata = {
+            ATTACHED_DEVICE_LABEL: unicode(new_device),
+        }
+        self.connection.create_tags([ebs_volume.id], metadata)
         _wait_for_volume(ebs_volume, expected_status=u'in-use')
-        attached_volume = volume.set('attached_to', attach_to)
 
+        attached_volume = volume.set('attached_to', attach_to)
         return attached_volume
 
     def detach_volume(self, blockdevice_id):
@@ -303,7 +361,10 @@ class EBSBlockDeviceAPI(object):
         self.connection.detach_volume(blockdevice_id)
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         _wait_for_volume(ebs_volume, expected_status=u'available',
-                         time_limit=120)
+                         time_limit=180)
+
+        # Delete attached device metadata from EBS Volume
+        self.connection.delete_tags([ebs_volume.id], [ATTACHED_DEVICE_LABEL])
 
     def destroy_volume(self, blockdevice_id):
         """
@@ -328,4 +389,24 @@ class EBSBlockDeviceAPI(object):
         raise UnknownVolume(blockdevice_id)
 
     def get_device_path(self, blockdevice_id):
-        pass
+        """
+        Get device path for the EBS volume corresponding to the given
+        block device.
+
+        :param unicode blockdevice_id: EBS UUID for the volume to look up.
+
+        :returns: A ``FilePath`` for the device.
+        :raises UnknownVolume: If the supplied ``blockdevice_id`` does not
+            exist.
+        :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
+            not attached to a host.
+        """
+        volume = self._get(blockdevice_id)
+        if volume.attached_to is None:
+            raise UnattachedVolume(blockdevice_id)
+
+        ebs_volume = self._get_ebs_volume(blockdevice_id)
+        device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
+        if device is None:
+            raise UnattachedVolume(blockdevice_id)
+        return FilePath(device)

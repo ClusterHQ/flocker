@@ -62,6 +62,10 @@ def ebsblockdeviceapi_for_test(test_case, cluster_id):
         'test_multiple_volumes_attached_to_host',
         'test_compute_instance_id_nonempty',
         'test_compute_instance_id_unicode',
+        'test_get_device_path_device',
+        'test_get_device_path_device_repeatable_results',
+        'test_get_device_path_unattached_volume',
+        'test_get_device_path_unknown_volume',
     ]
 )
 class EBSBlockDeviceAPIInterfaceTests(
