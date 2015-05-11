@@ -561,7 +561,7 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
      u"deleted": u"hello"},
 ]
 
-CONFIGURATION_DATASETS_PASSING_INSTANCES = [
+CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES = [
     # everything optional except primary
     {u"primary": a_uuid},
 
@@ -570,26 +570,30 @@ CONFIGURATION_DATASETS_PASSING_INSTANCES = [
      u"metadata":
          dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
 
-    # maximum_size is an integer of at least 64MiB
-    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
-
-    # maximum_size may be null, which means no size limit
-    {u"primary": a_uuid, u"maximum_size": None},
-
     # dataset_id is a string of 36 characters
     {u"primary": a_uuid, u"dataset_id": u"x" * 36},
 
     # deleted is a boolean
     {u"primary": a_uuid, u"deleted": False},
-
-    # All of them can be combined.
-    {u"primary": a_uuid,
-     u"metadata":
-         dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
-     u"maximum_size": 1024 * 1024 * 64,
-     u"dataset_id": u"x" * 36,
-     u"deleted": True},
 ]
+
+CONFIGURATION_DATASETS_PASSING_INSTANCES = (
+    CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES + [
+        # maximum_size is an integer of at least 64MiB
+        {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
+
+        # maximum_size may be null, which means no size limit
+        {u"primary": a_uuid, u"maximum_size": None},
+
+        # All of them can be combined.
+        {u"primary": a_uuid,
+         u"metadata":
+             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
+         u"maximum_size": 1024 * 1024 * 64,
+         u"dataset_id": u"x" * 36,
+         u"deleted": True},
+    ]
+)
 
 ConfigurationDatasetsSchemaTests = build_schema_test(
     name="ConfigurationDatasetsSchemaTests",
@@ -607,7 +611,7 @@ ConfigurationDatasetsUpdateSchemaTests = build_schema_test(
             '/v1/endpoints.json#/definitions/configuration_datasets_update'},
     schema_store=SCHEMAS,
     failing_instances=CONFIGURATION_DATASETS_FAILING_INSTANCES,
-    passing_instances=CONFIGURATION_DATASETS_PASSING_INSTANCES,
+    passing_instances=CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES,
 )
 
 

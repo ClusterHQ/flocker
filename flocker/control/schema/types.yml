@@ -271,3 +271,19 @@ definitions:
       maximum_size:
         '$ref': '#/definitions/maximum_size'
     additionalProperties: false
+
+  dataset_configuration_update:
+    title: "Dataset Configuration"
+    description: "The configuration for a particular dataset."
+    type: object
+    properties:
+      primary:
+        '$ref': '#/definitions/primary'
+      dataset_id:
+        '$ref': '#/definitions/dataset_id'
+      deleted:
+        '$ref': '#/definitions/deleted'
+      metadata:
+        '$ref': '#/definitions/metadata'
+    additionalProperties: false
+
