@@ -23,8 +23,6 @@ from klein import Klein
 
 from pyrsistent import discard
 
-from ._protocol import tls_context_factory
-
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
 )
@@ -1054,7 +1052,7 @@ def api_dataset_from_dataset_and_node(dataset, node_uuid):
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint,
-                       certificate_path):
+                       context_factory):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 
@@ -1066,8 +1064,7 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
 
     :param endpoint: Twisted endpoint to listen on.
 
-    :param FilePath certificate_path: Absolute path to directory containing
-        the control service's certificate and private key.
+    :param context_factory: TLS context factory.
 
     :return: Service that will listen on the endpoint using HTTP API server.
     """
@@ -1075,7 +1072,7 @@ def create_api_service(persistence_service, cluster_state_service, endpoint,
     user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
     api_root.putChild('v1', user.app.resource())
     api_root._v1_user = user  # For unit testing purposes, alas
-    context_factory = tls_context_factory(certificate_path)
+
     return StreamServerEndpointService(
         endpoint,
         TLSMemoryBIOFactory(

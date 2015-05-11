@@ -25,11 +25,11 @@ from twisted.web.http_headers import Headers
 from twisted.web.client import FileBodyProducer, readBody
 from twisted.application.service import IService
 from twisted.python.filepath import FilePath
+from twisted.internet.ssl import ClientContextFactory
 
 from ...restapi.testtools import (
     buildIntegrationTests, dumps, loads)
 
-from ...ca import RootCredential, ControlCredential
 from .. import (
     Application, Dataset, Manifestation, Node, NodeState,
     Deployment, AttachedVolume, DockerImage, Port, RestartOnFailure,
@@ -2746,27 +2746,20 @@ class CreateAPIServiceTests(SynchronousTestCase):
         """
         ``create_api_service`` returns an object providing ``IService``.
         """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        authority = RootCredential.initialize(path, b"mycluster")
-        ControlCredential.initialize(path, authority)
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
         verifyObject(IService, create_api_service(
-            None, None, endpoint, path))
+            None, None, endpoint, ClientContextFactory()))
 
     def test_listens_endpoint(self):
         """
         ``create_api_service`` returns a service that listens using the given
         endpoint with a TLS server.
         """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        authority = RootCredential.initialize(path, b"mycluster")
-        ControlCredential.initialize(path, authority)
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        service = create_api_service(None, None, endpoint, path)
+        service = create_api_service(None, None, endpoint,
+                                     ClientContextFactory())
         self.addCleanup(service.stopService)
         service.startService()
         server = reactor.tcpServers[0]
