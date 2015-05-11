@@ -37,33 +37,11 @@ from twisted.protocols.amp import (
     Argument, Command, Integer, CommandLocator, AMP, Unicode, ListOf,
 )
 from twisted.internet.protocol import ServerFactory
-from twisted.internet.ssl import PrivateCertificate
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
-from ..ca import ControlCredential
 
 from ._persistence import wire_encode, wire_decode
 from ._model import Deployment, NodeState, DeploymentState, NonManifestDatasets
-
-
-def tls_context_factory(path):
-    """
-    Create the security properties context factory for a ControlCredential
-    TLS connection using the control service certificate found in the
-    supplied path.
-
-    :param FilePath path: Absolute path to directory containing
-        control service certificate and private key files.
-
-    :return CertificateOptions: A context factory pre-loaded with the
-        options of the control service certificate.
-    """
-    control_credential = ControlCredential.from_path(path)
-    control_certificate = PrivateCertificate.fromCertificateAndKeyPair(
-        control_credential.credential.certificate,
-        control_credential.credential.keypair.keypair
-    )
-    return control_certificate.options()
 
 
 class SerializableArgument(Argument):
@@ -221,20 +199,18 @@ class ControlAMPService(Service):
     logger = Logger()
 
     def __init__(self, cluster_state, configuration_service,
-                 endpoint, certificate_path=None):
+                 endpoint, context_factory):
         """
         :param ClusterStateService cluster_state: Object that records known
             cluster state.
         :param ConfigurationPersistenceService configuration_service:
             Persistence service for desired cluster configuration.
         :param endpoint: Endpoint to listen on.
-        :param FilePath certificate_path: Absolute path to directory
-            containing control service's certificate and private key.
+        :param context_factory: TLS context factory.
         """
         self.connections = set()
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
-        context_factory = tls_context_factory(certificate_path)
         self.endpoint_service = StreamServerEndpointService(
             endpoint,
             TLSMemoryBIOFactory(

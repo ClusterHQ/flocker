@@ -23,6 +23,7 @@ from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
+from twisted.internet.ssl import ClientContextFactory
 
 from .._protocol import (
     SerializableArgument,
@@ -36,7 +37,6 @@ from .. import (
     Dataset, DeploymentState, NonManifestDatasets,
 )
 from .._persistence import ConfigurationPersistenceService
-from ...ca import RootCredential, ControlCredential
 
 
 class LoopbackAMPClient(object):
@@ -191,10 +191,6 @@ def build_control_amp_service(test):
 
     :return ControlAMPService: Not started.
     """
-    path = FilePath(test.mktemp())
-    path.makedirs()
-    authority = RootCredential.initialize(path, b"mycluster")
-    ControlCredential.initialize(path, authority)
     cluster_state = ClusterStateService()
     cluster_state.startService()
     test.addCleanup(cluster_state.stopService)
@@ -203,7 +199,9 @@ def build_control_amp_service(test):
     persistence_service.startService()
     test.addCleanup(persistence_service.stopService)
     return ControlAMPService(cluster_state, persistence_service,
-                             TCP4ServerEndpoint(MemoryReactor(), 1234), path)
+                             TCP4ServerEndpoint(MemoryReactor(), 1234),
+                             # Easiest TLS context factory to create:
+                             ClientContextFactory())
 
 
 class ControlTestCase(SynchronousTestCase):
