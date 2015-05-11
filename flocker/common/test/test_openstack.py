@@ -11,15 +11,19 @@ from eliot.testing import LoggedMessage, assertContainsFields, capture_logging
 
 from zope.interface import Interface, implementer
 
-from novaclient.exceptions import ClientException as NovaClientException
-from keystoneclient.openstack.common.apiclient.exceptions import (
-    HttpError as KeystoneHttpError,
-)
+try:
+    from novaclient.exceptions import ClientException as NovaClientException
+    from keystoneclient.openstack.common.apiclient.exceptions import (
+        HttpError as KeystoneHttpError,
+    )
+    from .. import auto_openstack_logging
+    from .._openstack import NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR
+except ImportError as e:
+    dependency_skip = str(e)
+else:
+    dependency_skip = None
 
 from requests import Response
-
-from .. import auto_openstack_logging
-from .._thread import NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR
 
 
 class IDummy(Interface):
@@ -56,6 +60,9 @@ class AutoOpenStackLoggingTests(SynchronousTestCase):
     """
     Tests for ``auto_openstack_logging``.
     """
+    if dependency_skip is not None:
+        skip = dependency_skip
+
     def test_return(self):
         """
         Decorated methods return the value returned by the original method.
