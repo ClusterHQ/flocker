@@ -10,6 +10,7 @@ from twisted.internet.threads import deferToThreadPool
 
 
 # TODO: Add tests and documentation for this, make it public (somewhere else).
+# https://clusterhq.atlassian.net/browse/FLOC-1847
 def _interface_decorator(decorator_name, interface, method_decorator,
                          *args, **kwargs):
     """
