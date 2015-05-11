@@ -240,15 +240,18 @@ def get_nodes(test_case, num_nodes):
     reachable_nodes = set()
 
     for node in nodes:
-        sock = socket()
-        try:
-            can_connect = not sock.connect_ex((node, 22))
-        except gaierror:
-            can_connect = False
-        finally:
-            if can_connect:
-                reachable_nodes.add(node)
-            sock.close()
+        with start_action(action_type="acceptance:check_reachable",
+                          node=node) as reachable_action:
+            sock = socket()
+            try:
+                can_connect = not sock.connect_ex((node, 22))
+            except gaierror:
+                can_connect = False
+            finally:
+                if can_connect:
+                    reachable_nodes.add(node)
+                sock.close()
+            reachable_action.add_success_fields(reachable=can_connect)
 
     if len(reachable_nodes) < num_nodes:
         unreachable_nodes = set(nodes) - reachable_nodes
