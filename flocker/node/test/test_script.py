@@ -19,7 +19,7 @@ from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 
 from ..script import (
-    ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
+    AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
@@ -27,68 +27,69 @@ from ...control import ConfigurationError
 from ...testtools import MemoryCoreReactor
 
 
-class ZFSAgentScriptTests(SynchronousTestCase):
-    """
-    Tests for ``ZFSAgentScript``.
-    """
-    def setUp(self):
-        scratch_directory = FilePath(self.mktemp())
-        scratch_directory.makedirs()
-        self.config = scratch_directory.child('dataset-config.yml')
-        self.config.setContent(yaml.safe_dump({
-            u"control-service": {
-                u"hostname": u"10.0.0.1",
-                u"port": 1234,
-            },
-            u"dataset": {
-                u"backend": u"zfs",
-                u"zfs-pool": u"custom-pool",
-            },
-            u"version": 1,
-        }))
-
-    def test_main_starts_service(self):
-        """
-        ``ZFSAgentScript.main`` starts the given service.
-        """
-        service = Service()
-        options = ZFSAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
-        ZFSAgentScript().main(MemoryCoreReactor(), options, service)
-        self.assertTrue(service.running)
-
-    def test_no_immediate_stop(self):
-        """
-        The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
-        """
-        script = ZFSAgentScript()
-        options = ZFSAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
-        self.assertNoResult(script.main(MemoryCoreReactor(), options,
-                                        Service()))
-
-    def test_starts_convergence_loop(self):
-        """
-        ``ZFSAgentScript.main`` starts a convergence loop service.
-        """
-        service = Service()
-        options = ZFSAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
-        test_reactor = MemoryCoreReactor()
-        ZFSAgentScript().main(test_reactor, options, service)
-        parent_service = service.parent
-        # P2PManifestationDeployer is difficult to compare automatically,
-        # so do so manually:
-        deployer = parent_service.deployer
-        parent_service.deployer = None
-        self.assertEqual((parent_service, deployer.__class__,
-                          deployer.volume_service,
-                          parent_service.running),
-                         (AgentLoopService(reactor=test_reactor,
-                                           deployer=None,
-                                           host=u"10.0.0.1",
-                                           port=1234),
-                          P2PManifestationDeployer, service, True))
+# TODO make these generic tests for each backend
+# class ZFSAgentScriptTests(SynchronousTestCase):
+#     """
+#     Tests for ``ZFSAgentScript``.
+#     """
+#     def setUp(self):
+#         scratch_directory = FilePath(self.mktemp())
+#         scratch_directory.makedirs()
+#         self.config = scratch_directory.child('dataset-config.yml')
+#         self.config.setContent(yaml.safe_dump({
+#             u"control-service": {
+#                 u"hostname": u"10.0.0.1",
+#                 u"port": 1234,
+#             },
+#             u"dataset": {
+#                 u"backend": u"zfs",
+#                 u"zfs-pool": u"custom-pool",
+#             },
+#             u"version": 1,
+#         }))
+#
+#     def test_main_starts_service(self):
+#         """
+#         ``ZFSAgentScript.main`` starts the given service.
+#         """
+#         service = Service()
+#         options = ZFSAgentOptions()
+#         options.parseOptions([b"--agent-config", self.config.path])
+#         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
+#         self.assertTrue(service.running)
+#
+#     def test_no_immediate_stop(self):
+#         """
+#         The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
+#         """
+#         script = ZFSAgentScript()
+#         options = ZFSAgentOptions()
+#         options.parseOptions([b"--agent-config", self.config.path])
+#         self.assertNoResult(script.main(MemoryCoreReactor(), options,
+#                                         Service()))
+#
+#     def test_starts_convergence_loop(self):
+#         """
+#         ``ZFSAgentScript.main`` starts a convergence loop service.
+#         """
+#         service = Service()
+#         options = ZFSAgentOptions()
+#         options.parseOptions([b"--agent-config", self.config.path])
+#         test_reactor = MemoryCoreReactor()
+#         ZFSAgentScript().main(test_reactor, options, service)
+#         parent_service = service.parent
+#         # P2PManifestationDeployer is difficult to compare automatically,
+#         # so do so manually:
+#         deployer = parent_service.deployer
+#         parent_service.deployer = None
+#         self.assertEqual((parent_service, deployer.__class__,
+#                           deployer.volume_service,
+#                           parent_service.running),
+#                          (AgentLoopService(reactor=test_reactor,
+#                                            deployer=None,
+#                                            host=u"10.0.0.1",
+#                                            port=1234),
+#                           P2PManifestationDeployer, service, True))
 
 
 def get_all_ips():
@@ -472,15 +473,3 @@ class ContainerAgentOptionsTests(
     Tests for ``ContainerAgentOptions``.
     """
 
-
-class ZFSAgentOptionsTests(make_amp_agent_options_tests(ZFSAgentOptions)):
-    """
-    Tests for ``ZFSAgentOptions``.
-    """
-
-
-class ZFSAgentOptionsVolumeTests(make_volume_options_tests(
-        ZFSAgentOptions, [])):
-    """
-    Tests for the volume configuration arguments of ``ZFSAgentOptions``.
-    """
