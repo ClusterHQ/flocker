@@ -20,6 +20,9 @@ try:
     from .._openstack import NOVA_CLIENT_EXCEPTION, KEYSTONE_HTTP_ERROR
 except ImportError as e:
     dependency_skip = str(e)
+
+    def auto_openstack_logging(*a, **kw):
+        pass
 else:
     dependency_skip = None
 
