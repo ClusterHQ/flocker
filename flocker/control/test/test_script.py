@@ -10,7 +10,7 @@ from .._clusterstate import ClusterStateService
 from .._protocol import ControlAMP, ControlAMPService
 from ..httpapi import REST_API_PORT
 
-from ...ca import RootCredential, ControlCredential
+from ...ca.testtools import get_credential_sets
 
 
 class ControlOptionsTests(StandardOptionsTestsMixin,
@@ -81,11 +81,15 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         """
         Create some certificates to use when creating the control service.
         """
+        ca_set, _ = get_credential_sets()
         self.certificate_path = FilePath(self.mktemp())
         self.certificate_path.makedirs()
-        authority = RootCredential.initialize(
-            self.certificate_path, b"mycluster")
-        ControlCredential.initialize(self.certificate_path, authority)
+        ca_set.path.child(b"cluster.crt").copyTo(
+            self.certificate_path.child(b"cluster.crt"))
+        ca_set.path.globChildren(b"control-*.crt")[0].copyTo(
+            self.certificate_path.child(b"control-service.crt"))
+        ca_set.path.globChildren(b"control-*.key")[0].copyTo(
+            self.certificate_path.child(b"control-service.key"))
 
     def test_starts_http_api_server(self):
         """
@@ -94,7 +98,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         options = ControlOptions()
         options.parseOptions([
             b"--port", b"tcp:8001", b"--data-path", self.mktemp(),
-            b"--certificate-path", self.certificate_path.path
+            b"--certificates-directory", self.certificate_path.path
         ])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
@@ -111,7 +115,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         options = ControlOptions()
         options.parseOptions([
             b"--data-path", self.mktemp(),
-            b"--certificate-path", self.certificate_path.path
+            b"--certificates-directory", self.certificate_path.path
         ])
         self.assertNoResult(script.main(MemoryCoreReactor(), options))
 
@@ -123,7 +127,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         options = ControlOptions()
         options.parseOptions([
             b"--data-path", path.path,
-            b"--certificate-path", self.certificate_path.path
+            b"--certificates-directory", self.certificate_path.path
         ])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
@@ -136,7 +140,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         options = ControlOptions()
         options.parseOptions([
             b"--port", b"tcp:8001", b"--data-path", self.mktemp(),
-            b"--certificate-path", self.certificate_path.path
+            b"--certificates-directory", self.certificate_path.path
         ])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
@@ -153,7 +157,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         options = ControlOptions()
         options.parseOptions([
             b"--agent-port", b"tcp:8001", b"--data-path", self.mktemp(),
-            b"--certificate-path", self.certificate_path.path
+            b"--certificates-directory", self.certificate_path.path
         ])
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
