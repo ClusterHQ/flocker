@@ -18,11 +18,44 @@ from ...common.script import ICommandLineScript
 
 from ..script import (
     ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
-    AgentServiceFactory, DatasetAgentOptions, agent_config_from_file)
+    AgentServiceFactory, DatasetAgentOptions, agent_config_from_file,
+    _context_factory)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
 from ...control import ConfigurationError
 from ...testtools import MemoryCoreReactor
+from ...ca.testtools import get_credential_sets
+
+
+def setup_config(test):
+    """
+    Create a configuration file and certificates for a dataset agent in a
+    temporary directory.
+
+    Sets ``config`` attribute on the test instance with the path to the
+    config file.
+
+    :param test: A ``TestCase`` instance.
+    """
+    ca_set, _ = get_credential_sets()
+    scratch_directory = FilePath(test.mktemp())
+    scratch_directory.makedirs()
+    test.config = scratch_directory.child('dataset-config.yml')
+    test.config.setContent(
+        yaml.safe_dump({
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+                u"port": 1234,
+            },
+            u"version": 1,
+        }))
+    ca_set.path.child(b"cluster.crt").copyTo(
+        scratch_directory.child(b"cluster.crt"))
+    uuid = ca_set.node.uuid
+    ca_set.path.child(b"{}.crt".format(uuid)).copyTo(
+        scratch_directory.child(b"node.crt"))
+    ca_set.path.child(b"{}.key".format(uuid)).copyTo(
+        scratch_directory.child(b"node.key"))
 
 
 class ZFSAgentScriptTests(SynchronousTestCase):
@@ -30,17 +63,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
     Tests for ``ZFSAgentScript``.
     """
     def setUp(self):
-        scratch_directory = FilePath(self.mktemp())
-        scratch_directory.makedirs()
-        self.config = scratch_directory.child('dataset-config.yml')
-        self.config.setContent(
-            yaml.safe_dump({
-                u"control-service": {
-                    u"hostname": u"10.0.0.1",
-                    u"port": 1234,
-                },
-                u"version": 1,
-            }))
+        setup_config(self)
 
     def test_main_starts_service(self):
         """
@@ -82,7 +105,10 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                          (AgentLoopService(reactor=test_reactor,
                                            deployer=None,
                                            host=u"10.0.0.1",
-                                           port=1234),
+                                           port=1234,
+                                           context_factory=_context_factory(
+                                               self.config.parent(),
+                                               b"10.0.0.1", 1234)),
                           P2PManifestationDeployer, service, True))
 
 
@@ -109,17 +135,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
     Tests for ``AgentServiceFactory``.
     """
     def setUp(self):
-        scratch_directory = FilePath(self.mktemp())
-        scratch_directory.makedirs()
-        self.config = scratch_directory.child('dataset-config.yml')
-        self.config.setContent(
-            yaml.safe_dump({
-                u"control-service": {
-                    u"hostname": u"10.0.0.2",
-                    u"port": 1234,
-                },
-                u"version": 1,
-            }))
+        setup_config(self)
 
     def test_get_service(self):
         """
@@ -144,8 +160,10 @@ class AgentServiceFactoryTests(SynchronousTestCase):
             AgentLoopService(
                 reactor=reactor,
                 deployer=deployer,
-                host=b"10.0.0.2",
+                host=b"10.0.0.1",
                 port=1234,
+                context_factory=_context_factory(self.config.parent(),
+                                                 b"10.0.0.1", 1234),
             ),
             service_factory.get_service(reactor, options)
         )

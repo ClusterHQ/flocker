@@ -28,6 +28,7 @@ from machinist import (
 from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.protocol import ReconnectingClientFactory
+from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from . import run_state_change
 
@@ -371,15 +372,19 @@ class AgentLoopService(object, MultiService):
     :ivar factory: The factory used to connect to the control service.
     """
 
-    def __init__(self):
+    def __init__(self, context_factory):
+        """
+        :param context_factory: TLS context factory for the AMP client.
+        """
         MultiService.__init__(self)
         convergence_loop = build_convergence_loop_fsm(
             self.reactor, self.deployer
         )
         self.logger = convergence_loop.logger
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
-        self.factory = ReconnectingClientFactory.forProtocol(
-            lambda: AgentAMP(self))
+        self.factory = TLSMemoryBIOFactory(
+            context_factory, True, ReconnectingClientFactory.forProtocol(
+                lambda: AgentAMP(self)))
 
     def startService(self):
         MultiService.startService(self)
@@ -387,7 +392,7 @@ class AgentLoopService(object, MultiService):
 
     def stopService(self):
         MultiService.stopService(self)
-        self.factory.stopTrying()
+        self.factory.wrappedFactory.stopTrying()
         self.cluster_status.receive(ClusterStatusInputs.SHUTDOWN)
 
     # IConvergenceAgent methods:

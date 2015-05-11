@@ -14,6 +14,8 @@ from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred, fail
 from twisted.internet.task import Clock
+from twisted.internet.ssl import ClientContextFactory
+from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
 
 from ...testtools import FakeAMPClient
 from .._loop import (
@@ -26,7 +28,7 @@ from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
     NodeState, Deployment, Manifestation, Dataset, DeploymentState,
 )
-from ...control._protocol import NodeStateCommand, _AgentLocator, AgentAMP
+from ...control._protocol import NodeStateCommand, AgentAMP
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
 
 
@@ -626,7 +628,8 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         deployer = object()
         service = AgentLoopService(
-            reactor=None, deployer=deployer, host=u"example.com", port=1234)
+            reactor=None, deployer=deployer, host=u"example.com", port=1234,
+            context_factory=ClientContextFactory())
         cluster_status_fsm_world = service.cluster_status._fsm._world.original
         convergence_loop_fsm_world = (
             cluster_status_fsm_world.convergence_loop_fsm._fsm._world.original)
@@ -643,16 +646,20 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         reactor = MemoryReactorClock()
         service = AgentLoopService(
-            reactor=reactor, deployer=object(), host=u"example.com", port=1234)
+            reactor=reactor, deployer=object(), host=u"example.com", port=1234,
+            context_factory=ClientContextFactory())
         service.startService()
         host, port, factory = reactor.tcpClients[0][:3]
         protocol = factory.buildProtocol(None)
         self.assertEqual((host, port, factory.__class__,
-                          factory.continueTrying,
-                          protocol.__class__, protocol.locator,
+                          factory.wrappedFactory.__class__,
+                          factory.wrappedFactory.continueTrying,
+                          protocol.__class__,
+                          protocol.wrappedProtocol.__class__,
                           service.running),
-                         (u"example.com", 1234, ReconnectingClientFactory,
-                          True, AgentAMP, _AgentLocator(service), True))
+                         (u"example.com", 1234, TLSMemoryBIOFactory,
+                          ReconnectingClientFactory,
+                          True, TLSMemoryBIOProtocol, AgentAMP, True))
 
     def test_stop_service(self):
         """
@@ -661,12 +668,13 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         reactor = MemoryReactorClock()
         service = AgentLoopService(
-            reactor=reactor, deployer=object(), host=u"example.com", port=1234)
+            reactor=reactor, deployer=object(), host=u"example.com", port=1234,
+            context_factory=ClientContextFactory())
         service.cluster_status = fsm = StubFSM()
         service.startService()
         service.stopService()
-        self.assertEqual((service.factory.continueTrying, fsm.inputted,
-                          service.running),
+        self.assertEqual((service.factory.wrappedFactory.continueTrying,
+                          fsm.inputted, service.running),
                          (False, [ClusterStatusInputs.SHUTDOWN], False))
 
     def test_connected(self):
@@ -675,7 +683,8 @@ class AgentLoopServiceTests(SynchronousTestCase):
         is passed to the cluster status FSM.
         """
         service = AgentLoopService(
-            reactor=None, deployer=object(), host=u"example.com", port=1234)
+            reactor=None, deployer=object(), host=u"example.com", port=1234,
+            context_factory=ClientContextFactory())
         service.cluster_status = fsm = StubFSM()
         client = object()
         service.connected(client)
@@ -689,7 +698,8 @@ class AgentLoopServiceTests(SynchronousTestCase):
         passed to the cluster status FSM.
         """
         service = AgentLoopService(
-            reactor=None, deployer=object(), host=u"example.com", port=1234)
+            reactor=None, deployer=object(), host=u"example.com", port=1234,
+            context_factory=ClientContextFactory())
         service.cluster_status = fsm = StubFSM()
         service.disconnected()
         self.assertEqual(
@@ -702,7 +712,8 @@ class AgentLoopServiceTests(SynchronousTestCase):
         passed to the cluster status FSM.
         """
         service = AgentLoopService(
-            reactor=None, deployer=object(), host=u"example.com", port=1234)
+            reactor=None, deployer=object(), host=u"example.com", port=1234,
+            context_factory=ClientContextFactory())
         service.cluster_status = fsm = StubFSM()
         config = object()
         state = object()
@@ -716,7 +727,8 @@ def _build_service(test):
     Fixture for creating ``AgentLoopService``.
     """
     service = AgentLoopService(
-        reactor=None, deployer=object(), host=u"example.com", port=1234)
+        reactor=None, deployer=object(), host=u"example.com", port=1234,
+        context_factory=ClientContextFactory())
     service.cluster_status = StubFSM()
     return service
 
