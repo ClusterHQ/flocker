@@ -8,7 +8,6 @@ from uuid import uuid4, UUID
 
 from pyrsistent import pmap, thaw
 
-from twisted.internet.ssl import Certificate, PrivateCertificate
 from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from twisted.python.filepath import FilePath
@@ -25,8 +24,6 @@ from klein import Klein
 from pyrsistent import discard
 
 from ._protocol import tls_context_factory
-
-from ..ca import UserCredential
 
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
@@ -1044,34 +1041,6 @@ def api_dataset_from_dataset_and_node(dataset, node_uuid):
     if dataset.maximum_size is not None:
         result[u'maximum_size'] = dataset.maximum_size
     return result
-
-
-def tls_user_context_factory(path, username=u"client"):
-    """
-    Create the security properties context factory for a UserCredential
-    TLS connection using the authority certificate found in the supplied
-    path.
-
-    :param FilePath path: Absolute path to directory containing a cluster
-        root certificate file and control service certificate and private
-        key files.
-
-    :param unicode username: The API username this context factory is for.
-
-    :return CertificateOptions: A context factory that will use the
-        authority certificate as a trusted authority.
-    """
-    username = username.decode("utf-8")
-    root_certificate_path = path.child(b"cluster.crt")
-    root_certificate = None
-    with root_certificate_path.open() as root_file:
-        root_certificate = Certificate.loadPEM(root_file.read())
-    user_credential = UserCredential.from_path(path, username)
-    user_certificate = PrivateCertificate.fromCertificateAndKeyPair(
-        user_credential.credential.certificate,
-        user_credential.credential.keypair.keypair
-    )
-    return user_certificate.options(root_certificate)
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint,

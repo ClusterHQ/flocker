@@ -112,7 +112,7 @@ class DeployOptions(Options):
         if self["certificate-directory"] is None:
             self["certificate-directory"] = os.getcwd()
         # cert_path = FilePath(self["certificate-directory"])
-        # tls_user_context_factory(cert_path)
+        # Replace the below with real validation
         self["cert_opts"] = ClientContextFactory()
 
 
