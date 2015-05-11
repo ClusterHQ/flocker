@@ -111,6 +111,8 @@ class AutoOpenStackLoggingTests(SynchronousTestCase):
         """
         ``keystoneclient.openstack.common.apiclient.exceptions.BadRequest`` is
         treated similarly to ``novaclient.exceptions.ClientException``.
+
+        See ``test_novaclient_exception``.
         """
         response = Response()
         response._content = "hello world"
