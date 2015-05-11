@@ -12,7 +12,6 @@ from os import getpid
 import yaml
 
 from jsonschema import FormatChecker, Draft4Validator
-from jsonschema.exceptions import ValidationError
 
 from pyrsistent import PRecord, field
 
@@ -21,11 +20,7 @@ from zope.interface import implementer
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
-from ..volume.service import (
-    ICommandLineVolumeScript, VolumeScript)
-
 from ..volume.service import DEFAULT_CONFIG_PATH, VolumeService, FLOCKER_POOL
-from ..volume.script import flocker_volume_options
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
@@ -39,6 +34,7 @@ from ..control import ConfigurationError
 __all__ = [
     "flocker_dataset_agent_main",
 ]
+
 
 def _get_external_ip(host, port):
     """
@@ -224,7 +220,8 @@ class AgentServiceFactory(PRecord):
         except IOError:
             # TODO test for this
             raise ConfigurationError(
-                "Configuration file does not exist at '{}'.".format(path.path))
+                "Configuration file does not exist at '{}'.".format(
+                    agent_config.path))
 
         validate_configuration(configuration=configuration)
 
@@ -234,9 +231,12 @@ class AgentServiceFactory(PRecord):
         return AgentLoopService(
             reactor=reactor,
             # Temporary hack, to be fixed in FLOC-1783 probably:
-            deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
-                                           backend_configuration=configuration['dataset'],
-                                           reactor=reactor, hostname=ip),
+            deployer=self.deployer_factory(
+                node_uuid=ip_to_uuid(ip),
+                backend_configuration=configuration['dataset'],
+                reactor=reactor,
+                hostname=ip,
+            ),
             host=host, port=port,
         )
 
@@ -252,6 +252,7 @@ def zfs_deployer_factory(reactor, configuration):
     )
 
     return partial(P2PManifestationDeployer, volume_service=volume_service)
+
 
 def loopback_deployer_factory(reactor, configuration):
     """
@@ -271,7 +272,9 @@ def loopback_deployer_factory(reactor, configuration):
 
     return partial(BlockDeviceDeployer, block_device_api=api)
 
-def dataset_deployer_from_configuration(node_uuid, dataset_configuration, reactor, host):
+
+def dataset_deployer_from_configuration(node_uuid, dataset_configuration,
+                                        reactor, host):
     """
     TODO
     """
@@ -288,6 +291,7 @@ def dataset_deployer_from_configuration(node_uuid, dataset_configuration, reacto
     deployer_partial = deployer_factory(reactor, dataset_configuration)
     # TODO isn't host meant to be the IP of this node, not the control service?
     return deployer_partial(hostname=host)
+
 
 def flocker_dataset_agent_main():
     """
