@@ -75,6 +75,7 @@ dev_requirements = [
 
     "wheel==0.24.0",
     "gitpython==1.0.0",
+    "tl.eggdeps==0.4",
     "boto==2.30.0",
 ]
 
@@ -186,12 +187,12 @@ setup(
         # environment.
         "release": [
             "gitpython==1.0.0",
-            "gsutil",
+            "awscli==1.7.25",
             "wheel==0.24.0",
             "virtualenv",
             "PyCrypto",
             "pyasn1",
-            "tl.eggdeps",
+            "tl.eggdeps==0.4",
             "boto==2.38.0",
             # Packages are downloaded from Buildbot
             "requests==2.4.3",

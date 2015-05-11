@@ -530,8 +530,15 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     # wrong type for maximum size
     {u"primary": a_uuid, u"maximum_size": u"123"},
 
-    # too-small value for maximum size
-    {u"primary": a_uuid, u"maximum_size": 123},
+    # wrong numeric type for maximum size
+    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64 + 0.5},
+
+    # too-small (but multiple of 1024) value for maximum size
+    {u"primary": a_uuid, u"maximum_size": 1024},
+
+    # Value for maximum_size that is not a multiple of 1024 (but is larger than
+    # the minimum allowed)
+    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64 + 1023},
 
     # wrong type for primary
     {u"primary": 10,
@@ -721,5 +728,32 @@ StateContainersArrayTests = build_schema_test(
              u'image': u'nginx:latest',
              u'name': u'webserver',
              u'running': False}],
+    ],
+)
+
+
+NodesTests = build_schema_test(
+    name="NodesTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/nodes_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Wrong type
+        {'host': '192.168.1.10', 'uuid': unicode(uuid4())},
+        # Missing host
+        [{"uuid": unicode(uuid4())}],
+        # Missing uuid
+        [{'host': '192.168.1.10'}],
+        # Wrong uuid type
+        [{'host': '192.168.1.10', 'uuid': 123}],
+        # Wrong host type
+        [{'host': 192, 'uuid': unicode(uuid4())}],
+        # Extra key
+        [{'host': '192.168.1.10', 'uuid': unicode(uuid4()), 'x': 'y'}],
+    ],
+    passing_instances=[
+        [],
+        [{'host': '192.168.1.10', 'uuid': unicode(uuid4())}],
+        [{'host': '192.168.1.10', 'uuid': unicode(uuid4())},
+         {'host': '192.168.1.11', 'uuid': unicode(uuid4())}],
     ],
 )

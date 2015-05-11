@@ -1,3 +1,4 @@
+# -*- test-case-name: flocker.node.agents.functional.test_ebs -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
@@ -12,6 +13,7 @@ from bitmath import Byte, GB
 from pyrsistent import PRecord, field
 from zope.interface import implementer
 from boto import ec2
+from boto.utils import get_instance_metadata
 
 from .blockdevice import IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume
 
@@ -61,7 +63,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
         size=int(GB(ebs_volume.size).to_Byte().value),
-        host=None,
+        attached_to=None,
         dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
     )
 
@@ -144,17 +146,11 @@ class EBSBlockDeviceAPI(object):
         self.zone = ec2_client.zone
         self.cluster_id = cluster_id
 
-    def _blockdevicevolume_from_ebs_volume(self, ebs_volume):
+    def compute_instance_id(self):
         """
-        Helper function to convert Volume information from
-        EBS format to Flocker block device format.
+        Look up the EC2 instance ID for this node.
         """
-        return BlockDeviceVolume(
-            blockdevice_id=unicode(ebs_volume.id),
-            size=int(GB(ebs_volume.size).to_Byte().value),
-            host=None,
-            dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
-        )
+        return get_instance_metadata()['instance-id'].decode("ascii")
 
     def create_volume(self, dataset_id, size):
         """
@@ -198,6 +194,7 @@ class EBSBlockDeviceAPI(object):
     def resize_volume(self, blockdevice_id, size):
         pass
 
+    # cloud_instance_id here too
     def attach_volume(self, blockdevice_id, host):
         pass
 
