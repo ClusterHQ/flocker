@@ -17,6 +17,8 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 from ._protocol import ControlAMPService
 
+DEFAULT_CERTIFICATE_PATH = b"/etc/flocker"
+
 
 @flocker_standard_options
 class ControlOptions(Options):
@@ -30,10 +32,10 @@ class ControlOptions(Options):
          "The external API port to listen on."],
         ["agent-port", "a", 'tcp:4524',
          "The port convergence agents will connect to."],
-        ["certificate-path", "c", None,
+        ["certificate-path", "c", DEFAULT_CERTIFICATE_PATH,
          ("Absolute path to directory containing the cluster "
           "root certificate and control service certificate "
-          "and private key. Defaults to /etc/flocker")],
+          "and private key.")],
     ]
 
 
@@ -43,10 +45,7 @@ class ControlScript(object):
     cluster.
     """
     def main(self, reactor, options):
-        if options["certificate-path"] is None:
-            certificate_path = None
-        else:
-            certificate_path = FilePath(options["certificate-path"])
+        certificate_path = FilePath(options["certificate-path"])
         top_service = MultiService()
         persistence = ConfigurationPersistenceService(
             reactor, options["data-path"])

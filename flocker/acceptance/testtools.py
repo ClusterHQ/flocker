@@ -310,6 +310,8 @@ def flocker_deploy(test_case, deployment_config, application_config):
     :param dict application_config: The desired application configuration.
     """
     control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
+    certificate_path = control_node = environ.get(
+        "FLOCKER_ACCEPTANCE_API_CERTIFICATE_PATH")
     if control_node is None:
         raise SkipTest("Set control node address using "
                        "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
@@ -323,8 +325,8 @@ def flocker_deploy(test_case, deployment_config, application_config):
     application = temp.child(b"application.yml")
     application.setContent(safe_dump(application_config))
 
-    check_call([b"flocker-deploy", control_node, deployment.path,
-                application.path])
+    check_call([b"flocker-deploy", b"--certificate-path", certificate_path,
+                control_node, deployment.path, application.path])
 
 
 def get_mongo_client(host, port=27017):

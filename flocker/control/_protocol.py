@@ -40,7 +40,7 @@ from twisted.internet.protocol import ServerFactory
 from twisted.internet.ssl import PrivateCertificate
 from twisted.application.internet import StreamServerEndpointService
 from twisted.protocols.tls import TLSMemoryBIOFactory
-from ..ca import ControlCredential, DEFAULT_CERTIFICATE_PATH
+from ..ca import ControlCredential
 
 from ._persistence import wire_encode, wire_decode
 from ._model import Deployment, NodeState, DeploymentState, NonManifestDatasets
@@ -58,8 +58,6 @@ def tls_context_factory(path):
     :return CertificateOptions: A context factory pre-loaded with the
         options of the control service certificate.
     """
-    if path is None:
-        path = DEFAULT_CERTIFICATE_PATH
     control_credential = ControlCredential.from_path(path)
     control_certificate = PrivateCertificate.fromCertificateAndKeyPair(
         control_credential.credential.certificate,

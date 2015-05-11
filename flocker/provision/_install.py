@@ -517,6 +517,10 @@ def configure_cluster(control_node, agent_nodes):
 
     :param INode control_node: The control node.
     :param INode agent_nodes: List of agent nodes.
+
+    XXX need to add here generating certs, copying the appropriate files to the
+    nodes, keeping copies of cluster crt and API user crt+key on host and
+    injecting environment variables with the cert path for the acceptance tests
     """
     return sequence([
         run_remotely(

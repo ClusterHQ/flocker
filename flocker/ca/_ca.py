@@ -14,7 +14,6 @@ from uuid import uuid4
 from OpenSSL import crypto
 from pyrsistent import PRecord, field
 
-from twisted.python.filepath import FilePath
 from twisted.internet.ssl import (
     DistinguishedName, KeyPair, Certificate
 )
@@ -26,8 +25,6 @@ AUTHORITY_CERTIFICATE_FILENAME = b"cluster.crt"
 AUTHORITY_KEY_FILENAME = b"cluster.key"
 CONTROL_CERTIFICATE_FILENAME = b"control-service.crt"
 CONTROL_KEY_FILENAME = b"control-service.key"
-
-DEFAULT_CERTIFICATE_PATH = FilePath(b"/etc/flocker")
 
 
 class CertificateAlreadyExistsError(Exception):

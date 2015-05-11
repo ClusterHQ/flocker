@@ -9,6 +9,7 @@ import sys
 from json import dumps
 
 from twisted.internet.defer import succeed
+from twisted.internet.ssl import ClientContextFactory
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.web.client import Agent
@@ -27,7 +28,6 @@ from characteristic import attributes
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..control.httpapi import REST_API_PORT, WebClientContextFactory
-from ..control.httpapi import tls_user_context_factory
 
 FEEDBACK_CLI_TEXT = (
     "\n\n"
@@ -66,8 +66,9 @@ class DeployOptions(Options):
     optParameters = [
         ["port", "p", REST_API_PORT,
          "The REST API port on the server.", int],
-        ["certificate-path", "c",
-         None, "Certificate path, defaults to current directory."],
+        ["certificate-directory", "c",
+         None, ("Path to directory where TLS certificate and keys can be "
+                "found. Defaults to current directory.")],
     ]
 
     def parseArgs(self, control_host, deployment_config, application_config):
@@ -108,10 +109,11 @@ class DeployOptions(Options):
                     error=str(e)
                 )
             )
-        if self["certificate-path"] is None:
-            self["certificate-path"] = os.getcwd()
-        cert_path = FilePath(self["certificate-path"])
-        self["cert_opts"] = tls_user_context_factory(cert_path)
+        if self["certificate-directory"] is None:
+            self["certificate-directory"] = os.getcwd()
+        # cert_path = FilePath(self["certificate-directory"])
+        # tls_user_context_factory(cert_path)
+        self["cert_opts"] = ClientContextFactory()
 
 
 @implementer(ICommandLineScript)

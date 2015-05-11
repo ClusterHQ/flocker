@@ -26,7 +26,7 @@ from pyrsistent import discard
 
 from ._protocol import tls_context_factory
 
-from ..ca import UserCredential, DEFAULT_CERTIFICATE_PATH
+from ..ca import UserCredential
 
 from ..restapi import (
     EndpointResponse, structured, user_documentation, make_bad_request
@@ -1062,8 +1062,6 @@ def tls_user_context_factory(path, username=u"client"):
         authority certificate as a trusted authority.
     """
     username = username.decode("utf-8")
-    if path is None:
-        path = DEFAULT_CERTIFICATE_PATH
     root_certificate_path = path.child(b"cluster.crt")
     root_certificate = None
     with root_certificate_path.open() as root_file:
@@ -1077,7 +1075,7 @@ def tls_user_context_factory(path, username=u"client"):
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint,
-                       certificate_path=None):
+                       certificate_path):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 

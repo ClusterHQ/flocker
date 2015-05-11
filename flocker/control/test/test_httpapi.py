@@ -2758,7 +2758,7 @@ class CreateAPIServiceTests(SynchronousTestCase):
     def test_listens_endpoint(self):
         """
         ``create_api_service`` returns a service that listens using the given
-        endpoint with a HTTP server.
+        endpoint with a TLS server.
         """
         path = FilePath(self.mktemp())
         path.makedirs()

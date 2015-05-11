@@ -97,7 +97,7 @@ class FlockerDeployTests(TestCase):
         deployment_config.setContent(safe_dump(deployment_config_yaml))
         return getProcessOutputAndValue(
             b"flocker-deploy", [
-                b"--certificate-path", self.certificate_path.path,
+                b"--certificate-directory", self.certificate_path.path,
                 b"--port", unicode(self.port_number).encode("ascii"),
                 b"localhost", deployment_config.path, app_config.path],
             env=environ)
