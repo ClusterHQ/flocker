@@ -24,7 +24,7 @@ from twisted.python.usage import Options
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
 
-from ..volume.service import DEFAULT_CONFIG_PATH, VolumeService
+from ..volume.service import DEFAULT_CONFIG_PATH, VolumeService, FLOCKER_POOL
 from ..volume.script import flocker_volume_options
 from ..common.script import (
     ICommandLineScript,
@@ -167,8 +167,7 @@ def agent_config_from_file(path):
         },
         'dataset': {
             "backend": options['dataset']['backend'],
-            # TODO use flocker.volume.service.FLOCKER_POOL instead here
-            'zfs-pool': options['dataset'].get('zfs-pool', 'flocker'),
+            'zfs-pool': options['dataset'].get('zfs-pool', FLOCKER_POOL),
             'loopback-pool': options['dataset'].get(
                 'loopback-pool', '/var/lib/flocker/loopback'),
         }
