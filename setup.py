@@ -134,6 +134,7 @@ setup(
             'flocker-control = flocker.control.script:flocker_control_main',
             'flocker-ca = flocker.ca._script:flocker_ca_main',
             'flocker = flocker.cli.script:flocker_cli_main',
+            'flocker-provision = flocker.provision.script:flocker_provision_main',
         ],
     },
 
