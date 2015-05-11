@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
+from twisted.internet.task import Clock
 
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -33,8 +34,11 @@ class ClusterStateServiceTests(SynchronousTestCase):
         manifestations={MANIFESTATION.dataset_id: MANIFESTATION}
     )
 
+    def setUp(self):
+        self.clock = Clock()
+
     def service(self):
-        service = ClusterStateService()
+        service = ClusterStateService(self.clock)
         service.startService()
         self.addCleanup(service.stopService)
         return service
@@ -136,3 +140,17 @@ class ClusterStateServiceTests(SynchronousTestCase):
         self.assertEqual(
             service.manifestation_path(identifier, MANIFESTATION.dataset_id),
             FilePath(b"/xxx/yyy"))
+
+    def test_expiration(self):
+        """
+        Information updates that are more than 10 seconds old are wiped.
+        """
+
+    def test_updates_delay_expiration(self):
+        """
+        If a ``IClusterStateChange`` with a given wipe key is then overwritten
+        by a ``IClusterStateChange`` with the same key, the expiration
+        time is reset.
+        """
+
+    def test_different...
