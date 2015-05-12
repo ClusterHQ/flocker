@@ -1200,6 +1200,17 @@ class LoopbackBlockDeviceAPI(object):
         volume_path.remove()
 
     def _get(self, blockdevice_id):
+        """
+        Find a ``BlockDeviceVolume`` matching the given identifier.
+
+        :param unicode blockdevice_id: The backend identifier of the volume to
+            find.
+
+        :raise UnknownVolume: If no volume with a matching identifier can be
+            found.
+
+        :return: The ``BlockDeviceVolume`` that matches.
+        """
         for volume in self.list_volumes():
             if volume.blockdevice_id == blockdevice_id:
                 return volume
