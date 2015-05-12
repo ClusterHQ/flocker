@@ -75,6 +75,7 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
     """
     Tests for ``flocker-ca`` script.
     """
+    @requireCA
     def setUp(self):
         """
         Create a root certificate for the test.
