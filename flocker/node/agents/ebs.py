@@ -5,6 +5,7 @@
 An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
+from subprocess import check_output
 import threading
 import time
 from uuid import UUID
@@ -114,7 +115,30 @@ def _wait_for_volume(expected_volume,
             )
 
 
-def _wait_for_new_device(base, time_limit=60):
+def _check_blockdevice_size(device, size):
+    """
+    Helper function to check if the size of block device with given
+    suffix matches the input size.
+
+    :param unicode device: Name of the block device to check for size.
+    :param int size: Size, in SI metric bytes, of device we are interested in.
+
+    :returns True if a block device with given name has given size.
+        False otherwise.
+    """
+    device_name = b"/dev/" + device
+    command = [b"lsblk", b"-nb", b"-o", b"SIZE", device_name]
+    device_size = int(check_output(command).strip().decode("ascii"))
+
+    # OS reports device size in powers of 2, where has EBS
+    # talks powers of 10. Hence, convert before comparing.
+    if size/(1000**3) == device_size/(1024**3):
+        return True
+    else:
+        return False
+
+
+def _wait_for_new_device(base, size, time_limit=60):
     """
     Helper function to wait for up to 60s for new
     EBS block device (`/dev/sd*` or `/dev/xvd*`) to
@@ -136,8 +160,10 @@ def _wait_for_new_device(base, time_limit=60):
     while elapsed_time < time_limit:
         for device in list(set(FilePath(b"/sys/block").children()) -
                            set(base)):
-            if FilePath.basename(device).startswith((b"sd", b"xvd")):
-                new_device = u'/dev/' + FilePath.basename(device)
+            device_name = FilePath.basename(device)
+            if (device_name.startswith((b"sd", b"xvd")) and
+                    _check_blockdevice_size(device_name, size)):
+                new_device = u'/dev/' + device_name
                 return new_device
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
@@ -327,7 +353,7 @@ class EBSBlockDeviceAPI(object):
             # let us wait for a new block device to be available to the OS,
             # and interpret it as ours.
             # Wait under lock scope to reduce false positives.
-            new_device = _wait_for_new_device(blockdevices)
+            new_device = _wait_for_new_device(blockdevices, volume.size)
 
             # end lock scope
 
