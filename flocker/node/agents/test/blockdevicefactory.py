@@ -20,6 +20,7 @@ See `acceptance testing <acceptance-testing>`_ for details.
 
 from os import environ
 from uuid import uuid4
+from functools import partial
 
 from yaml import safe_load
 
@@ -51,6 +52,7 @@ class ProviderType(Names):
     """
     openstack = NamedConstant()
     aws = NamedConstant()
+    rackspace = NamedConstant()
 
 
 def get_blockdeviceapi(provider):
@@ -80,11 +82,11 @@ def get_blockdeviceapi_args(provider):
         implementation.
     """
     # ie cust0, rackspace, aws
-    platform_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PLATFORM')
+    platform_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
     if platform_name is None:
         raise InvalidConfig(
             'Supply the platform on which you are running tests using the '
-            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PLATFORM environment variable.'
+            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER environment variable.'
         )
 
     config_file_path = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE')
@@ -108,33 +110,15 @@ def get_blockdeviceapi_args(provider):
             "Platform: %s, "
             "Configuration File: %s" % (platform_name, config_file_path)
         )
-    provider_name = section.get('provider')
+
+    provider_name = section.get('provider', platform_name)
     try:
-        provider = ProviderType.lookupByName(provider_name)
+        provider_environment = ProviderType.lookupByName(provider_name)
     except ValueError:
         raise InvalidConfig(
             "Unsupported provider. "
             "Supplied provider: %s, "
-            "Available providers: %s"% (
-                provider_name,
-                ', '.join(p.name for p in ProviderType.iterconstants())
-            )
-        )
-
-    provider_env_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if provider_env_name is None:
-        raise InvalidConfig(
-            'Supply the provider running tests using the '
-            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER envionment variable.'
-        )
-
-    try:
-        provider_environment = ProviderType.lookupByName(provider_env_name)
-    except ValueError:
-        raise InvalidConfig(
-            "Unsupported provider environment. "
-            "Supplied provider environment: %s, "
-            "Available providers: %s"% (
+            "Available providers: %s" % (
                 provider_name,
                 ', '.join(p.name for p in ProviderType.iterconstants())
             )
@@ -230,6 +214,8 @@ def _aws(**config):
 # factory.
 _BLOCKDEVICE_TYPES = {
     ProviderType.openstack: (CinderBlockDeviceAPI, _openstack),
+    ProviderType.rackspace:
+        (CinderBlockDeviceAPI, partial(_openstack, auth_plugin="rackspace")),
     ProviderType.aws: (EBSBlockDeviceAPI, _aws),
 }
 
