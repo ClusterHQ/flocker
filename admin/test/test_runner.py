@@ -106,7 +106,7 @@ class RunTests(TestCase):
     def test_process_success(self):
         """
         If the process ends with a success, the returned deferred fires with
-        the reason.
+        a succesful result.
         """
 
         reactor = ProcessCoreReactor()
@@ -115,7 +115,7 @@ class RunTests(TestCase):
 
         expected_failure = Failure(ProcessDone(0))
         process.processProtocol.processEnded(expected_failure)
-        self.successResultOf(d),
+        self.successResultOf(d)
 
     def test_process_failure(self):
         """

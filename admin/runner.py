@@ -49,7 +49,7 @@ class CommandProtocol(ProcessProtocol, object):
         Otherwise, errbacks with the reason.
     :ivar file-like output: For logging.
 
-    :ivar defaultdict _fds: Mapping from fds to `_LineParsers`.
+    :ivar defaultdict _fds: Mapping from file descriptors to `_LineParsers`.
     """
     def __init__(self):
         self._fds = defaultdict(lambda: _LineParser(output=self.output))
