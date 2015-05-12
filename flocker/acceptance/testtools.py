@@ -203,6 +203,32 @@ def _clean_node(test_case, node):
         pass
 
 
+def require_backend(backends):
+    """
+    """
+    def decorator(test_method):
+        """
+        :param test_method: The test method that will be called when the
+            cluster is available and which will be supplied with the
+            ``cluster``keyword argument.
+        """
+        def call_test_method_with_cluster(cluster, test_case, args, kwargs):
+            kwargs['cluster'] = cluster
+
+        @wraps(test_method)
+        def wrapper(test_case, *args, **kwargs):
+            backend = environ.get("FLOCKER_ACCEPTANCE_BACKEND")
+
+            if backend in backends:
+                raise SkipTest(
+                    "Set acceptance testing backend using the " +
+                    "FLOCKER_ACCEPTANCE_BACKEND environment variable.")
+
+            return test_method(test_case, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def get_nodes(test_case, num_nodes):
     """
     Create or get ``num_nodes`` nodes with no Docker containers on them.
