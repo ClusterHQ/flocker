@@ -273,6 +273,7 @@ class CinderBlockDeviceAPI(object):
             raise UnknownVolume(blockdevice_id)
 
         while True:
+            # Don't loop forever here.  FLOC-1853
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
