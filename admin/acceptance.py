@@ -183,14 +183,14 @@ class VagrantRunner(object):
 
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
-            """yield perform(
+            yield perform(
                 dispatcher,
                 run_remotely(
                     username='root',
                     address=node,
                     commands=task_pull_docker_images()
                 ),
-            )"""
+            )
         returnValue([
             VagrantNode(address=address, distribution=self.distribution)
             for address in self.NODE_ADDRESSES
