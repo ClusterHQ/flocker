@@ -91,6 +91,7 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args):
             FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node.address,
             FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
                 node.address for node in agent_nodes),
+            FLOCKER_ACCEPTANCE_BACKEND='loopback',
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
