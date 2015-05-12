@@ -18,18 +18,18 @@ from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutputAndValue
 from twisted.web.resource import Resource
 from twisted.web.server import Site
+from twisted.internet.ssl import DefaultOpenSSLContextFactory
 
 from ...control import (
     FlockerConfiguration, model_from_configuration, NodeState)
 
 from ...control.httpapi import ConfigurationAPIUserV1
-from ...control._protocol import tls_context_factory
 from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.test.test_config import (
     COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML)
 
-from ...ca import RootCredential, ControlCredential, UserCredential
+from ...ca.testtools import get_credential_sets
 
 from ..script import _OK_MESSAGE
 
@@ -46,12 +46,16 @@ class FlockerDeployTests(TestCase):
     """
     @_require_installed
     def setUp(self):
+        ca_set, _ = get_credential_sets()
         self.certificate_path = FilePath(self.mktemp())
         self.certificate_path.makedirs()
-        authority = RootCredential.initialize(
-            self.certificate_path, b"mycluster")
-        ControlCredential.initialize(self.certificate_path, authority)
-        UserCredential.initialize(self.certificate_path, authority, u"client")
+        ca_set.path.child(b"cluster.crt").copyTo(
+            self.certificate_path.child(b"cluster.crt"))
+        ca_set.path.child(b"allison.crt").copyTo(
+            self.certificate_path.child(b"user.crt"))
+        ca_set.path.child(b"allison.key").copyTo(
+            self.certificate_path.child(b"user.key"))
+
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
@@ -66,9 +70,12 @@ class FlockerDeployTests(TestCase):
                                      self.cluster_state_service).app
         api_root = Resource()
         api_root.putChild('v1', app.resource())
+        # Simplest possible TLS context that presents correct control
+        # service certificate; no need to validate flocker-deploy here.
         self.port = reactor.listenSSL(
-            0, Site(api_root),
-            tls_context_factory(self.certificate_path),
+            0, Site(api_root), DefaultOpenSSLContextFactory(
+                ca_set.path.globChildren(b"control-*.key")[0].path,
+                ca_set.path.globChildren(b"control-*.crt")[0].path),
             interface="127.0.0.1"
         )
         self.addCleanup(self.port.stopListening)
@@ -97,7 +104,7 @@ class FlockerDeployTests(TestCase):
         deployment_config.setContent(safe_dump(deployment_config_yaml))
         return getProcessOutputAndValue(
             b"flocker-deploy", [
-                b"--certificate-directory", self.certificate_path.path,
+                b"--certificates-directory", self.certificate_path.path,
                 b"--port", unicode(self.port_number).encode("ascii"),
                 b"localhost", deployment_config.path, app_config.path],
             env=environ)

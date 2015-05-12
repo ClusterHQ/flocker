@@ -52,6 +52,8 @@ class ControlScript(object):
         certificates_path = FilePath(options["certificates-directory"])
         ca = Certificate.loadPEM(
             certificates_path.child(b"cluster.crt").getContent())
+        # This is a hack; from_path should be more
+        # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
         control_credential = ControlCredential.from_path(
             certificates_path, b"service")
 

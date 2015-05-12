@@ -100,6 +100,8 @@ def _context_factory(path, host, port):
         and present the node's certificate to the control service.
     """
     ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
+    # This is a hack; from_path should be more
+    # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
     node_credential = NodeCredential.from_path(path, b"node")
     policy = ControlServicePolicy(
         ca_certificate=ca, client_credential=node_credential.credential)

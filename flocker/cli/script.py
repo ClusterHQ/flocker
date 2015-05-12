@@ -9,7 +9,7 @@ import sys
 from json import dumps
 
 from twisted.internet.defer import succeed
-from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.ssl import Certificate
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.web.client import Agent
@@ -27,7 +27,9 @@ from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..control.httpapi import REST_API_PORT, WebClientContextFactory
+from ..control.httpapi import REST_API_PORT
+from ..ca import ControlServicePolicy, UserCredential
+
 
 FEEDBACK_CLI_TEXT = (
     "\n\n"
@@ -66,7 +68,7 @@ class DeployOptions(Options):
     optParameters = [
         ["port", "p", REST_API_PORT,
          "The REST API port on the server.", int],
-        ["certificate-directory", "c",
+        ["certificates-directory", "c",
          None, ("Path to directory where TLS certificate and keys can be "
                 "found. Defaults to current directory.")],
     ]
@@ -109,11 +111,15 @@ class DeployOptions(Options):
                     error=str(e)
                 )
             )
-        if self["certificate-directory"] is None:
-            self["certificate-directory"] = os.getcwd()
-        # cert_path = FilePath(self["certificate-directory"])
-        # Replace the below with real validation
-        self["cert_opts"] = ClientContextFactory()
+        if self["certificates-directory"] is None:
+            self["certificates-directory"] = os.getcwd()
+        path = FilePath(self["certificates-directory"])
+        ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
+        # This is a hack; from_path should be more
+        # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
+        user_credential = UserCredential.from_path(path, u"user")
+        self["https-policy"] = ControlServicePolicy(
+            ca_certificate=ca, client_credential=user_credential.credential)
 
 
 @implementer(ICommandLineScript)
@@ -130,13 +136,14 @@ class DeployScript(object):
         """
         body = dumps({"applications": options["application_config"],
                       "deployment": options["deployment_config"]})
-        _treq_client = HTTPClient(
+
+        treq_client = HTTPClient(
             Agent(
                 reactor,
-                contextFactory=WebClientContextFactory(options["cert_opts"])
+                contextFactory=options["https-policy"],
             )
         )
-        posted = _treq_client.post(
+        posted = treq_client.post(
             options["url"], data=body,
             headers={b"content-type": b"application/json"},
             persistent=False
