@@ -279,6 +279,51 @@ def task_create_flocker_pool_file():
     ])
 
 
+def task_install_zfs(distribution, variants):
+    commands = []
+    if distribution == 'ubuntu-14.04':
+        commands += [
+            # ZFS not available in base Ubuntu - add ZFS repo
+            run_from_args([
+                "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
+        ]
+        commands += [
+            # Update to read package info from new repos
+            run_from_args([
+                "apt-get", "update"]),
+            # Package spl-dkms sometimes does not have libc6-dev as a
+            # dependency, add it before ZFS installation requires it.
+            # See https://github.com/zfsonlinux/zfs/issues/3298
+            run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
+            run_from_args(['apt-get', '-y', 'install', 'zfsutils']),
+            ]
+
+    elif distribution in ('fedora-20', 'centos-7'):
+        commands += [
+            run_from_args("yum", "install", "-y", ZFS_REPO[distribution]),
+        ]
+        if Variants.ZFS_TESTING in variants:
+            commands += [
+                run_from_args(['yum', 'install', '-y', 'yum-utils']),
+                run_from_args([
+                    'yum-config-manager', '--enable', 'zfs-testing'])
+            ]
+        commands += [
+            run_from_args(['yum', 'install', '-y', 'zfs>=0.6.4']),
+        ]
+    else:
+        raise DistributionNotSupported(distribution)
+
+
+def configure_zfs(distribution, variants):
+
+    return sequence([
+        task_upgrade_kernel(distribution),
+        task_install_zfs(distribution, variants),
+        task_create_flocker_pool_file(),
+    ])
+
+
 def task_install_flocker(
         distribution=None,
         package_source=PackageSource()):
@@ -300,9 +345,6 @@ def task_install_flocker(
             # Ensure add-apt-repository command is available
             run_from_args([
                 "apt-get", "-y", "install", "software-properties-common"]),
-            # ZFS not available in base Ubuntu - add ZFS repo
-            run_from_args([
-                "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
             # Add Docker repo for recent Docker versions
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
@@ -322,10 +364,6 @@ def task_install_flocker(
             # Update to read package info from new repos
             run_from_args([
                 "apt-get", "update"]),
-            # Package spl-dkms sometimes does not have libc6-dev as a
-            # dependency, add it before ZFS installation requires it.
-            # See https://github.com/zfsonlinux/zfs/issues/3298
-            run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
             ]
 
         if package_source.os_version:
@@ -341,7 +379,6 @@ def task_install_flocker(
         return sequence(commands)
     else:
         commands = [
-            run(command="yum install -y " + ZFS_REPO[distribution]),
             run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
         ]
 
@@ -440,22 +477,6 @@ def task_enable_docker_head_repository(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
-def task_enable_zfs_testing(distribution):
-    """
-    Enable the zfs-testing repository.
-
-    :param bytes distribution: See func:`task_install_flocker`
-    """
-    if distribution in ('fedora-20', 'centos-7'):
-        return sequence([
-            run_from_args(['yum', 'install', '-y', 'yum-utils']),
-            run_from_args([
-                'yum-config-manager', '--enable', 'zfs-testing'])
-        ])
-    else:
-        raise DistributionNotSupported(distribution=distribution)
-
-
 def provision(distribution, package_source, variants):
     """
     Provision the node for running flocker.
@@ -476,11 +497,6 @@ def provision(distribution, package_source, variants):
         commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
-    if Variants.ZFS_TESTING in variants:
-        commands.append(task_enable_zfs_testing(distribution))
-
-    if distribution in ('fedora-20',):
-        commands.append(task_install_kernel_devel())
 
     commands.append(
         task_install_flocker(
@@ -488,7 +504,6 @@ def provision(distribution, package_source, variants):
     if distribution in ('centos-7'):
         commands.append(task_disable_selinux(distribution))
     commands.append(task_enable_docker(distribution))
-    commands.append(task_create_flocker_pool_file())
     commands.append(task_pull_docker_images())
     return sequence(commands)
 

@@ -5,17 +5,13 @@ AWS provisioner.
 """
 
 from ._libcloud import LibcloudProvisioner
-from ._common import Variants
 from ._install import (
     provision,
     task_install_ssh_key,
-    task_upgrade_kernel,
-    task_enable_updates_testing
 )
 
 from ._ssh import run_remotely
 from ._effect import sequence
-from effect import Func, Effect
 
 
 def provision_aws(node, package_source, distribution, variants):
@@ -41,25 +37,6 @@ def provision_aws(node, package_source, distribution, variants):
         address=node.address,
         commands=task_install_ssh_key(),
     ))
-
-    pre_reboot_commands = []
-    if Variants.DISTRO_TESTING in variants:
-        pre_reboot_commands.append(
-            task_enable_updates_testing(distribution)
-        )
-
-    if distribution in ('centos-7', 'fedora-20'):
-        pre_reboot_commands.append(
-            task_upgrade_kernel(distribution)
-        )
-
-    commands.append(run_remotely(
-        username='root',
-        address=node.address,
-        commands=sequence(pre_reboot_commands),
-    ))
-
-    commands.append(Effect(Func(node.reboot)))
 
     commands.append(run_remotely(
         username='root',
