@@ -25,6 +25,7 @@ from twisted.web.server import Site
 from twisted.web.client import FileBodyProducer, readBody
 from twisted.application.service import IService
 from twisted.python.filepath import FilePath
+from twisted.internet.task import Clock
 
 from ...restapi.testtools import (
     buildIntegrationTests, dumps, loads)
@@ -66,7 +67,7 @@ class APITestsMixin(object):
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
-        self.cluster_state_service = ClusterStateService()
+        self.cluster_state_service = ClusterStateService(Clock())
         self.cluster_state_service.startService()
         self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
