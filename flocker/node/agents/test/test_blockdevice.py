@@ -55,7 +55,7 @@ from ....testtools import (
 )
 from ....control import (
     Dataset, Manifestation, Node, NodeState, Deployment, DeploymentState,
-    NonManifestDatasets,
+    NonManifestDatasets, Application, AttachedVolume, DockerImage
 )
 # Move these somewhere else, write tests for them. FLOC-1774
 from ....common.test.test_thread import NonThreadPool, NonReactor
@@ -562,19 +562,21 @@ class ScenarioMixin(object):
     NODE = u"192.0.2.1"
     NODE_UUID = uuid4()
 
+    MANIFESTATION = Manifestation(
+        dataset=Dataset(
+            dataset_id=unicode(DATASET_ID),
+            maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
+        ),
+        primary=True,
+    )
+
     # The state of a single node which has a single primary manifestation for a
     # dataset.  Common starting point for several of the test scenarios.
     ONE_DATASET_STATE = NodeState(
         hostname=NODE,
         uuid=NODE_UUID,
         manifestations={
-            unicode(DATASET_ID): Manifestation(
-                dataset=Dataset(
-                    dataset_id=unicode(DATASET_ID),
-                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE,
-                ),
-                primary=True,
-            ),
+            unicode(DATASET_ID): MANIFESTATION,
         },
         paths={
             unicode(DATASET_ID):
@@ -584,6 +586,24 @@ class ScenarioMixin(object):
             DATASET_ID: FilePath(b"/dev/sda"),
         }
     )
+
+
+def add_application_with_volume(node_state):
+    """
+    Add a matching application that has the current dataset attached as a
+    volume.
+
+    :param NodeState node_state: Has dataset with ID ``DATASET_ID``.
+
+    :return NodeState: With ``Application`` added.
+    """
+    manifestation = list(node_state.manifestations.values())[0]
+    return node_state.set(
+        "applications", {Application(
+            name=u"myapplication",
+            image=DockerImage.from_string(u"image"),
+            volume=AttachedVolume(manifestation=manifestation,
+                                  mountpoint=FilePath(b"/data")))})
 
 
 class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
@@ -639,6 +659,28 @@ class BlockDeviceDeployerAlreadyConvergedCalculateChangesTests(
         "This will pass when the deployer is smart enough to know it should "
         "not delete things that do not exist.  FLOC-1756."
     )
+
+
+class BlockDeviceDeployerIgnorantCalculateChangesTests(
+        SynchronousTestCase, ScenarioMixin
+):
+    """
+    Tests for the cases of ``BlockDeviceDeployer.calculate_changes`` where no
+    changes can be calculated because application state is unknown.
+    """
+    def test_unknown_applications(self):
+        """
+        If applications are unknown, no changes are calculated.
+        """
+        # We're ignorant about application state:
+        local_state = NodeState(
+            hostname=self.NODE, uuid=self.NODE_UUID, applications=None)
+
+        # We want to create a dataset:
+        local_config = to_node(self.ONE_DATASET_STATE)
+
+        assert_calculated_changes(self, local_state, local_config, set(),
+                                  in_parallel(changes=[]))
 
 
 class BlockDeviceDeployerDestructionCalculateChangesTests(
@@ -726,6 +768,25 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
             in_parallel(changes=[
                 DestroyBlockDeviceDataset(dataset_id=self.DATASET_ID)
             ])
+        )
+
+    def test_no_delete_if_in_use(self):
+        """
+        If a dataset has been marked as deleted *and* it is in use by an
+        application, no changes are made.
+        """
+        # Application using a dataset:
+        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
+
+        # Dataset is deleted:
+        local_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID), "dataset", "deleted"],
+            True)
+        local_config = add_application_with_volume(local_config)
+
+        assert_calculated_changes(
+            self, local_state, local_config, set(),
+            in_parallel(changes=[]),
         )
 
 
@@ -847,6 +908,25 @@ class BlockDeviceDeployerUnmountCalculateChangesTests(
             in_parallel(changes=[
                 UnmountBlockDevice(dataset_id=self.DATASET_ID)
             ])
+        )
+
+    def test_no_unmount_if_in_use(self):
+        """
+        If a dataset should be unmounted *and* it is in use by an application,
+        no changes are made.
+        """
+        # State has a dataset in use by application
+        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
+
+        # Give it a configuration that says it shouldn't have that
+        # manifestation.
+        node_config = to_node(self.ONE_DATASET_STATE).transform(
+            ["manifestations", unicode(self.DATASET_ID)], discard
+        )
+
+        assert_calculated_changes(
+            self, local_state, node_config, set(),
+            in_parallel(changes=[]),
         )
 
 
@@ -1126,6 +1206,27 @@ class BlockDeviceDeployerResizeCalculateChangesTests(
                     size=REALISTIC_BLOCKDEVICE_SIZE * 2,
                 ),
             ])
+        )
+
+    def test_no_resize_if_in_use(self):
+        """
+        If a dataset should be resized *and* it is in use by an application,
+        no changes are made.
+        """
+        def double_size(dataset):
+            return dataset.set(maximum_size=dataset.maximum_size * 2)
+
+        # State has a dataset in use by application
+        local_state = add_application_with_volume(self.ONE_DATASET_STATE)
+
+        # Give it a configuration that says it should be resized:
+        node_config = add_application_with_volume(
+            to_node(self.ONE_DATASET_STATE).transform(
+                ["manifestations", match_anything, "dataset"], double_size))
+
+        assert_calculated_changes(
+            self, local_state, node_config, set(),
+            in_parallel(changes=[]),
         )
 
 
