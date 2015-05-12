@@ -233,7 +233,7 @@ class AgentServiceFactory(PRecord):
             # Temporary hack, to be fixed in FLOC-1783 probably:
             deployer=self.deployer_factory(
                 node_uuid=ip_to_uuid(ip),
-                backend_configuration=configuration['dataset'],
+                dataset_configuration=configuration['dataset'],
                 reactor=reactor,
                 hostname=ip,
             ),
