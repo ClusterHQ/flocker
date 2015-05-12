@@ -470,6 +470,24 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
 
 
 @do
+def copy_tutorial_vagrant_box(target_bucket, dev_bucket, version):
+    """
+    Copy the tutorial box from a ``dev_bucket`` to a ``target_bucket``.
+
+    :param bytes target_bucket: S3 bucket to copy tutorial box to.
+    :param bytes dev_bucket: S3 bucket to copy tutorial box from.
+    :param bytes version: Version of Flocker to copy the tutorial box for.
+    """
+    yield Effect(
+        CopyS3Keys(source_bucket=dev_bucket,
+                   source_prefix='vagrant/tutorial/',
+                   destination_bucket=target_bucket,
+                   destination_prefix='vagrant/tutorial/',
+                   keys=['flocker-tutorial-{}.box'.format(version)]))
+
+
+
+@do
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
     The ClusterHQ yum repository contains packages for Flocker, as well as the
@@ -679,6 +697,11 @@ def publish_artifacts_main(args, base_path, top_level):
                     scratch_directory=scratch_directory.child('pip'),
                     target_bucket=options['target'],
                 ),
+                copy_tutorial_vagrant_box(
+                    target_bucket=options['target'],
+                    dev_bucket='clusterhq-dev-archive',
+                    version=options['flocker-version'],
+                )
             ]),
         )
 
