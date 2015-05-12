@@ -182,12 +182,12 @@ class CinderBlockDeviceAPI(object):
                 metadata=metadata,
             )
             Message.new(blockdevice_id=requested_volume.id).write()
-            wait_for_volume(
+            created_volume = wait_for_volume(
                 volume_manager=self.cinder_volume_manager,
                 expected_volume=requested_volume,
             )
         return _blockdevicevolume_from_cinder_volume(
-            cinder_volume=requested_volume,
+            cinder_volume=created_volume,
         )
 
     def list_volumes(self):
