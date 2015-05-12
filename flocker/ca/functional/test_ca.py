@@ -5,8 +5,8 @@ Functional tests for ``flocker-ca`` CLI.
 """
 
 import re
-
 from subprocess import CalledProcessError
+from unittest import skipUnless
 
 from twisted.python.procutils import which
 
@@ -15,20 +15,6 @@ from .._script import CAOptions
 from ...testtools import make_script_tests, run_process
 
 EXECUTABLE = b"flocker-ca"
-
-
-def requireCA(test):
-    """
-    Simple test decorator to check if both flocker-ca and OpenSSL are
-    installed and skip if either isn't.
-    """
-    def inner(testcase, *args, **kwargs):
-        if not which(EXECUTABLE):
-            return testcase.skipTest(EXECUTABLE + " not installed")
-        if not which(b"openssl"):
-            return testcase.skipTest("openssl not installed")
-        return test(testcase, *args, **kwargs)
-    return inner
 
 
 def flocker_ca(command, *args):
@@ -75,13 +61,14 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
     """
     Tests for ``flocker-ca`` script.
     """
+    @skipUnless(which(EXECUTABLE), EXECUTABLE + " not installed")
+    @skipUnless(which(b"openssl"), "openssl not installed")
     def setUp(self):
         """
         Create a root certificate for the test.
         """
         flocker_ca(b"initialize", b"mycluster")
 
-    @requireCA
     def test_initialize(self):
         """
         Test for ``flocker-ca initialize`` command.
@@ -92,7 +79,6 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
             openssl_verify(b"cluster.crt", b"cluster.crt")
         )
 
-    @requireCA
     def test_control_certificate(self):
         """
         Test for ``flocker-ca create-control-certificate`` command.
@@ -106,7 +92,6 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
             openssl_verify(b"cluster.crt", b"control-my.example.com.crt")
         )
 
-    @requireCA
     def test_node_certificate(self):
         """
         Test for ``flocker-ca create-node-certificate`` command.
@@ -123,7 +108,6 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
             openssl_verify(b"cluster.crt", file_name)
         )
 
-    @requireCA
     def test_apiuser_certificate(self):
         """
         Test for ``flocker-ca create-api-certificate`` command.
@@ -137,7 +121,6 @@ class FlockerCATests(make_script_tests(EXECUTABLE)):
             openssl_verify(b"cluster.crt", b"alice.crt")
         )
 
-    @requireCA
     def test_help_description(self):
         """
         The output of ``flocker-ca --help`` includes the helptext with
