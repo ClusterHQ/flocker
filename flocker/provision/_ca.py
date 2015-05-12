@@ -44,8 +44,8 @@ class Certificates(object):
         self.control = CertAndKey(
             directory.globChildren(b"control-*.crt")[0],
             directory.globChildren(b"control-*.key")[0])
-        self.user = CertAndKey(directory.child(b"allison.crt"),
-                               directory.child(b"allison.key"))
+        self.user = CertAndKey(directory.child(b"user.crt"),
+                               directory.child(b"user.key"))
         nodes = []
         for child in directory.globChildren(b"????????-????-*.crt"):
             sibling = FilePath(child.path[:-3] + b"key")
@@ -68,6 +68,10 @@ class Certificates(object):
         run(b"initialize", b"acceptance-cluster")
         run(b"create-control-certificate", control_hostname)
         run(b"create-api-certificate", b"allison")
+        # Rename to user.crt/user.key so we can use this folder directly
+        # from flocker-deploy and other clients:
+        directory.child(b"allison.crt").moveTo(directory.child(b"user.crt"))
+        directory.child(b"allison.key").moveTo(directory.child(b"user.key"))
         for i in range(num_nodes):
             run(b"create-node-certificate")
         return cls(directory)

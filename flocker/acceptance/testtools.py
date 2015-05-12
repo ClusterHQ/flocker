@@ -314,7 +314,7 @@ def flocker_deploy(test_case, deployment_config, application_config):
 
     application = temp.child(b"application.yml")
     application.setContent(safe_dump(application_config))
-    check_call([b"flocker-deploy", b"--certificate-directory",
+    check_call([b"flocker-deploy", b"--certificates-directory",
                certificate_path, control_node, deployment.path,
                application.path])
 
