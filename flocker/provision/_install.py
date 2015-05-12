@@ -132,37 +132,42 @@ def task_disable_selinux(distribution):
         raise NotImplementedError()
 
 
-def task_generate_certificate_authority(name):
+def task_install_control_certificates(ca_cert, control_cert, control_key):
     """
-    Generate a root certificate with the supplied cluster name and
-    write to /etc/flocker/cluster.crt.
+    Install certificates and private key required by the control service.
+
+    :param FilePath ca_cert: Path to CA certificate on local machine.
+    :param FilePath control_cert: Path to control service certificate on
+        local machine.
+    :param FilePath control_key: Path to control service private key
+        local machine.
     """
     return sequence([
-        sudo_from_args(["flocker-ca", "initialize", name]),
-        sudo_from_args(["mv", "cluster.crt", "/etc/flocker/cluster.crt"]),
-    ])
+        put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
+        put(path="/etc/flocker/control-service.crt",
+            content=control_cert.getContent()),
+        put(path="/etc/flocker/control-service.key",
+            content=control_key.getContent()),
+        ])
 
 
-def task_generate_control_certificate(path=b"/etc/flocker"):
+def task_install_node_certificates(ca_cert, node_cert, node_key):
     """
-    Generate a control certificate with the supplied CA path and
-    write to the same path.
-    """
-    return sudo_from_args([
-        "flocker-ca", "create-control-certificate",
-        "--inputpath", path, "--outputpath", path
-    ])
+    Install certificates and private key required by a node.
 
-
-def task_generate_node_certificate(path=b"/etc/flocker"):
+    :param FilePath ca_cert: Path to CA certificate on local machine.
+    :param FilePath node_cert: Path to node certificate on
+        local machine.
+    :param FilePath node_key: Path to node private key
+        local machine.
     """
-    Generate a node certificate with the supplied CA path and
-    write to the same path.
-    """
-    return sudo_from_args([
-        "flocker-ca", "create-node-certificate",
-        "--inputpath", path, "--outputpath", path
-    ])
+    return sequence([
+        put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
+        put(path="/etc/flocker/node.crt",
+            content=node_cert.getContent()),
+        put(path="/etc/flocker/node.key",
+            content=node_key.getContent()),
+        ])
 
 
 def task_enable_docker(distribution):
@@ -512,28 +517,34 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(control_node, agent_nodes):
+def configure_cluster(control_node, agent_nodes, certificates):
     """
     Configure flocker-control, flocker-agent and flocker-container-agent
     on a collection of nodes.
 
     :param INode control_node: The control node.
     :param INode agent_nodes: List of agent nodes.
-
-    XXX need to add here generating certs, copying the appropriate files to the
-    nodes, keeping copies of cluster crt and API user crt+key on host and
-    injecting environment variables with the cert path for the acceptance tests
+    :param Certificates certificates: Certificates to upload.
     """
     return sequence([
         run_remotely(
             username='root',
             address=control_node.address,
-            commands=task_enable_flocker_control(control_node.distribution),
+            commands=sequence([
+                task_install_control_certificates(
+                    certificates.cluster.certificate,
+                    certificates.control.certificate,
+                    certificates.control.key),
+                task_enable_flocker_control(control_node.distribution),
+                ]),
         ),
         sequence([
             sequence([
                 Effect(
                     Func(lambda node=node: configure_ssh(node.address, 22))),
+                task_install_node_certificates(
+                    certificates.cluster.certificate, certnkey.certificate,
+                    certnkey.cert),
                 run_remotely(
                     username='root',
                     address=node.address,
@@ -542,6 +553,6 @@ def configure_cluster(control_node, agent_nodes):
                         control_node=control_node.address,
                     ),
                 ),
-            ]) for node in agent_nodes
+            ]) for certnkey, node in zip(certificates.nodes, agent_nodes)
         ])
     ])
