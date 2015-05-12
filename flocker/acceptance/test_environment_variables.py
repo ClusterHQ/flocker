@@ -22,7 +22,7 @@ from flocker.testtools import loop_until
 
 from .testtools import (
     assert_expected_deployment, flocker_deploy,
-    require_flocker_cli, require_cluster)
+    require_flocker_cli, require_cluster, require_backend)
 
 try:
     from pymysql import connect
@@ -134,6 +134,7 @@ class EnvironmentVariableTests(TestCase):
 
         return d
 
+    @require_backend(["zfs", "openstack", "ebs"])
     def test_moving_mysql(self):
         """
         It is possible to move MySQL to a new node.
@@ -207,6 +208,7 @@ class EnvironmentVariableTests(TestCase):
         # if the credentials are incorrect.
 
     @require_pymysql
+    @require_backend(["zfs", "openstack", "ebs"])
     def test_moving_data(self):
         """
         After adding data to MySQL and then moving it to another node, the data

@@ -18,6 +18,7 @@ from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client, ResponseError,
     get_test_cluster, require_cluster,
+    require_backend
 )
 
 
@@ -138,6 +139,7 @@ class ContainerAPITests(TestCase):
 
     @require_mongo
     @require_cluster(2)
+    @require_backend(["zfs", "openstack", "ebs"])
     def test_move_container_with_dataset(self, cluster):
         """
         Create a mongodb container with an attached dataset, issue API call
