@@ -141,8 +141,9 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         deployer = object()
 
         def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
-                raise TypeError("wrong arguments")
+            expected = {
+                "dataset_configuration", "reactor", "node_uuid", "hostname"}
+            self.assertEqual(set(kw.keys()), expected)
             return deployer
 
         reactor = MemoryCoreReactor()
@@ -168,7 +169,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         """
         spied = []
 
-        def deployer_factory(node_uuid, hostname):
+        def deployer_factory(dataset_configuration, reactor, node_uuid,
+                             hostname):
             spied.append(hostname)
             return object()
 
