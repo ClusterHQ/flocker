@@ -21,7 +21,8 @@ from ..script import (
     AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration)
 from .._loop import AgentLoopService
-from .._deploy import P2PManifestationDeployer
+# TODO Make tests which use this
+# from .._deploy import P2PManifestationDeployer
 # TODO test for configurationerror on missing config file
 # from ...control import ConfigurationError
 from ...testtools import MemoryCoreReactor
@@ -472,4 +473,3 @@ class ContainerAgentOptionsTests(
     """
     Tests for ``ContainerAgentOptions``.
     """
-
