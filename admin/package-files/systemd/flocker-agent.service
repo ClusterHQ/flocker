@@ -3,7 +3,7 @@ Description=Flocker ZFS Agent
 AssertFileNotEmpty=/etc/flocker/agent.yml
 
 [Service]
-ExecStart=/usr/sbin/flocker-zfs-agent
+ExecStart=/usr/sbin/flocker-dataset-agent
 
 # We can't have a private mount namespace, since we need to see ZFS created mounts.
 
