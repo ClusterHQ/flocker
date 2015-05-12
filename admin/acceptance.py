@@ -6,6 +6,7 @@ Run the acceptance tests.
 import sys
 import os
 import yaml
+from tempfile import mkdtemp
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
@@ -25,7 +26,7 @@ from flocker.provision._install import (
     configure_cluster,
 )
 from flocker.provision._libcloud import INode
-
+from flocker.provision._ca import Certificates
 from flocker.provision._ssh._fabric import dispatcher
 from flocker.provision._effect import sequence
 from effect import sync_perform as perform
@@ -404,9 +405,16 @@ def main(reactor, args, base_path, top_level):
 
     try:
         nodes = yield runner.start_nodes(reactor)
+
+        ca_directory = FilePath(mkdtemp())
+        print("Generating certificates in: {}".format(ca_directory.path))
+        certificates = Certificates.generate(ca_directory, nodes[0].address,
+                                             len(nodes))
+
         yield perform(
             dispatcher,
-            configure_cluster(control_node=nodes[0], agent_nodes=nodes))
+            configure_cluster(control_node=nodes[0], agent_nodes=nodes,
+                              certificates=certificates))
         result = yield run_tests(
             reactor=reactor,
             nodes=nodes,
