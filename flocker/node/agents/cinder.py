@@ -26,7 +26,7 @@ from zope.interface import implementer, Interface
 from ...common import auto_openstack_logging
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume,
+    UnattachedVolume, get_blockdevice_volume,
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -208,12 +208,6 @@ class CinderBlockDeviceAPI(object):
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
 
-    def _get(self, blockdevice_id):
-        for volume in self.list_volumes():
-            if volume.blockdevice_id == blockdevice_id:
-                return volume
-        raise UnknownVolume(blockdevice_id)
-
     def resize_volume(self, blockdevice_id, size):
         pass
 
@@ -229,7 +223,7 @@ class CinderBlockDeviceAPI(object):
         #
         # See
         # http://www.florentflament.com/blog/openstack-volume-in-use-although-vm-doesnt-exist.html
-        unattached_volume = self._get(blockdevice_id)
+        unattached_volume = get_blockdevice_volume(blockdevice_id)
         if unattached_volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
 
