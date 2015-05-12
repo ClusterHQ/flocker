@@ -60,6 +60,28 @@ class ICinderVolumeManager(Interface):
         :rtype: list of :class:`Volume`
         """
 
+    def delete(volume_id):
+        """
+        Delete a volume.
+
+        :param volume_id: The ID of the volume to delete.
+
+        :raise CinderNotFound: If no volume with the specified ID exists.
+
+        :return: ``None``
+        """
+
+    def get(volume_id):
+        """
+        Retrieve information about an existing volume.
+
+        :param volume_id: The ID of the volume about which to retrieve
+            information.
+
+        :return: A ``Volume`` instance describing the identified volume.
+        :rtype: :class:`Volume`
+        """
+
     def set_metadata(volume, metadata):
         """
         Update/Set a volumes metadata.
