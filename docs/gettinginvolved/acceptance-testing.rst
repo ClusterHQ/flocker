@@ -23,6 +23,14 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    Specifies what provider to use to create the nodes.
 
+.. option:: --type <type>
+
+   Specifies whether to run client or cluster tests.
+
+.. option:: --variant <variant>
+
+   Specify a variant of the provisioning to run.
+
 .. option:: --flocker-version <version>
 
    Specifies the version of flocker to install.
@@ -41,7 +49,7 @@ The :program:`admin/run-acceptance-tests` script has several options:
    Specifies the branch from which packages are installed.
    If this isn't specified, packages will be installed from the release repository.
 
-.. option:: --buildserver <buildserver>
+.. option:: --build-server <buildserver>
 
    Specifies the base URL of the build server to install from.
    This is probably only useful when testing changes to the build server.
@@ -53,6 +61,12 @@ The :program:`admin/run-acceptance-tests` script has several options:
    If the configuration contains a ``metadata`` key,
    the contents will be added as metadata of the created nodes,
    if the provider supports it.
+
+To see the supported values fore each option, run:
+
+.. prompt:: bash $
+
+   admin/run-acceptance-tests --help
 
 
 Vagrant
