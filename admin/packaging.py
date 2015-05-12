@@ -61,6 +61,7 @@ PACKAGE_ARCHITECTURE = {
     'clusterhq-python-flocker': 'native',
 }
 
+
 def package_filename(package_type, package, architecture, rpm_version):
     package_name_format = PACKAGE_NAME_FORMAT[package_type]
     return package_name_format.format(
@@ -597,7 +598,7 @@ IGNORED_WARNINGS = {
         'non-conffile-in-etc /etc/init/flocker-control.conf',
 
         # Cryptography hazmat bindings
-        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
+        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
 
         # We require an old version of setuptools
         # XXX This should not be necessary after
