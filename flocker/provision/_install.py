@@ -40,6 +40,10 @@ CLUSTERHQ_REPO = {
                 "centos/clusterhq-release$(rpm -E %dist).noarch.rpm".format(
                     archive_bucket=ARCHIVE_BUCKET,
                     ),
+    # FLOC-1828 TODO - use ARCHIVE_BUCKET rather than clusterhq-archive-testing
+    # This needs a release to be done to add .deb files to clusterhq-archive
+    'ubuntu-14.04': 'https://clusterhq-archive-testing.s3.amazonaws.com/'
+                'ubuntu/14.04/$(ARCH)'.format(archive_bucket=ARCHIVE_BUCKET),
 }
 
 
@@ -78,11 +82,10 @@ def task_install_cli(distribution, package_source=PackageSource()):
             sudo_from_args([
                 "apt-get", "-y", "install", "apt-transport-https",
                 "software-properties-common"]),
-            # FLOC-1828 TODO - use ARCHIVE_BUCKET rather than clusterhq-archive-testing  # noqa
-            # This needs a release to be done which adds .deb files to clusterhq-archive  # noqa
+            # Add ClusterHQ repo for installation of Flocker packages.
             sudo_from_args([
                 'add-apt-repository', '-y',
-                'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu/14.04/$(ARCH) /'  # noqa
+                'deb {} /'.format(CLUSTERHQ_REPO[distribution])
                 ])
             ]
 
@@ -91,15 +94,11 @@ def task_install_cli(distribution, package_source=PackageSource()):
             commands.append(sudo_from_args([
                 "add-apt-repository", "-y", "deb {} /".format(base_url)]))
 
-        commands += [
-            # Update to read package info from new repos
-            sudo_from_args([
-                "apt-get", "update"]),
-            ]
+        # Update to read package info from new repos
+        commands.append(sudo_from_args(["apt-get", "update"]))
 
         if package_source.os_version:
-            package = 'clusterhq-flocker-cli=%s' % (
-                package_source.os_version,)
+            package = 'clusterhq-flocker-cli=%s' % (package_source.os_version,)
         else:
             package = 'clusterhq-flocker-cli'
 
@@ -131,8 +130,7 @@ def task_install_cli(distribution, package_source=PackageSource()):
             branch_opt = []
 
         if package_source.os_version:
-            package = 'clusterhq-flocker-cli-%s' % (
-                package_source.os_version,)
+            package = 'clusterhq-flocker-cli-%s' % (package_source.os_version,)
         else:
             package = 'clusterhq-flocker-cli'
 
@@ -412,11 +410,9 @@ def task_install_flocker(
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
             # Add ClusterHQ repo for installation of Flocker packages.
-            # FLOC-1828 TODO - use ARCHIVE_BUCKET rather than clusterhq-archive-testing  # noqa
-            # This needs a release to be done which adds .deb files to clusterhq-archive  # noqa
             run_from_args([
                 'add-apt-repository', '-y',
-                'deb https://clusterhq-archive-testing.s3.amazonaws.com/ubuntu/14.04/$(ARCH) /'  # noqa
+                'deb {} /'.format(CLUSTERHQ_REPO[distribution])
                 ])
             ]
 
@@ -427,8 +423,7 @@ def task_install_flocker(
 
         commands += [
             # Update to read package info from new repos
-            run_from_args([
-                "apt-get", "update"]),
+            run_from_args(["apt-get", "update"]),
             # Package spl-dkms sometimes does not have libc6-dev as a
             # dependency, add it before ZFS installation requires it.
             # See https://github.com/zfsonlinux/zfs/issues/3298
