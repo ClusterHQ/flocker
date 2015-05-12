@@ -4,13 +4,15 @@ Tests for ``flocker.provision._ssh._conch``.
 
 from effect.twisted import perform
 
+from eliot.testing import capture_logging, assertHasMessage
+
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 
 from .._ssh import run, put, run_remotely
-from .._ssh._conch import make_dispatcher
+from .._ssh._conch import make_dispatcher, RUN_OUTPUT_MESSAGE
 
 
 from flocker.testtools.ssh import create_ssh_server, create_ssh_agent
@@ -71,4 +73,42 @@ class Tests(TestCase):
             self.assertEqual(self.server.home.child('file').getContent(),
                              "hello")
         d.addCallback(check)
+        return d
+
+    @capture_logging(
+        assertHasMessage, RUN_OUTPUT_MESSAGE, {'line': 'hello'})
+    def test_run_logs_stdout(self, logger):
+        """
+        The ``Run`` intent logs the standard output of the specified command.
+        """
+        command = run_remotely(
+            username="root",
+            address=str(self.server.ip),
+            port=self.server.port,
+            commands=run("echo hello 1>&2"),
+        )
+
+        d = perform(
+            make_dispatcher(reactor),
+            command,
+        )
+        return d
+
+    @capture_logging(
+        assertHasMessage, RUN_OUTPUT_MESSAGE, {'line': 'hello'})
+    def test_run_logs_stderr(self, logger):
+        """
+        The ``Run`` intent logs the standard output of the specified command.
+        """
+        command = run_remotely(
+            username="root",
+            address=str(self.server.ip),
+            port=self.server.port,
+            commands=run("echo hello 1>&2"),
+        )
+
+        d = perform(
+            make_dispatcher(reactor),
+            command,
+        )
         return d

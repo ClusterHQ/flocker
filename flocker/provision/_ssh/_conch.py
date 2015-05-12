@@ -2,7 +2,7 @@ from pipes import quote as shell_quote
 
 from characteristic import attributes
 
-from eliot import Message
+from eliot import Message, MessageType, Field
 
 from effect import (
     sync_performer, TypeDispatcher, ComposedDispatcher, Effect,
@@ -37,6 +37,21 @@ from ._model import Run, Sudo, Put, Comment, RunRemotely
 from .._effect import dispatcher as base_dispatcher
 
 
+RUN_OUTPUT_MESSAGE = MessageType(
+    message_type="flocker.provision.ssh:run:output",
+    fields=[
+        Field.for_types(u"line", [bytes], u"The output."),
+    ],
+    description=u"A line of command output.",
+)
+
+
+def extReceived(self, type, data):
+    from twisted.conch.ssh.connection import EXTENDED_DATA_STDERR
+    if type == EXTENDED_DATA_STDERR:
+        self.dataReceived(data)
+
+
 @attributes([
     "deferred",
     "context",
@@ -53,7 +68,12 @@ class CommandProtocol(LineOnlyReceiver, object):
     delimiter = b'\n'
 
     def connectionMade(self):
+        from functools import partial
         self.transport.disconnecting = False
+        # SSHCommandClientEndpoint doesn't support capturing stderr.
+        # We patch the SSHChannel to interleave it.
+        # https://twistedmatrix.com/trac/ticket/7893
+        self.transport.extReceived = partial(extReceived, self)
 
     def connectionLost(self, reason):
         if reason.check(ConnectionDone):
