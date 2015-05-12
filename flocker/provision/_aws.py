@@ -26,7 +26,12 @@ _usernames = {
 
 
 def get_default_username(distribution):
-    """Return the username available by default on a system."""
+    """
+    Return the username available by default on a system.
+
+    :param str distribution: Name of the operating system distribution
+    :return str: The username made available by AWS for this distribution.
+    """
     return _usernames[distribution]
 
 

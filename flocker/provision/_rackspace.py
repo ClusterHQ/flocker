@@ -17,7 +17,13 @@ from effect import Func, Effect
 
 
 def get_default_username(distribution):
-    """Return the username available by default on a system."""
+    """
+    Return the username available by default on a system.
+
+    :param str distribution: Name of the operating system distribution
+    :return str: The username made available by Rackspace for this
+        distribution.
+    """
     return 'root'
 
 

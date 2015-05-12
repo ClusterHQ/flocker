@@ -54,16 +54,24 @@ def task_install_cli(distribution, package_source=PackageSource()):
     """
     Install flocker CLI on a distribution.
 
+    The ClusterHQ repo is added for downloading latest releases.  If
+    ``package_source`` contains a branch, then a BuildBot repo will also
+    be added to the package search path, to use in-development packages.
+    Note, the ClusterHQ repo is always enabled, to provide dependencies.
+
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
     """
     if package_source.branch:
+        # A development branch has been selected - add its Buildbot repo
+        use_development_branch = True
         result_path = posixpath.join(
             '/results/omnibus/', package_source.branch, distribution)
         base_url = urljoin(package_source.build_server, result_path)
     else:
-        base_url = None
+        use_development_branch = False
+
     if distribution == 'ubuntu-14.04':
         commands = [
             # Ensure add-apt-repository command and HTTPS URLs are supported
@@ -78,7 +86,7 @@ def task_install_cli(distribution, package_source=PackageSource()):
                 ])
             ]
 
-        if base_url:
+        if use_development_branch:
             # Add BuildBot repo for running tests
             commands.append(sudo_from_args([
                 "add-apt-repository", "-y", "deb {} /".format(base_url)]))
@@ -105,7 +113,7 @@ def task_install_cli(distribution, package_source=PackageSource()):
             sudo(command="yum install -y " + CLUSTERHQ_REPO[distribution])
         ]
 
-        if base_url:
+        if use_development_branch:
             repo = dedent(b"""\
                 [clusterhq-build]
                 name=clusterhq-build
@@ -135,6 +143,12 @@ def task_install_cli(distribution, package_source=PackageSource()):
 
 
 def install_cli(package_source, node):
+    """
+    Return an effect to run the CLI installation tasks on a remote node.
+
+    :param package_source: Package source description
+    :param node: Remote node description
+    """
     return run_remotely(
         node.get_default_username(), node.address,
         task_install_cli(node.distribution, package_source))
@@ -365,18 +379,26 @@ def task_install_flocker(
         distribution=None,
         package_source=PackageSource()):
     """
-    Install flocker on a distribution.
+    Install flocker cluster on a distribution.
+
+    The ClusterHQ repo is added for downloading latest releases.  If
+    ``package_source`` contains a branch, then a BuildBot repo will also
+    be added to the package search path, to use in-development packages.
+    Note, the ClusterHQ repo is always enabled, to provide dependencies.
 
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
     """
     if package_source.branch:
+        # A development branch has been selected - add its Buildbot repo
+        use_development_branch = True
         result_path = posixpath.join(
             '/results/omnibus/', package_source.branch, distribution)
         base_url = urljoin(package_source.build_server, result_path)
     else:
-        base_url = None
+        use_development_branch = False
+
     if distribution == 'ubuntu-14.04':
         commands = [
             # Ensure add-apt-repository command and HTTPS URLs are supported
@@ -398,7 +420,7 @@ def task_install_flocker(
                 ])
             ]
 
-        if base_url:
+        if use_development_branch:
             # Add BuildBot repo for testing
             commands.append(run_from_args([
                 "add-apt-repository", "-y", "deb {} /".format(base_url)]))
@@ -434,7 +456,7 @@ def task_install_flocker(
             commands.append(
                 run_from_args(["yum", "install", "-y", "epel-release"]))
 
-        if base_url:
+        if use_development_branch:
             repo = dedent(b"""\
                 [clusterhq-build]
                 name=clusterhq-build

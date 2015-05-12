@@ -142,7 +142,11 @@ class INode(Interface):
 
     def get_default_username():
         """
-        Return the default username on this node.
+        Return the username available by default on a system.
+
+        Some cloud systems (e.g. AWS) provide a specific username, which
+        depends on the OS distribution started.  This method returns
+        the username based on the node distribution.
         """
 
     def provision(package_source, variants):

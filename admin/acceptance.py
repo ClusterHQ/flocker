@@ -179,6 +179,11 @@ class VagrantNode(object):
 
         Vagrant node starts with a provisioned image, so this is
         a null operation.
+
+        :param PackageSource package_source: The source from which to install
+            flocker.
+        :param set variants: The set of variant configurations to use when
+            provisioning
         """
         return succeed(None)
 
@@ -446,6 +451,14 @@ class RunOptions(Options):
 
 @inlineCallbacks
 def do_client_acceptance_tests(reactor, runner, trial_args):
+    """
+    Run acceptance tests for client.
+
+    :param reactor: Twisted reactor
+    :param runner: Cloud or Vagrant runner to start nodes
+    :param trial_args: arguments to pass to trial
+    :return int: exit code of Trial run
+    """
     nodes = yield runner.start_nodes(reactor, node_count=1)
     yield perform(
         dispatcher, install_cli(runner.package_source, nodes[0]))
@@ -458,6 +471,14 @@ def do_client_acceptance_tests(reactor, runner, trial_args):
 
 @inlineCallbacks
 def do_cluster_acceptance_tests(reactor, runner, trial_args):
+    """
+    Run acceptance tests for cluster.
+
+    :param reactor: Twisted reactor
+    :param runner: Cloud or Vagrant runner to start nodes
+    :param trial_args: arguments to pass to trial
+    :return int: exit code of Trial run
+    """
     nodes = yield runner.start_nodes(reactor, node_count=2)
     yield perform(
         dispatcher,
