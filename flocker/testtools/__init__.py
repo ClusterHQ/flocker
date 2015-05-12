@@ -14,14 +14,18 @@ import os
 import pwd
 from collections import namedtuple
 from contextlib import contextmanager
-from random import random
+from random import randrange
 import shutil
 from functools import wraps
 from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
+from bitmath import GB
+
 from pyrsistent import PRecord, field
+
+from docker import Client as DockerClient
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
@@ -30,6 +34,7 @@ from twisted.internet.interfaces import (
     IProcessTransport, IReactorProcess, IReactorCore,
 )
 from twisted.python.filepath import FilePath, Permissions
+from twisted.python.reflect import prefixedMethodNames
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred, succeed
 from twisted.internet.error import ConnectionDone
@@ -42,15 +47,15 @@ from twisted.trial.unittest import TestCase
 from twisted.protocols.amp import AMP, InvalidSignature
 from twisted.python.log import msg
 
-from characteristic import attributes
-
 from .. import __version__
 from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
 
-GIBIBYTE = 2 ** 30
-REALISTIC_BLOCKDEVICE_SIZE = 4 * GIBIBYTE
+# This is currently set to the minimum size for a SATA based Rackspace Cloud
+# Block Storage volume. See:
+# * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
+REALISTIC_BLOCKDEVICE_SIZE = int(GB(100).to_Byte().value)
 
 
 @implementer(IProcessTransport)
@@ -210,12 +215,16 @@ def loop_until(predicate):
     return d
 
 
-def random_name():
-    """Return a short, random name.
+def random_name(case):
+    """
+    Return a short, random name.
+
+    :param TestCase case: The test case being run.  The test method that is
+        running will be mixed into the name.
 
     :return name: A random ``unicode`` name.
     """
-    return u"%d" % (int(random() * 1e12),)
+    return u"{}-{}".format(case.id().replace(u".", u"_"), randrange(10 ** 6))
 
 
 def help_problems(command_name, help_text):
@@ -543,15 +552,19 @@ class ProtocolPoppingFactory(Factory):
         return self.protocols.pop()
 
 
-@attributes(['test', 'source_dir'])
-class DockerImageBuilder(object):
+class DockerImageBuilder(PRecord):
     """
     Build a docker image, tag it, and remove the image later.
 
     :ivar TestCase test: The test the builder is being used in.
     :ivar FilePath source_dir: The path to the directory containing a
         ``Dockerfile.in`` file.
+    :ivar bool cleanup: If ``True`` then cleanup after the test is done.
     """
+    test = field(mandatory=True)
+    source_dir = field(mandatory=True)
+    cleanup = field(mandatory=True, initial=True)
+
     def _process_template(self, template_file, target_file, replacements):
         """
         Fill in the placeholders in `template_file` with the `replacements` and
@@ -590,7 +603,7 @@ class DockerImageBuilder(object):
         if template_file.exists() and not docker_file.exists():
             self._process_template(
                 template_file, docker_file, dockerfile_variables)
-        tag = b"flockerlocaltests/" + random_name()
+        tag = b"flockerlocaltests/" + random_name(self.test).lower()
 
         # XXX: This dumps lots of debug output to stderr which messes up the
         # test results output. It's useful debug info incase of a test failure
@@ -604,7 +617,14 @@ class DockerImageBuilder(object):
             docker_dir.path
         ]
         run_process(command)
-        self.test.addCleanup(run_process, [b"docker", b"rmi", tag])
+        if self.cleanup:
+            def remove_image():
+                client = DockerClient(version="1.15")
+                for container in client.containers():
+                    if container[u"Image"] == tag + ":latest":
+                        client.remove_container(container[u"Names"][0])
+                client.remove_image(tag, force=True)
+            self.test.addCleanup(remove_image)
         return tag
 
 
@@ -830,6 +850,17 @@ class _ProcessResult(PRecord):
     status = field(type=int, mandatory=True)
 
 
+class _CalledProcessError(CalledProcessError):
+    """
+    Just like ``CalledProcessError`` except output is included in the string
+    representation.
+    """
+    def __str__(self):
+        base = super(_CalledProcessError, self).__str__()
+        lines = "\n".join("    |" + line for line in self.output.splitlines())
+        return base + " and output:\n" + lines
+
+
 def run_process(command, *args, **kwargs):
     """
     Run a child process, capturing its stdout and stderr.
@@ -848,5 +879,47 @@ def run_process(command, *args, **kwargs):
     status = process.wait()
     result = _ProcessResult(command=command, output=output, status=status)
     if result.status:
-        raise CalledProcessError(returncode=status, cmd=command, output=output)
+        raise _CalledProcessError(
+            returncode=status, cmd=command, output=output,
+        )
     return result
+
+
+def skip_except(supported_tests):
+    """
+    Mark all the ``test_`` methods in ``TestCase`` as ``skip`` unless the test
+    method names are in ``supported_tests``.
+
+    :param list supported_tests: The names of the tests that are expected to
+        pass.
+    """
+    test_prefix = 'test_'
+    skip_or_todo = 'skip'
+    noskip = os.environ.get('NOSKIP')
+    if noskip is not None:
+        return lambda test_case: test_case
+
+    def decorator(test_case):
+        test_method_names = [
+            test_prefix + name
+            for name
+            in prefixedMethodNames(test_case, test_prefix)
+        ]
+        for test_method_name in test_method_names:
+            if test_method_name not in supported_tests:
+                test_method = getattr(test_case, test_method_name)
+                new_message = []
+                existing_message = getattr(test_method, skip_or_todo, None)
+                if existing_message is not None:
+                    new_message.append(existing_message)
+                new_message.append('Not implemented yet')
+                new_message = ' '.join(new_message)
+
+                @wraps(test_method)
+                def wrapper(*args, **kwargs):
+                    return test_method(*args, **kwargs)
+                setattr(wrapper, skip_or_todo, new_message)
+                setattr(test_case, test_method_name, wrapper)
+
+        return test_case
+    return decorator

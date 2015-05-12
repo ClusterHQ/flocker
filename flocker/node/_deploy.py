@@ -6,6 +6,7 @@ Deploy applications on nodes.
 """
 
 from itertools import chain
+from warnings import warn
 
 from zope.interface import Interface, implementer, Attribute
 
@@ -23,7 +24,7 @@ from . import IStateChange, in_parallel, sequentially
 from ..control._model import (
     Application, DatasetChanges, AttachedVolume, DatasetHandoff,
     NodeState, DockerImage, Port, Link, Manifestation, Dataset,
-    pset_field,
+    pset_field, ip_to_uuid
     )
 from ..route import make_host_network, Proxy, OpenPort
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -55,10 +56,12 @@ class IDeployer(Interface):
     changes to bring local state and desired cluster configuration into
     alignment.
 
-    :ivar unicode hostname: The hostname of the node this deployer is
-        managing.
+    :ivar UUID node_uuid: The UUID of the node this deployer is running.
+    :ivar unicode hostname: The hostname (really, IP) of the node this
+        deployer is managing.
     """
-    hostname = Attribute("The hostname for this node.")
+    node_uuid = Attribute("The UUID of thise node, a ``UUID`` instance.")
+    hostname = Attribute("The public IP address of this node.")
 
     def discover_state(local_state):
         """
@@ -432,6 +435,42 @@ class OpenPorts(PRecord):
         return gather_deferreds(results)
 
 
+class NotInUseDatasets(object):
+    """
+    Filter out datasets that are in use by applications.
+
+    For now we delay things like deletion until we know applications
+    aren't using the dataset. Later on we'll use leases to decouple
+    the application and dataset logic better; see
+    https://clusterhq.atlassian.net/browse/FLOC-1425.
+    """
+    def __init__(self, node_state):
+        """
+        :param NodeState node_state: Known local state.
+        """
+        self._in_use_datasets = {app.volume.manifestation.dataset_id
+                                 for app in node_state.applications
+                                 if app.volume is not None}
+
+    def __call__(self, objects,
+                 get_dataset_id=lambda d: unicode(d.dataset_id)):
+        """
+        Filter out all objects whose dataset_id is in use.
+
+        :param objects: Objects to filter.
+
+        :param get_dataset_id: Callable to extract a ``dataset_id`` from
+            an object. By default looks up ``dataset_id`` attribute.
+
+        :return list: Filtered objects.
+        """
+        result = []
+        for obj in objects:
+            if get_dataset_id(obj) not in self._in_use_datasets:
+                result.append(obj)
+        return result
+
+
 @implementer(IDeployer)
 class P2PManifestationDeployer(object):
     """
@@ -441,7 +480,14 @@ class P2PManifestationDeployer(object):
     :ivar unicode hostname: The hostname of the node that this is running on.
     :ivar VolumeService volume_service: The volume manager for this node.
     """
-    def __init__(self, hostname, volume_service):
+    def __init__(self, hostname, volume_service, node_uuid=None):
+        if node_uuid is None:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
+            warn("UUID is required, this is for backwards compat with existing"
+                 " tests only. If you see this in production code that's "
+                 "a bug.", DeprecationWarning, stacklevel=2)
+            node_uuid = ip_to_uuid(hostname)
+        self.node_uuid = node_uuid
         self.hostname = hostname
         self.volume_service = volume_service
 
@@ -477,6 +523,7 @@ class P2PManifestationDeployer(object):
                 available_manifestations.values())
 
             return [NodeState(
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,
@@ -496,35 +543,28 @@ class P2PManifestationDeployer(object):
         https://clusterhq.atlassian.net/browse/FLOC-1425 for leases, a
         better solution.
         """
-        local_state = cluster_state.get_node(self.hostname)
+        local_state = cluster_state.get_node(self.node_uuid)
         # We need to know applications (for now) to see if we should delay
         # deletion or handoffs. Eventually this will rely on leases instead.
         if local_state.applications is None:
             return sequentially(changes=[])
         phases = []
 
-        # For now we delay deletion and handoffs until we know application
-        # isn't using the dataset. Later on we'll use leases to decouple
-        # the application and dataset logic better.
-        in_use_datasets = {app.volume.manifestation.dataset_id
-                           for node in cluster_state.nodes
-                           for app in node.applications
-                           if app.volume is not None}
+        not_in_use_datasets = NotInUseDatasets(local_state)
 
         # Find any dataset that are moving to or from this node - or
         # that are being newly created by this new configuration.
         dataset_changes = find_dataset_changes(
-            self.hostname, cluster_state, configuration)
+            self.node_uuid, cluster_state, configuration)
 
-        resizing = [dataset for dataset in dataset_changes.resizing
-                    if dataset.dataset_id not in in_use_datasets]
+        resizing = not_in_use_datasets(dataset_changes.resizing)
         if resizing:
             phases.append(in_parallel(changes=[
                 ResizeDataset(dataset=dataset)
                 for dataset in resizing]))
 
-        going = [handoff for handoff in dataset_changes.going
-                 if handoff.dataset.dataset_id not in in_use_datasets]
+        going = not_in_use_datasets(dataset_changes.going,
+                                    lambda d: d.dataset.dataset_id)
         if going:
             phases.append(in_parallel(changes=[
                 HandoffDataset(dataset=handoff.dataset,
@@ -536,8 +576,7 @@ class P2PManifestationDeployer(object):
                 CreateDataset(dataset=dataset)
                 for dataset in dataset_changes.creating]))
 
-        deleting = [dataset for dataset in dataset_changes.deleting
-                    if dataset.dataset_id not in in_use_datasets]
+        deleting = not_in_use_datasets(dataset_changes.deleting)
         if deleting:
             phases.append(in_parallel(changes=[
                 DeleteDataset(dataset=dataset)
@@ -558,7 +597,15 @@ class ApplicationNodeDeployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, hostname, docker_client=None, network=None):
+    def __init__(self, hostname, docker_client=None, network=None,
+                 node_uuid=None):
+        if node_uuid is None:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
+            warn("UUID is required, this is for backwards compat with existing"
+                 " tests only. If you see this in production code that's "
+                 "a bug.", DeprecationWarning, stacklevel=2)
+            node_uuid = ip_to_uuid(hostname)
+        self.node_uuid = node_uuid
         self.hostname = hostname
         if docker_client is None:
             docker_client = DockerClient()
@@ -595,6 +642,7 @@ class ApplicationNodeDeployer(object):
             # convergence agent for datasets will discover the information
             # and then we can proceed.
             return succeed([NodeState(
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=None,
                 used_ports=None,
@@ -675,6 +723,7 @@ class ApplicationNodeDeployer(object):
                 ))
 
             return [NodeState(
+                uuid=self.node_uuid,
                 hostname=self.hostname,
                 applications=applications,
                 used_ports=self.network.enumerate_used_ports(),
@@ -698,7 +747,8 @@ class ApplicationNodeDeployer(object):
            locally, so long as their required datasets are available.
         """
         # We are a node-specific IDeployer:
-        current_node_state = current_cluster_state.get_node(self.hostname)
+        current_node_state = current_cluster_state.get_node(
+            self.node_uuid, hostname=self.hostname)
         if current_node_state.applications is None:
             # We don't know current application state, so can't calculate
             # anything. This will be the case if we don't know the local
@@ -710,8 +760,10 @@ class ApplicationNodeDeployer(object):
         desired_proxies = set()
         desired_open_ports = set()
         desired_node_applications = []
+        node_states = {node.uuid: node for node in current_cluster_state.nodes}
+
         for node in desired_configuration.nodes:
-            if node.hostname == self.hostname:
+            if node.uuid == self.node_uuid:
                 desired_node_applications = node.applications
                 for application in node.applications:
                     for port in application.ports:
@@ -722,8 +774,10 @@ class ApplicationNodeDeployer(object):
                     for port in application.ports:
                         # XXX: also need to do DNS resolution. See
                         # https://clusterhq.atlassian.net/browse/FLOC-322
-                        desired_proxies.add(Proxy(ip=node.hostname,
-                                                  port=port.external_port))
+                        if node.uuid in node_states:
+                            desired_proxies.add(Proxy(
+                                ip=node_states[node.uuid].hostname,
+                                port=port.external_port))
 
         if desired_proxies != set(self.network.enumerate_proxies()):
             phases.append(SetProxies(ports=desired_proxies))
@@ -731,23 +785,16 @@ class ApplicationNodeDeployer(object):
         if desired_open_ports != set(self.network.enumerate_open_ports()):
             phases.append(OpenPorts(ports=desired_open_ports))
 
-        current_node_applications = set(
-            app for app in current_node_state.applications if app.running)
         all_applications = current_node_state.applications
 
         # Compare the applications being changed by name only.  Other
         # configuration changes aren't important at this point.
-        current_state = {app.name for app in current_node_applications}
+        local_application_names = {app.name for app in all_applications}
         desired_local_state = {app.name for app in
                                desired_node_applications}
-        not_running = {
-            app.name for app
-            in all_applications.difference(current_node_applications)}
-
         # Don't start applications that exist on this node but aren't
-        # running; instead they should be restarted:
-        start_names = desired_local_state.difference(
-            current_state | not_running)
+        # running; Docker is in charge of restarts:
+        start_names = desired_local_state.difference(local_application_names)
         stop_names = {app.name for app in all_applications}.difference(
             desired_local_state)
 
@@ -766,19 +813,12 @@ class ApplicationNodeDeployer(object):
             if app.name in stop_names
         ]
 
-        restart_containers = [
-            sequentially(changes=[
-                StopApplication(application=app),
-                StartApplication(application=app,
-                                 node_state=current_node_state)])
-            for app in desired_node_applications
-            if app.name in not_running
-        ]
+        restart_containers = []
 
-        applications_to_inspect = current_state & desired_local_state
+        applications_to_inspect = (
+            {app.name for app in all_applications} & desired_local_state)
         current_applications_dict = dict(zip(
-            [a.name for a in current_node_applications],
-            current_node_applications
+            [a.name for a in all_applications], all_applications
         ))
         desired_applications_dict = dict(zip(
             [a.name for a in desired_node_applications],
@@ -787,19 +827,22 @@ class ApplicationNodeDeployer(object):
         for application_name in applications_to_inspect:
             inspect_desired = desired_applications_dict[application_name]
             inspect_current = current_applications_dict[application_name]
-            # Current state never has metadata, but that's OK:
-            if inspect_desired.volume is not None:
-                inspect_desired = inspect_desired.transform(
+            # For our purposes what we care about is if configuration has
+            # changed, so if it's not running but it's otherwise the same
+            # we don't want to do anything:
+            comparable_current = inspect_current.transform(["running"], True)
+            # Current state never has metadata on datasets, so remove from
+            # configuration:
+            comparable_desired = inspect_desired
+            if comparable_desired.volume is not None:
+                comparable_desired = comparable_desired.transform(
                     ["volume", "manifestation", "dataset", "metadata"], {})
-            if inspect_desired != inspect_current:
-                changes = [
+            if comparable_desired != comparable_current:
+                restart_containers.append(sequentially(changes=[
                     StopApplication(application=inspect_current),
                     StartApplication(application=inspect_desired,
                                      node_state=current_node_state),
-                ]
-                sequence = sequentially(changes=changes)
-                if sequence not in restart_containers:
-                    restart_containers.append(sequence)
+                ]))
 
         if stop_containers:
             phases.append(in_parallel(changes=stop_containers))
@@ -809,7 +852,7 @@ class ApplicationNodeDeployer(object):
         return sequentially(changes=phases)
 
 
-def find_dataset_changes(hostname, current_state, desired_state):
+def find_dataset_changes(uuid, current_state, desired_state):
     """
     Find what actions need to be taken to deal with changes in dataset
     manifestations between current state and desired state of the cluster.
@@ -823,7 +866,7 @@ def find_dataset_changes(hostname, current_state, desired_state):
     coverage for those situations is not implemented. See
     https://clusterhq.atlassian.net/browse/FLOC-352 for more details.
 
-    :param unicode hostname: The name of the node for which to find changes.
+    :param UUID uuid: The uuid of the node for which to find changes.
 
     :param Deployment current_state: The old state of the cluster on which the
         changes are based.
@@ -834,22 +877,24 @@ def find_dataset_changes(hostname, current_state, desired_state):
     :return DatasetChanges: Changes to datasets that will be needed in
          order to match desired configuration.
     """
-    desired_datasets = {node.hostname:
+    uuid_to_hostnames = {node.uuid: node.hostname
+                         for node in current_state.nodes}
+    desired_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             in node.manifestations.values())
                         for node in desired_state.nodes}
-    current_datasets = {node.hostname:
+    current_datasets = {node.uuid:
                         set(manifestation.dataset for manifestation
                             in node.manifestations.values())
                         for node in current_state.nodes}
-    local_desired_datasets = desired_datasets.get(hostname, set())
+    local_desired_datasets = desired_datasets.get(uuid, set())
     local_desired_dataset_ids = set(dataset.dataset_id for dataset in
                                     local_desired_datasets)
     local_current_dataset_ids = set(dataset.dataset_id for dataset in
-                                    current_datasets.get(hostname, set()))
+                                    current_datasets.get(uuid, set()))
     remote_current_dataset_ids = set()
-    for dataset_hostname, current in current_datasets.items():
-        if dataset_hostname != hostname:
+    for dataset_node_uuid, current in current_datasets.items():
+        if dataset_node_uuid != uuid:
             remote_current_dataset_ids |= set(
                 dataset.dataset_id for dataset in current)
 
@@ -861,7 +906,7 @@ def find_dataset_changes(hostname, current_state, desired_state):
     for desired in desired_datasets.values():
         for new_dataset in desired:
             if new_dataset.dataset_id in local_current_dataset_ids:
-                for cur_dataset in current_datasets[hostname]:
+                for cur_dataset in current_datasets[uuid]:
                     if cur_dataset.dataset_id != new_dataset.dataset_id:
                         continue
                     if cur_dataset.maximum_size != new_dataset.maximum_size:
@@ -870,12 +915,19 @@ def find_dataset_changes(hostname, current_state, desired_state):
     # Look at each dataset that is going to be running elsewhere and is
     # currently running here, and add a DatasetHandoff for it to `going`.
     going = set()
-    for dataset_hostname, desired in desired_datasets.items():
-        if dataset_hostname != hostname:
+    for dataset_node_uuid, desired in desired_datasets.items():
+        if dataset_node_uuid != uuid:
+            try:
+                hostname = uuid_to_hostnames[dataset_node_uuid]
+            except KeyError:
+                # Apparently we don't know NodeState for this
+                # node. Hopefully we'll learn this information eventually
+                # but until we do we can't proceed.
+                continue
             for dataset in desired:
                 if dataset.dataset_id in local_current_dataset_ids:
-                    going.add(DatasetHandoff(dataset=dataset,
-                                             hostname=dataset_hostname))
+                    going.add(DatasetHandoff(
+                        dataset=dataset, hostname=hostname))
 
     # Look at each dataset that is going to be hosted on this node.  If it
     # was running somewhere else, we want that dataset to be in `coming`.

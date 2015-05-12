@@ -15,6 +15,8 @@ from docker import Client
 from docker.errors import APIError
 from docker.utils import create_host_config
 
+from eliot import Message
+
 from pyrsistent import field, PRecord
 
 from twisted.python.components import proxyForInterface
@@ -489,6 +491,23 @@ class DockerClient(object):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
 
+    def _blocking_container_runs(self, container_name):
+        """
+        Blocking API to check if container is running.
+
+        :param unicode container_name: The name of the container whose
+            state we're checking.
+
+        :return: ``True`` if container is running, otherwise ``False``.
+        """
+        result = self._client.inspect_container(container_name)
+        Message.new(
+            message_type="flocker:docker:container_state",
+            container=container_name,
+            state=result
+        ).write()
+        return result['State']['Running']
+
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
 
@@ -501,30 +520,70 @@ class DockerClient(object):
                 # Docker will return NOT_MODIFIED (which isn't an error) in
                 # that case.
                 try:
+                    Message.new(
+                        message_type="flocker:docker:container_stop",
+                        container=container_name
+                    ).write()
                     self._client.stop(container_name)
                 except APIError as e:
                     if e.response.status_code == NOT_FOUND:
                         # If the container doesn't exist, we swallow the error,
                         # since this method is supposed to be idempotent.
+                        Message.new(
+                            message_type="flocker:docker:container_not_found",
+                            container=container_name
+                        ).write()
                         break
                     elif e.response.status_code == INTERNAL_SERVER_ERROR:
                         # Docker returns this if the process had died, but
                         # hasn't noticed it yet.
+                        Message.new(
+                            message_type="flocker:docker:container_stop_internal_error",  # noqa
+                            container=container_name
+                        ).write()
                         continue
                     else:
                         raise
                 else:
+                    Message.new(
+                        message_type="flocker:docker:container_stopped",
+                        container=container_name
+                    ).write()
                     break
 
             try:
+                # The ``docker.Client.stop`` method sometimes returns a
+                # 404 error, even though the container exists.
+                # See https://github.com/docker/docker/issues/13088
+                # Wait until the container has actually stopped running
+                # before attempting to remove it.  Otherwise we are
+                # likely to see: 'docker.errors.APIError: 409 Client
+                # Error: Conflict ("Conflict, You cannot remove a
+                # running container. Stop the container before
+                # attempting removal or use -f")'
+                # This code should probably be removed once the above
+                # issue has been resolved. See [FLOC-1850]
+                while self._blocking_container_runs(container_name):
+                    sleep(0.01)
+
+                Message.new(
+                    message_type="flocker:docker:container_remove",
+                    container=container_name
+                ).write()
                 self._client.remove_container(container_name)
+                Message.new(
+                    message_type="flocker:docker:container_removed",
+                    container=container_name
+                ).write()
             except APIError as e:
                 # If the container doesn't exist, we swallow the error,
                 # since this method is supposed to be idempotent.
                 if e.response.status_code == NOT_FOUND:
+                    Message.new(
+                        message_type="flocker:docker:container_not_found",
+                        container=container_name
+                    ).write()
                     return
-                # Can't figure out how to get test coverage for this, but
-                # it's definitely necessary:
                 raise
         d = deferToThread(_remove)
         return d
@@ -543,14 +602,33 @@ class DockerClient(object):
                     # have been removed in another thread.
                     if e.response.status_code == NOT_FOUND:
                         continue
+                    else:
+                        raise
 
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
                 name = data[u"Name"]
-                image = data[u"Config"][u"Image"]
+                # Since tags (e.g. "busybox") aren't stable, ensure we're
+                # looking at the actual image by using the hash:
+                image = data[u"Image"]
+                image_tag = data[u"Config"][u"Image"]
                 command = data[u"Config"][u"Cmd"]
-                image_command = self._client.inspect_image(image)
-                if image_command[u"Config"][u"Cmd"] == command:
+                try:
+                    image_data = self._client.inspect_image(image)
+                except APIError as e:
+                    if e.response.status_code == NOT_FOUND:
+                        # Image has been deleted, so just fill in some
+                        # stub data so we can return *something*. This
+                        # should happen only for stopped containers so
+                        # some inaccuracy is acceptable.
+                        Message.new(
+                            message_type="flocker:docker:image_not_found",
+                            container=i, running=data[u"State"][u"Running"]
+                        ).write()
+                        image_data = {u"Config": {u"Env": [], u"Cmd": []}}
+                    else:
+                        raise
+                if image_data[u"Config"][u"Cmd"] == command:
                     command = None
                 port_bindings = data[u"HostConfig"][u"PortBindings"]
                 if port_bindings is not None:
@@ -574,14 +652,17 @@ class DockerClient(object):
                 # Retrieve environment variables for this container,
                 # disregarding any environment variables that are part
                 # of the image, rather than supplied in the configuration.
-                image_data = self._client.inspect_image(image)
                 unit_environment = []
                 container_environment = data[u"Config"][u"Env"]
-                image_environment = image_data[u"Config"]["Env"]
-                for environment in container_environment:
-                    if environment not in image_environment:
-                        env_key, env_value = environment.split('=', 1)
-                        unit_environment.append((env_key, env_value))
+                if image_data[u"Config"]["Env"] is None:
+                    image_environment = []
+                else:
+                    image_environment = image_data[u"Config"]["Env"]
+                if container_environment is not None:
+                    for environment in container_environment:
+                        if environment not in image_environment:
+                            env_key, env_value = environment.split('=', 1)
+                            unit_environment.append((env_key, env_value))
                 unit_environment = (
                     Environment(variables=frozenset(unit_environment))
                     if unit_environment else None
@@ -600,7 +681,7 @@ class DockerClient(object):
                     name=name,
                     container_name=self._to_container_name(name),
                     activation_state=state,
-                    container_image=image,
+                    container_image=image_tag,
                     ports=frozenset(ports),
                     volumes=frozenset(volumes),
                     environment=unit_environment,

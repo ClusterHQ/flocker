@@ -18,8 +18,7 @@ from ...control._model import (
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
-    random_name, DockerImageBuilder, assertContainsAll, loop_until,
-    run_process)
+    random_name, DockerImageBuilder, assertContainsAll, loop_until)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 
@@ -32,12 +31,13 @@ class P2PNodeDeployer(object):
     https://clusterhq.atlassian.net/browse/FLOC-1732
     """
     def __init__(self, hostname, volume_service, docker_client=None,
-                 network=None):
+                 network=None, node_uuid=None):
         self.manifestations_deployer = P2PManifestationDeployer(
-            hostname, volume_service)
+            hostname, volume_service, node_uuid=node_uuid)
         self.applications_deployer = ApplicationNodeDeployer(
-            hostname, docker_client, network)
+            hostname, docker_client, network, node_uuid=node_uuid)
         self.hostname = hostname
+        self.node_uuid = node_uuid
         self.volume_service = self.manifestations_deployer.volume_service
         self.docker_client = self.applications_deployer.docker_client
         self.network = self.applications_deployer.network
@@ -104,49 +104,6 @@ class DeployerTests(TestCase):
     Functional tests for ``Deployer``.
     """
     @if_docker_configured
-    def test_restart(self):
-        """
-        Stopped applications that are supposed to be running are restarted
-        when the calcualted actions are run.
-        """
-        name = random_name()
-        docker_client = DockerClient()
-        deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network())
-        self.addCleanup(docker_client.remove, name)
-
-        desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
-                 applications=frozenset([Application(
-                     name=name,
-                     image=DockerImage.from_string(
-                         u"openshift/busybox-http-app"),
-                     links=frozenset(),
-                     )]))]))
-
-        d = change_node_state(deployer, desired_state)
-        d.addCallback(lambda _: wait_for_unit_state(docker_client, name,
-                                                    [u'active']))
-
-        def started(_):
-            # Now that it's running, stop it behind our back:
-            run_process([b"docker", b"stop",
-                         docker_client._to_container_name(name)])
-            return wait_for_unit_state(docker_client, name,
-                                       [u'inactive', u'failed'])
-        d.addCallback(started)
-
-        def stopped(_):
-            # Redeploy, which should restart it:
-            return change_node_state(deployer, desired_state)
-        d.addCallback(stopped)
-        d.addCallback(lambda _: wait_for_unit_state(docker_client, name,
-                                                    [u'active']))
-
-        # Test will timeout if unit was not restarted:
-        return d
-
-    @if_docker_configured
     def test_environment(self):
         """
         The environment specified in an ``Application`` is passed to the
@@ -156,7 +113,7 @@ class DeployerTests(TestCase):
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
 
-        application_name = random_name()
+        application_name = random_name(self)
 
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
@@ -164,7 +121,7 @@ class DeployerTests(TestCase):
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
             u"localhost", volume_service, docker_client,
-            make_memory_network())
+            make_memory_network(), node_uuid=uuid4())
 
         expected_variables = frozenset({
             'key1': 'value1',
@@ -176,7 +133,7 @@ class DeployerTests(TestCase):
             metadata=pmap({"name": application_name}))
         manifestation = Manifestation(dataset=dataset, primary=True)
         desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
+            Node(uuid=deployer.node_uuid,
                  applications=frozenset([Application(
                      name=application_name,
                      image=DockerImage.from_string(
@@ -223,7 +180,7 @@ class DeployerTests(TestCase):
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
 
-        application_name = random_name()
+        application_name = random_name(self)
 
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
@@ -231,7 +188,7 @@ class DeployerTests(TestCase):
         volume_service = create_volume_service(self)
         deployer = P2PNodeDeployer(
             u"localhost", volume_service, docker_client,
-            make_memory_network())
+            make_memory_network(), node_uuid=uuid4())
 
         expected_variables = frozenset({
             'ALIAS_PORT_80_TCP': 'tcp://localhost:8080',
@@ -249,7 +206,7 @@ class DeployerTests(TestCase):
             metadata=pmap({"name": application_name}))
         manifestation = Manifestation(dataset=dataset, primary=True)
         desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
+            Node(uuid=deployer.node_uuid,
                  applications=frozenset([Application(
                      name=application_name,
                      image=DockerImage.from_string(
@@ -294,16 +251,17 @@ class DeployerTests(TestCase):
         EXPECTED_MEMORY_LIMIT = 100000000
         image = DockerImage.from_string(u"openshift/busybox-http-app")
 
-        application_name = random_name()
+        application_name = random_name(self)
 
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
 
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network())
+            u"localhost", docker_client, make_memory_network(),
+            node_uuid=uuid4())
 
         desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
+            Node(uuid=deployer.node_uuid,
                  applications=frozenset([Application(
                      name=application_name,
                      image=image,
@@ -339,16 +297,17 @@ class DeployerTests(TestCase):
 
         image = DockerImage.from_string(u"openshift/busybox-http-app")
 
-        application_name = random_name()
+        application_name = random_name(self)
 
         docker_client = DockerClient()
         self.addCleanup(docker_client.remove, application_name)
 
         deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network())
+            u"localhost", docker_client, make_memory_network(),
+            node_uuid=uuid4())
 
         desired_state = Deployment(nodes=frozenset([
-            Node(hostname=u"localhost",
+            Node(uuid=deployer.node_uuid,
                  applications=frozenset([Application(
                      name=application_name,
                      image=image,

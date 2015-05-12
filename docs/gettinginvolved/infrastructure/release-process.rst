@@ -1,3 +1,5 @@
+.. _release-process:
+
 Release Process
 ===============
 
@@ -14,9 +16,10 @@ Outcomes
 By the end of the release process we will have:
 
 - a tag in version control,
-- a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
+- a Python wheel on Amazon `S3`_,
 - Fedora 20 RPMs for software on the node and client,
 - CentOS 7 RPMs for software on the node and client,
+- Ubuntu 14.04 DEBs for software on the node and client,
 - a Vagrant base tutorial image,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
@@ -48,16 +51,14 @@ Software
 Access
 ~~~~~~
 
-- Access to `Google Cloud Storage`_.
-
 - Access to Amazon `S3`_ with an `Access Key ID and Secret Access Key <https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSGettingStartedGuide/AWSCredentials.html>`_.
   It is possible that you will have an account but not the permissions to create an Access Key ID and Secret Access Key.
 
 - A member of a `ClusterHQ team on Atlas <https://atlas.hashicorp.com/settings/organizations/clusterhq/teams/>`_.
 
-- An OS X (most recent release) system.
+- SSH access to ClusterHQ's GitHub repositories.
 
-.. note:: For a maintenance or documentation release, access to Google Cloud Storage and Atlas is not required.
+.. note:: For a maintenance or documentation release, access to Atlas is not required.
 
 .. _preparing-for-a-release:
 
@@ -89,7 +90,7 @@ Preparing For a Release
    This copies your local git configuration from ``~/.gitconfig``.
    If this does not exist, commits made for the release will be associated with the default Vagrant username and email address.
 
-   This copies your local configuration for `gsutil`_ and `S3`_ from ``~/.boto``.
+   This copies your local configuration for `S3`_ from ``~/.aws``.
    If this does not exist, a later step will create it.
 
    .. prompt:: bash $
@@ -98,7 +99,7 @@ Preparing For a Release
       cd flocker-${VERSION}
       vagrant up
       vagrant ssh -c "echo export VERSION=${VERSION} >> .bashrc"
-      if [ -f ~/.boto ]; then vagrant scp "~/.boto" /home/vagrant; fi
+      if [ -d ~/.aws ]; then vagrant scp "~/.aws" /home/vagrant; fi
       vagrant ssh -- -A
 
 #. Create a release branch, and create and activate a virtual environment:
@@ -109,10 +110,6 @@ Preparing For a Release
       cd flocker-${VERSION}
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
-      # This ensures that setuptools is a version that does not normalize
-      # version numbers according to PEP440.
-      # See https://clusterhq.atlassian.net/browse/FLOC-1331
-      pip install setuptools==3.6
       admin/create-release-branch --flocker-version="${VERSION}"
       git push --set-upstream origin release/flocker-${VERSION}
 
@@ -209,24 +206,14 @@ Preparing For a Release
       git commit -am "Updated Vagrantfile"
       git push --set-upstream origin release/flocker-${VERSION}
 
-#. Set up Google Cloud Storage and Amazon S3 credentials:
+#. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
 
-   Creating the Vagrant machine attempts to copy the ``~/.boto`` configuration file from the host machine.
-
-   Run:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-     gsutil ls gs:// s3://
-
-   If the credentials have been set up correctly, you should see ClusterHQ's ``gs://`` and ``s3://`` buckets.
-   If they have not, run:
+   Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
+   This means that ``awscli`` may have correct defaults.
 
    .. prompt:: bash [vagrant@localhost]$
 
-      gsutil config
-
-   and set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto`` to allow access to Amazon `S3`_ using `gsutil`_.
+      aws configure
 
 #. Update the staging documentation:
 
@@ -335,19 +322,12 @@ Release
 
    Wait for the build to complete successfully.
 
-#. Build and upload artifacts:
-
-   .. note:: Skip this step for a maintenance or documentation release.
+#. Build Python and RPM packages and upload them to Amazon S3,
+   and copy the tutorial box to the final location:
 
    .. prompt:: bash [vagrant@localhost]$
 
-      # Build Python packages and upload them to ``archive.clusterhq.com``
-      python setup.py sdist bdist_wheel
-      gsutil cp -a public-read "dist/Flocker-${VERSION}.tar.gz" "dist/Flocker-${VERSION}-py2-none-any.whl" gs://archive.clusterhq.com/downloads/flocker/
-      # Build RPM packages and upload them to Amazon S3
-      admin/publish-packages
-      # Copy the tutorial box to the final location
-      gsutil cp -a public-read gs://clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-${VERSION}.box gs://clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+      admin/publish-artifacts
 
 #. Add the tutorial box to Atlas:
 
@@ -357,46 +337,9 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      echo https://storage.googleapis.com/clusterhq-vagrant/flocker-tutorial-${VERSION}.box
+      echo https://s3.amazonaws.com/clusterhq-archive/vagrant/tutorial/flocker-tutorial-${VERSION}.box
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
-
-#. Create a version specific Homebrew recipe for this release:
-
-   .. note:: Skip this step for a maintenance or documentation release.
-
-   XXX This should be automated, see :issue:`1150`.
-
-   - Create a recipe file and push it to the `homebrew-tap`_ repository:
-
-     .. prompt:: bash [vagrant@localhost]$
-
-        cd
-        git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
-        cd homebrew-tap-${VERSION}
-        ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
-        git add flocker-${VERSION}.rb
-        git commit -m "New Homebrew recipe"
-        git push
-
-   - Test the Homebrew recipe on OS X:
-
-     ClusterHQ has a Mac Mini available to use for testing.
-     Follow the instructions at ClusterHQ > Infrastructure > OS X Development Machine for launching a Virtual Machine to do this with.
-
-     Export the version number of the release being completed as an environment variable:
-
-     .. prompt:: bash [osx-user]$
-
-        export VERSION=0.1.2
-
-     Install and test the Homebrew recipe:
-
-     .. task:: test_homebrew flocker-${VERSION}
-        :prompt: [osx-user]$
-
-     If tests fail then the either the recipe on the `master` branch or the package it installs must be modified.
-     The release process should not continue until the tests pass.
 
 #. Test the Getting Started Guide:
 
@@ -452,15 +395,15 @@ Release
       git merge origin/release/flocker-${VERSION}
       git push
 
-#. Copy the ``boto`` configuration file to your local home directory:
+#. Copy the AWS configuration to your local home directory:
 
-   If the ``boto`` configuration is on your workstation it will not have to be recreated next time you do a release.
+   If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
 
    .. prompt:: bash [vagrant@localhost]$,$ auto
 
       [vagrant@localhost]$ logout
       Connection to 127.0.0.1 closed.
-      $ vagrant scp default:/home/vagrant/.boto ~/
+      $ vagrant scp default:/home/vagrant/.aws ~/
 
 #. Submit the release pull request for review again.
 
@@ -515,10 +458,8 @@ Look at `existing issues relating to the release process <https://clusterhq.atla
 The issue(s) for the planned improvements should be put into the next sprint.
 
 
-.. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
-.. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh

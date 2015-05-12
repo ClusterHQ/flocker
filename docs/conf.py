@@ -16,8 +16,6 @@ from twisted.python.filepath import FilePath
 import sys
 import os
 
-from flocker.provision._install import DIGITALOCEAN_KERNEL_TITLE
-
 sys.path.insert(0, FilePath(__file__).parent().parent().path)
 
 # Check if we are building on readthedocs
@@ -322,9 +320,3 @@ linkcheck_ignore = [
     # This is an example GitHub URL
     r'https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234\?expand=1'
 ]
-
-# Define some custom global variables
-# See http://sphinx.readthedocs.org/en/latest/config.html#confval-rst_epilog
-rst_epilog = """
-.. |digitalocean_kernel_title| replace:: ``{}``
-""".format(DIGITALOCEAN_KERNEL_TITLE)

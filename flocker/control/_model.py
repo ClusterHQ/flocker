@@ -14,8 +14,11 @@ There are different categories of classes:
 3. Configuration-specific classes, none implemented yet.
 """
 
-from characteristic import attributes
+from uuid import UUID
+from warnings import warn
+from hashlib import md5
 
+from characteristic import attributes
 from twisted.python.filepath import FilePath
 
 from pyrsistent import (
@@ -91,15 +94,24 @@ def pvector_field(item_type, optional=False, initial=()):
 _valid = lambda item: (True, "")
 
 
-def pmap_field(key_type, value_type, optional=False, invariant=_valid):
+_UNDEFINED = object()
+
+
+def pmap_field(
+    key_type, value_type, optional=False, invariant=_valid,
+    initial=_UNDEFINED
+):
     """
     Create a checked ``PMap`` field.
 
     :param key: The required type for the keys of the map.
     :param value: The required type for the values of the map.
-    :param bool optional: If true, ``None`` can be used as a value for
-        this field.
+    :param bool optional: If true, ``None`` can be used as a value for this
+        field.
     :param invariant: Pass-through to ``field``.
+    :param initial: An initial value for the field.  This will first be coerced
+        using the field's factory.  If not given, the initial value is an empty
+        map.
 
     :return: A ``field`` containing a ``CheckedPMap``.
     """
@@ -117,7 +129,13 @@ def pmap_field(key_type, value_type, optional=False, invariant=_valid):
                 return TheMap(argument)
     else:
         factory = TheMap
-    return field(mandatory=True, initial=TheMap(),
+
+    if initial is _UNDEFINED:
+        initial = TheMap()
+    else:
+        initial = factory(initial)
+
+    return field(mandatory=True, initial=initial,
                  type=optional_type(TheMap) if optional else TheMap,
                  factory=factory, invariant=invariant)
 
@@ -394,9 +412,7 @@ class Node(PRecord):
     Manifestations attached to applications must also be present in the
     ``manifestations`` attribute.
 
-    :ivar unicode hostname: The hostname of the node.  This must be a
-        resolveable name so that Flocker can connect to the node.  This may be
-        a literal IP address instead of a proper hostname.
+    :ivar UUID uuid: The unique identifier for the node.
 
     :ivar applications: A ``PSet`` of ``Application`` instances describing
         the applications which are to run on this ``Node``.
@@ -415,11 +431,35 @@ class Node(PRecord):
                     return (False, '%r manifestation is not on node' % (app,))
         return (True, "")
 
-    hostname = field(type=unicode, factory=unicode, mandatory=True)
+    def __new__(cls, hostname=None, **kwargs):
+        # PRecord does some crazy stuff, thus _precord_buckets; see
+        # PRecord.__new__.
+        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
+            warn("UUID is required, this is for backwards compat with existing"
+                 " tests only. If you see this in production code that's "
+                 "a bug.", DeprecationWarning, stacklevel=2)
+            kwargs["uuid"] = ip_to_uuid(hostname)
+        return PRecord.__new__(cls, **kwargs)
+
+    uuid = field(type=UUID, mandatory=True)
     applications = pset_field(Application)
     manifestations = pmap_field(
         unicode, Manifestation, invariant=_keys_match_dataset_id
     )
+
+
+def same_node(node1, node2):
+    """
+    Return whether these two objects both refer to same cluster node,
+    i.e. have same UUID.
+
+    :param node1: ``Node`` or ``NodeState`` instance.
+    :param node2: ``Node`` or ``NodeState`` instance.
+
+    :return: Whether the two instances have same UUID.
+    """
+    return node1.uuid == node2.uuid
 
 
 def _get_node(default_factory):
@@ -427,22 +467,22 @@ def _get_node(default_factory):
     Create a helper function for getting a node from a deployment.
 
     :param default_factory: A one-argument callable which is called with the
-        requested hostname when no matching node is found in the deployment.
+        requested UUID when no matching node is found in the deployment.
         The return value is used as the result.
 
     :return: A two-argument callable which accepts a ``Deployment`` or a
              ``DeploymentState`` as the first argument and a ``unicode`` string
              giving a node hostname as the second argument.  It will return a
-             node from the deployment object with a matching hostname or it
+             node from the deployment object with a matching UUID or it
              will return a value from ``default_factory`` if no matching node
              is found.
     """
-    def get_node(deployment, hostname):
+    def get_node(deployment, uuid, **defaults):
         nodes = list(
-            node for node in deployment.nodes if node.hostname == hostname
+            node for node in deployment.nodes if node.uuid == uuid
         )
         if len(nodes) == 0:
-            return default_factory(hostname=hostname)
+            return default_factory(uuid=uuid, **defaults)
         return nodes[0]
     return get_node
 
@@ -481,7 +521,7 @@ class Deployment(PRecord):
         :return Deployment: Updated with new ``Node``.
         """
         return Deployment(nodes=frozenset(
-            list(n for n in self.nodes if n.hostname != node.hostname) +
+            list(n for n in self.nodes if not same_node(n, node)) +
             [node]))
 
     def move_application(self, application, target_node):
@@ -502,7 +542,7 @@ class Deployment(PRecord):
                 if container.name == application.name:
                     # We only need to perform a move if the node currently
                     # hosting the container is not the node it's moving to.
-                    if node.hostname != target_node.hostname:
+                    if not same_node(node, target_node):
                         # If the container has a volume, we need to add the
                         # manifestation to the new host first.
                         if application.volume is not None:
@@ -586,12 +626,27 @@ class IClusterStateChange(Interface):
         """
 
 
+def ip_to_uuid(ip):
+    """
+    Deterministically convert IP to UUID.
+
+    This is intended for interim use and backwards compatibility for
+    existing tests. It should not be hit in production code paths.
+
+    :param unicode ip: An IP.
+
+    :return UUID: Matching UUID.
+    """
+    return UUID(bytes=md5(ip.encode("utf-8")).digest())
+
+
 @implementer(IClusterStateChange)
 class NodeState(PRecord):
     """
     The current state of a node.
 
-    :ivar unicode hostname: The hostname of the node.
+    :ivar UUID uuid: The node's UUID.
+    :ivar unicode hostname: The IP of the node.
     :ivar applications: A ``PSet`` of ``Application`` instances on this
         node, or ``None`` if the information is not known.
     :ivar used_ports: A ``PSet`` of ``int``\ s giving the TCP port numbers
@@ -612,11 +667,24 @@ class NodeState(PRecord):
                 return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
+    def __new__(cls, **kwargs):
+        # PRecord does some crazy stuff, thus _precord_buckets; see
+        # PRecord.__new__.
+        if "uuid" not in kwargs and "_precord_buckets" not in kwargs:
+            # To be removed in https://clusterhq.atlassian.net/browse/FLOC-1795
+            warn("UUID is required, this is for backwards compat with existing"
+                 " tests only. If you see this in production code that's "
+                 "a bug.", DeprecationWarning, stacklevel=2)
+            kwargs["uuid"] = ip_to_uuid(kwargs["hostname"])
+        return PRecord.__new__(cls, **kwargs)
+
+    uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
     used_ports = pset_field(int, optional=True)
     applications = pset_field(Application, optional=True)
     manifestations = pmap_field(unicode, Manifestation, optional=True)
     paths = pmap_field(unicode, FilePath, optional=True)
+    devices = pmap_field(UUID, FilePath, optional=True)
 
     def update_cluster_state(self, cluster_state):
         return cluster_state.update_node(self)
@@ -665,7 +733,7 @@ class DeploymentState(PRecord):
 
         :return DeploymentState: Updated with new ``NodeState``.
         """
-        nodes = {n for n in self.nodes if n.hostname == node_state.hostname}
+        nodes = {n for n in self.nodes if same_node(n, node_state)}
         if not nodes:
             return self.transform(["nodes"], lambda s: s.add(node_state))
         [original_node] = nodes

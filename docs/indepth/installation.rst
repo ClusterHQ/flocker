@@ -101,6 +101,7 @@ The ``flocker-deploy`` command line program will now be available:
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 
+
 .. _installing-flocker-node:
 
 Installing ``clusterhq-flocker-node``
@@ -115,13 +116,13 @@ These easiest way to get Flocker going is to use our vagrant configuration.
 It is also possible to deploy Flocker in the cloud, on a number of different providers.
 
 - :ref:`Using Amazon Web Services <aws-install>`
-- :ref:`Using DigitalOcean <digitalocean-install>`
 - :ref:`Using Rackspace <rackspace-install>`
 
-It is also possible to install Flocker on any Fedora 20 or CentOS 7 machine.
+It is also possible to install Flocker on any Fedora 20, CentOS 7, or Ubuntu 14.04 machine.
 
 - :ref:`Installing on Fedora 20 <fedora-20-install>`
 - :ref:`Installing on CentOS 7 <centos-7-install>`
+- :ref:`Installing on Ubuntu 14.04 <ubuntu-14.04-install>`
 
 
 .. _vagrant-install:
@@ -172,109 +173,51 @@ Using Amazon Web Services
 
 #. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
-   .. code-block:: sh
+   .. prompt:: bash alice@mercury:~$
 
-      yourlaptop$ mv ~/Downloads/my-instance.pem ~/.ssh/
-      yourlaptop$ chmod 600 ~/.ssh/my-instance.pem
-      yourlaptop$ ssh-add ~/.ssh/my-instance.pem
+      mv ~/Downloads/my-instance.pem ~/.ssh/
+      chmod 600 ~/.ssh/my-instance.pem
+      ssh-add ~/.ssh/my-instance.pem
 
-#. Look up the public DNS name or public IP address of the new instance and log in as user "fedora", e.g.:
+#. Look up the public DNS name or public IP address of the new instance and, depending on the OS, log in as user ``fedora``, ``centos``, or ``ubuntu`` e.g.:
 
-   .. code-block:: sh
+   .. prompt:: bash alice@mercury:~$
 
-      yourlaptop$ ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+      ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
-#. Allow SSH access for the ``root`` user
+#. Allow SSH access for the ``root`` user, then log out.
 
    .. task:: install_ssh_key
-      :prompt: [fedora@aws]#
-
-   You should now be able to log in as "root" and the ``authorized_keys`` file should look approximately like this:
-
-   .. code-block:: sh
-
-      yourlaptop$ ssh root@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
-      [root@aws]# cat /root/.ssh/authorized_keys
-      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
+      :prompt: [user@aws]$
 
 #. Log back into the instances as user "root", e.g.:
 
-   .. code-block:: sh
+   .. prompt:: bash alice@mercury:~$
 
-      yourlaptop$ ssh rootec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+      ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 #. Upgrade the Kernel
 
-   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
+   Some operating systems require an updated kernel.
 
-   .. task:: upgrade_kernel
+   Fedora kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
+   On Fedora, run:
+
+   .. task:: upgrade_kernel fedora-20
       :prompt: [root@aws]#
 
-   And now reboot the machine to make use of the new kernel.
+   On CentOS, run:
 
-   .. code-block:: sh
+   .. task:: upgrade_kernel centos-7
+      :prompt: [root@aws]#
 
-      [fedora@aws]$ sudo shutdown -r now
+   Reboot the machine to make use of the new kernel.
 
-#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
+   .. prompt:: bash [root@aws]#
 
+         shutdown -r now
 
-.. _digitalocean-install:
-
-Using DigitalOcean
-------------------
-
-Another way to get a Flocker cluster running is to use DigitalOcean.
-You'll probably want to setup at least two nodes.
-
-#. Create a new Droplet running Fedora 20
-
-   * Visit https://cloud.digitalocean.com/droplets/new
-   * Choose a minimum of 8GB of RAM
-   * Choose the Fedora 20 x64 Linux distribution as your image
-   * You may choose to add an SSH key, or DigitalOcean will email you the root SSH password
-
-#. Look up the public IP address of the new Droplet, and SSH in
-
-   You can find the IP in the Droplet page after it is created, to the left of the green "Active" text near the top.
-
-   .. code-block:: sh
-
-      yourlaptop$ ssh root@203.0.113.109
-
-#. Install a supported Linux kernel
-
-   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
-   To switch to the newest kernel, follow these steps:
-
-   #. Configure the Droplet to boot with the desired kernel:
-
-      * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
-      * Choose the newest kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
-
-        At the time of writing, the latest supported kernel is |digitalocean_kernel_title|.
-
-   #. Upgrade the kernel package inside the virtual machine:
-
-      The selected kernel may no-longer be available from the standard Fedora 20 repositories, so we install from ``koji``.
-
-      .. task:: install_digitalocean_kernel
-         :prompt: [root@digitalocean]#
-
-   #. Power Cycle the Droplet
-
-      Droplet kernel changes only take effect after *power cycling* the virtual machine.
-
-      * Shut down the virtual machine:
-
-      .. code-block:: sh
-
-         [root@digitalocean]# shutdown -h now
-
-      * On the "Power" administration page, click "Boot".
-
-
-#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
+#. Follow the operating system specific installation instructions below.
 
 
 .. _rackspace-install:
@@ -297,9 +240,9 @@ You'll probably want to setup at least two nodes.
 
    You can find the IP in the Server Details page after it is created.
 
-   .. code-block:: sh
+   .. prompt:: bash alice@mercury:~$
 
-      yourlaptop$  ssh root@203.0.113.109
+      ssh root@203.0.113.109
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
@@ -316,7 +259,7 @@ Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
 
 .. task:: install_kernel_devel
-   :prompt: [root@node]#
+   :prompt: [root@fedora]#
 
 .. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
 
@@ -329,6 +272,12 @@ Paste them into a root console on the target node:
 .. task:: install_flocker fedora-20
    :prompt: [root@node]#
    
+Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
+To enable and start Docker, run the following commands in a root console:
+
+.. task:: enable_docker fedora-20
+   :prompt: [root@fedora]#
+
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
@@ -337,16 +286,17 @@ This tool generates TLS certificates that are used to identify and authenticate 
 Installing on CentOS 7
 ----------------------
 
-Flocker requires the latest available kernel.
+.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
 
-.. task:: upgrade_kernel_centos
+First disable SELinux.
 
-Flocker requires ZFS, and installing ZFS requires that the running kernel be the one that will eventually be used.
-Thus we need to reboot into the new kernel.
+.. task:: disable_selinux centos-7
+   :prompt: [root@centos]#
 
-.. prompt:: bash [root@node]#
-
-   shutdown -r now
+.. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
+          This prevents Docker containers from accessing those filesystems as volumes.
+          A future version of Flocker may provide a different integration strategy.
+          See :issue:`619`.
 
 Now install the ``flocker-node`` package.
 To install ``flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
@@ -356,9 +306,27 @@ Paste them into a root console on the target node:
 
 .. task:: install_flocker centos-7
    :prompt: [root@node]#
+
+Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
+To enable and start Docker, run the following commands in a root console:
+
+.. task:: enable_docker centos-7
+   :prompt: [root@centos]#
    
 Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
 This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
+
+.. _ubuntu-14.04-install:
+
+Installing on Ubuntu 14.04
+--------------------------
+
+.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
+
+Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` package.
+
+.. task:: install_flocker ubuntu-14.04
+   :prompt: [root@ubuntu]#
 
 .. _authentication:
 
@@ -419,24 +387,8 @@ Finally, you should securely copy the ``cluster.crt`` file generated in the firs
 
 You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../advanced/security>`.
 
-Post installation configuration for Fedora 20 and CentOS 7
-----------------------------------------------------------
-
-First disable SELinux.
-
-.. task:: disable_selinux
-   :prompt: [root@node]#
-
-.. note:: Flocker does not currently set the necessary SELinux context types on the filesystem mount points that it creates on nodes.
-          This prevents Docker containers from accessing those filesystems as volumes.
-          A future version of Flocker may provide a different integration strategy.
-          See :issue:`619`.
-
-Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
-To enable and start Docker, run the following commands in a root console:
-
-.. task:: enable_docker
-   :prompt: [root@node]#
+Post installation configuration
+-------------------------------
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
