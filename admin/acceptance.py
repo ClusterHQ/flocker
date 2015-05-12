@@ -23,7 +23,7 @@ import flocker
 from flocker.provision._ssh import (
     run_remotely)
 from flocker.provision._install import (
-    task_client_smoke_test,
+    task_client_installation_test,
     install_cli,
     task_pull_docker_images,
     configure_cluster,
@@ -86,7 +86,7 @@ def run_client_tests(reactor, node, trial_args):
     return perform(dispatcher, run_remotely(
         username=node.get_default_username(),
         address=node.address,
-        commands=task_client_smoke_test()
+        commands=task_client_installation_test()
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -332,7 +332,7 @@ class TestTypes(Values):
     """
     Type of test to run.
 
-    :ivar CLIENT: Run client smoke tests.
+    :ivar CLIENT: Run client installation tests.
     :ivar CLUSTER: Run cluster acceptance tests.
     """
     CLIENT = ValueConstant("client")

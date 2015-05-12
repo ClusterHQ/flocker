@@ -43,7 +43,7 @@ CLUSTERHQ_REPO = {
 }
 
 
-def task_client_smoke_test():
+def task_client_installation_test():
     """
     Check that the CLI is working.
     """
