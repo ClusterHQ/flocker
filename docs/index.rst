@@ -14,14 +14,11 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   flocker/index
-   flocker/introduction/index
-   flocker/using/index
-   flocker/concepts/index
-   flocker/reference/index
-   flocker/releasenotes/index
-   flocker/faq/index
-   cluster/index
-   cluster/getinvolved/index
-   cluster/authors
-   
+   introduction
+   gettingstarted/index
+   indepth/index
+   advanced/index
+   gettinginvolved/index
+   roadmap/index
+   faq/index
+   authors
