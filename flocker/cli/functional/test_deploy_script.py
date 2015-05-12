@@ -49,12 +49,7 @@ class FlockerDeployTests(TestCase):
         ca_set, _ = get_credential_sets()
         self.certificate_path = FilePath(self.mktemp())
         self.certificate_path.makedirs()
-        ca_set.path.child(b"cluster.crt").copyTo(
-            self.certificate_path.child(b"cluster.crt"))
-        ca_set.path.child(b"allison.crt").copyTo(
-            self.certificate_path.child(b"user.crt"))
-        ca_set.path.child(b"allison.key").copyTo(
-            self.certificate_path.child(b"user.key"))
+        ca_set.copy_to(self.certificate_path, user=True)
 
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))

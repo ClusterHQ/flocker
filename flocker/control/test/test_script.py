@@ -84,12 +84,7 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         ca_set, _ = get_credential_sets()
         self.certificate_path = FilePath(self.mktemp())
         self.certificate_path.makedirs()
-        ca_set.path.child(b"cluster.crt").copyTo(
-            self.certificate_path.child(b"cluster.crt"))
-        ca_set.path.globChildren(b"control-*.crt")[0].copyTo(
-            self.certificate_path.child(b"control-service.crt"))
-        ca_set.path.globChildren(b"control-*.key")[0].copyTo(
-            self.certificate_path.child(b"control-service.key"))
+        ca_set.copy_to(self.certificate_path, control=True)
 
     def test_starts_http_api_server(self):
         """

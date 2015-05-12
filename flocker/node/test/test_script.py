@@ -49,13 +49,7 @@ def setup_config(test):
             },
             u"version": 1,
         }))
-    ca_set.path.child(b"cluster.crt").copyTo(
-        scratch_directory.child(b"cluster.crt"))
-    uuid = ca_set.node.uuid
-    ca_set.path.child(b"{}.crt".format(uuid)).copyTo(
-        scratch_directory.child(b"node.crt"))
-    ca_set.path.child(b"{}.key".format(uuid)).copyTo(
-        scratch_directory.child(b"node.key"))
+    ca_set.copy_to(scratch_directory, node=True)
 
 
 class ZFSAgentScriptTests(SynchronousTestCase):
