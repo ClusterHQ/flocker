@@ -43,6 +43,29 @@ _OK_MESSAGE = (
     b"images need to be pulled.\n")
 
 
+def treq_with_authentication(reactor, path):
+    """
+    Create a ``treq``-API object that implements the REST API TLS
+    authentication.
+
+    That is, validating the control service as well as presenting a
+    certificate to the control service for authentication.
+
+    :param reactor: The reactor to use.
+    :param FilePath path: Directory where certificates and private key can
+        be found.
+
+    :return: ``treq`` compatible object.
+    """
+    ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
+    # This is a hack; from_path should be more
+    # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
+    user_credential = UserCredential.from_path(path, u"user")
+    policy = ControlServicePolicy(
+        ca_certificate=ca, client_credential=user_credential.credential)
+    return HTTPClient(Agent(reactor, contextFactory=policy))
+
+
 @attributes(['node', 'hostname'])
 class NodeTarget(object):
     """
@@ -112,14 +135,10 @@ class DeployOptions(Options):
                 )
             )
         if self["certificates-directory"] is None:
-            self["certificates-directory"] = os.getcwd()
-        path = FilePath(self["certificates-directory"])
-        ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
-        # This is a hack; from_path should be more
-        # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
-        user_credential = UserCredential.from_path(path, u"user")
-        self["https-policy"] = ControlServicePolicy(
-            ca_certificate=ca, client_credential=user_credential.credential)
+            self["certificates-directory"] = FilePath(os.getcwd())
+        else:
+            self["certificates-directory"] = FilePath(
+                self["certificates-directory"])
 
 
 @implementer(ICommandLineScript)
@@ -137,12 +156,8 @@ class DeployScript(object):
         body = dumps({"applications": options["application_config"],
                       "deployment": options["deployment_config"]})
 
-        treq_client = HTTPClient(
-            Agent(
-                reactor,
-                contextFactory=options["https-policy"],
-            )
-        )
+        treq_client = treq_with_authentication(
+            reactor, options["certificates-directory"])
         posted = treq_client.post(
             options["url"], data=body,
             headers={b"content-type": b"application/json"},

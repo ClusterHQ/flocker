@@ -14,8 +14,6 @@ from unittest import SkipTest, skipUnless
 from yaml import safe_dump
 
 from twisted.web.http import OK, CREATED
-from twisted.web.client import Agent
-from twisted.internet.ssl import ClientContextFactory
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.internet import reactor
@@ -24,7 +22,6 @@ from eliot import Logger, start_action
 from eliot.twisted import DeferredContext
 
 from treq import json_content, content
-from treq.client import HTTPClient
 
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
@@ -32,9 +29,8 @@ from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
 from ..control.httpapi import container_configuration_response, REST_API_PORT
-from ..control.httpapi import WebClientContextFactory
-
-from flocker.testtools import loop_until
+from ...cli.script import treq_with_authentication
+from ...testtools import loop_until
 
 
 try:
@@ -66,13 +62,6 @@ require_mongo = skipUnless(
 # https://clusterhq.atlassian.net/browse/FLOC-947
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
-
-# treq client that does insecure HTTPS authentication; will be switched
-# to something better in FLOC-1805:
-context_factory = WebClientContextFactory(ClientContextFactory())
-_treq_client = HTTPClient(Agent(reactor,
-                                contextFactory=context_factory))
-get, post, delete = _treq_client.get, _treq_client.post, _treq_client.delete
 
 
 def get_mongo_application():
@@ -312,7 +301,7 @@ def flocker_deploy(test_case, deployment_config, application_config):
     :param dict application_config: The desired application configuration.
     """
     control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
-    certificate_path = environ.get("FLOCKER_ACCEPTANCE_API_CERTIFICATE_PATH")
+    certificate_path = environ.get("FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH")
     if control_node is None:
         raise SkipTest("Set control node address using "
                        "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
@@ -490,12 +479,14 @@ class Cluster(PRecord):
     A record of the control service and the nodes in a cluster for acceptance
     testing.
 
-    :param Node control_node: The node running the ``flocker-control``
+    :ivar Node control_node: The node running the ``flocker-control``
         service.
-    :param list nodes: The ``Node`` s in this cluster.
+    :ivar list nodes: The ``Node`` s in this cluster.
+    :ivar treq: A ``treq`` client.
     """
     control_node = field(type=ControlService)
     nodes = field(type=_NodeList)
+    treq = field()
 
     @property
     def base_url(self):
@@ -515,7 +506,8 @@ class Cluster(PRecord):
         :return: ``Deferred`` firing with a list of dataset dictionaries,
             the state of the cluster.
         """
-        request = get(self.base_url + b"/state/datasets", persistent=False)
+        request = self.treq.get(
+            self.base_url + b"/state/datasets", persistent=False)
         request.addCallback(check_and_decode_json, OK)
         return request
 
@@ -563,7 +555,7 @@ class Cluster(PRecord):
             API response when a dataset with the supplied properties has been
             persisted to the cluster configuration.
         """
-        request = post(
+        request = self.treq.post(
             self.base_url + b"/configuration/datasets",
             data=dumps(dataset_properties),
             headers={b"content-type": b"application/json"},
@@ -585,7 +577,7 @@ class Cluster(PRecord):
             create.
         :returns: A 2-tuple of (cluster, api_response)
         """
-        request = post(
+        request = self.treq.post(
             self.base_url + b"/configuration/datasets/%s" % (
                 dataset_id.encode('ascii'),
             ),
@@ -608,7 +600,7 @@ class Cluster(PRecord):
 
         :returns: A 2-tuple of (cluster, api_response)
         """
-        request = delete(
+        request = self.treq.delete(
             self.base_url + b"/configuration/datasets/%s" % (
                 dataset_id.encode('ascii'),
             ),
@@ -631,7 +623,7 @@ class Cluster(PRecord):
 
         :returns: A tuple of (cluster, api_response)
         """
-        request = post(
+        request = self.treq.post(
             self.base_url + b"/configuration/containers",
             data=dumps(properties),
             headers={b"content-type": b"application/json"},
@@ -652,7 +644,7 @@ class Cluster(PRecord):
             be moved.
         :returns: A tuple of (cluster, api_response)
         """
-        request = post(
+        request = self.treq.post(
             self.base_url + b"/configuration/containers/" +
             name.encode("ascii"),
             data=dumps({u"node_uuid": node_uuid}),
@@ -673,7 +665,7 @@ class Cluster(PRecord):
 
         :returns: A tuple of (cluster, api_response)
         """
-        request = delete(
+        request = self.treq.delete(
             self.base_url + b"/configuration/containers/" +
             name.encode("ascii"),
             persistent=False
@@ -691,7 +683,7 @@ class Cluster(PRecord):
         :return: A ``Deferred`` firing with a tuple (cluster instance, API
             response).
         """
-        request = get(
+        request = self.treq.get(
             self.base_url + b"/state/containers",
             persistent=False
         )
@@ -745,7 +737,7 @@ class Cluster(PRecord):
         :return: A ``Deferred`` firing with a tuple (cluster instance, API
             response).
         """
-        request = get(
+        request = self.treq.get(
             self.base_url + b"/state/nodes",
             persistent=False
         )
@@ -785,9 +777,12 @@ def get_test_cluster(node_count=0):
                        "{existing} node(s) are set.".format(
                            necessary=node_count, existing=len(agent_nodes)))
 
+    certificates_path = FilePath(
+        environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
     cluster = Cluster(
         control_node=ControlService(address=control_node),
-        nodes=[]
+        nodes=[],
+        treq=treq_with_authentication(reactor, certificates_path)
     )
 
     # Wait until nodes are up and running:
