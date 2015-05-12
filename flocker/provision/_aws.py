@@ -7,29 +7,13 @@ AWS provisioner.
 from textwrap import dedent
 
 from ._libcloud import LibcloudProvisioner
-from ._common import Variants
 from ._install import (
     provision,
     task_install_ssh_key,
-    task_upgrade_kernel,
-    task_enable_updates_testing
 )
 
 from ._ssh import run_remotely
 from ._effect import sequence
-from effect import Func, Effect
-
-
-def pre_provision(address, user, distribution):
-    commands = run_remotely(
-        username=user,
-        address=address,
-        commands=task_upgrade_kernel(distribution),
-    )
-    from flocker.provision._ssh._fabric import dispatcher
-    from effect import sync_perform
-    sync_perform(
-        dispatcher, commands)
 
 
 def provision_aws(node, package_source, distribution, variants):
@@ -56,26 +40,6 @@ def provision_aws(node, package_source, distribution, variants):
         commands=task_install_ssh_key(),
     ))
 
-    pre_reboot_commands = []
-    if Variants.DISTRO_TESTING in variants:
-        pre_reboot_commands.append(
-            task_enable_updates_testing(distribution)
-        )
-
-    if distribution in ('centos-7', 'fedora-20'):
-        pre_reboot_commands.append(
-            task_upgrade_kernel(distribution)
-        )
-
-    if 0:
-        commands.append(run_remotely(
-            username='root',
-            address=node.address,
-            commands=sequence(pre_reboot_commands),
-        ))
-
-        commands.append(Effect(Func(node.reboot)))
-
     commands.append(run_remotely(
         username='root',
         address=node.address,
@@ -91,7 +55,8 @@ def provision_aws(node, package_source, distribution, variants):
 
 IMAGE_NAMES = {
     'fedora-20': 'Fedora-x86_64-20-20140407-sda',
-    'centos-7': 'tp-test-aws/20150508.195011',
+    'centos-7': 'CentOS 7 x86_64 (2014_09_29) EBS HVM'
+                '-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d2a117ba.2',
     'ubuntu-14.04': 'ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-20150325',  # noqa
 }
 
@@ -127,13 +92,6 @@ def aws_provisioner(access_key, secret_access_token, keyname,
                          "DeleteOnTermination": True,
                          "VolumeType": "gp2"}}
             ],
-            # On some operating systems, a tty is requried for sudo.
-            # Since AWS systems have a non-root user as the login,
-            # disable this, so we can use sudo with conch.
-            "ex_userdata": dedent("""\
-                #!/bin/sh
-                sed -i '/Defaults *requiretty/d' /etc/sudoers
-                """)
         }
 
     provisioner = LibcloudProvisioner(

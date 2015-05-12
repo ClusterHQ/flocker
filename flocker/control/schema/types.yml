@@ -195,10 +195,27 @@ definitions:
     oneOf:
       - format: ipv4
 
+  node_host:
+    title: "Host"
+    description: |
+      The IP address of a node in the cluster.
+    type: string
+    oneOf:
+      - format: ipv4
+
   node_uuid:
     title: "Node"
     description: |
-      The UUID of the node where the container will run.
+      The UUID of a node in the cluster.
+    type: string
+    # The length of a stringified uuid
+    minLength: 36
+    maxLength: 36
+
+  container_node_uuid:
+    title: "Node"
+    description: |
+      The UUID of a node in the cluster where the container will run.
     type: string
     # The length of a stringified uuid
     minLength: 36
@@ -226,8 +243,11 @@ definitions:
     # on what this can be set to for the ZFS backend.  Could probably be
     # considered more carefully.
     minimum: 67108864
-    # This is how you require integers, of course.
-    divisibleBy: 1
+    # Filesystem initialization in the block device backend requires sizes to
+    # be a multiple of 512 and for ease of implementation we'll tighten that
+    # constraint so it's multiples of 1024 (1 KiB).
+    multipleOf: 1024
+
 
   running:
     title: "Running"

@@ -65,6 +65,7 @@ Rackspace
 Redis
 redis
 resize
+routable
 snapshotting
 stateful
 sysadmin

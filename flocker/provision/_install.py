@@ -9,6 +9,9 @@ import posixpath
 from textwrap import dedent
 from urlparse import urljoin
 from effect import Func, Effect
+import yaml
+
+from characteristic import attributes
 
 from ._common import PackageSource, Variants
 from ._ssh import (
@@ -40,6 +43,18 @@ CLUSTERHQ_REPO = {
                     archive_bucket=ARCHIVE_BUCKET,
                     ),
 }
+
+
+@attributes(['distribution'])
+class DistributionNotSupported(NotImplementedError):
+    """
+    Raised when the provisioning step is not supported on the given
+    distribution.
+
+    :ivar bytes distribution: The distribution that isn't supported.
+    """
+    def __str__(self):
+        return "Distribution not supported: %s" % (self, self.distribution,)
 
 
 def task_test_homebrew(recipe):
@@ -90,7 +105,7 @@ def task_upgrade_kernel(distribution):
             sudo_from_args(['sync']),
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_install_kernel_devel():
@@ -128,7 +143,7 @@ def task_disable_selinux(distribution):
         # Fedora and Ubuntu do not have SELinux enabled
         return sequence([])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_enable_docker(distribution):
@@ -144,7 +159,7 @@ def task_enable_docker(distribution):
         # Ubuntu enables docker service during installation
         return sequence([])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def open_firewalld(service):
@@ -197,7 +212,7 @@ def task_enable_flocker_control(distribution):
             run_from_args(['service', 'flocker-control', 'start']),
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_open_control_firewall(distribution):
@@ -208,18 +223,12 @@ def task_open_control_firewall(distribution):
         open_firewall = open_firewalld
     elif distribution == 'ubuntu-14.04':
         open_firewall = open_ufw
-    else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
     return sequence([
         open_firewall(service)
         for service in ['flocker-control-api', 'flocker-control-agent']
     ])
-
-
-AGENT_CONFIG = """\
-FLOCKER_CONTROL_NODE=%(control_node)s
-"""
 
 
 def task_enable_flocker_agent(distribution, control_node):
@@ -228,12 +237,21 @@ def task_enable_flocker_agent(distribution, control_node):
 
     :param bytes control_node: The address of the control agent.
     """
+    put_config_file = put(
+        path='/etc/flocker/agent.yml',
+        content=yaml.safe_dump(
+            {
+                "version": 1,
+                "control-service": {
+                    "hostname": control_node,
+                    "port": 4524,
+                },
+            },
+        ),
+    )
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
-            put(
-                path='/etc/sysconfig/flocker-agent',
-                content=AGENT_CONFIG % {'control_node': control_node},
-            ),
+            put_config_file,
             run_from_args(['systemctl', 'enable', 'flocker-agent']),
             run_from_args(['systemctl', 'start', 'flocker-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
@@ -241,15 +259,12 @@ def task_enable_flocker_agent(distribution, control_node):
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
-            put(
-                path='/etc/default/flocker-agent.conf',
-                content=AGENT_CONFIG % {'control_node': control_node},
-            ),
+            put_config_file,
             run_from_args(['service', 'flocker-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_create_flocker_pool_file():
@@ -260,6 +275,51 @@ def task_create_flocker_pool_file():
         run('mkdir -p /var/opt/flocker'),
         run('truncate --size 10G /var/opt/flocker/pool-vdev'),
         run('zpool create flocker /var/opt/flocker/pool-vdev'),
+    ])
+
+
+def task_install_zfs(distribution, variants):
+    commands = []
+    if distribution == 'ubuntu-14.04':
+        commands += [
+            # ZFS not available in base Ubuntu - add ZFS repo
+            run_from_args([
+                "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
+        ]
+        commands += [
+            # Update to read package info from new repos
+            run_from_args([
+                "apt-get", "update"]),
+            # Package spl-dkms sometimes does not have libc6-dev as a
+            # dependency, add it before ZFS installation requires it.
+            # See https://github.com/zfsonlinux/zfs/issues/3298
+            run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
+            run_from_args(['apt-get', '-y', 'install', 'zfsutils']),
+            ]
+
+    elif distribution in ('fedora-20', 'centos-7'):
+        commands += [
+            run_from_args("yum", "install", "-y", ZFS_REPO[distribution]),
+        ]
+        if Variants.ZFS_TESTING in variants:
+            commands += [
+                run_from_args(['yum', 'install', '-y', 'yum-utils']),
+                run_from_args([
+                    'yum-config-manager', '--enable', 'zfs-testing'])
+            ]
+        commands += [
+            run_from_args(['yum', 'install', '-y', 'zfs>=0.6.4']),
+        ]
+    else:
+        raise DistributionNotSupported(distribution)
+
+
+def configure_zfs(distribution, variants):
+
+    return sequence([
+        task_upgrade_kernel(distribution),
+        task_install_zfs(distribution, variants),
+        task_create_flocker_pool_file(),
     ])
 
 
@@ -284,9 +344,6 @@ def task_install_flocker(
             # Ensure add-apt-repository command is available
             run_from_args([
                 "apt-get", "-y", "install", "software-properties-common"]),
-            # ZFS not available in base Ubuntu - add ZFS repo
-            run_from_args([
-                "add-apt-repository", "-y", "ppa:zfs-native/stable"]),
             # Add Docker repo for recent Docker versions
             run_from_args([
                 "add-apt-repository", "-y", "ppa:james-page/docker"]),
@@ -306,10 +363,6 @@ def task_install_flocker(
             # Update to read package info from new repos
             run_from_args([
                 "apt-get", "update"]),
-            # Package spl-dkms sometimes does not have libc6-dev as a
-            # dependency, add it before ZFS installation requires it.
-            # See https://github.com/zfsonlinux/zfs/issues/3298
-            run_from_args(["apt-get", "-y", "install", "libc6-dev"]),
             ]
 
         if package_source.os_version:
@@ -325,7 +378,6 @@ def task_install_flocker(
         return sequence(commands)
     else:
         commands = [
-            run(command="yum install -y " + ZFS_REPO[distribution]),
             run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
         ]
 
@@ -390,7 +442,7 @@ def task_enable_updates_testing(distribution):
                 'yum-config-manager', '--enable', 'updates-testing'])
         ])
     else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def task_enable_docker_head_repository(distribution):
@@ -421,23 +473,7 @@ def task_enable_docker_head_repository(distribution):
                 path="/etc/yum.repos.d/virt7-testing.repo")
         ])
     else:
-        raise NotImplementedError()
-
-
-def task_enable_zfs_testing(distribution):
-    """
-    Enable the zfs-testing repository.
-
-    :param bytes distribution: See func:`task_install_flocker`
-    """
-    if distribution in ('fedora-20', 'centos-7'):
-        return sequence([
-            run_from_args(['yum', 'install', '-y', 'yum-utils']),
-            run_from_args([
-                'yum-config-manager', '--enable', 'zfs-testing'])
-        ])
-    else:
-        raise NotImplementedError()
+        raise DistributionNotSupported(distribution=distribution)
 
 
 def provision(distribution, package_source, variants):
@@ -460,11 +496,6 @@ def provision(distribution, package_source, variants):
         commands.append(task_enable_updates_testing(distribution))
     if Variants.DOCKER_HEAD in variants:
         commands.append(task_enable_docker_head_repository(distribution))
-    if Variants.ZFS_TESTING in variants:
-        commands.append(task_enable_zfs_testing(distribution))
-
-    if distribution in ('fedora-20',):
-        commands.append(task_install_kernel_devel())
 
     commands.append(
         task_install_flocker(
@@ -472,7 +503,6 @@ def provision(distribution, package_source, variants):
     if distribution in ('centos-7'):
         commands.append(task_disable_selinux(distribution))
     commands.append(task_enable_docker(distribution))
-    commands.append(task_create_flocker_pool_file())
     commands.append(task_pull_docker_images())
     return sequence(commands)
 
