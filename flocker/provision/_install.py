@@ -542,17 +542,19 @@ def configure_cluster(control_node, agent_nodes, certificates):
             sequence([
                 Effect(
                     Func(lambda node=node: configure_ssh(node.address, 22))),
-                task_install_node_certificates(
-                    certificates.cluster.certificate, certnkey.certificate,
-                    certnkey.key),
                 run_remotely(
                     username='root',
                     address=node.address,
-                    commands=task_enable_flocker_agent(
-                        distribution=node.distribution,
-                        control_node=control_node.address,
+                    commands=sequence([
+                        task_install_node_certificates(
+                            certificates.cluster.certificate,
+                            certnkey.certificate,
+                            certnkey.key),
+                        task_enable_flocker_agent(
+                            distribution=node.distribution,
+                            control_node=control_node.address,
+                        )]),
                     ),
-                ),
             ]) for certnkey, node in zip(certificates.nodes, agent_nodes)
         ])
     ])

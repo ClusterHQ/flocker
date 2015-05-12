@@ -71,8 +71,3 @@ class Certificates(object):
         for i in range(num_nodes):
             run(b"create-node-certificate")
         return cls(directory)
-
-
-if __name__ == '__main__':
-    from tempfile import mkdtemp
-    Certificates.generate(FilePath(mkdtemp()), b"localhost", 2)

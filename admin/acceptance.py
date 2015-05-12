@@ -393,9 +393,6 @@ def main(reactor, args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    from twisted.python.failure import startDebugMode
-    startDebugMode()
-
     options = RunOptions(top_level=top_level)
 
     try:
