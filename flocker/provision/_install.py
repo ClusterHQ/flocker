@@ -544,7 +544,7 @@ def configure_cluster(control_node, agent_nodes, certificates):
                     Func(lambda node=node: configure_ssh(node.address, 22))),
                 task_install_node_certificates(
                     certificates.cluster.certificate, certnkey.certificate,
-                    certnkey.cert),
+                    certnkey.key),
                 run_remotely(
                     username='root',
                     address=node.address,

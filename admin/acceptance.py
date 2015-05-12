@@ -179,14 +179,14 @@ class VagrantRunner(object):
 
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
-            yield perform(
+            """yield perform(
                 dispatcher,
                 run_remotely(
                     username='root',
                     address=node,
                     commands=task_pull_docker_images()
                 ),
-            )
+            )"""
         returnValue([
             VagrantNode(address=address, distribution=self.distribution)
             for address in self.NODE_ADDRESSES
@@ -393,6 +393,9 @@ def main(reactor, args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
+    from twisted.python.failure import startDebugMode
+    startDebugMode()
+
     options = RunOptions(top_level=top_level)
 
     try:

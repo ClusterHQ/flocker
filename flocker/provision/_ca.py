@@ -4,6 +4,8 @@
 Create certificates for a cluster.
 """
 
+from twisted.python.filepath import FilePath
+
 from subprocess import check_call
 
 
@@ -45,8 +47,9 @@ class Certificates(object):
         self.user = CertAndKey(directory.child(b"allison.crt"),
                                directory.child(b"allison.key"))
         nodes = []
-        for child in directory.globChildren("????????-????-*.crt"):
-            nodes.append(CertAndKey(child, child.extSibling(b"key")))
+        for child in directory.globChildren(b"????????-????-*.crt"):
+            sibling = FilePath(child.path[:-3] + b"key")
+            nodes.append(CertAndKey(child, sibling))
         self.nodes = nodes
 
     @classmethod
@@ -62,9 +65,14 @@ class Certificates(object):
         """
         def run(*arguments):
             check_call([b"flocker-ca"] + list(arguments), cwd=directory.path)
-        run(b"initialize")
+        run(b"initialize", b"acceptance-cluster")
         run(b"create-control-certificate", control_hostname)
         run(b"create-api-certificate", b"allison")
         for i in range(num_nodes):
             run(b"create-node-certificate")
         return cls(directory)
+
+
+if __name__ == '__main__':
+    from tempfile import mkdtemp
+    Certificates.generate(FilePath(mkdtemp()), b"localhost", 2)
