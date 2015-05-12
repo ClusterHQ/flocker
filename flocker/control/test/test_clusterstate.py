@@ -145,12 +145,38 @@ class ClusterStateServiceTests(SynchronousTestCase):
         """
         Information updates that are more than 10 seconds old are wiped.
         """
+        service = self.service()
+        app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
+                             manifestations=None, devices=None, paths=None,
+                             applications=[APP1])
+        service.apply_changes([app_node])
+        self.clock.advance(9)
+        nine_second_state = service.as_deployment()
+        self.clock.advance(1)
+        ten_second_state = service.as_deployment()
+        self.assertEqual(
+            [nine_second_state, ten_second_state],
+            [DeploymentState(nodes=[app_node]), DeploymentState()])
 
-    def test_updates_delay_expiration(self):
+    def test_updates_different_key(self):
         """
-        If a ``IClusterStateChange`` with a given wipe key is then overwritten
-        by a ``IClusterStateChange`` with the same key, the expiration
-        time is reset.
+        A wipe created by a ``IClusterStateChange`` with a given wipe key is
+        not overwritten by a later ``IClusterStateChange`` with a
+        different key.
         """
-
-    def test_different...
+        service = self.service()
+        app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
+                             manifestations=None, devices=None, paths=None,
+                             applications=[APP1], used_ports=None)
+        app_node_2 = app_node.set("applications", None).set(
+            "manifestations", {MANIFESTATION.dataset_id: MANIFESTATION})
+        service.apply_changes([app_node])
+        self.clock.advance(1)
+        service.apply_changes([app_node_2])
+        self.clock.advance(9)
+        ten_second_state = service.as_deployment()
+        self.clock.advance(1)
+        eleven_second_state = service.as_deployment()
+        self.assertEqual(
+            [ten_second_state, eleven_second_state],
+            [DeploymentState(nodes=[app_node_2]), DeploymentState()])

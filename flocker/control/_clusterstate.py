@@ -4,12 +4,15 @@
 Combine and retrieve current cluster state.
 """
 
-from twisted.application.service import Service
+from twisted.application.service import MultiService
+from twisted.application.internet import TimerService
+
+from pyrsistent import pmap
 
 from ._model import DeploymentState
 
 
-class ClusterStateService(Service):
+class ClusterStateService(MultiService):
     """
     Store known current cluster state, and combine partial updates with
     the existing known state.
@@ -20,20 +23,32 @@ class ClusterStateService(Service):
 
     :ivar DeploymentState _deployment_state: The current known cluster
         state.
+    :ivar PMap _information_wipers: Map (wiper class, wiper key) to
+        (wiper, added timestamp), where wiper is a ``IClusterStateWipe``
+        provider.
+    :ivar _clock: ``IReactorTime`` provider.
     """
     def __init__(self, reactor):
+        MultiService.__init__(self)
         self._deployment_state = DeploymentState()
-        # self._information_wipers = pmap() # map ``IClusterStateWipe.key`` to its instance.
-        # self._information_wipers_added = pmap() # map ``IClusterStateWipe.key`` to timestamp
+        timer = TimerService(1, self._wipe_expired)
+        timer.clock = reactor
+        timer.setServiceParent(self)
+        self._information_wipers = pmap()
+        self._clock = reactor
 
-    def startService(self):
-        # Start LoopingCall that applies all wipers whose added time is
-        # more than ten seconds in the past.
-        pass
-
-    def stopService(self):
-        # Stop LoopingCall
-        pass
+    def _wipe_expired(self):
+        """
+        Clear any expired state from memory.
+        """
+        current_time = self._clock.seconds()
+        evolver = self._information_wipers.evolver()
+        for key, (wiper, timestamp) in self._information_wipers.items():
+            if current_time - 10 >= timestamp:
+                self._deployment_state = wiper.update_cluster_state(
+                    self._deployment_state)
+                evolver.remove(key)
+        self._information_wipers = evolver.persistent()
 
     def manifestation_path(self, node_uuid, dataset_id):
         """
@@ -69,10 +84,9 @@ class ClusterStateService(Service):
             self._deployment_state = change.update_cluster_state(
                 self._deployment_state
             )
-        # for change in changes:
-        #     wiper = change.get_information_wipe()
-        #     key = wiper.key()
-        #     self._information_wipers = self._information_wipers.set(
-        #         key, wiper)
-        #     self._information_wipers_added = self._information_wipers.set(
-        #         key, time())
+        for change in changes:
+            wiper = change.get_information_wipe()
+            key = (wiper.__class__, wiper.key())
+            self._information_wipers = self._information_wipers.set(
+                key, (wiper, self._clock.seconds()))
+
