@@ -139,6 +139,7 @@ def get_blockdeviceapi_args(provider):
 from keystoneclient.auth import get_plugin_class
 # from keystoneclient.exceptions import NoMatchingPlugin
 
+
 def _openstack_auth_from_config(**config):
     auth_plugin_name = config.pop('auth_plugin', 'password')
 
@@ -152,7 +153,8 @@ def _openstack_auth_from_config(**config):
     plugin_options = plugin_class.get_options()
     plugin_kwargs = {}
     for option in plugin_options:
-        # option.dest is the python compatible attribute name in the plugin implementation.
+        # option.dest is the python compatible attribute name in the plugin
+        # implementation.
         # option.dest is option.name with hyphens replaced with underscores.
         if option.dest in config:
             plugin_kwargs[option.dest] = config[option.dest]
