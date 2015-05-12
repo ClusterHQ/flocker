@@ -287,7 +287,7 @@ class CinderBlockDeviceAPI(object):
 
         # As far as we know you can not have more than one attachment,
         # but, perhaps we're wrong and there should be a test for the
-        # multiple attachment case.
+        # multiple attachment case.  FLOC-1854.
         try:
             [attachment] = cinder_volume.attachments
         except ValueError:
@@ -321,7 +321,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
         cinder Volume.
     """
     if cinder_volume.attachments:
-        # There should only be one.
+        # There should only be one.  FLOC-1854.
         [attachment_info] = cinder_volume.attachments
         # Nova and Cinder APIs return ID strings. Convert to unicode.
         server_id = attachment_info['server_id'].decode("ascii")
