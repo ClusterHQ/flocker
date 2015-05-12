@@ -196,26 +196,6 @@ Using Amazon Web Services
 
       ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
-#. Upgrade the Kernel
-
-   Some operating systems require an updated kernel.
-
-   Fedora kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
-   On Fedora, run:
-
-   .. task:: upgrade_kernel fedora-20
-      :prompt: [root@aws]#
-
-   On CentOS, run:
-
-   .. task:: upgrade_kernel centos-7
-      :prompt: [root@aws]#
-
-   Reboot the machine to make use of the new kernel.
-
-   .. prompt:: bash [root@aws]#
-
-         shutdown -r now
 
 #. Follow the operating system specific installation instructions below.
 
@@ -253,19 +233,8 @@ Installing on Fedora 20
 
 .. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
 
-Flocker requires ``zfs`` which in turn requires the ``kernel-devel`` package to be installed.
-Before installing ``clusterhq-flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
-Here is a short script to help you install the correct ``kernel-devel`` package.
-Copy and paste it into a root console on the target node:
-
-.. task:: install_kernel_devel
-   :prompt: [root@fedora]#
-
-.. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
-
 Now install the ``clusterhq-flocker-node`` package.
 To install ``clusterhq-flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
-You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
 Paste them into a root console on the target node:
 
@@ -298,7 +267,6 @@ First disable SELinux.
 
 Now install the ``flocker-node`` package.
 To install ``flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
-You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``flocker-node`` package.
 Paste them into a root console on the target node:
 
@@ -327,6 +295,54 @@ Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` 
 Post installation configuration
 -------------------------------
 
+Your firewall will need to allow access to the ports your applications are exposing.
+
+.. warning::
+
+   Keep in mind the consequences of exposing unsecured services to the Internet.
+   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
+
+You have now installed ``clusterhq-flocker-node``.
+You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
+
+Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
+Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
+Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+
+
+
+ZFS Backend Configuration
+-------------------------
+
+The ZFS backend requires ZFS to be installed.
+Flocker requires ``zfs`` which in turn requires the ``kernel-devel`` package to be installed.
+Before installing ``clusterhq-flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
+Here is a short script to help you install the correct ``kernel-devel`` package.
+Copy and paste it into a root console on the target node:
+
+.. task:: upgrade_kernel centos-7
+   :prompt: [root@fedora]#
+
+.. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
+
+You must also install the ZFS package repository.
+
+
+#. Upgrade the Kernel
+
+   Some operating systems require an updated kernel.
+
+   On CentOS, run:
+
+   .. task:: upgrade_kernel centos-7
+      :prompt: [root@aws]#
+
+   Reboot the machine to make use of the new kernel.
+
+   .. prompt:: bash [root@aws]#
+
+         shutdown -r now
+
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
 Paste them into a root console:
@@ -338,22 +354,6 @@ Paste them into a root console:
 
 .. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
 
-The Flocker command line client (``flocker-deploy``) must be able to establish an SSH connection to each node.
-Additionally, every node must be able to establish an SSH connection to all other nodes.
-So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
-Your firewall will also need to allow access to the ports your applications are exposing.
-
-.. warning::
-
-   Keep in mind the consequences of exposing unsecured services to the Internet.
-   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
-
-The Flocker command line client must also be able to log into each node as user ``root``.
-Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
-
-You have now installed ``clusterhq-flocker-node`` and created a ZFS for it.
-You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
-
-Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
-Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
-Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
+So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
+In a

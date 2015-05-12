@@ -91,38 +91,17 @@ def task_upgrade_kernel(distribution):
     """
     Upgrade kernel.
     """
-    if distribution == 'fedora-20':
-        return sequence([
-            run_from_args(['yum', 'upgrade', '-y', 'kernel']),
-            comment(
-                comment="The upgrade doesn't make the new kernel default."),
-            run_from_args(['grubby', '--set-default-index', '0']),
-        ])
-    elif distribution == 'centos-7':
+    if distribution == 'centos-7':
         return sequence([
             run_from_args([
                 "yum", "install", "-y", "kernel-devel", "kernel"]),
             run_from_args(['sync']),
         ])
+    elif distribution == 'ubuntu-14.04':
+        # Not required.
+        pass
     else:
         raise DistributionNotSupported(distribution=distribution)
-
-
-def task_install_kernel_devel():
-    """
-    Install development headers corresponding to running kernel.
-
-    This is so we can compile zfs.
-    """
-    return sequence([run("""
-UNAME_R=$(uname -r)
-PV=${UNAME_R%.*}
-KV=${PV%%-*}
-SV=${PV##*-}
-ARCH=$(uname -m)
-yum install -y https://kojipkgs.fedoraproject.org/packages/kernel/\
-${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
-""")])
 
 
 def task_disable_selinux(distribution):
