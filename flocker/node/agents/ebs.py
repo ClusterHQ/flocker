@@ -5,9 +5,6 @@
 An EBS implementation of the ``IBlockDeviceAPI``.
 """
 
-import glob
-import os
-import re
 import threading
 import time
 from uuid import UUID
@@ -134,15 +131,14 @@ def _wait_for_new_device(base, time_limit=60):
         manifest in OS within time limit.
 
     """
-    patterns = ['sd.*', 'xvd.*']
     start_time = time.time()
     elapsed_time = time.time() - start_time
     while elapsed_time < time_limit:
-        for device in list(set(glob.glob('/sys/block/*')) - set(base)):
-            for pattern in patterns:
-                if re.compile(pattern).match(os.path.basename(device)):
-                    new_device = '/dev/%s' % os.path.basename(device)
-                    return new_device
+        for device in list(set(FilePath(b"/sys/block").children()) -
+                           set(base)):
+            if FilePath.basename(device).startswith((b"sd", b"xvd")):
+                new_device = u'/dev/' + FilePath.basename(device)
+                return new_device
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
 
@@ -251,8 +247,8 @@ class EBSBlockDeviceAPI(object):
         volumes = self.connection.get_all_volumes()
         devices = [v.attach_data.device for v in volumes
                    if v.attach_data.instance_id == instance_id]
-        for prefix in ['f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p']:
-            file_name = u'/dev/sd%c' % prefix
+        for suffix in b"fghijklmonp":
+            file_name = u'/dev/sd' + suffix
             if file_name not in devices:
                 return file_name
         return None
@@ -317,20 +313,23 @@ class EBSBlockDeviceAPI(object):
         if volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
 
-        self.lock.acquire()
-        blockdevices = glob.glob('/sys/block/*')
-        device = self._next_device(attach_to)
-        self.connection.attach_volume(blockdevice_id, attach_to, device)
+        with self.lock:
+            # begin lock scope
 
-        # Wait for new device to manifest in the OS. Since there
-        # is currently no standardized protocol across Linux guests
-        # in EC2 for mapping `device` to the name device driver picked (see
-        # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html)
-        # let us wait for a new block device to be available to the OS,
-        # and interpret it as ours.
-        # Wait under lock scope to reduce false positives.
-        new_device = _wait_for_new_device(blockdevices)
-        self.lock.release()
+            blockdevices = FilePath(b"/sys/block").children()
+            device = self._next_device(attach_to)
+            self.connection.attach_volume(blockdevice_id, attach_to, device)
+
+            # Wait for new device to manifest in the OS. Since there
+            # is currently no standardized protocol across Linux guests
+            # in EC2 for mapping `device` to the name device driver picked (see
+            # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html)
+            # let us wait for a new block device to be available to the OS,
+            # and interpret it as ours.
+            # Wait under lock scope to reduce false positives.
+            new_device = _wait_for_new_device(blockdevices)
+
+            # end lock scope
 
         # Stamp EBS volume with attached device name tag.
         ebs_volume = self._get_ebs_volume(blockdevice_id)
