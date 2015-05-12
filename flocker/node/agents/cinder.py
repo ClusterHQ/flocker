@@ -77,11 +77,30 @@ class INovaVolumeManager(Interface):
     """
     def create_server_volume(server_id, volume_id, device):
         """
-        Attach a volume identified by the volume ID to the given server ID
+        Attach a volume identified by the volume ID to the given server ID.
 
         :param server_id: The ID of the server
         :param volume_id: The ID of the volume to attach.
         :param device: The device name
+        :rtype: :class:`Volume`
+        """
+
+    def delete_server_volume(server_id, attachment_id):
+        """
+        Detach the volume identified by the volume ID from the given server ID.
+
+        :param server_id: The ID of the server
+        :param volume_id: The ID of the volume to detach.
+        """
+
+    def get(volume_id):
+        """
+        Retrieve information about an existing volume.
+
+        :param volume_id: The ID of the volume about which to retrieve
+            information.
+
+        :return: A ``Volume`` instance describing the identified volume.
         :rtype: :class:`Volume`
         """
 
