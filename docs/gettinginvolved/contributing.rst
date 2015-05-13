@@ -79,3 +79,50 @@ Similarly to `maintenance-branches`_, bug fixes and improvements may need to be 
 These changes should be the only changes between pre-releases for the same marketing release, and the only changes between the last pre-release and the final marketing release.
 
 Follow the procedure for merging fixes into maintenance branches, merging fixes into the last pre-release.
+
+
+Testing Code on Nodes
+=====================
+
+`Buildbot`_ is the canonical testing tool for code on a branch.
+It creates nodes on Vagrant and various cloud providers and installs packages from a branch onto each node.
+
+However, sometimes it might be useful to modify code on an existing node.
+
+To do this, start with some nodes which are configured correctly for Flocker.
+A simple way to do this is to run the :ref:`acceptance test runner <acceptance-testing>` with the ``--keep`` option.
+
+Log in to each node in the cluster, forwarding the authentication agent connection:
+
+.. prompt:: bash alice@mercury$
+
+   ssh -A root@${NODE_IP}
+
+On each node, install ``git``:
+
+.. prompt:: bash node_1$
+
+   # This is OS specific
+   sudo yum install -y git
+
+Clone Flocker somewhere to use later:
+
+.. prompt:: bash node_1$
+
+   mkdir /flocker-source
+   cd /flocker-source
+   git clone git@github.com:ClusterHQ/flocker.git
+   cd flocker
+   git checkout BRANCH-NAME
+
+Replace the node services with the new code:
+
+.. prompt:: bash node_1$
+
+   rm -rf /opt/flocker/lib/python2.7/site-packages/flocker/
+   cp -r /backup/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
+   systemctl restart flocker-agent flocker-control
+
+From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
+
+.. _`Buildbot`: https://build.clusterhq.com/
