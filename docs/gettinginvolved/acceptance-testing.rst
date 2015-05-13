@@ -166,12 +166,12 @@ The configuration stanza for the EBS backend looks as follows:
      secret_access_token: <aws secret access token>
 
 The AWS backend also requires that the availability zone the test are running in be specified in the  ``FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE`` environment variable.
-This is specified seperately from the credential file, so that the file can be reused in different regions.
+This is specified separately from the credential file, so that the file can be reused in different regions.
 
 Rackspace
 ---------
 
-The configuration stanza for the openstack backend running on rackspace looks as follows:
+The configuration stanza for the OpenStack backend running on Rackspace looks as follows:
 
 .. code:: yaml
 
@@ -183,7 +183,7 @@ The configuration stanza for the openstack backend running on rackspace looks as
 OpenStack
 ---------
 
-The configuration stanza for an private openstack deployment looks as follows:
+The configuration stanza for an private OpenStack deployment looks as follows:
 
 .. code:: yaml
 
