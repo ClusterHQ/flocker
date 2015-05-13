@@ -39,7 +39,6 @@ from ..httpapi import (
     ConfigurationAPIUserV1, create_api_service, datasets_from_deployment,
     api_dataset_from_dataset_and_node, container_configuration_response
 )
-from ...node.agents.test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
 from .._config import (
@@ -2279,124 +2278,6 @@ class UpdatePrimaryDatasetTestsMixin(APITestsMixin):
 RealTestsUpdatePrimaryDataset, MemoryTestsUpdatePrimaryDataset = (
     buildIntegrationTests(
         UpdatePrimaryDatasetTestsMixin, "UpdatePrimaryDataset", _build_app)
-)
-
-
-class UpdateSizeDatasetTestsMixin(APITestsMixin):
-    """
-    Tests for the behaviour of the dataset modification endpoint at
-    ``/configuration/datasets/<dataset_id>`` when supplied with a maximum_size
-    value.
-    """
-    def assert_dataset_resize(self, original_size, new_size,
-                              expected_code=OK, expected_result=None):
-        """
-        Check that a request to resize a dataset results in an `OK` response
-        and that the returned dataset has the expected new size.
-
-        This function first creates and persists a deployment containing a
-        dataset with ``original_size``.  It then issues a dataset update
-        request for that dataset with ``new_size`` and checks that the the
-        response code is ``expected_code`` and that the decoded response body
-        is ``expected_result``.
-
-        ``expected_code`` and ``expected_result`` can be overridden to test
-        cases where the supplied ``new_size`` is invalid.
-
-        :param int original_size: The initial size in bytes of the dataset.
-        :param int new_size: The new size in bytes of the dataset.
-        :param int expected_code: The HTTP status code that is expected in the
-            response.
-        :param dict expected_result: The dictionary of dataset attributes that
-            is expected in the response body.
-
-        :returns: A ``Deferred`` which fires when all assertions have been
-            performed on the result of the dataset update request.
-        """
-        expected_manifestation = _manifestation(
-            maximum_size=original_size
-        )
-
-        if expected_result is None:
-            expected_result = {
-                u'dataset_id': expected_manifestation.dataset_id,
-                u'primary': self.NODE_A,
-                u'deleted': False,
-                u'metadata': {},
-                u'maximum_size': new_size,
-            }
-
-            if new_size is None:
-                del expected_result[u'maximum_size']
-
-        current_primary_node = Node(
-            uuid=self.NODE_A_UUID,
-            applications=[],
-            manifestations={expected_manifestation.dataset_id:
-                            expected_manifestation}
-        )
-        deployment = Deployment(nodes=[current_primary_node])
-        saving = self.persistence_service.save(deployment)
-
-        def resize(result):
-            return self.assertResult(
-                method=b"POST",
-                path=b"/configuration/datasets/%s" % (
-                    bytes(expected_manifestation.dataset_id),
-                ),
-                request_body={u'maximum_size': new_size},
-                expected_code=expected_code,
-                expected_result=expected_result,
-            )
-        return saving.addCallback(resize)
-
-    def test_grow(self):
-        """
-        A dataset maximum_size can be increased.
-        """
-        return self.assert_dataset_resize(
-            original_size=REALISTIC_BLOCKDEVICE_SIZE,
-            new_size=REALISTIC_BLOCKDEVICE_SIZE * 2
-        )
-
-    def test_shrink(self):
-        """
-        A dataset maximum_size can be decreased.
-        """
-        return self.assert_dataset_resize(
-            original_size=REALISTIC_BLOCKDEVICE_SIZE * 2,
-            new_size=REALISTIC_BLOCKDEVICE_SIZE
-        )
-
-    def test_too_small(self):
-        """
-        A dataset must be at least 67108864 bytes.
-        """
-        return self.assert_dataset_resize(
-            original_size=67108864,
-            new_size=67108864 - 1024,
-            expected_code=BAD_REQUEST,
-            expected_result={
-                u'description':
-                u"The provided JSON doesn't match the required schema.",
-                u'errors':
-                [u'67107840 is less than the minimum of 67108864']
-            }
-        )
-
-    def test_remove_limit(self):
-        """
-        A dataset maximum_size can be removed.
-        """
-        return self.assert_dataset_resize(
-            original_size=REALISTIC_BLOCKDEVICE_SIZE,
-            new_size=None
-        )
-
-
-RealTestsUpdateSizeDataset, MemoryTestsUpdateSizeDataset = (
-    buildIntegrationTests(
-        UpdateSizeDatasetTestsMixin, "UpdateSizeDataset", _build_app)
 )
 
 
