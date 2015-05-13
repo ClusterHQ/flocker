@@ -462,9 +462,9 @@ def main(reactor, args, base_path, top_level):
 
     try:
         nodes = yield runner.start_nodes(reactor)
-        if options['distribution'] in ('fedora-20', 'centos-7'):
-            for node in nodes:
-                capture_journal(reactor, node.address)
+        # if options['distribution'] in ('fedora-20', 'centos-7'):
+        #     for node in nodes:
+        #         capture_journal(reactor, node.address)
         yield perform(
             make_dispatcher(reactor),
             configure_cluster(control_node=nodes[0], agent_nodes=nodes))
