@@ -15,7 +15,6 @@ cli
 CLI
 clusterhq
 Copr
-cURL
 dataset
 datasets
 Debian

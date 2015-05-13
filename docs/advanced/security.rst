@@ -8,37 +8,24 @@ Flocker uses `Transport Layer Security <http://en.wikipedia.org/wiki/Transport_L
 
 This ensures that the control service, convergence agents, and API end users are communicating with a verified component of a cluster, helping to prevent unauthorised access, and mitigating some potential attack vectors.
 
-Client Certification Overview
-=============================
+Mutual Authentication Overview
+==============================
 
-When :doc:`installing the flocker-node package <../indepth/installation>`, the ``flocker-ca`` tool (provided as part of ``flocker-cli``) generates a certificate authority for your cluster, as well as certificates and private keys for the control service and convergence agents.
+When :doc:`installing the flocker-node package <../indepth/installation>`, the ``flocker-ca`` tool (provided as part of ``flocker-cli``) generates a root certificate for your cluster, comprising a private key and public certificate, as well as certificates and private keys for the control service and convergence agents.
+The certificates and private keys for the control service and nodes are installed on the cluster alongside the cluster's root public certificate file.
 
-A certification authority certificate, also known as a root certificate, is a type of TLS certificate that is used to generate other certificates, by signing another key's `certificate signing request <http://en.wikipedia.org/wiki/Certificate_signing_request>`_ with its own private key.
-The certificate authority is an individual or organisation that is trusted to generate certificates signed with its own private key.
-In the context of Flocker, the certificate authority is the cluster administrator.
+API end users are issued their own certificate and private key, also with a copy of the cluster's public certificate file.
 
-This mutual authentication process, where certificates signed by a private key known only to the cluster administrator, are used to establish connections and to provide a means to verify the identity of an entity, such as the control service or an API end user, which presents itself as being an authorised component of a cluster.
-
-For example, if a convergence agent receives a request to change the state of a cluster node from a machine identifying itself as that cluster's control service, it can check that the TLS data received was encrypted using the key of a certificate signed by the cluster's known certificate authority.
-Further, some data can be sent encrypted to the control service using the public key of the signed certificate presented by the control service.
-If the control service is able to send the same data back encrypted with the public key presented by the convergence agent's signed certificate, both sides of the communication are verified that the other holds the private key corresponding to their respective certificates.
-
-Provided that the cluster administrator has kept the private key of the certificate authority secure (that is, the key file has not been shared or copied anywhere), this identification process confirms that the machine the node is talking to is indeed the genuine control service for the cluster and vice-versa.
-All components of a Flocker cluster identify themselves to each other in this way.
-By providing this identity verification layer, the cluster is able to prevent unauthorised attempts to interact with the control service, convergence agents, and REST API.
+This allows all components of the cluster to establish both a private channel of communication and a means of verifying identity; the client validates the server certificate was signed by the cluster authority, while the server mututally verifies the client's certificate was signed by the same authority.
 
 Security Benefits
 =================
 
-The TLS client certification layer used by Flocker provides a number of security benefits to a cluster:
+The TLS client certification layer used by Flocker provides a number of security benefits to a cluster.
 
 - Prevents unauthorised requests to the REST API.
-- Prevents `man-in-the-middle <http://en.wikipedia.org/wiki/Man-in-the-middle_attack>`_ and `identity replay <http://en.wikipedia.org/wiki/Replay_attack>`_ attacks between the control service and convergence agents by verifying the identity of cluster components.
-- Encrypts communications over the public internet between the control service and convergence agents.
-- Encrypts communications between the control service and an API end user.
-- Prevents connections to the control service and convergence agents from unidentified or unauthorised sources.
-- Prevents communications between API users, the control service, and convergence agents from being altered or tampered with in transit over the public internet.
-- Verifies the identity of cluster components and API users.
+- Prevents unauthorised connections to the control service and convergence agents.
+- Encrypts communications between all components of the cluster.
 
 Risks
 =====
