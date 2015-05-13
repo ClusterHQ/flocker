@@ -28,10 +28,10 @@ from pyrsistent import PRecord, field, CheckedPVector, pmap
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
+
 from ..control.httpapi import container_configuration_response, REST_API_PORT
 from ..cli.script import treq_with_authentication
 from ..testtools import loop_until
-
 
 try:
     from pymongo import MongoClient
