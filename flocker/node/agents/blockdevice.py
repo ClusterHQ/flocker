@@ -790,7 +790,7 @@ class CreateBlockDeviceDataset(PRecord):
         device = api.get_device_path(volume.blockdevice_id)
 
         # This duplicates CreateFilesystem now.
-        check_output(["mkfs", "-t", "ext4", device.path])
+        check_output(["mkfs", "-t", "xfs", device.path])
 
         # This duplicates MountBlockDevice now.
         self.mountpoint.makedirs()
