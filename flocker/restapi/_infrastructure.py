@@ -196,13 +196,17 @@ def structured(inputSchema, outputSchema, schema_store=None):
     return deco
 
 
-def user_documentation(doc, examples=None):
+def user_documentation(doc, header=None, examples=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
 
     @param doc: The documentation to be included in the generated API
         documentation along with the decorated endpoint.
     @type doc: L{str}
+    
+    @param header: The header to be included in the generated API
+        documentation.
+    @type header: L{str}
 
     @param examples: The identifiers of any examples demonstrating the use of
         this example to include in the generated API documentation along with
@@ -211,6 +215,9 @@ def user_documentation(doc, examples=None):
     """
     def deco(f):
         f.userDocumentation = doc
+        f.header = header
+        if header is None:
+            f.header = 'No header!'
         f.examples = examples
         return f
     return deco

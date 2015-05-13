@@ -116,7 +116,9 @@ class ConfigurationAPIUserV1(object):
     @app.route("/version", methods=['GET'])
     @user_documentation("""
         Get the version of Flocker being run.
-        """, examples=[u"get version"])
+        """, 
+        header=u"Get Flocker version",
+        examples=[u"get version"])
     @structured(
         inputSchema={},
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/versions'},
@@ -133,6 +135,7 @@ class ConfigurationAPIUserV1(object):
         """
         Get the cluster's dataset configuration.
         """,
+        header=u"Get dataset configuration",
         examples=[u"get configured datasets"],
     )
     @structured(
@@ -157,6 +160,7 @@ class ConfigurationAPIUserV1(object):
         """
         Create a new dataset.
         """,
+        header=u"Create new dataset",
         examples=[
             u"create dataset",
             u"create dataset with dataset_id",
@@ -283,6 +287,7 @@ class ConfigurationAPIUserV1(object):
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
         """,
+        header=u"Delete existing dataset",
         examples=[
             u"delete dataset",
             u"delete dataset with unknown dataset id",
@@ -339,6 +344,7 @@ class ConfigurationAPIUserV1(object):
         * In the future, update metadata and maximum size.
 
         """,
+        header=u"Update existing dataset",        
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
@@ -417,7 +423,9 @@ class ConfigurationAPIUserV1(object):
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
         Get current cluster datasets.
-        """, examples=[u"get state datasets"])
+        """, 
+        header=u"Get current cluster datasets",        
+        examples=[u"get state datasets"])
     @structured(
         inputSchema={},
         outputSchema={
@@ -448,6 +456,7 @@ class ConfigurationAPIUserV1(object):
         These containers may or may not actually exist on the
         cluster.
         """,
+        header=u"Get the cluster's container configuration",
         examples=[u"get configured containers"],
     )
     @structured(
@@ -472,6 +481,7 @@ class ConfigurationAPIUserV1(object):
         """
         Get the cluster's actual containers.
         """,
+        header=u"Get the cluster's actual containers",
         examples=[u"get actual containers"],
     )
     @structured(
@@ -536,6 +546,7 @@ class ConfigurationAPIUserV1(object):
         The container will be automatically started once it is created on
         the cluster.
         """,
+        header=u"Add a new container to the configuration",
         examples=[
             u"create container",
             u"create container with duplicate name",
@@ -705,6 +716,7 @@ class ConfigurationAPIUserV1(object):
         and restarted. This will also update the primary host of any attached
         datasets.
         """,
+        header=u"Update a named container's configuration",
         examples=[u"move container"],
     )
     @structured(
@@ -762,6 +774,7 @@ class ConfigurationAPIUserV1(object):
         restarted again. Any datasets that were attached as volumes will
         continue to exist on the cluster.
         """,
+        header=u"Remove a container from the configuration",
         examples=[
             u"remove a container",
             u"remove a container with unknown name",
