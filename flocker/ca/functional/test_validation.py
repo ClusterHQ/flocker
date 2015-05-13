@@ -231,7 +231,8 @@ def make_validation_tests(context_factory_fixture,
 class ControlServicePolicyValidationTests(make_validation_tests(
         lambda port, good_ca: ControlServicePolicy(
             ca_certificate=good_ca.root.credential.certificate,
-            # This value is irrelevant to the test, but required:
+            # The exposed client credential isn't actually tested by these
+            # tests, but is necessary for the code to run:
             client_credential=good_ca.user.credential).creatorForNetloc(
                 b"127.0.0.1", port),
         # We are testing a client that is validating the control
@@ -246,7 +247,8 @@ class AMPContextFactoryValidationTests(
         make_validation_tests(
             lambda port, good_ca: amp_server_context_factory(
                 ca_certificate=good_ca.root.credential.certificate,
-                # This value is irrelevant to the test, but required:
+                # The exposed control credential isn't covered by these
+                # tests, but is required for the tests to run:
                 control_credential=good_ca.control),
             # We are testing a server validating node certificates:
             "node", validator_is_client=False)):
@@ -260,7 +262,8 @@ class RESTAPIContextFactoryValidationTests(
         make_validation_tests(
             lambda port, good_ca: rest_api_context_factory(
                 ca_certificate=good_ca.root.credential.certificate,
-                # This value is irrelevant to the test, but required:
+                # The exposed control credential isn't covered by these
+                # tests, but is required for the tests to run:
                 control_credential=good_ca.control),
             # We are testing a server validating node certificates:
             "user", validator_is_client=False)):
