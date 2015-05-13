@@ -51,7 +51,7 @@ def openssl_verify(cafile, certificatefile):
     :return: A ``bool`` that is True if the certificate was verified,
         otherwise False if verification failed or an error occurred.
     """
-    command = [b"openssl", b"verify", b"-CAfile", cafile+"x", certificatefile]
+    command = [b"openssl", b"verify", b"-CAfile", cafile, certificatefile]
     try:
         result = run_process(command)
         return result.output.strip() == b"{}: OK".format(certificatefile)
