@@ -8,6 +8,8 @@ import re
 from subprocess import CalledProcessError
 from unittest import skipUnless
 
+from eliot import Message, Logger
+
 from twisted.python.procutils import which
 
 from .._script import CAOptions
@@ -49,11 +51,14 @@ def openssl_verify(cafile, certificatefile):
     :return: A ``bool`` that is True if the certificate was verified,
         otherwise False if verification failed or an error occurred.
     """
-    command = [b"openssl", b"verify", b"-CAfile", cafile, certificatefile]
+    command = [b"openssl", b"verify", b"-CAfile", cafile+"x", certificatefile]
     try:
         result = run_process(command)
         return result.output.strip() == b"{}: OK".format(certificatefile)
-    except CalledProcessError:
+    except CalledProcessError as e:
+        Message.new(
+            message_type="flocker.ca.functional:openssl_verify_error",
+            error=str(e)).write(Logger())
         return False
 
 
