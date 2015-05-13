@@ -43,7 +43,7 @@ _OK_MESSAGE = (
     b"images need to be pulled.\n")
 
 
-def treq_with_authentication(reactor, path):
+def treq_with_authentication(reactor, certificates_path):
     """
     Create a ``treq``-API object that implements the REST API TLS
     authentication.
@@ -52,15 +52,16 @@ def treq_with_authentication(reactor, path):
     certificate to the control service for authentication.
 
     :param reactor: The reactor to use.
-    :param FilePath path: Directory where certificates and private key can
-        be found.
+    :param FilePath certificates_path: Directory where certificates and
+        private key can be found.
 
     :return: ``treq`` compatible object.
     """
-    ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
+    ca = Certificate.loadPEM(
+        certificates_path.child(b"cluster.crt").getContent())
     # This is a hack; from_path should be more
     # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
-    user_credential = UserCredential.from_path(path, u"user")
+    user_credential = UserCredential.from_path(certificates_path, u"user")
     policy = ControlServicePolicy(
         ca_certificate=ca, client_credential=user_credential.credential)
     return HTTPClient(Agent(reactor, contextFactory=policy))
