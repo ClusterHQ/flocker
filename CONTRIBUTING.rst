@@ -60,7 +60,7 @@ Development Environment
      $ vagrant up
      $ vagrant ssh
 
-* If you prefer developing on Ubuntu, you will need libssql-dev and libffi-dev packages to run tests. If missing these packages, please install by running:
+* If you prefer developing on Ubuntu, you will need libssl-dev and libffi-dev packages to run tests. If missing these packages, please install by running:
 
   .. code-block:: console
 
