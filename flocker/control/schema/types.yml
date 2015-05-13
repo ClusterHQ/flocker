@@ -279,11 +279,5 @@ definitions:
     properties:
       primary:
         '$ref': '#/definitions/primary'
-      dataset_id:
-        '$ref': '#/definitions/dataset_id'
-      deleted:
-        '$ref': '#/definitions/deleted'
-      metadata:
-        '$ref': '#/definitions/metadata'
     additionalProperties: false
 

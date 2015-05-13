@@ -564,21 +564,20 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
 CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES = [
     # everything optional except primary
     {u"primary": a_uuid},
-
-    # metadata is an object with a handful of short string key/values
-    {u"primary": a_uuid,
-     u"metadata":
-         dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
-
-    # dataset_id is a string of 36 characters
-    {u"primary": a_uuid, u"dataset_id": u"x" * 36},
-
-    # deleted is a boolean
-    {u"primary": a_uuid, u"deleted": False},
 ]
 
 CONFIGURATION_DATASETS_PASSING_INSTANCES = (
     CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES + [
+        # metadata is an object with a handful of short string key/values
+        {u"primary": a_uuid,
+         u"metadata":
+             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
+
+        # dataset_id is a string of 36 characters
+        {u"primary": a_uuid, u"dataset_id": u"x" * 36},
+
+        # deleted is a boolean
+        {u"primary": a_uuid, u"deleted": False},
         # maximum_size is an integer of at least 64MiB
         {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
 
