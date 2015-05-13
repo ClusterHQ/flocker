@@ -297,14 +297,12 @@ class ConfigurationAPIUserV1(object):
 
         * Move a dataset from one node to another by changing the
           ``primary`` attribute.
-        * Resize the dataset by modifying the maximum_size attribute.
         * In the future update metadata.
 
         """,
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
-            u"update dataset size"
         ]
     )
     @structured(
@@ -316,8 +314,7 @@ class ConfigurationAPIUserV1(object):
             '/v1/endpoints.json#/definitions/configuration_datasets'},
         schema_store=SCHEMAS
     )
-    def update_dataset(self, dataset_id, primary=None,
-                       maximum_size=_UNDEFINED_MAXIMUM_SIZE):
+    def update_dataset(self, dataset_id, primary=None):
         """
         Update an existing dataset in the cluster configuration.
 
@@ -326,11 +323,6 @@ class ConfigurationAPIUserV1(object):
 
         :param primary: The UUID of the node to which the dataset will be
             moved, or ``None`` indicating no change.
-
-        :param maximum_size: Either the maximum number of bytes the dataset
-            will be capable of storing or ``None`` to make the dataset size
-            unlimited. This may be optional or required depending on the
-            dataset backend.
 
         :return: A ``dict`` describing the dataset which has been added to the
             cluster configuration or giving error information if this is not
@@ -350,11 +342,6 @@ class ConfigurationAPIUserV1(object):
         if primary is not None:
             deployment = _update_dataset_primary(
                 deployment, dataset_id, UUID(hex=primary)
-            )
-
-        if maximum_size is not _UNDEFINED_MAXIMUM_SIZE:
-            deployment = _update_dataset_maximum_size(
-                deployment, dataset_id, maximum_size
             )
 
         saving = self.persistence_service.save(deployment)
