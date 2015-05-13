@@ -17,7 +17,7 @@ from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
     sudo_from_args,
-    put, comment,
+    put,
     run_remotely
 )
 from ._effect import sequence
@@ -55,6 +55,23 @@ class DistributionNotSupported(NotImplementedError):
     """
     def __str__(self):
         return "Distribution not supported: %s" % (self.distribution,)
+
+
+def task_configure_brew_path():
+    """
+    Configure non-interactive shell to use all paths.
+
+    By default, OSX provides a minimal $PATH, for programs run via SSH. In
+    particular /usr/local/bin (which contains `brew`) isn't in the path. This
+    configures the path to have it there.
+    """
+    return put(
+        path='.bashrc',
+        content=dedent("""\
+            if [ -x /usr/libexec/path_helper ]; then
+                eval `/usr/libexec/path_helper -s`
+            fi
+            """))
 
 
 def task_test_homebrew(recipe):
