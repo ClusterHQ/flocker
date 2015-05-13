@@ -26,6 +26,8 @@ from .testtools import (
     require_moving_backend
 )
 
+from ..testtools import REALISTIC_BLOCKDEVICE_SIZE
+
 try:
     from pymysql import connect
     from pymysql.err import Error
@@ -53,7 +55,8 @@ MYSQL_APPLICATION = Application(
     volume=AttachedVolume(
         manifestation=Manifestation(
             dataset=Dataset(
-                dataset_id=unicode(uuid4())),
+                dataset_id=unicode(uuid4()),
+                maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
             primary=True),
         mountpoint=FilePath(MYSQL_VOLUME_MOUNTPOINT),
     ),
@@ -111,6 +114,7 @@ class EnvironmentVariableTests(TestCase):
                             u"dataset_id":
                                 MYSQL_APPLICATION.volume.dataset.dataset_id,
                             u"mountpoint": MYSQL_VOLUME_MOUNTPOINT,
+                            u"maximum_size": "%d" % (REALISTIC_BLOCKDEVICE_SIZE,),
                         },
                     },
                 },
