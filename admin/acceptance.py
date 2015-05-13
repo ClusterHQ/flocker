@@ -78,7 +78,7 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args,
     :return int: The exit-code of trial.
     """
     if not trial_args:
-        trial_args = ['flocker.acceptance']
+        trial_args = ['--rterrors', 'flocker.acceptance']
 
     def check_result(f):
         f.trap(ProcessTerminated)
