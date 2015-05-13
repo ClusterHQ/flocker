@@ -17,118 +17,80 @@ from uuid import uuid4
 
 from bitmath import Byte
 
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SkipTest
 
-from ....testtools import skip_except
-from ..cinder import cinder_api, wait_for_volume
-from ..test.test_blockdevice import REALISTIC_BLOCKDEVICE_SIZE
-from ..testtools import tidy_cinder_client_for_test
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
 # but I want to keep the branch size down
-from ..test.test_blockdevice import make_iblockdeviceapi_tests
+from ..test.test_blockdevice import (
+    make_iblockdeviceapi_tests,
+)
+from ..test.blockdevicefactory import (
+    InvalidConfig, ProviderType, get_blockdeviceapi_args,
+    get_blockdeviceapi_with_cleanup,
+)
+from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
+
+from ..cinder import wait_for_volume
 
 
-def cinderblockdeviceapi_for_test(test_case, cluster_id):
+def cinderblockdeviceapi_for_test(test_case):
     """
     Create a ``CinderBlockDeviceAPI`` instance for use in tests.
 
     :param TestCase test_case: The test being run.
-    :param UUID cluster_id: The Flocker cluster ID for Cinder volumes.
-    :returns: A ``CinderBlockDeviceAPI`` instance whose underlying
-        ``cinderclient.v1.client.Client`` has a ``volumes`` attribute wrapped
-        by ``TidyCinderVolumeManager`` to cleanup any lingering volumes that
-        are created during the course of ``test_case``
+
+    :returns: A ``CinderBlockDeviceAPI`` instance whose volumes will be
+        destroyed at the end of the test method being run by ``test_case``.
     """
-    return cinder_api(
-        cinder_client=tidy_cinder_client_for_test(test_case),
-        cluster_id=cluster_id,
-    )
+    return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
 
 
 # ``CinderBlockDeviceAPI`` only implements the ``create`` and ``list`` parts of
 # ``IBlockDeviceAPI``. Skip the rest of the tests for now.
-@skip_except(
-    supported_tests=[
-        'test_interface',
-        'test_created_is_listed',
-        'test_created_volume_attributes',
-        'test_list_volume_empty',
-        'test_listed_volume_attributes',
-    ]
-)
 class CinderBlockDeviceAPIInterfaceTests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=(
                 lambda test_case: cinderblockdeviceapi_for_test(
                     test_case=test_case,
-                    cluster_id=uuid4()
                 )
             )
         )
 ):
     """
     Interface adherence Tests for ``CinderBlockDeviceAPI``.
-    Block devices that are created in these tests will be cleaned up by
-    ``TidyCinderVolumeManager``.
-    """
-
-
-class CinderBlockDeviceAPIImplementationTests(SynchronousTestCase):
-    """
-    Implementation specific tests for ``CinderBlockDeviceAPI``.
-    Block devices that are created in these tests will be cleaned up by
-    ``TidyCinderVolumeManager``.
     """
     def test_foreign_volume(self):
         """
         Non-Flocker Volumes are not listed.
         """
-        cinder_client = tidy_cinder_client_for_test(test_case=self)
-        requested_volume = cinder_client.volumes.create(
+        try:
+            cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
+        except InvalidConfig as e:
+            raise SkipTest(str(e))
+        cinder_volumes = kwargs["cinder_volume_manager"]
+        requested_volume = cinder_volumes.create(
             size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
         )
+        self.addCleanup(
+            cinder_volumes.delete,
+            requested_volume.id,
+        )
         wait_for_volume(
-            volume_manager=cinder_client.volumes,
+            volume_manager=cinder_volumes,
             expected_volume=requested_volume
         )
-        block_device_api = cinderblockdeviceapi_for_test(
-            test_case=self,
-            cluster_id=uuid4(),
-        )
-
-        flocker_volume = block_device_api.create_volume(
-            dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-
-        self.assertEqual([flocker_volume], block_device_api.list_volumes())
+        self.assertEqual([], self.api.list_volumes())
 
     def test_foreign_cluster_volume(self):
         """
-        Volumes from other Flocker clusters are not listed.
+        Test that list_volumes() excludes volumes belonging to
+        other Flocker clusters.
         """
-        block_device_api1 = cinderblockdeviceapi_for_test(
+        blockdevice_api2 = cinderblockdeviceapi_for_test(
             test_case=self,
-            cluster_id=uuid4(),
-        )
-
-        flocker_volume1 = block_device_api1.create_volume(
+            )
+        flocker_volume = blockdevice_api2.create_volume(
             dataset_id=uuid4(),
             size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-
-        block_device_api2 = cinderblockdeviceapi_for_test(
-            test_case=self,
-            cluster_id=uuid4(),
-        )
-
-        flocker_volume2 = block_device_api2.create_volume(
-            dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
-        )
-
-        self.assertEqual(
-            ([flocker_volume1], [flocker_volume2]),
-            (block_device_api1.list_volumes(),
-             block_device_api2.list_volumes())
-        )
+            )
+        self.assert_foreign_volume(flocker_volume)

@@ -7,11 +7,18 @@ The command-line ``flocker-*-agent`` tools.
 
 from functools import partial
 from socket import socket
+from os import getpid
+
+import yaml
+
+from jsonschema import FormatChecker, validate
+from jsonschema.exceptions import ValidationError
 
 from pyrsistent import PRecord, field
 
 from zope.interface import implementer
 
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
 from ..volume.service import (
@@ -25,6 +32,7 @@ from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 from ..control._model import ip_to_uuid
+from ..control import ConfigurationError
 
 
 __all__ = [
@@ -43,17 +51,15 @@ class ZFSAgentOptions(Options):
     flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
     """
 
-    synopsis = (
-        "Usage: flocker-zfs-agent [OPTIONS] <local-hostname> "
-        "<control-service-hostname>")
+    synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
 
     optParameters = [
-        ["destination-port", "p", 4524,
-         "The port on the control service to connect to.", int],
+        ["agent-config", "c", "/etc/flocker/agent.yml",
+         "The configuration file to set the control service."],
     ]
 
-    def parseArgs(self, host):
-        self["destination-host"] = unicode(host, "ascii")
+    def postOptions(self):
+        self['agent-config'] = FilePath(self['agent-config'])
 
 
 def _get_external_ip(host, port):
@@ -76,6 +82,65 @@ def _get_external_ip(host, port):
         sock.close()
 
 
+def agent_config_from_file(path):
+    """
+    Extract configuration from provided options.
+
+    :param FilePath path: Path to a file containing specified options for an
+        agent.
+
+    :return dict: Dictionary containing the desired configuration.
+    """
+    try:
+        options = yaml.safe_load(path.getContent())
+    except IOError:
+        raise ConfigurationError(
+            "Configuration file does not exist at '{}'.".format(path.path))
+
+    schema = {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "required": ["version", "control-service"],
+        "properties": {
+            "version": {"type": "number"},
+            "control-service": {
+                "type": "object",
+                "required": ["hostname"],
+                "properties": {
+                    "hostname": {
+                        "type": "string",
+                        "format": "hostname",
+                    },
+                    "port": {"type": "integer"},
+                }
+            }
+        }
+    }
+
+    try:
+        validate(options, schema, format_checker=FormatChecker())
+    except ValidationError as e:
+        raise ConfigurationError(
+            "Configuration has an error: {}.".format(e.message,)
+        )
+
+    if options[u'version'] != 1:
+        raise ConfigurationError(
+            "Configuration has an error. Incorrect version specified.")
+
+    try:
+        port = options['control-service']['port']
+    except KeyError:
+        port = 4524
+
+    return {
+        'control-service': {
+            'hostname': options['control-service']['hostname'],
+            'port': port,
+        },
+    }
+
+
 @implementer(ICommandLineVolumeScript)
 class ZFSAgentScript(object):
     """
@@ -83,11 +148,12 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        host = options["destination-host"]
-        port = options["destination-port"]
+        configuration = agent_config_from_file(path=options[u'agent-config'])
+        host = configuration['control-service']['hostname']
+        port = configuration['control-service']["port"]
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then
-        # we'll just do a temporary hack (probably to be fixed in FLOC-1733).
+        # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
         node_uuid = ip_to_uuid(ip)
         deployer = P2PManifestationDeployer(ip, volume_service,
                                             node_uuid=node_uuid)
@@ -113,15 +179,15 @@ class _AgentOptions(Options):
     common options with ``ZFSAgentOptions``.
     """
     # Use as basis for subclass' synopsis:
-    synopsis = "Usage: {} [OPTIONS] <control-service-hostname>"
+    synopsis = "Usage: {} [OPTIONS]"
 
     optParameters = [
-        ["destination-port", "p", 4524,
-         "The port on the control service to connect to.", int],
+        ["agent-config", "c", "/etc/flocker/agent.yml",
+         "The configuration file to set the control service."],
     ]
 
-    def parseArgs(self, host):
-        self["destination-host"] = unicode(host, "ascii")
+    def postOptions(self):
+        self['agent-config'] = FilePath(self['agent-config'])
 
 
 class DatasetAgentOptions(_AgentOptions):
@@ -193,12 +259,13 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        host = options["destination-host"]
-        port = options["destination-port"]
+        configuration = agent_config_from_file(path=options[u'agent-config'])
+        host = configuration['control-service']['hostname']
+        port = configuration['control-service']['port']
         ip = _get_external_ip(host, port)
         return AgentLoopService(
             reactor=reactor,
-            # Temporary hack, to be fixed in FLOC-1733 probably:
+            # Temporary hack, to be fixed in FLOC-1783 probably:
             deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
                                            hostname=ip),
             host=host, port=port,
@@ -217,7 +284,15 @@ def flocker_dataset_agent_main():
     # AgentServiceFactory.get_service where various options passed on
     # the command line could alter what is created and how it is initialized.
     api = LoopbackBlockDeviceAPI.from_path(
-        b"/var/lib/flocker/loopback"
+        b"/var/lib/flocker/loopback",
+        # Make up a new value every time this script starts.  This will ensure
+        # different instances of the script using this backend always appear to
+        # be running on different nodes (as far as attachment is concerned).
+        # This is a good thing since it makes it easy to simulate a multi-node
+        # cluster by running multiple instances of the script.  Similar effect
+        # could be achieved by making this id a command line argument but that
+        # would be harder to implement and harder to use.
+        compute_instance_id=bytes(getpid()),
     )
     deployer_factory = partial(
         BlockDeviceDeployer,

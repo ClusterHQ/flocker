@@ -24,16 +24,16 @@ class ClusterStateService(Service):
     def __init__(self):
         self._deployment_state = DeploymentState()
 
-    def manifestation_path(self, uuid, dataset_id):
+    def manifestation_path(self, node_uuid, dataset_id):
         """
         Get the filesystem path of a manifestation on a particular node.
 
-        :param UUID uuid: The uuid of the node.
+        :param UUID node_uuid: The uuid of the node.
         :param unicode dataset_id: The dataset identifier.
 
         :return FilePath: The path where the manifestation exists.
         """
-        node = self._deployment_state.get_node(uuid)
+        node = self._deployment_state.get_node(node_uuid)
         return node.paths[dataset_id]
 
     def as_deployment(self):

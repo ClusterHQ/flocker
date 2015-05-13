@@ -1,3 +1,4 @@
+# -*- test-case-name: flocker.node.agents.functional.test_cinder,flocker.node.agents.functional.test_cinder_behaviour -*- # noqa
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
@@ -5,13 +6,9 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 import time
 from uuid import UUID
+from subprocess import check_output
 
 from bitmath import Byte, GB
-
-from keystoneclient_rackspace.v2_0 import RackspaceAuth
-from keystoneclient.session import Session
-
-from cinderclient.client import Client
 
 from zope.interface import implementer, Interface
 
@@ -25,15 +22,12 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
 
-# The Rackspace authentication endpoint
-# See http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/Authentication-d1e647.html # noqa
-RACKSPACE_AUTH_URL = "https://identity.api.rackspacecloud.com/v2.0"
-
 
 class ICinderVolumeManager(Interface):
     """
     The parts of ``cinderclient.v1.volumes.VolumeManager`` that we use.
-    See: https://github.com/openstack/python-cinderclient/blob/master/cinderclient/v1/volumes.py#L135 # noqa
+    See:
+    https://github.com/openstack/python-cinderclient/blob/master/cinderclient/v1/volumes.py#L135
     """
     def create(size, metadata=None):
         """
@@ -115,12 +109,21 @@ class CinderBlockDeviceAPI(object):
         self.volume_manager = volume_manager
         self.cluster_id = cluster_id
 
+    def compute_instance_id(self):
+        """
+        Look up the Xen instance ID for this node.
+        """
+        command = [b"xenstore-read", b"name"]
+        return check_output(command).strip().decode("ascii")
+
     def create_volume(self, dataset_id, size):
         """
         Create a block device using the ICinderVolumeManager.
         The cluster_id and dataset_id are stored as metadata on the volume.
 
-        See: http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html # noqa
+        See:
+
+        http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html
 
         TODO:
          * Assign a Human readable name and description?
@@ -148,7 +151,9 @@ class CinderBlockDeviceAPI(object):
         Return ``BlockDeviceVolume`` instances for all the Cinder Volumes that
         have the expected ``cluster_id`` in their metadata.
 
-        See: http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html # noqa
+        See:
+
+        http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/GET_getVolumesDetail_v1__tenant_id__volumes_detail_volumes.html
         """
         volumes = []
         for cinder_volume in self.volume_manager.list():
@@ -199,38 +204,9 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
         size=int(GB(cinder_volume.size).to_Byte().value),
-        host=None,
+        attached_to=None,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
-
-
-def rackspace_cinder_client(**kwargs):
-    """
-    Create a Cinder API client capable of authenticating with Rackspace and
-    communicating with their Cinder API.
-
-    :param unicode username: A RackSpace API username.
-    :param unicode api_key: A RackSpace API key.
-    :param unicode region: A RackSpace region slug.
-    :return: A ``cinderclient.v1.clien.Client`` instance with a ``volumes``
-        attribute that conforms to ``ICinderVolumeManager``.
-    """
-    username = kwargs.pop('username')
-    api_key = kwargs.pop('key')
-    region = kwargs.pop('region')
-
-    auth = RackspaceAuth(
-        auth_url=RACKSPACE_AUTH_URL,
-        username=username,
-        api_key=api_key
-    )
-    session = Session(auth=auth)
-    return Client(version=1, session=session, region_name=region)
-
-
-CINDER_CLIENT_FACTORIES = {
-    'rackspace': rackspace_cinder_client,
-}
 
 
 def cinder_api(cinder_client, cluster_id):
@@ -242,6 +218,6 @@ def cinder_api(cinder_client, cluster_id):
     :returns: A ``CinderBlockDeviceAPI``.
     """
     return CinderBlockDeviceAPI(
-        volume_manager=cinder_client.volumes,
+        cinder_volume_manager=cinder_client.volumes,
         cluster_id=cluster_id,
     )

@@ -1,4 +1,4 @@
-# Copyright Copyright ClusterHQ Inc.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for certification logic in ``flocker.ca._ca``
@@ -7,7 +7,7 @@ Tests for certification logic in ``flocker.ca._ca``
 import datetime
 import os
 
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from Crypto.Util import asn1
 from OpenSSL import crypto
@@ -16,571 +16,348 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (RootCredential, ControlCredential, NodeCredential,
-                PathError, EXPIRY_20_YEARS, AUTHORITY_CERTIFICATE_FILENAME,
-                AUTHORITY_KEY_FILENAME, CONTROL_CERTIFICATE_FILENAME,
-                CONTROL_KEY_FILENAME)
-
+                UserCredential, PathError, EXPIRY_20_YEARS,
+                AUTHORITY_CERTIFICATE_FILENAME, AUTHORITY_KEY_FILENAME)
+from ..testtools import assert_has_extension
 from ...testtools import not_root, skip_on_broken_permissions
 
+NODE_UUID = str(uuid4())
 
-class NodeCredentialTests(SynchronousTestCase):
+
+def make_credential_tests(cls, expected_file_name, **kwargs):
+    class CredentialTests(SynchronousTestCase):
+        """
+        Base test case for credential tests.
+        """
+        def setUp(self):
+            self.start_date = datetime.datetime.utcnow()
+            self.expiry_date = self.start_date + datetime.timedelta(
+                seconds=EXPIRY_20_YEARS)
+            self.cert_file_name = expected_file_name + b".crt"
+            self.key_file_name = expected_file_name + b".key"
+            self.path = FilePath(self.mktemp())
+            self.path.makedirs()
+            self.ca = RootCredential.initialize(
+                self.path, b"mycluster", begin=self.start_date
+            )
+            self.credential = cls.initialize(
+                self.path, self.ca, begin=self.start_date, **kwargs
+            )
+            for k, v in kwargs.iteritems():
+                setattr(self, k, v)
+
+        def test_certificate_matches_public_key(self):
+            """
+            A certificate's public key matches the public key it is
+            meant to be paired with.
+            """
+            self.assertTrue(
+                self.credential.credential.keypair.keypair.matches(
+                    self.credential.credential.certificate.getPublicKey())
+            )
+
+        def test_certificate_matches_private_key(self):
+            """
+            A certificate matches the private key it is meant to
+            be paired with.
+            """
+            priv = self.credential.credential.keypair.keypair.original
+            pub = self.credential.credential.certificate
+            pub = pub.getPublicKey().original
+            pub_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, pub)
+            priv_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, priv)
+            pub_der = asn1.DerSequence()
+            pub_der.decode(pub_asn1)
+            priv_der = asn1.DerSequence()
+            priv_der.decode(priv_asn1)
+            pub_modulus = pub_der[1]
+            priv_modulus = priv_der[1]
+            self.assertEqual(pub_modulus, priv_modulus)
+
+        def test_written_keypair_reloads(self):
+            """
+            A keypair written by ``UserCredential.initialize`` can be
+            successfully reloaded in to an identical ``ControlCertificate``
+            instance.
+            """
+            self.assertEqual(
+                self.credential,
+                cls.from_path(self.path, **kwargs)
+            )
+
+        def test_create_error_on_non_existent_path(self):
+            """
+            A ``PathError`` is raised if the path given to
+            ``UserCredential.initialize`` does not exist.
+            """
+            path = FilePath(self.mktemp())
+            e = self.assertRaises(
+                PathError, cls.initialize,
+                path, self.ca, **kwargs
+            )
+            expected = (b"Unable to write certificate file. "
+                        b"No such file or directory {path}").format(
+                            path=path.child(self.cert_file_name).path)
+            self.assertEqual(str(e), expected)
+
+        def test_load_error_on_non_existent_path(self):
+            """
+            A ``PathError`` is raised if the path given to
+            ``UserCredential.from_path`` does not exist.
+            """
+            path = FilePath(self.mktemp())
+            e = self.assertRaises(
+                PathError, cls.from_path,
+                path, **kwargs
+            )
+            expected = (b"Certificate file could not be opened. "
+                        b"No such file or directory {path}").format(
+                            path=path.child(self.cert_file_name).path)
+            self.assertEqual(str(e), expected)
+
+        def test_load_error_on_non_existent_certificate_file(self):
+            """
+            A ``PathError`` is raised if the certificate file path given to
+            ``UserCredential.from_path`` does not exist.
+            """
+            path = FilePath(self.mktemp())
+            path.makedirs()
+            e = self.assertRaises(
+                PathError, cls.from_path,
+                path, **kwargs
+            )
+            expected = ("Certificate file could not be opened. "
+                        "No such file or directory "
+                        "{path}").format(
+                path=path.child(self.cert_file_name).path)
+            self.assertEqual(str(e), expected)
+
+        def test_load_error_on_non_existent_key_file(self):
+            """
+            A ``PathError`` is raised if the key file path given to
+            ``UserCredential.from_path`` does not exist.
+            """
+            path = FilePath(self.mktemp())
+            path.makedirs()
+            crt_path = path.child(self.cert_file_name)
+            crt_file = crt_path.open(b'w')
+            crt_file.write(b"dummy")
+            crt_file.close()
+            e = self.assertRaises(
+                PathError, cls.from_path,
+                path, **kwargs
+            )
+            expected = ("Private key file could not be opened. "
+                        "No such file or directory "
+                        "{path}").format(
+                            path=path.child(self.key_file_name).path)
+            self.assertEqual(str(e), expected)
+
+        @not_root
+        @skip_on_broken_permissions
+        def test_load_error_on_unreadable_certificate_file(self):
+            """
+            A ``PathError`` is raised if the certificate file path given to
+            ``UserCredential.from_path`` cannot be opened for reading.
+            """
+            path = FilePath(self.mktemp())
+            path.makedirs()
+            crt_path = path.child(self.cert_file_name)
+            crt_file = crt_path.open(b'w')
+            crt_file.write(b"dummy")
+            crt_file.close()
+            # make file unreadable
+            crt_path.chmod(0o100)
+            key_path = path.child(self.key_file_name)
+            key_file = key_path.open(b'w')
+            key_file.write(b"dummy")
+            key_file.close()
+            # make file unreadable
+            key_path.chmod(0o100)
+            e = self.assertRaises(
+                PathError, cls.from_path,
+                path, **kwargs
+            )
+            expected = (
+                "Certificate file could not be opened. "
+                "Permission denied {path}"
+            ).format(path=crt_path.path)
+            self.assertEqual(str(e), expected)
+
+        @not_root
+        @skip_on_broken_permissions
+        def test_load_error_on_unreadable_key_file(self):
+            """
+            A ``PathError`` is raised if the key file path given to
+            ``UserCredential.from_path`` cannot be opened for reading.
+            """
+            path = FilePath(self.mktemp())
+            path.makedirs()
+            crt_path = path.child(self.cert_file_name)
+            crt_file = crt_path.open(b'w')
+            crt_file.write(b"dummy")
+            crt_file.close()
+            key_path = path.child(self.key_file_name)
+            key_file = key_path.open(b'w')
+            key_file.write(b"dummy")
+            key_file.close()
+            # make file unreadable
+            key_path.chmod(0o100)
+            e = self.assertRaises(
+                PathError, cls.from_path,
+                path, **kwargs
+            )
+            expected = (
+                "Private key file could not be opened. "
+                "Permission denied {path}"
+            ).format(path=key_path.path)
+            self.assertEqual(str(e), expected)
+
+        def test_certificate_ou_matches_ca(self):
+            """
+            A certificate written by ``UserCredential.initialize`` has the
+            issuing authority's organizational unit as its organizational
+            unit name.
+            """
+            cert = self.credential.credential.certificate.original
+            issuer = cert.get_issuer()
+            subject = cert.get_subject()
+            self.assertEqual(
+                issuer.OU,
+                subject.OU
+            )
+
+        def test_certificate_is_signed_by_ca(self):
+            """
+            A certificate written by ``UserCredential.initialize`` is signed by
+            the certificate authority.
+            """
+            cert = self.credential.credential.certificate.original
+            issuer = cert.get_issuer()
+            self.assertEqual(
+                issuer.CN,
+                self.ca.credential.certificate.getSubject().CN
+            )
+
+        def test_certificate_expiration(self):
+            """
+            A certificate written by ``UserCredential.initialize`` has an
+            expiry date 20 years from the date of signing.
+            """
+            cert = self.credential.credential.certificate.original
+            date_str = cert.get_notAfter()
+            expected_expiry = self.expiry_date.strftime("%Y%m%d%H%M%SZ")
+            self.assertEqual(date_str, expected_expiry)
+
+        def test_certificate_is_rsa_4096_sha_256(self):
+            """
+            A certificate written by ``UserCredential.initialize`` is an RSA
+            4096 bit, SHA-256 format.
+            """
+            cert = self.credential.credential.certificate.original
+            key = self.credential.credential.certificate
+            key = key.getPublicKey().original
+            self.assertEqual(
+                (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
+                (key.type(), key.bits(), cert.get_signature_algorithm())
+            )
+
+        def test_keypair_correct_umask(self):
+            """
+            A keypair file written by ``NodeCredential.initialize`` has
+            the correct permissions (0600).
+            """
+            key_path = self.path.child(self.key_file_name)
+            st = os.stat(key_path.path)
+            self.assertEqual(b'0600', oct(st.st_mode & 0777))
+
+        def test_certificate_correct_permission(self):
+            """
+            A certificate file written by ``NodeCredential.initialize`` has
+            the correct access mode set (0600).
+            """
+            cert_path = self.path.child(self.cert_file_name)
+            st = os.stat(cert_path.path)
+            self.assertEqual(b'0600', oct(st.st_mode & 0777))
+
+        def test_written_keypair_exists(self):
+            """
+            ``NodeCredential.initialize`` writes a PEM file to the
+            specified path.
+            """
+            self.assertEqual(
+                (True, True),
+                (self.path.child(self.cert_file_name).exists(),
+                 self.path.child(self.key_file_name).exists())
+            )
+
+    return CredentialTests
+
+
+class UserCredentialTests(
+        make_credential_tests(UserCredential, b"alice", username=u"alice")):
+    """
+    Tests for ``flocker.ca._ca.UserCredential``.
+    """
+    def test_certificate_subject_username(self):
+        """
+        A certificate written by ``UserCredential.initialize`` has the
+        subject common name "user-{user}" where {user} is the username
+        supplied during the certificate's creation.
+        """
+        cert = self.credential.credential.certificate.original
+        subject = cert.get_subject()
+        self.assertEqual(subject.CN, u"user-{user}".format(
+            user=self.credential.username))
+
+    def test_extendedKeyUsage(self):
+        """
+        The generated certificate has extendedKeyUsage set to "clientAuth".
+        """
+        assert_has_extension(self, self.credential.credential,
+                             b"extendedKeyUsage", b"clientAuth")
+
+
+class NodeCredentialTests(
+        make_credential_tests(NodeCredential, NODE_UUID, uuid=NODE_UUID)):
     """
     Tests for ``flocker.ca._ca.NodeCredential``.
     """
-    def setUp(self):
-        """
-        Generate a RootCredential for the node certificate tests
-        to work with.
-        """
-        self.path = FilePath(self.mktemp())
-        self.path.makedirs()
-        self.ca = RootCredential.initialize(self.path, b"mycluster")
-        self.uuid = str(uuid4())
-
-    def test_written_keypair_exists(self):
-        """
-        ``NodeCredential.initialize`` writes a PEM file to the
-        specified path.
-        """
-        nc = NodeCredential.initialize(self.path, self.ca)
-        cert_file = b"{uuid}.crt".format(uuid=nc.uuid)
-        key_file = b"{uuid}.key".format(uuid=nc.uuid)
-        self.assertEqual(
-            (True, True),
-            (self.path.child(cert_file).exists(),
-             self.path.child(key_file).exists())
-        )
-
-    def test_decoded_certificate_matches_public_key(self):
-        """
-        A decoded certificate's public key matches the public key it is
-        meant to be paired with.
-        """
-        nc = NodeCredential.initialize(self.path, self.ca)
-        self.assertTrue(
-            nc.keypair.keypair.matches(nc.certificate.getPublicKey())
-        )
-
-    def test_decoded_certificate_matches_private_key(self):
-        """
-        A decoded certificate matches the private key it is meant to
-        be paired with.
-        """
-        nc = NodeCredential.initialize(self.path, self.ca)
-        priv = nc.keypair.keypair.original
-        pub = nc.certificate.getPublicKey().original
-        pub_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, pub)
-        priv_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, priv)
-        pub_der = asn1.DerSequence()
-        pub_der.decode(pub_asn1)
-        priv_der = asn1.DerSequence()
-        priv_der.decode(priv_asn1)
-        pub_modulus = pub_der[1]
-        priv_modulus = priv_der[1]
-        self.assertEqual(pub_modulus, priv_modulus)
-
-    def test_written_keypair_reloads(self):
-        """
-        A keypair written by ``NodeCredential.initialize`` can be
-        successfully reloaded in to an identical ``ControlCertificate``
-        instance.
-        """
-        nc1 = NodeCredential.initialize(self.path, self.ca)
-        nc2 = NodeCredential.from_path(self.path, nc1.uuid)
-        self.assertEqual(nc1, nc2)
-
-    def test_keypair_correct_umask(self):
-        """
-        A keypair file written by ``NodeCredential.initialize`` has
-        the correct permissions (0600).
-        """
-        nc = NodeCredential.initialize(self.path, self.ca)
-        key_file = b"{uuid}.key".format(uuid=nc.uuid)
-        keyPath = self.path.child(key_file)
-        st = os.stat(keyPath.path)
-        self.assertEqual(b'0600', oct(st.st_mode & 0777))
-
-    def test_certificate_correct_permission(self):
-        """
-        A certificate file written by ``NodeCredential.initialize`` has
-        the correct access mode set (0600).
-        """
-        nc = NodeCredential.initialize(self.path, self.ca)
-        key_file = b"{uuid}.key".format(uuid=nc.uuid)
-        keyPath = self.path.child(key_file)
-        st = os.stat(keyPath.path)
-        self.assertEqual(b'0600', oct(st.st_mode & 0777))
-
-    def test_create_error_on_non_existent_path(self):
-        """
-        A ``PathError`` is raised if the path given to
-        ``NodeCredential.initialize`` does not exist.
-        """
-        path = FilePath(self.mktemp())
-        e = self.assertRaises(
-            PathError, NodeCredential.initialize, path, self.ca
-        )
-        expected = (b"Unable to write certificate file. "
-                    b"No such file or directory {path}").format(
-                        path=e.filename)
-        self.assertEqual(str(e), expected)
-
-    def test_load_error_on_non_existent_path(self):
-        """
-        A ``PathError`` is raised if the path given to
-        ``NodeCredential.from_path`` does not exist.
-        """
-        path = FilePath(self.mktemp())
-        uuid = self.uuid
-        e = self.assertRaises(
-            PathError, NodeCredential.from_path, path, uuid
-        )
-        expected = (b"Certificate file could not be opened. "
-                    b"No such file or directory {path}").format(
-                        path=path.child("{}.crt".format(uuid)).path)
-        self.assertEqual(str(e), expected)
-
-    def test_load_error_on_non_existent_certificate_file(self):
-        """
-        A ``PathError`` is raised if the certificate file path given to
-        ``NodeCredential.from_path`` does not exist.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        # random UUID that doesn't exist in path
-        uuid = self.uuid
-        cert_file = b"{uuid}.crt".format(uuid=uuid)
-        e = self.assertRaises(
-            PathError, NodeCredential.from_path, path, uuid
-        )
-        expected = (b"Certificate file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
-            path=path.child(cert_file).path)
-        self.assertEqual(str(e), expected)
-
-    def test_load_error_on_non_existent_key_file(self):
-        """
-        A ``PathError`` is raised if the key file path given to
-        ``NodeCredential.from_path`` does not exist.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        # random UUID that doesn't exist in path
-        uuid = self.uuid
-        cert_file = b"{uuid}.crt".format(uuid=uuid)
-        key_file = b"{uuid}.key".format(uuid=uuid)
-        crt_path = path.child(cert_file)
-        crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
-        crt_file.close()
-        e = self.assertRaises(
-            PathError, NodeCredential.from_path, path, uuid
-        )
-        expected = (b"Private key file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
-                        path=path.child(key_file).path)
-        self.assertEqual(str(e), expected)
-
-    @not_root
-    @skip_on_broken_permissions
-    def test_load_error_on_unreadable_certificate_file(self):
-        """
-        A ``PathError`` is raised if the certificate file path given to
-        ``NodeCredential.from_path`` cannot be opened for reading.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        # random UUID that doesn't exist in path
-        uuid = self.uuid
-        cert_file = b"{uuid}.crt".format(uuid=uuid)
-        key_file = b"{uuid}.key".format(uuid=uuid)
-        crt_path = path.child(cert_file)
-        crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
-        crt_file.close()
-        # make file unreadable
-        crt_path.chmod(0100)
-        key_path = path.child(key_file)
-        key_file = key_path.open(b'w')
-        key_file.write(b"dummy")
-        key_file.close()
-        # make file unreadable
-        key_path.chmod(0100)
-        e = self.assertRaises(
-            PathError, NodeCredential.from_path, path, uuid
-        )
-        expected = (
-            b"Certificate file could not be opened. "
-            b"Permission denied {path}"
-        ).format(path=crt_path.path)
-        self.assertEqual(str(e), expected)
-
-    @not_root
-    @skip_on_broken_permissions
-    def test_load_error_on_unreadable_key_file(self):
-        """
-        A ``PathError`` is raised if the key file path given to
-        ``NodeCredential.from_path`` cannot be opened for reading.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        # random UUID that doesn't exist in path
-        uuid = self.uuid
-        cert_file = b"{uuid}.crt".format(uuid=uuid)
-        key_file = b"{uuid}.key".format(uuid=uuid)
-        crt_path = path.child(cert_file)
-        crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
-        crt_file.close()
-        key_path = path.child(key_file)
-        key_file = key_path.open(b'w')
-        key_file.write(b"dummy")
-        key_file.close()
-        # make file unreadable
-        key_path.chmod(0100)
-        e = self.assertRaises(
-            PathError, NodeCredential.from_path, path, uuid
-        )
-        expected = (
-            b"Private key file could not be opened. "
-            b"Permission denied {path}"
-        ).format(path=key_path.path)
-        self.assertEqual(str(e), expected)
-
     def test_certificate_subject_node_uuid(self):
         """
-        A cert written by ``NodeCredential.initialize`` has the
+        A certificate written by ``NodeCredential.initialize`` has the
         subject common name "node-{uuid}" where {uuid} is the UUID
         generated during the certificate's creation.
         """
-        nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
+        cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
-        self.assertEqual(subject.CN, b"node-{uuid}".format(uuid=nc.uuid))
-
-    def test_certificate_ou_matches_ca(self):
-        """
-        A cert written by ``NodeCredential.initialize`` has the issuing
-        authority's common name as its organizational unit name.
-        """
-        nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
-        issuer = cert.get_issuer()
-        subject = cert.get_subject()
-        self.assertEqual(
-            issuer.CN,
-            subject.OU
-        )
-
-    def test_certificate_is_signed_by_ca(self):
-        """
-        A cert written by ``NodeCredential.initialize`` is validated
-        as being signed by the certificate authority.
-        """
-        nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
-        issuer = cert.get_issuer()
-        self.assertEqual(
-            issuer.CN,
-            self.ca.certificate.getSubject().CN
-        )
-
-    def test_certificate_expiration(self):
-        """
-        A cert written by ``NodeCredential.initialize`` has an expiry
-        date 20 years from the date of signing.
-        """
-        today = datetime.datetime.now()
-        expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
-        nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
-        asn1 = cert.get_notAfter()
-        expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
-        self.assertEqual(expiry_date.date(), expected_expiry.date())
-
-    def test_certificate_is_rsa_4096_sha_256(self):
-        """
-        A cert written by ``NodeCredential.initialize`` is an RSA
-        4096 bit, SHA-256 format.
-        """
-        nc = NodeCredential.initialize(self.path, self.ca)
-        cert = nc.certificate.original
-        key = nc.certificate.getPublicKey().original
-        self.assertEqual(
-            (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
-            (key.type(), key.bits(), cert.get_signature_algorithm())
-        )
+        self.assertEqual(subject.CN, b"node-{uuid}".format(
+            uuid=self.credential.uuid))
 
 
-class ControlCredentialTests(SynchronousTestCase):
+class ControlCredentialTests(
+        make_credential_tests(ControlCredential,
+                              b"control-control.example.com",
+                              hostname=b"control.example.com")):
     """
     Tests for ``flocker.ca._ca.ControlCredential``.
     """
-    def setUp(self):
-        """
-        Generate a RootCredential for the control certificate tests
-        to work with.
-        """
-        self.path = FilePath(self.mktemp())
-        self.path.makedirs()
-        self.ca = RootCredential.initialize(self.path, b"mycluster")
-
-    def test_written_keypair_exists(self):
-        """
-        ``ControlCredential.initialize`` writes a PEM file to the
-        specified path.
-        """
-        ControlCredential.initialize(self.path, self.ca)
-        self.assertEqual(
-            (True, True),
-            (self.path.child(AUTHORITY_CERTIFICATE_FILENAME).exists(),
-             self.path.child(AUTHORITY_KEY_FILENAME).exists())
-        )
-
-    def test_decoded_certificate_matches_public_key(self):
-        """
-        A decoded certificate's public key matches the public key it is
-        meant to be paired with.
-        """
-        cc = ControlCredential.initialize(self.path, self.ca)
-        self.assertTrue(
-            cc.keypair.keypair.matches(cc.certificate.getPublicKey())
-        )
-
-    def test_decoded_certificate_matches_private_key(self):
-        """
-        A decoded certificate matches the private key it is meant to
-        be paired with.
-        """
-        cc = ControlCredential.initialize(self.path, self.ca)
-        priv = cc.keypair.keypair.original
-        pub = cc.certificate.getPublicKey().original
-        pub_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, pub)
-        priv_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, priv)
-        pub_der = asn1.DerSequence()
-        pub_der.decode(pub_asn1)
-        priv_der = asn1.DerSequence()
-        priv_der.decode(priv_asn1)
-        pub_modulus = pub_der[1]
-        priv_modulus = priv_der[1]
-        self.assertEqual(pub_modulus, priv_modulus)
-
-    def test_written_keypair_reloads(self):
-        """
-        A keypair written by ``ControlCredential.initialize`` can be
-        successfully reloaded in to an identical ``ControlCredential``
-        instance.
-        """
-        cc1 = ControlCredential.initialize(self.path, self.ca)
-        cc2 = ControlCredential.from_path(self.path)
-        self.assertEqual(cc1, cc2)
-
-    def test_keypair_correct_umask(self):
-        """
-        A keypair file written by ``ControlCredential.initialize`` has
-        the correct permissions (0600).
-        """
-        ControlCredential.initialize(self.path, self.ca)
-        keyPath = self.path.child(CONTROL_KEY_FILENAME)
-        st = os.stat(keyPath.path)
-        self.assertEqual(b'0600', oct(st.st_mode & 0777))
-
-    def test_certificate_correct_permission(self):
-        """
-        A certificate file written by ``ControlCredential.initialize`` has
-        the correct access mode set (0600).
-        """
-        ControlCredential.initialize(self.path, self.ca)
-        keyPath = self.path.child(CONTROL_CERTIFICATE_FILENAME)
-        st = os.stat(keyPath.path)
-        self.assertEqual(b'0600', oct(st.st_mode & 0777))
-
-    def test_create_error_on_non_existent_path(self):
-        """
-        A ``PathError`` is raised if the path given to
-        ``ControlCredential.initialize`` does not exist.
-        """
-        path = FilePath(self.mktemp())
-        e = self.assertRaises(
-            PathError, ControlCredential.initialize, path, self.ca
-        )
-        expected = (b"Unable to write certificate file. "
-                    b"No such file or directory {path}").format(
-                        path=path.child(CONTROL_CERTIFICATE_FILENAME).path)
-        self.assertEqual(str(e), expected)
-
-    def test_load_error_on_non_existent_path(self):
-        """
-        A ``PathError`` is raised if the path given to
-        ``ControlCredential.from_path`` does not exist.
-        """
-        path = FilePath(self.mktemp())
-        e = self.assertRaises(
-            PathError, ControlCredential.from_path, path
-        )
-        expected = (b"Certificate file could not be opened. "
-                    b"No such file or directory {path}").format(
-                        path=path.child(CONTROL_CERTIFICATE_FILENAME).path)
-        self.assertEqual(str(e), expected)
-
-    def test_load_error_on_non_existent_certificate_file(self):
-        """
-        A ``PathError`` is raised if the certificate file path given to
-        ``ControlCredential.from_path`` does not exist.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        e = self.assertRaises(
-            PathError, ControlCredential.from_path, path
-        )
-        expected = (b"Certificate file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
-                        path=path.child(CONTROL_CERTIFICATE_FILENAME).path)
-        self.assertEqual(str(e), expected)
-
-    def test_load_error_on_non_existent_key_file(self):
-        """
-        A ``PathError`` is raised if the key file path given to
-        ``ControlCredential.from_path`` does not exist.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        crt_path = path.child(CONTROL_CERTIFICATE_FILENAME)
-        crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
-        crt_file.close()
-        e = self.assertRaises(
-            PathError, ControlCredential.from_path, path
-        )
-        expected = (b"Private key file could not be opened. "
-                    b"No such file or directory "
-                    b"{path}").format(
-                        path=path.child(CONTROL_KEY_FILENAME).path)
-        self.assertEqual(str(e), expected)
-
-    @not_root
-    @skip_on_broken_permissions
-    def test_load_error_on_unreadable_certificate_file(self):
-        """
-        A ``PathError`` is raised if the certificate file path given to
-        ``ControlCredential.from_path`` cannot be opened for reading.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        crt_path = path.child(CONTROL_CERTIFICATE_FILENAME)
-        crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
-        crt_file.close()
-        # make file unreadable
-        crt_path.chmod(0100)
-        key_path = path.child(CONTROL_KEY_FILENAME)
-        key_file = key_path.open(b'w')
-        key_file.write(b"dummy")
-        key_file.close()
-        # make file unreadable
-        key_path.chmod(0100)
-        e = self.assertRaises(
-            PathError, ControlCredential.from_path, path
-        )
-        expected = (
-            b"Certificate file could not be opened. "
-            b"Permission denied {path}"
-        ).format(path=crt_path.path)
-        self.assertEqual(str(e), expected)
-
-    @not_root
-    @skip_on_broken_permissions
-    def test_load_error_on_unreadable_key_file(self):
-        """
-        A ``PathError`` is raised if the key file path given to
-        ``ControlCredential.from_path`` cannot be opened for reading.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        crt_path = path.child(CONTROL_CERTIFICATE_FILENAME)
-        crt_file = crt_path.open(b'w')
-        crt_file.write(b"dummy")
-        crt_file.close()
-        key_path = path.child(CONTROL_KEY_FILENAME)
-        key_file = key_path.open(b'w')
-        key_file.write(b"dummy")
-        key_file.close()
-        # make file unreadable
-        key_path.chmod(0100)
-        e = self.assertRaises(
-            PathError, ControlCredential.from_path, path
-        )
-        expected = (
-            b"Private key file could not be opened. "
-            b"Permission denied {path}"
-        ).format(path=key_path.path)
-        self.assertEqual(str(e), expected)
-
     def test_certificate_subject_control_service(self):
         """
-        A cert written by ``ControlCredential.initialize`` has the
+        A certificate written by ``ControlCredential.initialize`` has the
         subject common name "control-service"
         """
-        cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
+        cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
         self.assertEqual(subject.CN, b"control-service")
 
-    def test_certificate_ou_matches_ca(self):
+    def test_subjectAltName(self):
         """
-        A cert written by ``ControlCredential.initialize`` has the issuing
-        authority's common name as its organizational unit name.
+        The generated certificate has a subjectAltName containing the given
+        hostname.
         """
-        cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
-        issuer = cert.get_issuer()
-        subject = cert.get_subject()
-        self.assertEqual(
-            issuer.CN,
-            subject.OU
-        )
-
-    def test_certificate_is_signed_by_ca(self):
-        """
-        A cert written by ``ControlCredential.initialize`` is validated
-        as being signed by the certificate authority.
-        """
-        cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
-        issuer = cert.get_issuer()
-        self.assertEqual(
-            issuer.CN,
-            self.ca.certificate.getSubject().CN
-        )
-
-    def test_certificate_expiration(self):
-        """
-        A cert written by ``ControlCredential.initialize`` has an expiry
-        date 20 years from the date of signing.
-        """
-        today = datetime.datetime.now()
-        expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
-        cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
-        asn1 = cert.get_notAfter()
-        expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
-        self.assertEqual(expiry_date.date(), expected_expiry.date())
-
-    def test_certificate_is_rsa_4096_sha_256(self):
-        """
-        A cert written by ``ControlCredential.initialize`` is an RSA
-        4096 bit, SHA-256 format.
-        """
-        cc = ControlCredential.initialize(self.path, self.ca)
-        cert = cc.certificate.original
-        key = cc.certificate.getPublicKey().original
-        self.assertEqual(
-            (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
-            (key.type(), key.bits(), cert.get_signature_algorithm())
-        )
+        assert_has_extension(self, self.credential.credential,
+                             b"subjectAltName", b"DNS:control.example.com")
 
 
 class RootCredentialTests(SynchronousTestCase):
@@ -601,28 +378,29 @@ class RootCredentialTests(SynchronousTestCase):
              path.child(AUTHORITY_KEY_FILENAME).exists())
         )
 
-    def test_decoded_certificate_matches_public_key(self):
+    def test_certificate_matches_public_key(self):
         """
-        A decoded certificate's public key matches the public key it is
+        A certificate's public key matches the public key it is
         meant to be paired with.
         """
         path = FilePath(self.mktemp())
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
         self.assertTrue(
-            ca.keypair.keypair.matches(ca.certificate.getPublicKey())
+            ca.credential.keypair.keypair.matches(
+                ca.credential.certificate.getPublicKey())
         )
 
-    def test_decoded_certificate_matches_private_key(self):
+    def test_certificate_matches_private_key(self):
         """
-        A decoded certificate matches the private key it is meant to
+        A certificate matches the private key it is meant to
         be paired with.
         """
         path = FilePath(self.mktemp())
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
-        priv = ca.keypair.keypair.original
-        pub = ca.certificate.getPublicKey().original
+        priv = ca.credential.keypair.keypair.original
+        pub = ca.credential.certificate.getPublicKey().original
         pub_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, pub)
         priv_asn1 = crypto.dump_privatekey(crypto.FILETYPE_ASN1, priv)
         pub_der = asn1.DerSequence()
@@ -678,9 +456,9 @@ class RootCredentialTests(SynchronousTestCase):
         e = self.assertRaises(
             PathError, RootCredential.initialize, path, b"mycluster"
         )
-        expected = (b"Unable to write certificate file. "
-                    b"No such file or directory "
-                    b"{path}").format(path=path.child(
+        expected = ("Unable to write certificate file. "
+                    "No such file or directory "
+                    "{path}").format(path=path.child(
                         AUTHORITY_CERTIFICATE_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -694,9 +472,9 @@ class RootCredentialTests(SynchronousTestCase):
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. Please run "
-            b"`flocker-ca initialize` to generate a new certificate "
-            b"authority. No such file or directory {path}"
+            "Unable to load certificate authority file. Please run "
+            "`flocker-ca initialize` to generate a new certificate "
+            "authority. No such file or directory {path}"
         ).format(path=path.child(AUTHORITY_CERTIFICATE_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -711,9 +489,9 @@ class RootCredentialTests(SynchronousTestCase):
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. Please run "
-            b"`flocker-ca initialize` to generate a new certificate "
-            b"authority. No such file or directory {path}"
+            "Unable to load certificate authority file. Please run "
+            "`flocker-ca initialize` to generate a new certificate "
+            "authority. No such file or directory {path}"
         ).format(path=path.child(AUTHORITY_CERTIFICATE_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -732,9 +510,9 @@ class RootCredentialTests(SynchronousTestCase):
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. Please run "
-            b"`flocker-ca initialize` to generate a new certificate "
-            b"authority. No such file or directory {path}"
+            "Unable to load certificate authority file. Please run "
+            "`flocker-ca initialize` to generate a new certificate "
+            "authority. No such file or directory {path}"
         ).format(path=path.child(AUTHORITY_KEY_FILENAME).path)
         self.assertEqual(str(e), expected)
 
@@ -752,19 +530,19 @@ class RootCredentialTests(SynchronousTestCase):
         crt_file.write(b"dummy")
         crt_file.close()
         # make file unreadable
-        crt_path.chmod(0100)
+        crt_path.chmod(0o100)
         key_path = path.child(AUTHORITY_KEY_FILENAME)
         key_file = key_path.open(b'w')
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(0100)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. "
-            b"Permission denied {path}"
+            "Unable to load certificate authority file. "
+            "Permission denied {path}"
         ).format(path=crt_path.path)
         self.assertEqual(str(e), expected)
 
@@ -786,55 +564,90 @@ class RootCredentialTests(SynchronousTestCase):
         key_file.write(b"dummy")
         key_file.close()
         # make file unreadable
-        key_path.chmod(0100)
+        key_path.chmod(0o100)
         e = self.assertRaises(
             PathError, RootCredential.from_path, path
         )
         expected = (
-            b"Unable to load certificate authority file. "
-            b"Permission denied {path}"
+            "Unable to load certificate authority file. "
+            "Permission denied {path}"
         ).format(path=key_path.path)
         self.assertEqual(str(e), expected)
 
     def test_certificate_is_self_signed(self):
         """
-        A cert written by ``RootCredential.initialize`` is validated
-        as a self-signed certificate.
+        A certificate written by ``RootCredential.initialize`` is a
+        self-signed certificate.
         """
         path = FilePath(self.mktemp())
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
-        cert = ca.certificate.original
+        cert = ca.credential.certificate.original
         issuer = cert.get_issuer().get_components()
         subject = cert.get_subject().get_components()
         self.assertEqual(issuer, subject)
 
     def test_certificate_expiration(self):
         """
-        A cert written by ``RootCredential.initialize`` has an expiry
+        A certificate written by ``RootCredential.initialize`` has an expiry
         date 20 years from the date of signing.
+
+        XXX: This test is prone to intermittent failure depending on the time
+        of day it is run. Fixed in
+        https://github.com/ClusterHQ/flocker/pull/1339
         """
-        today = datetime.datetime.now()
-        expected_expiry = today + datetime.timedelta(seconds=EXPIRY_20_YEARS)
         path = FilePath(self.mktemp())
         path.makedirs()
-        ca = RootCredential.initialize(path, b"mycluster")
-        cert = ca.certificate.original
-        asn1 = cert.get_notAfter()
-        expiry_date = datetime.datetime.strptime(asn1, "%Y%m%d%H%M%SZ")
-        self.assertEqual(expiry_date.date(), expected_expiry.date())
+        start_date = datetime.datetime.utcnow()
+        expected_expiry = start_date + datetime.timedelta(
+            seconds=EXPIRY_20_YEARS)
+        expected_expiry = expected_expiry.strftime("%Y%m%d%H%M%SZ")
+        ca = RootCredential.initialize(path, b"mycluster", begin=start_date)
+        cert = ca.credential.certificate.original
+        date_str = cert.get_notAfter()
+        self.assertEqual(date_str, expected_expiry)
 
     def test_certificate_is_rsa_4096_sha_256(self):
         """
-        A cert written by ``RootCredential.initialize`` is an RSA
+        A certificate written by ``RootCredential.initialize`` is an RSA
         4096 bit, SHA-256 format.
         """
         path = FilePath(self.mktemp())
         path.makedirs()
         ca = RootCredential.initialize(path, b"mycluster")
-        cert = ca.certificate.original
-        key = ca.certificate.getPublicKey().original
+        cert = ca.credential.certificate.original
+        key = ca.credential.certificate.getPublicKey().original
         self.assertEqual(
             (crypto.TYPE_RSA, 4096, b'sha256WithRSAEncryption'),
             (key.type(), key.bits(), cert.get_signature_algorithm())
         )
+
+    def test_cluster_uuid(self):
+        """
+        Each certificate created by ``RootCredential.initialize`` has a unique
+        cluster UUID, stored in the distinguished name organizational unit
+        name.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        ca = RootCredential.initialize(path, b"mycluster")
+        cert = ca.credential.certificate
+
+        path2 = FilePath(self.mktemp())
+        path2.makedirs()
+        ca2 = RootCredential.initialize(path2, b"mycluster2")
+        cert2 = ca2.credential.certificate
+
+        self.assertNotEqual(UUID(hex=cert.getSubject().OU),
+                            UUID(hex=cert2.getSubject().OU))
+
+    def test_organizational_unit(self):
+        """
+        ``RootCredential.organizational_unit`` is its organizational unit.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        RootCredential.initialize(path, b"mycluster")
+        ca = RootCredential.from_path(path)
+        self.assertEqual(ca.organizational_unit,
+                         ca.credential.certificate.getSubject().OU)

@@ -34,17 +34,19 @@ To build the development box, install the necessary Vagrant plugins as follows:
 
 This will generate a :file:`flocker-<box>-<version>.box` file.
 
-Upload this file to `Google Cloud Storage <https://console.developers.google.com/project/apps~hybridcluster-docker/storage/clusterhq-vagrant/>`_,
+Upload this file to `Amazon S3 <https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=>`_,
 using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
 
-   gsutil cp -a public-read flocker-dev-$(python ../../setup.py --version).box gs://clusterhq-vagrant/
+   gsutil cp -a public-read flocker-dev-$(python ../../setup.py --version).box s3://clusterhq-archive/vagrant
 
-(If you're uploading the tutorial box the image will be ``flocker-tutorial-...`` instead of ``flocker-dev-...``.)
+If you are uploading the tutorial box the image will be ``flocker-tutorial-...`` instead of ``flocker-dev-...``.
+However, the :ref:`release-process` automatically builds and uploads a new tutorial box.
 
 #. For the following step, retrieve the public link:
 
-   - Visit https://console.developers.google.com/project/hybridcluster-docker/storage/clusterhq-vagrant/.
-   - Right click and copy the "Public link" for the relevant box.
+   - Visit https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=vagrant/.
+   - Right click and select "Properties".
+   - Copy the "Link".
 
 #. To upload a development box do XXX.
    TODO Do this after the vagrant box > S3 branch is merged as it also changes this.

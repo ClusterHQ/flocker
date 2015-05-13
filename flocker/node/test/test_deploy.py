@@ -1143,11 +1143,13 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
         """
-        api = ApplicationNodeDeployer(u'node2.example.com',
+        api = ApplicationNodeDeployer(u'192.168.1.1',
                                       docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      network=make_memory_network(),
+                                      node_uuid=uuid4())
         expected_destination_port = 1001
-        expected_destination_host = u'node1.example.com'
+        expected_destination_host = u'192.168.1.2'
+        destination_node_uuid = uuid4()
         port = Port(internal_port=3306,
                     external_port=expected_destination_port)
         application = Application(
@@ -1159,17 +1161,45 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         nodes = frozenset([
             Node(
-                hostname=expected_destination_host,
+                uuid=destination_node_uuid,
                 applications=frozenset([application])
             )
         ])
 
         desired = Deployment(nodes=nodes)
+        current = DeploymentState(nodes=[
+            NodeState(uuid=destination_node_uuid,
+                      hostname=expected_destination_host)])
         result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
+            desired_configuration=desired, current_cluster_state=current)
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
         expected = sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
+        self.assertEqual(expected, result)
+
+    def test_no_proxy_if_node_state_unknown(self):
+        """
+        ``ApplicationNodeDeployer.calculate_changes`` does not attempt to
+        create a proxy to a node whose state is unknown, since the
+        destination IP is unavailable.
+        """
+        api = ApplicationNodeDeployer(u'192.168.1.1', node_uuid=uuid4(),
+                                      docker_client=FakeDockerClient(),
+                                      network=make_memory_network())
+        expected_destination_port = 1001
+        port = Port(internal_port=3306,
+                    external_port=expected_destination_port)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'release-14.0'),
+            ports=frozenset([port]),
+        )
+        desired = Deployment(nodes=[Node(uuid=uuid4(),
+                                         applications=[application])])
+        result = api.calculate_changes(
+            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
+        expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
     def test_proxy_empty(self):
@@ -1383,14 +1413,16 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         expected = sequentially(changes=[in_parallel(changes=[to_stop])])
         self.assertEqual(expected, result)
 
-    def test_local_not_running_applications_restarted(self):
+    def test_local_not_running_applications_not_restarted(self):
         """
         Applications that are not running but are supposed to be on the local
-        node are added to the list of applications to restart.
+        node are not restarted by Flocker (we rely on Docker restart
+        policies to do so).
         """
         api = ApplicationNodeDeployer(u'n.example.com',
                                       docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      network=make_memory_network(),
+                                      node_uuid=uuid4())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -1398,23 +1430,20 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         )
         nodes = frozenset([
             Node(
-                hostname=u'n.example.com',
+                uuid=api.node_uuid,
                 applications=frozenset([application])
             )
         ])
         node_state = NodeState(
             hostname=api.hostname,
+            uuid=api.node_uuid,
             applications=[application.set("running", False)])
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[node_state]))
 
-        expected = sequentially(changes=[in_parallel(changes=[
-            sequentially(changes=[StopApplication(application=application),
-                                  StartApplication(application=application,
-                                                   node_state=node_state)]),
-        ])])
+        expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
     def test_not_local_not_running_applications_stopped(self):
@@ -1440,57 +1469,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             StopApplication(application=to_stop)])])
         self.assertEqual(expected, result)
 
-    def test_restart_application_once_only(self):
-        """
-        An ``Application`` will only be added once to the list of applications
-        to restart even if there are different reasons to restart it (it is
-        not running and its setup has changed).
-        """
-        api = ApplicationNodeDeployer(
-            u'node1.example.com',
-            docker_client=FakeDockerClient(),
-            network=make_memory_network()
-        )
-
-        old_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'clusterhq/postgres:7.5'),
-            running=False,
-        )
-
-        new_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'docker/postgres:7.6'),
-        )
-
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset({new_postgres_app})),
-        }))
-        node_state = NodeState(
-            hostname=api.hostname,
-            applications={old_postgres_app})
-
-        result = api.calculate_changes(
-            desired_configuration=desired,
-            current_cluster_state=DeploymentState(nodes=[node_state]))
-
-        expected = sequentially(changes=[
-            in_parallel(changes=[
-                sequentially(changes=[
-                    StopApplication(application=new_postgres_app),
-                    StartApplication(application=new_postgres_app,
-                                     node_state=node_state)
-                ])
-            ])
-        ])
-        self.assertEqual(expected, result)
-
     def test_app_with_changed_image_restarted(self):
         """
         An ``Application`` running on a given node that has a different image
@@ -1500,7 +1478,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         api = ApplicationNodeDeployer(
             u'node1.example.com',
             docker_client=FakeDockerClient(),
-            network=make_memory_network()
+            network=make_memory_network(),
+            node_uuid=uuid4(),
         )
 
         old_postgres_app = Application(
@@ -1515,16 +1494,12 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             volume=None
         )
 
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_postgres_app}),
-        )
-
         desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
+            Node(uuid=api.node_uuid,
                  applications=frozenset({new_postgres_app})),
         }))
         node_state = NodeState(
+            uuid=api.node_uuid,
             hostname=api.hostname,
             applications={old_postgres_app})
         result = api.calculate_changes(
@@ -1665,6 +1640,50 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         self.assertEqual(expected, result)
 
+    def test_stopped_app_with_change_restarted(self):
+        """
+        An ``Application`` that is stopped, and then reconfigured such that it
+        would be restarted if it was running, will be restarted with the
+        new configuration.
+        """
+        api = ApplicationNodeDeployer(
+            u'node1.example.com',
+            docker_client=FakeDockerClient(),
+            network=make_memory_network(),
+            node_uuid=uuid4(),
+        )
+
+        old_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
+            running=False,
+        )
+
+        new_postgres_app = old_postgres_app.transform(
+            ["image"], DockerImage.from_string(u'docker/postgres:latest'),
+            ["running"], True)
+
+        desired = Deployment(nodes=[
+            Node(uuid=api.node_uuid, applications={new_postgres_app})])
+        node_state = NodeState(
+            uuid=api.node_uuid,
+            hostname=api.hostname,
+            applications={old_postgres_app})
+        result = api.calculate_changes(
+            desired_configuration=desired,
+            current_cluster_state=DeploymentState(nodes={node_state}),
+        )
+
+        expected = sequentially(changes=[in_parallel(changes=[
+            sequentially(changes=[
+                StopApplication(application=old_postgres_app),
+                StartApplication(application=new_postgres_app,
+                                 node_state=node_state)
+                ]),
+        ])])
+
+        self.assertEqual(expected, result)
+
     def test_unknown_applications(self):
         """
         If application state for local state is unknown, don't do anything.
@@ -1774,19 +1793,20 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         than inspecting application configuration.
         """
         node = Node(
-            hostname=u"10.1.1.1",
+            uuid=uuid4(),
             manifestations={
                 MANIFESTATION.dataset_id:
                 MANIFESTATION.transform(("dataset", "deleted"), True)},
         )
         desired = Deployment(nodes=[node])
         current = DeploymentState(nodes=[NodeState(
-            hostname=node.hostname,
+            uuid=node.uuid,
+            hostname=u"10.1.1.1",
             applications={APPLICATION_WITH_VOLUME},
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION})])
 
         api = P2PManifestationDeployer(
-            node.hostname, create_volume_service(self),
+            u"10.1.1.1", create_volume_service(self), node_uuid=node.uuid,
         )
         changes = api.calculate_changes(desired, current)
         self.assertEqual(sequentially(changes=[]), changes)
@@ -1849,6 +1869,32 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
 
         api = P2PManifestationDeployer(
             node_state.hostname, create_volume_service(self),
+        )
+
+        changes = api.calculate_changes(desired, current)
+        self.assertEqual(sequentially(changes=[]), changes)
+
+    def test_no_handoff_if_destination_unknown(self):
+        """
+        If there is no known state for the destination of a handoff, then no
+        handoff is suggested by ``calculate_changes``.
+        """
+        node_state = NodeState(
+            uuid=uuid4(),
+            hostname=u"192.2.0.1",
+            manifestations={MANIFESTATION.dataset_id:
+                            MANIFESTATION},
+        )
+        current = DeploymentState(nodes=[node_state])
+        desired = Deployment(nodes={
+            Node(uuid=uuid4(),
+                 manifestations={MANIFESTATION.dataset_id:
+                                 MANIFESTATION}),
+        })
+
+        api = P2PManifestationDeployer(
+            node_state.hostname, create_volume_service(self),
+            node_uuid=node_state.uuid,
         )
 
         changes = api.calculate_changes(desired, current)
