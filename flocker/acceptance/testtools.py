@@ -269,7 +269,7 @@ def get_nodes(test_case, num_nodes):
 
     clean_applications = {u"version": 1,
                           u"applications": {}}
-    getting = get_test_cluster()
+    getting = get_test_cluster(reactor)
 
     def got_cluster(cluster):
         # Remove all existing containers; we make sure to pass in node
@@ -372,7 +372,7 @@ def assert_expected_deployment(test_case, expected_deployment):
 
     :return Deferred: Fires on end of assertion.
     """
-    d = get_test_cluster()
+    d = get_test_cluster(reactor)
 
     def got_cluster(cluster):
         ip_to_uuid = {node.address: node.uuid for node in cluster.nodes}
@@ -488,9 +488,9 @@ class Cluster(PRecord):
     :ivar list nodes: The ``Node`` s in this cluster.
     :ivar treq: A ``treq`` client.
     """
-    control_node = field(type=ControlService)
-    nodes = field(type=_NodeList)
-    treq = field()
+    control_node = field(mandatory=True, type=ControlService)
+    nodes = field(mandatory=True, type=_NodeList)
+    treq = field(mandatory=True)
 
     @property
     def base_url(self):
@@ -751,7 +751,7 @@ class Cluster(PRecord):
         return request
 
 
-def get_test_cluster(node_count=0):
+def get_test_cluster(reactor, node_count=0):
     """
     Build a ``Cluster`` instance with at least ``node_count`` nodes.
 
@@ -834,7 +834,7 @@ def require_cluster(num_nodes):
             # services started.
             waiting_for_nodes = get_nodes(test_case, num_nodes)
             waiting_for_cluster = waiting_for_nodes.addCallback(
-                lambda nodes: get_test_cluster(node_count=num_nodes)
+                lambda nodes: get_test_cluster(reactor, node_count=num_nodes)
             )
             calling_test_method = waiting_for_cluster.addCallback(
                 call_test_method_with_cluster,
