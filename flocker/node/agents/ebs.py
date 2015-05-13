@@ -10,7 +10,7 @@ import threading
 import time
 from uuid import UUID
 
-from bitmath import Byte, GB
+from bitmath import Byte, GiB
 
 from pyrsistent import PRecord, field
 from zope.interface import implementer
@@ -70,7 +70,7 @@ def _blockdevicevolume_from_ebs_volume(ebs_volume):
     ebs_volume.update()
     return BlockDeviceVolume(
         blockdevice_id=unicode(ebs_volume.id),
-        size=int(GB(ebs_volume.size).to_Byte().value),
+        size=int(GiB(ebs_volume.size).to_Byte().value),
         attached_to=ebs_volume.attach_data.instance_id,
         dataset_id=UUID(ebs_volume.tags[DATASET_ID_LABEL])
     )
@@ -126,16 +126,23 @@ def _check_blockdevice_size(device, size):
     :returns True if a block device with given name has given size.
         False otherwise.
     """
-    device_name = b"/dev/" + device
-    command = [b"lsblk", b"-nb", b"-o", b"SIZE", device_name]
-    device_size = int(check_output(command).strip().decode("ascii"))
+    device_name = b"/dev/" + device.encode("ascii")
+
+    # Retrieve size of device as OS sees it using `lsblk`.
+    # Requires util-linux-ng package on CentOS, and
+    # util-linux on Ubuntu.
+    # Required package is installed by default
+    # on Ubuntu 14.04 and CentOS 7.
+    command = [b"/bin/lsblk", b"-nb", b"-o", b"SIZE", device_name]
+
+    # Get the base device size, which is the first line in
+    # `lsblk` output. Ignore partition sizes.
+    command_output = check_output(command).split(b'\n')[0]
+    device_size = int(command_output.strip().decode("ascii"))
 
     # OS reports device size in powers of 2, where has EBS
     # talks powers of 10. Hence, convert before comparing.
-    if size/(1000**3) == device_size/(1024**3):
-        return True
-    else:
-        return False
+    return size == device_size
 
 
 def _wait_for_new_device(base, size, time_limit=60):
@@ -147,13 +154,11 @@ def _wait_for_new_device(base, size, time_limit=60):
     :param list base: List of baseline block devices
         that existed before execution of operation that expects
         to create a new block device.
+    :param int size: Size of the block device we are expected
+        to manifest in the OS.
 
-    :returns unicode device: Name of the new block device
-        we are interested in.
-
-    :raises Exception: When new EBS block device did not
-        manifest in OS within time limit.
-
+    :returns: formatted string name of the new block device.
+    :rtype: unicode
     """
     start_time = time.time()
     elapsed_time = time.time() - start_time
@@ -167,14 +172,6 @@ def _wait_for_new_device(base, size, time_limit=60):
                 return new_device
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
-
-    raise Exception(
-        'Timed out while waiting for OS block device to manifest. '
-        'Elapsed Time: {!r}, '
-        'Time Limit: {!r}.'.format(
-            elapsed_time, time_limit
-        )
-    )
 
 
 def _is_cluster_volume(cluster_id, ebs_volume):
@@ -287,7 +284,7 @@ class EBSBlockDeviceAPI(object):
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
         requested_volume = self.connection.create_volume(
-            size=int(Byte(size).to_GB().value), zone=self.zone)
+            size=int(Byte(size).to_GiB().value), zone=self.zone)
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {

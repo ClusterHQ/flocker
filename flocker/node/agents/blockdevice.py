@@ -78,6 +78,12 @@ class AlreadyAttachedVolume(VolumeException):
     """
 
 
+class MissingDeviceForAttachedVolume(VolumeException):
+    """
+    The block device has not manifested in the OS.
+    """
+
+
 class UnattachedVolume(VolumeException):
     """
     An attempt was made to operate on an unattached volume but the operation
