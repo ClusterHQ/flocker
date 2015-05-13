@@ -63,8 +63,6 @@ def openssl_verify(cafile, certificatefile):
         Message.new(
             message_type="flocker.ca.functional:openssl_verify_error",
             error=str(e)).write(Logger())
-        # XXX temporary, remove this
-        sys.stderr.write("OpenSSL flocker.ca.functional: " + str(e))
         return False
 
 
