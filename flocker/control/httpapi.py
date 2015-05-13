@@ -777,8 +777,18 @@ class ConfigurationAPIUserV1(object):
         raise CONTAINER_NOT_FOUND
 
     @app.route("/state/nodes", methods=['GET'])
-    # To be done in https://clusterhq.atlassian.net/browse/FLOC-1632
-    # @user_documentation(...)
+    @user_documentation(
+        """
+        List known nodes in the cluster.
+
+        Some nodes may not be listed if their agents are disconnected from
+        the cluster. IP addresses may be private IP addresses that are not
+        publicly routable.
+        """,
+        examples=[
+            u"list known nodes",
+        ]
+    )
     @structured(
         inputSchema={},
         outputSchema={"$ref":
@@ -786,7 +796,7 @@ class ConfigurationAPIUserV1(object):
         schema_store=SCHEMAS
     )
     def list_current_nodes(self):
-        return [{u"hostname": node.hostname, u"uuid": unicode(node.uuid)}
+        return [{u"host": node.hostname, u"uuid": unicode(node.uuid)}
                 for node in
                 self.cluster_state_service.as_deployment().nodes]
 

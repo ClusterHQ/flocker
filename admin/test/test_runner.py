@@ -41,7 +41,7 @@ class RunTests(TestCase):
         self.assertEqual(
             [process.executable,
              process.args,
-             type(process.processProtocol.protocol)],
+             type(process.processProtocol)],
             ['command',
              ['command', 'and', 'args'],
              CommandProtocol])
@@ -100,6 +100,20 @@ class RunTests(TestCase):
             [])
 
     def test_process_success(self):
+        """
+        If the process ends with a success, the returned deferred fires with
+        a succesful result.
+        """
+
+        reactor = ProcessCoreReactor()
+        d = run(reactor, ['command', 'and', 'args'])
+        [process] = reactor.processes
+
+        expected_failure = Failure(ProcessDone(0))
+        process.processProtocol.processEnded(expected_failure)
+        self.successResultOf(d)
+
+    def test_process_failure(self):
         """
         If the process ends with a failure, the returned deferred fires with
         the reason.

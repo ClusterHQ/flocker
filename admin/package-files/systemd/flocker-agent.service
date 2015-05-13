@@ -1,9 +1,9 @@
 [Unit]
 Description=Flocker ZFS Agent
+AssertFileNotEmpty=/etc/flocker/agent.yml
 
 [Service]
-ExecStart=/usr/sbin/flocker-zfs-agent $FLOCKER_CONTROL_NODE
-EnvironmentFile=/etc/sysconfig/flocker-agent
+ExecStart=/usr/sbin/flocker-zfs-agent
 
 # We can't have a private mount namespace, since we need to see ZFS created mounts.
 

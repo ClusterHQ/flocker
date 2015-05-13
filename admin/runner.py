@@ -1,17 +1,19 @@
 # -*- test-case-name: admin.test.test_runner -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: admin.test.test_runner -*-
 """
 Tools for running commands.
 """
 import os
+from collections import defaultdict
 
 from characteristic import attributes
 from eliot import MessageType, ActionType, Field
 from eliot.twisted import DeferredContext
 
-from twisted.internet.error import ConnectionDone
-from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
+from twisted.internet.error import ProcessDone
 from twisted.internet.defer import Deferred
+from twisted.internet.protocol import ProcessProtocol
 
 from twisted.protocols.basic import LineOnlyReceiver
 
@@ -35,10 +37,31 @@ RUN_OUTPUT_MESSAGE = MessageType(
 
 # LineOnlyReceiver is mutable, so can't use pyrsistent
 @attributes([
+    "action",
+])
+class _LineParser(LineOnlyReceiver, object):
+    """
+    Parser that breaks input into lines, and writes it to ouput.
+
+    :ivar Action action: For logging.
+    """
+    delimiter = b'\n'
+
+    def __init__(self):
+        self.transport = type('', (object,), {})()
+        self.transport.disconnecting = False
+
+    def lineReceived(self, line):
+        RUN_OUTPUT_MESSAGE(
+            line=line,
+        ).write(action=self.action)
+
+
+@attributes([
     "deferred",
     "action",
 ])
-class CommandProtocol(LineOnlyReceiver, object):
+class CommandProtocol(ProcessProtocol, object):
     """
     Protocol that logs the lines of a remote command.
 
@@ -46,22 +69,20 @@ class CommandProtocol(LineOnlyReceiver, object):
         If the command finished successfully, will fire with ``None``.
         Otherwise, errbacks with the reason.
     :ivar Action action: For logging.
+
+    :ivar defaultdict _fds: Mapping from file descriptors to `_LineParsers`.
     """
-    delimiter = b'\n'
+    def __init__(self):
+        self._fds = defaultdict(lambda: _LineParser(output=self.output))
 
-    def connectionMade(self):
-        self.transport.disconnecting = False
+    def childDataReceived(self, childFD, data):
+        self._fds[childFD].dataReceived(data)
 
-    def connectionLost(self, reason):
-        if reason.check(ConnectionDone):
+    def processEnded(self, reason):
+        if reason.check(ProcessDone):
             self.deferred.callback(None)
         else:
             self.deferred.errback(reason)
-
-    def lineReceived(self, line):
-        RUN_OUTPUT_MESSAGE(
-            line=line,
-        ).write(action=self.action)
 
 
 def run(reactor, command, **kwargs):
@@ -78,28 +99,24 @@ def run(reactor, command, **kwargs):
 
     action = RUN_ACTION(command=command)
 
-    endpoint = ProcessEndpoint(reactor, command[0], command, **kwargs)
     protocol_done = Deferred()
     protocol = CommandProtocol(deferred=protocol_done, action=action)
 
     with action.context():
-        connected = DeferredContext(connectProtocol(endpoint, protocol))
+        protocol_done = DeferredContext(protocol_done)
+        reactor.spawnProcess(protocol, command[0], command, **kwargs)
 
-    def unregister_killer(result, trigger_id):
-        try:
-            reactor.removeSystemEventTrigger(trigger_id)
-        except:
-            # If we can't remove the trigger, presumably it has already been
-            # removed (or run). In any case, there is nothing sensible to do
-            # if this fails.
-            pass
-        return result
-
-    def register_killer(_):
+        def unregister_killer(result, trigger_id):
+            try:
+                reactor.removeSystemEventTrigger(trigger_id)
+            except:
+                # If we can't remove the trigger, presumably it has already
+                # been removed (or run). In any case, there is nothing sensible
+                # to do if this fails.
+                pass
+            return result
         trigger_id = reactor.addSystemEventTrigger(
             'before', 'shutdown', protocol.transport.signalProcess, 'TERM')
         protocol_done.addBoth(unregister_killer, trigger_id)
 
-    connected.addCallback(register_killer)
-    connected.addCallback(lambda _: protocol_done)
-    return connected.addActionFinish()
+        return protocol_done.addActionFinish()

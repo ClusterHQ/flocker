@@ -55,7 +55,7 @@ from ..common.script import (
 # This is currently set to the minimum size for a SATA based Rackspace Cloud
 # Block Storage volume. See:
 # * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
-REALISTIC_BLOCKDEVICE_SIZE = int(GB(75).to_Byte().value)
+REALISTIC_BLOCKDEVICE_SIZE = int(GB(100).to_Byte().value)
 
 
 @implementer(IProcessTransport)
@@ -619,7 +619,7 @@ class DockerImageBuilder(PRecord):
         run_process(command)
         if self.cleanup:
             def remove_image():
-                client = DockerClient()
+                client = DockerClient(version="1.15")
                 for container in client.containers():
                     if container[u"Image"] == tag + ":latest":
                         client.remove_container(container[u"Names"][0])
@@ -850,6 +850,17 @@ class _ProcessResult(PRecord):
     status = field(type=int, mandatory=True)
 
 
+class _CalledProcessError(CalledProcessError):
+    """
+    Just like ``CalledProcessError`` except output is included in the string
+    representation.
+    """
+    def __str__(self):
+        base = super(_CalledProcessError, self).__str__()
+        lines = "\n".join("    |" + line for line in self.output.splitlines())
+        return base + " and output:\n" + lines
+
+
 def run_process(command, *args, **kwargs):
     """
     Run a child process, capturing its stdout and stderr.
@@ -868,7 +879,9 @@ def run_process(command, *args, **kwargs):
     status = process.wait()
     result = _ProcessResult(command=command, output=output, status=status)
     if result.status:
-        raise CalledProcessError(returncode=status, cmd=command, output=output)
+        raise _CalledProcessError(
+            returncode=status, cmd=command, output=output,
+        )
     return result
 
 
