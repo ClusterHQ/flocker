@@ -12,6 +12,7 @@ Boxes
 There are several vagrant boxes.
 
 Development Box (:file:`vagrant/dev`)
+   # TODO update this to reference CentOS.
    The box is initialized with the yum repositories for ZFS and for dependencies not available in Fedora and installs all the dependencies.
    This is the box the :file:`Vagrantfile` in the root of the repository is based on.
 
@@ -23,7 +24,9 @@ Tutorial Box (:file:`vagrant/tutorial`)
 Building
 ^^^^^^^^
 
-To build one of the above boxes, install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory.
+BuildBot builds a tutorial box for each branch, and a development box for each change to ``master``.
+
+To build one of the above boxes locally, install the necessary Vagrant plugins and run the :file:`build` script in the corresponding directory.
 
 To build the development box, install the necessary Vagrant plugins as follows:
 
@@ -34,28 +37,17 @@ To build the development box, install the necessary Vagrant plugins as follows:
 
 This will generate a :file:`flocker-<box>-<version>.box` file.
 
-Upload this file to `Amazon S3 <https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=>`_,
-using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
+Tutorial boxes and metadata for them are published to `Amazon S3 <https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=vagrant/`_ during the :ref:`release-process`.
 
-   gsutil cp -a public-read flocker-dev-$(python ../../setup.py --version).box s3://clusterhq-archive/vagrant
-
-If you are uploading the tutorial box the image will be ``flocker-tutorial-...`` instead of ``flocker-dev-...``.
-However, the :ref:`release-process` automatically builds and uploads a new tutorial box.
-
-#. For the following step, retrieve the public link:
-
-   - Visit https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=vagrant/.
-   - Right click and select "Properties".
-   - Copy the "Link".
-
-#. To upload a development box do XXX.
-   TODO Do this after the vagrant box > S3 branch is merged as it also changes this.
-   Note that the tutorial box is uploaded in the release process.
+To publish the latest development box which has been built by BuildBot, run ``admin/publish-dev-box``.
+This should be done whenever there is a change to the development box.
+TODO Change the Vagrantfile to look at S3.
+TODO The script should load http://build.clusterhq.com/results/vagrant/master/flocker-dev.json
 
 Testing
 ^^^^^^^
 
-It is possible to test this image locally before uploading.
+It is possible to test a box which has been built locally.
 The :file:`build` script generates metadata pointing a the locally built file,
 which can be used to add the box with the correct version::
 
@@ -69,4 +61,10 @@ If you pass a ``--branch`` argument to :file:`build`, then it will use the RPMs 
 Legacy
 ^^^^^^
 
-Old stuff is on Atlas.
+Metadata for Vagrant boxes was hosted on `Atlas`_.
+
+The Vagrant boxes were hosted on Google Cloud Storage.
+
+The development box used to be based on Fedora 20.
+
+.. _`Atlas`: https://atlas.hashicorp.com/vagrant
