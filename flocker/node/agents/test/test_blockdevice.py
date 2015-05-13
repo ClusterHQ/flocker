@@ -1170,6 +1170,10 @@ class IBlockDeviceAPITestsMixin(object):
 
     def _assert_volume_size(self, volume, size):
         """
+        Assert that size of given volume matches provided size value.
+
+        :param BlockDeviceVolume volume: Volume we are interested in.
+        :param int size: Expected size of input volume.
         """
         volume_size = volume.size
         device_path = self.api.get_device_path(volume.blockdevice_id).path
