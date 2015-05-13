@@ -429,6 +429,16 @@ def main(reactor, args, base_path, top_level):
 
     runner = options.runner
 
+    from flocker.common.script import eliot_logging_service
+    log_file = open("%s.log" % base_path.basename(), "a")
+    log_writer = eliot_logging_service(
+        log_file=log_file,
+        reactor=reactor,
+        set_stdout=False)
+    log_writer.startService()
+    reactor.addSystemEventTrigger(
+        'before', 'shutdown', log_writer.stopService)
+
     try:
         nodes = yield runner.start_nodes(reactor)
         yield perform(
@@ -449,4 +459,5 @@ def main(reactor, args, base_path, top_level):
             runner.stop_nodes(reactor)
         elif options['keep']:
             print "--keep specified, not destroying nodes."
+
     raise SystemExit(result)
