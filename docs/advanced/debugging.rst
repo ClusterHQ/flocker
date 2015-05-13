@@ -34,14 +34,14 @@ For example if you have started an application called ``mymongodb`` you can view
 Testing Code on Nodes
 =====================
 
-BuildBot is the canonical testing tool for code on a branch.
+`Buildbot`_ is the canonical testing tool for code on a branch.
 It creates nodes on Vagrant and various cloud providers and installs packages from a branch onto each node.
 
 However, sometimes it might be useful to modify code on an existing node.
 
 To do this, start with some nodes which are configured correctly for Flocker.
-# TODO document that option, TODO link to acceptance test docs
-A simple way to do this is to run the acceptance test runner with the ``--keep`` option.
+# TODO document that option
+A simple way to do this is to run the :ref:`acceptance test runner <acceptance-testing>` with the ``--keep`` option.
 
 Log in to each node in the cluster, forwarding the authentication agent connection:
 
@@ -75,3 +75,5 @@ Replace the node services with the new code:
    systemctl restart flocker-agent flocker-control
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
+
+.. _`Buildbot`: https://build.clusterhq.com/
