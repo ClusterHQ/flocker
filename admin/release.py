@@ -468,7 +468,7 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
     yield Effect(UploadToS3(
         source_path=scratch_directory,
         target_bucket=target_bucket,
-        target_key='vagrant',
+        target_key='vagrant/' + metadata_filename,
         file=new_metadata_file,
         ))
 
