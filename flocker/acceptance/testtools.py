@@ -219,7 +219,7 @@ def require_backend(backends):
         def wrapper(test_case, *args, **kwargs):
             backend = environ.get("FLOCKER_ACCEPTANCE_BACKEND")
 
-            if backend in backends:
+            if backend not in backends:
                 raise SkipTest(
                     "Set acceptance testing backend using the " +
                     "FLOCKER_ACCEPTANCE_BACKEND environment variable.")
@@ -227,6 +227,8 @@ def require_backend(backends):
             return test_method(test_case, *args, **kwargs)
         return wrapper
     return decorator
+
+require_moving_backend = require_backend(["zfs", "openstack", "ebs"])
 
 
 def get_nodes(test_case, num_nodes):

@@ -17,7 +17,7 @@ from flocker.control import (
 from flocker.testtools import loop_until
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        require_flocker_cli, require_backend)
+                        require_flocker_cli, require_moving_backend)
 
 
 try:
@@ -124,7 +124,7 @@ class PostgresTests(TestCase):
             self.node_2: set([]),
         })
 
-    @require_backend(["zfs", "openstack", "ebs"])
+    @require_moving_backend
     def test_moving_postgres(self):
         """
         It is possible to move PostgreSQL to a new node.
@@ -156,7 +156,7 @@ class PostgresTests(TestCase):
         return d
 
     @skipUnless(PG8000_INSTALLED, "pg8000 not installed")
-    @require_backend(["zfs", "openstack", "ebs"])
+    @require_moving_backend
     def test_moving_postgres_data(self):
         """
         PostgreSQL and its data can be deployed and moved with Flocker. In
