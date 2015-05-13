@@ -17,27 +17,7 @@ Generate an API user certificate
 
 The CLI package includes the ``flocker-ca`` program which is used to generate certificate and key files.
 
-.. code-block:: console
-
-    $ flocker-ca --help
-
-    Usage: flocker-ca <command> [OPTIONS]
-    Options:
-          --version  Print the program's version and exit.
-          --help     Display this help and exit.
-      -v, --verbose  Turn on verbose logging.
-
-    flocker-ca is used to create TLS certificates.
-    The certificates are used to identify the control service, nodes
-    and API clients within a Flocker cluster.
-    Commands:
-        initialize                      Initialize a certificate authority in the current
-                                        working directory.
-        create-control-certificate      Create a certificate for the control service.
-        create-node-certificate         Create a certificate for a node.
-        create-api-certificate          Create a certificate for an API user.
-
-You will need to run the ``flocker-ca create-api-certificate`` command from the same directory containing the certificate authority files generated when you first installed the cluster.
+You can run ``flocker-ca --help`` for a full list of available commands. For API user certificates, run the ``flocker-ca create-api-certificate`` command from the same directory containing the certificate authority files generated when you first :ref:`installed the cluster <authentication>`.
 
 Run ``flocker-ca create-api-certificate <username>``, where ``<username>`` is a unique username for an API user.
 
@@ -47,13 +27,12 @@ Run ``flocker-ca create-api-certificate <username>``, where ``<username>`` is a 
    Created alice.crt and alice.key. You can now give these to your API end user so they can access the control service API.
 
 The two files generated will correspond to the username you specified in the command, in this example ``alice.crt`` and ``alice.key``.
-You should securely provide a copy of these files to the API end user.
-Once the user is in possession of these files, delete the original copies generated for security purposes.
+You should securely provide a copy of these files to the API end user, as well as a copy of the cluster's public certificate, the ``cluster.crt`` file.
 
 Using an API certificate to authenticate
 ========================================
 
-Once in possession of an API user certificate, an end user must authenticate with that certificate in every request to the cluster REST API.
+Once in possession of an API user certificate and the cluster certificate, an end user must authenticate with those certificates in every request to the cluster REST API - the cluster certificate ensures the user is connecting to the genuine API of their cluster, while the client certificate allows the API server to ensure the request is from a genuine, authorised user.
 An example of performing this authentication with cURL is given below, where ``172.16.255.250`` represents the IP address of the control service.
 The following is an example of an authenticated request to create a new container on a cluster.
 
