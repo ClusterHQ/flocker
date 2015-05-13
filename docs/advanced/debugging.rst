@@ -24,9 +24,9 @@ They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flo
 Logs from the Docker containers are written to `systemd's journal`_ with a unit name constructed with a ``ctr-`` prefix.
 For example if you've started an application called ``mymongodb`` you can view its logs by running the following command on the node where the application was started:
 
-.. code-block:: console
+.. prompt:: bash node_1$
 
-   $ journalctl -u ctr-mymongodb
+   journalctl -u ctr-mymongodb
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
 
