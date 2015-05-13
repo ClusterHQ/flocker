@@ -40,7 +40,7 @@ from ..test.test_blockdevice import detach_destroy_volumes
 
 class InvalidConfig(Exception):
     """
-    The cloud configuration could not be found, or is not compatible with the
+    The cloud configuration could not be found or is not compatible with the
     running environment.
     """
 
@@ -137,7 +137,6 @@ def get_blockdeviceapi_args(provider):
 
 
 from keystoneclient.auth import get_plugin_class
-# from keystoneclient.exceptions import NoMatchingPlugin
 
 
 def _openstack_auth_from_config(**config):
@@ -146,8 +145,6 @@ def _openstack_auth_from_config(**config):
     if auth_plugin_name == 'rackspace':
         plugin_class = RackspaceAuth
     else:
-        # XXX May raise NoMatchingPlugin...shall we handle that and return a
-        # nicer error?
         plugin_class = get_plugin_class(auth_plugin_name)
 
     plugin_options = plugin_class.get_options()
@@ -195,7 +192,7 @@ def _aws(**config):
     ``EBSBlockDeviceAPI``.
 
     :param bytes access_key: "access_key" credential for EC2.
-    :param str secret_access_key: "secret_access_token" EC2 credential.
+    :param bytes secret_access_key: "secret_access_token" EC2 credential.
     """
     # We just get the credentials from the config file.
     # We ignore the region specified in acceptance test configuration,
