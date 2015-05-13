@@ -123,7 +123,7 @@ def _check_blockdevice_size(device, size):
     :param unicode device: Name of the block device to check for size.
     :param int size: Size, in SI metric bytes, of device we are interested in.
 
-    :returns True if a block device with given name has given size.
+    :returns: True if a block device with given name has given size.
         False otherwise.
     """
     device_name = b"/dev/" + device.encode("ascii")
@@ -140,8 +140,6 @@ def _check_blockdevice_size(device, size):
     command_output = check_output(command).split(b'\n')[0]
     device_size = int(command_output.strip().decode("ascii"))
 
-    # OS reports device size in powers of 2, where has EBS
-    # talks powers of 10. Hence, convert before comparing.
     return size == device_size
 
 
