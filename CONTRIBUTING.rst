@@ -51,7 +51,7 @@ Development Environment
 =======================
 
 * To run the complete test suite you will need `ZFS`_ and `Docker`_ installed.
-  The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
+  The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured CentOS 7 virtual machine.
   Vagrant 1.6.2 or later is required.
   Once you have Vagrant installed (see the `Vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going:
 
@@ -59,6 +59,13 @@ Development Environment
 
      $ vagrant up
      $ vagrant ssh
+
+* If you prefer developing on Ubuntu, you will need libssql-dev and libffi-dev packages to run tests. If missing these packages, please install by running:
+
+  .. code-block:: console
+
+     $ sudo apt-get install libssl-dev
+     $ sudo apt-get install libffi-dev
 
 * You will need Python 2.7 and a recent version of PyPy installed on your development machine.
 * If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing:
