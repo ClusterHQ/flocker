@@ -4,6 +4,7 @@ Acceptance Testing
 ==================
 
 Flocker includes a number of acceptance tests and a tool for running them.
+It needs the appropriate ssh-key added to a running ssh-agent.
 It is called like this:
 
 .. prompt:: bash $
