@@ -5,8 +5,21 @@ Debugging
 Logging
 =======
 
-The Flocker processes running on the nodes will write their logs to ``/var/log/flocker/``.
-The log files are named ``<processname>-<pid>.log``, e.g. ``flocker-volume-1234.log``.
+Flocker processes generally use Eliot (link) for logging.
+These logs can be viewed nicely with eliot tree.
+
+Ubuntu
+^^^^^^
+
+XXX If a reviewer has any suggestions for this, please say.
+Else, this was really meant as a dump of information I had gathered while attempting FLOC-1791,
+and it perhaps is best left for a follow-up.
+
+Fedora / CentOS
+^^^^^^^^^^^^^^^
+
+Logs from the Flocker processes running on the nodes are written to `systemd's journal`_.
+They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flocker-agent``.
 
 Logs from the Docker containers are written to `systemd's journal`_ with a unit name constructed with a ``ctr-`` prefix.
 For example if you've started an application called ``mymongodb`` you can view its logs by running the following command on the node where the application was started:
