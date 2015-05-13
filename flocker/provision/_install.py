@@ -160,6 +160,8 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
         local machine.
     """
     return sequence([
+        run('mkdir -p /etc/flocker'),
+        run('chmod 0700 /etc/flocker'),
         put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
         put(path="/etc/flocker/control-service.crt",
             content=control_cert.getContent()),
