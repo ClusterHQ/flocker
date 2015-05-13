@@ -19,6 +19,8 @@ from flocker.testtools import loop_until
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
                         require_flocker_cli, require_moving_backend)
 
+from ..testtools import REALISTIC_BLOCKDEVICE_SIZE
+
 
 try:
     from pg8000 import connect, InterfaceError, ProgrammingError
@@ -44,7 +46,8 @@ POSTGRES_APPLICATION = Application(
         manifestation=Manifestation(
             dataset=Dataset(
                 dataset_id=unicode(uuid4()),
-                metadata=pmap({"name": POSTGRES_APPLICATION_NAME})),
+                metadata=pmap({"name": POSTGRES_APPLICATION_NAME}),
+                maximum_size=REALISTIC_BLOCKDEVICE_SIZE),
             primary=True),
         mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
     ),
@@ -98,6 +101,7 @@ class PostgresTests(TestCase):
                             # https://github.com/docker-library/postgres/blob/
                             # docker/Dockerfile.template
                             u"mountpoint": POSTGRES_VOLUME_MOUNTPOINT,
+                            u"maximum_size": "%d" % (REALISTIC_BLOCKDEVICE_SIZE,),
                         },
                     },
                 },
