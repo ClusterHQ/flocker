@@ -267,15 +267,19 @@ def get_nodes(test_case, num_nodes):
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
-    # Remove all existing containers; we make sure to pass in node
-    # hostnames since we still rely on flocker-deploy to distribute SSH
-    # keys for now.
-    clean_deploy = {u"version": 1,
-                    u"nodes": {node: [] for node in reachable_nodes}}
     clean_applications = {u"version": 1,
                           u"applications": {}}
-    flocker_deploy(test_case, clean_deploy, clean_applications)
     getting = get_test_cluster()
+
+    def got_cluster(cluster):
+        # Remove all existing containers; we make sure to pass in node
+        # hostnames since we still rely on flocker-deploy to distribute SSH
+        # keys for now.
+        clean_deploy = {u"version": 1,
+                        u"nodes": {node.address: [] for node in cluster.nodes}}
+        flocker_deploy(test_case, clean_deploy, clean_applications)
+        return cluster
+    getting.addCallback(got_cluster)
 
     def no_containers(cluster):
         d = cluster.current_containers()
@@ -284,10 +288,10 @@ def get_nodes(test_case, num_nodes):
     getting.addCallback(lambda cluster:
                         loop_until(lambda: no_containers(cluster)))
 
-    def clean_zfs(_):
+    def clean(_):
         for node in reachable_nodes:
             _clean_node(test_case, node)
-    getting.addCallback(clean_zfs)
+    getting.addCallback(clean)
     getting.addCallback(lambda _: reachable_nodes)
     return getting
 
@@ -788,7 +792,9 @@ def get_test_cluster(node_count=0):
     # Wait until nodes are up and running:
     def nodes_available():
         d = cluster.current_nodes()
-        d.addCallback(lambda (cluster, nodes): len(nodes) >= node_count)
+        d.addCallbacks(lambda (cluster, nodes): len(nodes) >= node_count,
+                       # Control service may not be up yet, keep trying:
+                       lambda failure: False)
         return d
     agents_connected = loop_until(nodes_available)
 
