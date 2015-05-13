@@ -6,6 +6,7 @@ Run the acceptance tests.
 import sys
 import os
 import yaml
+from pipes import quote as shell_quote
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
@@ -409,6 +410,37 @@ def eliot_output(message):
     sys.stdout.flush()
 
 
+def capture_journal(reactor, host):
+    run(reactor, [
+        "ssh",
+        b"-q",  # suppress warnings
+        b"-l", 'root',
+        # We're ok with unknown hosts; we'll be switching away from
+        # SSH by the time Flocker is production-ready and security is
+        # a concern.
+        b"-o", b"StrictHostKeyChecking=no",
+        # The tests hang if ControlMaster is set, since OpenSSH won't
+        # ever close the connection to the test server.
+        b"-o", b"ControlMaster=no",
+        # Some systems (notably Ubuntu) enable GSSAPI authentication which
+        # involves a slow DNS operation before failing and moving on to a
+        # working mechanism.  The expectation is that key-based auth will
+        # be in use so just jump straight to that.  An alternate solution,
+        # explicitly disabling GSSAPI, has cross-version platform and
+        # cross-version difficulties (the options aren't always recognized
+        # and result in an immediate failure).  As mentioned above, we'll
+        # switch away from SSH soon.
+        b"-o", b"PreferredAuthentications=publickey",
+        host,
+        ' '.join(map(shell_quote, [
+            'journalctl',
+            '--lines', '0',
+            '--output', 'json',
+            '--follow',
+        ])),
+    ])
+
+
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
     """
@@ -430,6 +462,9 @@ def main(reactor, args, base_path, top_level):
 
     try:
         nodes = yield runner.start_nodes(reactor)
+        if options['distribution'] in ('fedora-20', 'centos-7'):
+            for node in nodes:
+                capture_journal(reactor, node.address)
         yield perform(
             make_dispatcher(reactor),
             configure_cluster(control_node=nodes[0], agent_nodes=nodes))
