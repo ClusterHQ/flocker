@@ -55,6 +55,9 @@ The :program:`admin/run-acceptance-tests` script has several options:
    the contents will be added as metadata of the created nodes,
    if the provider supports it.
 
+.. option:: --keep
+
+   Keep VMs around, if the tests fail.
 
 Vagrant
 -------
