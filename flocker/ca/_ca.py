@@ -402,7 +402,6 @@ class NodeCredential(PRecord):
         identifies, in the form of a version 4 UUID.
     """
     credential = field(mandatory=True)
-    uuid = field(mandatory=True, initial=None)
 
     @classmethod
     def from_path(cls, path, uuid):
@@ -421,7 +420,7 @@ class NodeCredential(PRecord):
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=certificate)
-        return cls(credential=credential, uuid=uuid)
+        return cls(credential=credential)
 
     @classmethod
     def initialize(cls, path, authority, begin=None, uuid=None):
@@ -460,8 +459,13 @@ class NodeCredential(PRecord):
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
             key_filename, cert_filename)
-        instance = cls(credential=credential, uuid=uuid)
+        instance = cls(credential=credential)
         return instance
+
+    @property
+    def uuid(self):
+        # We need to strip the "node-" prefix:
+        return self.credential.certificate.getSubject().CN[5:]
 
 
 class ControlCredential(PRecord):

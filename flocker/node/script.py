@@ -8,6 +8,7 @@ The command-line ``flocker-*-agent`` tools.
 from functools import partial
 from socket import socket
 from os import getpid
+from uuid import UUID
 
 import yaml
 
@@ -32,7 +33,6 @@ from ..common.script import (
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
-from ..control._model import ip_to_uuid
 from ..control import ConfigurationError
 from ..ca import ControlServicePolicy, NodeCredential
 
@@ -84,7 +84,7 @@ def _get_external_ip(host, port):
         sock.close()
 
 
-def _context_factory(path, host, port):
+def _context_factory_and_credential(path, host, port):
     """
     Load a TLS context factory for the AMP client from the path where
     configuration and certificates live.
@@ -96,8 +96,9 @@ def _context_factory(path, host, port):
     :param bytes host: The host we will be connecting to.
     :param int port: The port we will be connecting to.
 
-    :return: TLS context factory that will validate the control service
-        and present the node's certificate to the control service.
+    :return: Tuple of (context factory, ``NodeCredential``). The TLS
+        context factory will validate the control service and present
+        the node's certificate to the control service.
     """
     ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
     # This is a hack; from_path should be more
@@ -105,7 +106,7 @@ def _context_factory(path, host, port):
     node_credential = NodeCredential.from_path(path, b"node")
     policy = ControlServicePolicy(
         ca_certificate=ca, client_credential=node_credential.credential)
-    return policy.creatorForNetloc(host, port)
+    return (policy.creatorForNetloc(host, port), node_credential)
 
 
 def agent_config_from_file(path):
@@ -178,16 +179,13 @@ class ZFSAgentScript(object):
         host = configuration['control-service']['hostname']
         port = configuration['control-service']["port"]
         ip = _get_external_ip(host, port)
-        # Soon we'll extract this from TLS certificate for node.  Until then
-        # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
-        node_uuid = ip_to_uuid(ip)
-        deployer = P2PManifestationDeployer(ip, volume_service,
-                                            node_uuid=node_uuid)
+        context_factory, node_credential = _context_factory_and_credential(
+            options["agent-config"].parent(), host, port)
+        deployer = P2PManifestationDeployer(
+            ip, volume_service, node_uuid=UUID(hex=node_credential.uuid))
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port,
-                                context_factory=_context_factory(
-                                    options["agent-config"].parent(),
-                                    host, port))
+                                context_factory=context_factory)
         volume_service.setServiceParent(loop)
         return main_for_service(reactor, loop)
 
@@ -292,14 +290,14 @@ class AgentServiceFactory(PRecord):
         host = configuration['control-service']['hostname']
         port = configuration['control-service']['port']
         ip = _get_external_ip(host, port)
+        context_factory, node_credential = _context_factory_and_credential(
+            options["agent-config"].parent(), host, port)
         return AgentLoopService(
             reactor=reactor,
-            # Temporary hack, to be fixed in FLOC-1783 probably:
-            deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
-                                           hostname=ip),
+            deployer=self.deployer_factory(
+                node_uuid=UUID(hex=node_credential.uuid), hostname=ip),
             host=host, port=port,
-            context_factory=_context_factory(options["agent-config"].parent(),
-                                             host, port),
+            context_factory=context_factory,
         )
 
 

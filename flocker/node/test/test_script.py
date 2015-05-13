@@ -5,6 +5,7 @@ Tests for :module:`flocker.node.script`.
 """
 import netifaces
 import yaml
+from uuid import UUID
 
 from zope.interface.verify import verifyObject
 
@@ -19,7 +20,7 @@ from ...common.script import ICommandLineScript
 from ..script import (
     ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, agent_config_from_file,
-    _context_factory)
+    _context_factory_and_credential)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
 from ...control import ConfigurationError
@@ -50,6 +51,7 @@ def setup_config(test):
             u"version": 1,
         }))
     ca_set.copy_to(scratch_directory, node=True)
+    test.ca_set = ca_set
 
 
 class ZFSAgentScriptTests(SynchronousTestCase):
@@ -93,6 +95,8 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         # so do so manually:
         deployer = parent_service.deployer
         parent_service.deployer = None
+        context_factory, _ = _context_factory_and_credential(
+            self.config.parent(), b"10.0.0.1", 1234)
         self.assertEqual((parent_service, deployer.__class__,
                           deployer.volume_service,
                           parent_service.running),
@@ -100,10 +104,20 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                                            deployer=None,
                                            host=u"10.0.0.1",
                                            port=1234,
-                                           context_factory=_context_factory(
-                                               self.config.parent(),
-                                               b"10.0.0.1", 1234)),
+                                           context_factory=context_factory),
                           P2PManifestationDeployer, service, True))
+
+    def test_uuid_from_certificate(self):
+        """
+        The created deployer got its node UUID from the given node certificate.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        ZFSAgentScript().main(MemoryCoreReactor(), options, service)
+        self.assertEqual(
+            UUID(hex=self.ca_set.node.uuid),
+            service.parent.deployer.node_uuid)
 
 
 def get_all_ips():
@@ -131,6 +145,22 @@ class AgentServiceFactoryTests(SynchronousTestCase):
     def setUp(self):
         setup_config(self)
 
+    def test_uuid_from_certificate(self):
+        """
+        The created deployer got its node UUID from the given node certificate.
+        """
+        result = []
+
+        def factory(hostname, node_uuid):
+            result.append(node_uuid)
+            return object()
+
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        service_factory = AgentServiceFactory(deployer_factory=factory)
+        service_factory.get_service(MemoryCoreReactor(), options)
+        self.assertEqual(UUID(hex=self.ca_set.node.uuid), result[0])
+
     def test_get_service(self):
         """
         ``AgentServiceFactory.get_service`` creates ``AgentLoopService``
@@ -156,8 +186,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 deployer=deployer,
                 host=b"10.0.0.1",
                 port=1234,
-                context_factory=_context_factory(self.config.parent(),
-                                                 b"10.0.0.1", 1234),
+                context_factory=_context_factory_and_credential(
+                    self.config.parent(), b"10.0.0.1", 1234)[0],
             ),
             service_factory.get_service(reactor, options)
         )
