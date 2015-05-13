@@ -313,7 +313,8 @@ def get_nodes(test_case, num_nodes):
     def clean_zfs(_):
         for node in reachable_nodes:
             _clean_node(test_case, node)
-    getting.addCallback(clean_zfs)
+    if 'zfs' == environ.get("FLOCKER_ACCEPTANCE_BACKEND"):
+        getting.addCallback(clean_zfs)
     getting.addCallback(lambda _: reachable_nodes)
     return getting
 
