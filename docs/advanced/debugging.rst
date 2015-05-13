@@ -40,7 +40,6 @@ It creates nodes on Vagrant and various cloud providers and installs packages fr
 However, sometimes it might be useful to modify code on an existing node.
 
 To do this, start with some nodes which are configured correctly for Flocker.
-# TODO document that option
 A simple way to do this is to run the :ref:`acceptance test runner <acceptance-testing>` with the ``--keep`` option.
 
 Log in to each node in the cluster, forwarding the authentication agent connection:
