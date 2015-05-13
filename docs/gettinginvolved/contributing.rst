@@ -124,5 +124,3 @@ Replace the node services with the new code:
    systemctl restart flocker-agent flocker-control
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
-
-.. _`Buildbot`: https://build.clusterhq.com/
