@@ -9,6 +9,7 @@ import yaml
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
+from eliot import add_destination
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
@@ -26,9 +27,9 @@ from flocker.provision._install import (
 )
 from flocker.provision._libcloud import INode
 
-from flocker.provision._ssh._fabric import dispatcher
-from flocker.provision._effect import sequence
-from effect import sync_perform as perform
+from effect import parallel
+from effect.twisted import perform
+from flocker.provision._ssh._conch import make_dispatcher
 
 from .runner import run
 
@@ -156,8 +157,7 @@ class VagrantRunner(object):
                              % (self.distribution,))
 
         if self.variants:
-            raise UsageError("Unsupored varianta: %s."
-                             % (', '.join(self.variants),))
+            raise UsageError("Variants unsupported on vagrant.")
 
     @inlineCallbacks
     def start_nodes(self, reactor):
@@ -168,18 +168,23 @@ class VagrantRunner(object):
             ['vagrant', 'destroy', '-f'],
             path=self.vagrant_path.path)
 
-        box_version = vagrant_version(self.package_source.version)
+        if self.package_source.version:
+            env = extend_environ(
+                FLOCKER_BOX_VERSION=vagrant_version(
+                    self.package_source.version))
+        else:
+            env = os.environ
         # Boot the VMs
         yield run(
             reactor,
             ['vagrant', 'up'],
             path=self.vagrant_path.path,
-            env=extend_environ(FLOCKER_BOX_VERSION=box_version))
+            env=env)
 
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
             yield perform(
-                dispatcher,
+                make_dispatcher(reactor),
                 run_remotely(
                     username='root',
                     address=node,
@@ -252,12 +257,12 @@ class LibcloudRunner(object):
             self.nodes.append(node)
             del node
 
-        commands = sequence([
+        commands = parallel([
             node.provision(package_source=self.package_source,
                            variants=self.variants)
             for node in self.nodes
         ])
-        yield perform(dispatcher, commands)
+        yield perform(make_dispatcher(reactor), commands)
 
         returnValue(self.nodes)
 
@@ -383,6 +388,26 @@ class RunOptions(Options):
                 variants=self['variants'],
             )
 
+MESSAGE_FORMATS = {
+    "flocker.provision.ssh:run":
+        "[%(username)s@%(address)s]: Running %(command)s\n",
+    "flocker.provision.ssh:run:output":
+        "[%(username)s@%(address)s]: %(line)s\n",
+    "admin.runner:run":
+        "Running %(command)s\n",
+    "admin.runner:run:output":
+        "%(line)s\n",
+}
+
+
+def eliot_output(message):
+    """
+    Write pretty versions of eliot log messages to stdout.
+    """
+    message_type = message.get('message_type', message.get('action_type'))
+    sys.stdout.write(MESSAGE_FORMATS.get(message_type, '') % message)
+    sys.stdout.flush()
+
 
 @inlineCallbacks
 def main(reactor, args, base_path, top_level):
@@ -394,6 +419,7 @@ def main(reactor, args, base_path, top_level):
     """
     options = RunOptions(top_level=top_level)
 
+    add_destination(eliot_output)
     try:
         options.parseOptions(args)
     except UsageError as e:
@@ -405,7 +431,7 @@ def main(reactor, args, base_path, top_level):
     try:
         nodes = yield runner.start_nodes(reactor)
         yield perform(
-            dispatcher,
+            make_dispatcher(reactor),
             configure_cluster(control_node=nodes[0], agent_nodes=nodes))
         result = yield run_tests(
             reactor=reactor,

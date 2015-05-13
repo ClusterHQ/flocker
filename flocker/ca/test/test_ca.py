@@ -1,4 +1,4 @@
-# Copyright Copyright ClusterHQ Inc.  See LICENSE file for details.
+# Copyright ClusterHQ Inc.  See LICENSE file for details.
 
 """
 Tests for certification logic in ``flocker.ca._ca``
@@ -18,7 +18,7 @@ from twisted.python.filepath import FilePath
 from .. import (RootCredential, ControlCredential, NodeCredential,
                 UserCredential, PathError, EXPIRY_20_YEARS,
                 AUTHORITY_CERTIFICATE_FILENAME, AUTHORITY_KEY_FILENAME)
-
+from ..testtools import assert_has_extension
 from ...testtools import not_root, skip_on_broken_permissions
 
 NODE_UUID = str(uuid4())
@@ -310,6 +310,13 @@ class UserCredentialTests(
         self.assertEqual(subject.CN, u"user-{user}".format(
             user=self.credential.username))
 
+    def test_extendedKeyUsage(self):
+        """
+        The generated certificate has extendedKeyUsage set to "clientAuth".
+        """
+        assert_has_extension(self, self.credential.credential,
+                             b"extendedKeyUsage", b"clientAuth")
+
 
 class NodeCredentialTests(
         make_credential_tests(NodeCredential, NODE_UUID, uuid=NODE_UUID)):
@@ -329,7 +336,9 @@ class NodeCredentialTests(
 
 
 class ControlCredentialTests(
-        make_credential_tests(ControlCredential, b"control-service")):
+        make_credential_tests(ControlCredential,
+                              b"control-control.example.com",
+                              hostname=b"control.example.com")):
     """
     Tests for ``flocker.ca._ca.ControlCredential``.
     """
@@ -341,6 +350,14 @@ class ControlCredentialTests(
         cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
         self.assertEqual(subject.CN, b"control-service")
+
+    def test_subjectAltName(self):
+        """
+        The generated certificate has a subjectAltName containing the given
+        hostname.
+        """
+        assert_has_extension(self, self.credential.credential,
+                             b"subjectAltName", b"DNS:control.example.com")
 
 
 class RootCredentialTests(SynchronousTestCase):
