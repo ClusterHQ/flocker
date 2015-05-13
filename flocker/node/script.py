@@ -235,7 +235,7 @@ class AgentServiceFactory(PRecord):
                 node_uuid=ip_to_uuid(ip),
                 dataset_configuration=configuration['dataset'],
                 reactor=reactor,
-                hostname=ip,
+                host=ip,
             ),
             host=host, port=port,
         )
