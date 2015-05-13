@@ -362,7 +362,19 @@ To generate the control service certificate, run the following command from the 
    Created control-service.crt. Copy it over to /etc/flocker/control-service.crt on your control service machine and make sure to chmod 0600 it.
    
 You will need to copy both ``control-service.crt`` and ``control-service.key`` over to the node that is running your control service, to the directory ``/etc/flocker/``.
+You should also copy the cluster's public certificate, the `cluster.crt` file.
+On the server, the `/etc/flocker` directory and private key file should be set to secure permissions via `chmod`:
+
+.. code-block:: console
+
+   root@mercury:~/$ chmod 600 /etc/flocker
+   root@mercury:~/$ chmod 600 /etc/flocker/control-service.key
+
 You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
+
+.. warning::
+
+   For the cluster's certificate, copy the file ``cluster.crt`` **only** - do **not** copy the ``cluster.key`` file; this must kept only by the cluster administrator.
 
 You will also need to generate authentication certificates for each of your nodes.
 Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
@@ -376,14 +388,9 @@ Run the command in the same directory containing the certificate authority files
 
 The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
 
-As with the control service certificate, you should securely copy the generated certificate and key file over to your node.
+As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the `cluster.crt` certificate.
 Copy the generated files to ``/etc/flocker/`` on the target node and name them ``node.crt`` and ``node.key``.
-
-Finally, you should securely copy the ``cluster.crt`` file generated in the first step to ``/etc/flocker/cluster.crt`` on all of your nodes, including the machine running the control service.
-
-.. warning::
-
-   Copy the file ``cluster.crt`` **only** - do **not** copy the ``cluster.key`` file; this must kept only by the cluster administrator.
+Perform the same `chmod 600` commands on `/etc/flocker` and `node.key` as you did for the control service in the instructions above.
 
 You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../advanced/security>`.
 
