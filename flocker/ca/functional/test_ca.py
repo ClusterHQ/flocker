@@ -5,6 +5,7 @@ Functional tests for ``flocker-ca`` CLI.
 """
 
 import re
+import sys
 from subprocess import CalledProcessError
 from unittest import skipUnless
 
@@ -35,6 +36,9 @@ def flocker_ca(command, *args):
         output = result.output
         status = 0
     except CalledProcessError as e:
+        Message.new(
+            message_type="flocker.ca.functional:ca_initialize_error",
+            error=str(e)).write(Logger())
         output = e.output
         status = e.returncode
     return (status, output)
@@ -59,6 +63,8 @@ def openssl_verify(cafile, certificatefile):
         Message.new(
             message_type="flocker.ca.functional:openssl_verify_error",
             error=str(e)).write(Logger())
+        # XXX temporary, remove this
+        sys.stderr.write("OpenSSL flocker.ca.functional: " + str(e))
         return False
 
 
