@@ -11,9 +11,7 @@ These logs can be rendered as an ASCII tree using `eliottree`_.
 Ubuntu
 ^^^^^^
 
-XXX If a reviewer has any suggestions for this, please say.
-Else, this was really meant as a dump of information I had gathered while attempting FLOC-1791,
-and it perhaps is best left for a follow-up.
+XXX This should be documented, see :issue:`1877`.
 
 Fedora / CentOS
 ^^^^^^^^^^^^^^^
@@ -32,6 +30,7 @@ For example if you have started an application called ``mymongodb`` you can view
 .. _`eliot`: https://github.com/ClusterHQ/eliot
 .. _`eliottree`: https://github.com/jonathanj/eliottree
 
+# TODO move this to a new file
 Testing Code on Nodes
 =====================
 
