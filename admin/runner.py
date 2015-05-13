@@ -73,7 +73,7 @@ class CommandProtocol(ProcessProtocol, object):
     :ivar defaultdict _fds: Mapping from file descriptors to `_LineParsers`.
     """
     def __init__(self):
-        self._fds = defaultdict(lambda: _LineParser(output=self.output))
+        self._fds = defaultdict(lambda: _LineParser(action=self.action))
 
     def childDataReceived(self, childFD, data):
         self._fds[childFD].dataReceived(data)
