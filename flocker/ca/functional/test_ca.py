@@ -4,12 +4,13 @@
 Functional tests for ``flocker-ca`` CLI.
 """
 
+import json
 import re
 import sys
 from subprocess import CalledProcessError
 from unittest import skipUnless
 
-from eliot import Message, Logger
+from eliot import Message, Logger, add_destination
 
 from twisted.python.procutils import which
 
@@ -18,6 +19,13 @@ from .._script import CAOptions
 from ...testtools import make_script_tests, run_process
 
 EXECUTABLE = b"flocker-ca"
+
+
+def stderr(message):
+    sys.stderr.write(json.dumps(message) + "\n")
+
+# temporary only, remove stderr logging
+add_destination(stderr)
 
 
 def flocker_ca(command, *args):
@@ -60,9 +68,16 @@ def openssl_verify(cafile, certificatefile):
         result = run_process(command)
         return result.output.strip() == b"{}: OK".format(certificatefile)
     except CalledProcessError as e:
+        result = run_process(["openssl", "x509", "-text", "-in", cafile])
+        cafile_info = result.output
+        result = run_process([
+            "openssl", "x509", "-text", "-in", certificatefile])
+        certificate_info = result.output
+        error = str(e)
+        error = error + "\n" + cafile_info + "\n" + certificate_info
         Message.new(
             message_type="flocker.ca.functional:openssl_verify_error",
-            error=str(e)).write(Logger())
+            error=error).write(Logger())
         return False
 
 
