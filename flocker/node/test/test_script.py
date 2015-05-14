@@ -185,7 +185,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
     def test_get_service(self):
         """
-        ``AgentServiceFactory.get_service`` creates ``AgentLoopService``
+        ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
         configured with the destination given in the config file given by the
         options.
         """
@@ -208,6 +208,46 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 deployer=deployer,
                 host=b"10.0.0.2",
                 port=1234,
+            ),
+            service_factory.get_service(reactor, options)
+        )
+
+
+    def test_default_port(self):
+        """
+        ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
+        configured with port 4524 if no port is specified.
+        """
+        self.config.setContent(
+            yaml.safe_dump({
+                u"control-service": {
+                    u"hostname": u"10.0.0.1",
+                },
+                u"dataset": {
+                    u"backend": u"zfs",
+                },
+                u"version": 1,
+            }))
+
+        deployer = object()
+
+        def factory(**kw):
+            if set(kw.keys()) != {"node_uuid", "hostname"}:
+                raise TypeError("wrong arguments")
+            return deployer
+
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        service_factory = AgentServiceFactory(
+            deployer_factory=factory
+        )
+        self.assertEqual(
+            AgentLoopService(
+                reactor=reactor,
+                deployer=deployer,
+                host=b"10.0.0.2",
+                port=4524,
             ),
             service_factory.get_service(reactor, options)
         )

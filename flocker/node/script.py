@@ -166,7 +166,6 @@ class ZFSAgentScript(object):
         validate_configuration(configuration=configuration)
 
         host = configuration['control-service']['hostname']
-        # TODO test default
         # TODO docs
         # TODO put command
         port = configuration['control-service'].get("port", 4524)
@@ -289,7 +288,6 @@ class AgentServiceFactory(PRecord):
         validate_configuration(configuration=configuration)
 
         host = configuration['control-service']['hostname']
-        # TODO test default
         port = configuration['control-service'].get('port', 4524)
         ip = _get_external_ip(host, port)
         return AgentLoopService(
