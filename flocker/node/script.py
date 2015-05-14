@@ -83,14 +83,11 @@ def _get_external_ip(host, port):
 
 def validate_configuration(configuration):
     """
-    # TODO change
+    Validate a provided configuration.
 
-    Extract configuration from provided options.
+    :param dict configuration: A desired configuration for an agent.
 
-    :param FilePath path: Path to a file containing specified options for an
-        agent.
-
-    :return dict: Dictionary containing the desired configuration.
+    :raises: jsonschema.ValidationError if the configuration is invalid.
     """
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
@@ -166,6 +163,7 @@ class ZFSAgentScript(object):
                 "Configuration file does not exist at '{}'.".format(
                     agent_config.path))
 
+        # TODO test that this is called
         validate_configuration(configuration=configuration)
 
         host = configuration['control-service']['hostname']
