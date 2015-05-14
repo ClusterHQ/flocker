@@ -165,7 +165,6 @@ class ZFSAgentScript(object):
         validate_configuration(configuration=configuration)
 
         host = configuration['control-service']['hostname']
-        # TODO docs
         # TODO put command
         port = configuration['control-service'].get("port", 4524)
         ip = _get_external_ip(host, port)
