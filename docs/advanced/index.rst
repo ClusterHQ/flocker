@@ -9,7 +9,7 @@ Advanced Documentation
    usage
    configuration
    architecture
-   installapi
+   nodeconfig
    api
    volume/index
    clustering

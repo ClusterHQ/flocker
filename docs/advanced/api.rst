@@ -1,8 +1,8 @@
 .. _api:
 
-========================
-Flocker REST API Details
-========================
+===========
+API Details
+===========
 
 In general the API allows for modifying the desired configuration of the cluster.
 When you use the API to change the configuration, e.g. creating a new dataset:
