@@ -162,7 +162,6 @@ class ZFSAgentScript(object):
                 "Configuration file does not exist at '{}'.".format(
                     agent_config.path))
 
-        # TODO test that this is called
         validate_configuration(configuration=configuration)
 
         host = configuration['control-service']['hostname']

@@ -128,6 +128,22 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                                            port=4524),
                           P2PManifestationDeployer, service, True))
 
+    def test_config_validated(self):
+        """
+        ``ZFSAgentScript.main`` validates the configuration file.
+        """
+        self.config.setContent("INVALID")
+
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        test_reactor = MemoryCoreReactor()
+
+        self.assertRaises(
+            ValidationError,
+            ZFSAgentScript().main, test_reactor, options, service,
+        )
+
     def test_missing_configuration_file(self):
         """
         ``ZFSAgentScript.main`` raises a ``ConfigurationError`` if the given
