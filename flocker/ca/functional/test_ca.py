@@ -60,10 +60,11 @@ def openssl_verify(cafile, certificatefile, **kwargs):
         result = run_process(command, **kwargs)
         return result.output.strip() == b"{}: OK".format(certificatefile)
     except CalledProcessError as e:
-        result = run_process(["openssl", "x509", "-text", "-in", cafile])
+        result = run_process([
+            "openssl", "x509", "-text", "-in", cafile], **kwargs)
         cafile_info = result.output
         result = run_process([
-            "openssl", "x509", "-text", "-in", certificatefile])
+            "openssl", "x509", "-text", "-in", certificatefile], **kwargs)
         certificate_info = result.output
         error = str(e)
         error = error + "\n" + cafile_info + "\n" + certificate_info
