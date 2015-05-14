@@ -717,13 +717,14 @@ from twisted.internet.base import _ThreePhaseEvent
 
 
 @implementer(IReactorCore)
-class MemoryCoreReactor(MemoryReactor):
+class MemoryCoreReactor(MemoryReactor, Clock):
     """
-    Fake reactor with listenTCP and just enough of an implementation of
-    IReactorCore.
+    Fake reactor with listenTCP, IReactorTime and just enough of an
+    implementation of IReactorCore.
     """
     def __init__(self):
         MemoryReactor.__init__(self)
+        Clock.__init__(self)
         self._triggers = {}
 
     def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):

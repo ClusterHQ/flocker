@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
+from twisted.internet.task import Clock
 
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -33,8 +34,11 @@ class ClusterStateServiceTests(SynchronousTestCase):
         manifestations={MANIFESTATION.dataset_id: MANIFESTATION}
     )
 
+    def setUp(self):
+        self.clock = Clock()
+
     def service(self):
-        service = ClusterStateService()
+        service = ClusterStateService(self.clock)
         service.startService()
         self.addCleanup(service.stopService)
         return service
@@ -136,3 +140,43 @@ class ClusterStateServiceTests(SynchronousTestCase):
         self.assertEqual(
             service.manifestation_path(identifier, MANIFESTATION.dataset_id),
             FilePath(b"/xxx/yyy"))
+
+    def test_expiration(self):
+        """
+        Information updates that are more than 10 seconds old are wiped.
+        """
+        service = self.service()
+        app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
+                             manifestations=None, devices=None, paths=None,
+                             applications=[APP1])
+        service.apply_changes([app_node])
+        self.clock.advance(9)
+        nine_second_state = service.as_deployment()
+        self.clock.advance(1)
+        ten_second_state = service.as_deployment()
+        self.assertEqual(
+            [nine_second_state, ten_second_state],
+            [DeploymentState(nodes=[app_node]), DeploymentState()])
+
+    def test_updates_different_key(self):
+        """
+        A wipe created by a ``IClusterStateChange`` with a given wipe key is
+        not overwritten by a later ``IClusterStateChange`` with a
+        different key.
+        """
+        service = self.service()
+        app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
+                             manifestations=None, devices=None, paths=None,
+                             applications=[APP1], used_ports=None)
+        app_node_2 = app_node.set("applications", None).set(
+            "manifestations", {MANIFESTATION.dataset_id: MANIFESTATION})
+        service.apply_changes([app_node])
+        self.clock.advance(1)
+        service.apply_changes([app_node_2])
+        self.clock.advance(9)
+        ten_second_state = service.as_deployment()
+        self.clock.advance(1)
+        eleven_second_state = service.as_deployment()
+        self.assertEqual(
+            [ten_second_state, eleven_second_state],
+            [DeploymentState(nodes=[app_node_2]), DeploymentState()])

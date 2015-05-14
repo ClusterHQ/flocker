@@ -21,11 +21,13 @@ from ._model import (
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
     NodeState, Manifestation, Dataset, RestartNever, RestartOnFailure,
     RestartAlways, DeploymentState, NonManifestDatasets, same_node,
+    IClusterStateWipe,
     )
 
 __all__ = [
     'same_node',
     'IClusterStateChange',
+    'IClusterStateWipe',
     'FlockerConfiguration',
     'ConfigurationError',
     'current_from_configuration',
