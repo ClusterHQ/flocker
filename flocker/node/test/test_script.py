@@ -317,9 +317,6 @@ class ValidateConfigurationTests(SynchronousTestCase):
     """
 
     def setUp(self):
-        self.scratch_directory = FilePath(self.mktemp())
-        self.scratch_directory.makedirs()
-        self.config_file = self.scratch_directory.child('config.yml')
         # This is a sample working configuration which tests can modify.
         self.configuration = {
             u"control-service": {
