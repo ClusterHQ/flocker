@@ -5,10 +5,14 @@ Tests for ``admin.release``.
 """
 
 import os
-from unittest import skipUnless
-from setuptools import __version__ as setuptools_version
+
+from gzip import GzipFile
+from StringIO import StringIO
 import tempfile
 from textwrap import dedent
+from unittest import skipUnless
+
+from setuptools import __version__ as setuptools_version
 
 from effect import sync_perform, ComposedDispatcher, base_dispatcher
 from git import Repo
@@ -30,7 +34,8 @@ from ..release import (
     CreateReleaseBranchOptions, BranchExists, TagExists,
     BaseBranchDoesNotExist, MissingPreRelease, NoPreRelease,
     UploadOptions, create_pip_index, upload_pip_index,
-    IncorrectSetuptoolsVersion, publish_homebrew_recipe, PushFailed,
+    IncorrectSetuptoolsVersion, copy_tutorial_vagrant_box,
+    publish_homebrew_recipe, PushFailed,
 )
 
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
@@ -1130,6 +1135,9 @@ class UpdateRepoTests(SynchronousTestCase):
         """
         Calling :func:`update_repo` with real dpkg utilities creates a
         repository in S3.
+
+        The filenames in the repository metadata do not have the build
+        directory in them.
         """
         source_repo = FilePath(self.mktemp())
         source_repo.createDirectory()
@@ -1176,6 +1184,13 @@ class UpdateRepoTests(SynchronousTestCase):
         # This tests that CreateRepo creates the expected metadata files from
         # given RPMs, not that any metadata files are copied.
         self.assertEqual(expected_files, set(files_on_s3.keys()))
+
+        # The repository is built in self.packages_directory
+        # Ensure that that does not leak into the metadata.
+        packages_gz = files_on_s3[os.path.join(self.target_key, 'Packages.gz')]
+        with GzipFile(fileobj=StringIO(packages_gz), mode="r") as f:
+            packages_metadata = f.read()
+        self.assertNotIn(self.package_directory.path, packages_metadata)
 
 
 class UploadRPMsTests(SynchronousTestCase):
@@ -1825,6 +1840,41 @@ class CalculateBaseBranchTests(SynchronousTestCase):
         self.assertRaises(
             TagExists,
             self.calculate_base_branch, '0.3.0')
+
+
+class CopyTutorialVagrantBox(SynchronousTestCase):
+    """
+    Tests for :func:`copy_tutorial_vagrant_box`.
+    """
+
+    def test_vagrant_box_copied(self):
+        """
+        A Vagrant box for a given version of Flocker is copied to the
+        archive.
+        """
+        target_bucket = 'clusterhq-archive'
+        dev_bucket = 'clusterhq-dev-archive'
+
+        aws = FakeAWS(
+            routing_rules={},
+            s3_buckets={
+                target_bucket: {},
+                dev_bucket: {
+                    'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content',
+                },
+            })
+
+        sync_perform(
+            ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
+            copy_tutorial_vagrant_box(
+                target_bucket=target_bucket,
+                dev_bucket=dev_bucket,
+                version='0.3.0'))
+
+        self.assertEqual(
+            aws.s3_buckets[target_bucket],
+            {'vagrant/tutorial/flocker-tutorial-0.3.0.box': 'content'}
+        )
 
 
 class PublishHomebrewRecipeTests(SynchronousTestCase):

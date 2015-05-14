@@ -28,6 +28,8 @@ from twisted.python.filepath import FilePath
 from .. import (
     IDeployer, IStateChange, sequentially, in_parallel, run_state_change
 )
+from .._deploy import NotInUseDatasets
+
 from ...control import NodeState, Manifestation, Dataset, NonManifestDatasets
 from ...common import auto_threaded
 
@@ -1107,6 +1109,24 @@ def _device_for_path(expected_backing_file):
             return device_file
 
 
+def get_blockdevice_volume(api, blockdevice_id):
+    """
+    Find a ``BlockDeviceVolume`` matching the given identifier.
+
+    :param unicode blockdevice_id: The backend identifier of the volume to
+        find.
+
+    :raise UnknownVolume: If no volume with a matching identifier can be
+        found.
+
+    :return: The ``BlockDeviceVolume`` that matches.
+    """
+    for volume in api.list_volumes():
+        if volume.blockdevice_id == blockdevice_id:
+            return volume
+    raise UnknownVolume(blockdevice_id)
+
+
 @implementer(IBlockDeviceAPI)
 class LoopbackBlockDeviceAPI(object):
     """
@@ -1191,17 +1211,11 @@ class LoopbackBlockDeviceAPI(object):
         """
         Destroy the storage for the given unattached volume.
         """
-        volume = self._get(blockdevice_id)
+        volume = get_blockdevice_volume(self, blockdevice_id)
         volume_path = self._unattached_directory.child(
             volume.blockdevice_id.encode("ascii")
         )
         volume_path.remove()
-
-    def _get(self, blockdevice_id):
-        for volume in self.list_volumes():
-            if volume.blockdevice_id == blockdevice_id:
-                return volume
-        raise UnknownVolume(blockdevice_id)
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
@@ -1218,7 +1232,7 @@ class LoopbackBlockDeviceAPI(object):
         See ``IBlockDeviceAPI.attach_volume`` for parameter and return type
         documentation.
         """
-        volume = self._get(blockdevice_id)
+        volume = get_blockdevice_volume(self, blockdevice_id)
         if volume.attached_to is None:
             old_path = self._unattached_directory.child(blockdevice_id)
             host_directory = self._attached_directory.child(
@@ -1243,7 +1257,7 @@ class LoopbackBlockDeviceAPI(object):
         Move an existing file from a per-host directory into the ``unattached``
         directory and release the loopback device backed by that file.
         """
-        volume = self._get(blockdevice_id)
+        volume = get_blockdevice_volume(self, blockdevice_id)
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
@@ -1316,7 +1330,7 @@ class LoopbackBlockDeviceAPI(object):
         return volumes
 
     def get_device_path(self, blockdevice_id):
-        volume = self._get(blockdevice_id)
+        volume = get_blockdevice_volume(self, blockdevice_id)
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
@@ -1479,6 +1493,10 @@ class BlockDeviceDeployer(PRecord):
                 manifestations=manifestations,
                 paths=paths,
                 devices=devices,
+                # Discovering these is ApplicationNodeDeployer's job, we
+                # don't anything about these:
+                applications=None,
+                used_ports=None,
             ),
         )
 
@@ -1511,6 +1529,17 @@ class BlockDeviceDeployer(PRecord):
     def calculate_changes(self, configuration, cluster_state):
         this_node_config = configuration.get_node(
             self.node_uuid, hostname=self.hostname)
+        local_state = cluster_state.get_node(self.node_uuid,
+                                             hostname=self.hostname)
+
+        # We need to know applications (for now) to see if we should delay
+        # deletion or handoffs. Eventually this will rely on leases instead.
+        # https://clusterhq.atlassian.net/browse/FLOC-1425.
+        if local_state.applications is None:
+            return in_parallel(changes=[])
+
+        not_in_use = NotInUseDatasets(local_state)
+
         configured_manifestations = this_node_config.manifestations
 
         configured_dataset_ids = set(
@@ -1520,8 +1549,6 @@ class BlockDeviceDeployer(PRecord):
             if not manifestation.dataset.deleted
         )
 
-        local_state = cluster_state.get_node(self.node_uuid,
-                                             hostname=self.hostname)
         local_dataset_ids = set(local_state.manifestations.keys())
 
         manifestations_to_create = set(
@@ -1562,14 +1589,11 @@ class BlockDeviceDeployer(PRecord):
             configured_manifestations, local_state
         ))
 
-        # TODO Prevent changes to volumes that are currently being used by
-        # applications.  See the logic in P2PManifestationDeployer.  FLOC-1755.
-
         return in_parallel(changes=(
-            unmounts + detaches +
+            not_in_use(unmounts) + detaches +
             attaches + mounts +
-            creates + deletes +
-            resizes
+            creates + not_in_use(deletes) +
+            not_in_use(resizes)
         ))
 
     def _calculate_mounts(self, devices, paths, configured):
