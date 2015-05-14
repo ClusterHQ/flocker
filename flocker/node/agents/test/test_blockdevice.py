@@ -1277,7 +1277,8 @@ class IBlockDeviceAPITestsMixin(object):
         device_path = self.api.get_device_path(volume.blockdevice_id).path
         device = device_path.encode("ascii")
 
-        command = [b"/bin/lsblk", b"-nb", b"-o", b"SIZE", device]
+        command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
+                   b"--output", b"SIZE", device]
         command_output = check_output(command).split(b'\n')[0]
         device_size = int(command_output.strip().decode("ascii"))
         self.assertEquals(volume_size, device_size)

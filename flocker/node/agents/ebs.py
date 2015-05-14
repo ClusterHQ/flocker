@@ -20,7 +20,7 @@ from twisted.python.filepath import FilePath
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume
+    UnattachedVolume, get_blockdevice_volume
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -133,10 +133,13 @@ def _check_blockdevice_size(device, size):
     # util-linux on Ubuntu.
     # Required package is installed by default
     # on Ubuntu 14.04 and CentOS 7.
-    command = [b"/bin/lsblk", b"-nb", b"-o", b"SIZE", device_name]
+    command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
+               b"--output", b"SIZE", device_name]
 
     # Get the base device size, which is the first line in
     # `lsblk` output. Ignore partition sizes.
+    # TODO: Handle error cases during `check_output()` run
+    # (https://clusterhq.atlassian.net/browse/FLOC-1886).
     command_output = check_output(command).split(b'\n')[0]
     device_size = int(command_output.strip().decode("ascii"))
 
@@ -154,6 +157,8 @@ def _wait_for_new_device(base, size, time_limit=60):
         to create a new block device.
     :param int size: Size of the block device we are expected
         to manifest in the OS.
+    :param int time_limit: Time, in seconds, to wait for
+        new device to manifest. Defaults to 60s.
 
     :returns: formatted string name of the new block device.
     :rtype: unicode
@@ -166,10 +171,11 @@ def _wait_for_new_device(base, size, time_limit=60):
             device_name = FilePath.basename(device)
             if (device_name.startswith((b"sd", b"xvd")) and
                     _check_blockdevice_size(device_name, size)):
-                new_device = u'/dev/' + device_name
+                new_device = u'/dev/' + device_name.decode("ascii")
                 return new_device
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
+    return None
 
 
 def _is_cluster_volume(cluster_id, ebs_volume):
@@ -218,19 +224,6 @@ class EBSBlockDeviceAPI(object):
         """
         return get_instance_metadata()['instance-id'].decode("ascii")
 
-    def _get(self, blockdevice_id):
-        """
-        Lookup BlockDeviceVolume for given blockdevice_id.
-
-        :param unicode blockdevice_id: ID of a blockdevice that needs lookup.
-
-        :returns BlockDeviceVolume for the given input id.
-        """
-        for volume in self.list_volumes():
-            if volume.blockdevice_id == blockdevice_id:
-                return volume
-        raise UnknownVolume(blockdevice_id)
-
     def _get_ebs_volume(self, blockdevice_id):
         """
         Lookup EBS Volume information for a given blockdevice_id.
@@ -257,6 +250,8 @@ class EBSBlockDeviceAPI(object):
         2. Devices available for EBS volume usage are ``/dev/sd[f-p]``.
            Find the first device from this set that is currently not
            in use.
+        TODO: Handle lack of free devices in ``/dev/sd[f-p]`` range
+        (see https://clusterhq.atlassian.net/browse/FLOC-1887).
 
         :param unicode instance_id: EC2 instance ID.
 
@@ -330,7 +325,7 @@ class EBSBlockDeviceAPI(object):
         :raises AlreadyAttachedVolume: If the input volume is already attached
             to a device.
         """
-        volume = self._get(blockdevice_id)
+        volume = get_blockdevice_volume(self, blockdevice_id)
         if volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
 
@@ -339,12 +334,19 @@ class EBSBlockDeviceAPI(object):
 
             blockdevices = FilePath(b"/sys/block").children()
             device = self._next_device(attach_to)
+
+            if device is None:
+                # TODO: Handle lack of free devices in ``/dev/sd[f-p]`` range
+                # (see https://clusterhq.atlassian.net/browse/FLOC-1887).
+                # No point in attempting an ``attach_volume``, so, return.
+                return
+
             self.connection.attach_volume(blockdevice_id, attach_to, device)
 
             # Wait for new device to manifest in the OS. Since there
             # is currently no standardized protocol across Linux guests
             # in EC2 for mapping `device` to the name device driver picked (see
-            # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html)
+            # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html),
             # let us wait for a new block device to be available to the OS,
             # and interpret it as ours.
             # Wait under lock scope to reduce false positives.
@@ -353,11 +355,15 @@ class EBSBlockDeviceAPI(object):
             # end lock scope
 
         # Stamp EBS volume with attached device name tag.
+        # If OS fails to see new block device in 60 seconds,
+        # `new_device` is `None`, indicating the volume failed
+        # to attach to the compute instance.
         ebs_volume = self._get_ebs_volume(blockdevice_id)
         metadata = {
             ATTACHED_DEVICE_LABEL: unicode(new_device),
         }
-        self.connection.create_tags([ebs_volume.id], metadata)
+        if new_device is not None:
+            self.connection.create_tags([ebs_volume.id], metadata)
         _wait_for_volume(ebs_volume, expected_status=u'in-use')
 
         attached_volume = volume.set('attached_to', attach_to)
@@ -374,7 +380,7 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the BlockDeviceVolume for the
             blockdevice_id is not currently 'in-use'.
         """
-        volume = self._get(blockdevice_id)
+        volume = get_blockdevice_volume(self, blockdevice_id)
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
@@ -421,7 +427,7 @@ class EBSBlockDeviceAPI(object):
         :raises UnattachedVolume: If the supplied ``blockdevice_id`` is
             not attached to a host.
         """
-        volume = self._get(blockdevice_id)
+        volume = get_blockdevice_volume(self, blockdevice_id)
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
