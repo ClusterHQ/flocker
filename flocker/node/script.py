@@ -165,7 +165,6 @@ class ZFSAgentScript(object):
         validate_configuration(configuration=configuration)
 
         host = configuration['control-service']['hostname']
-        # TODO put command
         port = configuration['control-service'].get("port", 4524)
         ip = _get_external_ip(host, port)
         # Soon we'll extract this from TLS certificate for node.  Until then
