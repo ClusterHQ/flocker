@@ -584,7 +584,8 @@ class ScenarioMixin(object):
         },
         devices={
             DATASET_ID: FilePath(b"/dev/sda"),
-        }
+        },
+        applications=[], used_ports=[],
     )
 
 
@@ -987,7 +988,8 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                 )
             }
         )
-        state = DeploymentState(nodes=[])
+        state = DeploymentState(nodes=[NodeState(
+            uuid=uuid, hostname=node, applications=[], manifestations={})])
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
@@ -1102,6 +1104,7 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
             used_ports=set(),
             manifestations={},
             devices={self.DATASET_ID: FilePath(b"/dev/xda")},
+            paths={},
         )
 
         # Give it a configuration that says no datasets should be manifest on

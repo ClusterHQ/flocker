@@ -81,7 +81,9 @@ def change_node_state(deployer, desired_configuration):
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
     def converge():
-        d = deployer.discover_state(NodeState(hostname=deployer.hostname))
+        d = deployer.discover_state(
+            NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
+                      applications=[], manifestations={}, paths={}))
 
         def got_changes(changes):
             cluster_state = DeploymentState()
