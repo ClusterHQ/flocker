@@ -21,7 +21,10 @@ from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
 from ..volume.script import flocker_volume_options
-from ..volume.service import DEFAULT_CONFIG_PATH, VolumeService, FLOCKER_POOL, ICommandLineVolumeScript, VolumeScript
+from ..volume.service import (
+    DEFAULT_CONFIG_PATH, VolumeService, FLOCKER_POOL, ICommandLineVolumeScript,
+    VolumeScript
+)
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
