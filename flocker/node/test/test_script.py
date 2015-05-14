@@ -333,22 +333,6 @@ class ValidateConfigurationTests(SynchronousTestCase):
             "version": 1,
         }
 
-    def assertErrorForConfig(self):
-        """
-        Assert that given a particular configuration,
-        :func:`agent_config_from_file` will fail with an expected exception
-        and message.
-
-        :param Exception exception: The exception type which
-            :func:`agent_config_from_file` should fail with.
-        :param dict configuration: The contents of the agent configuration
-            file. If ``None`` then the file will not exist.
-        :param bytes message: The expected exception message.
-        """
-        self.assertRaises(
-            ValidationError,
-            validate_configuration, self.configuration)
-
     def test_configuration_returned(self):
         """
         A dictionary specifying the desired agent configuration is returned
@@ -368,7 +352,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
         as a dictionary.
         """
         self.configuration = "INVALID"
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_invalid_hostname(self):
         """
@@ -376,8 +361,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
         hostname is not a valid hostname.
         """
         self.configuration['control-service']['hostname'] = u"-1"
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_control_service(self):
         """
@@ -385,8 +370,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
         contain a ``u"control-service"`` key.
         """
         self.configuration.pop('control-service')
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_hostname(self):
         """
@@ -394,7 +379,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
         contain a hostname in the ``u"control-service"`` key.
         """
         self.configuration['control-service'].pop('hostname')
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_version(self):
         """
@@ -402,8 +388,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
         a ``u"version"`` key.
         """
         self.configuration.pop('version')
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_high_version(self):
         """
@@ -411,8 +397,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
         than 1.
         """
         self.configuration['version'] = 2
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_low_version(self):
         """
@@ -420,16 +406,16 @@ class ValidateConfigurationTests(SynchronousTestCase):
         than 1.
         """
         self.configuration['version'] = 0.5
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_invalid_port(self):
         """
         The control service agent's port must be an integer.
         """
         self.configuration['control-service']['port'] = 1.1
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_dataset(self):
         """
@@ -437,22 +423,24 @@ class ValidateConfigurationTests(SynchronousTestCase):
         a ``u"dataset"`` key.
         """
         self.configuration.pop('dataset')
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_dataset_backend(self):
         """
         The dataset key must contain a backend type.
         """
         self.configuration['dataset'] = {}
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_invalid_dataset_type(self):
         """
         The dataset key must contain a valid dataset type.
         """
         self.configuration['dataset'] = {"backend": "invalid"}
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
 
 class DatasetAgentOptionsTests(
