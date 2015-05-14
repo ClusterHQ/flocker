@@ -333,15 +333,11 @@ class ValidateConfigurationTests(SynchronousTestCase):
             "version": 1,
         }
 
-    def test_configuration_returned(self):
+    def test_valid_configuration(self):
         """
-        A dictionary specifying the desired agent configuration is returned
-        when a valid configuration file is given.
+        No exception is raised when validating a valid configuration.
         """
-        # TODO change docstring
-        # TODO test with other options, use build_schema test
-        # like loopback option
-        # TODO separate out checking for existance and validation
+        # TODO test with loopback option
 
         # Nothing is raised
         validate_configuration(self.configuration)
