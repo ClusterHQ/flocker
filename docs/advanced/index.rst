@@ -9,6 +9,7 @@ Advanced Documentation
    usage
    configuration
    architecture
+   installapi
    api
    volume/index
    clustering
