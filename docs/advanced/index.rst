@@ -9,7 +9,6 @@ Advanced Documentation
    usage
    configuration
    architecture
-   nodeconfig
    api
    volume/index
    clustering

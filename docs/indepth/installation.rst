@@ -406,6 +406,24 @@ Your firewall will also need to allow access to the ports your applications are 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
 
+To enable the Flocker control service:
+
+.. task:: enable_flocker_control
+   :prompt: [root@control-node]#
+
+The control service needs to be accessible remotely.
+To configure FirewallD to allow access to the control service REST API, and for agent connections:
+
+.. task:: open_control_firewall
+
+(On AWS, an external firewall is used instead, which will need to be configured similarity).
+For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
+
+To start the agent on a node, (where ``${CONTROL_NODE}`` is the address of the control node, and ``${NODE_NAME}`` is the name of the node being configured):
+
+.. task:: enable_flocker_agent ${NODE_NAME} ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
 You have now installed ``clusterhq-flocker-node`` and created a ZFS for it.
 You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
 
