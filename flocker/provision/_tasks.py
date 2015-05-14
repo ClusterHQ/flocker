@@ -15,6 +15,7 @@ from ._install import (
     task_enable_flocker_control,
     task_enable_flocker_agent,
     task_open_control_firewall,
+    task_install_zfs,
 )
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     'task_enable_flocker_control',
     'task_enable_flocker_agent',
     'task_open_control_firewall',
+    'task_install_zfs',
 ]

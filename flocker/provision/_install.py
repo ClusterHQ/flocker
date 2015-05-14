@@ -275,7 +275,7 @@ def task_create_flocker_pool_file():
     ])
 
 
-def task_install_zfs(distribution, variants):
+def task_install_zfs(distribution, variants=set()):
     commands = []
     if distribution == 'ubuntu-14.04':
         commands += [
@@ -296,8 +296,12 @@ def task_install_zfs(distribution, variants):
 
     elif distribution in ('fedora-20', 'centos-7'):
         commands += [
-            run_from_args("yum", "install", "-y", ZFS_REPO[distribution]),
+            run_from_args(["yum", "install", "-y", ZFS_REPO[distribution]]),
         ]
+        if distribution == 'centos-7':
+            commands.append(
+                run_from_args(["yum", "install", "-y", "epel-release"]))
+
         if Variants.ZFS_TESTING in variants:
             commands += [
                 run_from_args(['yum', 'install', '-y', 'yum-utils']),
@@ -309,6 +313,8 @@ def task_install_zfs(distribution, variants):
         ]
     else:
         raise DistributionNotSupported(distribution)
+
+    return sequence(commands)
 
 
 def configure_zfs(distribution, variants):
@@ -377,10 +383,6 @@ def task_install_flocker(
         commands = [
             run(command="yum install -y " + CLUSTERHQ_REPO[distribution])
         ]
-
-        if distribution == 'centos-7':
-            commands.append(
-                run_from_args(["yum", "install", "-y", "epel-release"]))
 
         if base_url:
             repo = dedent(b"""\

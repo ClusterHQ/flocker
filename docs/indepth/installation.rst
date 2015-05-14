@@ -315,33 +315,39 @@ ZFS Backend Configuration
 -------------------------
 
 The ZFS backend requires ZFS to be installed.
-Flocker requires ``zfs`` which in turn requires the ``kernel-devel`` package to be installed.
-Before installing ``clusterhq-flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
-Here is a short script to help you install the correct ``kernel-devel`` package.
-Copy and paste it into a root console on the target node:
+
+
+Installing ZFS on CentOS 7
+..........................
+
+Installing ZFS requires the kernel development headers for the running kernel.
+Since CentOS doesn't provide easy access to old package versions,
+the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
 
 .. task:: upgrade_kernel centos-7
-   :prompt: [root@fedora]#
+   :prompt: [root@centos-7]#
 
-.. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
+You will need to reboot the node after updating the kernel.
+
+.. prompt:: bash [root@aws]#
+
+   shutdown -r now
 
 You must also install the ZFS package repository.
 
+.. task:: install_zfs centos-7
+   :prompt: [root@centos-7]#
 
-#. Upgrade the Kernel
 
-   Some operating systems require an updated kernel.
+Installing ZFS on Ubunt 14.04
+.............................
 
-   On CentOS, run:
+.. task:: install_zfs ubuntu-14.04
+   :prompt: [root@ubuntu-14.04]#
 
-   .. task:: upgrade_kernel centos-7
-      :prompt: [root@aws]#
 
-   Reboot the machine to make use of the new kernel.
-
-   .. prompt:: bash [root@aws]#
-
-         shutdown -r now
+Creating a ZFS pool
+...................
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
@@ -356,4 +362,3 @@ Paste them into a root console:
 
 To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
-In a
