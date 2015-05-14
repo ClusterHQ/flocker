@@ -18,6 +18,8 @@ from twisted.application.service import Service
 from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 
+from ...control._config import ConfigurationError
+
 from ..script import (
     ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration)
@@ -116,6 +118,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         scratch_directory = FilePath(self.mktemp())
         scratch_directory.makedirs()
         self.config = scratch_directory.child('dataset-config.yml')
+        self.non_existent_file = scratch_directory.child('missing-config.yml')
         self.config.setContent(
             yaml.safe_dump({
                 u"control-service": {
@@ -175,6 +178,29 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         agent.get_service(reactor, options)
         self.assertIn(spied[0], get_all_ips())
 
+    def test_missing_configuration_file(self):
+        """
+        ``AgentServiceFactory.get_service`` raises a ``ConfigurationError`` if
+        the given configuration file does not exist.
+        """
+        deployer = object()
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+
+        def factory(**kw):
+            if set(kw.keys()) != {"node_uuid", "hostname"}:
+                raise TypeError("wrong arguments")
+            return deployer
+
+        service_factory = AgentServiceFactory(
+            deployer_factory=factory
+        )
+
+        self.assertRaises(
+            ConfigurationError,
+            service_factory.get_service, reactor, options,
+        )
 
 class AgentScriptTests(SynchronousTestCase):
     """
