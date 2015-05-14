@@ -374,8 +374,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_loopback_pool_optional(self):
         """
-        No exception is raised when validating a ZFS backend is specified but
-        a ZFS pool is not.
+        No exception is raised when validating a loopback backend is specified
+        but a loopback pool is not.
         """
         self.configuration['dataset'] = {
             u"backend": u"loopback",
