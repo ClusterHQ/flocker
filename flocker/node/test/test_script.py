@@ -333,16 +333,57 @@ class ValidateConfigurationTests(SynchronousTestCase):
             "version": 1,
         }
 
-    def test_valid_configuration(self):
+    def test_valid_zfs_configuration(self):
         """
-        No exception is raised when validating a valid configuration.
+        No exception is raised when validating a valid configuration with a
+        ZFS backend.
         """
-        # TODO test with loopback option
-
         # Nothing is raised
         validate_configuration(self.configuration)
 
-    def test_error_on_invalid_config(self):
+    def test_valid_loopback_configuration(self):
+        """
+        No exception is raised when validating a valid configuration with a
+        ZFS backend.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"loopback",
+            u"loopback-pool": u"custom-pool",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_port_optional(self):
+        """
+        The control service agent's port is optional.
+        """
+        self.configuration['control-service'].pop('port')
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_zfs_pool_optional(self):
+        """
+        No exception is raised when validating a ZFS backend is specified but
+        a ZFS pool is not.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"zfs",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_loopback_pool_optional(self):
+        """
+        No exception is raised when validating a ZFS backend is specified but
+        a ZFS pool is not.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"loopback",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_error_on_invalid_configuration_type(self):
         """
         A ``ConfigurationError`` is raised if the config file is not formatted
         as a dictionary.
@@ -401,7 +442,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the version specified is lower
         than 1.
         """
-        self.configuration['version'] = 0.5
+        self.configuration['version'] = 0
         self.assertRaises(
             ValidationError, validate_configuration, self.configuration)
 
