@@ -89,4 +89,3 @@ class ClusterStateService(MultiService):
             key = (wiper.__class__, wiper.key())
             self._information_wipers = self._information_wipers.set(
                 key, (wiper, self._clock.seconds()))
-

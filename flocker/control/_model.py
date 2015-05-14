@@ -23,7 +23,7 @@ from twisted.python.filepath import FilePath
 
 from pyrsistent import (
     pmap, PRecord, field, PMap, CheckedPSet, CheckedPMap, discard,
-    optional as optional_type, CheckedPVector, ny as match_anything
+    optional as optional_type, CheckedPVector,
     )
 
 from zope.interface import Interface, implementer
