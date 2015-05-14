@@ -17,8 +17,11 @@ from twisted.application.service import Service
 
 from ...common.script import ICommandLineScript
 
+from ...control._config import ConfigurationError
+
 from ..script import (
     AgentScript, ContainerAgentOptions,
+    ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration)
 from .._loop import AgentLoopService
 # TODO Make tests which use this
@@ -26,71 +29,138 @@ from .._loop import AgentLoopService
 # TODO test for configurationerror on missing config file
 # from ...control import ConfigurationError
 from ...testtools import MemoryCoreReactor
+from .._deploy import P2PManifestationDeployer
 
 
-# TODO make these generic tests for each backend
-# class ZFSAgentScriptTests(SynchronousTestCase):
-#     """
-#     Tests for ``ZFSAgentScript``.
-#     """
-#     def setUp(self):
-#         scratch_directory = FilePath(self.mktemp())
-#         scratch_directory.makedirs()
-#         self.config = scratch_directory.child('dataset-config.yml')
-#         self.config.setContent(yaml.safe_dump({
-#             u"control-service": {
-#                 u"hostname": u"10.0.0.1",
-#                 u"port": 1234,
-#             },
-#             u"dataset": {
-#                 u"backend": u"zfs",
-#                 u"zfs-pool": u"custom-pool",
-#             },
-#             u"version": 1,
-#         }))
-#
-#     def test_main_starts_service(self):
-#         """
-#         ``ZFSAgentScript.main`` starts the given service.
-#         """
-#         service = Service()
-#         options = ZFSAgentOptions()
-#         options.parseOptions([b"--agent-config", self.config.path])
-#         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
-#         self.assertTrue(service.running)
-#
-#     def test_no_immediate_stop(self):
-#         """
-#         The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
-#         """
-#         script = ZFSAgentScript()
-#         options = ZFSAgentOptions()
-#         options.parseOptions([b"--agent-config", self.config.path])
-#         self.assertNoResult(script.main(MemoryCoreReactor(), options,
-#                                         Service()))
-#
-#     def test_starts_convergence_loop(self):
-#         """
-#         ``ZFSAgentScript.main`` starts a convergence loop service.
-#         """
-#         service = Service()
-#         options = ZFSAgentOptions()
-#         options.parseOptions([b"--agent-config", self.config.path])
-#         test_reactor = MemoryCoreReactor()
-#         ZFSAgentScript().main(test_reactor, options, service)
-#         parent_service = service.parent
-#         # P2PManifestationDeployer is difficult to compare automatically,
-#         # so do so manually:
-#         deployer = parent_service.deployer
-#         parent_service.deployer = None
-#         self.assertEqual((parent_service, deployer.__class__,
-#                           deployer.volume_service,
-#                           parent_service.running),
-#                          (AgentLoopService(reactor=test_reactor,
-#                                            deployer=None,
-#                                            host=u"10.0.0.1",
-#                                            port=1234),
-#                           P2PManifestationDeployer, service, True))
+class ZFSAgentScriptTests(SynchronousTestCase):
+    """
+    Tests for ``ZFSAgentScript``.
+    """
+    def setUp(self):
+        scratch_directory = FilePath(self.mktemp())
+        scratch_directory.makedirs()
+        self.config = scratch_directory.child('dataset-config.yml')
+        self.non_existent_file = scratch_directory.child('missing-config.yml')
+        self.config.setContent(
+            yaml.safe_dump({
+                u"control-service": {
+                    u"hostname": u"10.0.0.1",
+                    u"port": 1234,
+                },
+                u"dataset": {
+                    u"backend": u"zfs",
+                },
+                u"version": 1,
+            }))
+
+    def test_main_starts_service(self):
+        """
+        ``ZFSAgentScript.main`` starts the given service.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        ZFSAgentScript().main(MemoryCoreReactor(), options, service)
+        self.assertTrue(service.running)
+
+    def test_no_immediate_stop(self):
+        """
+        The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
+        """
+        script = ZFSAgentScript()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        self.assertNoResult(script.main(MemoryCoreReactor(), options,
+                                        Service()))
+
+    def test_starts_convergence_loop(self):
+        """
+        ``ZFSAgentScript.main`` starts a convergence loop service.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        test_reactor = MemoryCoreReactor()
+        ZFSAgentScript().main(test_reactor, options, service)
+        parent_service = service.parent
+        # P2PManifestationDeployer is difficult to compare automatically,
+        # so do so manually:
+        deployer = parent_service.deployer
+        parent_service.deployer = None
+        self.assertEqual((parent_service, deployer.__class__,
+                          deployer.volume_service,
+                          parent_service.running),
+                         (AgentLoopService(reactor=test_reactor,
+                                           deployer=None,
+                                           host=u"10.0.0.1",
+                                           port=1234),
+                          P2PManifestationDeployer, service, True))
+
+    def test_default_port(self):
+        """
+        ``ZFSAgentScript.main`` starts a convergence loop service with port
+        4524 if no port is specified.
+        """
+        self.config.setContent(
+            yaml.safe_dump({
+                u"control-service": {
+                    u"hostname": u"10.0.0.1",
+                },
+                u"dataset": {
+                    u"backend": u"zfs",
+                },
+                u"version": 1,
+            }))
+
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        test_reactor = MemoryCoreReactor()
+        ZFSAgentScript().main(test_reactor, options, service)
+        parent_service = service.parent
+        # P2PManifestationDeployer is difficult to compare automatically,
+        # so do so manually:
+        deployer = parent_service.deployer
+        parent_service.deployer = None
+        self.assertEqual((parent_service, deployer.__class__,
+                          deployer.volume_service,
+                          parent_service.running),
+                         (AgentLoopService(reactor=test_reactor,
+                                           deployer=None,
+                                           host=u"10.0.0.1",
+                                           port=4524),
+                          P2PManifestationDeployer, service, True))
+
+    def test_config_validated(self):
+        """
+        ``ZFSAgentScript.main`` validates the configuration file.
+        """
+        self.config.setContent("INVALID")
+
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        test_reactor = MemoryCoreReactor()
+
+        self.assertRaises(
+            ValidationError,
+            ZFSAgentScript().main, test_reactor, options, service,
+        )
+
+    def test_missing_configuration_file(self):
+        """
+        ``ZFSAgentScript.main`` raises a ``ConfigurationError`` if the given
+        configuration file does not exist.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+        test_reactor = MemoryCoreReactor()
+
+        self.assertRaises(
+            ConfigurationError,
+            ZFSAgentScript().main, test_reactor, options, service,
+        )
 
 
 def get_all_ips():
@@ -119,6 +189,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         scratch_directory = FilePath(self.mktemp())
         scratch_directory.makedirs()
         self.config = scratch_directory.child('dataset-config.yml')
+        self.non_existent_file = scratch_directory.child('missing-config.yml')
         self.config.setContent(
             yaml.safe_dump({
                 u"control-service": {
@@ -128,13 +199,14 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 u"dataset": {
                     u"backend": u"zfs",
                     u"zfs-pool": u"custom-pool",
+
                 },
                 u"version": 1,
             }))
 
     def test_get_service(self):
         """
-        ``AgentServiceFactory.get_service`` creates ``AgentLoopService``
+        ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
         configured with the destination given in the config file given by the
         options.
         """
@@ -162,6 +234,70 @@ class AgentServiceFactoryTests(SynchronousTestCase):
             service_factory.get_service(reactor, options)
         )
 
+    def test_default_port(self):
+        """
+        ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
+        configured with port 4524 if no port is specified.
+        """
+        self.config.setContent(
+            yaml.safe_dump({
+                u"control-service": {
+                    u"hostname": u"10.0.0.2",
+                },
+                u"dataset": {
+                    u"backend": u"zfs",
+                },
+                u"version": 1,
+            }))
+
+        deployer = object()
+
+        def factory(**kw):
+            if set(kw.keys()) != {"node_uuid", "hostname"}:
+                raise TypeError("wrong arguments")
+            return deployer
+
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        service_factory = AgentServiceFactory(
+            deployer_factory=factory
+        )
+        self.assertEqual(
+            AgentLoopService(
+                reactor=reactor,
+                deployer=deployer,
+                host=b"10.0.0.2",
+                port=4524,
+            ),
+            service_factory.get_service(reactor, options)
+        )
+
+    def test_config_validated(self):
+        """
+        ``AgentServiceFactory.get_service`` validates the configuration file.
+        """
+        self.config.setContent("INVALID")
+
+        deployer = object()
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+
+        def factory(**kw):
+            if set(kw.keys()) != {"node_uuid", "hostname"}:
+                raise TypeError("wrong arguments")
+            return deployer
+
+        service_factory = AgentServiceFactory(
+            deployer_factory=factory
+        )
+
+        self.assertRaises(
+            ValidationError,
+            service_factory.get_service, reactor, options,
+        )
+
     def test_deployer_factory_called_with_ip(self):
         """
         ``AgentServiceFactory.main`` calls its ``deployer_factory`` with one
@@ -180,6 +316,30 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
         self.assertIn(spied[0], get_all_ips())
+
+    def test_missing_configuration_file(self):
+        """
+        ``AgentServiceFactory.get_service`` raises a ``ConfigurationError`` if
+        the given configuration file does not exist.
+        """
+        deployer = object()
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+
+        def factory(**kw):
+            if set(kw.keys()) != {"node_uuid", "hostname"}:
+                raise TypeError("wrong arguments")
+            return deployer
+
+        service_factory = AgentServiceFactory(
+            deployer_factory=factory
+        )
+
+        self.assertRaises(
+            ConfigurationError,
+            service_factory.get_service, reactor, options,
+        )
 
 
 class AgentScriptTests(SynchronousTestCase):
@@ -317,15 +477,12 @@ def make_amp_agent_options_tests(options_type):
     return Tests
 
 
-class AgentConfigFromFileTests(SynchronousTestCase):
+class ValidateConfigurationTests(SynchronousTestCase):
     """
-    Tests for :func:`agent_config_from_file`.
+    Tests for :func:`validate_configuration`.
     """
 
     def setUp(self):
-        self.scratch_directory = FilePath(self.mktemp())
-        self.scratch_directory.makedirs()
-        self.config_file = self.scratch_directory.child('config.yml')
         # This is a sample working configuration which tests can modify.
         self.configuration = {
             u"control-service": {
@@ -339,42 +496,65 @@ class AgentConfigFromFileTests(SynchronousTestCase):
             "version": 1,
         }
 
-    def assertErrorForConfig(self):
-        """
-        Assert that given a particular configuration,
-        :func:`agent_config_from_file` will fail with an expected exception
-        and message.
 
-        :param Exception exception: The exception type which
-            :func:`agent_config_from_file` should fail with.
-        :param dict configuration: The contents of the agent configuration
-            file. If ``None`` then the file will not exist.
-        :param bytes message: The expected exception message.
+    def test_valid_zfs_configuration(self):
         """
-        self.assertRaises(
-            ValidationError,
-            validate_configuration, self.configuration)
-
-    def test_configuration_returned(self):
+        No exception is raised when validating a valid configuration with a
+        ZFS backend.
         """
-        A dictionary specifying the desired agent configuration is returned
-        when a valid configuration file is given.
-        """
-        # TODO change docstring
-        # TODO test with other options, use build_schema test
-        # like loopback option
-        # TODO separate out checking for existance and validation
-
         # Nothing is raised
         validate_configuration(self.configuration)
 
-    def test_error_on_invalid_config(self):
+    def test_valid_loopback_configuration(self):
+        """
+        No exception is raised when validating a valid configuration with a
+        ZFS backend.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"loopback",
+            u"loopback-pool": u"custom-pool",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_port_optional(self):
+        """
+        The control service agent's port is optional.
+        """
+        self.configuration['control-service'].pop('port')
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_zfs_pool_optional(self):
+        """
+        No exception is raised when validating a ZFS backend is specified but
+        a ZFS pool is not.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"zfs",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_loopback_pool_optional(self):
+        """
+        No exception is raised when validating a loopback backend is specified
+        but a loopback pool is not.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"loopback",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_error_on_invalid_configuration_type(self):
         """
         A ``ConfigurationError`` is raised if the config file is not formatted
         as a dictionary.
         """
         self.configuration = "INVALID"
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_invalid_hostname(self):
         """
@@ -382,8 +562,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         hostname is not a valid hostname.
         """
         self.configuration['control-service']['hostname'] = u"-1"
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_control_service(self):
         """
@@ -391,8 +571,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         contain a ``u"control-service"`` key.
         """
         self.configuration.pop('control-service')
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_hostname(self):
         """
@@ -400,7 +580,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         contain a hostname in the ``u"control-service"`` key.
         """
         self.configuration['control-service'].pop('hostname')
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_version(self):
         """
@@ -408,8 +589,8 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         a ``u"version"`` key.
         """
         self.configuration.pop('version')
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_high_version(self):
         """
@@ -417,25 +598,25 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         than 1.
         """
         self.configuration['version'] = 2
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_low_version(self):
         """
         A ``ConfigurationError`` is raised if the version specified is lower
         than 1.
         """
-        self.configuration['version'] = 0.5
-
-        self.assertErrorForConfig()
+        self.configuration['version'] = 0
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_invalid_port(self):
         """
         The control service agent's port must be an integer.
         """
         self.configuration['control-service']['port'] = 1.1
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_dataset(self):
         """
@@ -443,22 +624,24 @@ class AgentConfigFromFileTests(SynchronousTestCase):
         a ``u"dataset"`` key.
         """
         self.configuration.pop('dataset')
-
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_dataset_backend(self):
         """
         The dataset key must contain a backend type.
         """
         self.configuration['dataset'] = {}
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_invalid_dataset_type(self):
         """
         The dataset key must contain a valid dataset type.
         """
         self.configuration['dataset'] = {"backend": "invalid"}
-        self.assertErrorForConfig()
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
 
 class DatasetAgentOptionsTests(

@@ -20,7 +20,8 @@ from zope.interface import implementer
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
-from ..volume.service import DEFAULT_CONFIG_PATH, VolumeService, FLOCKER_POOL
+from ..volume.script import flocker_volume_options
+from ..volume.service import DEFAULT_CONFIG_PATH, VolumeService, FLOCKER_POOL, ICommandLineVolumeScript, VolumeScript
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
@@ -34,6 +35,27 @@ from ..control import ConfigurationError
 __all__ = [
     "flocker_dataset_agent_main",
 ]
+
+
+@flocker_standard_options
+@flocker_volume_options
+class ZFSAgentOptions(Options):
+    """
+    Command line options for ``flocker-zfs-agent`` cluster management process.
+    """
+    longdesc = """\
+    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
+    """
+
+    synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
+    optParameters = [
+        ["agent-config", "c", "/etc/flocker/agent.yml",
+         "The configuration file to set the control service."],
+    ]
+
+    def postOptions(self):
+        self['agent-config'] = FilePath(self['agent-config'])
+
 
 
 def _get_external_ip(host, port):
@@ -58,14 +80,11 @@ def _get_external_ip(host, port):
 
 def validate_configuration(configuration):
     """
-    # TODO change
+    Validate a provided configuration.
 
-    Extract configuration from provided options.
+    :param dict configuration: A desired configuration for an agent.
 
-    :param FilePath path: Path to a file containing specified options for an
-        agent.
-
-    :return dict: Dictionary containing the desired configuration.
+    :raises: jsonschema.ValidationError if the configuration is invalid.
     """
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
@@ -123,6 +142,44 @@ def validate_configuration(configuration):
 
     v = Draft4Validator(schema, format_checker=FormatChecker())
     v.validate(configuration)
+
+
+@implementer(ICommandLineVolumeScript)
+class ZFSAgentScript(object):
+    """
+    A command to start a long-running process to manage volumes on one node of
+    a Flocker cluster.
+    """
+    def main(self, reactor, options, volume_service):
+        try:
+            agent_config = options[u'agent-config']
+            configuration = yaml.safe_load(agent_config.getContent())
+        except IOError:
+            raise ConfigurationError(
+                "Configuration file does not exist at '{}'.".format(
+                    agent_config.path))
+
+        validate_configuration(configuration=configuration)
+
+        host = configuration['control-service']['hostname']
+        port = configuration['control-service'].get("port", 4524)
+        ip = _get_external_ip(host, port)
+        # Soon we'll extract this from TLS certificate for node.  Until then
+        # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
+        node_uuid = ip_to_uuid(ip)
+        deployer = P2PManifestationDeployer(ip, volume_service,
+                                            node_uuid=node_uuid)
+        loop = AgentLoopService(reactor=reactor, deployer=deployer,
+                                host=host, port=port)
+        volume_service.setServiceParent(loop)
+        return main_for_service(reactor, loop)
+
+
+def flocker_zfs_agent_main():
+    return FlockerScriptRunner(
+        script=VolumeScript(ZFSAgentScript()),
+        options=ZFSAgentOptions()
+    ).main()
 
 
 @flocker_standard_options
@@ -218,7 +275,6 @@ class AgentServiceFactory(PRecord):
             agent_config = options[u'agent-config']
             configuration = yaml.safe_load(agent_config.getContent())
         except IOError:
-            # TODO test for this
             raise ConfigurationError(
                 "Configuration file does not exist at '{}'.".format(
                     agent_config.path))
