@@ -112,7 +112,7 @@ class INovaVolumeManager(Interface):
         Detach the volume identified by the volume ID from the given server ID.
 
         :param server_id: The ID of the server
-        :param volume_id: The ID of the volume to detach.
+        :param attachment_id: The ID of the volume to detach.
         """
 
     def get(volume_id):
