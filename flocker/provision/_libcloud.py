@@ -248,7 +248,6 @@ class LibcloudProvisioner(object):
     """
 
     def create_node(self, name, distribution,
-                    userdata=None,
                     size=None, disk_size=8,
                     keyname=None, metadata={}):
         """
@@ -257,7 +256,6 @@ class LibcloudProvisioner(object):
         :param str name: The name of the node.
         :param str distribution: The name of the distribution to
             install on the node.
-        :param bytes userdata: User data to pass to the instance.
         :param str size: The name of the size to use.
         :param int disk_size: The size of disk to allocate.
         :param dict metadata: Metadata to associate with the node.
@@ -283,7 +281,6 @@ class LibcloudProvisioner(object):
             image=get_image(self._driver, image_name),
             size=get_size(self._driver, size),
             ex_keyname=keyname,
-            ex_userdata=userdata,
             ex_metadata=metadata,
             **create_node_arguments
         )

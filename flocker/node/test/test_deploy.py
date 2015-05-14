@@ -1413,14 +1413,16 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         expected = sequentially(changes=[in_parallel(changes=[to_stop])])
         self.assertEqual(expected, result)
 
-    def test_local_not_running_applications_restarted(self):
+    def test_local_not_running_applications_not_restarted(self):
         """
         Applications that are not running but are supposed to be on the local
-        node are added to the list of applications to restart.
+        node are not restarted by Flocker (we rely on Docker restart
+        policies to do so).
         """
         api = ApplicationNodeDeployer(u'n.example.com',
                                       docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      network=make_memory_network(),
+                                      node_uuid=uuid4())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -1428,23 +1430,20 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         )
         nodes = frozenset([
             Node(
-                hostname=u'n.example.com',
+                uuid=api.node_uuid,
                 applications=frozenset([application])
             )
         ])
         node_state = NodeState(
             hostname=api.hostname,
+            uuid=api.node_uuid,
             applications=[application.set("running", False)])
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
             desired_configuration=desired,
             current_cluster_state=DeploymentState(nodes=[node_state]))
 
-        expected = sequentially(changes=[in_parallel(changes=[
-            sequentially(changes=[StopApplication(application=application),
-                                  StartApplication(application=application,
-                                                   node_state=node_state)]),
-        ])])
+        expected = sequentially(changes=[])
         self.assertEqual(expected, result)
 
     def test_not_local_not_running_applications_stopped(self):
@@ -1468,54 +1467,6 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
                           applications={to_stop})]))
         expected = sequentially(changes=[in_parallel(changes=[
             StopApplication(application=to_stop)])])
-        self.assertEqual(expected, result)
-
-    def test_restart_application_once_only(self):
-        """
-        An ``Application`` will only be added once to the list of applications
-        to restart even if there are different reasons to restart it (it is
-        not running and its setup has changed).
-        """
-        api = ApplicationNodeDeployer(
-            u'node1.example.com',
-            docker_client=FakeDockerClient(),
-            network=make_memory_network(),
-            node_uuid=uuid4(),
-        )
-
-        old_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'clusterhq/postgres:7.5'),
-            running=False,
-        )
-
-        new_postgres_app = Application(
-            name=u'postgres-example',
-            image=DockerImage.from_string(u'docker/postgres:7.6'),
-        )
-
-        desired = Deployment(nodes=frozenset({
-            Node(uuid=api.node_uuid,
-                 applications=frozenset({new_postgres_app})),
-        }))
-        node_state = NodeState(
-            hostname=api.hostname,
-            uuid=api.node_uuid,
-            applications={old_postgres_app})
-
-        result = api.calculate_changes(
-            desired_configuration=desired,
-            current_cluster_state=DeploymentState(nodes=[node_state]))
-
-        expected = sequentially(changes=[
-            in_parallel(changes=[
-                sequentially(changes=[
-                    StopApplication(application=new_postgres_app),
-                    StartApplication(application=new_postgres_app,
-                                     node_state=node_state)
-                ])
-            ])
-        ])
         self.assertEqual(expected, result)
 
     def test_app_with_changed_image_restarted(self):
@@ -1683,6 +1634,50 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
             sequentially(changes=[
                 StopApplication(application=old_wordpress_app),
                 StartApplication(application=new_wordpress_app,
+                                 node_state=node_state)
+                ]),
+        ])])
+
+        self.assertEqual(expected, result)
+
+    def test_stopped_app_with_change_restarted(self):
+        """
+        An ``Application`` that is stopped, and then reconfigured such that it
+        would be restarted if it was running, will be restarted with the
+        new configuration.
+        """
+        api = ApplicationNodeDeployer(
+            u'node1.example.com',
+            docker_client=FakeDockerClient(),
+            network=make_memory_network(),
+            node_uuid=uuid4(),
+        )
+
+        old_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
+            running=False,
+        )
+
+        new_postgres_app = old_postgres_app.transform(
+            ["image"], DockerImage.from_string(u'docker/postgres:latest'),
+            ["running"], True)
+
+        desired = Deployment(nodes=[
+            Node(uuid=api.node_uuid, applications={new_postgres_app})])
+        node_state = NodeState(
+            uuid=api.node_uuid,
+            hostname=api.hostname,
+            applications={old_postgres_app})
+        result = api.calculate_changes(
+            desired_configuration=desired,
+            current_cluster_state=DeploymentState(nodes={node_state}),
+        )
+
+        expected = sequentially(changes=[in_parallel(changes=[
+            sequentially(changes=[
+                StopApplication(application=old_postgres_app),
+                StartApplication(application=new_postgres_app,
                                  node_state=node_state)
                 ]),
         ])])

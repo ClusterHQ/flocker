@@ -9,12 +9,12 @@ import yaml
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
+from eliot import add_destination
 from twisted.internet.error import ProcessTerminated
 from twisted.python.constants import Values, ValueConstant
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue, succeed
-
 
 from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
@@ -30,9 +30,10 @@ from flocker.provision._install import (
 )
 from flocker.provision._libcloud import INode
 
-from flocker.provision._ssh._fabric import dispatcher
-from flocker.provision._effect import sequence
+from effect import parallel
 from effect.twisted import perform
+from flocker.provision._effect import sequence
+from flocker.provision._ssh._conch import make_dispatcher
 
 from .runner import run
 
@@ -83,7 +84,7 @@ def run_client_tests(reactor, node, trial_args):
         else:
             return f
 
-    return perform(dispatcher, run_remotely(
+    return perform(make_dispatcher(reactor), run_remotely(
         username=node.get_default_username(),
         address=node.address,
         commands=task_client_installation_test()
@@ -211,8 +212,7 @@ class VagrantRunner(object):
                              % (self.distribution,))
 
         if self.variants:
-            raise UsageError("Unsupored varianta: %s."
-                             % (', '.join(self.variants),))
+            raise UsageError("Variants unsupported on vagrant.")
 
     @inlineCallbacks
     def start_nodes(self, reactor, node_count):
@@ -226,18 +226,23 @@ class VagrantRunner(object):
             ['vagrant', 'destroy', '-f'],
             path=self.vagrant_path.path)
 
-        box_version = vagrant_version(self.package_source.version)
+        if self.package_source.version:
+            env = extend_environ(
+                FLOCKER_BOX_VERSION=vagrant_version(
+                    self.package_source.version))
+        else:
+            env = os.environ
         # Boot the VMs
         yield run(
             reactor,
             ['vagrant', 'up'],
             path=self.vagrant_path.path,
-            env=extend_environ(FLOCKER_BOX_VERSION=box_version))
+            env=env)
 
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
             yield perform(
-                dispatcher,
+                make_dispatcher(reactor),
                 run_remotely(
                     username='root',
                     address=node,
@@ -309,6 +314,13 @@ class LibcloudRunner(object):
             yield remove_known_host(reactor, node.address)
             self.nodes.append(node)
             del node
+
+        commands = parallel([
+            node.provision(package_source=self.package_source,
+                           variants=self.variants)
+            for node in self.nodes
+        ])
+        yield perform(make_dispatcher(reactor), commands)
 
         returnValue(self.nodes)
 
@@ -448,6 +460,26 @@ class RunOptions(Options):
                 variants=self['variants'],
             )
 
+MESSAGE_FORMATS = {
+    "flocker.provision.ssh:run":
+        "[%(username)s@%(address)s]: Running %(command)s\n",
+    "flocker.provision.ssh:run:output":
+        "[%(username)s@%(address)s]: %(line)s\n",
+    "admin.runner:run":
+        "Running %(command)s\n",
+    "admin.runner:run:output":
+        "%(line)s\n",
+}
+
+
+def eliot_output(message):
+    """
+    Write pretty versions of eliot log messages to stdout.
+    """
+    message_type = message.get('message_type', message.get('action_type'))
+    sys.stdout.write(MESSAGE_FORMATS.get(message_type, '') % message)
+    sys.stdout.flush()
+
 
 @inlineCallbacks
 def do_client_acceptance_tests(reactor, runner, trial_args):
@@ -461,7 +493,7 @@ def do_client_acceptance_tests(reactor, runner, trial_args):
     """
     nodes = yield runner.start_nodes(reactor, node_count=1)
     yield perform(
-        dispatcher, install_cli(runner.package_source, nodes[0]))
+        make_dispatcher(reactor), install_cli(runner.package_source, nodes[0]))
     result = yield run_client_tests(
         reactor=reactor,
         node=nodes[0],
@@ -481,7 +513,7 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
     """
     nodes = yield runner.start_nodes(reactor, node_count=2)
     yield perform(
-        dispatcher,
+        make_dispatcher(reactor),
         sequence([
             sequence([
                     node.provision(package_source=runner.package_source,
@@ -496,6 +528,7 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
         control_node=nodes[0], agent_nodes=nodes,
         trial_args=trial_args)
     returnValue(result)
+
 
 test_type_runner = {
     TestTypes.CLIENT: do_client_acceptance_tests,
@@ -513,6 +546,7 @@ def main(reactor, args, base_path, top_level):
     """
     options = RunOptions(top_level=top_level)
 
+    add_destination(eliot_output)
     try:
         options.parseOptions(args)
     except UsageError as e:
