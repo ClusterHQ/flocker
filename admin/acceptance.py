@@ -76,8 +76,6 @@ def run_client_tests(reactor, node, trial_args):
         trial_args = ['flocker.acceptance']
 
     def check_result(f):
-        # TODO do we need to trap ProcessTerminated here?
-        # Test this when FLOC-1674 is merged
         f.trap(ProcessTerminated)
         if f.value.exitCode is not None:
             return f.value.exitCode
@@ -216,6 +214,7 @@ class VagrantRunner(object):
 
     @inlineCallbacks
     def start_nodes(self, reactor, node_count):
+        # Vagrantfile only supports running 2 nodes
         if node_count != 2:
             raise NotImplementedError('Vagrant start_nodes must start 2 nodes')
 
