@@ -120,7 +120,7 @@ Replace the node services with the new code:
 .. prompt:: bash node_1$
 
    rm -rf /opt/flocker/lib/python2.7/site-packages/flocker/
-   cp -r /backup/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
+   cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
    systemctl restart flocker-agent flocker-control
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
