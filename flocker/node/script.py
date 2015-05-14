@@ -60,7 +60,6 @@ class ZFSAgentOptions(Options):
         self['agent-config'] = FilePath(self['agent-config'])
 
 
-
 def _get_external_ip(host, port):
     """
     Get an external IP address for this node that can in theory connect to
