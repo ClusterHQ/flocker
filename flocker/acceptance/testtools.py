@@ -203,8 +203,29 @@ def _clean_node(test_case, node):
         pass
 
 
-def require_backend(backends):
+def get_volume_backend(test_case):
     """
+    Get the volume backend the acceptance tests are running as.
+
+    :param test_case: The ``TestCase`` running this unit test.
+
+    :raise SkipTest: if the backend is specified.
+    """
+    backend = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
+    if backend is None:
+        raise SkipTest(
+            "Set acceptance testing volume backend using the " +
+            "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
+    return backend
+
+
+def require_backend(supported, reason):
+    """
+    Decorator that skips a test if the volume backend doesn't support
+    the operations required by the test.
+
+    :param supported: List of supported volume backends for this test.
+    :param reason: The reason the backend isn't supported.
     """
     def decorator(test_method):
         """
@@ -217,18 +238,24 @@ def require_backend(backends):
 
         @wraps(test_method)
         def wrapper(test_case, *args, **kwargs):
-            backend = environ.get("FLOCKER_ACCEPTANCE_BACKEND")
+            backend = get_volume_backend(test_case)
 
-            if backend not in backends:
+            if backend not in supported:
                 raise SkipTest(
-                    "Set acceptance testing backend using the " +
-                    "FLOCKER_ACCEPTANCE_BACKEND environment variable.")
-
+                    "Backend not supported: {backend} ({reason}). "
+                    "Supported backends: {supported}.".format(
+                        backend=backend,
+                        reason=reason,
+                        supported=', '.join(supported),
+                    )
+                )
             return test_method(test_case, *args, **kwargs)
         return wrapper
     return decorator
 
-require_moving_backend = require_backend(["zfs", "openstack", "ebs"])
+require_moving_backend = require_backend(
+    supported=[b"zfs", b"openstack", b"ebs"],
+    reason="doesn't support moving.")
 
 
 def get_nodes(test_case, num_nodes):
@@ -313,7 +340,7 @@ def get_nodes(test_case, num_nodes):
     def clean_zfs(_):
         for node in reachable_nodes:
             _clean_node(test_case, node)
-    if 'zfs' == environ.get("FLOCKER_ACCEPTANCE_BACKEND"):
+    if get_volume_backend(test_case) == b'zfs':
         getting.addCallback(clean_zfs)
     getting.addCallback(lambda _: reachable_nodes)
     return getting
