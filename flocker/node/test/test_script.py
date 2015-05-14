@@ -496,7 +496,6 @@ class ValidateConfigurationTests(SynchronousTestCase):
             "version": 1,
         }
 
-
     def test_valid_zfs_configuration(self):
         """
         No exception is raised when validating a valid configuration with a
