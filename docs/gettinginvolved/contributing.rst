@@ -96,15 +96,21 @@ Log in to each node in the cluster, forwarding the authentication agent connecti
 
    ssh -A root@${NODE_IP}
 
+At this point it is possible to install packages built by `Buildbot`_.
+This would be a more complete testing of code on a node.
+However, it takes some time for packages to be built, and for development purposes the trade-off of a fast development cycle may be worthwhile.
+Those trade-offs include the ability to test new or changed Python dependencies.
+The following instructions replace just some of the code used by Flocker, but enough that can be useful.
+
 On each node, install ``git``:
 
-.. prompt:: bash node_1$
+.. prompt:: bash [root@node1]$
 
    sudo yum install -y git
 
 Clone Flocker somewhere to use later:
 
-.. prompt:: bash node_1$
+.. prompt:: bash [root@node1]$
 
    mkdir /flocker-source
    cd /flocker-source
@@ -114,10 +120,14 @@ Clone Flocker somewhere to use later:
 
 Replace the node services with the new code:
 
-.. prompt:: bash node_1$
+.. prompt:: bash [root@node1]$
 
+   # Move Python code from the Git clone to where they are used
    rm -rf /opt/flocker/lib/python2.7/site-packages/flocker/
    cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
+   # TODO Move systemd unit files from the clone to where they are
+   # Reload systemd, so that it can find new or changed units:
+   systemctl daemon-reload
    systemctl restart flocker-agent flocker-control
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
