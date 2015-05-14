@@ -117,6 +117,9 @@ class EBSBlockDeviceAPIInterfaceTests(
 
     def test_attached_volume_missing_device_tag(self):
         """
+        Test that missing ATTACHED_DEVICE_LABEL on an EBS
+        volume causes `UnattacheVolume` while attempting
+        `get_device_path()`.
         """
         volume = self.api.create_volume(
             dataset_id=uuid4(),
