@@ -84,12 +84,7 @@ Follow the procedure for merging fixes into maintenance branches, merging fixes 
 Testing Code on Nodes
 =====================
 
-`Buildbot`_ is the canonical testing tool for code on a branch.
-It creates nodes on Vagrant and various cloud providers and installs packages from a branch onto each node.
-
-However, sometimes it might be useful to modify code on an existing node.
-
-To do this, start with some nodes which are configured correctly for Flocker.
+To test code on an existing node, start with some nodes which are configured correctly for Flocker.
 A simple way to do this is to run the :ref:`acceptance test runner <acceptance-testing>` with the ``--keep`` option.
 
 Log in to each node in the cluster, forwarding the authentication agent connection:
