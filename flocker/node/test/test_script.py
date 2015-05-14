@@ -145,21 +145,25 @@ class AgentServiceFactoryTests(SynchronousTestCase):
     def setUp(self):
         setup_config(self)
 
-    def test_uuid_from_certificate(self):
+    def test_uuids_from_certificate(self):
         """
-        The created deployer got its node UUID from the given node certificate.
+        The created deployer got its node UUID and cluster UUID from the given
+        node certificate.
         """
         result = []
 
-        def factory(hostname, node_uuid):
-            result.append(node_uuid)
+        def factory(hostname, node_uuid, cluster_uuid):
+            result.append((node_uuid, cluster_uuid))
             return object()
 
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         service_factory = AgentServiceFactory(deployer_factory=factory)
         service_factory.get_service(MemoryCoreReactor(), options)
-        self.assertEqual(UUID(hex=self.ca_set.node.uuid), result[0])
+        self.assertEqual(
+            (UUID(hex=self.ca_set.node.uuid),
+             UUID(hex=self.ca_set.node.cluster_uuid)),
+            result[0])
 
     def test_get_service(self):
         """
@@ -170,7 +174,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         deployer = object()
 
         def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
+            if set(kw.keys()) != {"node_uuid", "hostname", "cluster_uuid"}:
                 raise TypeError("wrong arguments")
             return deployer
 
@@ -199,7 +203,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         """
         spied = []
 
-        def deployer_factory(node_uuid, hostname):
+        def deployer_factory(node_uuid, hostname, cluster_uuid):
             spied.append(hostname)
             return object()
 

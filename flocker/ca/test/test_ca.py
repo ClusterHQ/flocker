@@ -323,7 +323,7 @@ class NodeCredentialTests(
     """
     Tests for ``flocker.ca._ca.NodeCredential``.
     """
-    def test_certificate_subject_node_uuid(self):
+    def test_certificate_common_name_node_uuid(self):
         """
         A certificate written by ``NodeCredential.initialize`` has the
         subject common name "node-{uuid}" where {uuid} is the UUID
@@ -333,6 +333,16 @@ class NodeCredentialTests(
         subject = cert.get_subject()
         self.assertEqual(subject.CN, b"node-{uuid}".format(
             uuid=self.credential.uuid))
+
+    def test_certificate_ou_cluster_uuid(self):
+        """
+        A certificate written by ``NodeCredential.initialize`` has the
+        organizational unit name exposed as the ``cluster_uuid``
+        attribute.
+        """
+        cert = self.credential.credential.certificate.original
+        subject = cert.get_subject()
+        self.assertEqual(subject.OU, self.credential.cluster_uuid)
 
 
 class ControlCredentialTests(

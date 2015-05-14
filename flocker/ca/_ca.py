@@ -400,6 +400,8 @@ class NodeCredential(PRecord):
         credential object.
     :ivar bytes uuid: A unique identifier for the node this certificate
         identifies, in the form of a version 4 UUID.
+    :ivar bytes cluster_uuid: A unique identifier for the cluster this
+        certificate identifies, in the form of a version 4 UUID.
     """
     credential = field(mandatory=True)
 
@@ -466,6 +468,10 @@ class NodeCredential(PRecord):
     def uuid(self):
         # We need to strip the "node-" prefix:
         return self.credential.certificate.getSubject().CN[5:]
+
+    @property
+    def cluster_uuid(self):
+        return self.credential.certificate.getSubject().OU
 
 
 class ControlCredential(PRecord):

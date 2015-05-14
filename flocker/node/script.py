@@ -5,7 +5,6 @@
 The command-line ``flocker-*-agent`` tools.
 """
 
-from functools import partial
 from socket import socket
 from os import getpid
 from uuid import UUID
@@ -269,8 +268,8 @@ class AgentServiceFactory(PRecord):
 
     :ivar deployer_factory: A two-argument callable to create an
         ``IDeployer`` provider for this script.  The arguments are a
-        ``hostname`` keyword argument and a ``node_uuid`` keyword
-        argument. They must be passed by keyword.
+        ``hostname`` keyword argument, a ``cluster_uuid`` keyword and a
+        ``node_uuid`` keyword argument. They must be passed by keyword.
     """
     deployer_factory = field(mandatory=True)
 
@@ -284,6 +283,10 @@ class AgentServiceFactory(PRecord):
         :param AgentOptions options: The command-line options to use to
             configure the loop and the loop's deployer.
 
+        :param context_factory: TLS context factory to pass to service.
+
+        :param NodeCredential node_credential: The node credential.
+
         :return: The ``AgentLoopService`` instance.
         """
         configuration = agent_config_from_file(path=options[u'agent-config'])
@@ -295,7 +298,8 @@ class AgentServiceFactory(PRecord):
         return AgentLoopService(
             reactor=reactor,
             deployer=self.deployer_factory(
-                node_uuid=UUID(hex=node_credential.uuid), hostname=ip),
+                node_uuid=UUID(hex=node_credential.uuid), hostname=ip,
+                cluster_uuid=UUID(hex=node_credential.cluster_uuid)),
             host=host, port=port,
             context_factory=context_factory,
         )
@@ -309,24 +313,26 @@ def flocker_dataset_agent_main():
     loopback block device backend.  Later it will be capable of starting a
     dataset agent using any of the support dataset backends.
     """
-    # Later, construction of this object can be moved into
-    # AgentServiceFactory.get_service where various options passed on
-    # the command line could alter what is created and how it is initialized.
-    api = LoopbackBlockDeviceAPI.from_path(
-        b"/var/lib/flocker/loopback",
-        # Make up a new value every time this script starts.  This will ensure
-        # different instances of the script using this backend always appear to
-        # be running on different nodes (as far as attachment is concerned).
-        # This is a good thing since it makes it easy to simulate a multi-node
-        # cluster by running multiple instances of the script.  Similar effect
-        # could be achieved by making this id a command line argument but that
-        # would be harder to implement and harder to use.
-        compute_instance_id=bytes(getpid()),
-    )
-    deployer_factory = partial(
-        BlockDeviceDeployer,
-        block_device_api=api,
-    )
+    def deployer_factory(hostname, node_uuid, cluster_uuid):
+        # Later, deployer_factory might also be called with the config
+        # file, allowing for alteration of what is created and how it is
+        # initialized.  That code will also want to pass cluster_uuid in
+        # to relevant backend APIs, e.g. Cinder and EBS both want it.
+        api = LoopbackBlockDeviceAPI.from_path(
+            b"/var/lib/flocker/loopback",
+            # Make up a new value every time this script starts.  This
+            # will ensure different instances of the script using this
+            # backend always appear to be running on different nodes (as
+            # far as attachment is concerned).  This is a good thing since
+            # it makes it easy to simulate a multi-node cluster by running
+            # multiple instances of the script.  Similar effect could be
+            # achieved by making this id a command line argument but that
+            # would be harder to implement and harder to use.
+            compute_instance_id=bytes(getpid()),
+        )
+        return BlockDeviceDeployer(block_device_api=api, hostname=hostname,
+                                   node_uuid=node_uuid)
+
     service_factory = AgentServiceFactory(
         deployer_factory=deployer_factory
     ).get_service
