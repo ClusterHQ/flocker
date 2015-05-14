@@ -138,7 +138,7 @@ def _check_blockdevice_size(device, size):
 
     # Get the base device size, which is the first line in
     # `lsblk` output. Ignore partition sizes.
-    # TODO: Handle error cases during `check_output()` run
+    # XXX: Handle error cases during `check_output()` run
     # (https://clusterhq.atlassian.net/browse/FLOC-1886).
     command_output = check_output(command).split(b'\n')[0]
     device_size = int(command_output.strip().decode("ascii"))
@@ -233,7 +233,8 @@ class EBSBlockDeviceAPI(object):
         :returns boto.ec2.volume.Volume for the input id. ``None`` if
             no boto.ec2.volume.Volume was found for the given id.
         """
-        for volume in self.connection.get_all_volumes():
+        for volume in self.connection.get_all_volumes(
+                volume_ids=[blockdevice_id]):
             if volume.id == blockdevice_id:
                 # Sync volume for uptodate metadata
                 volume.update()
@@ -250,7 +251,7 @@ class EBSBlockDeviceAPI(object):
         2. Devices available for EBS volume usage are ``/dev/sd[f-p]``.
            Find the first device from this set that is currently not
            in use.
-        TODO: Handle lack of free devices in ``/dev/sd[f-p]`` range
+        XXX: Handle lack of free devices in ``/dev/sd[f-p]`` range
         (see https://clusterhq.atlassian.net/browse/FLOC-1887).
 
         :param unicode instance_id: EC2 instance ID.
@@ -276,6 +277,12 @@ class EBSBlockDeviceAPI(object):
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
+        # There could be difference between user-requested and
+        # created volume sizes due to several reasons:
+        # 1) Round off from converting user-supplied 'size' to 'GiB' int.
+        # 2) EBS-specific size constraints.
+        # XXX: Address size mistach (see
+        # (https://clusterhq.atlassian.net/browse/FLOC-1874).
         requested_volume = self.connection.create_volume(
             size=int(Byte(size).to_GiB().value), zone=self.zone)
 
@@ -336,7 +343,7 @@ class EBSBlockDeviceAPI(object):
             device = self._next_device(attach_to)
 
             if device is None:
-                # TODO: Handle lack of free devices in ``/dev/sd[f-p]`` range
+                # XXX: Handle lack of free devices in ``/dev/sd[f-p]`` range
                 # (see https://clusterhq.atlassian.net/browse/FLOC-1887).
                 # No point in attempting an ``attach_volume``, so, return.
                 return
@@ -432,7 +439,10 @@ class EBSBlockDeviceAPI(object):
             raise UnattachedVolume(blockdevice_id)
 
         ebs_volume = self._get_ebs_volume(blockdevice_id)
-        device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
+        try:
+            device = ebs_volume.tags[ATTACHED_DEVICE_LABEL]
+        except KeyError:
+            raise UnattachedVolume(blockdevice_id)
         if device is None:
             raise UnattachedVolume(blockdevice_id)
         return FilePath(device)

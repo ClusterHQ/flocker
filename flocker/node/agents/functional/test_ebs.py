@@ -11,7 +11,7 @@ from bitmath import Byte
 
 from twisted.trial.unittest import SkipTest
 
-from ..ebs import _wait_for_volume
+from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL, UnattachedVolume)
 from ....testtools import skip_except
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
@@ -65,6 +65,7 @@ def ebsblockdeviceapi_for_test(test_case):
         'test_get_device_path_unknown_volume',
         'test_detach_volume',
         'test_attach_volume_validate_size',
+        'test_attached_volume_missing_device_tag',
     ]
 )
 class EBSBlockDeviceAPIInterfaceTests(
@@ -91,7 +92,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         ec2_client = kwargs["ec2_client"]
         requested_volume = ec2_client.connection.create_volume(
-            int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value),
+            int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GiB().value),
             ec2_client.zone)
         self.addCleanup(ec2_client.connection.delete_volume,
                         requested_volume.id)
@@ -113,3 +114,21 @@ class EBSBlockDeviceAPIInterfaceTests(
             size=REALISTIC_BLOCKDEVICE_SIZE,
         )
         self.assert_foreign_volume(flocker_volume)
+
+    def test_attached_volume_missing_device_tag(self):
+        """
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(),
+            size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.api.attach_volume(
+            volume.blockdevice_id,
+            attach_to=self.this_node,
+        )
+
+        self.api.connection.delete_tags([volume.blockdevice_id],
+                                        [ATTACHED_DEVICE_LABEL])
+
+        self.assertRaises(UnattachedVolume, self.api.get_device_path,
+                          volume.blockdevice_id)
