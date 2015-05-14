@@ -133,7 +133,10 @@ def create_certificate_authority(keypair, dn, request, serial,
     expire = expire.strftime(b"%Y%m%d%H%M%SZ")
     req = request.original
     cert = crypto.X509()
-    dn._copyInto(cert.get_issuer())
+    name = cert.get_issuer()
+    name.commonName = dn["commonName"]
+    name.organizationalUnitName = dn["organizationalUnitName"]
+    cert.set_issuer(name)
     cert.set_subject(req.get_subject())
     cert.set_pubkey(req.get_pubkey())
     cert.set_notBefore(start)
@@ -192,7 +195,10 @@ def sign_certificate_request(keypair, dn, request, serial,
     expire = expire.strftime(b"%Y%m%d%H%M%SZ")
     req = request.original
     cert = crypto.X509()
-    dn._copyInto(cert.get_issuer())
+    name = cert.get_issuer()
+    name.commonName = dn["commonName"]
+    name.organizationalUnitName = dn["organizationalUnitName"]
+    cert.set_issuer(name)
     cert.set_subject(req.get_subject())
     cert.set_pubkey(req.get_pubkey())
     cert.set_notBefore(start)
