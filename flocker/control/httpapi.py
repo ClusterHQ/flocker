@@ -114,9 +114,10 @@ class ConfigurationAPIUserV1(object):
         return Node(hostname=host)
 
     @app.route("/version", methods=['GET'])
-    @user_documentation("""
+    @user_documentation(
+        """
         Get the version of Flocker being run.
-        """, 
+        """,
         header=u"Get Flocker version",
         examples=[u"get version"])
     @structured(
@@ -344,7 +345,7 @@ class ConfigurationAPIUserV1(object):
         * In the future, update metadata and maximum size.
 
         """,
-        header=u"Update existing dataset",        
+        header=u"Update existing dataset",
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
@@ -421,10 +422,11 @@ class ConfigurationAPIUserV1(object):
         return saving
 
     @app.route("/state/datasets", methods=['GET'])
-    @user_documentation("""
+    @user_documentation(
+        """
         Get current cluster datasets.
-        """, 
-        header=u"Get current cluster datasets",        
+        """,
+        header=u"Get current cluster datasets",
         examples=[u"get state datasets"])
     @structured(
         inputSchema={},

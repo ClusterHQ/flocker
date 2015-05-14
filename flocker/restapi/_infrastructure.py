@@ -203,7 +203,7 @@ def user_documentation(doc, header=None, examples=None):
     @param doc: The documentation to be included in the generated API
         documentation along with the decorated endpoint.
     @type doc: L{str}
-    
+
     @param header: The header to be included in the generated API
         documentation.
     @type header: L{str}

@@ -178,7 +178,7 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
             A list of examples (L{Example} instances) for this endpoint.
     """
     result = {}
-    
+
     result['header'] = route.attributes.get('header', 'No header!')
 
     userDocumentation = route.attributes.get(
@@ -199,8 +199,6 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     result['examples'] = list(
         Example.fromDictionary(exampleByIdentifier(identifier))
         for identifier in examples)
-
-    assert result.has_key('header')    
 
     return result
 
