@@ -84,7 +84,7 @@ Follow the procedure for merging fixes into maintenance branches, merging fixes 
 Testing Code on Nodes
 =====================
 
-To test code on an existing node, start with some nodes which are configured correctly for Flocker.
+Start with some nodes which are configured correctly for Flocker.
 A simple way to do this is to run the :ref:`acceptance test runner <acceptance-testing>` with the ``--keep`` option.
 
 Log in to each node in the cluster, forwarding the authentication agent connection:
