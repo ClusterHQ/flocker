@@ -92,7 +92,6 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                                            port=1234),
                           P2PManifestationDeployer, service, True))
 
-
     def test_default_port(self):
         """
         ``ZFSAgentScript.main`` starts a convergence loop service with port
@@ -228,7 +227,6 @@ class AgentServiceFactoryTests(SynchronousTestCase):
             service_factory.get_service(reactor, options)
         )
 
-
     def test_default_port(self):
         """
         ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
@@ -334,6 +332,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
             ConfigurationError,
             service_factory.get_service, reactor, options,
         )
+
 
 class AgentScriptTests(SynchronousTestCase):
     """
