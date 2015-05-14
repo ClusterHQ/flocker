@@ -36,6 +36,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         scratch_directory = FilePath(self.mktemp())
         scratch_directory.makedirs()
         self.config = scratch_directory.child('dataset-config.yml')
+        self.non_existent_file = scratch_directory.child('missing-config.yml')
         self.config.setContent(
             yaml.safe_dump({
                 u"control-service": {
@@ -90,6 +91,21 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                                            host=u"10.0.0.1",
                                            port=1234),
                           P2PManifestationDeployer, service, True))
+
+    def test_missing_configuration_file(self):
+        """
+        ``ZFSAgentScript.main`` raises a ``ConfigurationError`` if the given
+        configuration file does not exist.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+        test_reactor = MemoryCoreReactor()
+
+        self.assertRaises(
+            ConfigurationError,
+            ZFSAgentScript().main, test_reactor, options, service,
+        )
 
 
 def get_all_ips():

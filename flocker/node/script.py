@@ -158,7 +158,6 @@ class ZFSAgentScript(object):
             agent_config = options[u'agent-config']
             configuration = yaml.safe_load(agent_config.getContent())
         except IOError:
-            # TODO test for this
             raise ConfigurationError(
                 "Configuration file does not exist at '{}'.".format(
                     agent_config.path))
