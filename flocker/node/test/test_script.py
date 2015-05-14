@@ -311,10 +311,9 @@ def make_amp_agent_options_tests(options_type):
     return Tests
 
 
-class AgentConfigFromFileTests(SynchronousTestCase):
+class ValidateConfigurationTests(SynchronousTestCase):
     """
-    Tests for :func:`agent_config_from_file`.
-    # TODO change name and docstring
+    Tests for :func:`validate_configuration`.
     """
 
     def setUp(self):
