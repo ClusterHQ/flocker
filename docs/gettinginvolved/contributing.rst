@@ -116,6 +116,7 @@ Clone Flocker somewhere to use later:
    cd /flocker-source
    git clone git@github.com:ClusterHQ/flocker.git
    cd flocker
+   # The code in this directory will be copied to XXX TODO
    git checkout BRANCH-NAME
 
 Replace the node services with the new code:
@@ -125,7 +126,10 @@ Replace the node services with the new code:
    # Move Python code from the Git clone to where they are used
    rm -rf /opt/flocker/lib/python2.7/site-packages/flocker/
    cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
-   # TODO Move systemd unit files from the clone to where they are
+
+   # Move systemd unit files from the clone to where they are XXX finish
+   TODO XXX copy from somewhere to /etc/systemd/system/multi-user.target.wants?
+
    # Reload systemd, so that it can find new or changed units:
    systemctl daemon-reload
    systemctl restart flocker-agent flocker-control
