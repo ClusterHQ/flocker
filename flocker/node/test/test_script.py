@@ -92,6 +92,42 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                                            port=1234),
                           P2PManifestationDeployer, service, True))
 
+
+    def test_default_port(self):
+        """
+        ``ZFSAgentScript.main`` starts a convergence loop service with port
+        4524 if no port is specified.
+        """
+        self.config.setContent(
+            yaml.safe_dump({
+                u"control-service": {
+                    u"hostname": u"10.0.0.1",
+                },
+                u"dataset": {
+                    u"backend": u"zfs",
+                },
+                u"version": 1,
+            }))
+
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        test_reactor = MemoryCoreReactor()
+        ZFSAgentScript().main(test_reactor, options, service)
+        parent_service = service.parent
+        # P2PManifestationDeployer is difficult to compare automatically,
+        # so do so manually:
+        deployer = parent_service.deployer
+        parent_service.deployer = None
+        self.assertEqual((parent_service, deployer.__class__,
+                          deployer.volume_service,
+                          parent_service.running),
+                         (AgentLoopService(reactor=test_reactor,
+                                           deployer=None,
+                                           host=u"10.0.0.1",
+                                           port=4524),
+                          P2PManifestationDeployer, service, True))
+
     def test_missing_configuration_file(self):
         """
         ``ZFSAgentScript.main`` raises a ``ConfigurationError`` if the given
