@@ -221,7 +221,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         self.config.setContent(
             yaml.safe_dump({
                 u"control-service": {
-                    u"hostname": u"10.0.0.1",
+                    u"hostname": u"10.0.0.2",
                 },
                 u"dataset": {
                     u"backend": u"zfs",
@@ -250,6 +250,31 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 port=4524,
             ),
             service_factory.get_service(reactor, options)
+        )
+
+    def test_config_validated(self):
+        """
+        ``AgentServiceFactory.get_service`` validates the configuration file.
+        """
+        self.config.setContent("INVALID")
+
+        deployer = object()
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+
+        def factory(**kw):
+            if set(kw.keys()) != {"node_uuid", "hostname"}:
+                raise TypeError("wrong arguments")
+            return deployer
+
+        service_factory = AgentServiceFactory(
+            deployer_factory=factory
+        )
+
+        self.assertRaises(
+            ValidationError,
+            service_factory.get_service, reactor, options,
         )
 
     def test_deployer_factory_called_with_ip(self):
