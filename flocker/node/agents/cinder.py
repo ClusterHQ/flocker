@@ -261,7 +261,7 @@ class CinderBlockDeviceAPI(object):
         #
         # See
         # http://www.florentflament.com/blog/openstack-volume-in-use-although-vm-doesnt-exist.html
-        unattached_volume = get_blockdevice_volume(blockdevice_id)
+        unattached_volume = get_blockdevice_volume(self, blockdevice_id)
         if unattached_volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
 
