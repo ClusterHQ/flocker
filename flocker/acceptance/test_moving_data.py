@@ -9,7 +9,7 @@ from pyrsistent import thaw, freeze
 
 from .testtools import (flocker_deploy, get_mongo_client, get_nodes,
                         MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
-                        require_mongo, require_backend)
+                        require_mongo, require_moving_backend)
 
 
 class MovingDataTests(TestCase):
@@ -18,7 +18,7 @@ class MovingDataTests(TestCase):
     """
     @require_flocker_cli
     @require_mongo
-    @require_backend(["zfs", "openstack", "ebs"])
+    @require_moving_backend
     def test_moving_data(self):
         """
         Moving an application moves that application's data with it. In
