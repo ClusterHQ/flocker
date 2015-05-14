@@ -297,7 +297,7 @@ class CinderBlockDeviceAPI(object):
         except NovaNotFound:
             raise UnattachedVolume(blockdevice_id)
 
-        # TODO This'll blow up if the volume is deleted from elsewhere.
+        # This'll blow up if the volume is deleted from elsewhere.  FLOC-1882.
         wait_for_volume(
             volume_manager=self.nova_volume_manager,
             expected_volume=nova_volume,
