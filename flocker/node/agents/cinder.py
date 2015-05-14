@@ -208,9 +208,6 @@ class CinderBlockDeviceAPI(object):
         See:
 
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html
-
-        TODO:
-         * Assign a Human readable name and description?
         """
         metadata = {
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
