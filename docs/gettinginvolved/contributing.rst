@@ -84,6 +84,9 @@ Follow the procedure for merging fixes into maintenance branches, merging fixes 
 Testing Code on Nodes
 =====================
 
+Fedora 20 / CentOS 7
+--------------------
+
 Start with some nodes which are configured correctly for Flocker.
 A simple way to do this is to run the :ref:`acceptance test runner <acceptance-testing>` with the ``--keep`` option.
 
@@ -97,7 +100,6 @@ On each node, install ``git``:
 
 .. prompt:: bash node_1$
 
-   # This is OS specific
    sudo yum install -y git
 
 Clone Flocker somewhere to use later:
