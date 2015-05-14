@@ -92,6 +92,10 @@ class VolumeService(Service):
     """
     Main service for volume management.
 
+    This should really use the node UUID rather than having its own config
+    for that. https://clusterhq.atlassian.net/browse/FLOC-1885
+
+
     :ivar unicode node_id: A unique identifier for this particular node's
         volume manager. Only available once the service has started.
     """
