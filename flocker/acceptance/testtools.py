@@ -255,7 +255,7 @@ def require_backend(supported, reason):
 
 require_moving_backend = require_backend(
     supported=[b"zfs", b"openstack", b"ebs"],
-    reason="doesn't support moving.")
+    reason="doesn't support moving")
 
 
 def get_nodes(test_case, num_nodes):
