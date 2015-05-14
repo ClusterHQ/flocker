@@ -721,11 +721,12 @@ class NodeState(PRecord):
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    used_ports = pset_field(int, optional=True)
-    applications = pset_field(Application, optional=True)
-    manifestations = pmap_field(unicode, Manifestation, optional=True)
-    paths = pmap_field(unicode, FilePath, optional=True)
-    devices = pmap_field(UUID, FilePath, optional=True)
+    used_ports = pset_field(int, optional=True, initial=None)
+    applications = pset_field(Application, optional=True, initial=None)
+    manifestations = pmap_field(unicode, Manifestation, optional=True,
+                                initial=None)
+    paths = pmap_field(unicode, FilePath, optional=True, initial=None)
+    devices = pmap_field(UUID, FilePath, optional=True, initial=None)
 
     def update_cluster_state(self, cluster_state):
         return cluster_state.update_node(self)

@@ -1301,6 +1301,8 @@ def model_from_configuration(deployment_state, applications,
 
 def current_from_configuration(current_configuration):
     """
+    UNUSED, remove when convenient.
+
     Validate and coerce the supplied current cluster configuration into a
     ``Deployment`` instance.
 
@@ -1327,28 +1329,3 @@ def current_from_configuration(current_configuration):
                           applications=node_applications,
                           manifestations=manifestations))
     return Deployment(nodes=frozenset(nodes))
-
-
-def marshal_configuration(state):
-    """
-    Generate representation of a node's applications using only simple Python
-    types.
-
-    :param NodeState state: The configuration state to marshal.
-
-    :return: An object representing the node configuration in a structure
-        roughly compatible with the configuration file format.  Only "simple"
-        (easily serialized) Python types will be used: ``dict``, ``list``,
-        ``int``, ``unicode``, etc.
-    """
-    result = {}
-    for application in state.applications:
-        converter = ApplicationMarshaller(application)
-
-        result[application.name] = converter.convert()
-
-    return {
-        "version": 1,
-        "applications": result,
-        "used_ports": sorted(state.used_ports),
-    }

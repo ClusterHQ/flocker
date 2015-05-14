@@ -226,5 +226,5 @@ def to_node(node_state):
     :return Node: Equivalent node.
     """
     return Node(uuid=node_state.uuid, hostname=node_state.hostname,
-                applications=node_state.applications,
-                manifestations=node_state.manifestations)
+                applications=node_state.applications or [],
+                manifestations=node_state.manifestations or {})

@@ -619,7 +619,9 @@ APP2 = Application(
     name=APP_NAME2,
     image=DockerImage.from_string(UNIT_FOR_APP2.container_image)
 )
-EMPTY_NODESTATE = NodeState(hostname=u"example.com")
+EMPTY_NODESTATE = NodeState(hostname=u"example.com",
+                            manifestations={}, applications=[],
+                            used_ports=[], devices={}, paths={})
 
 
 class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
@@ -631,7 +633,9 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         self.network = make_memory_network()
         self.node_uuid = uuid4()
         self.EMPTY_NODESTATE = NodeState(hostname=u"example.com",
-                                         uuid=self.node_uuid)
+                                         uuid=self.node_uuid,
+                                         manifestations={}, applications=[],
+                                         used_ports=[], devices={}, paths={})
 
     def test_discover_none(self):
         """
@@ -648,8 +652,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    manifestations=None,
-                                    paths=None)],
+                                    applications=[], used_ports=[])],
                          self.successResultOf(d))
 
     def test_discover_one(self):
@@ -668,9 +671,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         d = api.discover_state(self.EMPTY_NODESTATE)
 
         self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=[APP],
-                                    manifestations=None,
-                                    paths=None)],
+                                    applications=[APP], used_ports=[])],
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
@@ -912,9 +913,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
         result = self.successResultOf(d)
 
         self.assertEqual([NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                                    applications=applications,
-                                    manifestations=None,
-                                    paths=None)],
+                                    applications=applications, used_ports=[])],
                          result)
 
     def test_discover_used_ports(self):
@@ -936,8 +935,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
 
         self.assertEqual(
             [NodeState(uuid=api.node_uuid, hostname=api.hostname,
-                       used_ports=used_ports,
-                       manifestations=None, paths=None)],
+                       used_ports=used_ports, applications=[])],
             states
         )
 
@@ -1168,8 +1166,11 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         current = DeploymentState(nodes=[
+            NodeState(
+                uuid=api.node_uuid, hostname=api.hostname, applications=[]),
             NodeState(uuid=destination_node_uuid,
-                      hostname=expected_destination_host)])
+                      hostname=expected_destination_host, manifestations={},
+                      applications=[], used_ports=[])])
         result = api.calculate_changes(
             desired_configuration=desired, current_cluster_state=current)
         proxy = Proxy(ip=expected_destination_host,
@@ -1229,7 +1230,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         """
         api = ApplicationNodeDeployer(u'example.com',
                                       docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      network=make_memory_network(),
+                                      node_uuid=uuid4())
         expected_destination_port = 1001
         port = Port(internal_port=3306,
                     external_port=expected_destination_port)
@@ -1242,19 +1244,23 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         nodes = [
             Node(
-                hostname=api.hostname,
+                uuid=api.node_uuid,
                 applications=[application]
             )
         ]
 
+        node_state = NodeState(
+            hostname=api.hostname, uuid=api.node_uuid,
+            applications=[])
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
-            desired_configuration=desired, current_cluster_state=EMPTY_STATE)
+            desired_configuration=desired,
+            current_cluster_state=DeploymentState(nodes=[node_state]))
         expected = sequentially(changes=[
             OpenPorts(ports=[OpenPort(port=expected_destination_port)]),
             in_parallel(changes=[
                 StartApplication(application=application,
-                                 node_state=EMPTY_NODESTATE)])])
+                                 node_state=node_state)])])
         self.assertEqual(expected, result)
 
     def test_open_ports_empty(self):
@@ -1303,7 +1309,8 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
         """
         api = ApplicationNodeDeployer(u'example.com',
                                       docker_client=FakeDockerClient(),
-                                      network=make_memory_network())
+                                      network=make_memory_network(),
+                                      node_uuid=uuid4())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -1312,18 +1319,22 @@ class ApplicationNodeDeployerCalculateChangesTests(SynchronousTestCase):
 
         nodes = frozenset([
             Node(
-                hostname=u'example.com',
+                uuid=api.node_uuid,
                 applications=frozenset([application])
             )
         ])
 
+        node_state = NodeState(
+            hostname=api.hostname, uuid=api.node_uuid,
+            applications=[])
+
         desired = Deployment(nodes=nodes)
         result = api.calculate_changes(
             desired_configuration=desired,
-            current_cluster_state=EMPTY_STATE)
+            current_cluster_state=DeploymentState(nodes=[node_state]))
         expected = sequentially(changes=[in_parallel(
             changes=[StartApplication(application=application,
-                                      node_state=EMPTY_NODESTATE)])])
+                                      node_state=node_state)])])
         self.assertEqual(expected, result)
 
     def test_only_this_node(self):
@@ -1764,6 +1775,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             hostname=u"10.1.1.1",
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
+            applications=[],
         )
 
         api = P2PManifestationDeployer(
@@ -1857,7 +1869,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             applications={APPLICATION_WITH_VOLUME},
         )
         another_node_state = NodeState(
-            hostname=u"node2.example.com",
+            hostname=u"node2.example.com", manifestations={},
         )
         current = DeploymentState(nodes=[node_state, another_node_state])
         desired = Deployment(nodes={
@@ -1902,17 +1914,19 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
 
     def test_volume_handoff(self):
         """
-        ``P2PManifestationDeployer.calculate_changes`` specifies that
-        the volume for an application which was previously running on this
-        node but is now running on another node must be handed off.
+        ``P2PManifestationDeployer.calculate_changes`` specifies that a volume
+        was previously running on this node but is now running on another
+        node must be handed off.
         """
         node_state = NodeState(
             hostname=u"node1.example.com",
             manifestations={MANIFESTATION.dataset_id:
                             MANIFESTATION},
+            applications=[],
         )
         another_node_state = NodeState(
             hostname=u"node2.example.com",
+            manifestations={},
         )
         current = DeploymentState(nodes=[node_state, another_node_state])
         desired = Deployment(nodes={
@@ -2016,7 +2030,7 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         hostname = u"node1.example.com"
 
         current = DeploymentState(nodes=frozenset({
-            NodeState(hostname=hostname),
+            NodeState(hostname=hostname, applications=[], manifestations={}),
         }))
 
         api = P2PManifestationDeployer(
@@ -2047,11 +2061,13 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
         current_node = NodeState(
             hostname=u"node1.example.com",
             manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
+            applications=[],
         )
         desired_node = Node(
             hostname=u"node1.example.com",
             manifestations={MANIFESTATION_WITH_SIZE.dataset_id:
                             MANIFESTATION_WITH_SIZE},
+            applications=[],
         )
 
         current = DeploymentState(nodes=[current_node])
@@ -2084,9 +2100,11 @@ class P2PManifestationDeployerCalculateChangesTests(SynchronousTestCase):
             NodeState(
                 hostname=u"node1.example.com",
                 manifestations={MANIFESTATION.dataset_id: MANIFESTATION},
+                applications=[],
             ),
             NodeState(
                 hostname=u"node2.example.com",
+                manifestations={}, applications=[],
             )
         ]
         desired_nodes = [

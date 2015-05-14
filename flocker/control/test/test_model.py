@@ -348,6 +348,17 @@ class NodeStateTests(SynchronousTestCase):
             NodeState(hostname=u"1.2.3.4", used_ports=None).used_ports,
             None)
 
+    def test_completely_ignorant_by_default(self):
+        """
+        A newly created ``NodeState`` is completely ignorant.
+        """
+        node_state = NodeState(hostname=u"1.2.3.4", uuid=uuid4())
+        self.assertEqual(
+            [node_state.used_ports, node_state.applications,
+             node_state.manifestations, node_state.paths, node_state.devices,
+             node_state._completely_ignorant()],
+            [None, None, None, None, None, True])
+
 
 class NonManifestDatasetsInitTests(make_with_init_tests(
         record_type=NonManifestDatasets,
