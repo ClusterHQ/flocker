@@ -132,6 +132,7 @@ Replace the node services with the new code:
 
    # Reload systemd, so that it can find new or changed units:
    systemctl daemon-reload
-   systemctl restart flocker-agent flocker-control
+   # Restart systemd units
+   systemctl restart flocker-agent flocker-control flocker-container-agent
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
