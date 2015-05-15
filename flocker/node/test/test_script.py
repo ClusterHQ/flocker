@@ -21,7 +21,7 @@ from ...common.script import ICommandLineScript
 from ...control._config import ConfigurationError
 
 from ..script import (
-    ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
+    ZFSAgentScript, AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
@@ -63,7 +63,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         ``ZFSAgentScript.main`` starts the given service.
         """
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
@@ -73,7 +73,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
         """
         script = ZFSAgentScript()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
                                         Service()))
@@ -83,7 +83,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         ``ZFSAgentScript.main`` starts a convergence loop service.
         """
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
@@ -118,7 +118,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
             }))
 
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
@@ -143,7 +143,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         self.config.setContent("INVALID")
 
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
 
@@ -158,7 +158,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         configuration file does not exist.
         """
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.non_existent_file.path])
         test_reactor = MemoryCoreReactor()
 
@@ -631,14 +631,7 @@ class ContainerAgentOptionsTests(
     """
 
 
-class ZFSAgentOptionsTests(make_amp_agent_options_tests(ZFSAgentOptions)):
+class ZFSAgentOptionsTests(make_amp_agent_options_tests(DatasetAgentOptions)):
     """
     Tests for ``ZFSAgentOptions``.
-    """
-
-
-class ZFSAgentOptionsVolumeTests(make_volume_options_tests(
-        ZFSAgentOptions, [])):
-    """
-    Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """

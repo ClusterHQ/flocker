@@ -38,27 +38,7 @@ __all__ = [
     "flocker_dataset_agent_main",
 ]
 
-
-@flocker_standard_options
-@flocker_volume_options
-class ZFSAgentOptions(Options):
-    """
-    Command line options for ``flocker-zfs-agent`` cluster management process.
-    """
-    longdesc = """\
-    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
-    """
-
-    synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
-
-    optParameters = [
-        ["agent-config", "c", "/etc/flocker/agent.yml",
-         "The configuration file to set the control service."],
-    ]
-
-    def postOptions(self):
-        self['agent-config'] = FilePath(self['agent-config'])
-
+# TODO - we don't think we need volume_options, nothing seems to use it
 
 def _get_external_ip(host, port):
     """
@@ -298,7 +278,7 @@ def flocker_dataset_agent_main():
     """
     return FlockerScriptRunner(
         script=VolumeScript(ZFSAgentScript()),
-        options=ZFSAgentOptions()
+        options=DatasetAgentOptions()
     ).main()
 
     # Later, construction of this object can be moved into
