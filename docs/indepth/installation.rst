@@ -377,6 +377,8 @@ The optional ``port`` variable is the port on the control node to connect to:
    "control-service":
       "hostname": "${CONTROL_NODE}"
       "port": 4524
+	"dataset":
+	  "backend": "zfs"
 
 .. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
@@ -407,6 +409,8 @@ The optional ``port`` variable is the port on the control node to connect to:
    "control-service":
       "hostname": "${CONTROL_NODE}"
       "port": 4524
+  	"dataset":
+  	  "backend": "zfs"
 
 .. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
