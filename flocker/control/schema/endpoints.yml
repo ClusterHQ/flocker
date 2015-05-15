@@ -141,7 +141,7 @@ definitions:
   configuration_datasets_update:
     description: |
       The input schema for the update_dataset endpoint.
-    "$ref": "types.json#/definitions/dataset_configuration"
+    "$ref": "types.json#/definitions/dataset_configuration_update"
 
   configuration_datasets_create:
     # XXX: The publicapi documentation builder currently fails unless the

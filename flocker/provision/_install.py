@@ -43,6 +43,23 @@ CLUSTERHQ_REPO = {
 }
 
 
+def task_configure_brew_path():
+    """
+    Configure non-interactive shell to use all paths.
+
+    By default, OSX provides a minimal $PATH, for programs run via SSH. In
+    particular /usr/local/bin (which contains `brew`) isn't in the path. This
+    configures the path to have it there.
+    """
+    return put(
+        path='.bashrc',
+        content=dedent("""\
+            if [ -x /usr/libexec/path_helper ]; then
+                eval `/usr/libexec/path_helper -s`
+            fi
+            """))
+
+
 def task_test_homebrew(recipe):
     """
     The commands used to install a Homebrew recipe for Flocker and test it.
@@ -232,6 +249,9 @@ def task_enable_flocker_agent(distribution, control_node):
                 "control-service": {
                     "hostname": control_node,
                     "port": 4524,
+                },
+                "dataset": {
+                    "backend": "zfs",
                 },
             },
         ),

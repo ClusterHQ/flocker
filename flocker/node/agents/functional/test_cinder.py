@@ -25,7 +25,7 @@ from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
 )
 from ..test.blockdevicefactory import (
-    ConfigMissing, ProviderType, get_blockdeviceapi_args,
+    InvalidConfig, ProviderType, get_blockdeviceapi_args,
     get_blockdeviceapi_with_cleanup,
 )
 from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
@@ -39,8 +39,9 @@ def cinderblockdeviceapi_for_test(test_case):
 
     :param TestCase test_case: The test being run.
 
-    :returns: A ``CinderBlockDeviceAPI`` instance whose volumes will be
-        destroyed at the end of the test method being run by ``test_case``.
+    :returns: A ``CinderBlockDeviceAPI`` instance.  Any volumes it creates will
+        be cleaned up at the end of the test (using ``test_case``\ 's cleanup
+        features).
     """
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
 
@@ -65,7 +66,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         """
         try:
             cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
-        except ConfigMissing as e:
+        except InvalidConfig as e:
             raise SkipTest(str(e))
         cinder_volumes = kwargs["cinder_volume_manager"]
         requested_volume = cinder_volumes.create(
