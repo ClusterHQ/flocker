@@ -16,13 +16,12 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
 
 from ...common.script import ICommandLineScript
-
-from ...control._config import ConfigurationError
+from ...volume.testtools import make_volume_options_tests
 
 from ..script import (
-    AgentScript, ContainerAgentOptions,
-    ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
-    AgentServiceFactory, DatasetAgentOptions, validate_configuration)
+    ZFSAgentScript, AgentScript, ContainerAgentOptions,
+    AgentServiceFactory, DatasetAgentOptions, validate_configuration,
+)
 from .._loop import AgentLoopService
 # TODO Make tests which use this
 # from .._deploy import P2PManifestationDeployer
@@ -67,7 +66,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         ``ZFSAgentScript.main`` starts the given service.
         """
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
@@ -77,7 +76,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
         """
         script = ZFSAgentScript()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
                                         Service()))
@@ -87,7 +86,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         ``ZFSAgentScript.main`` starts a convergence loop service.
         """
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
@@ -122,7 +121,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
             }))
 
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
         ZFSAgentScript().main(test_reactor, options, service)
@@ -147,7 +146,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         self.config.setContent("INVALID")
 
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
 
@@ -158,16 +157,16 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
     def test_missing_configuration_file(self):
         """
-        ``ZFSAgentScript.main`` raises a ``ConfigurationError`` if the given
+        ``ZFSAgentScript.main`` raises an ``IOError`` if the given
         configuration file does not exist.
         """
         service = Service()
-        options = ZFSAgentOptions()
+        options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.non_existent_file.path])
         test_reactor = MemoryCoreReactor()
 
         self.assertRaises(
-            ConfigurationError,
+            IOError,
             ZFSAgentScript().main, test_reactor, options, service,
         )
 
@@ -305,8 +304,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
     def test_missing_configuration_file(self):
         """
-        ``AgentServiceFactory.get_service`` raises a ``ConfigurationError`` if
-        the given configuration file does not exist.
+        ``AgentServiceFactory.get_service`` raises an ``IOError`` if the given
+        configuration file does not exist.
         """
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
@@ -316,7 +315,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         )
 
         self.assertRaises(
-            ConfigurationError,
+            IOError,
             service_factory.get_service, reactor, options,
         )
 
@@ -635,4 +634,13 @@ class ContainerAgentOptionsTests(
 ):
     """
     Tests for ``ContainerAgentOptions``.
+    """
+
+
+class DatasetAgentVolumeTests(make_volume_options_tests(
+        DatasetAgentOptions, [])):
+    """
+    Tests for the volume configuration arguments of ``DatasetAgentOptions``.
+
+    XXX These maybe should not be supported after FLOC-1791.
     """
