@@ -39,9 +39,8 @@ def cinderblockdeviceapi_for_test(test_case):
 
     :param TestCase test_case: The test being run.
 
-    :returns: A ``CinderBlockDeviceAPI`` instance.  Any volumes it creates will
-        be cleaned up at the end of the test (using ``test_case``\ 's cleanup
-        features).
+    :returns: A ``CinderBlockDeviceAPI`` instance whose volumes will be
+        destroyed at the end of the test method being run by ``test_case``.
     """
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
 

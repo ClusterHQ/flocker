@@ -6,7 +6,7 @@ Tests for ``flocker.node._loop``.
 
 from uuid import uuid4
 
-from eliot.testing import validate_logging, assertHasAction, assertHasMessage
+from eliot.testing import validate_logging, assertHasAction
 from machinist import LOG_FSM_TRANSITION
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -20,8 +20,7 @@ from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
-    ClusterStatus, ConvergenceLoop, LOG_SEND_TO_CONTROL_SERVICE,
-    LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
+    ClusterStatus, ConvergenceLoop, LOG_SEND_TO_CONTROL_SERVICE
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
@@ -272,7 +271,15 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                 {"result": None})
         return client
 
-    @validate_logging(assertHasAction, LOG_SEND_TO_CONTROL_SERVICE, True)
+    def assert_log_send(self, logger):
+        """
+        Assert that sending node state logs an appropriate action.
+        """
+        transition = assertHasAction(self, logger, LOG_FSM_TRANSITION, True)
+        send = assertHasAction(self, logger, LOG_SEND_TO_CONTROL_SERVICE, True)
+        self.assertIn(send, transition.children)
+
+    @validate_logging(assert_log_send)
     def test_convergence_done_notify(self, logger):
         """
         A FSM doing convergence that gets a discovery result, sends the
@@ -301,8 +308,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertEqual(client.calls, [(NodeStateCommand,
                                          dict(state_changes=(local_state,)))])
 
-    @validate_logging(assertHasMessage, LOG_CALCULATED_ACTIONS)
-    def test_convergence_done_update_local_state(self, logger):
+    def test_convergence_done_update_local_state(self):
         """
         An FSM doing convergence that gets a discovery result supplies an
         updated ``cluster_state`` to ``calculate_necessary_state_changes``.
@@ -327,7 +333,6 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         )
 
         fsm = build_convergence_loop_fsm(Clock(), deployer)
-        self.patch(fsm, "logger", logger)
         fsm.receive(
             _ClientStatusUpdate(
                 client=client,
@@ -378,47 +383,25 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             (deployer.calculate_inputs, action.called),
             ([(local_state, configuration, expected_local_state)], True))
 
-    def assert_full_logging(self, logger):
-        """
-        A convergence action is logged inside the finite state maching
-        logging.
-        """
-        transition = assertHasAction(self, logger, LOG_FSM_TRANSITION, True)
-        converge = assertHasAction(
-            self, logger, LOG_CONVERGE, True,
-            {u"cluster_state": self.cluster_state,
-             u"desired_configuration": self.configuration})
-        self.assertIn(converge, transition.children)
-        send = assertHasAction(self, logger, LOG_SEND_TO_CONTROL_SERVICE, True,
-                               {u"local_changes": [self.local_state]})
-        self.assertIn(send, converge.children)
-        calculate = assertHasMessage(
-            self, logger, LOG_CALCULATED_ACTIONS,
-            {u"calculated_actions": self.action})
-        self.assertIn(calculate, converge.children)
-
-    @validate_logging(assert_full_logging)
-    def test_convergence_done_delays_new_iteration(self, logger):
+    def test_convergence_done_delays_new_iteration(self):
         """
         An FSM completing the changes from one convergence iteration doesn't
         instantly start another iteration.
         """
-        self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
-        self.configuration = configuration = Deployment()
-        self.cluster_state = received_state = DeploymentState(nodes=[])
-        self.action = action = ControllableAction(result=succeed(None))
+        local_state = NodeState(hostname=u'192.0.2.123')
+        configuration = object()
+        received_state = DeploymentState(nodes=[])
+        action = ControllableAction(result=succeed(None))
         deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state)], [action]
         )
         client = self.successful_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
-        self.patch(loop, "logger", logger)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=received_state))
 
-        expected_cluster_state = DeploymentState(
-            nodes=[local_state])
+        expected_cluster_state = DeploymentState(nodes=[local_state])
 
         # Calculating actions happened and the result was run.
         self.assertTupleEqual(
