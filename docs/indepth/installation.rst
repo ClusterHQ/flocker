@@ -351,8 +351,8 @@ Your firewall will also need to allow access to the ports your applications are 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
 
-To enable the Flocker control service on Fedora / CentOS:
----------------------------------------------------------
+To enable the Flocker control service on Fedora / CentOS
+--------------------------------------------------------
 
 .. task:: enable_flocker_control fedora-20
    :prompt: [root@control-node]#
