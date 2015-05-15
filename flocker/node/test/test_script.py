@@ -628,15 +628,10 @@ class ContainerAgentOptionsTests(
     Tests for ``ContainerAgentOptions``.
     """
 
-
-class ZFSAgentOptionsTests(make_amp_agent_options_tests(DatasetAgentOptions)):
-    """
-    Tests for ``ZFSAgentOptions``.
-    """
-
-
-class ZFSAgentOptionsVolumeTests(make_volume_options_tests(
+class DatasetAgentVolumeTests(make_volume_options_tests(
         DatasetAgentOptions, [])):
     """
-    Tests for the volume configuration arguments of ``ZFSAgentOptions``.
+    Tests for the volume configuration arguments of ``DatasetAgentOptions``.
+
+    XXX These maybe should not be supported after FLOC-1791.
     """

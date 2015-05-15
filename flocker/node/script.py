@@ -268,7 +268,6 @@ def flocker_dataset_agent_main():
     # There should be only AgentScript, not ZFSAgentScript, and it should
     # do the right thing for the configured backend. FLOC-1791.
 
-    # TODO change tests which reference ZFSAgentOptions
     # TODO remove refences to flocker-zfs-agent
     options = DatasetAgentOptions()
 
