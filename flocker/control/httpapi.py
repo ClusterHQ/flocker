@@ -104,9 +104,12 @@ class ConfigurationAPIUserV1(object):
         self.cluster_state_service = cluster_state_service
 
     @app.route("/version", methods=['GET'])
-    @user_documentation("""
+    @user_documentation(
+        """
         Get the version of Flocker being run.
-        """, examples=[u"get version"])
+        """,
+        header=u"Get Flocker version"
+        examples=[u"get version"])
     @structured(
         inputSchema={},
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/versions'},
@@ -123,6 +126,7 @@ class ConfigurationAPIUserV1(object):
         """
         Get the cluster's dataset configuration.
         """,
+        header=u"Get the cluster's dataset configuration"
         examples=[u"get configured datasets"],
     )
     @structured(
@@ -147,6 +151,7 @@ class ConfigurationAPIUserV1(object):
         """
         Create a new dataset.
         """,
+        header=u"Create new dataset"
         examples=[
             u"create dataset",
             u"create dataset with dataset_id",
@@ -238,11 +243,10 @@ class ConfigurationAPIUserV1(object):
     @app.route("/configuration/datasets/<dataset_id>", methods=['DELETE'])
     @user_documentation(
         """
-        Delete an existing dataset.
-
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
         """,
+        header=u"Delete an existing dataset"
         examples=[
             u"delete dataset",
             u"delete dataset with unknown dataset id",
@@ -291,8 +295,6 @@ class ConfigurationAPIUserV1(object):
     @app.route("/configuration/datasets/<dataset_id>", methods=['POST'])
     @user_documentation(
         """
-        Update an existing dataset.
-
         This can be used to:
 
         * Move a dataset from one node to another by changing the
@@ -300,6 +302,7 @@ class ConfigurationAPIUserV1(object):
         * In the future update metadata.
 
         """,
+        header=u"Update an existing dataset"
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
@@ -362,13 +365,14 @@ class ConfigurationAPIUserV1(object):
         return saving
 
     @app.route("/state/datasets", methods=['GET'])
-    @user_documentation("""
-        Get current cluster datasets.
-
+    @user_documentation(
+        """
         The result reflects the control service's knowledge, which may be
         out of date or incomplete. E.g. a dataset agent has not connected
         or updated the control service yet.
-        """, examples=[u"get state datasets"])
+        """, 
+        header=u"Get current cluster datasets"
+        examples=[u"get state datasets"])
     @structured(
         inputSchema={},
         outputSchema={
@@ -396,10 +400,10 @@ class ConfigurationAPIUserV1(object):
     @app.route("/configuration/containers", methods=['GET'])
     @user_documentation(
         """
-        Get the cluster's container configuration.
         These containers may or may not actually exist on the
         cluster.
         """,
+        header=u"Get the cluster's container configuration"
         examples=[u"get configured containers"],
     )
     @structured(
@@ -422,12 +426,11 @@ class ConfigurationAPIUserV1(object):
     @app.route("/state/containers", methods=['GET'])
     @user_documentation(
         """
-        Get the cluster's actual containers.
-
         This reflects the control service's knowledge of the cluster,
         which may be out of date or incomplete, e.g. if a container agent
         has not connected or updated the control service yet.
         """,
+        header=u"Get the cluster's actual containers"
         examples=[u"get actual containers"],
     )
     @structured(
@@ -490,11 +493,10 @@ class ConfigurationAPIUserV1(object):
     @app.route("/configuration/containers", methods=['POST'])
     @user_documentation(
         """
-        Add a new container to the configuration.
-
         The container will be automatically started once it is created on
         the cluster.
         """,
+        header=u"Add a new container to the configuration"
         examples=[
             u"create container",
             u"create container with duplicate name",
@@ -665,12 +667,11 @@ class ConfigurationAPIUserV1(object):
     @app.route("/configuration/containers/<name>", methods=['POST'])
     @user_documentation(
         """
-        Update a named container's configuration.
-
         This will lead to the container being relocated to the specified host
         and restarted. This will also update the primary host of any attached
         datasets.
         """,
+        header=u"Update a named container's configuration"
         examples=[u"move container"],
     )
     @structured(
@@ -723,12 +724,11 @@ class ConfigurationAPIUserV1(object):
     @app.route("/configuration/containers/<name>", methods=['DELETE'])
     @user_documentation(
         """
-        Remove a container from the configuration.
-
         This will lead to the container being stopped and not being
         restarted again. Any datasets that were attached as volumes will
         continue to exist on the cluster.
         """,
+        header=u"Remove a container from the configuration"
         examples=[
             u"remove a container",
             u"remove a container with unknown name",
@@ -766,12 +766,11 @@ class ConfigurationAPIUserV1(object):
     @app.route("/state/nodes", methods=['GET'])
     @user_documentation(
         """
-        List known nodes in the cluster.
-
         Some nodes may not be listed if their agents are disconnected from
         the cluster. IP addresses may be private IP addresses that are not
         publicly routable.
         """,
+        header=u"List known nodes in the cluster"
         examples=[
             u"list known nodes",
         ]
@@ -794,6 +793,7 @@ class ConfigurationAPIUserV1(object):
 
         Please do not use it as it may be removed in the near future.
         """,
+        header=u"Private API endpoint used by flocker-deploy"
         examples=[],
     )
     @structured(
