@@ -212,6 +212,18 @@ class VagrantRunner(object):
         if self.variants:
             raise UsageError("Variants unsupported on vagrant.")
 
+    def provision(self, nodes):
+        """
+        Provision Vagrant nodes for acceptance tests.
+
+        Vagrant box is already provisioned, so this returns an empty
+        Effect.
+
+        :param nodes: The list of nodes to be provisioned
+        :return: an Effect to provision the cloud nodes
+        """
+        return sequence([])
+
     @inlineCallbacks
     def start_nodes(self, reactor, node_count):
         # Vagrantfile only supports running 2 nodes
@@ -282,10 +294,25 @@ class LibcloudRunner(object):
             )
         self.creator = creator
 
+    def provision(self, nodes):
+        """
+        Provision cloud nodes for acceptance tests.
+
+        Returns an Effect to provision each node in parallel.
+
+        :param nodes: The list of nodes to be provisioned
+        :return: an Effect to provision the cloud nodes
+        """
+        return parallel([
+            node.provision(
+                package_source=self.package_source, variants=self.variants)
+            for node in nodes
+        ])
+
     @inlineCallbacks
     def start_nodes(self, reactor, node_count):
         """
-        Provision cloud nodes for acceptance tests.
+        Start cloud nodes for acceptance tests.
 
         :return list: List of addresses of nodes to connect to, for acceptance
             tests.
@@ -505,12 +532,7 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
     """
     dispatcher = make_dispatcher(reactor)
     nodes = yield runner.start_nodes(reactor, node_count=2)
-    commands = parallel([
-        node.provision(package_source=runner.package_source,
-                       variants=runner.variants)
-        for node in nodes
-    ])
-    yield perform(dispatcher, commands)
+    yield perform(dispatcher, runner.provision(nodes))
     yield perform(
         dispatcher,
         sequence([
