@@ -115,7 +115,12 @@ Clone Flocker somewhere to use later:
    mkdir /flocker-source
    cd /flocker-source
    git clone git@github.com:ClusterHQ/flocker.git
-   cd flocker
+
+Change the Flocker code in the checkout to what needs to be tested:
+
+.. prompt:: bash [root@node1]$
+
+   cd /flocker-source/flocker
    git checkout BRANCH-NAME
 
 Replace the node services with the new code:
