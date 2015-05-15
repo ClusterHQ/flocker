@@ -25,7 +25,7 @@ from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
 )
 from ..test.blockdevicefactory import (
-    ConfigMissing, ProviderType, get_blockdeviceapi_args,
+    InvalidConfig, ProviderType, get_blockdeviceapi_args,
     get_blockdeviceapi_with_cleanup,
 )
 from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
@@ -65,7 +65,7 @@ class CinderBlockDeviceAPIInterfaceTests(
         """
         try:
             cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
-        except ConfigMissing as e:
+        except InvalidConfig as e:
             raise SkipTest(str(e))
         cinder_volumes = kwargs["cinder_volume_manager"]
         requested_volume = cinder_volumes.create(

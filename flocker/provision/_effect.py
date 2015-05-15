@@ -17,6 +17,13 @@ class SequenceFailed(Exception, object):
     :ivar error: The error result of the last run effect.
     """
 
+    def __str__(self):
+        # Exception has a custom __str__ that looks at arguments pass to it's
+        # init.  Since we don't pass any, it is useless. The following will
+        # duplicate the class name in the traceback, but is better than
+        # otherwise.
+        return repr(self)
+
 
 @attributes(["effects"], apply_with_init=False, apply_immutable=True)
 class Sequence(object):
