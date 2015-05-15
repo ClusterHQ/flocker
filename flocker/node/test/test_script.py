@@ -18,8 +18,6 @@ from twisted.application.service import Service
 from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 
-from ...control._config import ConfigurationError
-
 from ..script import (
     ZFSAgentScript, AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration)
@@ -154,7 +152,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
     def test_missing_configuration_file(self):
         """
-        ``ZFSAgentScript.main`` raises a ``ConfigurationError`` if the given
+        ``ZFSAgentScript.main`` raises an ``IOError`` if the given
         configuration file does not exist.
         """
         service = Service()
@@ -163,7 +161,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         test_reactor = MemoryCoreReactor()
 
         self.assertRaises(
-            ConfigurationError,
+            IOError,
             ZFSAgentScript().main, test_reactor, options, service,
         )
 
@@ -298,8 +296,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
     def test_missing_configuration_file(self):
         """
-        ``AgentServiceFactory.get_service`` raises a ``ConfigurationError`` if
-        the given configuration file does not exist.
+        ``AgentServiceFactory.get_service`` raises an ``IOError`` if the given
+        configuration file does not exist.
         """
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
@@ -309,7 +307,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         )
 
         self.assertRaises(
-            ConfigurationError,
+            IOError,
             service_factory.get_service, reactor, options,
         )
 

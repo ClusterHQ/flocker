@@ -31,14 +31,12 @@ from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 from ..control._model import ip_to_uuid
-from ..control import ConfigurationError
 
 
 __all__ = [
     "flocker_dataset_agent_main",
 ]
 
-# TODO - we don't think we need volume_options, nothing seems to use it
 
 def _get_external_ip(host, port):
     """
@@ -133,13 +131,8 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        try:
-            agent_config = options[u'agent-config']
-            configuration = yaml.safe_load(agent_config.getContent())
-        except IOError:
-            raise ConfigurationError(
-                "Configuration file does not exist at '{}'.".format(
-                    agent_config.path))
+        agent_config = options[u'agent-config']
+        configuration = yaml.safe_load(agent_config.getContent())
 
         validate_configuration(configuration=configuration)
 
@@ -244,13 +237,8 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        try:
-            agent_config = options[u'agent-config']
-            configuration = yaml.safe_load(agent_config.getContent())
-        except IOError:
-            raise ConfigurationError(
-                "Configuration file does not exist at '{}'.".format(
-                    agent_config.path))
+        agent_config = options[u'agent-config']
+        configuration = yaml.safe_load(agent_config.getContent())
 
         validate_configuration(configuration=configuration)
 
