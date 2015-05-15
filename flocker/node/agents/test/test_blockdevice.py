@@ -983,13 +983,13 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
             nodes={
                 Node(
                     uuid=uuid,
-                    hostname=node,
                     manifestations={dataset_id: manifestation},
                 )
             }
         )
         state = DeploymentState(nodes=[NodeState(
-            uuid=uuid, hostname=node, applications=[], manifestations={})])
+            uuid=uuid, hostname=node, applications=[], manifestations={},
+            devices={}, paths={})])
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
