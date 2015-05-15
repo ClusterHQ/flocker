@@ -233,9 +233,6 @@ def require_backend(supported, reason):
             cluster is available and which will be supplied with the
             ``cluster``keyword argument.
         """
-        def call_test_method_with_cluster(cluster, test_case, args, kwargs):
-            kwargs['cluster'] = cluster
-
         @wraps(test_method)
         def wrapper(test_case, *args, **kwargs):
             backend = get_volume_backend(test_case)
