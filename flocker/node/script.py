@@ -305,7 +305,7 @@ def zfs_deployer_factory(reactor, configuration):
     """
     volume_service = VolumeService(
         config_path=DEFAULT_CONFIG_PATH,
-        pool=configuration.get('zfs-pool', FLOCKER_POOL),
+        pool=configuration.get('pool', FLOCKER_POOL),
         reactor=reactor,
     )
 
@@ -317,7 +317,7 @@ def loopback_deployer_factory(reactor, configuration):
     TODO
     """
     api = LoopbackBlockDeviceAPI.from_path(
-        configuration.get('loopback-pool', '/var/lib/flocker/loopback'),
+        configuration.get('pool', '/var/lib/flocker/loopback'),
         # Make up a new value every time this script starts.  This will ensure
         # different instances of the script using this backend always appear to
         # be running on different nodes (as far as attachment is concerned).
