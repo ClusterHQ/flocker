@@ -22,9 +22,8 @@ from ...control._config import ConfigurationError
 
 from ..script import (
     ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
-    AgentServiceFactory, DatasetAgentOptions, agent_config_from_file,
-    _context_factory,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
+    _context_factory,
 )
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
