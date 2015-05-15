@@ -175,4 +175,4 @@ such as ``iTerm2`` for Mac OS X:
    The services will take a short amount of time to start.
    Then the new code should be running on the node.
 
-From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
+From then on, change the files in :file:`/flocker-source/flocker` (perhaps using ``git pull`` on each node) and run the above commands to replace the node services with the new code.
