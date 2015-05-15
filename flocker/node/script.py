@@ -267,10 +267,8 @@ def flocker_dataset_agent_main():
     # XXX This should use dynamic dispatch in the deployer_factory instead
     # of parsing the options here, FLOC-1791. One problem here is this needs
     # a valid dataset section of the config file.
-    # TODO submit debugging docs
     # TODO change tests which reference ZFSAgentOptions
     # TODO remove refences to flocker-zfs-agent
-    # TODO log time
     options = DatasetAgentOptions()
     if options['dataset']['backend'] == 'zfs':
         return FlockerScriptRunner(
