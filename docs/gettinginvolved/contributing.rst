@@ -135,7 +135,10 @@ Replace the node services with the new code:
    done
 
    # Move systemd unit files from the clone to where systemd will look for them
-   cp /flocker-source/flocker/admin/package-files/systemd/* /etc/systemd/system/multi-user.target.wants
+   # This uses /bin/cp instead of cp because sometimes cp is aliased to cp -i
+   # which requires confirmation
+   # This overwrites existing files (-f)
+   /bin/cp -f /flocker-source/flocker/admin/package-files/systemd/* /etc/systemd/system/multi-user.target.wants
 
    # Reload systemd, so that it can find new or changed units:
    systemctl daemon-reload
