@@ -262,7 +262,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 reactor=reactor,
                 deployer=deployer,
                 host=b"10.0.0.2",
-                port=1234,
+                port=4524,
                 context_factory=_context_factory(self.config.parent(),
                                                  b"10.0.0.2", 1234),
             ),
