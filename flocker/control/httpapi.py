@@ -108,7 +108,7 @@ class ConfigurationAPIUserV1(object):
         """
         Get the version of Flocker being run.
         """,
-        header=u"Get Flocker version"
+        header=u"Get Flocker version",
         examples=[u"get version"])
     @structured(
         inputSchema={},
