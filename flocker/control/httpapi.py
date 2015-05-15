@@ -370,7 +370,7 @@ class ConfigurationAPIUserV1(object):
         The result reflects the control service's knowledge, which may be
         out of date or incomplete. E.g. a dataset agent has not connected
         or updated the control service yet.
-        """, 
+        """,
         header=u"Get current cluster datasets",
         examples=[u"get state datasets"])
     @structured(
