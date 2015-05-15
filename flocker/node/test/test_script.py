@@ -15,18 +15,14 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
 
-from ...common.script import ICommandLineScript
 from ...volume.testtools import make_volume_options_tests
+from ...common.script import ICommandLineScript
 
 from ..script import (
     ZFSAgentScript, AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
 )
 from .._loop import AgentLoopService
-# TODO Make tests which use this
-# from .._deploy import P2PManifestationDeployer
-# TODO test for configurationerror on missing config file
-# from ...control import ConfigurationError
 from ...testtools import MemoryCoreReactor
 from .._deploy import P2PManifestationDeployer
 
