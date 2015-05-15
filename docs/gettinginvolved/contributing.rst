@@ -128,7 +128,7 @@ Replace the node services with the new code:
 
    # Stop systemd units before they are changed
    cd /flocker-source/flocker/admin/package-files/systemd/
-   for service in $(ls);
+   for service in $(ls *.service);
    do
       service_name=${service%.*}
       systemctl stop ${service_name}
@@ -145,7 +145,7 @@ Replace the node services with the new code:
 
    # Start systemd units
    cd /flocker-source/flocker/admin/package-files/systemd/
-   for service in $(ls);
+   for service in $(ls *.service);
    do
       service_name=${service%.*}
       if [ "$(systemctl is-enabled ${service_name})" == 'enabled' ]
@@ -153,5 +153,7 @@ Replace the node services with the new code:
         systemctl start ${service_name}
       fi
    done
+
+The services will take a short amount of time to start.
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
