@@ -128,7 +128,11 @@ Replace the node services with the new code:
    cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
 
    # Stop systemd units before they are changed
-   systemctl stop flocker-agent flocker-control flocker-container-agent
+   cd /flocker-source/flocker/admin/package-files/systemd/
+   for service in $(ls);
+   do
+      systemctl stop$ {service%.*}
+   done
 
    # Move systemd unit files from the clone to where systemd will look for them
    cp /flocker-source/flocker/admin/package-files/systemd/* /etc/systemd/system/multi-user.target.wants
@@ -138,9 +142,18 @@ Replace the node services with the new code:
    # Restart systemd units
    systemctl start flocker-agent flocker-container-agent
 
-   if [ $(systemctl is-enabled flocker-control) == 'enabled' ];
-   then
-      systemctl start flocker-control
-   fi
+   cd /flocker-source/flocker/admin/package-files/systemd/
+   for service in $(ls);
+   do
+      svc=
+      if [ $(systemctl is-enabled ${service}) == 'enabled' ]
+      # systemctl stop ${service%.*}
+      echo 'hello'
+   done
+
+   .. if [ $(systemctl is-enabled flocker-control) == 'enabled' ]
+   .. then
+   ..    systemctl start flocker-control
+   .. fi
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
