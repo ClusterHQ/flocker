@@ -133,10 +133,6 @@ def create_certificate_authority(keypair, dn, request, serial,
     expire = expire.strftime(b"%Y%m%d%H%M%SZ")
     req = request.original
     cert = crypto.X509()
-    name = cert.get_issuer()
-    name.commonName = dn["commonName"]
-    name.organizationalUnitName = dn["organizationalUnitName"]
-    cert.set_issuer(name)
     cert.set_subject(req.get_subject())
     cert.set_pubkey(req.get_pubkey())
     cert.set_notBefore(start)
@@ -156,6 +152,7 @@ def create_certificate_authority(keypair, dn, request, serial,
             "keyid:always", issuer=cert
         )
     ])
+    cert.set_issuer(cert.get_subject())
     cert.sign(keypair.original, digest)
     return Certificate(cert)
 
@@ -170,7 +167,7 @@ def sign_certificate_request(keypair, dn, request, serial,
 
     :param KeyPair keypair: The private/public key pair.
 
-    :param DistinguishedName dn: The ``DistinguishedName`` for the
+    :param X509Name dn: The distinguished name for the
         certificate.
 
     :param CertificateRequest request: The signing request object.
@@ -195,10 +192,7 @@ def sign_certificate_request(keypair, dn, request, serial,
     expire = expire.strftime(b"%Y%m%d%H%M%SZ")
     req = request.original
     cert = crypto.X509()
-    name = cert.get_issuer()
-    name.commonName = dn["commonName"]
-    name.organizationalUnitName = dn["organizationalUnitName"]
-    cert.set_issuer(name)
+    cert.set_issuer(dn)
     cert.set_subject(req.get_subject())
     cert.set_pubkey(req.get_pubkey())
     cert.set_notBefore(start)
@@ -375,7 +369,7 @@ class UserCredential(PRecord):
         serial = int(serial, 16)
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
-            authority.credential.certificate.getSubject(), request,
+            authority.credential.certificate.original.get_subject(), request,
             serial, EXPIRY_20_YEARS, b'sha256', start=begin,
             additional_extensions=[crypto.X509Extension(
                 b"extendedKeyUsage", False, b"clientAuth")])
@@ -445,7 +439,7 @@ class NodeCredential(PRecord):
         serial = int(serial, 16)
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
-            authority.credential.certificate.getSubject(), request,
+            authority.credential.certificate.original.get_subject(), request,
             serial, EXPIRY_20_YEARS, 'sha256', start=begin)
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
@@ -510,7 +504,7 @@ class ControlCredential(PRecord):
         serial = int(serial, 16)
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
-            authority.credential.certificate.getSubject(), request,
+            authority.credential.certificate.original.get_subject(), request,
             serial, EXPIRY_20_YEARS, 'sha256', start=begin,
             additional_extensions=[
                 crypto.X509Extension(
