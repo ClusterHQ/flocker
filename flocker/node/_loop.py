@@ -15,7 +15,7 @@ control service, and sends inputs to the ConvergenceLoop state machine.
 
 from zope.interface import implementer
 
-from eliot import ActionType, Field, writeFailure
+from eliot import ActionType, Field, writeFailure, MessageType
 from eliot.twisted import DeferredContext
 
 from characteristic import attributes
@@ -241,10 +241,35 @@ _FIELD_CONNECTION = Field(
     lambda client: repr(client),
     "The AMP connection to control service")
 
+_FIELD_LOCAL_CHANGES = Field(
+    u"local_changes", repr,
+    "Changes discovered in local state.")
+
 LOG_SEND_TO_CONTROL_SERVICE = ActionType(
     u"flocker:agent:send_to_control_service",
-    [_FIELD_CONNECTION], [],
+    [_FIELD_CONNECTION, _FIELD_LOCAL_CHANGES], [],
     "Send the local state to the control service.")
+
+_FIELD_CLUSTERSTATE = Field(
+    u"cluster_state", repr,
+    "The state of the cluster, according to control service.")
+
+_FIELD_CONFIGURATION = Field(
+    u"desired_configuration", repr,
+    "The configuration of the cluster according to the control service.")
+
+_FIELD_ACTIONS = Field(
+    u"calculated_actions", repr,
+    "The actions we decided to take to converge with configuration.")
+
+LOG_CONVERGE = ActionType(
+    u"flocker:agent:converge",
+    [_FIELD_CLUSTERSTATE, _FIELD_CONFIGURATION], [],
+    "The convergence action within the loop.")
+
+LOG_CALCULATED_ACTIONS = MessageType(
+    u"flocker:agent:converge:actions", [_FIELD_ACTIONS],
+    "The actions we're going to attempt.")
 
 
 class ConvergenceLoop(object):
@@ -281,7 +306,11 @@ class ConvergenceLoop(object):
     def output_CONVERGE(self, context):
         known_local_state = self.cluster_state.get_node(
             self.deployer.node_uuid, hostname=self.deployer.hostname)
-        d = DeferredContext(self.deployer.discover_state(known_local_state))
+
+        with LOG_CONVERGE(self.fsm.logger, cluster_state=self.cluster_state,
+                          desired_configuration=self.configuration).context():
+            d = DeferredContext(
+                self.deployer.discover_state(known_local_state))
 
         def got_local_state(state_changes):
             # Current cluster state is likely out of date as regards the local
@@ -291,13 +320,16 @@ class ConvergenceLoop(object):
                     self.cluster_state
                 )
             with LOG_SEND_TO_CONTROL_SERVICE(
-                    self.fsm.logger, connection=self.client) as context:
+                    self.fsm.logger, connection=self.client,
+                    local_changes=list(state_changes)) as context:
                 self.client.callRemote(NodeStateCommand,
                                        state_changes=state_changes,
                                        eliot_context=context)
             action = self.deployer.calculate_changes(
                 self.configuration, self.cluster_state
             )
+            LOG_CALCULATED_ACTIONS(calculated_actions=action).write(
+                self.fsm.logger)
             return run_state_change(action, self.deployer)
         d.addCallback(got_local_state)
         # If an error occurred we just want to log it and then try
@@ -317,6 +349,7 @@ class ConvergenceLoop(object):
                     1.0, self.fsm.receive, ConvergenceLoopInputs.ITERATION_DONE
                 )
         )
+        d.addActionFinish()
 
 
 def build_convergence_loop_fsm(reactor, deployer):

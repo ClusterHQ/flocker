@@ -9,7 +9,7 @@ from uuid import UUID
 
 from eliot import Logger, write_traceback, MessageType, Field, ActionType
 
-from pyrsistent import PRecord, PVector, PMap, PSet
+from pyrsistent import PRecord, PVector, PMap, PSet, pmap
 
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
@@ -32,7 +32,7 @@ class _ConfigurationEncoder(JSONEncoder):
             result[_CLASS_MARKER] = obj.__class__.__name__
             return result
         elif isinstance(obj, PMap):
-            return dict(obj)
+            return {_CLASS_MARKER: u"PMap", u"values": dict(obj).items()}
         elif isinstance(obj, (PSet, PVector, set)):
             return list(obj)
         elif isinstance(obj, FilePath):
@@ -67,6 +67,8 @@ def wire_decode(data):
         class_name = dictionary.get(_CLASS_MARKER, None)
         if class_name == u"FilePath":
             return FilePath(dictionary.get(u"path").encode("utf-8"))
+        elif class_name == u"PMap":
+            return pmap(dictionary[u"values"])
         elif class_name == u"UUID":
             return UUID(dictionary[u"hex"])
         elif class_name in classes:
