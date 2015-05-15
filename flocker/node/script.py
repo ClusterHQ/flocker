@@ -66,6 +66,8 @@ def validate_configuration(configuration):
 
     :raises: jsonschema.ValidationError if the configuration is invalid.
     """
+    # XXX Create a function which loads and validates, and also setting
+    # defaults. FLOC-1791.
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
