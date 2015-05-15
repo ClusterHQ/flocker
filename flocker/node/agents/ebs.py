@@ -15,6 +15,7 @@ from bitmath import Byte, GiB
 from pyrsistent import PRecord, field
 from zope.interface import implementer
 from boto import ec2
+from boto import config
 from boto.utils import get_instance_metadata
 from twisted.python.filepath import FilePath
 
@@ -27,6 +28,7 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
+BOTO_NUM_RETRIES = u'10'
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -41,6 +43,21 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     :return: An ``_EC2`` giving information about EC2 client connection
         and EC2 instance zone.
     """
+
+    # Set 2 retry knobs in Boto to BOTO_NUM_RETRIES:
+    # 1. `num_retries`:
+    # Request automatic exponential backoff and retry
+    # attempts by Boto if an EC2 API call fails with
+    # `RequestLimitExceeded` due to system load.
+    # 2. `metadata_service_num_attempts`:
+    # Request for retry attempts by Boto to
+    # retrieve data from Metadata Service used to retrieve
+    # credentials for IAM roles on EC2 instances.
+    if not config.has_section('Boto'):
+        config.add_section('Boto')
+    config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
+    config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
+
     return _EC2(zone=zone,
                 connection=ec2.connect_to_region(
                     region,
