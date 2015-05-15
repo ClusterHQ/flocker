@@ -274,10 +274,15 @@ def flocker_dataset_agent_main():
     loopback block device backend.  Later it will be capable of starting a
     dataset agent using any of the support dataset backends.
     """
-    return FlockerScriptRunner(
-        script=VolumeScript(ZFSAgentScript()),
-        options=DatasetAgentOptions()
-    ).main()
+    # XXX This should use dynamic dispatch in the deployer_factory instead
+    # of parsing the options here, FLOC-1791. One problem here is this needs
+    # a valid dataset section of the config file.
+    options = DatasetAgentOptions()
+    if options['dataset']['backend'] == 'zfs':
+        return FlockerScriptRunner(
+            script=VolumeScript(ZFSAgentScript()),
+            options=options,
+        ).main()
 
     # Later, construction of this object can be moved into
     # AgentServiceFactory.get_service where various options passed on
@@ -305,7 +310,7 @@ def flocker_dataset_agent_main():
     )
     return FlockerScriptRunner(
         script=agent_script,
-        options=DatasetAgentOptions()
+        options=options,
     ).main()
 
 
