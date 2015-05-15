@@ -219,9 +219,9 @@ def get_volume_backend(test_case):
     return backend
 
 
-def require_backend(supported, reason):
+def skip_backend(unsupported, reason):
     """
-    Decorator that skips a test if the volume backend doesn't support
+    Create decorator that skips a test if the volume backend doesn't support
     the operations required by the test.
 
     :param supported: List of supported volume backends for this test.
@@ -229,28 +229,24 @@ def require_backend(supported, reason):
     """
     def decorator(test_method):
         """
-        :param test_method: The test method that will be called when the
-            cluster is available and which will be supplied with the
-            ``cluster``keyword argument.
+        :param test_method: The test method that should be skipped.
         """
         @wraps(test_method)
         def wrapper(test_case, *args, **kwargs):
             backend = get_volume_backend(test_case)
 
-            if backend not in supported:
+            if backend in unsupported:
                 raise SkipTest(
-                    "Backend not supported: {backend} ({reason}). "
-                    "Supported backends: {supported}.".format(
+                    "Backend not supported: {backend} ({reason}).".format(
                         backend=backend,
                         reason=reason,
-                        supported=', '.join(supported),
                     )
                 )
             return test_method(test_case, *args, **kwargs)
         return wrapper
     return decorator
 
-require_moving_backend = require_backend(
+require_moving_backend = skip_backend(
     supported=[b"zfs", b"openstack", b"ebs"],
     reason="doesn't support moving")
 
