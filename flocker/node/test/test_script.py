@@ -205,7 +205,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 },
                 u"dataset": {
                     u"backend": u"zfs",
-                    u"zfs-pool": u"custom-pool",
+                    u"pool": u"custom-pool",
 
                 },
                 u"version": 1,
