@@ -15,6 +15,7 @@ from yaml import safe_dump
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
+from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 
 from eliot import Logger, start_action
@@ -203,12 +204,20 @@ def _clean_node(test_case, node):
         pass
 
 
+class VolumeBackend(Names):
+    loopback = NamedConstant()
+    zfs = NamedConstant()
+    aws = NamedConstant()
+    openstack = NamedConstant()
+
+
 def get_volume_backend(test_case):
     """
     Get the volume backend the acceptance tests are running as.
 
     :param test_case: The ``TestCase`` running this unit test.
 
+    :return VolumeBackend: The configured backend.
     :raise SkipTest: if the backend is specified.
     """
     backend = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
@@ -216,7 +225,7 @@ def get_volume_backend(test_case):
         raise SkipTest(
             "Set acceptance testing volume backend using the " +
             "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
-    return backend
+    return VolumeBackend.lookupByName(backend)
 
 
 def skip_backend(unsupported, reason):
@@ -247,7 +256,7 @@ def skip_backend(unsupported, reason):
     return decorator
 
 require_moving_backend = skip_backend(
-    supported=[b"zfs", b"openstack", b"ebs"],
+    unsupported={VolumeBackend.loopback},
     reason="doesn't support moving")
 
 
