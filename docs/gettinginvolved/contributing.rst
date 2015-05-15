@@ -122,6 +122,7 @@ Replace the node services with the new code:
 
 .. prompt:: bash [root@node1]$
 
+   # TODO instead of hardcoding systemd files, look at service files?
    # Move Python code from the Git clone to where they are used
    rm -rf /opt/flocker/lib/python2.7/site-packages/flocker/
    cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
@@ -135,6 +136,11 @@ Replace the node services with the new code:
    # Reload systemd, so that it can find new or changed units:
    systemctl daemon-reload
    # Restart systemd units
-   systemctl start flocker-agent flocker-control flocker-container-agent
+   systemctl start flocker-agent flocker-container-agent
+
+   if [ $(systemctl is-enabled flocker-control) == 'enabled' ];
+   then
+      systemctl start flocker-control
+   fi
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
