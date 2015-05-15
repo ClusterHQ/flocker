@@ -314,13 +314,6 @@ class LibcloudRunner(object):
             self.nodes.append(node)
             del node
 
-        commands = parallel([
-            node.provision(package_source=self.package_source,
-                           variants=self.variants)
-            for node in self.nodes
-        ])
-        yield perform(make_dispatcher(reactor), commands)
-
         returnValue(self.nodes)
 
     def stop_nodes(self, reactor):
@@ -510,15 +503,17 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
     :param trial_args: arguments to pass to trial
     :return int: exit code of Trial run
     """
+    dispatcher = make_dispatcher(reactor)
     nodes = yield runner.start_nodes(reactor, node_count=2)
+    commands = parallel([
+        node.provision(package_source=runner.package_source,
+                       variants=runner.variants)
+        for node in nodes
+    ])
+    yield perform(dispatcher, commands)
     yield perform(
-        make_dispatcher(reactor),
+        dispatcher,
         sequence([
-            sequence([
-                    node.provision(package_source=runner.package_source,
-                                   variants=runner.variants)
-                    for node in nodes
-                ]),
             configure_cluster(control_node=nodes[0], agent_nodes=nodes)
             ]))
     result = yield run_cluster_tests(
