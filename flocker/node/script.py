@@ -270,11 +270,11 @@ def flocker_dataset_agent_main():
     # TODO change tests which reference ZFSAgentOptions
     # TODO remove refences to flocker-zfs-agent
     options = DatasetAgentOptions()
-    if options['dataset']['backend'] == 'zfs':
-        return FlockerScriptRunner(
-            script=VolumeScript(ZFSAgentScript()),
-            options=options,
-        ).main()
+
+    return FlockerScriptRunner(
+        script=VolumeScript(ZFSAgentScript()),
+        options=options,
+    ).main()
 
     # Later, construction of this object can be moved into
     # AgentServiceFactory.get_service where various options passed on
