@@ -264,9 +264,10 @@ def flocker_dataset_agent_main():
     loopback block device backend.  Later it will be capable of starting a
     dataset agent using any of the support dataset backends.
     """
-    # XXX This should use dynamic dispatch in the deployer_factory instead
-    # of parsing the options here, FLOC-1791. One problem here is this needs
-    # a valid dataset section of the config file.
+    # XXX This should use dynamic dispatch in the deployer_factory
+    # There should be only AgentScript, not ZFSAgentScript, and it should
+    # do the right thing for the configured backend. FLOC-1791.
+
     # TODO change tests which reference ZFSAgentOptions
     # TODO remove refences to flocker-zfs-agent
     options = DatasetAgentOptions()
