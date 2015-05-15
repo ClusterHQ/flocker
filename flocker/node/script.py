@@ -119,7 +119,7 @@ def validate_configuration(configuration):
                                 "type": "string",
                                 "pattern": "zfs",
                             },
-                            "zfs-pool": {
+                            "pool": {
                                 "type": "string",
                             },
                         }
@@ -131,7 +131,7 @@ def validate_configuration(configuration):
                                 "type": "string",
                                 "pattern": "loopback",
                             },
-                            "loopback-pool": {
+                            "pool": {
                                 "type": "string",
                             },
                         }
