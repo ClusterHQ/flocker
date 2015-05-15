@@ -103,63 +103,68 @@ However, it takes some time for packages to be built, and for development purpos
 Those trade-offs include the ability to test new or changed Python dependencies.
 The following instructions replace just some of the code used by Flocker, but enough that can be useful.
 
-On each node, install ``git``:
+On each node, run the following commands.
+There are tools which allow you to run commands in multiple consoles simultaneously,
+such as ``iTerm2`` for Mac OS X:
 
-.. prompt:: bash [root@node1]$
+#. Install ``git``:
 
-   sudo yum install -y git
+   .. prompt:: bash [root@node1]$
 
-Clone Flocker somewhere to use later:
+      sudo yum install -y git
 
-.. prompt:: bash [root@node1]$
+#. Clone Flocker somewhere to use later:
 
-   mkdir /flocker-source
-   cd /flocker-source
-   git clone git@github.com:ClusterHQ/flocker.git
+   .. prompt:: bash [root@node1]$
 
-Change the Flocker code in the checkout to what needs to be tested:
+      mkdir /flocker-source
+      cd /flocker-source
+      git clone git@github.com:ClusterHQ/flocker.git
 
-.. prompt:: bash [root@node1]$
+#. Change the Flocker code in the checkout to what needs to be tested:
 
-   cd /flocker-source/flocker
-   git checkout BRANCH-NAME
+   .. prompt:: bash [root@node1]$
 
-Replace the node services with the new code:
+      cd /flocker-source/flocker
+      git checkout BRANCH-NAME
 
-.. prompt:: bash [root@node1]$
+#. Replace the node services with the new code:
 
-   # Move Python code from the Git clone to where they are used
-   rm -rf /opt/flocker/lib/python2.7/site-packages/flocker/
-   cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
+   .. prompt:: bash [root@node1]$
 
-   # Stop systemd units before they are changed
-   cd /flocker-source/flocker/admin/package-files/systemd/
-   for service in $(ls *.service);
-   do
-      service_name=${service%.*}
-      systemctl stop ${service_name}
-   done
+      # Move Python code from the Git clone to where they are used
+      rm -rf /opt/flocker/lib/python2.7/site-packages/flocker/
+      cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
 
-   # Move systemd unit files from the clone to where systemd will look for them
-   # This uses /bin/cp instead of cp because sometimes cp is aliased to cp -i
-   # which requires confirmation
-   # This overwrites existing files (-f)
-   /bin/cp -f /flocker-source/flocker/admin/package-files/systemd/* /etc/systemd/system/multi-user.target.wants
+      # Stop systemd units before they are changed
+      cd /flocker-source/flocker/admin/package-files/systemd/
+      for service in $(ls *.service);
+      do
+         service_name=${service%.*}
+         systemctl stop ${service_name}
+      done
 
-   # Reload systemd, so that it can find new or changed units:
-   systemctl daemon-reload
+      # Move systemd unit files from the clone to where systemd will look for them
+      # This uses /bin/cp instead of cp because sometimes cp is aliased to cp -i
+      # which requires confirmation
+      # This overwrites existing files (-f)
+      /bin/cp -f /flocker-source/flocker/admin/package-files/systemd/* /etc/systemd/system/multi-user.target.wants
 
-   # Start systemd units
-   cd /flocker-source/flocker/admin/package-files/systemd/
-   for service in $(ls *.service);
-   do
-      service_name=${service%.*}
-      if [ "$(systemctl is-enabled ${service_name})" == 'enabled' ]
-      then
-        systemctl start ${service_name}
-      fi
-   done
+      # Reload systemd, so that it can find new or changed units:
+      systemctl daemon-reload
 
-The services will take a short amount of time to start.
+      # Start systemd units
+      cd /flocker-source/flocker/admin/package-files/systemd/
+      for service in $(ls *.service);
+      do
+         service_name=${service%.*}
+         if [ "$(systemctl is-enabled ${service_name})" == 'enabled' ]
+         then
+           systemctl start ${service_name}
+         fi
+      done
+
+   The services will take a short amount of time to start.
+   Then the new code should be running on the node.
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
