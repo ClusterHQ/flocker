@@ -540,7 +540,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_invalid_configuration_type(self):
         """
-        A ``ConfigurationError`` is raised if the config file is not formatted
+        A ``ValidationError`` is raised if the config file is not formatted
         as a dictionary.
         """
         self.configuration = "INVALID"
@@ -549,7 +549,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_invalid_hostname(self):
         """
-        A ``ConfigurationError`` is raised if the given control service
+        A ``ValidationError`` is raised if the given control service
         hostname is not a valid hostname.
         """
         self.configuration['control-service']['hostname'] = u"-1"
@@ -558,7 +558,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_control_service(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not
+        A ``ValidationError`` is raised if the config file does not
         contain a ``u"control-service"`` key.
         """
         self.configuration.pop('control-service')
@@ -567,7 +567,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_hostname(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not
+        A ``ValidationError`` is raised if the config file does not
         contain a hostname in the ``u"control-service"`` key.
         """
         self.configuration['control-service'].pop('hostname')
@@ -576,7 +576,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_version(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not contain
+        A ``ValidationError`` is raised if the config file does not contain
         a ``u"version"`` key.
         """
         self.configuration.pop('version')
@@ -585,7 +585,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_high_version(self):
         """
-        A ``ConfigurationError`` is raised if the version specified is greater
+        A ``ValidationError`` is raised if the version specified is greater
         than 1.
         """
         self.configuration['version'] = 2
@@ -594,7 +594,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_low_version(self):
         """
-        A ``ConfigurationError`` is raised if the version specified is lower
+        A ``ValidationError`` is raised if the version specified is lower
         than 1.
         """
         self.configuration['version'] = 0
@@ -611,7 +611,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_dataset(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not contain
+        A ``ValidationError`` is raised if the config file does not contain
         a ``u"dataset"`` key.
         """
         self.configuration.pop('dataset')
