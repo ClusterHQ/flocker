@@ -128,6 +128,14 @@ such as ``iTerm2`` for Mac OS X:
       cd /flocker-source/flocker
       git checkout BRANCH-NAME
 
+#. Make a backup of the code and unit files which will be replaced:
+
+   .. prompt:: bash [root@node1]$
+
+      mkdir /backup
+      cp -r /opt/flocker/lib/python2.7/site-packages/flocker/ /backup
+      cp -r /etc/systemd/system/multi-user.target.wants/ /backup
+
 #. Replace the node services with the new code:
 
    .. prompt:: bash [root@node1]$
