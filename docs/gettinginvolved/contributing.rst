@@ -126,12 +126,15 @@ Replace the node services with the new code:
    rm -rf /opt/flocker/lib/python2.7/site-packages/flocker/
    cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
 
+   # Stop systemd units before they are changed
+   systemctl stop flocker-agent flocker-control flocker-container-agent
+
    # Move systemd unit files from the clone to where systemd will look for them
    cp /flocker-source/flocker/admin/package-files/systemd/* /etc/systemd/system/multi-user.target.wants
 
    # Reload systemd, so that it can find new or changed units:
    systemctl daemon-reload
    # Restart systemd units
-   systemctl restart flocker-agent flocker-control flocker-container-agent
+   systemctl start flocker-agent flocker-control flocker-container-agent
 
 From then on, change the files in :file:`/flocker-source/flocker` and run the above commands to replace the node services with the new code.
