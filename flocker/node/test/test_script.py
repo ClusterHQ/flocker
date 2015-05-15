@@ -30,12 +30,10 @@ from ...testtools import MemoryCoreReactor
 
 deployer = object()
 
-
 def deployer_factory_stub(**kw):
     if set(kw.keys()) != {"node_uuid", "hostname"}:
         raise TypeError("wrong arguments")
     return deployer
-
 
 class ZFSAgentScriptTests(SynchronousTestCase):
     """
