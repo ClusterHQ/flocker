@@ -126,7 +126,7 @@ class ConfigurationAPIUserV1(object):
         """
         Get the cluster's dataset configuration.
         """,
-        header=u"Get the cluster's dataset configuration"
+        header=u"Get the cluster's dataset configuration",
         examples=[u"get configured datasets"],
     )
     @structured(
@@ -151,7 +151,7 @@ class ConfigurationAPIUserV1(object):
         """
         Create a new dataset.
         """,
-        header=u"Create new dataset"
+        header=u"Create new dataset",
         examples=[
             u"create dataset",
             u"create dataset with dataset_id",
@@ -246,7 +246,7 @@ class ConfigurationAPIUserV1(object):
         Deletion is idempotent: deleting a dataset multiple times will
         result in the same response.
         """,
-        header=u"Delete an existing dataset"
+        header=u"Delete an existing dataset",
         examples=[
             u"delete dataset",
             u"delete dataset with unknown dataset id",
@@ -302,7 +302,7 @@ class ConfigurationAPIUserV1(object):
         * In the future update metadata.
 
         """,
-        header=u"Update an existing dataset"
+        header=u"Update an existing dataset",
         examples=[
             u"update dataset with primary",
             u"update dataset with unknown dataset id",
@@ -371,7 +371,7 @@ class ConfigurationAPIUserV1(object):
         out of date or incomplete. E.g. a dataset agent has not connected
         or updated the control service yet.
         """, 
-        header=u"Get current cluster datasets"
+        header=u"Get current cluster datasets",
         examples=[u"get state datasets"])
     @structured(
         inputSchema={},
@@ -403,7 +403,7 @@ class ConfigurationAPIUserV1(object):
         These containers may or may not actually exist on the
         cluster.
         """,
-        header=u"Get the cluster's container configuration"
+        header=u"Get the cluster's container configuration",
         examples=[u"get configured containers"],
     )
     @structured(
@@ -430,7 +430,7 @@ class ConfigurationAPIUserV1(object):
         which may be out of date or incomplete, e.g. if a container agent
         has not connected or updated the control service yet.
         """,
-        header=u"Get the cluster's actual containers"
+        header=u"Get the cluster's actual containers",
         examples=[u"get actual containers"],
     )
     @structured(
@@ -496,7 +496,7 @@ class ConfigurationAPIUserV1(object):
         The container will be automatically started once it is created on
         the cluster.
         """,
-        header=u"Add a new container to the configuration"
+        header=u"Add a new container to the configuration",
         examples=[
             u"create container",
             u"create container with duplicate name",
@@ -671,7 +671,7 @@ class ConfigurationAPIUserV1(object):
         and restarted. This will also update the primary host of any attached
         datasets.
         """,
-        header=u"Update a named container's configuration"
+        header=u"Update a named container's configuration",
         examples=[u"move container"],
     )
     @structured(
@@ -728,7 +728,7 @@ class ConfigurationAPIUserV1(object):
         restarted again. Any datasets that were attached as volumes will
         continue to exist on the cluster.
         """,
-        header=u"Remove a container from the configuration"
+        header=u"Remove a container from the configuration",
         examples=[
             u"remove a container",
             u"remove a container with unknown name",
@@ -770,7 +770,7 @@ class ConfigurationAPIUserV1(object):
         the cluster. IP addresses may be private IP addresses that are not
         publicly routable.
         """,
-        header=u"List known nodes in the cluster"
+        header=u"List known nodes in the cluster",
         examples=[
             u"list known nodes",
         ]
@@ -793,7 +793,7 @@ class ConfigurationAPIUserV1(object):
 
         Please do not use it as it may be removed in the near future.
         """,
-        header=u"Private API endpoint used by flocker-deploy"
+        header=u"Private API endpoint used by flocker-deploy",
         examples=[],
     )
     @structured(
