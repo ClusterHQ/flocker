@@ -35,7 +35,6 @@ from ..control import ConfigurationError
 
 
 __all__ = [
-    "flocker_zfs_agent_main",
     "flocker_dataset_agent_main",
 ]
 
@@ -178,13 +177,6 @@ class ZFSAgentScript(object):
         return main_for_service(reactor, loop)
 
 
-def flocker_zfs_agent_main():
-    return FlockerScriptRunner(
-        script=VolumeScript(ZFSAgentScript()),
-        options=ZFSAgentOptions()
-    ).main()
-
-
 @flocker_standard_options
 class _AgentOptions(Options):
     """
@@ -304,6 +296,11 @@ def flocker_dataset_agent_main():
     loopback block device backend.  Later it will be capable of starting a
     dataset agent using any of the support dataset backends.
     """
+    return FlockerScriptRunner(
+        script=VolumeScript(ZFSAgentScript()),
+        options=ZFSAgentOptions()
+    ).main()
+
     # Later, construction of this object can be moved into
     # AgentServiceFactory.get_service where various options passed on
     # the command line could alter what is created and how it is initialized.
