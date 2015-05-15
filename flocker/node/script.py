@@ -268,7 +268,6 @@ def flocker_dataset_agent_main():
     # of parsing the options here, FLOC-1791. One problem here is this needs
     # a valid dataset section of the config file.
     # TODO submit debugging docs
-    # TODO JP's comments - add TODOs for them
     # TODO change tests which reference ZFSAgentOptions
     # TODO remove refences to flocker-zfs-agent
     # TODO log time
