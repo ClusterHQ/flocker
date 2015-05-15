@@ -351,9 +351,72 @@ Your firewall will also need to allow access to the ports your applications are 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
 
+To enable the Flocker control service on Fedora / CentOS:
+---------------------------------------------------------
+
+.. task:: enable_flocker_control fedora-20
+   :prompt: [root@control-node]#
+
+The control service needs to accessible remotely.
+To configure FirewallD to allow access to the control service REST API, and for agent connections:
+
+.. task:: open_control_firewall fedora-20
+   :prompt: [root@control-node]#
+
+For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
+
+On AWS, an external firewall is used instead, which will need to be configured similarly.
+
+To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
+This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
+The optional ``port`` variable is the port on the control node to connect to:
+
+.. code-block:: yaml
+
+   "version": 1
+   "control-service":
+      "hostname": "${CONTROL_NODE}"
+      "port": 4524
+
+.. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
+To enable the Flocker control service on Ubuntu
+-----------------------------------------------
+
+.. task:: enable_flocker_control ubuntu-14.04
+   :prompt: [root@control-node]#
+
+The control service needs to accessible remotely.
+To configure ``UFW`` to allow access to the control service REST API, and for agent connections:
+
+.. task:: open_control_firewall ubuntu-14.04
+   :prompt: [root@control-node]#
+
+For more details on configuring the firewall, see Ubuntu's `UFW documentation <https://help.ubuntu.com/community/UFW>`_.
+
+On AWS, an external firewall is used instead, which will need to be configured similarly.
+
+To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
+This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
+The optional ``port`` variable is the port on the control node to connect to:
+
+.. code-block:: yaml
+
+   "version": 1
+   "control-service":
+      "hostname": "${CONTROL_NODE}"
+      "port": 4524
+
+.. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
+What to do next
+---------------
+
 You have now installed ``clusterhq-flocker-node`` and created a ZFS for it.
 You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
 
-Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
+Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>`, to ensure that your nodes are correctly configured.
 Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
 Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
