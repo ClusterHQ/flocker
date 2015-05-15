@@ -28,6 +28,13 @@ from .._deploy import P2PManifestationDeployer
 from ...testtools import MemoryCoreReactor
 
 
+deployer = object()
+
+def deployer_factory_stub(**kw):
+    if set(kw.keys()) != {"node_uuid", "hostname"}:
+        raise TypeError("wrong arguments")
+    return deployer
+
 class ZFSAgentScriptTests(SynchronousTestCase):
     """
     Tests for ``ZFSAgentScript``.
@@ -204,18 +211,11 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         configured with the destination given in the config file given by the
         options.
         """
-        deployer = object()
-
-        def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
-                raise TypeError("wrong arguments")
-            return deployer
-
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         service_factory = AgentServiceFactory(
-            deployer_factory=factory
+            deployer_factory=deployer_factory_stub,
         )
         self.assertEqual(
             AgentLoopService(
@@ -243,18 +243,11 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 u"version": 1,
             }))
 
-        deployer = object()
-
-        def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
-                raise TypeError("wrong arguments")
-            return deployer
-
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         service_factory = AgentServiceFactory(
-            deployer_factory=factory
+            deployer_factory=deployer_factory_stub,
         )
         self.assertEqual(
             AgentLoopService(
@@ -271,19 +264,11 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         ``AgentServiceFactory.get_service`` validates the configuration file.
         """
         self.config.setContent("INVALID")
-
-        deployer = object()
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-
-        def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
-                raise TypeError("wrong arguments")
-            return deployer
-
         service_factory = AgentServiceFactory(
-            deployer_factory=factory
+            deployer_factory=deployer_factory_stub,
         )
 
         self.assertRaises(
@@ -314,18 +299,11 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         ``AgentServiceFactory.get_service`` raises a ``ConfigurationError`` if
         the given configuration file does not exist.
         """
-        deployer = object()
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.non_existent_file.path])
-
-        def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
-                raise TypeError("wrong arguments")
-            return deployer
-
         service_factory = AgentServiceFactory(
-            deployer_factory=factory
+            deployer_factory=deployer_factory_stub,
         )
 
         self.assertRaises(
