@@ -31,34 +31,11 @@ from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 from ..control._model import ip_to_uuid
-from ..control import ConfigurationError
 
 
 __all__ = [
-    "flocker_zfs_agent_main",
     "flocker_dataset_agent_main",
 ]
-
-
-@flocker_standard_options
-@flocker_volume_options
-class ZFSAgentOptions(Options):
-    """
-    Command line options for ``flocker-zfs-agent`` cluster management process.
-    """
-    longdesc = """\
-    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
-    """
-
-    synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
-
-    optParameters = [
-        ["agent-config", "c", "/etc/flocker/agent.yml",
-         "The configuration file to set the control service."],
-    ]
-
-    def postOptions(self):
-        self['agent-config'] = FilePath(self['agent-config'])
 
 
 def _get_external_ip(host, port):
@@ -89,6 +66,8 @@ def validate_configuration(configuration):
 
     :raises: jsonschema.ValidationError if the configuration is invalid.
     """
+    # XXX Create a function which loads and validates, and also setting
+    # defaults. FLOC-1791.
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
@@ -154,13 +133,8 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        try:
-            agent_config = options[u'agent-config']
-            configuration = yaml.safe_load(agent_config.getContent())
-        except IOError:
-            raise ConfigurationError(
-                "Configuration file does not exist at '{}'.".format(
-                    agent_config.path))
+        agent_config = options[u'agent-config']
+        configuration = yaml.safe_load(agent_config.getContent())
 
         validate_configuration(configuration=configuration)
 
@@ -178,20 +152,11 @@ class ZFSAgentScript(object):
         return main_for_service(reactor, loop)
 
 
-def flocker_zfs_agent_main():
-    return FlockerScriptRunner(
-        script=VolumeScript(ZFSAgentScript()),
-        options=ZFSAgentOptions()
-    ).main()
-
-
 @flocker_standard_options
+@flocker_volume_options
 class _AgentOptions(Options):
     """
     Command line options for agents.
-
-    XXX: This is a hack. Better to have required options and to share the
-    common options with ``ZFSAgentOptions``.
     """
     # Use as basis for subclass' synopsis:
     synopsis = "Usage: {} [OPTIONS]"
@@ -274,13 +239,8 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        try:
-            agent_config = options[u'agent-config']
-            configuration = yaml.safe_load(agent_config.getContent())
-        except IOError:
-            raise ConfigurationError(
-                "Configuration file does not exist at '{}'.".format(
-                    agent_config.path))
+        agent_config = options[u'agent-config']
+        configuration = yaml.safe_load(agent_config.getContent())
 
         validate_configuration(configuration=configuration)
 
@@ -304,6 +264,17 @@ def flocker_dataset_agent_main():
     loopback block device backend.  Later it will be capable of starting a
     dataset agent using any of the support dataset backends.
     """
+    # XXX This should use dynamic dispatch in the deployer_factory
+    # There should be only AgentScript, not ZFSAgentScript, and it should
+    # do the right thing for the configured backend. FLOC-1791.
+
+    options = DatasetAgentOptions()
+
+    return FlockerScriptRunner(
+        script=VolumeScript(ZFSAgentScript()),
+        options=options,
+    ).main()
+
     # Later, construction of this object can be moved into
     # AgentServiceFactory.get_service where various options passed on
     # the command line could alter what is created and how it is initialized.
@@ -330,7 +301,7 @@ def flocker_dataset_agent_main():
     )
     return FlockerScriptRunner(
         script=agent_script,
-        options=DatasetAgentOptions()
+        options=options,
     ).main()
 
 
