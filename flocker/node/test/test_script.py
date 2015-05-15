@@ -6,6 +6,8 @@ Tests for :module:`flocker.node.script`.
 import netifaces
 import yaml
 
+from jsonschema.exceptions import ValidationError
+
 from zope.interface.verify import verifyObject
 
 from twisted.internet.defer import Deferred
@@ -16,13 +18,16 @@ from twisted.application.service import Service
 from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 
+from ...control._config import ConfigurationError
+
 from ..script import (
     ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, agent_config_from_file,
-    _context_factory)
+    _context_factory,
+    AgentServiceFactory, DatasetAgentOptions, validate_configuration,
+)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
-from ...control import ConfigurationError
 from ...testtools import MemoryCoreReactor
 from ...ca.testtools import get_credential_sets
 
@@ -47,9 +52,21 @@ def setup_config(test):
                 u"hostname": u"10.0.0.1",
                 u"port": 1234,
             },
+            u"dataset": {
+                u"backend": u"zfs",
+            },
             u"version": 1,
         }))
     ca_set.copy_to(scratch_directory, node=True)
+    test.non_existent_file = scratch_directory.child('missing-config.yml')
+
+deployer = object()
+
+
+def deployer_factory_stub(**kw):
+    if set(kw.keys()) != {"node_uuid", "hostname"}:
+        raise TypeError("wrong arguments")
+    return deployer
 
 
 class ZFSAgentScriptTests(SynchronousTestCase):
@@ -105,6 +122,72 @@ class ZFSAgentScriptTests(SynchronousTestCase):
                                                b"10.0.0.1", 1234)),
                           P2PManifestationDeployer, service, True))
 
+    def test_default_port(self):
+        """
+        ``ZFSAgentScript.main`` starts a convergence loop service with port
+        4524 if no port is specified.
+        """
+        self.config.setContent(
+            yaml.safe_dump({
+                u"control-service": {
+                    u"hostname": u"10.0.0.1",
+                },
+                u"dataset": {
+                    u"backend": u"zfs",
+                },
+                u"version": 1,
+            }))
+
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        test_reactor = MemoryCoreReactor()
+        ZFSAgentScript().main(test_reactor, options, service)
+        parent_service = service.parent
+        # P2PManifestationDeployer is difficult to compare automatically,
+        # so do so manually:
+        deployer = parent_service.deployer
+        parent_service.deployer = None
+        self.assertEqual((parent_service, deployer.__class__,
+                          deployer.volume_service,
+                          parent_service.running),
+                         (AgentLoopService(reactor=test_reactor,
+                                           deployer=None,
+                                           host=u"10.0.0.1",
+                                           port=4524),
+                          P2PManifestationDeployer, service, True))
+
+    def test_config_validated(self):
+        """
+        ``ZFSAgentScript.main`` validates the configuration file.
+        """
+        self.config.setContent("INVALID")
+
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        test_reactor = MemoryCoreReactor()
+
+        self.assertRaises(
+            ValidationError,
+            ZFSAgentScript().main, test_reactor, options, service,
+        )
+
+    def test_missing_configuration_file(self):
+        """
+        ``ZFSAgentScript.main`` raises a ``ConfigurationError`` if the given
+        configuration file does not exist.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+        test_reactor = MemoryCoreReactor()
+
+        self.assertRaises(
+            ConfigurationError,
+            ZFSAgentScript().main, test_reactor, options, service,
+        )
+
 
 def get_all_ips():
     """
@@ -133,22 +216,15 @@ class AgentServiceFactoryTests(SynchronousTestCase):
 
     def test_get_service(self):
         """
-        ``AgentServiceFactory.get_service`` creates ``AgentLoopService``
+        ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
         configured with the destination given in the config file given by the
         options.
         """
-        deployer = object()
-
-        def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
-                raise TypeError("wrong arguments")
-            return deployer
-
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         service_factory = AgentServiceFactory(
-            deployer_factory=factory
+            deployer_factory=deployer_factory_stub,
         )
         self.assertEqual(
             AgentLoopService(
@@ -156,10 +232,59 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 deployer=deployer,
                 host=b"10.0.0.1",
                 port=1234,
-                context_factory=_context_factory(self.config.parent(),
-                                                 b"10.0.0.1", 1234),
             ),
             service_factory.get_service(reactor, options)
+        )
+
+    def test_default_port(self):
+        """
+        ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
+        configured with port 4524 if no port is specified.
+        """
+        self.config.setContent(
+            yaml.safe_dump({
+                u"control-service": {
+                    u"hostname": u"10.0.0.2",
+                },
+                u"dataset": {
+                    u"backend": u"zfs",
+                },
+                u"version": 1,
+            }))
+
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        service_factory = AgentServiceFactory(
+            deployer_factory=deployer_factory_stub,
+        )
+        self.assertEqual(
+            AgentLoopService(
+                reactor=reactor,
+                deployer=deployer,
+                host=b"10.0.0.2",
+                port=1234,
+                context_factory=_context_factory(self.config.parent(),
+                                                 b"10.0.0.2", 1234),
+            ),
+            service_factory.get_service(reactor, options)
+        )
+
+    def test_config_validated(self):
+        """
+        ``AgentServiceFactory.get_service`` validates the configuration file.
+        """
+        self.config.setContent("INVALID")
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        service_factory = AgentServiceFactory(
+            deployer_factory=deployer_factory_stub,
+        )
+
+        self.assertRaises(
+            ValidationError,
+            service_factory.get_service, reactor, options,
         )
 
     def test_deployer_factory_called_with_ip(self):
@@ -179,6 +304,23 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         agent = AgentServiceFactory(deployer_factory=deployer_factory)
         agent.get_service(reactor, options)
         self.assertIn(spied[0], get_all_ips())
+
+    def test_missing_configuration_file(self):
+        """
+        ``AgentServiceFactory.get_service`` raises a ``ConfigurationError`` if
+        the given configuration file does not exist.
+        """
+        reactor = MemoryCoreReactor()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.non_existent_file.path])
+        service_factory = AgentServiceFactory(
+            deployer_factory=deployer_factory_stub,
+        )
+
+        self.assertRaises(
+            ConfigurationError,
+            service_factory.get_service, reactor, options,
+        )
 
 
 class AgentScriptTests(SynchronousTestCase):
@@ -316,180 +458,170 @@ def make_amp_agent_options_tests(options_type):
     return Tests
 
 
-class AgentConfigFromFileTests(SynchronousTestCase):
+class ValidateConfigurationTests(SynchronousTestCase):
     """
-    Tests for :func:`agent_config_from_file`.
+    Tests for :func:`validate_configuration`.
     """
 
     def setUp(self):
-        self.scratch_directory = FilePath(self.mktemp())
-        self.scratch_directory.makedirs()
-        self.config = self.scratch_directory.child('config.yml')
+        # This is a sample working configuration which tests can modify.
+        self.configuration = {
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+                u"port": 1234,
+            },
+            u"dataset": {
+                u"backend": u"zfs",
+                u"pool": u"custom-pool",
+            },
+            "version": 1,
+        }
 
-    def assertErrorForConfig(self, exception, message, configuration=None):
+    def test_valid_zfs_configuration(self):
         """
-        Assert that given a particular configuration,
-        :func:`agent_config_from_file` will fail with an expected exception
-        and message.
-
-        :param Exception exception: The exception type which
-            :func:`agent_config_from_file` should fail with.
-        :param dict configuration: The contents of the agent configuration
-            file. If ``None`` then the file will not exist.
-        :param bytes message: The expected exception message.
+        No exception is raised when validating a valid configuration with a
+        ZFS backend.
         """
-        if configuration is not None:
-            self.config.setContent(yaml.safe_dump(configuration))
+        # Nothing is raised
+        validate_configuration(self.configuration)
 
-        exception = self.assertRaises(
-            exception,
-            agent_config_from_file, self.config)
-
-        self.assertEqual(exception.message, message)
-
-    def test_error_on_file_does_not_exist(self):
+    def test_valid_loopback_configuration(self):
         """
-        An error is raised if the config file does not exist.
+        No exception is raised when validating a valid configuration with a
+        loopback backend.
         """
-        self.assertErrorForConfig(
-            exception=ConfigurationError,
-            message="Configuration file does not exist at '{}'.".format(
-                self.config.path),
-        )
+        self.configuration['dataset'] = {
+            u"backend": u"loopback",
+            u"pool": u"custom-pool",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
 
-    def test_error_on_invalid_config(self):
+    def test_port_optional(self):
         """
-        A ``ConfigurationError`` is raised if the config file is not formatted
+        The control service agent's port is optional.
+        """
+        self.configuration['control-service'].pop('port')
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_zfs_pool_optional(self):
+        """
+        No exception is raised when validating a ZFS backend is specified but
+        a ZFS pool is not.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"zfs",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_loopback_pool_optional(self):
+        """
+        No exception is raised when validating a loopback backend is specified
+        but a loopback pool is not.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"loopback",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_error_on_invalid_configuration_type(self):
+        """
+        A ``ValidationError`` is raised if the config file is not formatted
         as a dictionary.
         """
-        self.assertErrorForConfig(
-            configuration="INVALID",
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'INVALID' is not of type 'object'."),
-        )
+        self.configuration = "INVALID"
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_invalid_hostname(self):
         """
-        A ``ConfigurationError`` is raised if the given control service
+        A ``ValidationError`` is raised if the given control service
         hostname is not a valid hostname.
         """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"-1",
-                u"port": 1234,
-            },
-            "version": 1,
-        }
-
-        self.assertErrorForConfig(
-            configuration=configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: '-1' is not a 'hostname'."),
-        )
+        self.configuration['control-service']['hostname'] = u"-1"
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_control_service(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not
+        A ``ValidationError`` is raised if the config file does not
         contain a ``u"control-service"`` key.
         """
-        self.assertErrorForConfig(
-            configuration={"version": 1},
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'control-service' is a required property."),
-        )
+        self.configuration.pop('control-service')
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_hostname(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not
+        A ``ValidationError`` is raised if the config file does not
         contain a hostname in the ``u"control-service"`` key.
         """
-        configuration = {
-            u"control-service": {
-                u"port": 1234,
-            },
-            "version": 1,
-        }
-
-        self.assertErrorForConfig(
-            configuration=configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'hostname' is a required property."),
-        )
+        self.configuration['control-service'].pop('hostname')
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_missing_version(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not contain
+        A ``ValidationError`` is raised if the config file does not contain
         a ``u"version"`` key.
         """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"10.0.0.1",
-                u"port": 1234,
-            },
-        }
+        self.configuration.pop('version')
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
-        self.assertErrorForConfig(
-            configuration=configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "'version' is a required property."),
-        )
+    def test_error_on_high_version(self):
+        """
+        A ``ValidationError`` is raised if the version specified is greater
+        than 1.
+        """
+        self.configuration['version'] = 2
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
-    def test_error_on_incorrect_version(self):
+    def test_error_on_low_version(self):
         """
-        A ``ConfigurationError`` is raised if the version specified is not 1.
+        A ``ValidationError`` is raised if the version specified is lower
+        than 1.
         """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"10.0.0.1",
-                u"port": 1234,
-            },
-            "version": 2,
-        }
-        self.assertErrorForConfig(
-            configuration=configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error. "
-                     "Incorrect version specified."),
-        )
-
-    def test_default_port(self):
-        """
-        If the config file does not contain a port in the
-        ``u"control-service"`` key, the default is 4524.
-        """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"10.0.0.1",
-            },
-            "version": 1,
-        }
-
-        self.config.setContent(yaml.safe_dump(configuration))
-        parsed = agent_config_from_file(path=self.config)
-        self.assertEqual(parsed['control-service']['port'], 4524)
+        self.configuration['version'] = 0
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
     def test_error_on_invalid_port(self):
         """
         The control service agent's port must be an integer.
         """
-        configuration = {
-            u"control-service": {
-                u"hostname": u"10.0.0.1",
-                u"port": 1.1,
-            },
-            "version": 1,
-        }
+        self.configuration['control-service']['port'] = 1.1
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
-        self.assertErrorForConfig(
-            configuration=configuration,
-            exception=ConfigurationError,
-            message=("Configuration has an error: "
-                     "1.1 is not of type 'integer'."),
-        )
+    def test_error_on_missing_dataset(self):
+        """
+        A ``ValidationError`` is raised if the config file does not contain
+        a ``u"dataset"`` key.
+        """
+        self.configuration.pop('dataset')
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
+
+    def test_error_on_missing_dataset_backend(self):
+        """
+        The dataset key must contain a backend type.
+        """
+        self.configuration['dataset'] = {}
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
+
+    def test_error_on_invalid_dataset_type(self):
+        """
+        The dataset key must contain a valid dataset type.
+        """
+        self.configuration['dataset'] = {"backend": "invalid"}
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
 
 
 class DatasetAgentOptionsTests(
