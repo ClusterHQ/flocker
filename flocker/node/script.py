@@ -20,10 +20,11 @@ from zope.interface import implementer
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
-from ..volume.service import (
-    ICommandLineVolumeScript, VolumeScript)
-
 from ..volume.script import flocker_volume_options
+from ..volume.service import (
+    DEFAULT_CONFIG_PATH, VolumeService, FLOCKER_POOL, ICommandLineVolumeScript,
+    VolumeScript
+)
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
@@ -35,7 +36,6 @@ from ..control import ConfigurationError
 
 
 __all__ = [
-    "flocker_zfs_agent_main",
     "flocker_dataset_agent_main",
 ]
 
@@ -51,7 +51,6 @@ class ZFSAgentOptions(Options):
     """
 
     synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
-
     optParameters = [
         ["agent-config", "c", "/etc/flocker/agent.yml",
          "The configuration file to set the control service."],
@@ -290,10 +289,65 @@ class AgentServiceFactory(PRecord):
         return AgentLoopService(
             reactor=reactor,
             # Temporary hack, to be fixed in FLOC-1783 probably:
-            deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
-                                           hostname=ip),
+            deployer=self.deployer_factory(
+                node_uuid=ip_to_uuid(ip),
+                dataset_configuration=configuration['dataset'],
+                reactor=reactor,
+                host=ip,
+            ),
             host=host, port=port,
         )
+
+
+def zfs_deployer_factory(reactor, configuration):
+    """
+    TODO
+    """
+    volume_service = VolumeService(
+        config_path=DEFAULT_CONFIG_PATH,
+        pool=configuration.get('zfs-pool', FLOCKER_POOL),
+        reactor=reactor,
+    )
+
+    return partial(P2PManifestationDeployer, volume_service=volume_service)
+
+
+def loopback_deployer_factory(reactor, configuration):
+    """
+    TODO
+    """
+    api = LoopbackBlockDeviceAPI.from_path(
+        configuration.get('loopback-pool', '/var/lib/flocker/loopback'),
+        # Make up a new value every time this script starts.  This will ensure
+        # different instances of the script using this backend always appear to
+        # be running on different nodes (as far as attachment is concerned).
+        # This is a good thing since it makes it easy to simulate a multi-node
+        # cluster by running multiple instances of the script.  Similar effect
+        # could be achieved by making this id a command line argument but that
+        # would be harder to implement and harder to use.
+        compute_instance_id=bytes(getpid()),
+    )
+
+    return partial(BlockDeviceDeployer, block_device_api=api)
+
+
+def dataset_deployer_from_configuration(node_uuid, dataset_configuration,
+                                        reactor, host):
+    """
+    TODO
+    """
+    # TODO do what with node uuid?
+    # TODO do what with compute_instance_id?
+
+    deployer_factories = {
+        "zfs": zfs_deployer_factory,
+        "loopback": loopback_deployer_factory,
+    }
+
+    backend = dataset_configuration['backend']
+    deployer_factory = deployer_factories[backend]
+    deployer_partial = deployer_factory(reactor, dataset_configuration)
+    return deployer_partial(hostname=host)
 
 
 def flocker_dataset_agent_main():
@@ -304,26 +358,8 @@ def flocker_dataset_agent_main():
     loopback block device backend.  Later it will be capable of starting a
     dataset agent using any of the support dataset backends.
     """
-    # Later, construction of this object can be moved into
-    # AgentServiceFactory.get_service where various options passed on
-    # the command line could alter what is created and how it is initialized.
-    api = LoopbackBlockDeviceAPI.from_path(
-        b"/var/lib/flocker/loopback",
-        # Make up a new value every time this script starts.  This will ensure
-        # different instances of the script using this backend always appear to
-        # be running on different nodes (as far as attachment is concerned).
-        # This is a good thing since it makes it easy to simulate a multi-node
-        # cluster by running multiple instances of the script.  Similar effect
-        # could be achieved by making this id a command line argument but that
-        # would be harder to implement and harder to use.
-        compute_instance_id=bytes(getpid()),
-    )
-    deployer_factory = partial(
-        BlockDeviceDeployer,
-        block_device_api=api,
-    )
     service_factory = AgentServiceFactory(
-        deployer_factory=deployer_factory
+        deployer_factory=dataset_deployer_from_configuration,
     ).get_service
     agent_script = AgentScript(
         service_factory=service_factory,

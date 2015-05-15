@@ -15,23 +15,27 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
 
-from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 
 from ...control._config import ConfigurationError
 
 from ..script import (
+    AgentScript, ContainerAgentOptions,
     ZFSAgentOptions, ZFSAgentScript, AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration)
 from .._loop import AgentLoopService
-from .._deploy import P2PManifestationDeployer
+# TODO Make tests which use this
+# from .._deploy import P2PManifestationDeployer
+# TODO test for configurationerror on missing config file
+# from ...control import ConfigurationError
 from ...testtools import MemoryCoreReactor
+from .._deploy import P2PManifestationDeployer
 
 
 deployer = object()
 
 def deployer_factory_stub(**kw):
-    if set(kw.keys()) != {"node_uuid", "hostname"}:
+    if set(kw.keys()) != {"dataset_configuration", "reactor", "node_uuid", "host"}:
         raise TypeError("wrong arguments")
     return deployer
 
@@ -201,6 +205,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 },
                 u"dataset": {
                     u"backend": u"zfs",
+                    u"zfs-pool": u"custom-pool",
+
                 },
                 u"version": 1,
             }))
@@ -283,8 +289,9 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         """
         spied = []
 
-        def deployer_factory(node_uuid, hostname):
-            spied.append(hostname)
+        def deployer_factory(dataset_configuration, reactor, node_uuid,
+                             host):
+            spied.append(host)
             return object()
 
         reactor = MemoryCoreReactor()
@@ -626,17 +633,4 @@ class ContainerAgentOptionsTests(
 ):
     """
     Tests for ``ContainerAgentOptions``.
-    """
-
-
-class ZFSAgentOptionsTests(make_amp_agent_options_tests(ZFSAgentOptions)):
-    """
-    Tests for ``ZFSAgentOptions``.
-    """
-
-
-class ZFSAgentOptionsVolumeTests(make_volume_options_tests(
-        ZFSAgentOptions, [])):
-    """
-    Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """

@@ -1109,24 +1109,6 @@ def _device_for_path(expected_backing_file):
             return device_file
 
 
-def get_blockdevice_volume(api, blockdevice_id):
-    """
-    Find a ``BlockDeviceVolume`` matching the given identifier.
-
-    :param unicode blockdevice_id: The backend identifier of the volume to
-        find.
-
-    :raise UnknownVolume: If no volume with a matching identifier can be
-        found.
-
-    :return: The ``BlockDeviceVolume`` that matches.
-    """
-    for volume in api.list_volumes():
-        if volume.blockdevice_id == blockdevice_id:
-            return volume
-    raise UnknownVolume(blockdevice_id)
-
-
 @implementer(IBlockDeviceAPI)
 class LoopbackBlockDeviceAPI(object):
     """
@@ -1211,11 +1193,17 @@ class LoopbackBlockDeviceAPI(object):
         """
         Destroy the storage for the given unattached volume.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
+        volume = self._get(blockdevice_id)
         volume_path = self._unattached_directory.child(
             volume.blockdevice_id.encode("ascii")
         )
         volume_path.remove()
+
+    def _get(self, blockdevice_id):
+        for volume in self.list_volumes():
+            if volume.blockdevice_id == blockdevice_id:
+                return volume
+        raise UnknownVolume(blockdevice_id)
 
     def attach_volume(self, blockdevice_id, attach_to):
         """
@@ -1232,7 +1220,7 @@ class LoopbackBlockDeviceAPI(object):
         See ``IBlockDeviceAPI.attach_volume`` for parameter and return type
         documentation.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
+        volume = self._get(blockdevice_id)
         if volume.attached_to is None:
             old_path = self._unattached_directory.child(blockdevice_id)
             host_directory = self._attached_directory.child(
@@ -1257,7 +1245,7 @@ class LoopbackBlockDeviceAPI(object):
         Move an existing file from a per-host directory into the ``unattached``
         directory and release the loopback device backed by that file.
         """
-        volume = get_blockdevice_volume(self, blockdevice_id)
+        volume = self._get(blockdevice_id)
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
@@ -1330,7 +1318,7 @@ class LoopbackBlockDeviceAPI(object):
         return volumes
 
     def get_device_path(self, blockdevice_id):
-        volume = get_blockdevice_volume(self, blockdevice_id)
+        volume = self._get(blockdevice_id)
         if volume.attached_to is None:
             raise UnattachedVolume(blockdevice_id)
 
