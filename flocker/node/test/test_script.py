@@ -483,7 +483,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
             },
             u"dataset": {
                 u"backend": u"zfs",
-                u"zfs-pool": u"custom-pool",
+                u"pool": u"custom-pool",
             },
             "version": 1,
         }
@@ -503,7 +503,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
         """
         self.configuration['dataset'] = {
             u"backend": u"loopback",
-            u"loopback-pool": u"custom-pool",
+            u"pool": u"custom-pool",
         }
         # Nothing is raised
         validate_configuration(self.configuration)
