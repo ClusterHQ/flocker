@@ -264,7 +264,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 host=b"10.0.0.2",
                 port=4524,
                 context_factory=_context_factory(self.config.parent(),
-                                                 b"10.0.0.2", 1234),
+                                                 b"10.0.0.2", 4524),
             ),
             service_factory.get_service(reactor, options)
         )
