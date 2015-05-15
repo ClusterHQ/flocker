@@ -252,7 +252,7 @@ def task_enable_flocker_agent(distribution, control_node):
                 },
                 "dataset": {
                     "backend": "zfs",
-                    "zfs-pool": "flocker",
+                    "pool": "flocker",
                 },
             },
         ),

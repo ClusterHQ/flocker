@@ -41,7 +41,7 @@ The optional ``port`` variable is the port on the control node to connect to:
       "port": 4524
    "dataset":
       "backend": "zfs"
-      "zfs-pool": "flocker"
+      "pool": "flocker"
 
 .. TODO also do this for Ubuntu
 .. TODO Remove this before doing a release (JIRA-XXX)
@@ -52,7 +52,7 @@ or, if you would like to use a loopback backend, the dataset key should be simil
 
    "dataset":
       "backend": "loopback"
-      "loopback-pool": "/var/lib/flocker/loopback"
+      "pool": "/var/lib/flocker/loopback"
 
 .. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
