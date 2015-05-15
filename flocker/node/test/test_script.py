@@ -34,10 +34,12 @@ from .._deploy import P2PManifestationDeployer
 
 deployer = object()
 
+
 def deployer_factory_stub(**kw):
     if set(kw.keys()) != {"dataset_configuration", "reactor", "node_uuid", "host"}:
         raise TypeError("wrong arguments")
     return deployer
+
 
 class ZFSAgentScriptTests(SynchronousTestCase):
     """
