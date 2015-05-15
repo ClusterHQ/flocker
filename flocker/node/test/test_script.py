@@ -32,6 +32,13 @@ from ...testtools import MemoryCoreReactor
 from .._deploy import P2PManifestationDeployer
 
 
+deployer = object()
+
+def deployer_factory_stub(**kw):
+    if set(kw.keys()) != {"dataset_configuration", "reactor", "node_uuid", "host"}:
+        raise TypeError("wrong arguments")
+    return deployer
+
 class ZFSAgentScriptTests(SynchronousTestCase):
     """
     Tests for ``ZFSAgentScript``.
@@ -210,19 +217,11 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         configured with the destination given in the config file given by the
         options.
         """
-        deployer = object()
-
-        def factory(**kw):
-            expected = {
-                "dataset_configuration", "reactor", "node_uuid", "hostname"}
-            self.assertEqual(set(kw.keys()), expected)
-            return deployer
-
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         service_factory = AgentServiceFactory(
-            deployer_factory=factory
+            deployer_factory=deployer_factory_stub,
         )
         self.assertEqual(
             AgentLoopService(
@@ -250,18 +249,11 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 u"version": 1,
             }))
 
-        deployer = object()
-
-        def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
-                raise TypeError("wrong arguments")
-            return deployer
-
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         service_factory = AgentServiceFactory(
-            deployer_factory=factory
+            deployer_factory=deployer_factory_stub,
         )
         self.assertEqual(
             AgentLoopService(
@@ -278,19 +270,11 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         ``AgentServiceFactory.get_service`` validates the configuration file.
         """
         self.config.setContent("INVALID")
-
-        deployer = object()
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-
-        def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
-                raise TypeError("wrong arguments")
-            return deployer
-
         service_factory = AgentServiceFactory(
-            deployer_factory=factory
+            deployer_factory=deployer_factory_stub,
         )
 
         self.assertRaises(
@@ -306,8 +290,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         spied = []
 
         def deployer_factory(dataset_configuration, reactor, node_uuid,
-                             hostname):
-            spied.append(hostname)
+                             host):
+            spied.append(host)
             return object()
 
         reactor = MemoryCoreReactor()
@@ -322,18 +306,11 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         ``AgentServiceFactory.get_service`` raises a ``ConfigurationError`` if
         the given configuration file does not exist.
         """
-        deployer = object()
         reactor = MemoryCoreReactor()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.non_existent_file.path])
-
-        def factory(**kw):
-            if set(kw.keys()) != {"node_uuid", "hostname"}:
-                raise TypeError("wrong arguments")
-            return deployer
-
         service_factory = AgentServiceFactory(
-            deployer_factory=factory
+            deployer_factory=deployer_factory_stub,
         )
 
         self.assertRaises(
@@ -491,7 +468,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
             },
             u"dataset": {
                 u"backend": u"zfs",
-                u"zfs-pool": u"custom-pool",
+                u"pool": u"custom-pool",
             },
             "version": 1,
         }
@@ -507,11 +484,11 @@ class ValidateConfigurationTests(SynchronousTestCase):
     def test_valid_loopback_configuration(self):
         """
         No exception is raised when validating a valid configuration with a
-        ZFS backend.
+        loopback backend.
         """
         self.configuration['dataset'] = {
             u"backend": u"loopback",
-            u"loopback-pool": u"custom-pool",
+            u"pool": u"custom-pool",
         }
         # Nothing is raised
         validate_configuration(self.configuration)
@@ -548,7 +525,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_invalid_configuration_type(self):
         """
-        A ``ConfigurationError`` is raised if the config file is not formatted
+        A ``ValidationError`` is raised if the config file is not formatted
         as a dictionary.
         """
         self.configuration = "INVALID"
@@ -557,7 +534,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_invalid_hostname(self):
         """
-        A ``ConfigurationError`` is raised if the given control service
+        A ``ValidationError`` is raised if the given control service
         hostname is not a valid hostname.
         """
         self.configuration['control-service']['hostname'] = u"-1"
@@ -566,7 +543,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_control_service(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not
+        A ``ValidationError`` is raised if the config file does not
         contain a ``u"control-service"`` key.
         """
         self.configuration.pop('control-service')
@@ -575,7 +552,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_hostname(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not
+        A ``ValidationError`` is raised if the config file does not
         contain a hostname in the ``u"control-service"`` key.
         """
         self.configuration['control-service'].pop('hostname')
@@ -584,7 +561,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_version(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not contain
+        A ``ValidationError`` is raised if the config file does not contain
         a ``u"version"`` key.
         """
         self.configuration.pop('version')
@@ -593,7 +570,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_high_version(self):
         """
-        A ``ConfigurationError`` is raised if the version specified is greater
+        A ``ValidationError`` is raised if the version specified is greater
         than 1.
         """
         self.configuration['version'] = 2
@@ -602,7 +579,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_low_version(self):
         """
-        A ``ConfigurationError`` is raised if the version specified is lower
+        A ``ValidationError`` is raised if the version specified is lower
         than 1.
         """
         self.configuration['version'] = 0
@@ -619,7 +596,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_dataset(self):
         """
-        A ``ConfigurationError`` is raised if the config file does not contain
+        A ``ValidationError`` is raised if the config file does not contain
         a ``u"dataset"`` key.
         """
         self.configuration.pop('dataset')
