@@ -499,7 +499,7 @@ class ValidateConfigurationTests(SynchronousTestCase):
     def test_valid_loopback_configuration(self):
         """
         No exception is raised when validating a valid configuration with a
-        ZFS backend.
+        loopback backend.
         """
         self.configuration['dataset'] = {
             u"backend": u"loopback",
