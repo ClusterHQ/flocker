@@ -635,3 +635,10 @@ class ZFSAgentOptionsTests(make_amp_agent_options_tests(DatasetAgentOptions)):
     """
     Tests for ``ZFSAgentOptions``.
     """
+
+
+class ZFSAgentOptionsVolumeTests(make_volume_options_tests(
+        DatasetAgentOptions, [])):
+    """
+    Tests for the volume configuration arguments of ``ZFSAgentOptions``.
+    """

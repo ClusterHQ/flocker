@@ -158,12 +158,10 @@ class ZFSAgentScript(object):
 
 
 @flocker_standard_options
+@flocker_volume_options
 class _AgentOptions(Options):
     """
     Command line options for agents.
-
-    XXX: This is a hack. Better to have required options and to share the
-    common options with ``ZFSAgentOptions``.
     """
     # Use as basis for subclass' synopsis:
     synopsis = "Usage: {} [OPTIONS]"
