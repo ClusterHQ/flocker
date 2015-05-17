@@ -19,6 +19,7 @@ dataset
 datasets
 Debian
 Deis
+dev
 devel
 DigitalOcean
 dropdown
@@ -42,6 +43,8 @@ installable
 internet
 invalidations
 Kubernetes
+libffi
+libssl
 libswarm
 lifecycle
 Mesos
