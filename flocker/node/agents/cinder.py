@@ -127,6 +127,18 @@ class INovaVolumeManager(Interface):
         """
 
 
+class INovaServerManager(Interface):
+    """
+    The parts of ``novaclient.v2.servers.ServerManager`` that we use.
+    See:
+    https://github.com/openstack/python-novaclient/blob/master/novaclient/v2/servers.py
+    """
+    def list():
+        """
+        Get a list of servers.
+        """
+
+
 def wait_for_volume(volume_manager, expected_volume,
                     expected_status=u'available',
                     time_limit=60):
@@ -413,6 +425,11 @@ class _LoggingNovaVolumeManager(PRecord):
     _nova_volumes = field(mandatory=True)
 
 
+@auto_openstack_logging(INovaServerManager, "_nova_servers")
+class _LoggingNovaServerManager(PRecord):
+    _nova_servers = field(mandatory=True)
+
+
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
@@ -428,11 +445,15 @@ def cinder_api(cinder_client, nova_client, cluster_id):
     logging_cinder = _LoggingCinderVolumeManager(
         _cinder_volumes=cinder_client.volumes
     )
-    logging_nova = _LoggingNovaVolumeManager(
+    logging_nova_volume_manager = _LoggingNovaVolumeManager(
         _nova_volumes=nova_client.volumes
+    )
+    logging_nova_server_manager = _LoggingNovaServerManager(
+        _nova_servers=nova_client.servers
     )
     return CinderBlockDeviceAPI(
         cinder_volume_manager=logging_cinder,
-        nova_volume_manager=logging_nova,
+        nova_volume_manager=logging_nova_volume_manager,
+        nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
     )
