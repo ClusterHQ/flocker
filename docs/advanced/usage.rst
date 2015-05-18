@@ -12,13 +12,14 @@ If you haven't :doc:`installed that package <../indepth/installation>` yet, you 
 Command Line Arguments
 ======================
 
-``flocker-deploy`` takes just two arguments.
-The first of these is the path to a deployment configuration file.
-The second is the path to an application configuration file.
+``flocker-deploy`` takes three arguments.
+The first of these is the hostname of the machine where the control service (including the Flocker REST API) is running.
+The second is the path to a deployment configuration file.
+The third is the path to an application configuration file.
 
 .. code-block:: console
 
-    $ flocker-deploy clusterhq_deployment.yml clusterhq_app.yml
+    $ flocker-deploy controlservice.example.com clusterhq_deployment.yml clusterhq_app.yml
 
 The contents of these two configuration files determine what actions Flocker actually takes.
 The configuration files completely control this; there are no other command line arguments or options.

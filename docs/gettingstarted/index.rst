@@ -257,7 +257,7 @@ Getting started with Flocker
 
       .. code-block:: console
 
-         you@laptop:~$ flocker-deploy deployment-node1.yml fig.yml
+         you@laptop:~$ flocker-deploy 172.16.255.250 deployment-node1.yml fig.yml
 
       Now load http://172.16.255.250/ in a web browser or the external IP of one of your AWS nodes.
       It works!
@@ -289,7 +289,7 @@ Getting started with Flocker
 
       .. code-block:: console
 
-         you@laptop:~$ flocker-deploy deployment-node2.yml fig.yml
+         you@laptop:~$ flocker-deploy 172.16.255.250 deployment-node2.yml fig.yml
 
       .. image:: images/migration.png
          :class: img-responsive img-spaced

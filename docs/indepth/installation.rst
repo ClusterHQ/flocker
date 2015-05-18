@@ -162,7 +162,6 @@ Using Amazon Web Services
    However, we do recommend at least the ``m3.large`` instance size.
 
    If you wish to customize the instance's security settings make sure to permit SSH access both from the intended client machine (for example, your laptop) and from any other instances on which you plan to install ``clusterhq-flocker-node``.
-   The ``flocker-deploy`` CLI requires SSH access to the Flocker nodes to control them and Flocker nodes need SSH access to each other for volume data transfers.
 
    .. warning::
 
@@ -338,8 +337,7 @@ Paste them into a root console:
 
 .. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
 
-The Flocker command line client (``flocker-deploy``) must be able to establish an SSH connection to each node.
-Additionally, every node must be able to establish an SSH connection to all other nodes.
+If you are using the ZFS storage backend every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
 Your firewall will also need to allow access to the ports your applications are exposing.
 
