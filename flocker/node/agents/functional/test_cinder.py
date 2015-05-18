@@ -95,8 +95,3 @@ class CinderBlockDeviceAPIInterfaceTests(
             size=REALISTIC_BLOCKDEVICE_SIZE,
             )
         self.assert_foreign_volume(flocker_volume)
-
-    # Maybe add an implementation specific test here to verify that
-    # the ID returned by compute_instance_id() can be retreived using
-    # the nova server get API and that it has our IP addesses
-    # http://developer.openstack.org/api-ref-compute-v2.html#getServer
