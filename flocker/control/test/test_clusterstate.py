@@ -180,3 +180,18 @@ class ClusterStateServiceTests(SynchronousTestCase):
         self.assertEqual(
             [ten_second_state, eleven_second_state],
             [DeploymentState(nodes=[app_node_2]), DeploymentState()])
+
+    def test_update_with_same_key(self):
+        """
+        An update with the same key as a previous one delays wiping.
+        """
+        service = self.service()
+        app_node = NodeState(hostname=u"10.0.0.1", uuid=uuid4(),
+                             manifestations=None, devices=None, paths=None,
+                             applications=[APP1], used_ports=None)
+        service.apply_changes([app_node])
+        self.clock.advance(1)
+        service.apply_changes([app_node])
+        self.clock.advance(9)
+        self.assertEqual(service.as_deployment(),
+                         DeploymentState(nodes=[app_node]))
