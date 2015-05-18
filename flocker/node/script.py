@@ -266,7 +266,7 @@ class AgentScriptFactory(PRecord):
         if configuration['dataset']['backend'] == 'zfs':
             return FlockerScriptRunner(
                 script=VolumeScript(ZFSAgentScript()),
-                options=options,
+                options=DatasetAgentOptions(),
             ).main()
         elif configuration['dataset']['backend'] == 'loopback':
             # Later, construction of this object can be moved into
@@ -295,7 +295,7 @@ class AgentScriptFactory(PRecord):
             )
             return FlockerScriptRunner(
                 script=agent_script,
-                options=options,
+                options=DatasetAgentOptions(),
             ).main()
         else:
             raise NotImplementedError()
