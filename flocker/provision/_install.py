@@ -116,7 +116,7 @@ def task_upgrade_kernel(distribution):
         ])
     elif distribution == 'ubuntu-14.04':
         # Not required.
-        pass
+        return sequence([])
     else:
         raise DistributionNotSupported(distribution=distribution)
 
