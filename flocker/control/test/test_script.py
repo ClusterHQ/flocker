@@ -6,7 +6,6 @@ from twisted.python.filepath import FilePath
 from ..script import ControlOptions, ControlScript
 from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin
 from .._clusterstate import ClusterStateService
-from .._protocol import ControlAMP, ControlAMPService
 from ..httpapi import REST_API_PORT
 
 from ...ca.testtools import get_credential_sets

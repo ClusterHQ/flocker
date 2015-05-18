@@ -22,7 +22,7 @@ from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
-    ClusterStatus, ConvergenceLoop, LOG_SEND_TO_CONTROL_SERVICE,
+    LOG_SEND_TO_CONTROL_SERVICE,
     LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node

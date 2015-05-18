@@ -14,7 +14,6 @@ from zope.interface.verify import verifyObject
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.http import (
