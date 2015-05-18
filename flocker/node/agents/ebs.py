@@ -29,6 +29,7 @@ METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'10'
+BOTO_DEBUG_LEVEL = u'1'
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -57,6 +58,10 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
         config.add_section('Boto')
     config.set('Boto', 'num_retries', BOTO_NUM_RETRIES)
     config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
+
+    # Set Boto debug level to BOTO_DEBUG_LEVEL:
+    # "1": basic debug messages
+    config.set('Boto', 'debug', BOTO_DEBUG_LEVEL)
 
     return _EC2(zone=zone,
                 connection=ec2.connect_to_region(
