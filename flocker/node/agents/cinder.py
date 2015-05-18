@@ -169,8 +169,11 @@ def wait_for_volume(volume_manager, expected_volume,
             )
 
 
-def _combine_nova_addresses(addresses):
+def _extract_nova_server_addresses(addresses):
     """
+    :param dict addresses: A ``dict`` mapping OpenStack network names
+        to lists of address dictionaries in that network assigned to a
+        server.
     :return: A ``set`` of all the IPv4 and IPv6 addresses from the
         ``addresses`` attribute of a ``Server``.
     """
@@ -216,7 +219,7 @@ class CinderBlockDeviceAPI(object):
         local_ips = set(get_all_ips())
         local_ips.remove('127.0.0.1')
         for server in self.nova_server_manager.list(detailed=True):
-            api_addresses = _combine_nova_addresses(server.addresses)
+            api_addresses = _extract_nova_server_addresses(server.addresses)
             if api_addresses == local_ips:
                 return server.id
 
