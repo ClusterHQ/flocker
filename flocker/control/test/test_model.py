@@ -356,8 +356,8 @@ class NodeStateTests(SynchronousTestCase):
         self.assertEqual(
             [node_state.used_ports, node_state.applications,
              node_state.manifestations, node_state.paths, node_state.devices,
-             node_state._completely_ignorant()],
-            [None, None, None, None, None, True])
+             node_state._provides_information()],
+            [None, None, None, None, None, False])
 
 
 class NonManifestDatasetsInitTests(make_with_init_tests(
