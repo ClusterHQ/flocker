@@ -61,7 +61,7 @@ class ControlScript(object):
         persistence = ConfigurationPersistenceService(
             reactor, options["data-path"])
         persistence.setServiceParent(top_service)
-        cluster_state = ClusterStateService()
+        cluster_state = ClusterStateService(reactor)
         cluster_state.setServiceParent(top_service)
         api_service = create_api_service(
             persistence, cluster_state, serverFromString(

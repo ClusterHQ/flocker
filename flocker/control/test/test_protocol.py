@@ -24,6 +24,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
 from twisted.internet.ssl import ClientContextFactory
+from twisted.internet.task import Clock
 
 from .._protocol import (
     SerializableArgument,
@@ -191,7 +192,7 @@ def build_control_amp_service(test):
 
     :return ControlAMPService: Not started.
     """
-    cluster_state = ClusterStateService()
+    cluster_state = ClusterStateService(Clock())
     cluster_state.startService()
     test.addCleanup(cluster_state.stopService)
     persistence_service = ConfigurationPersistenceService(
