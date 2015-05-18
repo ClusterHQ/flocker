@@ -243,11 +243,7 @@ def user_documentation(doc, examples=None, header=None):
     """
     def deco(f):
         f.userDocumentation = doc
-        if header is None:
-            raise SphinxError(
-                'No API header provided in user_documentation decorator')
-        else:
-            f.header = header
+        f.header = header
         f.examples = examples
         return f
     return deco
