@@ -275,7 +275,7 @@ class AgentScriptFactory(PRecord):
             loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                     host=host, port=port)
             volume_service.setServiceParent(loop)
-            return main_for_service(reactor, loop)
+            return main_for_service(reactor=reactor, service=loop)
         elif configuration['dataset']['backend'] == 'loopback':
             # Later, construction of this object can be moved into
             # AgentServiceFactory.get_service where various options passed on
@@ -298,12 +298,10 @@ class AgentScriptFactory(PRecord):
             service_factory = AgentServiceFactory(
                 deployer_factory=deployer_factory
             ).get_service
-            # agent_script = AgentScript(
-            #     service_factory=service_factory,
-            # )
+
             return main_for_service(
-                reactor,
-                service_factory(reactor, options)
+                reactor=reactor,
+                service=service_factory(reactor, options)
             )
         else:
             raise NotImplementedError()
