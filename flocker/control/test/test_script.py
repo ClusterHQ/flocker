@@ -119,16 +119,3 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         service = control_resource._v1_user.cluster_state_service
         self.assertEqual((service.__class__, service.running),
                          (ClusterStateService, True))
-
-    def test_starts_control_amp_service(self):
-        """
-        ``ControlScript.main`` starts a AMP service on the given port.
-        """
-        reactor = MemoryCoreReactor()
-        self.script.main(reactor, self.options)
-        server = reactor.tcpServers[1]
-        port = server[0]
-        protocol = server[1].wrappedFactory.buildProtocol(None)
-        self.assertEqual(
-            (port, protocol.__class__, protocol.control_amp_service.__class__),
-            (8002, ControlAMP, ControlAMPService))
