@@ -272,10 +272,11 @@ class LibcloudRunner(object):
             for node in self.nodes
         ])
         if self.volume_backend == VolumeBackend.zfs:
-            commands = commands.on(success=lambda _: parallel([
+            zfs_commands = parallel([
                 configure_zfs(node, variants=self.variants)
                 for node in self.nodes
-            ]))
+            ])
+            commands = commands.on(success=lambda _: zfs_commands)
         yield perform(make_dispatcher(reactor), commands)
 
         returnValue(self.nodes)
