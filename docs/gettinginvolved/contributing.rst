@@ -145,8 +145,9 @@ such as ``iTerm2`` for Mac OS X:
       cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
 
       SYSTEMD_SOURCE_DIR=/flocker-source/flocker/admin/package-files/systemd/
+
       # Stop systemd units before they are changed
-      for service in $(ls ${SYSTEMD_SOURCE_DIR}*.service);
+      for service in $(ls ${SYSTEMD_SOURCE_DIR}/*.service);
       do
          service_name=$(basename ${service} .service)
          systemctl stop ${service_name}
@@ -156,13 +157,13 @@ such as ``iTerm2`` for Mac OS X:
       # This uses /bin/cp instead of cp because sometimes cp is aliased to cp -i
       # which requires confirmation
       # This overwrites existing files (-f)
-      /bin/cp -f /flocker-source/flocker/admin/package-files/systemd/* /etc/systemd/system/multi-user.target.wants
+      /bin/cp -f ${SYSTEMD_SOURCE_DIR}/* /etc/systemd/system/multi-user.target.wants
 
       # Reload systemd, so that it can find new or changed units:
       systemctl daemon-reload
 
       # Start systemd units
-      for service in $(ls ${SYSTEMD_SOURCE_DIR}*.service);
+      for service in $(ls ${SYSTEMD_SOURCE_DIR}/*.service);
       do
          service_name=$(basename ${service} .service)
          if [ "$(systemctl is-enabled ${service_name})" == 'enabled' ]
