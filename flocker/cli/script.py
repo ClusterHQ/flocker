@@ -9,14 +9,11 @@ import sys
 from json import dumps
 
 from twisted.internet.defer import succeed
-from twisted.internet.ssl import Certificate
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
-from twisted.web.client import Agent
 from twisted.web.http import OK
 
 from treq import json_content
-from treq.client import HTTPClient
 
 from zope.interface import implementer
 
@@ -28,7 +25,7 @@ from characteristic import attributes
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..control.httpapi import REST_API_PORT
-from ..ca import ControlServicePolicy, UserCredential
+from ..ca import treq_with_authentication
 
 
 FEEDBACK_CLI_TEXT = (
@@ -41,30 +38,6 @@ _OK_MESSAGE = (
     b"The cluster configuration has been updated. It may take a short "
     b"while for changes to take effect, in particular if Docker "
     b"images need to be pulled.\n")
-
-
-def treq_with_authentication(reactor, certificates_path):
-    """
-    Create a ``treq``-API object that implements the REST API TLS
-    authentication.
-
-    That is, validating the control service as well as presenting a
-    certificate to the control service for authentication.
-
-    :param reactor: The reactor to use.
-    :param FilePath certificates_path: Directory where certificates and
-        private key can be found.
-
-    :return: ``treq`` compatible object.
-    """
-    ca = Certificate.loadPEM(
-        certificates_path.child(b"cluster.crt").getContent())
-    # This is a hack; from_path should be more
-    # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
-    user_credential = UserCredential.from_path(certificates_path, u"user")
-    policy = ControlServicePolicy(
-        ca_certificate=ca, client_credential=user_credential.credential)
-    return HTTPClient(Agent(reactor, contextFactory=policy))
 
 
 @attributes(['node', 'hostname'])

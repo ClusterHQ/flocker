@@ -31,7 +31,7 @@ from ..control import (
 )
 
 from ..control.httpapi import container_configuration_response, REST_API_PORT
-from ..cli.script import treq_with_authentication
+from ..ca import treq_with_authentication
 from ..testtools import loop_until
 
 try:
