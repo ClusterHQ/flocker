@@ -19,8 +19,6 @@ from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 from eliot import Logger, writeFailure
 from eliot.twisted import DeferredContext
 
-from sphinx.errors import SphinxError
-
 from ._error import (
     ILLEGAL_CONTENT_TYPE, DECODING_ERROR, BadRequest, InvalidRequestJSON)
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
@@ -243,11 +241,7 @@ def user_documentation(doc, examples=None, header=None):
     """
     def deco(f):
         f.userDocumentation = doc
-        if header is None:
-            raise SphinxError(
-                'No API header provided in user_documentation decorator')
-        else:
-            f.header = header
+        f.header = header
         f.examples = examples
         return f
     return deco
