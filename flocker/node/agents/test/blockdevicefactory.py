@@ -189,28 +189,10 @@ def _openstack(**config):
         session=session, region_name=region, version=2
     )
 
-    nova_server_manager = nova_client.servers
-    from flocker.common import get_all_ips
-    def _combine_nova_addresses(addresses):
-        all_addresses = set()
-        for network_name, addresses in addresses.items():
-            for address_info in addresses:
-                all_addresses.add(address_info['addr'])
-
-        return all_addresses
-            
-    def compute_instance_id():
-        local_ips = set(get_all_ips())
-        local_ips.remove('127.0.0.1')
-        for server in nova_server_manager.list(detailed=True):
-            api_addresses = _combine_nova_addresses(server.addresses)
-            if api_addresses == local_ips:
-                return server.id
-    instance_id = compute_instance_id()
-    import pdb; pdb.set_trace()
     return dict(
         cinder_volume_manager=cinder_client.volumes,
         nova_volume_manager=nova_client.volumes,
+        nova_server_manager=nova_client.servers,
     )
 
 

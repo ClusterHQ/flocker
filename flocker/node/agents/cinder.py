@@ -23,7 +23,7 @@ from twisted.python.filepath import FilePath
 
 from zope.interface import implementer, Interface
 
-from ...common import auto_openstack_logging
+from ...common import auto_openstack_logging, get_all_ips
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, get_blockdevice_volume,
@@ -169,46 +169,56 @@ def wait_for_volume(volume_manager, expected_volume,
             )
 
 
+def _combine_nova_addresses(addresses):
+    """
+    :return: A ``set`` of all the IPv4 and IPv6 addresses from the
+        ``addresses`` attribute of a ``Server``.
+    """
+    all_addresses = set()
+    for network_name, addresses in addresses.items():
+        for address_info in addresses:
+            all_addresses.add(address_info['addr'])
+
+    return all_addresses
+        
+
 @implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
     in an OpenStack cluster using Cinder APIs.
     """
-    def __init__(self, cinder_volume_manager, nova_volume_manager, cluster_id):
+    def __init__(self, 
+                 cinder_volume_manager, nova_volume_manager, nova_server_manager, 
+                 cluster_id):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for
             interacting with Cinder API.
         :param INovaVolumeManager nova_volume_manager: A client for interacting
             with Nova volume API.
+        :param INovaServerManager nova_server_manager: A client for interacting
+            with Nova servers API.
         :param UUID cluster_id: An ID that will be included in the names of
             Cinder block devices in order to associate them with a particular
             Flocker cluster.
         """
         self.cinder_volume_manager = cinder_volume_manager
-        self.nova_volume_manager = nova_volume_manager
+        self.nova_volume_manager = nova_volume_manager 
+        self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
 
     def compute_instance_id(self):
         """
-        Look up the Xen instance ID for this node.
+        Find the Nova API server with the same non-loopback IP addresses as this node.
+        That server is assumed to be this node.
+        Return the instance ID of that server.
         """
-        # Get all the local IP addresses
-        # (maybe refactor the get_all_ips function from flocker.node.test.test_script)
-        # Ask for a detailed list of servers.
-        # http://developer.openstack.org/api-ref-compute-v2.html#listDetailServers
-        # Filter the list for the servers that have *all* our IP addresses.
-        # There should only be one...and return its ID (maybe hostID)
-        # which should already be unicode...but check.
-        # Cache the result and server the cached value next time? 
-        # (that's probably premature and will require extra tests)
-        # See http://wiki.christophchamp.com/index.php/Xenstore
-        # $ sudo xenstore-read name
-        # instance-6ddfb6c0-d264-4e77-846a-aa67e4fe89df
-        import pdb; pdb.set_trace()
-        prefix = u"instance-"
-        command = [b"xenstore-read", b"name"]
-        return check_output(command).strip().decode("ascii")[len(prefix):]
+        local_ips = set(get_all_ips())
+        local_ips.remove('127.0.0.1')
+        for server in self.nova_server_manager.list(detailed=True):
+            api_addresses = _combine_nova_addresses(server.addresses)
+            if api_addresses == local_ips:
+                return server.id
 
     def create_volume(self, dataset_id, size):
         """
