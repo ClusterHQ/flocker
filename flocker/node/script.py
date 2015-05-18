@@ -258,7 +258,7 @@ class AgentServiceFactory(PRecord):
 @implementer(ICommandLineVolumeScript)
 class AgentScriptFactory(PRecord):
     def main(self, reactor, options, volume_service):
-        if options['backend'] == 'zfs':
+        if options['backend'] == 'zfsX':
             return FlockerScriptRunner(
                 script=VolumeScript(ZFSAgentScript()),
                 options=options,
@@ -292,6 +292,8 @@ class AgentScriptFactory(PRecord):
                 script=agent_script,
                 options=options,
             ).main()
+        else:
+            raise NotImplementedError()
 
 def flocker_dataset_agent_main():
     """
