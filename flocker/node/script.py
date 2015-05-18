@@ -20,10 +20,11 @@ from zope.interface import implementer
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
-from ..volume.service import (
-    ICommandLineVolumeScript, VolumeScript)
-
 from ..volume.script import flocker_volume_options
+from ..volume.service import (
+    DEFAULT_CONFIG_PATH, VolumeService, FLOCKER_POOL, ICommandLineVolumeScript,
+    VolumeScript
+)
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
@@ -250,19 +251,32 @@ class AgentServiceFactory(PRecord):
         return AgentLoopService(
             reactor=reactor,
             # Temporary hack, to be fixed in FLOC-1783 probably:
-            deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
-                                           hostname=ip),
+            deployer=self.deployer_factory(
+                node_uuid=ip_to_uuid(ip),
+                dataset_configuration=configuration['dataset'],
+                reactor=reactor,
+                host=ip,
+            ),
             host=host, port=port,
         )
 
 
-def flocker_dataset_agent_main():
+def zfs_deployer_factory(reactor, configuration):
     """
-    Implementation of the ``flocker-dataset-agent`` command line script.
+    TODO
+    """
+    volume_service = VolumeService(
+        config_path=DEFAULT_CONFIG_PATH,
+        pool=configuration.get('pool', FLOCKER_POOL),
+        reactor=reactor,
+    )
 
-    This starts a dataset convergence agent.  It currently supports only the
-    loopback block device backend.  Later it will be capable of starting a
-    dataset agent using any of the support dataset backends.
+    return partial(P2PManifestationDeployer, volume_service=volume_service)
+
+
+def loopback_deployer_factory(reactor, configuration):
+    """
+    TODO
     """
     # XXX This should use dynamic dispatch in the deployer_factory
     # There should be only AgentScript, not ZFSAgentScript, and it should
@@ -279,7 +293,7 @@ def flocker_dataset_agent_main():
     # AgentServiceFactory.get_service where various options passed on
     # the command line could alter what is created and how it is initialized.
     api = LoopbackBlockDeviceAPI.from_path(
-        b"/var/lib/flocker/loopback",
+        configuration.get('pool', '/var/lib/flocker/loopback'),
         # Make up a new value every time this script starts.  This will ensure
         # different instances of the script using this backend always appear to
         # be running on different nodes (as far as attachment is concerned).
@@ -289,12 +303,39 @@ def flocker_dataset_agent_main():
         # would be harder to implement and harder to use.
         compute_instance_id=bytes(getpid()).decode('utf-8'),
     )
-    deployer_factory = partial(
-        BlockDeviceDeployer,
-        block_device_api=api,
-    )
+
+    return partial(BlockDeviceDeployer, block_device_api=api)
+
+
+def dataset_deployer_from_configuration(node_uuid, dataset_configuration,
+                                        reactor, host):
+    """
+    TODO
+    """
+    # TODO do what with node uuid?
+    # TODO do what with compute_instance_id?
+
+    deployer_factories = {
+        "zfs": zfs_deployer_factory,
+        "loopback": loopback_deployer_factory,
+    }
+
+    backend = dataset_configuration['backend']
+    deployer_factory = deployer_factories[backend]
+    deployer_partial = deployer_factory(reactor, dataset_configuration)
+    return deployer_partial(hostname=host)
+
+
+def flocker_dataset_agent_main():
+    """
+    Implementation of the ``flocker-dataset-agent`` command line script.
+
+    This starts a dataset convergence agent.  It currently supports only the
+    loopback block device backend.  Later it will be capable of starting a
+    dataset agent using any of the support dataset backends.
+    """
     service_factory = AgentServiceFactory(
-        deployer_factory=deployer_factory
+        deployer_factory=dataset_deployer_from_configuration,
     ).get_service
     agent_script = AgentScript(
         service_factory=service_factory,

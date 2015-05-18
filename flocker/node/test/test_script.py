@@ -20,17 +20,18 @@ from ...common.script import ICommandLineScript
 
 from ..script import (
     ZFSAgentScript, AgentScript, ContainerAgentOptions,
-    AgentServiceFactory, DatasetAgentOptions, validate_configuration)
+    AgentServiceFactory, DatasetAgentOptions, validate_configuration,
+)
 from .._loop import AgentLoopService
-from .._deploy import P2PManifestationDeployer
 from ...testtools import MemoryCoreReactor
+from .._deploy import P2PManifestationDeployer
 
 
 deployer = object()
 
 
 def deployer_factory_stub(**kw):
-    if set(kw.keys()) != {"node_uuid", "hostname"}:
+    if set(kw.keys()) != {"dataset_configuration", "reactor", "node_uuid", "host"}:
         raise TypeError("wrong arguments")
     return deployer
 
@@ -201,6 +202,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 },
                 u"dataset": {
                     u"backend": u"zfs",
+                    u"pool": u"custom-pool",
+
                 },
                 u"version": 1,
             }))
@@ -283,8 +286,9 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         """
         spied = []
 
-        def deployer_factory(node_uuid, hostname):
-            spied.append(hostname)
+        def deployer_factory(dataset_configuration, reactor, node_uuid,
+                             host):
+            spied.append(host)
             return object()
 
         reactor = MemoryCoreReactor()
