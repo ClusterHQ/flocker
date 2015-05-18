@@ -28,9 +28,10 @@ from flocker.provision._install import (
 )
 from flocker.provision._libcloud import INode
 from flocker.provision._ca import Certificates
-from flocker.provision._ssh._conch import make_dispatcher
 from effect import parallel
 from effect.twisted import perform
+from flocker.provision._ssh._conch import make_dispatcher
+from flocker.acceptance.testtools import VolumeBackend
 
 from .runner import run
 
@@ -59,8 +60,8 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def run_tests(reactor, nodes, control_node, agent_nodes, trial_args,
-              certificates_path):
+def run_tests(reactor, nodes, control_node, agent_nodes, volume_backend,
+              trial_args, certificates_path):
     """
     Run the acceptance tests.
 
@@ -70,6 +71,8 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args,
         tests against.
     :param list agent_nodes: The list of INode nodes running flocker
         agent, to run API acceptance tests against.
+    :param VolumeBackend volume_backend: The volume backend the nodes are
+        configured with.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
     :param FilePath certificates_path: Directory where certificates can be
@@ -96,6 +99,7 @@ def run_tests(reactor, nodes, control_node, agent_nodes, trial_args,
             FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
                 node.address for node in agent_nodes),
             FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH=certificates_path.path,
+            FLOCKER_ACCEPTANCE_VOLUME_BACKEND=volume_backend.name,
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -449,6 +453,7 @@ def main(reactor, args, base_path, top_level):
             reactor=reactor,
             nodes=nodes,
             control_node=nodes[0], agent_nodes=nodes,
+            volume_backend=VolumeBackend.zfs,
             trial_args=options['trial-args'],
             certificates_path=ca_directory)
     except:

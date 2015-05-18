@@ -1,11 +1,11 @@
 [Unit]
-Description=Flocker ZFS Agent
+Description=Flocker Dataset Agent
 AssertFileNotEmpty=/etc/flocker/agent.yml
 
 [Service]
-ExecStart=/usr/sbin/flocker-zfs-agent
+ExecStart=/usr/sbin/flocker-dataset-agent
 
-# We can't have a private mount namespace, since we need to see ZFS created mounts.
+# We can't have a private mount namespace, since we need to create mounts visible to Docker.
 
 [Install]
 WantedBy=multi-user.target
