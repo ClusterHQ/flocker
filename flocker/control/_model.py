@@ -643,6 +643,10 @@ class IClusterStateWipe(Interface):
     """
     An ``IClusterStateWipe`` can remove some information from a
     ``DeploymentState``.
+
+    The type of a provider is implicitly part of its interface. Instances
+    with different types will not replace each other, even if they have
+    same key.
     """
     def update_cluster_state(cluster_state):
         """
