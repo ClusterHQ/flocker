@@ -1,6 +1,5 @@
 [Unit]
 Description=Flocker Container Agent
-ConditionFileNotEmpty=/etc/flocker/agent.yml
 
 [Service]
 ExecStart=/usr/sbin/flocker-container-agent
