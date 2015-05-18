@@ -84,20 +84,6 @@ DATASET_IN_USE = make_bad_request(
 _UNDEFINED_MAXIMUM_SIZE = object()
 
 
-class WebClientContextFactory(object):
-    """
-    Context factory wrapper for HTTPS requests via `twisted.web.client.Agent`.
-    """
-    def __init__(self, context_factory):
-        """
-        :param ContextFactory context_factory: The context factory to wrap.
-        """
-        self.context_factory = context_factory
-
-    def getContext(self, hostname, port):
-        return self.context_factory.getContext()
-
-
 class ConfigurationAPIUserV1(object):
     """
     A user accessing the API.
