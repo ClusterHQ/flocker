@@ -25,10 +25,10 @@ It is possible to see the available unit names, and then view the logs with ``jo
 
 .. prompt:: bash $
 
-   $ ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n1 basename
-   flocker-agent.service
-   flocker-container-agent.service
-   flocker-control.service
+   $ ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
+   flocker-agent
+   flocker-container-agent
+   flocker-control
    $ journalctl -u flocker-agent
    $ journalctl -u flocker-container-agent
    $ journalctl -u flocker-control
