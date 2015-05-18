@@ -238,10 +238,11 @@ def zfs_service_factory(volume_service, ip, node_uuid, reactor, deployer,
     """
     deployer = P2PManifestationDeployer(ip, volume_service,
         node_uuid=node_uuid)
-    service = AgentLoopService(reactor=reactor, deployer=deployer,
-                            host=host, port=port)
+    service = AgentLoopService(
+        reactor=reactor, deployer=deployer, host=host, port=port)
     volume_service.setServiceParent(service)
     return service
+
 
 def loopback_service_factory(volume_service, ip, node_uuid, reactor,
     host, port, options):
@@ -277,6 +278,10 @@ def loopback_service_factory(volume_service, ip, node_uuid, reactor,
 
 @implementer(ICommandLineVolumeScript)
 class AgentScriptFactory(PRecord):
+    """
+    This code is temporary, and will probably be changed significantly and
+    moved into AgentScript. It isn't really a factory. FLOC-1791.
+    """
     def main(self, reactor, options, volume_service):
         agent_config = options[u'agent-config']
         configuration = yaml.safe_load(agent_config.getContent())
@@ -331,8 +336,6 @@ def flocker_dataset_agent_main():
     loopback block device backend.  Later it will be capable of starting a
     dataset agent using any of the support dataset backends.
     """
-    # XXX This should use dynamic dispatch in the deployer_factory
-
     options = DatasetAgentOptions()
 
     return FlockerScriptRunner(
