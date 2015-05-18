@@ -5,7 +5,7 @@ Debugging
 Logging
 -------
 
-Flocker processes generally use `eliot`_ for logging.
+Flocker processes use `eliot`_ for logging.
 These logs can be rendered as an ASCII tree using `eliottree`_.
 
 Logs from the Docker containers can be viewed using `the Docker CLI <https://docs.docker.com/reference/commandline/cli/#logs>`_.
