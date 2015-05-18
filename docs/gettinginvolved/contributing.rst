@@ -145,12 +145,15 @@ such as ``iTerm2`` for Mac OS X:
       cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
 
       SYSTEMD_SOURCE_DIR=/flocker-source/flocker/admin/package-files/systemd/
+      SOURCE_SERVICE_FILES=$(
+         ls ${SYSTEMD_SOURCE_DIR}/*.service |
+         xargs -n 1 -I {} sh -c 'basename {} .service'
+      );
 
       # Stop systemd units before they are changed
-      for service in $(ls ${SYSTEMD_SOURCE_DIR}/*.service);
+      for service in ${SOURCE_SERVICE_FILES};
       do
-         service_name=$(basename ${service} .service)
-         systemctl stop ${service_name}
+         systemctl stop ${service}
       done
 
       # Move systemd unit files from the clone to where systemd will look for them
@@ -163,12 +166,11 @@ such as ``iTerm2`` for Mac OS X:
       systemctl daemon-reload
 
       # Start systemd units
-      for service in $(ls ${SYSTEMD_SOURCE_DIR}/*.service);
+      for service in ${SOURCE_SERVICE_FILES};
       do
-         service_name=$(basename ${service} .service)
-         if [ "$(systemctl is-enabled ${service_name})" == 'enabled' ]
+         if [ "$(systemctl is-enabled ${service})" == 'enabled' ]
          then
-           systemctl start ${service_name}
+           systemctl start ${service}
          fi
       done
 
