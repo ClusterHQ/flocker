@@ -262,20 +262,19 @@ class AgentScriptFactory(PRecord):
         configuration = yaml.safe_load(agent_config.getContent())
 
         validate_configuration(configuration=configuration)
+        host = configuration['control-service']['hostname']
+        port = configuration['control-service'].get("port", 4524)
+        ip = _get_external_ip(host, port)
+        # Soon we'll extract this from TLS certificate for node.  Until then
+        # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
+        node_uuid = ip_to_uuid(ip)
 
         if configuration['dataset']['backend'] == 'zfs':
-            host = configuration['control-service']['hostname']
-            port = configuration['control-service'].get("port", 4524)
-            ip = _get_external_ip(host, port)
-            # Soon we'll extract this from TLS certificate for node.  Until then
-            # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
-            node_uuid = ip_to_uuid(ip)
             deployer = P2PManifestationDeployer(ip, volume_service,
                                                 node_uuid=node_uuid)
-            loop = AgentLoopService(reactor=reactor, deployer=deployer,
+            service = AgentLoopService(reactor=reactor, deployer=deployer,
                                     host=host, port=port)
-            volume_service.setServiceParent(loop)
-            return main_for_service(reactor=reactor, service=loop)
+            volume_service.setServiceParent(service)
         elif configuration['dataset']['backend'] == 'loopback':
             # Later, construction of this object can be moved into
             # AgentServiceFactory.get_service where various options passed on
@@ -299,12 +298,14 @@ class AgentScriptFactory(PRecord):
                 deployer_factory=deployer_factory
             ).get_service
 
-            return main_for_service(
-                reactor=reactor,
-                service=service_factory(reactor, options)
-            )
+            service = service_factory(reactor, options)
         else:
             raise NotImplementedError()
+
+        return main_for_service(
+            reactor=reactor,
+            service=service,
+        )
 
 def flocker_dataset_agent_main():
     """
