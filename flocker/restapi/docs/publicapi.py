@@ -365,7 +365,6 @@ def makeRst(prefix, app, exampleByIdentifier, schema_store):
     for route in sorted(getRoutes(app)):
         data = _introspectRoute(route, exampleByIdentifier, schema_store)
         for method in route.methods:
-            print data['header']
             yield data['header']
             yield '=' * len(data['header'])
             yield ''
