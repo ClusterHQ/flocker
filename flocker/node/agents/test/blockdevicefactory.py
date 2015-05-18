@@ -180,6 +180,8 @@ def _openstack(**config):
     # bash (I already learned a piece of shell syntax today, once is all I can
     # take).
     region = environ.get('FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION')
+    if region is not None:
+        region = region.upper()
     auth = _openstack_auth_from_config(**config)
     session = Session(auth=auth)
     cinder_client = CinderClient(
