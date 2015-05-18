@@ -227,11 +227,10 @@ class CinderBlockDeviceAPI(object):
         That server is assumed to be this node.
         Return the instance ID of that server.
         """
-        local_ips = set(get_all_ips())
-        local_ips.remove('127.0.0.1')
+        local_ips = get_all_ips()
         for server in self.nova_server_manager.list(detailed=True):
             api_addresses = _extract_nova_server_addresses(server.addresses)
-            if api_addresses == local_ips:
+            if api_addresses.issubset(local_ips):
                 return server.id
 
     def create_volume(self, dataset_id, size):

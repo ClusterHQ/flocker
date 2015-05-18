@@ -11,9 +11,9 @@ def get_all_ips():
     """
     Find all IPs for this machine.
 
-    :return: ``list`` of IP addresses (``bytes``).
+    :return: ``set`` of IP addresses (``bytes``).
     """
-    ips = []
+    ips = set()
     interfaces = netifaces.interfaces()
     for interface in interfaces:
         addresses = netifaces.ifaddresses(interface)
@@ -22,5 +22,5 @@ def get_all_ips():
             if not family_addresses:
                 continue
             for address in family_addresses:
-                ips.append(address['addr'])
+                ips.add(address['addr'])
     return ips
