@@ -48,6 +48,7 @@ class ContainerAPITests(TestCase):
         def clean_nodes(cluster):
             return cluster.reset_state()
         d = waiting_for_cluster.addCallback(clean_nodes)
+        return d
 
     def _create_container(self):
         """
