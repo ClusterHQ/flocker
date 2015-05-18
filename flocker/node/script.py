@@ -230,8 +230,8 @@ class AgentServiceFactory(PRecord):
         )
 
 
-def zfs_service_factory(volume_service, ip, node_uuid, reactor, deployer,
-    host, port, options):
+def zfs_service_factory(volume_service, ip, node_uuid, reactor, host, port,
+    options):
     """
     This should be changed significantly as part of refactoring in
     FLOC-1791.
@@ -244,8 +244,8 @@ def zfs_service_factory(volume_service, ip, node_uuid, reactor, deployer,
     return service
 
 
-def loopback_service_factory(volume_service, ip, node_uuid, reactor,
-    host, port, options):
+def loopback_service_factory(volume_service, ip, node_uuid, reactor, host,
+    port, options):
     """
     This should be changed significantly as part of refactoring in
     FLOC-1791.
