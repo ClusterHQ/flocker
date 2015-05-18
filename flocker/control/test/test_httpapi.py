@@ -2633,23 +2633,6 @@ class CreateAPIServiceTests(SynchronousTestCase):
             ConfigurationPersistenceService(reactor, FilePath(self.mktemp())),
             ClusterStateService(), endpoint, ClientContextFactory()))
 
-    def test_listens_endpoint(self):
-        """
-        ``create_api_service`` returns a service that listens using the given
-        endpoint with a TLS server.
-        """
-        reactor = MemoryReactor()
-        endpoint = TCP4ServerEndpoint(reactor, 6789)
-        service = create_api_service(
-            ConfigurationPersistenceService(reactor, FilePath(self.mktemp())),
-            ClusterStateService(), endpoint, ClientContextFactory())
-        self.addCleanup(service.stopService)
-        service.startService()
-        server = reactor.tcpServers[0]
-        port = server[0]
-        factory = server[1].__class__
-        self.assertEqual((port, factory), (6789, TLSMemoryBIOFactory))
-
 
 class DatasetsStateTestsMixin(APITestsMixin):
     """
