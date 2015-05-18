@@ -9,7 +9,7 @@ from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
-from bitmath import MB
+from bitmath import MB, Byte
 
 import psutil
 
@@ -1266,6 +1266,37 @@ class IBlockDeviceAPITestsMixin(object):
     """
     this_node = None
 
+    def _assert_volume_size(self, volume, size):
+        """
+        Assert that volume size is consistent across EBS, OS, IBlockDeviceAPI.
+
+        :param BlockDeviceVolume volume: Volume we are interested in.
+        :param int size: Expected size of input volume.
+        """
+        volume_size = volume.size
+        device_path = self.api.get_device_path(volume.blockdevice_id).path
+        device = device_path.encode("ascii")
+
+        command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
+                   b"--output", b"SIZE", device]
+        command_output = check_output(command).split(b'\n')[0]
+        device_size = int(command_output.strip().decode("ascii"))
+
+        # Check 1: Assert that size reported in BlockDeviceVolume
+        # matches device size reported by `lsblk`.
+        self.assertEqual(device_size, volume_size)
+
+        # Check 2: Assert that device size reported by `lsblk` matches
+        # user input size at volume creation time.
+        # Rounding up to GiB before comparing is not ideal,
+        # but due to storage backend size constraints, requested
+        # size in Bytes might not exactly match with created
+        # volume size. See
+        # https://clusterhq.atlassian.net/browse/FLOC-1874
+        device_size_GiB = int(Byte(device_size).to_GiB().value)
+        size_GiB = int(Byte(size).to_GiB().value)
+        self.assertEqual(device_size_GiB, size_GiB)
+
     def test_interface(self):
         """
         ``api`` instances provide ``IBlockDeviceAPI``.
@@ -1315,9 +1346,17 @@ class IBlockDeviceAPITestsMixin(object):
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
         [listed_volume] = self.api.list_volumes()
+
+        # Rounding up to GiB before comparing is not ideal,
+        # but due to storage backend size constraints, requested
+        # size in Bytes might not exactly match with created
+        # volume size. See
+        # https://clusterhq.atlassian.net/browse/FLOC-1874
+        volume_size_GiB = int(Byte(listed_volume.size).to_GiB().value)
+        create_size_GiB = int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GiB().value)
         self.assertEqual(
-            (expected_dataset_id, REALISTIC_BLOCKDEVICE_SIZE),
-            (listed_volume.dataset_id, listed_volume.size)
+            (expected_dataset_id, create_size_GiB),
+            (listed_volume.dataset_id, volume_size_GiB)
         )
 
     def test_created_volume_attributes(self):
@@ -1330,9 +1369,17 @@ class IBlockDeviceAPITestsMixin(object):
             dataset_id=expected_dataset_id,
             size=REALISTIC_BLOCKDEVICE_SIZE
         )
+
+        # Rounding up to GiB before comparing is not ideal,
+        # but due to storage backend size constraints, requested
+        # size in Bytes might not exactly match with created
+        # volume size. See
+        # https://clusterhq.atlassian.net/browse/FLOC-1874
+        volume_size_GiB = int(Byte(new_volume.size).to_GiB().value)
+        create_size_GiB = int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GiB().value)
         self.assertEqual(
-            (expected_dataset_id, REALISTIC_BLOCKDEVICE_SIZE),
-            (new_volume.dataset_id, new_volume.size)
+            (expected_dataset_id, create_size_GiB),
+            (new_volume.dataset_id, volume_size_GiB)
         )
 
     def test_attach_unknown_volume(self):
@@ -1346,6 +1393,23 @@ class IBlockDeviceAPITestsMixin(object):
             blockdevice_id=unicode(uuid4()),
             attach_to=self.this_node,
         )
+
+    def test_attach_volume_validate_size(self):
+        """
+        Validate that attached volume size reported from EBS, OS,
+        and IBlockDeviceAPI layers is consistent.
+        """
+        dataset_id = uuid4()
+
+        new_volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        attached_volume = self.api.attach_volume(
+            new_volume.blockdevice_id, attach_to=self.this_node,
+        )
+
+        self._assert_volume_size(attached_volume, REALISTIC_BLOCKDEVICE_SIZE)
 
     def test_attach_attached_volume(self):
         """

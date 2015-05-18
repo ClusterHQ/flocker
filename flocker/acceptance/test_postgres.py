@@ -101,7 +101,8 @@ class PostgresTests(TestCase):
                             # https://github.com/docker-library/postgres/blob/
                             # docker/Dockerfile.template
                             u"mountpoint": POSTGRES_VOLUME_MOUNTPOINT,
-                            u"maximum_size": "%d" % (REALISTIC_BLOCKDEVICE_SIZE,),
+                            u"maximum_size":
+                                "%d" % (REALISTIC_BLOCKDEVICE_SIZE,),
                         },
                     },
                 },

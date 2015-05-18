@@ -15,6 +15,7 @@ from yaml import safe_dump
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
+from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 
 from eliot import Logger, start_action
@@ -203,12 +204,20 @@ def _clean_node(test_case, node):
         pass
 
 
+class VolumeBackend(Names):
+    loopback = NamedConstant()
+    zfs = NamedConstant()
+    aws = NamedConstant()
+    openstack = NamedConstant()
+
+
 def get_volume_backend(test_case):
     """
     Get the volume backend the acceptance tests are running as.
 
     :param test_case: The ``TestCase`` running this unit test.
 
+    :return VolumeBackend: The configured backend.
     :raise SkipTest: if the backend is specified.
     """
     backend = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
@@ -216,12 +225,12 @@ def get_volume_backend(test_case):
         raise SkipTest(
             "Set acceptance testing volume backend using the " +
             "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
-    return backend
+    return VolumeBackend.lookupByName(backend)
 
 
-def require_backend(supported, reason):
+def skip_backend(unsupported, reason):
     """
-    Decorator that skips a test if the volume backend doesn't support
+    Create decorator that skips a test if the volume backend doesn't support
     the operations required by the test.
 
     :param supported: List of supported volume backends for this test.
@@ -229,33 +238,26 @@ def require_backend(supported, reason):
     """
     def decorator(test_method):
         """
-        :param test_method: The test method that will be called when the
-            cluster is available and which will be supplied with the
-            ``cluster``keyword argument.
+        :param test_method: The test method that should be skipped.
         """
-        def call_test_method_with_cluster(cluster, test_case, args, kwargs):
-            kwargs['cluster'] = cluster
-
         @wraps(test_method)
         def wrapper(test_case, *args, **kwargs):
             backend = get_volume_backend(test_case)
 
-            if backend not in supported:
+            if backend in unsupported:
                 raise SkipTest(
-                    "Backend not supported: {backend} ({reason}). "
-                    "Supported backends: {supported}.".format(
+                    "Backend not supported: {backend} ({reason}).".format(
                         backend=backend,
                         reason=reason,
-                        supported=', '.join(supported),
                     )
                 )
             return test_method(test_case, *args, **kwargs)
         return wrapper
     return decorator
 
-require_moving_backend = require_backend(
-    supported=[b"zfs", b"openstack", b"ebs"],
-    reason="doesn't support moving.")
+require_moving_backend = skip_backend(
+    unsupported={VolumeBackend.loopback},
+    reason="doesn't support moving")
 
 
 def get_nodes(test_case, num_nodes):

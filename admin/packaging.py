@@ -912,12 +912,6 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-container-agent'),
                      flocker_node_path),
-                    (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
-                     flocker_node_path),
-                    # Eventually we'll get rid of flocker-zfs-agent and
-                    # make that functionality part of
-                    # flocker-dataset-agent, controlled by a command line
-                    # argument or some such. See FLOC-1721.
                     (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
                      flocker_node_path),
                 ]

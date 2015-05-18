@@ -30,8 +30,6 @@ class _ConfigurationEncoder(JSONEncoder):
         if isinstance(obj, PRecord):
             result = dict(obj)
             result[_CLASS_MARKER] = obj.__class__.__name__
-            if result[_CLASS_MARKER] == 'NodeState':
-                result['devices'] = {}
             return result
         elif isinstance(obj, PMap):
             return {_CLASS_MARKER: u"PMap", u"values": dict(obj).items()}
