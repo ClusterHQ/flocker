@@ -748,6 +748,12 @@ class NodeState(PRecord):
                    for attr in self._POTENTIALLY_IGNORANT_ATTRIBUTES)
 
     def get_information_wipe(self):
+        """
+        The result wipes any attributes that are set by this instance
+        (i.e. aren't ``None``), and will remove the ``NodeState``
+        completely if result is ``NodeState`` with no knowledge of
+        anything.
+        """
         attributes = [attr for attr in
                       self._POTENTIALLY_IGNORANT_ATTRIBUTES
                       if getattr(self, attr) is not None]
@@ -854,6 +860,9 @@ class NonManifestDatasets(PRecord):
         return cluster_state.set(nonmanifest_datasets=self.datasets)
 
     def get_information_wipe(self):
+        """
+        Result will wipe all information about non-manifest datasets.
+        """
         return _NonManifestDatasetsWipe()
 
 
