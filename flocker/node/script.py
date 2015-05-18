@@ -287,7 +287,7 @@ def flocker_dataset_agent_main():
         # cluster by running multiple instances of the script.  Similar effect
         # could be achieved by making this id a command line argument but that
         # would be harder to implement and harder to use.
-        compute_instance_id=bytes(getpid()),
+        compute_instance_id=bytes(getpid()).decode('utf-8'),
     )
     deployer_factory = partial(
         BlockDeviceDeployer,
