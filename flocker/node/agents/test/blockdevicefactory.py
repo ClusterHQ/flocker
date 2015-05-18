@@ -190,7 +190,6 @@ def _openstack(**config):
     nova_client = NovaClient(
         session=session, region_name=region, version=2
     )
-
     return dict(
         cinder_volume_manager=cinder_client.volumes,
         nova_volume_manager=nova_client.volumes,
