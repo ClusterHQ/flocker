@@ -86,22 +86,6 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         self.certificate_path.makedirs()
         ca_set.copy_to(self.certificate_path, control=True)
 
-    def test_starts_http_api_server(self):
-        """
-        ``ControlScript.main`` starts a HTTP server on the given port.
-        """
-        options = ControlOptions()
-        options.parseOptions([
-            b"--port", b"tcp:8001", b"--data-path", self.mktemp(),
-            b"--certificates-directory", self.certificate_path.path
-        ])
-        reactor = MemoryCoreReactor()
-        ControlScript().main(reactor, options)
-        server = reactor.tcpServers[0]
-        port = server[0]
-        factory = server[1].__class__
-        self.assertEqual((port, factory), (8001, TLSMemoryBIOFactory))
-
     def test_no_immediate_stop(self):
         """
         The ``Deferred`` returned from ``ControlScript`` is not fired.
