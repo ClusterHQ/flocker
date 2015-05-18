@@ -201,8 +201,14 @@ def loop_until(predicate):
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
-    msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
-                                   getsourcelines(predicate)[1]))
+    try:
+        msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
+                                       getsourcelines(predicate)[1]))
+    except IOError:
+        # One debugging method involves changing .py files and is incompatible
+        # with inspecting the source.
+        msg("Looping on %s" % (predicate,))
+
     d = maybeDeferred(predicate)
 
     def loop(result):
