@@ -183,7 +183,7 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     """
     result = {}
 
-    result['header'] = route.attributes.get('header', 'No header!')
+    result['header'] = route.attributes['header']
 
     userDocumentation = route.attributes.get(
         "userDocumentation", "Undocumented.")
