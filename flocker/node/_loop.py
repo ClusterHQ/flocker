@@ -403,6 +403,8 @@ class AgentLoopService(object, MultiService):
     :ivar port: Port to connect to.
     :ivar cluster_status: A cluster status FSM.
     :ivar factory: The factory used to connect to the control service.
+    :ivar reconnecting_factory: The underlying factory used to connect to
+        the control service, without the TLS wrapper.
     """
 
     def __init__(self, context_factory):
@@ -415,9 +417,10 @@ class AgentLoopService(object, MultiService):
         )
         self.logger = convergence_loop.logger
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
-        self.factory = TLSMemoryBIOFactory(
-            context_factory, True, ReconnectingClientFactory.forProtocol(
-                lambda: AgentAMP(self)))
+        self.reconnecting_factory = ReconnectingClientFactory.forProtocol(
+            lambda: AgentAMP(self))
+        self.factory = TLSMemoryBIOFactory(context_factory, True,
+                                           self.reconnecting_factory)
 
     def startService(self):
         MultiService.startService(self)
@@ -425,7 +428,7 @@ class AgentLoopService(object, MultiService):
 
     def stopService(self):
         MultiService.stopService(self)
-        self.factory.wrappedFactory.stopTrying()
+        self.reconnecting_factory.stopTrying()
         self.cluster_status.receive(ClusterStatusInputs.SHUTDOWN)
 
     # IConvergenceAgent methods:

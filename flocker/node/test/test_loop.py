@@ -669,8 +669,8 @@ class AgentLoopServiceTests(SynchronousTestCase):
         host, port, factory = reactor.tcpClients[0][:3]
         protocol = factory.buildProtocol(None)
         self.assertEqual((host, port, factory.__class__,
-                          factory.wrappedFactory.__class__,
-                          factory.wrappedFactory.continueTrying,
+                          service.reconnecting_factory.__class__,
+                          service.reconnecting_factory.continueTrying,
                           protocol.__class__,
                           protocol.wrappedProtocol.__class__,
                           service.running),
@@ -690,7 +690,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         service.cluster_status = fsm = StubFSM()
         service.startService()
         service.stopService()
-        self.assertEqual((service.factory.wrappedFactory.continueTrying,
+        self.assertEqual((service.reconnecting_factory.continueTrying,
                           fsm.inputted, service.running),
                          (False, [ClusterStatusInputs.SHUTDOWN], False))
 
