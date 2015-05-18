@@ -144,11 +144,11 @@ such as ``iTerm2`` for Mac OS X:
       rm -rf /opt/flocker/lib/python2.7/site-packages/flocker/
       cp -r /flocker-source/flocker/flocker/ /opt/flocker/lib/python2.7/site-packages/
 
+      SYSTEMD_SOURCE_DIR=/flocker-source/flocker/admin/package-files/systemd/
       # Stop systemd units before they are changed
-      cd /flocker-source/flocker/admin/package-files/systemd/
-      for service in $(ls *.service);
+      for service in $(ls ${SYSTEMD_SOURCE_DIR}*.service);
       do
-         service_name=${service%.*}
+         service_name=$(basename ${service} .service)
          systemctl stop ${service_name}
       done
 
@@ -162,10 +162,9 @@ such as ``iTerm2`` for Mac OS X:
       systemctl daemon-reload
 
       # Start systemd units
-      cd /flocker-source/flocker/admin/package-files/systemd/
-      for service in $(ls *.service);
+      for service in $(ls ${SYSTEMD_SOURCE_DIR}*.service);
       do
-         service_name=${service%.*}
+         service_name=$(basename ${service} .service)
          if [ "$(systemctl is-enabled ${service_name})" == 'enabled' ]
          then
            systemctl start ${service_name}
