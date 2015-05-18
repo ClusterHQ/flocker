@@ -12,14 +12,18 @@ from pyrsistent import pmap
 from ._model import DeploymentState
 
 
+# Seconds until updates are expired:
+EXPIRATION_TIME = 10
+
+
 class ClusterStateService(MultiService):
     """
     Store known current cluster state, and combine partial updates with
     the existing known state.
 
-    https://clusterhq.atlassian.net/browse/FLOC-1269 will deal with
-    semantics of expiring data, which should happen so stale information
-    isn't treated as correct.
+    Data that hasn't been updated for 10 seconds is expired. Eventually
+    we'll probably want a better policy:
+    https://clusterhq.atlassian.net/browse/FLOC-1896
 
     :ivar DeploymentState _deployment_state: The current known cluster
         state.
@@ -44,7 +48,7 @@ class ClusterStateService(MultiService):
         current_time = self._clock.seconds()
         evolver = self._information_wipers.evolver()
         for key, (wiper, timestamp) in self._information_wipers.items():
-            if current_time - 10 >= timestamp:
+            if current_time - EXPIRATION_TIME >= timestamp:
                 self._deployment_state = wiper.update_cluster_state(
                     self._deployment_state)
                 evolver.remove(key)
