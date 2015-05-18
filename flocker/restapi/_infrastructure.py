@@ -19,8 +19,6 @@ from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 from eliot import Logger, writeFailure
 from eliot.twisted import DeferredContext
 
-from sphinx.errors import SphinxError
-
 from ._error import (
     ILLEGAL_CONTENT_TYPE, DECODING_ERROR, BadRequest, InvalidRequestJSON)
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST

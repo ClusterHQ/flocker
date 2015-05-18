@@ -132,8 +132,7 @@ class MakeRstTests(SynchronousTestCase):
 
         rest = list(makeRst(b"/prefix", app, examples.get, {}))
         self.assertEqual(
-            [
-             '',
+            ['',
              # This line introduces the endpoint
              '.. http:get:: /prefix/',
              '',
@@ -666,8 +665,7 @@ class VariableInterpolationTests(SynchronousTestCase):
         self.assertEqual(
             # Unfortunately a lot of stuff that's not relevant to this test
             # comes back from makeRst.
-            [
-             u'',
+            [u'',
              u'.. http:get:: /prefix/',
              u'',
              u'   **Example:** Documentation of some example.',
