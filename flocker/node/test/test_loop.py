@@ -638,22 +638,26 @@ class AgentLoopServiceTests(SynchronousTestCase):
     """
     Tests for ``AgentLoopService``.
     """
+    def setUp(self):
+        self.deployer = ControllableDeployer(u"127.0.0.1", [], [])
+        self.reactor = MemoryReactorClock()
+        self.service = AgentLoopService(
+            reactor=self.reactor, deployer=self.deployer, host=u"example.com",
+            port=1234, context_factory=ClientContextFactory())
+
     def test_initialization(self):
         """
         A newly created service has a cluster status FSM pointing at a
         convergence loop FSM configured with the given deployer.
         """
-        deployer = object()
-        service = AgentLoopService(
-            reactor=None, deployer=deployer, host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
-        cluster_status_fsm_world = service.cluster_status._fsm._world.original
+        cluster_status_fsm_world = (
+            self.service.cluster_status._fsm._world.original)
         convergence_loop_fsm_world = (
             cluster_status_fsm_world.convergence_loop_fsm._fsm._world.original)
         self.assertEqual((cluster_status_fsm_world.__class__,
                           convergence_loop_fsm_world.__class__,
                           convergence_loop_fsm_world.deployer),
-                         (ClusterStatus, ConvergenceLoop, deployer))
+                         (ClusterStatus, ConvergenceLoop, self.deployer))
 
     def test_start_service(self):
         """
@@ -661,12 +665,9 @@ class AgentLoopServiceTests(SynchronousTestCase):
         and port which calls ``build_agent_client`` with the service when
         connected.
         """
-        reactor = MemoryReactorClock()
-        service = AgentLoopService(
-            reactor=reactor, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.startService()
-        host, port, factory = reactor.tcpClients[0][:3]
+        host, port, factory = self.reactor.tcpClients[0][:3]
         protocol = factory.buildProtocol(None)
         self.assertEqual((host, port, factory.__class__,
                           service.reconnecting_factory.__class__,
@@ -683,10 +684,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         Stopping the service stops the reconnecting TCP client and inputs
         shutdown event to the cluster status FSM.
         """
-        reactor = MemoryReactorClock()
-        service = AgentLoopService(
-            reactor=reactor, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.cluster_status = fsm = StubFSM()
         service.startService()
         service.stopService()
@@ -699,9 +697,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         When ``connnected()`` is called a ``_ConnectedToControlService`` input
         is passed to the cluster status FSM.
         """
-        service = AgentLoopService(
-            reactor=None, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.cluster_status = fsm = StubFSM()
         client = object()
         service.connected(client)
@@ -714,9 +710,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         ``ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE`` input is
         passed to the cluster status FSM.
         """
-        service = AgentLoopService(
-            reactor=None, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.cluster_status = fsm = StubFSM()
         service.disconnected()
         self.assertEqual(
@@ -728,9 +722,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         When ``cluster_updated()`` is called a ``_StatusUpdate`` input is
         passed to the cluster status FSM.
         """
-        service = AgentLoopService(
-            reactor=None, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.cluster_status = fsm = StubFSM()
         config = object()
         state = object()
