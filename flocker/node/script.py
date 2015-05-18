@@ -258,7 +258,12 @@ class AgentServiceFactory(PRecord):
 @implementer(ICommandLineVolumeScript)
 class AgentScriptFactory(PRecord):
     def main(self, reactor, options, volume_service):
-        if options['backend'] == 'zfs':
+        agent_config = options[u'agent-config']
+        configuration = yaml.safe_load(agent_config.getContent())
+
+        validate_configuration(configuration=configuration)
+
+        if configuration['backend'] == 'zfs':
             return FlockerScriptRunner(
                 script=VolumeScript(ZFSAgentScript()),
                 options=options,
