@@ -2630,7 +2630,8 @@ class CreateAPIServiceTests(SynchronousTestCase):
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
         verifyObject(IService, create_api_service(
-            None, None, endpoint, ClientContextFactory()))
+            ConfigurationPersistenceService(reactor, FilePath(self.mktemp())),
+            ClusterStateService(), endpoint, ClientContextFactory()))
 
     def test_listens_endpoint(self):
         """
@@ -2639,8 +2640,9 @@ class CreateAPIServiceTests(SynchronousTestCase):
         """
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        service = create_api_service(None, None, endpoint,
-                                     ClientContextFactory())
+        service = create_api_service(
+            ConfigurationPersistenceService(reactor, FilePath(self.mktemp())),
+            ClusterStateService(), endpoint, ClientContextFactory())
         self.addCleanup(service.stopService)
         service.startService()
         server = reactor.tcpServers[0]
