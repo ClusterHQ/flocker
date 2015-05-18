@@ -269,6 +269,17 @@ class AgentScriptFactory(PRecord):
         # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
         node_uuid = ip_to_uuid(ip)
 
+        # TODO, we want something like:
+
+        # deployer = deployer_from_config(backend=config['dataset']['backend'], node_uuid=node_uuid, hostname=ip)
+        # service = AgentLoopService(deployer=deployer)
+        #
+        # if configuration['dataset']['backend'] == 'zfs':
+        #     volume_service.setServiceParent(service)
+        #
+        # else:
+        #     raise NotImplementedError()
+
         if configuration['dataset']['backend'] == 'zfs':
             deployer = P2PManifestationDeployer(ip, volume_service,
                                                 node_uuid=node_uuid)
