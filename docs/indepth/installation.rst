@@ -405,8 +405,8 @@ You must also install the ZFS package repository.
    :prompt: [root@centos-7]#
 
 
-Installing ZFS on Ubunt 14.04
-.............................
+Installing ZFS on Ubuntu 14.04
+..............................
 
 .. task:: install_zfs ubuntu-14.04
    :prompt: [root@ubuntu-14.04]#
