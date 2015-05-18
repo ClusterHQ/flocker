@@ -263,12 +263,12 @@ class AgentScriptFactory(PRecord):
 
         validate_configuration(configuration=configuration)
 
-        if configuration['backend'] == 'zfs':
+        if configuration['dataset']['backend'] == 'zfs':
             return FlockerScriptRunner(
                 script=VolumeScript(ZFSAgentScript()),
                 options=options,
             ).main()
-        elif options['backend'] == 'loopback':
+        elif configuration['dataset']['backend'] == 'loopback':
             # Later, construction of this object can be moved into
             # AgentServiceFactory.get_service where various options passed on
             # the command line could alter what is created and how it is initialized.
