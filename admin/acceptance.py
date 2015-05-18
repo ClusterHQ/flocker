@@ -217,7 +217,12 @@ class VagrantRunner(object):
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
-    Run the tests against rackspace nodes.
+    Start and stop cloud nodes for acceptance testing.
+
+    :ivar LibcloudProvioner provisioner: The provisioner to use to create the
+        nodes.
+    :ivar VolumeBackend volume_backend: The volume backend the nodes are
+        configured with.
     """
     def __init__(self):
         self.nodes = []

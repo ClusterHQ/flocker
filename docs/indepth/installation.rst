@@ -376,7 +376,6 @@ Replace the IP addresses in the ``deployment.yaml`` files with the IP address of
 Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
 
 
-
 ZFS Backend Configuration
 -------------------------
 

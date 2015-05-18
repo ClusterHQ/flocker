@@ -279,6 +279,12 @@ def task_create_flocker_pool_file():
 
 
 def task_install_zfs(distribution, variants=set()):
+    """
+    Install ZFS on a node.
+
+    :param bytes distribution: The distribution the node is running.
+    :param set variants: The set of variant configurations to use when
+    """
     commands = []
     if distribution == 'ubuntu-14.04':
         commands += [
@@ -321,6 +327,14 @@ def task_install_zfs(distribution, variants=set()):
 
 
 def configure_zfs(node, variants):
+    """
+    Configure ZFS for use as a Flocker backend.
+
+    :param INode node: The node to configure ZFS on.
+    :param set variants: The set of variant configurations to use when
+
+    :return Effect:
+    """
     return sequence([
         run_remotely(
             username='root',
