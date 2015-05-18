@@ -76,7 +76,7 @@ def run_tests(reactor, nodes, control_node, agent_nodes, volume_backend,
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
     :param FilePath certificates_path: Directory where certificates can be
-        found.
+        found; specifically the directory used by ``Certificates``.
 
     :return int: The exit-code of trial.
     """
