@@ -19,7 +19,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
 
-from eliot import Logger, start_action
+from eliot import Logger, start_action, Message
 from eliot.twisted import DeferredContext
 
 from treq import json_content, content
@@ -851,10 +851,15 @@ def get_test_cluster(reactor, node_count=0):
 
     # Wait until nodes are up and running:
     def nodes_available():
+        def failed_query(failure):
+            Message.new(message_type="acceptance:is_available_error",
+                        reason=unicode(failure),
+                        exception=unicode(failure.__class__)).write()
+            return False
         d = cluster.current_nodes()
         d.addCallbacks(lambda (cluster, nodes): len(nodes) >= node_count,
                        # Control service may not be up yet, keep trying:
-                       lambda failure: False)
+                       failed_query)
         return d
     agents_connected = loop_until(nodes_available)
 
