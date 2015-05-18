@@ -643,6 +643,10 @@ class IClusterStateWipe(Interface):
     """
     An ``IClusterStateWipe`` can remove some information from a
     ``DeploymentState``.
+
+    The type of a provider is implicitly part of its interface. Instances
+    with different types will not replace each other, even if they have
+    same key.
     """
     def update_cluster_state(cluster_state):
         """
@@ -736,14 +740,21 @@ class NodeState(PRecord):
                                         "manifestations", "paths",
                                         "devices"]
 
-    def _completely_ignorant(self):
+    def _provides_information(self):
         """
-        Return whether the node is completely ignorant of anything.
+        Return whether the node has some information, i.e. is not completely
+        ignorant.
         """
-        return all(getattr(self, attr) is None
+        return any(getattr(self, attr) is not None
                    for attr in self._POTENTIALLY_IGNORANT_ATTRIBUTES)
 
     def get_information_wipe(self):
+        """
+        The result wipes any attributes that are set by this instance
+        (i.e. aren't ``None``), and will remove the ``NodeState``
+        completely if result is ``NodeState`` with no knowledge of
+        anything.
+        """
         attributes = [attr for attr in
                       self._POTENTIALLY_IGNORANT_ATTRIBUTES
                       if getattr(self, attr) is not None]
@@ -775,7 +786,7 @@ class _WipeNodeState(PRecord):
         for attribute in self.attributes:
             updated_node = updated_node.set(attribute, None)
         final_nodes = cluster_state.nodes.discard(original_node)
-        if not updated_node._completely_ignorant():
+        if updated_node._provides_information():
             final_nodes = final_nodes.add(updated_node)
         return cluster_state.set("nodes", final_nodes)
 
@@ -850,6 +861,9 @@ class NonManifestDatasets(PRecord):
         return cluster_state.set(nonmanifest_datasets=self.datasets)
 
     def get_information_wipe(self):
+        """
+        Result will wipe all information about non-manifest datasets.
+        """
         return _NonManifestDatasetsWipe()
 
 
