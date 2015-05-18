@@ -362,8 +362,10 @@ def flocker_deploy(test_case, deployment_config, application_config):
     :param dict deployment_config: The desired deployment configuration.
     :param dict application_config: The desired application configuration.
     """
+    # This is duplicate code, see
+    # https://clusterhq.atlassian.net/browse/FLOC-1903
     control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
-    certificate_path = environ.get("FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH")
+    certificate_path = environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"]
     if control_node is None:
         raise SkipTest("Set control node address using "
                        "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
