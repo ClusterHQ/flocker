@@ -23,7 +23,7 @@ They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flo
 
 It is possible to see the available unit names, and then view the logs with ``journalctl``:
 
-.. prompt:: bash $
+.. prompt:: bash $ auto
 
    $ ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
    flocker-agent
