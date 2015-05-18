@@ -14,6 +14,7 @@ from twisted.internet.defer import Deferred
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
+from twisted.internet.ssl import ClientContextFactory
 
 from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
@@ -150,10 +151,12 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         self.assertEqual((parent_service, deployer.__class__,
                           deployer.volume_service,
                           parent_service.running),
-                         (AgentLoopService(reactor=test_reactor,
-                                           deployer=None,
-                                           host=u"10.0.0.1",
-                                           port=4524),
+                         (AgentLoopService(
+                             reactor=test_reactor,
+                             deployer=None,
+                             host=u"10.0.0.1",
+                             port=4524,
+                             context_factory=ClientContextFactory()),
                           P2PManifestationDeployer, service, True))
 
     def test_config_validated(self):
@@ -231,6 +234,9 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 deployer=deployer,
                 host=b"10.0.0.1",
                 port=1234,
+                # Simplest possible TLS context factory; not what we'd use
+                # in practice.
+                context_factory=ClientContextFactory(),
             ),
             service_factory.get_service(reactor, options)
         )
