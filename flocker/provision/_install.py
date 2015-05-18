@@ -18,7 +18,7 @@ from ._ssh import (
     run, run_from_args,
     sudo_from_args,
     put,
-    run_remotely
+    run_remotely,
 )
 from ._effect import sequence
 
@@ -312,7 +312,7 @@ def task_install_zfs(distribution, variants=set()):
                     'yum-config-manager', '--enable', 'zfs-testing'])
             ]
         commands += [
-            run_from_args(['yum', 'install', '-y', 'zfs>=0.6.4']),
+            run_from_args(['yum', 'install', '-y', 'zfs']),
         ]
     else:
         raise DistributionNotSupported(distribution)
@@ -320,12 +320,28 @@ def task_install_zfs(distribution, variants=set()):
     return sequence(commands)
 
 
-def configure_zfs(distribution, variants):
-
+def configure_zfs(node, variants):
     return sequence([
-        task_upgrade_kernel(distribution),
-        task_install_zfs(distribution, variants),
-        task_create_flocker_pool_file(),
+        run_remotely(
+            username='root',
+            address=node.address,
+            commands=task_upgrade_kernel(
+                distribution=node.distribution),
+        ),
+        Effect(
+            Func(node.reboot)),
+        run_remotely(
+            username='root',
+            address=node.address,
+            commands=sequence([
+                task_install_zfs(
+                    distribution=node.distribution,
+                    variants=variants),
+                task_create_flocker_pool_file(),
+            ]),
+        ),
+        Effect(
+            Func(lambda: configure_ssh(node.address, 22))),
     ])
 
 

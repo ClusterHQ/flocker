@@ -24,6 +24,7 @@ from flocker.provision._ssh import (
 from flocker.provision._install import (
     task_pull_docker_images,
     configure_cluster,
+    configure_zfs,
 )
 from flocker.provision._libcloud import INode
 
@@ -211,7 +212,8 @@ class VagrantRunner(object):
 
 
 @attributes(RUNNER_ATTRIBUTES + [
-    'provisioner'
+    'provisioner',
+    'volume_backend',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
@@ -269,6 +271,11 @@ class LibcloudRunner(object):
                            variants=self.variants)
             for node in self.nodes
         ])
+        if self.volume_backend == VolumeBackend.zfs:
+            commands = commands.on(success=lambda _: parallel([
+                configure_zfs(node, variants=self.variants)
+                for node in self.nodes
+            ]))
         yield perform(make_dispatcher(reactor), commands)
 
         returnValue(self.nodes)
@@ -324,6 +331,7 @@ class RunOptions(Options):
         Options.__init__(self)
         self.top_level = top_level
         self['variants'] = []
+        self['volume-backend'] = VolumeBackend.zfs
 
     def opt_variant(self, arg):
         """
@@ -384,6 +392,7 @@ class RunOptions(Options):
                 distribution=self['distribution'],
                 package_source=package_source,
                 provisioner=provisioner,
+                volume_backend=self['volume-backend'],
                 variants=self['variants'],
             )
         else:
@@ -444,7 +453,7 @@ def main(reactor, args, base_path, top_level):
             reactor=reactor,
             nodes=nodes,
             control_node=nodes[0], agent_nodes=nodes,
-            volume_backend=VolumeBackend.zfs,
+            volume_backend=options['volume-backend'],
             trial_args=options['trial-args'])
     except:
         result = 1
