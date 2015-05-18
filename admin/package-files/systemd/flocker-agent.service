@@ -1,6 +1,6 @@
 [Unit]
 Description=Flocker Dataset Agent
-AssertFileNotEmpty=/etc/flocker/agent.yml
+ConditionFileNotEmpty=/etc/flocker/agent.yml
 
 [Service]
 ExecStart=/usr/sbin/flocker-dataset-agent
