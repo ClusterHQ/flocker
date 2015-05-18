@@ -739,11 +739,12 @@ class NodeState(PRecord):
                                         "manifestations", "paths",
                                         "devices"]
 
-    def _completely_ignorant(self):
+    def _provides_information(self):
         """
-        Return whether the node is completely ignorant of anything.
+        Return whether the node has some information, i.e. is not completely
+        ignorant.
         """
-        return all(getattr(self, attr) is None
+        return any(getattr(self, attr) is not None
                    for attr in self._POTENTIALLY_IGNORANT_ATTRIBUTES)
 
     def get_information_wipe(self):
@@ -778,7 +779,7 @@ class _WipeNodeState(PRecord):
         for attribute in self.attributes:
             updated_node = updated_node.set(attribute, None)
         final_nodes = cluster_state.nodes.discard(original_node)
-        if not updated_node._completely_ignorant():
+        if updated_node._provides_information():
             final_nodes = final_nodes.add(updated_node)
         return cluster_state.set("nodes", final_nodes)
 
