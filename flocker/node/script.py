@@ -126,32 +126,6 @@ def validate_configuration(configuration):
     v.validate(configuration)
 
 
-@implementer(ICommandLineVolumeScript)
-class ZFSAgentScript(object):
-    """
-    A command to start a long-running process to manage volumes on one node of
-    a Flocker cluster.
-    """
-    def main(self, reactor, options, volume_service):
-        agent_config = options[u'agent-config']
-        configuration = yaml.safe_load(agent_config.getContent())
-
-        validate_configuration(configuration=configuration)
-
-        host = configuration['control-service']['hostname']
-        port = configuration['control-service'].get("port", 4524)
-        ip = _get_external_ip(host, port)
-        # Soon we'll extract this from TLS certificate for node.  Until then
-        # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
-        node_uuid = ip_to_uuid(ip)
-        deployer = P2PManifestationDeployer(ip, volume_service,
-                                            node_uuid=node_uuid)
-        loop = AgentLoopService(reactor=reactor, deployer=deployer,
-                                host=host, port=port)
-        volume_service.setServiceParent(loop)
-        return main_for_service(reactor, loop)
-
-
 @flocker_standard_options
 @flocker_volume_options
 class _AgentOptions(Options):

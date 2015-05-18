@@ -19,8 +19,9 @@ from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 
 from ..script import (
-    ZFSAgentScript, AgentScript, ContainerAgentOptions,
-    AgentServiceFactory, DatasetAgentOptions, validate_configuration)
+    AgentScript, ContainerAgentOptions,
+    AgentServiceFactory, DatasetAgentOptions, validate_configuration,
+    AgentScriptFactory)
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
 from ...testtools import MemoryCoreReactor
@@ -63,14 +64,14 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         service = Service()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        ZFSAgentScript().main(MemoryCoreReactor(), options, service)
+        AgentScriptFactory().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
     def test_no_immediate_stop(self):
         """
         The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
         """
-        script = ZFSAgentScript()
+        script = AgentScriptFactory()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
@@ -84,7 +85,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
-        ZFSAgentScript().main(test_reactor, options, service)
+        AgentScriptFactory().main(test_reactor, options, service)
         parent_service = service.parent
         # P2PManifestationDeployer is difficult to compare automatically,
         # so do so manually:
@@ -119,7 +120,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
-        ZFSAgentScript().main(test_reactor, options, service)
+        AgentScriptFactory().main(test_reactor, options, service)
         parent_service = service.parent
         # P2PManifestationDeployer is difficult to compare automatically,
         # so do so manually:
@@ -147,7 +148,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
         self.assertRaises(
             ValidationError,
-            ZFSAgentScript().main, test_reactor, options, service,
+            AgentScriptFactory().main, test_reactor, options, service,
         )
 
     def test_missing_configuration_file(self):
@@ -162,7 +163,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
         self.assertRaises(
             IOError,
-            ZFSAgentScript().main, test_reactor, options, service,
+            AgentScriptFactory().main, test_reactor, options, service,
         )
 
 
