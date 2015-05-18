@@ -263,7 +263,7 @@ class AgentScriptFactory(PRecord):
 
         validate_configuration(configuration=configuration)
 
-        if configuration['dataset']['backend'] == 'zfs':
+        if configuration['dataset']['backend'] == 'X':
             host = configuration['control-service']['hostname']
             port = configuration['control-service'].get("port", 4524)
             ip = _get_external_ip(host, port)
