@@ -264,10 +264,18 @@ class AgentScriptFactory(PRecord):
         validate_configuration(configuration=configuration)
 
         if configuration['dataset']['backend'] == 'zfs':
-            return FlockerScriptRunner(
-                script=VolumeScript(ZFSAgentScript()),
-                options=DatasetAgentOptions(),
-            ).main()
+            host = configuration['control-service']['hostname']
+            port = configuration['control-service'].get("port", 4524)
+            ip = _get_external_ip(host, port)
+            # Soon we'll extract this from TLS certificate for node.  Until then
+            # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
+            node_uuid = ip_to_uuid(ip)
+            deployer = P2PManifestationDeployer(ip, volume_service,
+                                                node_uuid=node_uuid)
+            loop = AgentLoopService(reactor=reactor, deployer=deployer,
+                                    host=host, port=port)
+            volume_service.setServiceParent(loop)
+            return main_for_service(reactor, loop)
         elif configuration['dataset']['backend'] == 'loopback':
             # Later, construction of this object can be moved into
             # AgentServiceFactory.get_service where various options passed on
@@ -290,13 +298,13 @@ class AgentScriptFactory(PRecord):
             service_factory = AgentServiceFactory(
                 deployer_factory=deployer_factory
             ).get_service
-            agent_script = AgentScript(
-                service_factory=service_factory,
+            # agent_script = AgentScript(
+            #     service_factory=service_factory,
+            # )
+            return main_for_service(
+                reactor,
+                service_factory(reactor, options)
             )
-            return FlockerScriptRunner(
-                script=agent_script,
-                options=DatasetAgentOptions(),
-            ).main()
         else:
             raise NotImplementedError()
 
