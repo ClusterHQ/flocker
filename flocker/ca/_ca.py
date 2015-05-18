@@ -479,8 +479,8 @@ class ControlCredential(PRecord):
         """
         Load a control service certificate and key from the supplied path.
 
-        :param FilePath path: Directory where user certificate and key
-            files are stored.
+        :param FilePath path: Directory where control service certificate
+            and key files are stored.
         :param bytes hostname: The hostname of the control service certificate.
         """
         keypair, certificate = load_certificate_from_path(
