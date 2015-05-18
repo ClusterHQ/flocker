@@ -33,7 +33,7 @@ from keystoneclient.session import Session
 from cinderclient.client import Client as CinderClient
 from novaclient.client import Client as NovaClient
 
-from ..cinder import CinderBlockDeviceAPI
+from ..cinder import cinder_api
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
 
@@ -169,8 +169,7 @@ def _openstack(**config):
         necessary to authenticate a session for use with the CinderClient and
         NovaClient.
 
-    :return: A ``dict`` giving initializer arguments for
-        ``CinderBlockDeviceAPI``.
+    :return: A ``dict`` of keyword arguments for ``cinder_api``.
     """
     # The execution context should have set up this environment variable,
     # probably by inspecting some cloud-y state to discover where this code is
@@ -191,9 +190,8 @@ def _openstack(**config):
         session=session, region_name=region, version=2
     )
     return dict(
-        cinder_volume_manager=cinder_client.volumes,
-        nova_volume_manager=nova_client.volumes,
-        nova_server_manager=nova_client.servers,
+        cinder_client=cinder_client,
+        nova_client=nova_client
     )
 
 
@@ -223,9 +221,9 @@ def _aws(**config):
 # Map provider labels to IBlockDeviceAPI factory and a corresponding argument
 # factory.
 _BLOCKDEVICE_TYPES = {
-    ProviderType.openstack: (CinderBlockDeviceAPI, _openstack),
+    ProviderType.openstack: (cinder_api, _openstack),
     ProviderType.rackspace:
-        (CinderBlockDeviceAPI, partial(_openstack, auth_plugin="rackspace")),
+        (cinder_api, partial(_openstack, auth_plugin="rackspace")),
     ProviderType.aws: (EBSBlockDeviceAPI, _aws),
 }
 
