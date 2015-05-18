@@ -17,9 +17,10 @@ def get_all_ips():
     interfaces = netifaces.interfaces()
     for interface in interfaces:
         addresses = netifaces.ifaddresses(interface)
-        ipv4 = addresses.get(netifaces.AF_INET)
-        if not ipv4:
-            continue
-        for address in ipv4:
-            ips.append(address['addr'])
+        for address_family in (netifaces.AF_INET, netifaces.AF_INET6):
+            family_addresses = addresses.get(address_family)
+            if not family_addresses:
+                continue
+            for address in family_addresses:
+                ips.append(address['addr'])
     return ips
