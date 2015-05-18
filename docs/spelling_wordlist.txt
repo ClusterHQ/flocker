@@ -26,7 +26,7 @@ failover
 filename
 filesystem
 filesystems
-firewalld
+FirewallD
 flocker
 flocker-cli
 flocker-deploy
