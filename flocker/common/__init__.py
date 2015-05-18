@@ -21,4 +21,3 @@ if platform.system() == 'Linux':
     # For some reason I don't understand,  keystoneclient has problems on OS X.
     # Fortunately, we don't need keystoneclient on OS X.
     from ._openstack import auto_openstack_logging
-
