@@ -13,9 +13,14 @@ from OpenSSL.SSL import VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT
 from zope.interface import implementer
 
 from twisted.web.iweb import IPolicyForHTTPS
-from twisted.internet.ssl import optionsForClientTLS
+from twisted.internet.ssl import optionsForClientTLS, Certificate
+from twisted.web.client import Agent
+
+from treq.client import HTTPClient
 
 from pyrsistent import PRecord, field
+
+from ._ca import UserCredential
 
 
 @implementer(IPolicyForHTTPS)
@@ -106,3 +111,27 @@ def rest_api_context_factory(ca_certificate, control_credential):
         REST API server.
     """
     return _ClientContextFactory(ca_certificate, control_credential, b"user-")
+
+
+def treq_with_authentication(reactor, certificates_path):
+    """
+    Create a ``treq``-API object that implements the REST API TLS
+    authentication.
+
+    That is, validating the control service as well as presenting a
+    certificate to the control service for authentication.
+
+    :param reactor: The reactor to use.
+    :param FilePath certificates_path: Directory where certificates and
+        private key can be found.
+
+    :return: ``treq`` compatible object.
+    """
+    ca = Certificate.loadPEM(
+        certificates_path.child(b"cluster.crt").getContent())
+    # This is a hack; from_path should be more
+    # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
+    user_credential = UserCredential.from_path(certificates_path, u"user")
+    policy = ControlServicePolicy(
+        ca_certificate=ca, client_credential=user_credential.credential)
+    return HTTPClient(Agent(reactor, contextFactory=policy))

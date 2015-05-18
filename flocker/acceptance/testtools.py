@@ -15,10 +15,11 @@ from yaml import safe_dump
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
+from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
 
-from eliot import Logger, start_action
+from eliot import Logger, start_action, Message
 from eliot.twisted import DeferredContext
 
 from treq import json_content, content
@@ -30,7 +31,7 @@ from ..control import (
 )
 
 from ..control.httpapi import container_configuration_response, REST_API_PORT
-from ..cli.script import treq_with_authentication
+from ..ca import treq_with_authentication
 from ..testtools import loop_until
 
 try:
@@ -205,6 +206,62 @@ def _clean_node(test_case, node):
         pass
 
 
+class VolumeBackend(Names):
+    loopback = NamedConstant()
+    zfs = NamedConstant()
+    aws = NamedConstant()
+    openstack = NamedConstant()
+
+
+def get_volume_backend(test_case):
+    """
+    Get the volume backend the acceptance tests are running as.
+
+    :param test_case: The ``TestCase`` running this unit test.
+
+    :return VolumeBackend: The configured backend.
+    :raise SkipTest: if the backend is specified.
+    """
+    backend = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
+    if backend is None:
+        raise SkipTest(
+            "Set acceptance testing volume backend using the " +
+            "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
+    return VolumeBackend.lookupByName(backend)
+
+
+def skip_backend(unsupported, reason):
+    """
+    Create decorator that skips a test if the volume backend doesn't support
+    the operations required by the test.
+
+    :param supported: List of supported volume backends for this test.
+    :param reason: The reason the backend isn't supported.
+    """
+    def decorator(test_method):
+        """
+        :param test_method: The test method that should be skipped.
+        """
+        @wraps(test_method)
+        def wrapper(test_case, *args, **kwargs):
+            backend = get_volume_backend(test_case)
+
+            if backend in unsupported:
+                raise SkipTest(
+                    "Backend not supported: {backend} ({reason}).".format(
+                        backend=backend,
+                        reason=reason,
+                    )
+                )
+            return test_method(test_case, *args, **kwargs)
+        return wrapper
+    return decorator
+
+require_moving_backend = skip_backend(
+    unsupported={VolumeBackend.loopback},
+    reason="doesn't support moving")
+
+
 def get_nodes(test_case, num_nodes):
     """
     Create or get ``num_nodes`` nodes with no Docker containers on them.
@@ -288,10 +345,11 @@ def get_nodes(test_case, num_nodes):
     getting.addCallback(lambda cluster:
                         loop_until(lambda: no_containers(cluster)))
 
-    def clean(_):
+    def clean_zfs(_):
         for node in reachable_nodes:
             _clean_node(test_case, node)
-    getting.addCallback(clean)
+    if get_volume_backend(test_case) == b'zfs':
+        getting.addCallback(clean_zfs)
     getting.addCallback(lambda _: reachable_nodes)
     return getting
 
@@ -304,8 +362,10 @@ def flocker_deploy(test_case, deployment_config, application_config):
     :param dict deployment_config: The desired deployment configuration.
     :param dict application_config: The desired application configuration.
     """
+    # This is duplicate code, see
+    # https://clusterhq.atlassian.net/browse/FLOC-1903
     control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
-    certificate_path = environ.get("FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH")
+    certificate_path = environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"]
     if control_node is None:
         raise SkipTest("Set control node address using "
                        "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
@@ -791,10 +851,15 @@ def get_test_cluster(reactor, node_count=0):
 
     # Wait until nodes are up and running:
     def nodes_available():
+        def failed_query(failure):
+            Message.new(message_type="acceptance:is_available_error",
+                        reason=unicode(failure),
+                        exception=unicode(failure.__class__)).write()
+            return False
         d = cluster.current_nodes()
         d.addCallbacks(lambda (cluster, nodes): len(nodes) >= node_count,
                        # Control service may not be up yet, keep trying:
-                       lambda failure: False)
+                       failed_query)
         return d
     agents_connected = loop_until(nodes_available)
 

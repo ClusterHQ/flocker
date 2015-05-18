@@ -11,8 +11,7 @@ from uuid import UUID
 
 import yaml
 
-from jsonschema import FormatChecker, validate
-from jsonschema.exceptions import ValidationError
+from jsonschema import FormatChecker, Draft4Validator
 
 from pyrsistent import PRecord, field
 
@@ -23,7 +22,8 @@ from twisted.python.usage import Options
 from twisted.internet.ssl import Certificate
 
 from ..volume.service import (
-    ICommandLineVolumeScript, VolumeScript)
+    ICommandLineVolumeScript, VolumeScript,
+)
 
 from ..volume.script import flocker_volume_options
 from ..common.script import (
@@ -32,35 +32,12 @@ from ..common.script import (
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
-from ..control import ConfigurationError
 from ..ca import ControlServicePolicy, NodeCredential
 
 
 __all__ = [
-    "flocker_zfs_agent_main",
     "flocker_dataset_agent_main",
 ]
-
-
-@flocker_standard_options
-@flocker_volume_options
-class ZFSAgentOptions(Options):
-    """
-    Command line options for ``flocker-zfs-agent`` cluster management process.
-    """
-    longdesc = """\
-    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
-    """
-
-    synopsis = ("Usage: flocker-zfs-agent [OPTIONS]")
-
-    optParameters = [
-        ["agent-config", "c", "/etc/flocker/agent.yml",
-         "The configuration file to set the control service."],
-    ]
-
-    def postOptions(self):
-        self['agent-config'] = FilePath(self['agent-config'])
 
 
 def _get_external_ip(host, port):
@@ -108,27 +85,26 @@ def _context_factory_and_credential(path, host, port):
     return (policy.creatorForNetloc(host, port), node_credential)
 
 
-def agent_config_from_file(path):
+def validate_configuration(configuration):
     """
-    Extract configuration from provided options.
+    Validate a provided configuration.
 
-    :param FilePath path: Path to a file containing specified options for an
-        agent.
+    :param dict configuration: A desired configuration for an agent.
 
-    :return dict: Dictionary containing the desired configuration.
+    :raises: jsonschema.ValidationError if the configuration is invalid.
     """
-    try:
-        options = yaml.safe_load(path.getContent())
-    except IOError:
-        raise ConfigurationError(
-            "Configuration file does not exist at '{}'.".format(path.path))
-
+    # XXX Create a function which loads and validates, and also setting
+    # defaults. FLOC-1791.
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
-        "required": ["version", "control-service"],
+        "required": ["version", "control-service", "dataset"],
         "properties": {
-            "version": {"type": "number"},
+            "version": {
+                "type": "number",
+                "maximum": 1,
+                "minimum": 1,
+            },
             "control-service": {
                 "type": "object",
                 "required": ["hostname"],
@@ -139,32 +115,42 @@ def agent_config_from_file(path):
                     },
                     "port": {"type": "integer"},
                 }
+            },
+            "dataset": {
+                "type": "object",
+                "oneOf": [
+                    {
+                        "required": ["backend"],
+                        "properties": {
+                            "backend": {
+                                "type": "string",
+                                "pattern": "zfs",
+                            },
+                            "pool": {
+                                "type": "string",
+                            },
+                        }
+                    },
+                    {
+                        "required": ["backend"],
+                        "properties": {
+                            "backend": {
+                                "type": "string",
+                                "pattern": "loopback",
+                            },
+                            "pool": {
+                                "type": "string",
+                            },
+                        }
+
+                    },
+                ]
             }
         }
     }
 
-    try:
-        validate(options, schema, format_checker=FormatChecker())
-    except ValidationError as e:
-        raise ConfigurationError(
-            "Configuration has an error: {}.".format(e.message,)
-        )
-
-    if options[u'version'] != 1:
-        raise ConfigurationError(
-            "Configuration has an error. Incorrect version specified.")
-
-    try:
-        port = options['control-service']['port']
-    except KeyError:
-        port = 4524
-
-    return {
-        'control-service': {
-            'hostname': options['control-service']['hostname'],
-            'port': port,
-        },
-    }
+    v = Draft4Validator(schema, format_checker=FormatChecker())
+    v.validate(configuration)
 
 
 @implementer(ICommandLineVolumeScript)
@@ -174,9 +160,13 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        configuration = agent_config_from_file(path=options[u'agent-config'])
+        agent_config = options[u'agent-config']
+        configuration = yaml.safe_load(agent_config.getContent())
+
+        validate_configuration(configuration=configuration)
+
         host = configuration['control-service']['hostname']
-        port = configuration['control-service']["port"]
+        port = configuration['control-service'].get("port", 4524)
         ip = _get_external_ip(host, port)
         context_factory, node_credential = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
@@ -189,20 +179,11 @@ class ZFSAgentScript(object):
         return main_for_service(reactor, loop)
 
 
-def flocker_zfs_agent_main():
-    return FlockerScriptRunner(
-        script=VolumeScript(ZFSAgentScript()),
-        options=ZFSAgentOptions()
-    ).main()
-
-
 @flocker_standard_options
+@flocker_volume_options
 class _AgentOptions(Options):
     """
     Command line options for agents.
-
-    XXX: This is a hack. Better to have required options and to share the
-    common options with ``ZFSAgentOptions``.
     """
     # Use as basis for subclass' synopsis:
     synopsis = "Usage: {} [OPTIONS]"
@@ -289,9 +270,13 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        configuration = agent_config_from_file(path=options[u'agent-config'])
+        agent_config = options[u'agent-config']
+        configuration = yaml.safe_load(agent_config.getContent())
+
+        validate_configuration(configuration=configuration)
+
         host = configuration['control-service']['hostname']
-        port = configuration['control-service']['port']
+        port = configuration['control-service'].get('port', 4524)
         ip = _get_external_ip(host, port)
         context_factory, node_credential = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
@@ -328,10 +313,20 @@ def flocker_dataset_agent_main():
             # multiple instances of the script.  Similar effect could be
             # achieved by making this id a command line argument but that
             # would be harder to implement and harder to use.
-            compute_instance_id=bytes(getpid()),
+            compute_instance_id=bytes(getpid()).decode('utf-8'),
         )
         return BlockDeviceDeployer(block_device_api=api, hostname=hostname,
                                    node_uuid=node_uuid)
+
+    options = DatasetAgentOptions()
+
+    # XXX This should use dynamic dispatch in the deployer_factory
+    # There should be only AgentScript, not ZFSAgentScript, and it should
+    # do the right thing for the configured backend. FLOC-1791.
+    return FlockerScriptRunner(
+        script=VolumeScript(ZFSAgentScript()),
+        options=options,
+    ).main()
 
     service_factory = AgentServiceFactory(
         deployer_factory=deployer_factory
@@ -341,7 +336,7 @@ def flocker_dataset_agent_main():
     )
     return FlockerScriptRunner(
         script=agent_script,
-        options=DatasetAgentOptions()
+        options=options,
     ).main()
 
 

@@ -14,7 +14,6 @@ from zope.interface.verify import verifyObject
 from twisted.internet import reactor
 from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.http import (
@@ -2630,23 +2629,8 @@ class CreateAPIServiceTests(SynchronousTestCase):
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
         verifyObject(IService, create_api_service(
-            None, None, endpoint, ClientContextFactory()))
-
-    def test_listens_endpoint(self):
-        """
-        ``create_api_service`` returns a service that listens using the given
-        endpoint with a TLS server.
-        """
-        reactor = MemoryReactor()
-        endpoint = TCP4ServerEndpoint(reactor, 6789)
-        service = create_api_service(None, None, endpoint,
-                                     ClientContextFactory())
-        self.addCleanup(service.stopService)
-        service.startService()
-        server = reactor.tcpServers[0]
-        port = server[0]
-        factory = server[1].__class__
-        self.assertEqual((port, factory), (6789, TLSMemoryBIOFactory))
+            ConfigurationPersistenceService(reactor, FilePath(self.mktemp())),
+            ClusterStateService(), endpoint, ClientContextFactory()))
 
 
 class DatasetsStateTestsMixin(APITestsMixin):

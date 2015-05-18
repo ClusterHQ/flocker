@@ -63,11 +63,11 @@ class ControlScript(object):
         persistence.setServiceParent(top_service)
         cluster_state = ClusterStateService()
         cluster_state.setServiceParent(top_service)
-        create_api_service(
+        api_service = create_api_service(
             persistence, cluster_state, serverFromString(
                 reactor, options["port"]),
-            rest_api_context_factory(ca, control_credential)).setServiceParent(
-                top_service)
+            rest_api_context_factory(ca, control_credential))
+        api_service.setServiceParent(top_service)
         amp_service = ControlAMPService(
             cluster_state, persistence, serverFromString(
                 reactor, options["agent-port"]),

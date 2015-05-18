@@ -186,7 +186,6 @@ def buildIntegrationTests(mixinClass, name, fixture):
                 0, Site(self.app.resource()),
                 interface=b"127.0.0.1",
             )
-            self.addCleanup(self.port.factory.stopFactory)
             self.addCleanup(self.port.stopListening)
             portno = self.port.getHost().port
             self.agent = ProxyAgent(

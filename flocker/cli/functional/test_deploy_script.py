@@ -97,6 +97,8 @@ class FlockerDeployTests(TestCase):
         app_config.setContent(safe_dump(application_config_yaml))
         deployment_config = FilePath(self.mktemp())
         deployment_config.setContent(safe_dump(deployment_config_yaml))
+        # This duplicates some code in the acceptance tests...
+        # https://clusterhq.atlassian.net/browse/FLOC-1904
         return getProcessOutputAndValue(
             b"flocker-deploy", [
                 b"--certificates-directory", self.certificate_path.path,

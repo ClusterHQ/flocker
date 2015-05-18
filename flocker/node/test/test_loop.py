@@ -6,7 +6,7 @@ Tests for ``flocker.node._loop``.
 
 from uuid import uuid4
 
-from eliot.testing import validate_logging, assertHasAction
+from eliot.testing import validate_logging, assertHasAction, assertHasMessage
 from machinist import LOG_FSM_TRANSITION
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -22,7 +22,8 @@ from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ConnectedToControlService, ConvergenceLoopInputs,
     ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
-    ClusterStatus, ConvergenceLoop, LOG_SEND_TO_CONTROL_SERVICE
+    LOG_SEND_TO_CONTROL_SERVICE,
+    LOG_CONVERGE, LOG_CALCULATED_ACTIONS,
     )
 from ..testtools import ControllableDeployer, ControllableAction, to_node
 from ...control import (
@@ -273,15 +274,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                 {"result": None})
         return client
 
-    def assert_log_send(self, logger):
-        """
-        Assert that sending node state logs an appropriate action.
-        """
-        transition = assertHasAction(self, logger, LOG_FSM_TRANSITION, True)
-        send = assertHasAction(self, logger, LOG_SEND_TO_CONTROL_SERVICE, True)
-        self.assertIn(send, transition.children)
-
-    @validate_logging(assert_log_send)
+    @validate_logging(assertHasAction, LOG_SEND_TO_CONTROL_SERVICE, True)
     def test_convergence_done_notify(self, logger):
         """
         A FSM doing convergence that gets a discovery result, sends the
@@ -310,7 +303,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertEqual(client.calls, [(NodeStateCommand,
                                          dict(state_changes=(local_state,)))])
 
-    def test_convergence_done_update_local_state(self):
+    @validate_logging(assertHasMessage, LOG_CALCULATED_ACTIONS)
+    def test_convergence_done_update_local_state(self, logger):
         """
         An FSM doing convergence that gets a discovery result supplies an
         updated ``cluster_state`` to ``calculate_necessary_state_changes``.
@@ -335,6 +329,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         )
 
         fsm = build_convergence_loop_fsm(Clock(), deployer)
+        self.patch(fsm, "logger", logger)
         fsm.receive(
             _ClientStatusUpdate(
                 client=client,
@@ -385,25 +380,47 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             (deployer.calculate_inputs, action.called),
             ([(local_state, configuration, expected_local_state)], True))
 
-    def test_convergence_done_delays_new_iteration(self):
+    def assert_full_logging(self, logger):
+        """
+        A convergence action is logged inside the finite state maching
+        logging.
+        """
+        transition = assertHasAction(self, logger, LOG_FSM_TRANSITION, True)
+        converge = assertHasAction(
+            self, logger, LOG_CONVERGE, True,
+            {u"cluster_state": self.cluster_state,
+             u"desired_configuration": self.configuration})
+        self.assertIn(converge, transition.children)
+        send = assertHasAction(self, logger, LOG_SEND_TO_CONTROL_SERVICE, True,
+                               {u"local_changes": [self.local_state]})
+        self.assertIn(send, converge.children)
+        calculate = assertHasMessage(
+            self, logger, LOG_CALCULATED_ACTIONS,
+            {u"calculated_actions": self.action})
+        self.assertIn(calculate, converge.children)
+
+    @validate_logging(assert_full_logging)
+    def test_convergence_done_delays_new_iteration(self, logger):
         """
         An FSM completing the changes from one convergence iteration doesn't
         instantly start another iteration.
         """
-        local_state = NodeState(hostname=u'192.0.2.123')
-        configuration = object()
-        received_state = DeploymentState(nodes=[])
-        action = ControllableAction(result=succeed(None))
+        self.local_state = local_state = NodeState(hostname=u'192.0.2.123')
+        self.configuration = configuration = Deployment()
+        self.cluster_state = received_state = DeploymentState(nodes=[])
+        self.action = action = ControllableAction(result=succeed(None))
         deployer = ControllableDeployer(
             local_state.hostname, [succeed(local_state)], [action]
         )
         client = self.successful_amp_client([local_state])
         reactor = Clock()
         loop = build_convergence_loop_fsm(reactor, deployer)
+        self.patch(loop, "logger", logger)
         loop.receive(_ClientStatusUpdate(
             client=client, configuration=configuration, state=received_state))
 
-        expected_cluster_state = DeploymentState(nodes=[local_state])
+        expected_cluster_state = DeploymentState(
+            nodes=[local_state])
 
         # Calculating actions happened and the result was run.
         self.assertTupleEqual(
@@ -621,22 +638,12 @@ class AgentLoopServiceTests(SynchronousTestCase):
     """
     Tests for ``AgentLoopService``.
     """
-    def test_initialization(self):
-        """
-        A newly created service has a cluster status FSM pointing at a
-        convergence loop FSM configured with the given deployer.
-        """
-        deployer = object()
-        service = AgentLoopService(
-            reactor=None, deployer=deployer, host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
-        cluster_status_fsm_world = service.cluster_status._fsm._world.original
-        convergence_loop_fsm_world = (
-            cluster_status_fsm_world.convergence_loop_fsm._fsm._world.original)
-        self.assertEqual((cluster_status_fsm_world.__class__,
-                          convergence_loop_fsm_world.__class__,
-                          convergence_loop_fsm_world.deployer),
-                         (ClusterStatus, ConvergenceLoop, deployer))
+    def setUp(self):
+        self.deployer = ControllableDeployer(u"127.0.0.1", [], [])
+        self.reactor = MemoryReactorClock()
+        self.service = AgentLoopService(
+            reactor=self.reactor, deployer=self.deployer, host=u"example.com",
+            port=1234, context_factory=ClientContextFactory())
 
     def test_start_service(self):
         """
@@ -644,16 +651,13 @@ class AgentLoopServiceTests(SynchronousTestCase):
         and port which calls ``build_agent_client`` with the service when
         connected.
         """
-        reactor = MemoryReactorClock()
-        service = AgentLoopService(
-            reactor=reactor, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.startService()
-        host, port, factory = reactor.tcpClients[0][:3]
+        host, port, factory = self.reactor.tcpClients[0][:3]
         protocol = factory.buildProtocol(None)
         self.assertEqual((host, port, factory.__class__,
-                          factory.wrappedFactory.__class__,
-                          factory.wrappedFactory.continueTrying,
+                          service.reconnecting_factory.__class__,
+                          service.reconnecting_factory.continueTrying,
                           protocol.__class__,
                           protocol.wrappedProtocol.__class__,
                           service.running),
@@ -666,14 +670,11 @@ class AgentLoopServiceTests(SynchronousTestCase):
         Stopping the service stops the reconnecting TCP client and inputs
         shutdown event to the cluster status FSM.
         """
-        reactor = MemoryReactorClock()
-        service = AgentLoopService(
-            reactor=reactor, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.cluster_status = fsm = StubFSM()
         service.startService()
         service.stopService()
-        self.assertEqual((service.factory.wrappedFactory.continueTrying,
+        self.assertEqual((service.reconnecting_factory.continueTrying,
                           fsm.inputted, service.running),
                          (False, [ClusterStatusInputs.SHUTDOWN], False))
 
@@ -682,9 +683,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         When ``connnected()`` is called a ``_ConnectedToControlService`` input
         is passed to the cluster status FSM.
         """
-        service = AgentLoopService(
-            reactor=None, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.cluster_status = fsm = StubFSM()
         client = object()
         service.connected(client)
@@ -697,9 +696,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         ``ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE`` input is
         passed to the cluster status FSM.
         """
-        service = AgentLoopService(
-            reactor=None, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.cluster_status = fsm = StubFSM()
         service.disconnected()
         self.assertEqual(
@@ -711,9 +708,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         When ``cluster_updated()`` is called a ``_StatusUpdate`` input is
         passed to the cluster status FSM.
         """
-        service = AgentLoopService(
-            reactor=None, deployer=object(), host=u"example.com", port=1234,
-            context_factory=ClientContextFactory())
+        service = self.service
         service.cluster_status = fsm = StubFSM()
         config = object()
         state = object()
