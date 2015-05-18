@@ -194,7 +194,7 @@ def _extract_nova_server_addresses(addresses):
             all_addresses.add(address_info['addr'])
 
     return all_addresses
-        
+
 
 @implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
@@ -202,8 +202,9 @@ class CinderBlockDeviceAPI(object):
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
     in an OpenStack cluster using Cinder APIs.
     """
-    def __init__(self, 
-                 cinder_volume_manager, nova_volume_manager, nova_server_manager, 
+    def __init__(self,
+                 cinder_volume_manager,
+                 nova_volume_manager, nova_server_manager,
                  cluster_id):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for
@@ -217,13 +218,14 @@ class CinderBlockDeviceAPI(object):
             Flocker cluster.
         """
         self.cinder_volume_manager = cinder_volume_manager
-        self.nova_volume_manager = nova_volume_manager 
+        self.nova_volume_manager = nova_volume_manager
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
 
     def compute_instance_id(self):
         """
-        Find the Nova API server with the same non-loopback IP addresses as this node.
+        Find the Nova API server with the same non-loopback IP
+        addresses as this node.
         That server is assumed to be this node.
         Return the instance ID of that server.
         """
