@@ -846,7 +846,7 @@ class DockerClientTests(TestCase):
         def added(_):
             # Monekypatch cause triggering non-404 errors from
             # inspect_container is hard.
-            setattr(client._client, method_name, error)
+            self.patch(client._client, method_name, error)
             return client.list()
         d.addCallback(added)
         return self.assertFailure(d, APIError)

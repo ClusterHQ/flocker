@@ -26,7 +26,7 @@ from zope.interface import implementer, Interface
 from ...common import auto_openstack_logging
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume,
+    UnattachedVolume, get_blockdevice_volume,
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -60,6 +60,28 @@ class ICinderVolumeManager(Interface):
         :rtype: list of :class:`Volume`
         """
 
+    def delete(volume_id):
+        """
+        Delete a volume.
+
+        :param volume_id: The ID of the volume to delete.
+
+        :raise CinderNotFound: If no volume with the specified ID exists.
+
+        :return: ``None``
+        """
+
+    def get(volume_id):
+        """
+        Retrieve information about an existing volume.
+
+        :param volume_id: The ID of the volume about which to retrieve
+            information.
+
+        :return: A ``Volume`` instance describing the identified volume.
+        :rtype: :class:`Volume`
+        """
+
     def set_metadata(volume, metadata):
         """
         Update/Set a volumes metadata.
@@ -77,11 +99,30 @@ class INovaVolumeManager(Interface):
     """
     def create_server_volume(server_id, volume_id, device):
         """
-        Attach a volume identified by the volume ID to the given server ID
+        Attach a volume identified by the volume ID to the given server ID.
 
         :param server_id: The ID of the server
         :param volume_id: The ID of the volume to attach.
         :param device: The device name
+        :rtype: :class:`Volume`
+        """
+
+    def delete_server_volume(server_id, attachment_id):
+        """
+        Detach the volume identified by the volume ID from the given server ID.
+
+        :param server_id: The ID of the server
+        :param attachment_id: The ID of the volume to detach.
+        """
+
+    def get(volume_id):
+        """
+        Retrieve information about an existing volume.
+
+        :param volume_id: The ID of the volume about which to retrieve
+            information.
+
+        :return: A ``Volume`` instance describing the identified volume.
         :rtype: :class:`Volume`
         """
 
@@ -177,9 +218,6 @@ class CinderBlockDeviceAPI(object):
         See:
 
         http://docs.rackspace.com/cbs/api/v1.0/cbs-devguide/content/POST_createVolume_v1__tenant_id__volumes_volumes.html
-
-        TODO:
-         * Assign a Human readable name and description?
         """
         metadata = {
             CLUSTER_ID_LABEL: unicode(self.cluster_id),
@@ -187,17 +225,23 @@ class CinderBlockDeviceAPI(object):
         }
         action_type = u"blockdevice:cinder:create_volume"
         with start_action(action_type=action_type):
+            # There could be difference between user-requested and
+            # Cinder-created volume sizes due to several reasons:
+            # 1) Round off from converting user-supplied 'size' to 'GB' int.
+            # 2) Cinder-specific size constraints.
+            # XXX: Address size mistach (see
+            # (https://clusterhq.atlassian.net/browse/FLOC-1874).
             requested_volume = self.cinder_volume_manager.create(
                 size=Byte(size).to_GB().value,
                 metadata=metadata,
             )
             Message.new(blockdevice_id=requested_volume.id).write()
-            wait_for_volume(
+            created_volume = wait_for_volume(
                 volume_manager=self.cinder_volume_manager,
                 expected_volume=requested_volume,
             )
         return _blockdevicevolume_from_cinder_volume(
-            cinder_volume=requested_volume,
+            cinder_volume=created_volume,
         )
 
     def list_volumes(self):
@@ -218,12 +262,6 @@ class CinderBlockDeviceAPI(object):
                 flocker_volumes.append(flocker_volume)
         return flocker_volumes
 
-    def _get(self, blockdevice_id):
-        for volume in self.list_volumes():
-            if volume.blockdevice_id == blockdevice_id:
-                return volume
-        raise UnknownVolume(blockdevice_id)
-
     def resize_volume(self, blockdevice_id, size):
         pass
 
@@ -239,7 +277,7 @@ class CinderBlockDeviceAPI(object):
         #
         # See
         # http://www.florentflament.com/blog/openstack-volume-in-use-although-vm-doesnt-exist.html
-        unattached_volume = self._get(blockdevice_id)
+        unattached_volume = get_blockdevice_volume(self, blockdevice_id)
         if unattached_volume.attached_to is not None:
             raise AlreadyAttachedVolume(blockdevice_id)
 
@@ -275,7 +313,7 @@ class CinderBlockDeviceAPI(object):
         except NovaNotFound:
             raise UnattachedVolume(blockdevice_id)
 
-        # TODO This'll blow up if the volume is deleted from elsewhere.
+        # This'll blow up if the volume is deleted from elsewhere.  FLOC-1882.
         wait_for_volume(
             volume_manager=self.nova_volume_manager,
             expected_volume=nova_volume,
@@ -289,6 +327,7 @@ class CinderBlockDeviceAPI(object):
             raise UnknownVolume(blockdevice_id)
 
         while True:
+            # Don't loop forever here.  FLOC-1853
             try:
                 self.cinder_volume_manager.get(blockdevice_id)
             except CinderNotFound:
@@ -302,7 +341,7 @@ class CinderBlockDeviceAPI(object):
 
         # As far as we know you can not have more than one attachment,
         # but, perhaps we're wrong and there should be a test for the
-        # multiple attachment case.
+        # multiple attachment case.  FLOC-1854.
         try:
             [attachment] = cinder_volume.attachments
         except ValueError:
@@ -336,7 +375,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
         cinder Volume.
     """
     if cinder_volume.attachments:
-        # There should only be one.
+        # There should only be one.  FLOC-1854.
         [attachment_info] = cinder_volume.attachments
         # Nova and Cinder APIs return ID strings. Convert to unicode.
         server_id = attachment_info['server_id'].decode("ascii")

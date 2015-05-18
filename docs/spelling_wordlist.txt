@@ -2,6 +2,7 @@ admin
 app
 apps
 backend
+backends
 behaviour
 blog
 Btrfs

@@ -222,11 +222,16 @@ class ControlCertificateOptions(PrettyOptions):
     Creates a certificate signed by a previously generated certificate
     authority (see flocker-ca initialize command for more information).
 
-    The certificate will be stored in the specified output directory
-    (defaults to current working directory).
+    The hostname will be encoded into the generated certificate for
+    validation by HTTPS clients, so it should match the external domain
+    name of the machine the control service will run on.
+
+    The generated files will be stored in the specified output directory
+    (defaults to current working directory) with the names
+    "control-<hostname>.crt" and "control-<hostname>.key".
     """
 
-    synopsis = "[options]"
+    synopsis = "[options] <hostname>"
 
     optParameters = [
         ['inputpath', 'i', None,
@@ -236,6 +241,9 @@ class ControlCertificateOptions(PrettyOptions):
          ('Path to directory to write control service certificate. '
           'Defaults to current working directory.')],
     ]
+
+    def parseArgs(self, hostname):
+        self["hostname"] = hostname
 
     def run(self):
         """
@@ -256,7 +264,8 @@ class ControlCertificateOptions(PrettyOptions):
         try:
             try:
                 ca = RootCredential.from_path(self["inputpath"])
-                ControlCredential.initialize(self["outputpath"], ca)
+                ControlCredential.initialize(self["outputpath"], ca,
+                                             self["hostname"])
                 self._sys_module.stdout.write(
                     b"Created control-service.crt. Copy it over to "
                     b"/etc/flocker/control-service.crt on your control "

@@ -9,7 +9,7 @@ from twisted.trial.unittest import SkipTest, SynchronousTestCase
 
 from ..cinder import wait_for_volume
 from ..test.blockdevicefactory import (
-    ConfigMissing,
+    InvalidConfig,
     ProviderType, get_blockdeviceapi_args,
 )
 from ....testtools import random_name
@@ -23,10 +23,14 @@ def cinder_volume_manager():
     """
     try:
         cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
-    except ConfigMissing as e:
+    except InvalidConfig as e:
         raise SkipTest(str(e))
     return kwargs["cinder_volume_manager"]
 
+
+# All of the following tests could be part of the suite returned by
+# ``make_icindervolumemanager_tests`` instead.
+# https://clusterhq.atlassian.net/browse/FLOC-1846
 
 class VolumesCreateTests(SynchronousTestCase):
     """
