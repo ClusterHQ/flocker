@@ -314,8 +314,8 @@ class CinderBlockDeviceAPI(object):
     def detach_volume(self, blockdevice_id):
         our_id = self.compute_instance_id()
         try:
-            nova_volume = self.nova_volume_manager.get(blockdevice_id)
-        except NovaNotFound:
+            cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
+        except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
 
         try:
@@ -328,8 +328,8 @@ class CinderBlockDeviceAPI(object):
 
         # This'll blow up if the volume is deleted from elsewhere.  FLOC-1882.
         wait_for_volume(
-            volume_manager=self.nova_volume_manager,
-            expected_volume=nova_volume,
+            volume_manager=self.cinder_volume_manager,
+            expected_volume=cinder_volume,
             expected_status=u'available',
         )
 
