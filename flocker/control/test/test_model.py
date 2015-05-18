@@ -1238,7 +1238,7 @@ class NodeStateWipingTests(SynchronousTestCase):
         attributes on same node.
         """
         different_apps_node = self.NODE_FROM_APP_AGENT.set(
-            "applications", {APP2}).set("used_ports", {4, 5})
+            "applications", {APP2}, "used_ports", {4, 5})
 
         self.assertEqual(self.APP_WIPE.key(),
                          different_apps_node.get_information_wipe().key())
