@@ -561,7 +561,7 @@ class UserDocumentationTests(SynchronousTestCase):
     def test_decoration(self):
         """
         Decorating a function with L{user_documentation} sets the
-        C{user_documentation} attribtue of the function to the passed
+        C{user_documentation} attribute of the function to the passed
         argument.
         """
         @user_documentation("Some text")

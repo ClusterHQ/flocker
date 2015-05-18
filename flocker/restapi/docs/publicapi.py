@@ -183,6 +183,8 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     """
     result = {}
 
+    result['header'] = route.attributes.get('header')
+
     userDocumentation = route.attributes.get(
         "userDocumentation", "Undocumented.")
     result['description'] = prepare_docstring(userDocumentation)
@@ -363,6 +365,10 @@ def makeRst(prefix, app, exampleByIdentifier, schema_store):
     for route in sorted(getRoutes(app)):
         data = _introspectRoute(route, exampleByIdentifier, schema_store)
         for method in route.methods:
+            if data['header'] is not None:
+                yield data['header']
+                yield '=' * len(data['header'])
+                yield ''
             body = _formatRouteBody(data, schema_store)
             for line in http_directive(method, prefix + route.path, body):
                 yield line

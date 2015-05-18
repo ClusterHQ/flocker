@@ -159,12 +159,12 @@ def _openstack_auth_from_config(**config):
     return plugin_class(**plugin_kwargs)
 
 
-def _openstack(region, **config):
+def _openstack(**config):
     """
     Create Cinder and Nova volume managers suitable for use in the creation of
-    a ``CinderBlockDeviceAPI``.
+    a ``CinderBlockDeviceAPI``.  They will be configured to use the region
+    where the server that is running this code is running.
 
-    :param bytes region: The name of the region to which to connect.
     :param config: Any additional configuration (possibly provider-specific)
         necessary to authenticate a session for use with the CinderClient and
         NovaClient.
@@ -172,6 +172,14 @@ def _openstack(region, **config):
     :return: A ``dict`` giving initializer arguments for
         ``CinderBlockDeviceAPI``.
     """
+    # The execution context should have set up this environment variable,
+    # probably by inspecting some cloud-y state to discover where this code is
+    # running.  Since the execution context is probably a stupid shell script,
+    # fix the casing of the region name here (keystone is very sensitive to
+    # case) instead of forcing me to figure out how to upper case things in
+    # bash (I already learned a piece of shell syntax today, once is all I can
+    # take).
+    region = environ['FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION'].upper()
     auth = _openstack_auth_from_config(**config)
     session = Session(auth=auth)
     cinder_client = CinderClient(
