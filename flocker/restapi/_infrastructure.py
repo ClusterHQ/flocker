@@ -19,6 +19,8 @@ from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 from eliot import Logger, writeFailure
 from eliot.twisted import DeferredContext
 
+from sphinx.errors import SphinxError
+
 from ._error import (
     ILLEGAL_CONTENT_TYPE, DECODING_ERROR, BadRequest, InvalidRequestJSON)
 from ._logging import LOG_SYSTEM, REQUEST, JSON_REQUEST
@@ -223,7 +225,7 @@ def structured(inputSchema, outputSchema, schema_store=None):
     return deco
 
 
-def user_documentation(doc, examples=None):
+def user_documentation(doc, examples=None, header=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
 
@@ -235,9 +237,17 @@ def user_documentation(doc, examples=None):
         this example to include in the generated API documentation along with
         the decorated endpoint.
     @type examples: L{list} of L{unicode}
+
+    @param header: The header to be included in the generated API docs.
+    @type header: L{str}
     """
     def deco(f):
         f.userDocumentation = doc
+        if header is None:
+            raise SphinxError(
+                'No API header provided in user_documentation decorator')
+        else:
+            f.header = header
         f.examples = examples
         return f
     return deco

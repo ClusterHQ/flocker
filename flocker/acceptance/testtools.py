@@ -15,6 +15,7 @@ from yaml import safe_dump
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
+from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 
 from eliot import Logger, start_action
@@ -203,6 +204,62 @@ def _clean_node(test_case, node):
         pass
 
 
+class VolumeBackend(Names):
+    loopback = NamedConstant()
+    zfs = NamedConstant()
+    aws = NamedConstant()
+    openstack = NamedConstant()
+
+
+def get_volume_backend(test_case):
+    """
+    Get the volume backend the acceptance tests are running as.
+
+    :param test_case: The ``TestCase`` running this unit test.
+
+    :return VolumeBackend: The configured backend.
+    :raise SkipTest: if the backend is specified.
+    """
+    backend = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
+    if backend is None:
+        raise SkipTest(
+            "Set acceptance testing volume backend using the " +
+            "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
+    return VolumeBackend.lookupByName(backend)
+
+
+def skip_backend(unsupported, reason):
+    """
+    Create decorator that skips a test if the volume backend doesn't support
+    the operations required by the test.
+
+    :param supported: List of supported volume backends for this test.
+    :param reason: The reason the backend isn't supported.
+    """
+    def decorator(test_method):
+        """
+        :param test_method: The test method that should be skipped.
+        """
+        @wraps(test_method)
+        def wrapper(test_case, *args, **kwargs):
+            backend = get_volume_backend(test_case)
+
+            if backend in unsupported:
+                raise SkipTest(
+                    "Backend not supported: {backend} ({reason}).".format(
+                        backend=backend,
+                        reason=reason,
+                    )
+                )
+            return test_method(test_case, *args, **kwargs)
+        return wrapper
+    return decorator
+
+require_moving_backend = skip_backend(
+    unsupported={VolumeBackend.loopback},
+    reason="doesn't support moving")
+
+
 def get_nodes(test_case, num_nodes):
     """
     Create or get ``num_nodes`` nodes with no Docker containers on them.
@@ -285,7 +342,8 @@ def get_nodes(test_case, num_nodes):
     def clean_zfs(_):
         for node in reachable_nodes:
             _clean_node(test_case, node)
-    getting.addCallback(clean_zfs)
+    if get_volume_backend(test_case) == b'zfs':
+        getting.addCallback(clean_zfs)
     getting.addCallback(lambda _: reachable_nodes)
     return getting
 

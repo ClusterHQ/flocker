@@ -74,18 +74,24 @@ class MakeRstTests(SynchronousTestCase):
             Does G-like stuff.
 
             Like g, G and gg.
-            """)
+            """, header='g stuff')
         def g():
             pass
 
         rest = list(makeRst(b"/prefix", app, None, {}))
 
         self.assertEqual(rest, [
+            'No header!',
+            '==========',
+            '',
             '',
             '.. http:get:: /prefix/',
             '',
             '   Undocumented.',
             '   ',
+            '',
+            'g stuff',
+            '=======',
             '',
             '',
             '.. http:put:: /prefix/g',
@@ -129,7 +135,10 @@ class MakeRstTests(SynchronousTestCase):
 
         rest = list(makeRst(b"/prefix", app, examples.get, {}))
         self.assertEqual(
-            ['',
+            ['No header!',
+             '==========',
+             '',
+             '',
              # This line introduces the endpoint
              '.. http:get:: /prefix/',
              '',
@@ -201,6 +210,9 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.INPUT_SCHEMAS))
 
         self.assertEqual(rest, [
+            'No header!',
+            '==========',
+            '',
             '',
             '.. http:get:: /prefix/',
             '',
@@ -284,6 +296,9 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.INPUT_ARRAY_SCHEMAS))
 
         self.assertListEqual(rest, [
+            'No header!',
+            '==========',
+            '',
             '',
             '.. http:get:: /prefix/',
             '',
@@ -355,6 +370,9 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_SCHEMAS))
 
         self.assertEqual(rest, [
+            'No header!',
+            '==========',
+            '',
             '',
             '.. http:get:: /prefix/',
             '',
@@ -428,6 +446,9 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_ARRAY_SCHEMAS))
 
         self.assertListEqual(rest, [
+            'No header!',
+            '==========',
+            '',
             '',
             '.. http:get:: /prefix/',
             '',
@@ -499,6 +520,9 @@ class MakeRstTests(SynchronousTestCase):
         rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_SCHEMAS))
 
         self.assertEqual(rest, [
+            'No header!',
+            '==========',
+            '',
             '',
             '.. http:get:: /prefix/',
             '',
@@ -662,7 +686,10 @@ class VariableInterpolationTests(SynchronousTestCase):
         self.assertEqual(
             # Unfortunately a lot of stuff that's not relevant to this test
             # comes back from makeRst.
-            [u'',
+            [u'No header!',
+             u'==========',
+             u'',
+             u'',
              u'.. http:get:: /prefix/',
              u'',
              u'   **Example:** Documentation of some example.',
