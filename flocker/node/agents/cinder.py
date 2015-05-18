@@ -6,7 +6,6 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 import time
 from uuid import UUID
-from subprocess import check_output
 
 from bitmath import Byte, GB
 
