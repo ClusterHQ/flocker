@@ -230,6 +230,51 @@ class AgentServiceFactory(PRecord):
         )
 
 
+def zfs_service_factory(volume_service, ip, node_uuid, reactor, deployer,
+    host, port, options):
+    """
+    This should be changed significantly as part of refactoring in
+    FLOC-1791.
+    """
+    deployer = P2PManifestationDeployer(ip, volume_service,
+        node_uuid=node_uuid)
+    service = AgentLoopService(reactor=reactor, deployer=deployer,
+                            host=host, port=port)
+    volume_service.setServiceParent(service)
+    return service
+
+def loopback_service_factory(volume_service, ip, node_uuid, reactor,
+    host, port, options):
+    """
+    This should be changed significantly as part of refactoring in
+    FLOC-1791.
+    """
+    # Later, construction of this object can be moved into
+    # AgentServiceFactory.get_service where various options passed on
+    # the command line could alter what is created and how it is initialized.
+    api = LoopbackBlockDeviceAPI.from_path(
+        b"/var/lib/flocker/loopback",
+        # Make up a new value every time this script starts.  This will ensure
+        # different instances of the script using this backend always appear to
+        # be running on different nodes (as far as attachment is concerned).
+        # This is a good thing since it makes it easy to simulate a multi-node
+        # cluster by running multiple instances of the script.  Similar effect
+        # could be achieved by making this id a command line argument but that
+        # would be harder to implement and harder to use.
+        compute_instance_id=bytes(getpid()).decode('utf-8'),
+    )
+    deployer_factory = partial(
+        BlockDeviceDeployer,
+        block_device_api=api,
+    )
+    service_factory = AgentServiceFactory(
+        deployer_factory=deployer_factory
+    ).get_service
+
+    service = service_factory(reactor, options)
+    return service
+
+
 @implementer(ICommandLineVolumeScript)
 class AgentScriptFactory(PRecord):
     def main(self, reactor, options, volume_service):
@@ -244,47 +289,33 @@ class AgentScriptFactory(PRecord):
         # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
         node_uuid = ip_to_uuid(ip)
 
-        # TODO, we want something like:
+        # FLOC-1791, we want something like:
 
         # backend = backend_factory(config['dataset']['backend'])
         # deployer = backend.make_deployer()
         # service = AgentLoopService(
         #   reactor=reactor, deployer=deployer, host=host, port=port)
         #
+        # # This might do volume_service.setServiceParent(service),
+        # # if appropriate.
         # backend.register_service(service)
 
-        if configuration['dataset']['backend'] == 'zfs':
-            deployer = P2PManifestationDeployer(ip, volume_service,
-                                                node_uuid=node_uuid)
-            service = AgentLoopService(reactor=reactor, deployer=deployer,
-                                    host=host, port=port)
-            volume_service.setServiceParent(service)
-        elif configuration['dataset']['backend'] == 'loopback':
-            # Later, construction of this object can be moved into
-            # AgentServiceFactory.get_service where various options passed on
-            # the command line could alter what is created and how it is initialized.
-            api = LoopbackBlockDeviceAPI.from_path(
-                b"/var/lib/flocker/loopback",
-                # Make up a new value every time this script starts.  This will ensure
-                # different instances of the script using this backend always appear to
-                # be running on different nodes (as far as attachment is concerned).
-                # This is a good thing since it makes it easy to simulate a multi-node
-                # cluster by running multiple instances of the script.  Similar effect
-                # could be achieved by making this id a command line argument but that
-                # would be harder to implement and harder to use.
-                compute_instance_id=bytes(getpid()).decode('utf-8'),
-            )
-            deployer_factory = partial(
-                BlockDeviceDeployer,
-                block_device_api=api,
-            )
-            service_factory = AgentServiceFactory(
-                deployer_factory=deployer_factory
-            ).get_service
+        backend_to_service_factory = {
+            'zfs': zfs_service_factory,
+            'loopback': loopback_service_factory,
+        }
 
-            service = service_factory(reactor, options)
-        else:
-            raise NotImplementedError()
+        backend = configuration['dataset']['backend']
+        service_factory = backend_to_service_factory[backend]
+        service = service_factory(
+            volume_service=volume_service,
+            ip=ip,
+            node_uuid=node_uuid,
+            reactor=reactor,
+            host=host,
+            port=port,
+            options=options,
+        )
 
         return main_for_service(
             reactor=reactor,
