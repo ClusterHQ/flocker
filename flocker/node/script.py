@@ -229,6 +229,7 @@ class AgentServiceFactory(PRecord):
             host=host, port=port,
         )
 
+
 @implementer(ICommandLineVolumeScript)
 class AgentScriptFactory(PRecord):
     def main(self, reactor, options, volume_service):
@@ -245,14 +246,12 @@ class AgentScriptFactory(PRecord):
 
         # TODO, we want something like:
 
-        # deployer = deployer_from_config(backend=config['dataset']['backend'], node_uuid=node_uuid, hostname=ip)
-        # service = AgentLoopService(deployer=deployer)
+        # backend = backend_factory(config['dataset']['backend'])
+        # deployer = backend.make_deployer()
+        # service = AgentLoopService(
+        #   reactor=reactor, deployer=deployer, host=host, port=port)
         #
-        # if configuration['dataset']['backend'] == 'zfs':
-        #     volume_service.setServiceParent(service)
-        #
-        # else:
-        #     raise NotImplementedError()
+        # backend.register_service(service)
 
         if configuration['dataset']['backend'] == 'zfs':
             deployer = P2PManifestationDeployer(ip, volume_service,
@@ -292,6 +291,7 @@ class AgentScriptFactory(PRecord):
             service=service,
         )
 
+
 def flocker_dataset_agent_main():
     """
     Implementation of the ``flocker-dataset-agent`` command line script.
@@ -301,8 +301,6 @@ def flocker_dataset_agent_main():
     dataset agent using any of the support dataset backends.
     """
     # XXX This should use dynamic dispatch in the deployer_factory
-    # There should be only AgentScript, not ZFSAgentScript, and it should
-    # do the right thing for the configured backend. FLOC-1791.
 
     options = DatasetAgentOptions()
 

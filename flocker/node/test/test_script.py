@@ -36,9 +36,9 @@ def deployer_factory_stub(**kw):
     return deployer
 
 
-class ZFSAgentScriptTests(SynchronousTestCase):
+class ZFSAgentScriptFactoryTests(SynchronousTestCase):
     """
-    Tests for ``ZFSAgentScript``.
+    Tests for ``AgentScriptFactory`` using ZFS configuration.
     """
     def setUp(self):
         scratch_directory = FilePath(self.mktemp())
@@ -59,7 +59,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
     def test_main_starts_service(self):
         """
-        ``ZFSAgentScript.main`` starts the given service.
+        ``AgentScriptFactory.main`` starts the given service.
         """
         service = Service()
         options = DatasetAgentOptions()
@@ -69,7 +69,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
     def test_no_immediate_stop(self):
         """
-        The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
+        The ``Deferred`` returned from ``AgentScriptFactory`` is not fired.
         """
         script = AgentScriptFactory()
         options = DatasetAgentOptions()
@@ -79,7 +79,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
     def test_starts_convergence_loop(self):
         """
-        ``ZFSAgentScript.main`` starts a convergence loop service.
+        ``AgentScriptFactory.main`` starts a convergence loop service.
         """
         service = Service()
         options = DatasetAgentOptions()
@@ -102,7 +102,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
     def test_default_port(self):
         """
-        ``ZFSAgentScript.main`` starts a convergence loop service with port
+        ``AgentScriptFactory.main`` starts a convergence loop service with port
         4524 if no port is specified.
         """
         self.config.setContent(
@@ -137,7 +137,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
     def test_config_validated(self):
         """
-        ``ZFSAgentScript.main`` validates the configuration file.
+        ``AgentScriptFactory.main`` validates the configuration file.
         """
         self.config.setContent("INVALID")
 
@@ -153,7 +153,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
     def test_missing_configuration_file(self):
         """
-        ``ZFSAgentScript.main`` raises an ``IOError`` if the given
+        ``AgentScriptFactory.main`` raises an ``IOError`` if the given
         configuration file does not exist.
         """
         service = Service()
