@@ -645,20 +645,6 @@ class AgentLoopServiceTests(SynchronousTestCase):
             reactor=self.reactor, deployer=self.deployer, host=u"example.com",
             port=1234, context_factory=ClientContextFactory())
 
-    def test_initialization(self):
-        """
-        A newly created service has a cluster status FSM pointing at a
-        convergence loop FSM configured with the given deployer.
-        """
-        cluster_status_fsm_world = (
-            self.service.cluster_status._fsm._world.original)
-        convergence_loop_fsm_world = (
-            cluster_status_fsm_world.convergence_loop_fsm._fsm._world.original)
-        self.assertEqual((cluster_status_fsm_world.__class__,
-                          convergence_loop_fsm_world.__class__,
-                          convergence_loop_fsm_world.deployer),
-                         (ClusterStatus, ConvergenceLoop, self.deployer))
-
     def test_start_service(self):
         """
         Starting the service starts a reconnecting TCP client to given host
