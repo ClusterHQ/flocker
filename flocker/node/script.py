@@ -68,7 +68,7 @@ def validate_configuration(configuration):
     :raises: jsonschema.ValidationError if the configuration is invalid.
     """
     # XXX Create a function which loads and validates, and also setting
-    # defaults. FLOC-1791.
+    # defaults. FLOC-1925.
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
@@ -170,6 +170,9 @@ class ContainerAgentOptions(_AgentOptions):
 @implementer(ICommandLineScript)
 class AgentScript(PRecord):
     """
+    XXX This is temporarily not used for the ``flocker-dataset-agent`` script.
+    See FLOC-1924.
+
     Implement top-level logic for the ``flocker-dataset-agent`` and
     ``flocker-container-agent`` scripts.
 
@@ -303,7 +306,11 @@ def dataset_deployer_from_configuration(dataset_configuration, volume_service):
 @implementer(ICommandLineVolumeScript)
 class GenericAgentScript(PRecord):
     """
-    TODO
+    Implement top-level logic for the ``flocker-dataset-agent`` script.
+
+    This is a temporary script, until the volume service can be created in
+    ``zfs_dataset_deployer``. The majority of this script will be in
+    ``flocker_dataset_agent_main`` and ``AgentScript``. See FLOC-1924.
     """
     def main(self, reactor, options, volume_service):
         agent_config = options[u'agent-config']
@@ -323,9 +330,8 @@ class GenericAgentScript(PRecord):
         service = service_factory(reactor, options)
 
         if configuration['dataset']['backend'] == 'zfs':
-            # TODO
             # XXX This should not be a special case,
-            # see X.
+            # see https://clusterhq.atlassian.net/browse/FLOC-1924.
             volume_service.setServiceParent(service)
 
         return main_for_service(

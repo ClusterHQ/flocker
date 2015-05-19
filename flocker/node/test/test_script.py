@@ -635,5 +635,5 @@ class DatasetAgentVolumeTests(make_volume_options_tests(
     """
     Tests for the volume configuration arguments of ``DatasetAgentOptions``.
 
-    XXX These maybe should not be supported after FLOC-1791.
+    XXX This should be removed as part of FLOC-1924.
     """
