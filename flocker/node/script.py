@@ -7,7 +7,6 @@ The command-line ``flocker-*-agent`` tools.
 
 from socket import socket
 from os import getpid
-from uuid import UUID
 
 import yaml
 
