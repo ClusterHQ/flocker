@@ -1297,35 +1297,3 @@ def model_from_configuration(deployment_state, applications,
     nodes = deployment_from_configuration(
         deployment_state, deployment_configuration, applications)
     return Deployment(nodes=frozenset(nodes))
-
-
-def current_from_configuration(current_configuration):
-    """
-    UNUSED, remove when convenient.
-
-    Validate and coerce the supplied current cluster configuration into a
-    ``Deployment`` instance.
-
-    The passed in configuration is the aggregated output of
-    ``marshal_configuration`` as combined by ``flocker-deploy``.
-
-    :param dict current_configuration: Map of node names to list of
-        application maps.
-
-    :raises ConfigurationError: if there are validation errors.
-
-    :returns: A ``Deployment`` object.
-    """
-    nodes = []
-    for hostname, applications in current_configuration.items():
-        configuration = FlockerConfiguration(applications)
-        node_applications = configuration.applications().values()
-        manifestations = {
-            app.volume.manifestation.dataset_id: app.volume.manifestation
-            for app in node_applications
-            if app.volume is not None}
-
-        nodes.append(Node(hostname=hostname,
-                          applications=node_applications,
-                          manifestations=manifestations))
-    return Deployment(nodes=frozenset(nodes))
