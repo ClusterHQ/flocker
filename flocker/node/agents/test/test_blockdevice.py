@@ -989,7 +989,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
         )
         state = DeploymentState(nodes=[NodeState(
             uuid=uuid, hostname=node, applications=[], manifestations={},
-            devices={}, paths={})])
+            devices={}, paths={}, used_ports=[])])
         deployer = create_blockdevicedeployer(
             self, hostname=node, node_uuid=uuid,
         )
@@ -1049,6 +1049,7 @@ class BlockDeviceDeployerCreationCalculateChangesTests(
                 expected_dataset_id: FilePath(b"/flocker").child(
                     expected_dataset_id.encode("ascii")),
             },
+            devices={},
             manifestations={
                 expected_dataset_id:
                 Manifestation(
