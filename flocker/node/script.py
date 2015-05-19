@@ -236,7 +236,9 @@ def zfs_service_factory(volume_service, ip, node_uuid, reactor, host, port,
     This should be changed significantly as part of refactoring in
     FLOC-1791.
     """
-    deployer = P2PManifestationDeployer(ip, volume_service,
+    deployer = P2PManifestationDeployer(
+        hostname=ip,
+        volume_service=volume_service,
         node_uuid=node_uuid)
     service = AgentLoopService(
         reactor=reactor, deployer=deployer, host=host, port=port)
