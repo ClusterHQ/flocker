@@ -245,10 +245,10 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
 
-    :raises: ``SkipTest`` if:
+    :raises: ``SkipTest`` if either:
         1) A ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
-        was not set and the default config file could not be read.
-        2) ``FLOCKER_FUNCTIONAL_TEST`` environment variable is unset.
+        was not set and the default config file could not be read, or,
+        2) ``FLOCKER_FUNCTIONAL_TEST`` environment variable was unset.
 
     :return: The new ``IBlockDeviceAPI`` provider.
     """
