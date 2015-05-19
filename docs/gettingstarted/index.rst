@@ -89,8 +89,8 @@ Getting started with Flocker
 
       .. noscript-content::
 
-         Ubuntu / Debian
-         ^^^^^^^^^^^^^^^
+         Ubuntu 14.04
+         ^^^^^^^^^^^^
 
          Install the Flocker client on your Linux machine:
 
@@ -124,8 +124,8 @@ Getting started with Flocker
               brew tap clusterhq/flocker && \
               brew install flocker-|latest-installable|
 
-         Ubuntu / Debian
-         ^^^^^^^^^^^^^^^
+         Ubuntu 14.04
+         ^^^^^^^^^^^^
 
          Install the Flocker client on your Linux machine:
 
