@@ -256,7 +256,7 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
     if flocker_functional_test is None:
         raise SkipTest(
             'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
-            'run storage backend funtional tests.'
+            'run storage backend functional tests.'
         )
 
     try:
