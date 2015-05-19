@@ -21,9 +21,8 @@ The third is the path to an application configuration file.
 
     $ flocker-deploy controlservice.example.com clusterhq_deployment.yml clusterhq_app.yml
 
-The contents of these two configuration files determine what actions Flocker actually takes.
-The configuration files completely control this; there are no other command line arguments or options.
-See :ref:`configuration` for details about these two files.
+The contents of the two configuration files determine what actions Flocker actually takes by replacing the existing cluster configuration.
+See :ref:`configuration` for details about the two files.
 
 You can run ``flocker-deploy`` anywhere you have it installed.
 The containers you are managing do not need to be running on the same host as ``flocker-deploy``\ .
