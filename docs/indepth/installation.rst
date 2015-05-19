@@ -363,18 +363,18 @@ To generate the control service certificate, run the following command from the 
    
 You will need to copy both ``control-service.crt`` and ``control-service.key`` over to the node that is running your control service, to the directory ``/etc/flocker/``.
 You should also copy the cluster's public certificate, the `cluster.crt` file.
-On the server, the `/etc/flocker` directory and private key file should be set to secure permissions via `chmod`:
+On the server, the ``/etc/flocker`` directory and private key file should be set to secure permissions via ``chmod``:
 
 .. code-block:: console
 
-   root@mercury:~/$ chmod 600 /etc/flocker
-   root@mercury:~/$ chmod 600 /etc/flocker/control-service.key
+   root@mercury:~/$ chmod 0700 /etc/flocker
+   root@mercury:~/$ chmod 0600 /etc/flocker/control-service.key
 
 You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
 
 .. warning::
 
-   For the cluster's certificate, copy the file ``cluster.crt`` **only** - do **not** copy the ``cluster.key`` file; this must kept only by the cluster administrator.
+   Only copy the file ``cluster.crt`` to the control service and node machines, not the ``cluster.key`` file; this must kept only by the cluster administrator.
 
 You will also need to generate authentication certificates for each of your nodes.
 Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
@@ -390,7 +390,8 @@ The actual certificate and key file names generated in this step will vary from 
 
 As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the `cluster.crt` certificate.
 Copy the generated files to ``/etc/flocker/`` on the target node and name them ``node.crt`` and ``node.key``.
-Perform the same `chmod 600` commands on `/etc/flocker` and `node.key` as you did for the control service in the instructions above.
+Perform the same ``chmod 600`` commands on ``node.key`` as you did for the control service in the instructions above.
+The ``/etc/flocker/`` directory should be set to ``chmod 700``.
 
 You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../advanced/security>`.
 
