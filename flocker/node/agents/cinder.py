@@ -44,11 +44,16 @@ class ICinderVolumeManager(Interface):
     See:
     https://github.com/openstack/python-cinderclient/blob/master/cinderclient/v1/volumes.py#L135
     """
+
+    # The OpenStack Cinder API documentation says the size is in GB (multiples
+    # of 10 ** 9 bytes).  Real world observations indicate size is actually in
+    # GiB (multiples of 2 ** 30).  So this method is documented as accepting
+    # GiB values.  https://bugs.launchpad.net/openstack-api-site/+bug/1456631
     def create(size, metadata=None):
         """
         Creates a volume.
 
-        :param size: Size of volume in GB
+        :param size: Size of volume in GiB
         :param metadata: Optional metadata to set on volume creation
         :rtype: :class:`Volume`
         """
@@ -222,11 +227,6 @@ class CinderBlockDeviceAPI(object):
             # XXX: Address size mistach (see
             # (https://clusterhq.atlassian.net/browse/FLOC-1874).
             requested_volume = self.cinder_volume_manager.create(
-                # The OpenStack Cinder API documentation says the size is in GB
-                # (multiples of 10 ** 9 bytes).  Real world observations
-                # indicate size is actually in GiB (multiples of 2 ** 30).  So
-                # convert the value to GiB here.
-                # https://bugs.launchpad.net/openstack-api-site/+bug/1456631
                 size=Byte(size).to_GiB().value,
                 metadata=metadata,
             )
