@@ -251,8 +251,8 @@ Getting started with Flocker
            "172.16.255.251": []
 
 
-      The fig.yml describes your distributed application.
-      The deployment.yml describes which containers to deploy where.
+      The ``fig.yml`` file describes your distributed application.
+      The ``deployment-node1.yml`` file describes which containers to deploy where.
       If you are using real servers on AWS, you'll need to change the IP addresses in the deployment file.
 
       .. code-block:: console
