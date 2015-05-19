@@ -8,7 +8,7 @@ import time
 from uuid import UUID
 from subprocess import check_output
 
-from bitmath import Byte, GB
+from bitmath import Byte, GiB
 
 from eliot import Message, start_action
 
@@ -379,7 +379,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
 
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
-        size=int(GB(cinder_volume.size).to_Byte().value),
+        size=int(GiB(cinder_volume.size).to_Byte().value),
         attached_to=server_id,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
