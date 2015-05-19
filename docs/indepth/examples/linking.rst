@@ -76,7 +76,7 @@ Run ``flocker-deploy`` to start the three applications:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy elk-deployment.yml elk-application.yml
+   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
    alice@mercury:~/flocker-tutorial$
 
 Connect to ``Kibana``
@@ -123,7 +123,7 @@ Then run ``flocker-deploy`` to move the ``Elasticsearch`` application along with
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy elk-deployment.yml elk-application.yml
+   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 elk-deployment.yml elk-application.yml
    alice@mercury:~/flocker-tutorial$
    
 Now verify that the ``ElasticSearch`` application has moved to the other VM:
