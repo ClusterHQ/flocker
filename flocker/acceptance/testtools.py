@@ -614,19 +614,18 @@ class Cluster(PRecord):
         deployment config to the _compose API endpoint.
         """
         properties = {
-            "applications": {},
-            "deployment": {"version": 1}
+            "applications": {"applications": {}, "version": 1},
+            "deployment": {"version": 1, "nodes": {}}
         }
         for node in self.nodes:
-            properties["deployment"][node.address] = []
+            properties["deployment"]["nodes"][node.address] = []
         request = post(
             self.base_url + b"/configuration/_compose",
             data=dumps(properties),
             headers={b"content-type": b"application/json"},
             persistent=False
         )
-        import pdb;pdb.set_trace()
-        request.addCallback(check_and_decode_json, CREATED)
+        request.addCallback(check_and_decode_json, OK)
         request.addCallback(lambda response: (self, response))
         return request
 
