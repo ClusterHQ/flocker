@@ -135,12 +135,10 @@ FlockerScriptRunner({}(), Options()).main()
         def got_messages(messages):
             assertContainsFields(self, messages[1],
                                  {u"message_type": u"twisted:log",
-                                  u"message": u"stdout!",
-                                  u"error": False})
+                                  u"message": u"stdout!"})
             assertContainsFields(self, messages[2],
                                  {u"message_type": u"twisted:log",
-                                  u"message": u"stderr!",
-                                  u"error": True})
+                                  u"message": u"stderr!"})
         d.addCallback(got_messages)
         return d
 
