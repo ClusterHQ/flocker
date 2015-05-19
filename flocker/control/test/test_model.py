@@ -288,8 +288,9 @@ class NodeStateTests(SynchronousTestCase):
             applications=None,
             manifestations=None,
         )
-        app_state = node.set(applications=apps)
-        data_state = node.set(manifestations=manifestations)
+        app_state = node.set(applications=apps, used_ports=[])
+        data_state = node.set(manifestations=manifestations,
+                              devices={}, paths={})
         cluster = DeploymentState(nodes={app_state})
         changed_cluster = data_state.update_cluster_state(cluster)
         self.assertEqual(
@@ -298,6 +299,7 @@ class NodeStateTests(SynchronousTestCase):
                     hostname=hostname,
                     applications=apps,
                     manifestations=manifestations,
+                    devices={}, paths={}, used_ports={},
                 )
             }),
             changed_cluster
@@ -347,6 +349,51 @@ class NodeStateTests(SynchronousTestCase):
         self.assertEqual(
             NodeState(hostname=u"1.2.3.4", used_ports=None).used_ports,
             None)
+
+    def test_completely_ignorant_by_default(self):
+        """
+        A newly created ``NodeState`` is completely ignorant.
+        """
+        node_state = NodeState(hostname=u"1.2.3.4", uuid=uuid4())
+        self.assertEqual(
+            [node_state.used_ports, node_state.applications,
+             node_state.manifestations, node_state.paths, node_state.devices,
+             node_state._provides_information()],
+            [None, None, None, None, None, False])
+
+    def assert_required_field_set(self, **fields):
+        """
+        Assert that if one of the given field names is set on a ``NodeState``,
+        all of them must be set or this will be consideted an invariant
+        violation.
+
+        :param fields: ``NodeState`` attributes that are all expected to
+            be settable as a group, but which cannot be missing if one of
+            the others is set.
+        """
+        # If all are set, no problems:
+        NodeState(hostname=u"127.0.0.1", uuid=uuid4(), **fields)
+        # If one is missing, an invariant is raised:
+        for name in fields:
+            remaining_fields = fields.copy()
+            del remaining_fields[name]
+            self.assertRaises(InvariantException, NodeState,
+                              hostname=u"127.0.0.1", uuid=uuid4(),
+                              **remaining_fields)
+
+    def test_application_fields(self):
+        """
+        Both ``applications`` and ``used_ports`` must be set if one of them is
+        set.
+        """
+        self.assert_required_field_set(applications=[], used_ports={})
+
+    def test_dataset_fields(self):
+        """
+        ``manifestations``, ``devices`` and ``paths`` must be set if one of
+        them is set.
+        """
+        self.assert_required_field_set(manifestations={}, paths={}, devices={})
 
 
 class NonManifestDatasetsInitTests(make_with_init_tests(
@@ -1097,12 +1144,15 @@ class DeploymentStateTests(SynchronousTestCase):
             applications={Application(
                 name=u'postgresql-clusterhq',
                 image=DockerImage.from_string(u"image"))},
-            manifestations={dataset_id: manifestation})
+            used_ports=[],
+            manifestations={dataset_id: manifestation},
+            devices={}, paths={})
         another_node = NodeState(
             hostname=u"node2.example.com",
             applications=frozenset({Application(
                 name=u'site-clusterhq.com',
                 image=DockerImage.from_string(u"image"))}),
+            used_ports=[],
         )
         original = DeploymentState(nodes=[node])
         updated = original.update_node(another_node)
@@ -1126,11 +1176,12 @@ class DeploymentStateTests(SynchronousTestCase):
                 image=DockerImage.from_string(u"image"))}),
             used_ports=[1, 2],
             paths={dataset_id: FilePath(b"/xxx")},
+            devices={},
             manifestations={dataset_id: manifestation})
 
         update_applications = end_node.update(dict(
             manifestations=None,
-            paths=None,
+            paths=None, devices=None,
         ))
         update_manifestations = end_node.update(dict(
             applications=None,
@@ -1207,7 +1258,8 @@ class NodeStateWipingTests(SynchronousTestCase):
                                         applications=None, used_ports=None,
                                         manifestations={
                                             MANIFESTATION.dataset_id:
-                                            MANIFESTATION})
+                                            MANIFESTATION},
+                                        devices={}, paths={})
     DATASET_WIPE = NODE_FROM_DATASET_AGENT.get_information_wipe()
 
     def test_interface(self):
