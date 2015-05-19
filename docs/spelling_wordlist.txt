@@ -1,6 +1,7 @@
 admin
 app
 apps
+authorised
 backend
 backends
 behaviour
@@ -72,8 +73,11 @@ stateful
 sysadmin
 terabytes
 timestamp
+unauthorised
 Ubuntu
 username
+usernames
+versa
 versioning
 virtualization
 VMware
