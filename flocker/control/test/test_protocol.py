@@ -98,6 +98,7 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
 NODE_STATE = NodeState(hostname=u'node1.example.com',
                        applications=[APP1, APP2],
                        used_ports=[1, 2],
+                       devices={}, paths={},
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
 
