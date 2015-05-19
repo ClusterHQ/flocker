@@ -63,19 +63,14 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def run_client_tests(reactor, node, trial_args):
+def run_client_tests(reactor, node):
     """
     Run the client acceptance tests.
 
     :param INode node: The node to run client acceptance tests against.
-    :param list trial_args: Arguments to pass to trial. If not
-        provided, defaults to ``['flocker.acceptance']``.
 
     :return int: The exit-code of trial.
     """
-    if not trial_args:
-        trial_args = ['flocker.acceptance']
-
     def check_result(f):
         f.trap(ProcessTerminated)
         if f.value.exitCode is not None:
@@ -518,10 +513,7 @@ def do_client_acceptance_tests(reactor, runner, trial_args):
     nodes = yield runner.start_nodes(reactor, node_count=1)
     yield perform(
         make_dispatcher(reactor), install_cli(runner.package_source, nodes[0]))
-    result = yield run_client_tests(
-        reactor=reactor,
-        node=nodes[0],
-        trial_args=trial_args)
+    result = yield run_client_tests(reactor=reactor, node=nodes[0])
     returnValue(result)
 
 
