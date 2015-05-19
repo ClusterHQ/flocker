@@ -159,9 +159,11 @@ def task_install_control_certificates(ca_cert, control_cert, control_key):
     :param FilePath control_key: Path to control service private key
         local machine.
     """
+    # Be better if permissions were correct from the start.
+    # https://clusterhq.atlassian.net/browse/FLOC-1922
     return sequence([
         run('mkdir -p /etc/flocker'),
-        run('chmod 0700 /etc/flocker'),
+        run('chmod u=rwX,g=,o= /etc/flocker'),
         put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
         put(path="/etc/flocker/control-service.crt",
             content=control_cert.getContent()),
@@ -180,7 +182,11 @@ def task_install_node_certificates(ca_cert, node_cert, node_key):
     :param FilePath node_key: Path to node private key
         local machine.
     """
+    # Be better if permissions were correct from the start.
+    # https://clusterhq.atlassian.net/browse/FLOC-1922
     return sequence([
+        run('mkdir -p /etc/flocker'),
+        run('chmod u=rwX,g=,o= /etc/flocker'),
         put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
         put(path="/etc/flocker/node.crt",
             content=node_cert.getContent()),
