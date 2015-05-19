@@ -215,6 +215,12 @@ class CinderBlockDeviceAPI(object):
         }
         action_type = u"blockdevice:cinder:create_volume"
         with start_action(action_type=action_type):
+            # There could be difference between user-requested and
+            # Cinder-created volume sizes due to several reasons:
+            # 1) Round off from converting user-supplied 'size' to 'GB' int.
+            # 2) Cinder-specific size constraints.
+            # XXX: Address size mistach (see
+            # (https://clusterhq.atlassian.net/browse/FLOC-1874).
             requested_volume = self.cinder_volume_manager.create(
                 size=Byte(size).to_GB().value,
                 metadata=metadata,
