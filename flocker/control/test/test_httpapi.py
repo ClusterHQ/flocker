@@ -2631,7 +2631,7 @@ class CreateAPIServiceTests(SynchronousTestCase):
         endpoint = TCP4ServerEndpoint(reactor, 6789)
         verifyObject(IService, create_api_service(
             ConfigurationPersistenceService(reactor, FilePath(self.mktemp())),
-            ClusterStateService(), endpoint, ClientContextFactory()))
+            ClusterStateService(reactor), endpoint, ClientContextFactory()))
 
 
 class DatasetsStateTestsMixin(APITestsMixin):
