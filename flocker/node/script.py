@@ -233,8 +233,13 @@ class AgentServiceFactory(PRecord):
 
 def zfs_dataset_deployer(volume_service):
     """
-    This should be changed significantly as part of refactoring in
-    FLOC-1791.
+    Create a deployer factory for a ZFS backend.
+
+    :param VolumeService dataset_configuration: An already started volume
+        service.
+
+    :return: A callable which can be called with a node UUID and hostname to
+        create a ZFS deployer.
     """
     return partial(
         P2PManifestationDeployer,
@@ -244,8 +249,13 @@ def zfs_dataset_deployer(volume_service):
 
 def loopback_dataset_deployer(volume_service):
     """
-    This should be changed significantly as part of refactoring in
-    FLOC-1791.
+    Create a deployer factory for a loopback backend.
+
+    :param VolumeService dataset_configuration: An already started volume
+        service.
+
+    :return: A callable which can be called with a node UUID and hostname to
+        create a loopback deployer.
     """
     # Later, construction of this object can be moved into
     # AgentServiceFactory.get_service where various options passed on
@@ -265,6 +275,7 @@ def loopback_dataset_deployer(volume_service):
         BlockDeviceDeployer,
         block_device_api=api,
     )
+
 
 def dataset_deployer_from_configuration(dataset_configuration, volume_service):
     """
@@ -287,6 +298,7 @@ def dataset_deployer_from_configuration(dataset_configuration, volume_service):
     return deployer_factory(
         volume_service=volume_service
     )
+
 
 @implementer(ICommandLineVolumeScript)
 class AgentScriptFactory(PRecord):
@@ -312,7 +324,9 @@ class AgentScriptFactory(PRecord):
         service = service_factory(reactor, options)
 
         if configuration['dataset']['backend'] == 'zfs':
-            # TODO Is this necessary? or just a test helper
+            # TODO
+            # XXX This should not be a special case,
+            # see X.
             volume_service.setServiceParent(service)
 
         return main_for_service(
