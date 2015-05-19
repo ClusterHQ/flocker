@@ -33,7 +33,6 @@ from twisted.test.proto_helpers import StringTransport
 from twisted.web.client import ResponseDone
 from twisted.internet.interfaces import IPushProducer
 from twisted.python.failure import Failure
-from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.web.http_headers import Headers
 
@@ -180,8 +179,6 @@ def buildIntegrationTests(mixinClass, name, fixture):
         """
         def setUp(self):
             self.app = fixture(self)
-            path = FilePath(self.mktemp())
-            path.makedirs()
             self.port = reactor.listenTCP(
                 0, Site(self.app.resource()),
                 interface=b"127.0.0.1",
