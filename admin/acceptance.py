@@ -34,6 +34,7 @@ from effect import parallel
 from effect.twisted import perform
 from flocker.provision._effect import sequence
 from flocker.provision._ssh._conch import make_dispatcher
+from flocker.acceptance.testtools import VolumeBackend
 
 from .runner import run
 
@@ -92,7 +93,8 @@ def run_client_tests(reactor, node, trial_args):
             )
 
 
-def run_cluster_tests(reactor, nodes, control_node, agent_nodes, trial_args):
+def run_cluster_tests(
+        reactor, nodes, control_node, agent_nodes, volume_backend, trial_args):
     """
     Run the cluster acceptance tests.
 
@@ -102,6 +104,8 @@ def run_cluster_tests(reactor, nodes, control_node, agent_nodes, trial_args):
         tests against.
     :param list agent_nodes: The list of INode nodes running flocker
         agent, to run API acceptance tests against.
+    :param VolumeBackend volume_backend: The volume backend the nodes are
+        configured with.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
 
@@ -125,6 +129,7 @@ def run_cluster_tests(reactor, nodes, control_node, agent_nodes, trial_args):
             FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node.address,
             FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
                 node.address for node in agent_nodes),
+            FLOCKER_ACCEPTANCE_VOLUME_BACKEND=volume_backend.name,
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -535,13 +540,12 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
     yield perform(dispatcher, runner.provision(nodes))
     yield perform(
         dispatcher,
-        sequence([
-            configure_cluster(control_node=nodes[0], agent_nodes=nodes)
-            ]))
+        configure_cluster(control_node=nodes[0], agent_nodes=nodes))
     result = yield run_cluster_tests(
         reactor=reactor,
         nodes=nodes,
         control_node=nodes[0], agent_nodes=nodes,
+        volume_backend=VolumeBackend.zfs,
         trial_args=trial_args)
     returnValue(result)
 
