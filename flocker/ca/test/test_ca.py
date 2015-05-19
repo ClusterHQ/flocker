@@ -349,7 +349,8 @@ class ControlCredentialTests(
         """
         cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
-        self.assertEqual(subject.CN, b"control-service")
+        self.assertEqual(
+            subject.CN, b"control-service")
 
     def test_subjectAltName(self):
         """
