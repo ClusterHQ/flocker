@@ -36,6 +36,7 @@ from OpenSSL import crypto
 from pyrsistent import PRecord, field
 from twisted.internet.ssl import (
     DistinguishedName, KeyPair, Certificate, CertificateOptions,
+    PrivateCertificate,
 )
 
 
@@ -307,6 +308,15 @@ class FlockerCredential(PRecord):
         finally:
             os.umask(original_umask)
 
+    def private_certificate(self):
+        """
+        Combine private key and certificate into a ``PrivateCertificate``.
+
+        :return: ``PrivateCertificate`` instance.
+        """
+        return PrivateCertificate.fromCertificateAndKeyPair(
+            self.certificate, self.keypair.keypair)
+
 
 class UserCredential(PRecord):
     """
@@ -323,7 +333,7 @@ class UserCredential(PRecord):
     @classmethod
     def from_path(cls, path, username):
         """
-        Load a node certificate from a specified path.
+        Load a user certificate from a specified path.
 
         :param FilePath path: Directory where user certificate and key
             files are stored.
@@ -398,6 +408,11 @@ class NodeCredential(PRecord):
     def from_path(cls, path, uuid):
         """
         Load a node certificate from a specified path.
+
+        :param FilePath path: Directory where user certificate and key
+            files are stored.
+        :param bytes uuid: The UUID of the node.
+
         """
         key_filename = b"{uuid}.key".format(uuid=uuid)
         cert_filename = b"{uuid}.crt".format(uuid=uuid)
@@ -462,9 +477,10 @@ class ControlCredential(PRecord):
     @classmethod
     def from_path(cls, path, hostname):
         """
-        Load a ``ControlCredential`` from disk.
+        Load a control service certificate and key from the supplied path.
 
-        :param FilePath path: Directory where credentials are stored.
+        :param FilePath path: Directory where control service certificate
+            and key files are stored.
         :param bytes hostname: The hostname of the control service certificate.
         """
         keypair, certificate = load_certificate_from_path(
