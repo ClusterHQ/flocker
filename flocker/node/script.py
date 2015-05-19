@@ -21,7 +21,8 @@ from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
 from ..volume.service import (
-    ICommandLineVolumeScript, VolumeScript)
+    ICommandLineVolumeScript, VolumeScript,
+)
 
 from ..volume.script import flocker_volume_options
 from ..common.script import (
@@ -230,24 +231,18 @@ class AgentServiceFactory(PRecord):
         )
 
 
-def zfs_service_factory(volume_service, ip, node_uuid, reactor, host, port,
-    options):
+def zfs_dataset_deployer(volume_service):
     """
     This should be changed significantly as part of refactoring in
     FLOC-1791.
     """
-    deployer = P2PManifestationDeployer(
-        hostname=ip,
+    return partial(
+        P2PManifestationDeployer,
         volume_service=volume_service,
-        node_uuid=node_uuid)
-    service = AgentLoopService(
-        reactor=reactor, deployer=deployer, host=host, port=port)
-    volume_service.setServiceParent(service)
-    return service
+    )
 
 
-def loopback_service_factory(volume_service, ip, node_uuid, reactor, host,
-    port, options):
+def loopback_dataset_deployer(volume_service):
     """
     This should be changed significantly as part of refactoring in
     FLOC-1791.
@@ -266,17 +261,10 @@ def loopback_service_factory(volume_service, ip, node_uuid, reactor, host,
         # would be harder to implement and harder to use.
         compute_instance_id=bytes(getpid()).decode('utf-8'),
     )
-    deployer_factory = partial(
+    return partial(
         BlockDeviceDeployer,
         block_device_api=api,
     )
-    service_factory = AgentServiceFactory(
-        deployer_factory=deployer_factory
-    ).get_service
-
-    service = service_factory(reactor, options)
-    return service
-
 
 @implementer(ICommandLineVolumeScript)
 class AgentScriptFactory(PRecord):
@@ -289,40 +277,27 @@ class AgentScriptFactory(PRecord):
         configuration = yaml.safe_load(agent_config.getContent())
 
         validate_configuration(configuration=configuration)
-        host = configuration['control-service']['hostname']
-        port = configuration['control-service'].get("port", 4524)
-        ip = _get_external_ip(host, port)
-        # Soon we'll extract this from TLS certificate for node.  Until then
-        # we'll just do a temporary hack (probably to be fixed in FLOC-1783).
-        node_uuid = ip_to_uuid(ip)
 
-        # FLOC-1791, we want something like:
-
-        # backend = backend_factory(config['dataset']['backend'])
-        # deployer = backend.make_deployer()
-        # service = AgentLoopService(
-        #   reactor=reactor, deployer=deployer, host=host, port=port)
-        #
-        # # This might do volume_service.setServiceParent(service),
-        # # if appropriate.
-        # backend.register_service(service)
-
-        backend_to_service_factory = {
-            'zfs': zfs_service_factory,
-            'loopback': loopback_service_factory,
+        backend_to_deployer_factory = {
+            'zfs': zfs_dataset_deployer,
+            'loopback': loopback_dataset_deployer,
         }
 
         backend = configuration['dataset']['backend']
-        service_factory = backend_to_service_factory[backend]
-        service = service_factory(
+        deployer_factory_partial = backend_to_deployer_factory[backend]
+        deployer_factory = deployer_factory_partial(
             volume_service=volume_service,
-            ip=ip,
-            node_uuid=node_uuid,
-            reactor=reactor,
-            host=host,
-            port=port,
-            options=options,
         )
+
+        service_factory = AgentServiceFactory(
+            deployer_factory=deployer_factory
+        ).get_service
+
+        service = service_factory(reactor, options)
+
+        if backend == 'zfs':
+            # TODO Is this necessary? or just a test helper
+            volume_service.setServiceParent(service)
 
         return main_for_service(
             reactor=reactor,
