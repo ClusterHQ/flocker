@@ -74,7 +74,7 @@ class MakeRstTests(SynchronousTestCase):
             Does G-like stuff.
 
             Like g, G and gg.
-            """)
+            """, header='g stuff')
         def g():
             pass
 
@@ -86,6 +86,9 @@ class MakeRstTests(SynchronousTestCase):
             '',
             '   Undocumented.',
             '   ',
+            '',
+            'g stuff',
+            '=======',
             '',
             '',
             '.. http:put:: /prefix/g',
