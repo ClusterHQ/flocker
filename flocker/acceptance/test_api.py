@@ -32,13 +32,28 @@ def verify_socket(host, port):
     def can_connect():
         s = socket.socket()
         conn = s.connect_ex((host, port))
-        return False if conn else True
+        return conn == 0
 
     dl = loop_until(can_connect)
     return dl
 
 
-class ContainerAPITests(TestCase):
+class APITestCase(TestCase):
+    """
+    Base test case that cleans the cluster state before each test.
+    """
+    def setUp(self):
+        """
+        Reset the cluster to an empty deployment.
+        """
+        waiting_for_cluster = get_test_cluster(node_count=2)
+        d = waiting_for_cluster.addCallback(
+            lambda cluster: cluster.reset_state()
+        )
+        return d
+
+
+class ContainerAPITests(APITestCase):
     """
     Tests for the container API.
     """
@@ -334,7 +349,7 @@ def create_dataset(test_case, nodes=1,
     return waiting_for_create
 
 
-class DatasetAPITests(TestCase):
+class DatasetAPITests(APITestCase):
     """
     Tests for the dataset API.
     """
