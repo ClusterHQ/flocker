@@ -353,6 +353,12 @@ Using the machine on which you installed the ``flocker-cli`` package, run the fo
 You will find the files ``cluster.key`` and ``cluster.crt`` have been created in your working directory.
 The file ``cluster.key`` should be kept only by the cluster administrator; it does not need to be copied anywhere.
 
+.. warning::
+
+   The cluster administrator needs this file to generate new control service, node and API certificates.
+   The security of your cluster depends on this file remaining private.
+   Do not lose the cluster private key file, or allow a copy to be obtained by any person other than the authorised cluster administrator.
+
 You are now able to generate authentication certificates for the control service and each of your nodes.
 To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step.
 Replace ``example.org`` with the hostname of your control service node; this hostname should match the one you will give to REST API clients.
