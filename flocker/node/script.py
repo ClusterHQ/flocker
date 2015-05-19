@@ -301,10 +301,9 @@ def dataset_deployer_from_configuration(dataset_configuration, volume_service):
 
 
 @implementer(ICommandLineVolumeScript)
-class AgentScriptFactory(PRecord):
+class GenericAgentScript(PRecord):
     """
-    This code is temporary, and will probably be changed significantly and
-    moved into AgentScript. It isn't really a factory. FLOC-1791.
+    TODO
     """
     def main(self, reactor, options, volume_service):
         agent_config = options[u'agent-config']
@@ -346,7 +345,7 @@ def flocker_dataset_agent_main():
     options = DatasetAgentOptions()
 
     return FlockerScriptRunner(
-        script=VolumeScript(AgentScriptFactory()),
+        script=VolumeScript(GenericAgentScript()),
         options=options,
     ).main()
 
