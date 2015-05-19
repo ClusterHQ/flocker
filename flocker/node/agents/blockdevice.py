@@ -1570,7 +1570,7 @@ class BlockDeviceDeployer(PRecord):
             local_state.paths, configured_manifestations,
         ))
 
-        # TODO prevent the configuration of unsized datasets on blockdevice
+        # XXX prevent the configuration of unsized datasets on blockdevice
         # backends; cannot create block devices of unspecified size. FLOC-1579
         creates = list(
             CreateBlockDeviceDataset(

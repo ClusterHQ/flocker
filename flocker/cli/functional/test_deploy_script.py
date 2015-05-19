@@ -46,7 +46,7 @@ class FlockerDeployTests(TestCase):
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
-        self.cluster_state_service = ClusterStateService()
+        self.cluster_state_service = ClusterStateService(reactor)
         self.cluster_state_service.startService()
         self.cluster_state_service.apply_changes(
             [NodeState(uuid=uuid4(), hostname=ip)

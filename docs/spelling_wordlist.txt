@@ -1,6 +1,7 @@
 admin
 app
 apps
+authorised
 backend
 backends
 behaviour
@@ -26,7 +27,7 @@ failover
 filename
 filesystem
 filesystems
-firewalld
+FirewallD
 flocker
 flocker-cli
 flocker-deploy
@@ -72,8 +73,11 @@ stateful
 sysadmin
 terabytes
 timestamp
+unauthorised
 Ubuntu
 username
+usernames
+versa
 versioning
 virtualization
 VMware

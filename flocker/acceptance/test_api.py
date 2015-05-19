@@ -16,6 +16,7 @@ from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
     get_test_cluster, require_cluster,
+    require_moving_backend,
 )
 
 
@@ -149,6 +150,7 @@ class ContainerAPITests(APITestCase):
         )
         return d
 
+    @require_moving_backend
     @require_mongo
     @require_cluster(2)
     def test_move_container_with_dataset(self, cluster):
@@ -357,6 +359,7 @@ class DatasetAPITests(APITestCase):
         """
         return create_dataset(self)
 
+    @require_moving_backend
     def test_dataset_move(self):
         """
         A dataset can be moved from one node to another.
