@@ -389,6 +389,12 @@ def _keys_match(attribute):
     :return: A function suitable for use as a pyrsistent invariant.
     """
     def key_match_invariant(pmap):
+        # Either the field allows None, in which case this is necessary,
+        # or it doesn't in which case this won't do any harm since
+        # invalidity of None will be enforced elsewhere:
+        if pmap is None:
+            return (True, "")
+
         for (key, value) in pmap.items():
             if key != getattr(value, attribute):
                 return (
@@ -705,11 +711,6 @@ class NodeState(PRecord):
         node. Maps ``dataset_id`` to a ``FilePath``.
     """
     def __invariant__(self):
-        if self.manifestations is None:
-            return (True, "")
-        for key, value in self.manifestations.items():
-            if key != value.dataset_id:
-                return (False, '%r is not correct key for %r' % (key, value))
         return (True, "")
 
     def __new__(cls, **kwargs):
@@ -728,7 +729,7 @@ class NodeState(PRecord):
     used_ports = pset_field(int, optional=True, initial=None)
     applications = pset_field(Application, optional=True, initial=None)
     manifestations = pmap_field(unicode, Manifestation, optional=True,
-                                initial=None)
+                                initial=None, invariant=_keys_match_dataset_id)
     paths = pmap_field(unicode, FilePath, optional=True, initial=None)
     devices = pmap_field(UUID, FilePath, optional=True, initial=None)
 
