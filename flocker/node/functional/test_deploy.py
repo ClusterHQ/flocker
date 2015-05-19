@@ -50,9 +50,11 @@ class P2PNodeDeployer(object):
             app_discovery = self.applications_deployer.discover_state(
                 manifestations_state)
             app_discovery.addCallback(
-                lambda app_state: [app_state[0].set(
+                lambda app_state: [app_state[0].evolver().set(
                     "manifestations", manifestations_state.manifestations).set(
-                        "paths", manifestations_state.paths)])
+                        "paths", manifestations_state.paths).set(
+                            "devices", manifestations_state.devices
+                        ).persistent()])
             return app_discovery
         d.addCallback(got_manifestations_state)
         return d
@@ -81,7 +83,10 @@ def change_node_state(deployer, desired_configuration):
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
     def converge():
-        d = deployer.discover_state(NodeState(hostname=deployer.hostname))
+        d = deployer.discover_state(
+            NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
+                      applications=[], used_ports=[],
+                      manifestations={}, paths={}, devices={}))
 
         def got_changes(changes):
             cluster_state = DeploymentState()

@@ -320,7 +320,8 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_node_state = NodeState(
             hostname=local_node_hostname,
             manifestations={discovered_manifestation.dataset_id:
-                            discovered_manifestation}
+                            discovered_manifestation},
+            devices={}, paths={},
         )
         client = self.successful_amp_client([local_node_state])
         action = ControllableAction(result=Deferred())

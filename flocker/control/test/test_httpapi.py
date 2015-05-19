@@ -2677,7 +2677,9 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 uuid=expected_uuid,
                 manifestations={expected_dataset.dataset_id:
                                 expected_manifestation},
-                paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
+                paths={
+                    expected_dataset.dataset_id: FilePath(b"/path/dataset")},
+                devices={},
             )
         ])
         expected_dict = dict(
@@ -2712,6 +2714,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 manifestations={expected_dataset1.dataset_id:
                                 expected_manifestation1},
                 paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
+                devices={},
             ),
             NodeState(
                 uuid=expected_uuid2,
@@ -2719,6 +2722,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 manifestations={expected_dataset2.dataset_id:
                                 expected_manifestation2},
                 paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
+                devices={},
             )
         ])
         expected_dict1 = dict(
@@ -3037,7 +3041,9 @@ class ContainerStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 uuid=expected_uuid,
                 applications={expected_application},
+                used_ports=[],
                 manifestations={manifestation.dataset_id: manifestation},
+                devices={}, paths={},
             )
         ])
         expected_dict = dict(
@@ -3085,7 +3091,9 @@ class ContainerStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 uuid=expected_uuid,
                 applications={expected_application},
+                used_ports=[],
                 manifestations={manifestation.dataset_id: manifestation},
+                devices={}, paths={},
             )
         ])
         expected_dict = dict(
@@ -3119,6 +3127,7 @@ class ContainerStateTestsMixin(APITestsMixin):
                 uuid=expected_uuid,
                 hostname=expected_hostname,
                 applications={expected_application},
+                used_ports=[],
             )
         ])
         expected_dict = dict(
@@ -3152,11 +3161,13 @@ class ContainerStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname1,
                 uuid=expected_uuid1,
                 applications={expected_application1},
+                used_ports=[],
             ),
             NodeState(
                 hostname=expected_hostname2,
                 uuid=expected_uuid2,
                 applications={expected_application2},
+                used_ports=[],
             )
         ])
         expected_dict1 = dict(
