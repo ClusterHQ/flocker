@@ -199,7 +199,7 @@ class LibcloudNode(object):
         """
         Return the default username on this provisioner.
         """
-        return self._provisioner.default_user(self.distribution)
+        return self._provisioner.get_default_user(self.distribution)
 
     def provision(self, package_source, variants=()):
         """
@@ -229,7 +229,7 @@ class LibcloudNode(object):
     Attribute('_create_node_arguments'),
     Attribute('provision'),
     Attribute('default_size'),
-    Attribute('default_user'),
+    Attribute('get_default_user'),
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
@@ -243,8 +243,8 @@ class LibcloudProvisioner(object):
         libcloud's ``create_node``.
     :ivar callable provision: Function to call to provision a node.
     :ivar str default_size: Name of the default size of node to create.
-    :ivar str default_user: Function to provide the default username on the
-        node.
+    :ivar callable get_default_user: Function to provide the default
+        username on the node.
     """
 
     def create_node(self, name, distribution,

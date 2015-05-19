@@ -144,7 +144,7 @@ def aws_provisioner(access_key, secret_access_token, keyname,
         create_node_arguments=create_arguments,
         provision=provision_aws,
         default_size="m3.large",
-        default_user=get_default_username,
+        get_default_user=get_default_username,
     )
 
     return provisioner

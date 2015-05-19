@@ -102,7 +102,7 @@ def rackspace_provisioner(username, key, region, keyname):
         },
         provision=provision_rackspace,
         default_size="performance1-8",
-        default_user=get_default_username,
+        get_default_user=get_default_username,
     )
 
     return provisioner
