@@ -620,8 +620,8 @@ APP2 = Application(
     image=DockerImage.from_string(UNIT_FOR_APP2.container_image)
 )
 EMPTY_NODESTATE = NodeState(hostname=u"example.com",
-                            manifestations={}, applications=[],
-                            used_ports=[], devices={}, paths={})
+                            manifestations={}, devices={}, paths={},
+                            applications=[], used_ports=[])
 
 
 class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
@@ -632,10 +632,11 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
     def setUp(self):
         self.network = make_memory_network()
         self.node_uuid = uuid4()
-        self.EMPTY_NODESTATE = NodeState(hostname=u"example.com",
-                                         uuid=self.node_uuid,
-                                         manifestations={}, applications=[],
-                                         used_ports=[], devices={}, paths={})
+        self.EMPTY_NODESTATE = NodeState(
+            hostname=u"example.com",
+            uuid=self.node_uuid,
+            manifestations={}, devices={}, paths={},
+            applications=[], used_ports=[])
 
     def test_discover_none(self):
         """
