@@ -103,6 +103,7 @@ def install_cli_commands_yum(distribution, package_source):
     else:
         package = 'clusterhq-flocker-cli'
 
+    # Install Flocker CLI and all dependencies
     commands.append(sudo_from_args(
         ["yum", "install"] + branch_opt + ["-y", package]))
 
@@ -134,6 +135,7 @@ def install_cli_commands_ubuntu(distribution, package_source):
         use_development_branch = False
     commands = [
         # Ensure add-apt-repository command and HTTPS URLs are supported
+        # FLOC-1880 will ensure these are necessary and sufficient
         sudo_from_args([
             "apt-get", "-y", "install", "apt-transport-https",
             "software-properties-common"]),
@@ -157,7 +159,7 @@ def install_cli_commands_ubuntu(distribution, package_source):
     else:
         package = 'clusterhq-flocker-cli'
 
-    # Install Flocker node and all dependencies
+    # Install Flocker CLI and all dependencies
     commands.append(sudo_from_args([
         'apt-get', '-y', '--force-yes', 'install', package]))
 
@@ -470,6 +472,7 @@ def task_install_flocker(
     if distribution == 'ubuntu-14.04':
         commands = [
             # Ensure add-apt-repository command and HTTPS URLs are supported
+            # FLOC-1880 will ensure these are necessary and sufficient
             run_from_args([
                 "apt-get", "-y", "install", "apt-transport-https",
                 "software-properties-common"]),
