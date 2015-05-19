@@ -267,6 +267,17 @@ def loopback_dataset_deployer(volume_service):
     )
 
 def dataset_deployer_from_configuration(dataset_configuration, volume_service):
+    """
+    Given a dataset configuration, return a dataset deployer factory.
+
+    :param dict dataset_configuration: Desired configuration for a dataset
+        deployer.
+    :param VolumeService dataset_configuration: An already started volume
+        service.
+
+    :return: A callable which can be called with a node UUID and hostname to
+        create a dataset deployer.
+    """
     backend_to_deployer_factory = {
         'zfs': zfs_dataset_deployer,
         'loopback': loopback_dataset_deployer,
