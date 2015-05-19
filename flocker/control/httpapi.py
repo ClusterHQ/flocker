@@ -8,6 +8,8 @@ from uuid import uuid4, UUID
 
 from pyrsistent import pmap, thaw
 
+from twisted.protocols.tls import TLSMemoryBIOFactory
+
 from twisted.python.filepath import FilePath
 from twisted.web.http import (
     CONFLICT, CREATED, NOT_FOUND, OK, NOT_ALLOWED as METHOD_NOT_ALLOWED,
@@ -1022,7 +1024,8 @@ def api_dataset_from_dataset_and_node(dataset, node_uuid):
     return result
 
 
-def create_api_service(persistence_service, cluster_state_service, endpoint):
+def create_api_service(persistence_service, cluster_state_service, endpoint,
+                       context_factory):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 
@@ -1034,10 +1037,20 @@ def create_api_service(persistence_service, cluster_state_service, endpoint):
 
     :param endpoint: Twisted endpoint to listen on.
 
+    :param context_factory: TLS context factory.
+
     :return: Service that will listen on the endpoint using HTTP API server.
     """
     api_root = Resource()
     user = ConfigurationAPIUserV1(persistence_service, cluster_state_service)
     api_root.putChild('v1', user.app.resource())
     api_root._v1_user = user  # For unit testing purposes, alas
-    return StreamServerEndpointService(endpoint, Site(api_root))
+
+    return StreamServerEndpointService(
+        endpoint,
+        TLSMemoryBIOFactory(
+            context_factory,
+            False,
+            Site(api_root)
+        )
+    )
