@@ -619,6 +619,7 @@ APP2 = Application(
     name=APP_NAME2,
     image=DockerImage.from_string(UNIT_FOR_APP2.container_image)
 )
+# https://clusterhq.atlassian.net/browse/FLOC-1926
 EMPTY_NODESTATE = NodeState(hostname=u"example.com",
                             manifestations={}, devices={}, paths={},
                             applications=[], used_ports=[])
@@ -632,6 +633,7 @@ class ApplicationNodeDeployerDiscoverNodeConfigurationTests(
     def setUp(self):
         self.network = make_memory_network()
         self.node_uuid = uuid4()
+        # https://clusterhq.atlassian.net/browse/FLOC-1926
         self.EMPTY_NODESTATE = NodeState(
             hostname=u"example.com",
             uuid=self.node_uuid,
@@ -1001,6 +1003,7 @@ class P2PManifestationDeployerDiscoveryTests(SynchronousTestCase):
     def setUp(self):
         self.volume_service = create_volume_service(self)
         self.node_uuid = uuid4()
+        # https://clusterhq.atlassian.net/browse/FLOC-1926
         self.EMPTY_NODESTATE = NodeState(hostname=u"example.com",
                                          uuid=self.node_uuid)
 
