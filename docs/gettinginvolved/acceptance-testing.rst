@@ -27,6 +27,9 @@ The :program:`admin/run-acceptance-tests` script has several options:
 .. option:: --type <type>
 
    Specifies whether to run client or cluster tests.
+   The client tests simply install the client, and check it works.
+   The cluster tests start a small cluster containing one client and two nodes,
+   and run more comprehensive tests.
 
 .. option:: --variant <variant>
 
