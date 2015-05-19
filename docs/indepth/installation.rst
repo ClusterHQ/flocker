@@ -338,7 +338,7 @@ The Flocker CLI package includes the ``flocker-ca`` tool that is used to generat
 
 Once you have installed the ``flocker-node`` package, you will need to generate:
 
-- A control service certificate and key file, to be copied over to the node running your :doc:`control service <../advanced/architecture>`.
+- A control service certificate and key file, to be copied over to the machine running your :doc:`control service <../advanced/architecture>`.
 - A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
 
 Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
@@ -385,7 +385,7 @@ You should copy these files via a secure communication medium such as SSH, SCP o
 
 You will also need to generate authentication certificates for each of your nodes.
 Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
-This step should be followed for all nodes on the cluster, including the node running the control service.
+This step should be followed for all nodes on the cluster, as well as the machine running the control service.
 Run the command in the same directory containing the certificate authority files you generated in the first step.
 
 .. code-block:: console
