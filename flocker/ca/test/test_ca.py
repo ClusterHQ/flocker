@@ -342,7 +342,7 @@ class NodeCredentialTests(
         """
         cert = self.credential.credential.certificate.original
         subject = cert.get_subject()
-        self.assertEqual(subject.OU, self.credential.cluster_uuid)
+        self.assertEqual(UUID(hex=subject.OU), self.credential.cluster_uuid)
 
 
 class ControlCredentialTests(

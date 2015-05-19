@@ -30,7 +30,7 @@ common name, but that will have to wait for some future revision.
 import datetime
 import os
 
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from OpenSSL import crypto
 from pyrsistent import PRecord, field
@@ -398,9 +398,9 @@ class NodeCredential(PRecord):
 
     :ivar FlockerCredential credential: The certificate and key pair
         credential object.
-    :ivar bytes uuid: A unique identifier for the node this certificate
+    :ivar UUID uuid: A unique identifier for the node this certificate
         identifies, in the form of a version 4 UUID.
-    :ivar bytes cluster_uuid: A unique identifier for the cluster this
+    :ivar UUID cluster_uuid: A unique identifier for the cluster this
         certificate identifies, in the form of a version 4 UUID.
     """
     credential = field(mandatory=True)
@@ -470,11 +470,11 @@ class NodeCredential(PRecord):
     @property
     def uuid(self):
         common_name = self.credential.certificate.getSubject().CN
-        return common_name[len(self._UUID_PREFIX):]
+        return UUID(hex=common_name[len(self._UUID_PREFIX):])
 
     @property
     def cluster_uuid(self):
-        return self.credential.certificate.getSubject().OU
+        return UUID(hex=self.credential.certificate.getSubject().OU)
 
 
 class ControlCredential(PRecord):

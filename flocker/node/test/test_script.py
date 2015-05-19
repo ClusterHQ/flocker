@@ -132,7 +132,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         options.parseOptions([b"--agent-config", self.config.path])
         ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertEqual(
-            UUID(hex=self.ca_set.node.uuid),
+            self.ca_set.node.uuid,
             service.parent.deployer.node_uuid)
 
     def test_default_port(self):
@@ -245,8 +245,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         service_factory = AgentServiceFactory(deployer_factory=factory)
         service_factory.get_service(MemoryCoreReactor(), options)
         self.assertEqual(
-            (UUID(hex=self.ca_set.node.uuid),
-             UUID(hex=self.ca_set.node.cluster_uuid)),
+            (self.ca_set.node.uuid,
+             self.ca_set.node.cluster_uuid),
             result[0])
 
     def test_get_service(self):

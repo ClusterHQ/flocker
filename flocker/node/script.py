@@ -184,8 +184,7 @@ class ZFSAgentScript(object):
         tls_info = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
         deployer = P2PManifestationDeployer(
-            ip, volume_service, node_uuid=UUID(
-                hex=tls_info.node_credential.uuid))
+            ip, volume_service, node_uuid=tls_info.node_credential.uuid)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port,
                                 context_factory=tls_info.context_factory)
@@ -297,8 +296,8 @@ class AgentServiceFactory(PRecord):
         return AgentLoopService(
             reactor=reactor,
             deployer=self.deployer_factory(
-                node_uuid=UUID(hex=tls_info.node_credential.uuid), hostname=ip,
-                cluster_uuid=UUID(hex=tls_info.node_credential.cluster_uuid)),
+                node_uuid=tls_info.node_credential.uuid, hostname=ip,
+                cluster_uuid=tls_info.node_credential.cluster_uuid),
             host=host, port=port,
             context_factory=tls_info.context_factory,
         )
