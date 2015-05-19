@@ -95,7 +95,7 @@ Getting started with Flocker
          Install the Flocker client on your Linux machine:
 
          .. task:: install_cli ubuntu-14.04
-            :prompt: $
+            :prompt: you@laptop:~$
 
 
          Fedora 20
@@ -130,7 +130,7 @@ Getting started with Flocker
          Install the Flocker client on your Linux machine:
 
          .. task:: install_cli ubuntu-14.04
-            :prompt: $
+            :prompt: you@laptop:~$
 
          Fedora 20
          ^^^^^^^^^
