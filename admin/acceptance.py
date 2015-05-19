@@ -193,14 +193,6 @@ class VagrantRunner(object):
 
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
-            yield perform(
-                make_dispatcher(reactor),
-                run_remotely(
-                    username='root',
-                    address=node,
-                    commands=task_pull_docker_images()
-                ),
-            )
         returnValue([
             VagrantNode(address=address, distribution=self.distribution)
             for address in self.NODE_ADDRESSES
@@ -460,6 +452,16 @@ def main(reactor, args, base_path, top_level):
         certificates = Certificates.generate(ca_directory, nodes[0].address,
                                              len(nodes))
 
+        yield perform(
+            make_dispatcher(reactor),
+            parallel([
+                run_remotely(
+                    username='root',
+                    address=node.address,
+                    commands=task_pull_docker_images()
+                ) for node in nodes
+            ]),
+        )
         yield perform(
             make_dispatcher(reactor),
             configure_cluster(control_node=nodes[0], agent_nodes=nodes,

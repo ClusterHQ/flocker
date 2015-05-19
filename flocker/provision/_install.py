@@ -581,7 +581,6 @@ def provision(distribution, package_source, variants):
     if distribution in ('centos-7'):
         commands.append(task_disable_selinux(distribution))
     commands.append(task_enable_docker(distribution))
-    commands.append(task_pull_docker_images())
     return sequence(commands)
 
 
