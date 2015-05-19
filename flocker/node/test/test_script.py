@@ -111,8 +111,8 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         # so do so manually:
         deployer = parent_service.deployer
         parent_service.deployer = None
-        context_factory, _ = _context_factory_and_credential(
-            self.config.parent(), b"10.0.0.1", 1234)
+        context_factory = _context_factory_and_credential(
+            self.config.parent(), b"10.0.0.1", 1234).context_factory
         self.assertEqual((parent_service, deployer.__class__,
                           deployer.volume_service,
                           parent_service.running),
@@ -268,7 +268,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 host=b"10.0.0.1",
                 port=1234,
                 context_factory=_context_factory_and_credential(
-                    self.config.parent(), b"10.0.0.1", 1234)[0],
+                    self.config.parent(), b"10.0.0.1", 1234).context_factory,
             ),
             service_factory.get_service(reactor, options)
         )
@@ -302,7 +302,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 host=b"10.0.0.2",
                 port=4524,
                 context_factory=_context_factory_and_credential(
-                    self.config.parent(), b"10.0.0.2", 4524)[0],
+                    self.config.parent(), b"10.0.0.2", 4524).context_factory,
             ),
             service_factory.get_service(reactor, options)
         )

@@ -60,6 +60,20 @@ def _get_external_ip(host, port):
         sock.close()
 
 
+class _TLSContext(PRecord):
+    """
+    Information extracted from the TLS certificates for this node.
+
+    :ivar context_factory: A TLS
+        context factory will validate the control service and present
+        the node's certificate to the control service.
+
+    :ivar NodeCredential node_credential: The node's certificate information.
+    """
+    context_factory = field(mandatory=True)
+    node_credential = field(mandatory=True)
+
+
 def _context_factory_and_credential(path, host, port):
     """
     Load a TLS context factory for the AMP client from the path where
@@ -72,9 +86,7 @@ def _context_factory_and_credential(path, host, port):
     :param bytes host: The host we will be connecting to.
     :param int port: The port we will be connecting to.
 
-    :return: Tuple of (context factory, ``NodeCredential``). The TLS
-        context factory will validate the control service and present
-        the node's certificate to the control service.
+    :return: ``_TLSContext`` instance.
     """
     ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
     # This is a hack; from_path should be more
@@ -82,7 +94,8 @@ def _context_factory_and_credential(path, host, port):
     node_credential = NodeCredential.from_path(path, b"node")
     policy = ControlServicePolicy(
         ca_certificate=ca, client_credential=node_credential.credential)
-    return (policy.creatorForNetloc(host, port), node_credential)
+    return _TLSContext(context_factory=policy.creatorForNetloc(host, port),
+                       node_credential=node_credential)
 
 
 def validate_configuration(configuration):
@@ -168,13 +181,14 @@ class ZFSAgentScript(object):
         host = configuration['control-service']['hostname']
         port = configuration['control-service'].get("port", 4524)
         ip = _get_external_ip(host, port)
-        context_factory, node_credential = _context_factory_and_credential(
+        tls_info = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
         deployer = P2PManifestationDeployer(
-            ip, volume_service, node_uuid=UUID(hex=node_credential.uuid))
+            ip, volume_service, node_uuid=UUID(
+                hex=tls_info.node_credential.uuid))
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
                                 host=host, port=port,
-                                context_factory=context_factory)
+                                context_factory=tls_info.context_factory)
         volume_service.setServiceParent(loop)
         return main_for_service(reactor, loop)
 
@@ -278,15 +292,15 @@ class AgentServiceFactory(PRecord):
         host = configuration['control-service']['hostname']
         port = configuration['control-service'].get('port', 4524)
         ip = _get_external_ip(host, port)
-        context_factory, node_credential = _context_factory_and_credential(
+        tls_info = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
         return AgentLoopService(
             reactor=reactor,
             deployer=self.deployer_factory(
-                node_uuid=UUID(hex=node_credential.uuid), hostname=ip,
-                cluster_uuid=UUID(hex=node_credential.cluster_uuid)),
+                node_uuid=UUID(hex=tls_info.node_credential.uuid), hostname=ip,
+                cluster_uuid=UUID(hex=tls_info.node_credential.cluster_uuid)),
             host=host, port=port,
-            context_factory=context_factory,
+            context_factory=tls_info.context_factory,
         )
 
 
