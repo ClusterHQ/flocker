@@ -89,7 +89,7 @@ install_requirements = [
     "zope.interface >= 4.0.5",
     "pytz",
     "characteristic >= 14.1.0",
-    "Twisted == 15.1.0",
+    "Twisted == 15.2.0",
 
     "PyYAML == 3.10",
 
