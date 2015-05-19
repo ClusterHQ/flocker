@@ -54,6 +54,123 @@ def task_client_installation_test():
     return run_from_args(['flocker-deploy', '--version'])
 
 
+def install_cli_commands_yum(distribution, package_source):
+    """
+    Install flocker CLI on Fedora or CentOS.
+
+    The ClusterHQ repo is added for downloading latest releases.  If
+    ``package_source`` contains a branch, then a BuildBot repo will also
+    be added to the package search path, to use in-development packages.
+    Note, the ClusterHQ repo is always enabled, to provide dependencies.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: a sequence of commands to run on the distribution
+    """
+    if package_source.branch:
+        # A development branch has been selected - add its Buildbot repo
+        use_development_branch = True
+        result_path = posixpath.join(
+            '/results/omnibus/', package_source.branch, distribution)
+        base_url = urljoin(package_source.build_server, result_path)
+    else:
+        use_development_branch = False
+    commands = [
+        sudo(command="yum install -y " + CLUSTERHQ_REPO[distribution])
+    ]
+
+    if use_development_branch:
+        repo = dedent(b"""\
+            [clusterhq-build]
+            name=clusterhq-build
+            baseurl=%s
+            gpgcheck=0
+            enabled=0
+            """) % (base_url,)
+        commands.append(put(content=repo,
+                            path='/tmp/clusterhq-build.repo'))
+        commands.append(sudo_from_args([
+            'cp', '/tmp/clusterhq-build.repo',
+            '/etc/yum.repos.d/clusterhq-build.repo']))
+        branch_opt = ['--enablerepo=clusterhq-build']
+    else:
+        branch_opt = []
+
+    if package_source.os_version:
+        package = 'clusterhq-flocker-cli-%s' % (package_source.os_version,)
+    else:
+        package = 'clusterhq-flocker-cli'
+
+    commands.append(sudo_from_args(
+        ["yum", "install"] + branch_opt + ["-y", package]))
+
+    return sequence(commands)
+
+
+def install_cli_commands_ubuntu(distribution, package_source):
+    """
+    Install flocker CLI on Ubuntu.
+
+    The ClusterHQ repo is added for downloading latest releases.  If
+    ``package_source`` contains a branch, then a BuildBot repo will also
+    be added to the package search path, to use in-development packages.
+    Note, the ClusterHQ repo is always enabled, to provide dependencies.
+
+    :param bytes distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
+
+    :return: a sequence of commands to run on the distribution
+    """
+    if package_source.branch:
+        # A development branch has been selected - add its Buildbot repo
+        use_development_branch = True
+        result_path = posixpath.join(
+            '/results/omnibus/', package_source.branch, distribution)
+        base_url = urljoin(package_source.build_server, result_path)
+    else:
+        use_development_branch = False
+    commands = [
+        # Ensure add-apt-repository command and HTTPS URLs are supported
+        sudo_from_args([
+            "apt-get", "-y", "install", "apt-transport-https",
+            "software-properties-common"]),
+        # Add ClusterHQ repo for installation of Flocker packages.
+        sudo_from_args([
+            'add-apt-repository', '-y',
+            'deb {} /'.format(CLUSTERHQ_REPO[distribution])
+            ])
+        ]
+
+    if use_development_branch:
+        # Add BuildBot repo for running tests
+        commands.append(sudo_from_args([
+            "add-apt-repository", "-y", "deb {} /".format(base_url)]))
+
+    # Update to read package info from new repos
+    commands.append(sudo_from_args(["apt-get", "update"]))
+
+    if package_source.os_version:
+        package = 'clusterhq-flocker-cli=%s' % (package_source.os_version,)
+    else:
+        package = 'clusterhq-flocker-cli'
+
+    # Install Flocker node and all dependencies
+    commands.append(sudo_from_args([
+        'apt-get', '-y', '--force-yes', 'install', package]))
+
+    return sequence(commands)
+
+
+_task_install_commands = {
+    'centos-7': install_cli_commands_yum,
+    'fedora-20': install_cli_commands_yum,
+    'ubuntu-14.04': install_cli_commands_ubuntu,
+}
+
+
 def task_install_cli(distribution, package_source=PackageSource()):
     """
     Install flocker CLI on a distribution.
@@ -66,78 +183,10 @@ def task_install_cli(distribution, package_source=PackageSource()):
     :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
+
+    :return: a sequence of commands to run on the distribution
     """
-    if package_source.branch:
-        # A development branch has been selected - add its Buildbot repo
-        use_development_branch = True
-        result_path = posixpath.join(
-            '/results/omnibus/', package_source.branch, distribution)
-        base_url = urljoin(package_source.build_server, result_path)
-    else:
-        use_development_branch = False
-
-    if distribution == 'ubuntu-14.04':
-        commands = [
-            # Ensure add-apt-repository command and HTTPS URLs are supported
-            sudo_from_args([
-                "apt-get", "-y", "install", "apt-transport-https",
-                "software-properties-common"]),
-            # Add ClusterHQ repo for installation of Flocker packages.
-            sudo_from_args([
-                'add-apt-repository', '-y',
-                'deb {} /'.format(CLUSTERHQ_REPO[distribution])
-                ])
-            ]
-
-        if use_development_branch:
-            # Add BuildBot repo for running tests
-            commands.append(sudo_from_args([
-                "add-apt-repository", "-y", "deb {} /".format(base_url)]))
-
-        # Update to read package info from new repos
-        commands.append(sudo_from_args(["apt-get", "update"]))
-
-        if package_source.os_version:
-            package = 'clusterhq-flocker-cli=%s' % (package_source.os_version,)
-        else:
-            package = 'clusterhq-flocker-cli'
-
-        # Install Flocker node and all dependencies
-        commands.append(sudo_from_args([
-            'apt-get', '-y', '--force-yes', 'install', package]))
-
-        return sequence(commands)
-    else:
-        commands = [
-            sudo(command="yum install -y " + CLUSTERHQ_REPO[distribution])
-        ]
-
-        if use_development_branch:
-            repo = dedent(b"""\
-                [clusterhq-build]
-                name=clusterhq-build
-                baseurl=%s
-                gpgcheck=0
-                enabled=0
-                """) % (base_url,)
-            commands.append(put(content=repo,
-                                path='/tmp/clusterhq-build.repo'))
-            commands.append(sudo_from_args([
-                'cp', '/tmp/clusterhq-build.repo',
-                '/etc/yum.repos.d/clusterhq-build.repo']))
-            branch_opt = ['--enablerepo=clusterhq-build']
-        else:
-            branch_opt = []
-
-        if package_source.os_version:
-            package = 'clusterhq-flocker-cli-%s' % (package_source.os_version,)
-        else:
-            package = 'clusterhq-flocker-cli'
-
-        commands.append(sudo_from_args(
-            ["yum", "install"] + branch_opt + ["-y", package]))
-
-        return sequence(commands)
+    return _task_install_commands[distribution](distribution, package_source)
 
 
 def install_cli(package_source, node):
