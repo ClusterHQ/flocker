@@ -92,6 +92,13 @@ def get_client(provider):
     :raises: ``SkipTest`` if a ``CLOUD_CONFIG_FILE`` was not set and the
         default config file could not be read.
     """
+    flocker_functional_test = os.environ.get('FLOCKER_FUNCTIONAL_TEST')
+    if flocker_functional_test is None:
+        raise SkipTest(
+            'Please set FLOCKER_FUNCTIONAL_TEST environment variable '
+            'to run storage backend functional tests. '
+        )
+
     config_file_path = os.environ.get('CLOUD_CONFIG_FILE')
     if config_file_path is not None:
         config_file = open(config_file_path)
