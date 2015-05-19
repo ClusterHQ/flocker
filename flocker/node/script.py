@@ -19,6 +19,7 @@ from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
+from twisted.internet.ssl import Certificate
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
@@ -31,6 +32,7 @@ from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
 from ..control._model import ip_to_uuid
+from ..ca import ControlServicePolicy, NodeCredential
 
 
 __all__ = [
@@ -56,6 +58,30 @@ def _get_external_ip(host, port):
         return unicode(sock.getsockname()[0], "ascii")
     finally:
         sock.close()
+
+
+def _context_factory(path, host, port):
+    """
+    Load a TLS context factory for the AMP client from the path where
+    configuration and certificates live.
+
+    The CA certificate and node private key and certificate are expected
+    to be siblings of the configuration file.
+
+    :param FilePath path: Path to directory where configuration lives.
+    :param bytes host: The host we will be connecting to.
+    :param int port: The port we will be connecting to.
+
+    :return: TLS context factory that will validate the control service
+        and present the node's certificate to the control service.
+    """
+    ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
+    # This is a hack; from_path should be more
+    # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
+    node_credential = NodeCredential.from_path(path, b"node")
+    policy = ControlServicePolicy(
+        ca_certificate=ca, client_credential=node_credential.credential)
+    return policy.creatorForNetloc(host, port)
 
 
 def validate_configuration(configuration):
@@ -147,7 +173,10 @@ class ZFSAgentScript(object):
         deployer = P2PManifestationDeployer(ip, volume_service,
                                             node_uuid=node_uuid)
         loop = AgentLoopService(reactor=reactor, deployer=deployer,
-                                host=host, port=port)
+                                host=host, port=port,
+                                context_factory=_context_factory(
+                                    options["agent-config"].parent(),
+                                    host, port))
         volume_service.setServiceParent(loop)
         return main_for_service(reactor, loop)
 
@@ -253,6 +282,8 @@ class AgentServiceFactory(PRecord):
             deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
                                            hostname=ip),
             host=host, port=port,
+            context_factory=_context_factory(options["agent-config"].parent(),
+                                             host, port),
         )
 
 

@@ -142,6 +142,52 @@ def task_disable_selinux(distribution):
         raise DistributionNotSupported(distribution=distribution)
 
 
+def task_install_control_certificates(ca_cert, control_cert, control_key):
+    """
+    Install certificates and private key required by the control service.
+
+    :param FilePath ca_cert: Path to CA certificate on local machine.
+    :param FilePath control_cert: Path to control service certificate on
+        local machine.
+    :param FilePath control_key: Path to control service private key
+        local machine.
+    """
+    # Be better if permissions were correct from the start.
+    # https://clusterhq.atlassian.net/browse/FLOC-1922
+    return sequence([
+        run('mkdir -p /etc/flocker'),
+        run('chmod u=rwX,g=,o= /etc/flocker'),
+        put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
+        put(path="/etc/flocker/control-service.crt",
+            content=control_cert.getContent()),
+        put(path="/etc/flocker/control-service.key",
+            content=control_key.getContent()),
+        ])
+
+
+def task_install_node_certificates(ca_cert, node_cert, node_key):
+    """
+    Install certificates and private key required by a node.
+
+    :param FilePath ca_cert: Path to CA certificate on local machine.
+    :param FilePath node_cert: Path to node certificate on
+        local machine.
+    :param FilePath node_key: Path to node private key
+        local machine.
+    """
+    # Be better if permissions were correct from the start.
+    # https://clusterhq.atlassian.net/browse/FLOC-1922
+    return sequence([
+        run('mkdir -p /etc/flocker'),
+        run('chmod u=rwX,g=,o= /etc/flocker'),
+        put(path="/etc/flocker/cluster.crt", content=ca_cert.getContent()),
+        put(path="/etc/flocker/node.crt",
+            content=node_cert.getContent()),
+        put(path="/etc/flocker/node.key",
+            content=node_key.getContent()),
+        ])
+
+
 def task_enable_docker(distribution):
     """
     Start docker and configure it to start automatically.
@@ -539,19 +585,26 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(control_node, agent_nodes):
+def configure_cluster(control_node, agent_nodes, certificates):
     """
     Configure flocker-control, flocker-agent and flocker-container-agent
     on a collection of nodes.
 
     :param INode control_node: The control node.
     :param INode agent_nodes: List of agent nodes.
+    :param Certificates certificates: Certificates to upload.
     """
     return sequence([
         run_remotely(
             username='root',
             address=control_node.address,
-            commands=task_enable_flocker_control(control_node.distribution),
+            commands=sequence([
+                task_install_control_certificates(
+                    certificates.cluster.certificate,
+                    certificates.control.certificate,
+                    certificates.control.key),
+                task_enable_flocker_control(control_node.distribution),
+                ]),
         ),
         sequence([
             sequence([
@@ -560,11 +613,16 @@ def configure_cluster(control_node, agent_nodes):
                 run_remotely(
                     username='root',
                     address=node.address,
-                    commands=task_enable_flocker_agent(
-                        distribution=node.distribution,
-                        control_node=control_node.address,
+                    commands=sequence([
+                        task_install_node_certificates(
+                            certificates.cluster.certificate,
+                            certnkey.certificate,
+                            certnkey.key),
+                        task_enable_flocker_agent(
+                            distribution=node.distribution,
+                            control_node=control_node.address,
+                        )]),
                     ),
-                ),
-            ]) for node in agent_nodes
+            ]) for certnkey, node in zip(certificates.nodes, agent_nodes)
         ])
     ])
