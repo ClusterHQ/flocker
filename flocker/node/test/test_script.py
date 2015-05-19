@@ -5,7 +5,6 @@ Tests for :module:`flocker.node.script`.
 """
 import netifaces
 import yaml
-from uuid import UUID
 
 from jsonschema.exceptions import ValidationError
 
@@ -64,6 +63,8 @@ def setup_config(test):
 deployer = object()
 
 
+# This should have an explicit interface:
+# https://clusterhq.atlassian.net/browse/FLOC-1929
 def deployer_factory_stub(**kw):
     if set(kw.keys()) != {"node_uuid", "cluster_uuid", "hostname"}:
         raise TypeError("wrong arguments")

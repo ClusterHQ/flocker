@@ -265,6 +265,8 @@ class AgentServiceFactory(PRecord):
         ``hostname`` keyword argument, a ``cluster_uuid`` keyword and a
         ``node_uuid`` keyword argument. They must be passed by keyword.
     """
+    # This should have an explicit interface:
+    # https://clusterhq.atlassian.net/browse/FLOC-1929
     deployer_factory = field(mandatory=True)
 
     def get_service(self, reactor, options):
