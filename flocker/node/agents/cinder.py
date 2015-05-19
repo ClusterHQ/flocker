@@ -217,12 +217,17 @@ class CinderBlockDeviceAPI(object):
         with start_action(action_type=action_type):
             # There could be difference between user-requested and
             # Cinder-created volume sizes due to several reasons:
-            # 1) Round off from converting user-supplied 'size' to 'GB' int.
+            # 1) Round off from converting user-supplied 'size' to 'GiB' int.
             # 2) Cinder-specific size constraints.
             # XXX: Address size mistach (see
             # (https://clusterhq.atlassian.net/browse/FLOC-1874).
             requested_volume = self.cinder_volume_manager.create(
-                size=Byte(size).to_GB().value,
+                # The OpenStack Cinder API documentation says the size is in GB
+                # (multiples of 10 ** 9 bytes).  Real world observations
+                # indicate size is actually in GiB (multiples of 2 ** 30).  So
+                # convert the value to GiB here.
+                # https://bugs.launchpad.net/openstack-api-site/+bug/1456631
+                size=Byte(size).to_GiB().value,
                 metadata=metadata,
             )
             Message.new(blockdevice_id=requested_volume.id).write()
