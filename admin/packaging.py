@@ -244,7 +244,7 @@ DEPENDENCIES = {
         ),
         'ubuntu': (
             # trust-updates version
-            DockerDependency(package='docker.io'),
+            DockerDependency(package='lxc-docker'),
             Dependency(package='iptables'),
             Dependency(package='openssh-client'),
         ),

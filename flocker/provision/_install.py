@@ -428,7 +428,7 @@ def task_install_flocker(
                 "apt-get", "-y", "install", "software-properties-common"]),
             # Add Docker repo for recent Docker versions
             run_from_args([
-                "add-apt-repository", "-y", "ppa:james-page/docker"]),
+                "add-apt-repository", "-y", "deb https://get.docker.com/ubuntu docker main"]),
             # Add ClusterHQ repo for installation of Flocker packages.
             run_from_args([
                 'add-apt-repository', '-y',
