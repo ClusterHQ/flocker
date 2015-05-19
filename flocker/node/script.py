@@ -266,6 +266,17 @@ def loopback_dataset_deployer(volume_service):
         block_device_api=api,
     )
 
+def dataset_deployer_from_configuration(dataset_configuration, volume_service):
+    backend_to_deployer_factory = {
+        'zfs': zfs_dataset_deployer,
+        'loopback': loopback_dataset_deployer,
+    }
+    backend = dataset_configuration['backend']
+    deployer_factory = backend_to_deployer_factory[backend]
+    return deployer_factory(
+        volume_service=volume_service
+    )
+
 @implementer(ICommandLineVolumeScript)
 class AgentScriptFactory(PRecord):
     """
@@ -278,15 +289,9 @@ class AgentScriptFactory(PRecord):
 
         validate_configuration(configuration=configuration)
 
-        backend_to_deployer_factory = {
-            'zfs': zfs_dataset_deployer,
-            'loopback': loopback_dataset_deployer,
-        }
-
-        backend = configuration['dataset']['backend']
-        deployer_factory_partial = backend_to_deployer_factory[backend]
-        deployer_factory = deployer_factory_partial(
-            volume_service=volume_service,
+        deployer_factory = dataset_deployer_from_configuration(
+            dataset_configuration=configuration['dataset'],
+            volume_service=volume_service
         )
 
         service_factory = AgentServiceFactory(
@@ -295,7 +300,7 @@ class AgentScriptFactory(PRecord):
 
         service = service_factory(reactor, options)
 
-        if backend == 'zfs':
+        if configuration['dataset']['backend'] == 'zfs':
             # TODO Is this necessary? or just a test helper
             volume_service.setServiceParent(service)
 
