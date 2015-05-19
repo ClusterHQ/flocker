@@ -666,28 +666,6 @@ class Cluster(PRecord):
         return request
 
     @log_method
-    def reset_state(self):
-        """
-        Reset the state of a cluster by sending an empty application and
-        deployment config to the _compose API endpoint.
-        """
-        properties = {
-            "applications": {"applications": {}, "version": 1},
-            "deployment": {"version": 1, "nodes": {}}
-        }
-        for node in self.nodes:
-            properties["deployment"]["nodes"][node.address] = []
-        request = post(
-            self.base_url + b"/configuration/_compose",
-            data=dumps(properties),
-            headers={b"content-type": b"application/json"},
-            persistent=False
-        )
-        request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
-        return request
-
-    @log_method
     def create_container(self, properties):
         """
         Create a container with the specified properties.

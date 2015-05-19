@@ -14,8 +14,8 @@ from treq import get, json_content
 
 from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
 from .testtools import (
-    MONGO_IMAGE, require_mongo, get_mongo_client,
-    get_test_cluster, require_cluster,
+    MONGO_IMAGE, require_mongo, get_mongo_client, get_nodes,
+    get_test_cluster, require_cluster, require_flocker_cli,
     require_moving_backend,
 )
 
@@ -42,15 +42,12 @@ class APITestCase(TestCase):
     """
     Base test case that cleans the cluster state before each test.
     """
+    @require_flocker_cli
     def setUp(self):
         """
         Reset the cluster to an empty deployment.
         """
-        waiting_for_cluster = get_test_cluster(node_count=2)
-        d = waiting_for_cluster.addCallback(
-            lambda cluster: cluster.reset_state()
-        )
-        return d
+        return get_nodes(self, num_nodes=2)
 
 
 class ContainerAPITests(APITestCase):
