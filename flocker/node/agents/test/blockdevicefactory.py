@@ -245,11 +245,20 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
 
-    :raises: ``SkipTest`` if a ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
+    :raises: ``SkipTest`` if:
+        1) A ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
         was not set and the default config file could not be read.
+        2) ``FLOCKER_FUNCTIONAL_TEST`` environment variable is unset.
 
     :return: The new ``IBlockDeviceAPI`` provider.
     """
+    flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
+    if flocker_functional_test is None:
+        raise SkipTest(
+            'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
+            'run storage backend funtional tests.'
+        )
+
     try:
         api = get_blockdeviceapi(provider)
     except InvalidConfig as e:
