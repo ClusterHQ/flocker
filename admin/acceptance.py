@@ -216,8 +216,8 @@ class VagrantRunner(object):
         """
         Provision Vagrant nodes for acceptance tests.
 
-        Vagrant box is already provisioned, so this returns an empty
-        Effect.
+        Vagrant box is already provisioned, so this does nothing (by
+        returning an empty sequence of Effects).
 
         :param nodes: The list of nodes to be provisioned
         :return: an Effect to provision the cloud nodes
