@@ -164,7 +164,7 @@ RUNNER_ATTRIBUTES = [
 @attributes(['address', 'distribution'], apply_immutable=True)
 class VagrantNode(object):
     """
-    Node run using VagrantRunner
+    Node run using VagrantRunner.
     """
     def get_default_username():
         """
@@ -182,7 +182,7 @@ class VagrantNode(object):
         :param PackageSource package_source: The source from which to install
             flocker.
         :param set variants: The set of variant configurations to use when
-            provisioning
+            provisioning.
         """
         return succeed(None)
 
@@ -219,8 +219,8 @@ class VagrantRunner(object):
         Vagrant box is already provisioned, so this does nothing (by
         returning an empty sequence of Effects).
 
-        :param nodes: The list of nodes to be provisioned
-        :return: an Effect to provision the cloud nodes
+        :param nodes: The list of nodes to be provisioned.
+        :return: an Effect to provision the cloud nodes.
         """
         return sequence([])
 
@@ -300,8 +300,8 @@ class LibcloudRunner(object):
 
         Returns an Effect to provision each node in parallel.
 
-        :param nodes: The list of nodes to be provisioned
-        :return: an Effect to provision the cloud nodes
+        :param nodes: The list of nodes to be provisioned.
+        :return: an Effect to provision the cloud nodes.
         """
         return parallel([
             node.provision(
@@ -505,10 +505,10 @@ def do_client_acceptance_tests(reactor, runner, trial_args):
     """
     Run acceptance tests for client.
 
-    :param reactor: Twisted reactor
-    :param runner: Cloud or Vagrant runner to start nodes
-    :param trial_args: arguments to pass to trial
-    :return int: exit code of Trial run
+    :param reactor: Twisted reactor.
+    :param runner: Cloud or Vagrant runner to start nodes.
+    :param trial_args: arguments to pass to trial.
+    :return int: exit code of Trial run.
     """
     nodes = yield runner.start_nodes(reactor, node_count=1)
     yield perform(
@@ -522,10 +522,10 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
     """
     Run acceptance tests for cluster.
 
-    :param reactor: Twisted reactor
-    :param runner: Cloud or Vagrant runner to start nodes
-    :param trial_args: arguments to pass to trial
-    :return int: exit code of Trial run
+    :param reactor: Twisted reactor.
+    :param runner: Cloud or Vagrant runner to start nodes.
+    :param trial_args: arguments to pass to trial.
+    :return int: exit code of Trial run.
     """
     dispatcher = make_dispatcher(reactor)
     nodes = yield runner.start_nodes(reactor, node_count=2)
