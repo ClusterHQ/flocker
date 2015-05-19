@@ -311,6 +311,9 @@ class GenericAgentScript(PRecord):
     This is a temporary script, until the volume service can be created in
     ``zfs_dataset_deployer``. The majority of this script will be in
     ``flocker_dataset_agent_main`` and ``AgentScript``. See FLOC-1924.
+
+    In the meantime it lacks direct tests, and is only tested by the acceptance
+    tests.
     """
     def main(self, reactor, options, volume_service):
         agent_config = options[u'agent-config']
