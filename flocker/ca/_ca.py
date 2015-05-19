@@ -405,6 +405,9 @@ class NodeCredential(PRecord):
     """
     credential = field(mandatory=True)
 
+    # The prefix to the UUID we store in the common name:
+    _UUID_PREFIX = b"node-"
+
     @classmethod
     def from_path(cls, path, uuid):
         """
@@ -442,7 +445,7 @@ class NodeCredential(PRecord):
         key_filename = b"{uuid}.key".format(uuid=uuid)
         cert_filename = b"{uuid}.crt".format(uuid=uuid)
         # The common name for the node certificate.
-        name = b"node-{uuid}".format(uuid=uuid)
+        name = b"{prefix}{uuid}".format(prefix=cls._UUID_PREFIX, uuid=uuid)
         # The organizational unit is set to the organizational unit of the
         # authority, which in our case is cluster's UUID.
         organizational_unit = authority.organizational_unit
@@ -466,8 +469,8 @@ class NodeCredential(PRecord):
 
     @property
     def uuid(self):
-        # We need to strip the "node-" prefix:
-        return self.credential.certificate.getSubject().CN[5:]
+        common_name = self.credential.certificate.getSubject().CN
+        return common_name[len(self._UUID_PREFIX):]
 
     @property
     def cluster_uuid(self):
