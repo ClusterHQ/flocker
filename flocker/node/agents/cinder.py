@@ -6,9 +6,8 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 import time
 from uuid import UUID
-
 from bitmath import Byte, GB
-
+from ipaddr import IPAddress
 from eliot import Message, start_action
 
 from pyrsistent import PRecord, field
@@ -191,7 +190,7 @@ def _extract_nova_server_addresses(addresses):
     all_addresses = set()
     for network_name, addresses in addresses.items():
         for address_info in addresses:
-            all_addresses.add(address_info['addr'])
+            all_addresses.add(IPAddress(address_info['addr']))
 
     return all_addresses
 

@@ -4,6 +4,7 @@
 Network utilities.
 """
 
+from ipaddr import IPAddress
 import netifaces
 
 
@@ -22,5 +23,5 @@ def get_all_ips():
             if not family_addresses:
                 continue
             for address in family_addresses:
-                ips.add(address['addr'])
+                ips.add(IPAddress(address['addr']))
     return ips
