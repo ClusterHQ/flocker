@@ -101,7 +101,7 @@ def perform_put(dispatcher, intent):
     """
     See :py:class:`Put`.
     """
-    return Effect(Run(command='printf %s > %s'
+    return Effect(Run(command='printf -- %s > %s'
                               % (shell_quote(intent.content),
                                  shell_quote(intent.path))))
 

@@ -162,7 +162,6 @@ Using Amazon Web Services
    However, we do recommend at least the ``m3.large`` instance size.
 
    If you wish to customize the instance's security settings make sure to permit SSH access both from the intended client machine (for example, your laptop) and from any other instances on which you plan to install ``clusterhq-flocker-node``.
-   The ``flocker-deploy`` CLI requires SSH access to the Flocker nodes to control them and Flocker nodes need SSH access to each other for volume data transfers.
 
    .. warning::
 
@@ -270,14 +269,16 @@ The following commands will install the two repositories and the ``clusterhq-flo
 Paste them into a root console on the target node:
 
 .. task:: install_flocker fedora-20
-   :prompt: [root@fedora]#
-
+   :prompt: [root@node]#
+   
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker fedora-20
    :prompt: [root@fedora]#
 
+Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
 .. _centos-7-install:
 
@@ -303,14 +304,16 @@ The following commands will install the two repositories and the ``flocker-node`
 Paste them into a root console on the target node:
 
 .. task:: install_flocker centos-7
-   :prompt: [root@centos]#
+   :prompt: [root@node]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker centos-7
    :prompt: [root@centos]#
-
+   
+Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
 .. _ubuntu-14.04-install:
 
@@ -323,6 +326,80 @@ Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` 
 
 .. task:: install_flocker ubuntu-14.04
    :prompt: [root@ubuntu]#
+
+.. _authentication:
+
+Cluster Authentication Layer Configuration
+------------------------------------------
+
+Communication between the different parts of your cluster is secured and authenticated via TLS.
+The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
+
+Once you have installed the ``flocker-node`` package, you will need to generate:
+
+- A control service certificate and key file, to be copied over to the machine running your :doc:`control service <../advanced/architecture>`.
+- A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
+
+Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
+
+Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with any name you like to uniquely identify this cluster.
+
+.. code-block:: console
+
+    $ flocker-ca initialize mycluster
+    Created cluster.key and cluster.crt. Please keep cluster.key secret, as anyone who can access it will be able to control your cluster.
+
+You will find the files ``cluster.key`` and ``cluster.crt`` have been created in your working directory.
+The file ``cluster.key`` should be kept only by the cluster administrator; it does not need to be copied anywhere.
+
+.. warning::
+
+   The cluster administrator needs this file to generate new control service, node and API certificates.
+   The security of your cluster depends on this file remaining private.
+   Do not lose the cluster private key file, or allow a copy to be obtained by any person other than the authorised cluster administrator.
+
+You are now able to generate authentication certificates for the control service and each of your nodes.
+To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step.
+Replace ``example.org`` with the hostname of your control service node; this hostname should match the one you will give to REST API clients.
+
+.. code-block:: console
+
+   $ flocker-ca create-control-certificate example.org
+   Created control-example.org.crt. Copy it over to /etc/flocker/control-service.crt on your control service machine and make sure to chmod 0600 it.
+   
+You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the directory ``/etc/flocker/`` and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
+You should also copy the cluster's public certificate, the `cluster.crt` file.
+On the server, the ``/etc/flocker`` directory and private key file should be set to secure permissions via ``chmod``:
+
+.. code-block:: console
+
+   root@mercury:~/$ chmod 0700 /etc/flocker
+   root@mercury:~/$ chmod 0600 /etc/flocker/control-service.key
+
+You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
+
+.. warning::
+
+   Only copy the file ``cluster.crt`` to the control service and node machines, not the ``cluster.key`` file; this must kept only by the cluster administrator.
+
+You will also need to generate authentication certificates for each of your nodes.
+Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
+This step should be followed for all nodes on the cluster, as well as the machine running the control service.
+Run the command in the same directory containing the certificate authority files you generated in the first step.
+
+.. code-block:: console
+
+   $ flocker-ca create-node-certificate
+   Created 8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt. Copy it over to /etc/flocker/node.crt on your node machine, and make sure to chmod 0600 it.
+
+The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
+
+As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the `cluster.crt` certificate.
+Copy the generated files to ``/etc/flocker/`` on the target node and name them ``node.crt`` and ``node.key``.
+Perform the same ``chmod 600`` commands on ``node.key`` as you did for the control service in the instructions above.
+The ``/etc/flocker/`` directory should be set to ``chmod 700``.
+
+You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../advanced/security>`.
 
 Post installation configuration
 -------------------------------
@@ -338,8 +415,7 @@ Paste them into a root console:
 
 .. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
 
-The Flocker command line client (``flocker-deploy``) must be able to establish an SSH connection to each node.
-Additionally, every node must be able to establish an SSH connection to all other nodes.
+If you are using the ZFS storage backend every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
 Your firewall will also need to allow access to the ports your applications are exposing.
 

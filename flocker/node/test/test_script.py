@@ -14,64 +14,86 @@ from twisted.internet.defer import Deferred
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
+from twisted.internet.ssl import ClientContextFactory
 
 from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
 from ...common import get_all_ips
 
 from ..script import (
-    ZFSAgentScript, AgentScript, ContainerAgentOptions,
-    AgentServiceFactory, DatasetAgentOptions, validate_configuration)
+    AgentScript, ContainerAgentOptions,
+    AgentServiceFactory, DatasetAgentOptions, validate_configuration,
+    _context_factory_and_credential, GenericAgentScript,
+)
+
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
 from ...testtools import MemoryCoreReactor
+from ...ca.testtools import get_credential_sets
 
+
+def setup_config(test):
+    """
+    Create a configuration file and certificates for a dataset agent in a
+    temporary directory.
+
+    Sets ``config`` attribute on the test instance with the path to the
+    config file.
+
+    :param test: A ``TestCase`` instance.
+    """
+    ca_set, _ = get_credential_sets()
+    scratch_directory = FilePath(test.mktemp())
+    scratch_directory.makedirs()
+    test.config = scratch_directory.child('dataset-config.yml')
+    test.config.setContent(
+        yaml.safe_dump({
+            u"control-service": {
+                u"hostname": u"10.0.0.1",
+                u"port": 1234,
+            },
+            u"dataset": {
+                u"backend": u"zfs",
+            },
+            u"version": 1,
+        }))
+    ca_set.copy_to(scratch_directory, node=True)
+    test.ca_set = ca_set
+    test.non_existent_file = scratch_directory.child('missing-config.yml')
 
 deployer = object()
 
 
+# This should have an explicit interface:
+# https://clusterhq.atlassian.net/browse/FLOC-1929
 def deployer_factory_stub(**kw):
-    if set(kw.keys()) != {"node_uuid", "hostname"}:
+    if set(kw.keys()) != {"node_uuid", "cluster_uuid", "hostname"}:
         raise TypeError("wrong arguments")
     return deployer
 
 
-class ZFSAgentScriptTests(SynchronousTestCase):
+class ZFSGenericAgentScriptTests(SynchronousTestCase):
     """
-    Tests for ``ZFSAgentScript``.
+    Tests for ``GenericAgentScript`` using ZFS configuration.
     """
     def setUp(self):
-        scratch_directory = FilePath(self.mktemp())
-        scratch_directory.makedirs()
-        self.config = scratch_directory.child('dataset-config.yml')
-        self.non_existent_file = scratch_directory.child('missing-config.yml')
-        self.config.setContent(
-            yaml.safe_dump({
-                u"control-service": {
-                    u"hostname": u"10.0.0.1",
-                    u"port": 1234,
-                },
-                u"dataset": {
-                    u"backend": u"zfs",
-                },
-                u"version": 1,
-            }))
+        setup_config(self)
 
     def test_main_starts_service(self):
         """
-        ``ZFSAgentScript.main`` starts the given service.
+        ``GenericAgentScript.main`` starts the given service.
         """
         service = Service()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        ZFSAgentScript().main(MemoryCoreReactor(), options, service)
+        GenericAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
     def test_no_immediate_stop(self):
         """
-        The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
+        The ``Deferred`` returned from ``GenericAgentScript`` is not fired.
         """
-        script = ZFSAgentScript()
+        script = GenericAgentScript()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
@@ -79,30 +101,45 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
     def test_starts_convergence_loop(self):
         """
-        ``ZFSAgentScript.main`` starts a convergence loop service.
+        ``GenericAgentScript.main`` starts a convergence loop service.
         """
         service = Service()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
-        ZFSAgentScript().main(test_reactor, options, service)
+        GenericAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
         # P2PManifestationDeployer is difficult to compare automatically,
         # so do so manually:
         deployer = parent_service.deployer
         parent_service.deployer = None
+        context_factory = _context_factory_and_credential(
+            self.config.parent(), b"10.0.0.1", 1234).context_factory
         self.assertEqual((parent_service, deployer.__class__,
                           deployer.volume_service,
                           parent_service.running),
                          (AgentLoopService(reactor=test_reactor,
                                            deployer=None,
                                            host=u"10.0.0.1",
-                                           port=1234),
+                                           port=1234,
+                                           context_factory=context_factory),
                           P2PManifestationDeployer, service, True))
+
+    def test_uuid_from_certificate(self):
+        """
+        The created deployer got its node UUID from the given node certificate.
+        """
+        service = Service()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        GenericAgentScript().main(MemoryCoreReactor(), options, service)
+        self.assertEqual(
+            self.ca_set.node.uuid,
+            service.parent.deployer.node_uuid)
 
     def test_default_port(self):
         """
-        ``ZFSAgentScript.main`` starts a convergence loop service with port
+        ``GenericAgentScript.main`` starts a convergence loop service with port
         4524 if no port is specified.
         """
         self.config.setContent(
@@ -120,7 +157,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
-        ZFSAgentScript().main(test_reactor, options, service)
+        GenericAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
         # P2PManifestationDeployer is difficult to compare automatically,
         # so do so manually:
@@ -129,15 +166,17 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         self.assertEqual((parent_service, deployer.__class__,
                           deployer.volume_service,
                           parent_service.running),
-                         (AgentLoopService(reactor=test_reactor,
-                                           deployer=None,
-                                           host=u"10.0.0.1",
-                                           port=4524),
+                         (AgentLoopService(
+                             reactor=test_reactor,
+                             deployer=None,
+                             host=u"10.0.0.1",
+                             port=4524,
+                             context_factory=ClientContextFactory()),
                           P2PManifestationDeployer, service, True))
 
     def test_config_validated(self):
         """
-        ``ZFSAgentScript.main`` validates the configuration file.
+        ``GenericAgentScript.main`` validates the configuration file.
         """
         self.config.setContent("INVALID")
 
@@ -148,12 +187,12 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
         self.assertRaises(
             ValidationError,
-            ZFSAgentScript().main, test_reactor, options, service,
+            GenericAgentScript().main, test_reactor, options, service,
         )
 
     def test_missing_configuration_file(self):
         """
-        ``ZFSAgentScript.main`` raises an ``IOError`` if the given
+        ``GenericAgentScript.main`` raises an ``IOError`` if the given
         configuration file does not exist.
         """
         service = Service()
@@ -163,7 +202,7 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
         self.assertRaises(
             IOError,
-            ZFSAgentScript().main, test_reactor, options, service,
+            GenericAgentScript().main, test_reactor, options, service,
         )
 
 
@@ -172,21 +211,27 @@ class AgentServiceFactoryTests(SynchronousTestCase):
     Tests for ``AgentServiceFactory``.
     """
     def setUp(self):
-        scratch_directory = FilePath(self.mktemp())
-        scratch_directory.makedirs()
-        self.config = scratch_directory.child('dataset-config.yml')
-        self.non_existent_file = scratch_directory.child('missing-config.yml')
-        self.config.setContent(
-            yaml.safe_dump({
-                u"control-service": {
-                    u"hostname": u"10.0.0.2",
-                    u"port": 1234,
-                },
-                u"dataset": {
-                    u"backend": u"zfs",
-                },
-                u"version": 1,
-            }))
+        setup_config(self)
+
+    def test_uuids_from_certificate(self):
+        """
+        The created deployer got its node UUID and cluster UUID from the given
+        node certificate.
+        """
+        result = []
+
+        def factory(hostname, node_uuid, cluster_uuid):
+            result.append((node_uuid, cluster_uuid))
+            return object()
+
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        service_factory = AgentServiceFactory(deployer_factory=factory)
+        service_factory.get_service(MemoryCoreReactor(), options)
+        self.assertEqual(
+            (self.ca_set.node.uuid,
+             self.ca_set.node.cluster_uuid),
+            result[0])
 
     def test_get_service(self):
         """
@@ -204,8 +249,10 @@ class AgentServiceFactoryTests(SynchronousTestCase):
             AgentLoopService(
                 reactor=reactor,
                 deployer=deployer,
-                host=b"10.0.0.2",
+                host=b"10.0.0.1",
                 port=1234,
+                context_factory=_context_factory_and_credential(
+                    self.config.parent(), b"10.0.0.1", 1234).context_factory,
             ),
             service_factory.get_service(reactor, options)
         )
@@ -238,6 +285,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 deployer=deployer,
                 host=b"10.0.0.2",
                 port=4524,
+                context_factory=_context_factory_and_credential(
+                    self.config.parent(), b"10.0.0.2", 4524).context_factory,
             ),
             service_factory.get_service(reactor, options)
         )
@@ -266,7 +315,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         """
         spied = []
 
-        def deployer_factory(node_uuid, hostname):
+        def deployer_factory(node_uuid, hostname, cluster_uuid):
             spied.append(IPAddress(hostname))
             return object()
 
@@ -617,5 +666,5 @@ class DatasetAgentVolumeTests(make_volume_options_tests(
     """
     Tests for the volume configuration arguments of ``DatasetAgentOptions``.
 
-    XXX These maybe should not be supported after FLOC-1791.
+    XXX This should be removed as part of FLOC-1924.
     """

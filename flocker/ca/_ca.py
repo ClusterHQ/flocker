@@ -30,12 +30,13 @@ common name, but that will have to wait for some future revision.
 import datetime
 import os
 
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from OpenSSL import crypto
 from pyrsistent import PRecord, field
 from twisted.internet.ssl import (
     DistinguishedName, KeyPair, Certificate, CertificateOptions,
+    PrivateCertificate,
 )
 
 
@@ -307,6 +308,15 @@ class FlockerCredential(PRecord):
         finally:
             os.umask(original_umask)
 
+    def private_certificate(self):
+        """
+        Combine private key and certificate into a ``PrivateCertificate``.
+
+        :return: ``PrivateCertificate`` instance.
+        """
+        return PrivateCertificate.fromCertificateAndKeyPair(
+            self.certificate, self.keypair.keypair)
+
 
 class UserCredential(PRecord):
     """
@@ -323,7 +333,7 @@ class UserCredential(PRecord):
     @classmethod
     def from_path(cls, path, username):
         """
-        Load a node certificate from a specified path.
+        Load a user certificate from a specified path.
 
         :param FilePath path: Directory where user certificate and key
             files are stored.
@@ -388,16 +398,25 @@ class NodeCredential(PRecord):
 
     :ivar FlockerCredential credential: The certificate and key pair
         credential object.
-    :ivar bytes uuid: A unique identifier for the node this certificate
+    :ivar UUID uuid: A unique identifier for the node this certificate
         identifies, in the form of a version 4 UUID.
+    :ivar UUID cluster_uuid: A unique identifier for the cluster this
+        certificate identifies, in the form of a version 4 UUID.
     """
     credential = field(mandatory=True)
-    uuid = field(mandatory=True, initial=None)
+
+    # The prefix to the UUID we store in the common name:
+    _UUID_PREFIX = b"node-"
 
     @classmethod
     def from_path(cls, path, uuid):
         """
         Load a node certificate from a specified path.
+
+        :param FilePath path: Directory where user certificate and key
+            files are stored.
+        :param bytes uuid: The UUID of the node.
+
         """
         key_filename = b"{uuid}.key".format(uuid=uuid)
         cert_filename = b"{uuid}.crt".format(uuid=uuid)
@@ -406,7 +425,7 @@ class NodeCredential(PRecord):
         )
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=certificate)
-        return cls(credential=credential, uuid=uuid)
+        return cls(credential=credential)
 
     @classmethod
     def initialize(cls, path, authority, begin=None, uuid=None):
@@ -426,7 +445,7 @@ class NodeCredential(PRecord):
         key_filename = b"{uuid}.key".format(uuid=uuid)
         cert_filename = b"{uuid}.crt".format(uuid=uuid)
         # The common name for the node certificate.
-        name = b"node-{uuid}".format(uuid=uuid)
+        name = b"{prefix}{uuid}".format(prefix=cls._UUID_PREFIX, uuid=uuid)
         # The organizational unit is set to the organizational unit of the
         # authority, which in our case is cluster's UUID.
         organizational_unit = authority.organizational_unit
@@ -445,8 +464,17 @@ class NodeCredential(PRecord):
             path=path, keypair=keypair, certificate=cert)
         credential.write_credential_files(
             key_filename, cert_filename)
-        instance = cls(credential=credential, uuid=uuid)
+        instance = cls(credential=credential)
         return instance
+
+    @property
+    def uuid(self):
+        common_name = self.credential.certificate.getSubject().CN
+        return UUID(hex=common_name[len(self._UUID_PREFIX):])
+
+    @property
+    def cluster_uuid(self):
+        return UUID(hex=self.credential.certificate.getSubject().OU)
 
 
 class ControlCredential(PRecord):
@@ -462,9 +490,10 @@ class ControlCredential(PRecord):
     @classmethod
     def from_path(cls, path, hostname):
         """
-        Load a ``ControlCredential`` from disk.
+        Load a control service certificate and key from the supplied path.
 
-        :param FilePath path: Directory where credentials are stored.
+        :param FilePath path: Directory where control service certificate
+            and key files are stored.
         :param bytes hostname: The hostname of the control service certificate.
         """
         keypair, certificate = load_certificate_from_path(

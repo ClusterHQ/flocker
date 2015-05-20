@@ -530,6 +530,7 @@ class P2PManifestationDeployer(object):
                 manifestations={manifestation.dataset_id: manifestation
                                 for manifestation in manifestations},
                 paths=manifestation_paths,
+                devices={},
             )]
         volumes.addCallback(got_volumes)
         return volumes
