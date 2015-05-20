@@ -411,8 +411,10 @@ def flocker_container_agent_main():
 
     This starts a Docker-based container convergence agent.
     """
+    def deployer_factory(cluster_uuid, **kwargs):
+        return ApplicationNodeDeployer(**kwargs)
     service_factory = AgentServiceFactory(
-        deployer_factory=ApplicationNodeDeployer
+        deployer_factory=deployer_factory
     ).get_service
     agent_script = AgentScript(service_factory=service_factory)
     return FlockerScriptRunner(
