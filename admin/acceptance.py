@@ -449,11 +449,14 @@ def main(reactor, args, base_path, top_level):
             make_dispatcher(reactor),
             configure_cluster(control_node=nodes[0], agent_nodes=nodes,
                               certificates=certificates))
+
+        control_node = nodes[0]
+        volume_backend = VolumeBackend.zfs
         result = yield run_tests(
             reactor=reactor,
             nodes=nodes,
             control_node=nodes[0], agent_nodes=nodes,
-            volume_backend=VolumeBackend.zfs,
+            volume_backend=volume_backend,
             trial_args=options['trial-args'],
             certificates_path=ca_directory)
     except:
@@ -466,4 +469,24 @@ def main(reactor, args, base_path, top_level):
             runner.stop_nodes(reactor)
         elif options['keep']:
             print "--keep specified, not destroying nodes."
+            import pdb; pdb.set_trace()
+            print ("To run acceptance tests against these nodes, "
+                   "set the following environment variables: ")
+
+            environment_variables = {
+                'FLOCKER_ACCEPTANCE_NODES':
+                    ':'.join(node.address for node in nodes),
+                'FLOCKER_ACCEPTANCE_CONTROL_NODE': control_node.address,
+                'FLOCKER_ACCEPTANCE_AGENT_NODES':
+                    ':'.join(node.address for node in nodes),
+                'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': volume_backend.name,
+                'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': ca_directory.path,
+            }
+
+            for environment_variable in environment_variables:
+                print "export {name}={value};".format(
+                    name=environment_variable,
+                    value=environment_variables[environment_variable],
+                )
+
     raise SystemExit(result)
