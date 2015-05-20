@@ -18,7 +18,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import gatherResults
 
 from eliot import Logger, start_action, Message
 from eliot.twisted import DeferredContext
@@ -336,7 +336,7 @@ def get_clean_nodes(test_case, num_nodes):
             for container in containers:
                 results_list.append(
                     cluster.remove_container(container[u"name"]))
-            deleting = DeferredList(results_list)
+            deleting = gatherResults(results_list)
             deleting.addCallback(lambda _: cluster)
             return deleting
 
@@ -358,14 +358,14 @@ def get_clean_nodes(test_case, num_nodes):
     getting.addCallback(clean_containers)
 
     def clean_datasets(cluster):
-        get_datasets = cluster.datasets_state()
+        get_datasets = cluster.configured_datasets()
 
         def delete_datasets(datasets):
             results_list = []
             for dataset in datasets:
                 results_list.append(
                     cluster.delete_dataset(dataset[u"dataset_id"]))
-            deleting = DeferredList(results_list)
+            deleting = gatherResults(results_list)
             deleting.addCallback(lambda _: cluster)
             return deleting
 
@@ -598,6 +598,19 @@ class Cluster(PRecord):
         )
 
     @log_method
+    def configured_datasets(self):
+        """
+        Return the configured dataset state of the cluster.
+
+        :return: ``Deferred`` firing with a list of dataset dictionaries,
+            the configuration of the cluster.
+        """
+        request = self.treq.get(
+            self.base_url + b"/configuration/datasets", persistent=False)
+        request.addCallback(check_and_decode_json, OK)
+        return request
+
+    @log_method
     def datasets_state(self):
         """
         Return the actual dataset state of the cluster.
@@ -775,6 +788,23 @@ class Cluster(PRecord):
         return request
 
     @log_method
+    def configured_containers(self):
+        """
+        Get current containers from configuration.
+
+        :return: A ``Deferred`` firing with a tuple (cluster instance, API
+            response).
+        """
+        request = self.treq.get(
+            self.base_url + b"/configuration/containers",
+            persistent=False
+        )
+
+        request.addCallback(check_and_decode_json, OK)
+        request.addCallback(lambda response: (self, response))
+        return request
+
+    @log_method
     def current_containers(self):
         """
         Get current containers.
@@ -928,7 +958,7 @@ def require_cluster(num_nodes):
 
         @wraps(test_method)
         def wrapper(test_case, *args, **kwargs):
-            # get_nodes will check that the required number of nodes are
+            # get_clean_nodes will check that the required number of nodes are
             # reachable and clean them up prior to the test.
             # The nodes must already have been started and their flocker
             # services started.

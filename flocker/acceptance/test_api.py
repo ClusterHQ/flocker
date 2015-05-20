@@ -16,9 +16,8 @@ from treq import get, json_content
 
 from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
 from .testtools import (
-    MONGO_IMAGE, require_mongo, get_mongo_client, get_clean_nodes,
-    get_test_cluster, require_cluster, require_flocker_cli,
-    require_moving_backend,
+    MONGO_IMAGE, require_mongo, get_mongo_client, get_test_cluster,
+    require_cluster, require_moving_backend,
 )
 
 
@@ -40,19 +39,7 @@ def verify_socket(host, port):
     return dl
 
 
-class APITestCase(TestCase):
-    """
-    Base test case that cleans the cluster state before each test.
-    """
-    @require_flocker_cli
-    def setUp(self):
-        """
-        Reset the cluster to an empty deployment.
-        """
-        return get_clean_nodes(self, num_nodes=2)
-
-
-class ContainerAPITests(APITestCase):
+class ContainerAPITests(TestCase):
     """
     Tests for the container API.
     """
@@ -348,18 +335,20 @@ def create_dataset(test_case, nodes=1,
     return waiting_for_create
 
 
-class DatasetAPITests(APITestCase):
+class DatasetAPITests(TestCase):
     """
     Tests for the dataset API.
     """
-    def test_dataset_creation(self):
+    @require_cluster(1)
+    def test_dataset_creation(self, cluster):
         """
         A dataset can be created on a specific node.
         """
         return create_dataset(self)
 
+    @require_cluster(2)
     @require_moving_backend
-    def test_dataset_move(self):
+    def test_dataset_move(self, cluster):
         """
         A dataset can be moved from one node to another.
         """
@@ -402,7 +391,8 @@ class DatasetAPITests(APITestCase):
 
         return waiting_for_move
 
-    def test_dataset_deletion(self):
+    @require_cluster(1)
+    def test_dataset_deletion(self, cluster):
         """
         A dataset can be deleted, resulting in its removal from the node.
         """
