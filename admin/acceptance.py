@@ -445,12 +445,13 @@ def main(reactor, args, base_path, top_level):
         certificates = Certificates.generate(ca_directory, nodes[0].address,
                                              len(nodes))
 
+        control_node = nodes[0]
+
         yield perform(
             make_dispatcher(reactor),
-            configure_cluster(control_node=nodes[0], agent_nodes=nodes,
+            configure_cluster(control_node=control_node, agent_nodes=nodes,
                               certificates=certificates))
 
-        control_node = nodes[0]
         volume_backend = VolumeBackend.zfs
         result = yield run_tests(
             reactor=reactor,
