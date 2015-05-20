@@ -388,8 +388,7 @@ def configure_zfs(node, variants):
             commands=task_upgrade_kernel(
                 distribution=node.distribution),
         ),
-        Effect(
-            Func(node.reboot)),
+        node.reboot(),
         run_remotely(
             username='root',
             address=node.address,
