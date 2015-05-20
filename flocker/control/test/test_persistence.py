@@ -196,5 +196,6 @@ class WireEncodeDecodeTests(SynchronousTestCase):
         (i.e. not strings) can be roundtripped.
         """
         node_state = NodeState(hostname=u'127.0.0.1', uuid=uuid4(),
+                               manifestations={}, paths={},
                                devices={uuid4(): FilePath(b"/tmp")})
         self.assertEqual(node_state, wire_decode(wire_encode(node_state)))

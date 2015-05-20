@@ -14,7 +14,6 @@ they match that configuration.
 from ._config import (
     FlockerConfiguration, ConfigurationError, FigConfiguration,
     model_from_configuration,
-    current_from_configuration,
     )
 from ._model import (
     IClusterStateChange,
@@ -30,7 +29,6 @@ __all__ = [
     'IClusterStateWipe',
     'FlockerConfiguration',
     'ConfigurationError',
-    'current_from_configuration',
     'model_from_configuration',
     'Application',
     'Deployment',

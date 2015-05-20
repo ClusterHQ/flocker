@@ -6,6 +6,7 @@ Run the acceptance tests.
 import sys
 import os
 import yaml
+from tempfile import mkdtemp
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
@@ -29,7 +30,7 @@ from flocker.provision._install import (
     configure_cluster,
 )
 from flocker.provision._libcloud import INode
-
+from flocker.provision._ca import Certificates
 from effect import parallel
 from effect.twisted import perform
 from flocker.provision._effect import sequence
@@ -89,7 +90,8 @@ def run_client_tests(reactor, node):
 
 
 def run_cluster_tests(
-        reactor, nodes, control_node, agent_nodes, volume_backend, trial_args):
+        reactor, nodes, control_node, agent_nodes, volume_backend, trial_args,
+        certificates_path):
     """
     Run the cluster acceptance tests.
 
@@ -103,11 +105,13 @@ def run_cluster_tests(
         configured with.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
+    :param FilePath certificates_path: Directory where certificates can be
+        found; specifically the directory used by ``Certificates``.
 
     :return int: The exit-code of trial.
     """
     if not trial_args:
-        trial_args = ['flocker.acceptance']
+        trial_args = ['--rterrors', 'flocker.acceptance']
 
     def check_result(f):
         f.trap(ProcessTerminated)
@@ -124,6 +128,7 @@ def run_cluster_tests(
             FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node.address,
             FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
                 node.address for node in agent_nodes),
+            FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH=certificates_path.path,
             FLOCKER_ACCEPTANCE_VOLUME_BACKEND=volume_backend.name,
         )).addCallbacks(
             callback=lambda _: 0,
@@ -529,16 +534,25 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
     """
     dispatcher = make_dispatcher(reactor)
     nodes = yield runner.start_nodes(reactor, node_count=2)
+
+    ca_directory = FilePath(mkdtemp())
+    print("Generating certificates in: {}".format(ca_directory.path))
+    certificates = Certificates.generate(ca_directory, nodes[0].address,
+                                         len(nodes))
+
     yield perform(dispatcher, runner.provision(nodes))
     yield perform(
         dispatcher,
-        configure_cluster(control_node=nodes[0], agent_nodes=nodes))
-    result = yield run_cluster_tests(
+        configure_cluster(control_node=nodes[0], agent_nodes=nodes,
+                          certificates=certificates))
+    result = yield run_tests(
         reactor=reactor,
         nodes=nodes,
         control_node=nodes[0], agent_nodes=nodes,
         volume_backend=VolumeBackend.zfs,
-        trial_args=trial_args)
+        trial_args=options['trial-args'],
+        certificates_path=ca_directory)
+
     returnValue(result)
 
 
