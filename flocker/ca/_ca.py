@@ -32,6 +32,7 @@ import os
 
 from uuid import uuid4
 
+from ipaddr import IPAddress
 from OpenSSL import crypto
 from pyrsistent import PRecord, field
 from twisted.internet.ssl import (
@@ -518,13 +519,19 @@ class ControlCredential(PRecord):
         request = keypair.keypair.requestObject(dn)
         serial = os.urandom(16).encode(b"hex")
         serial = int(serial, 16)
+        try:
+            IPAddress(hostname)
+        except ValueError:
+            alt_name = b"DNS:" + hostname
+        else:
+            alt_name = b"IP:" + hostname
         cert = sign_certificate_request(
             authority.credential.keypair.keypair,
             authority.credential.certificate.original.get_subject(), request,
             serial, EXPIRY_20_YEARS, 'sha256', start=begin,
             additional_extensions=[
                 crypto.X509Extension(
-                    b"subjectAltName", False, b"DNS:" + hostname),
+                    b"subjectAltName", False, alt_name)
             ])
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
