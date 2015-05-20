@@ -8,7 +8,7 @@ import time
 from uuid import UUID
 from bitmath import Byte, GB
 from ipaddr import IPAddress
-from eliot import Message, start_action
+from eliot import Message, MessageType, Field, start_action
 
 from pyrsistent import PRecord, field
 
@@ -34,6 +34,24 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # The key name used for identifying the Flocker dataset_id in the metadata for
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
+
+LOCAL_IPS = Field(
+    u"local_ips",
+    repr,
+    u"The IP addresses found on the target node."
+)
+
+API_IPS = Field(
+    u"api_ips",
+    repr,
+    u"The IP addresses and instance_ids for all nodes."
+)
+
+COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
+    u"blockdevice:cinder:compute_instance_id:not_found"
+    [LOCAL_IPS, API_IPS],
+    u"Unable to determine the instance ID of this node.",
+)
 
 
 class ICinderVolumeManager(Interface):
@@ -227,10 +245,18 @@ class CinderBlockDeviceAPI(object):
         addresses on this node.
         """
         local_ips = get_all_ips()
+        api_ip_map = {}
         for server in self.nova_server_manager.list():
             api_addresses = _extract_nova_server_addresses(server.addresses)
             if api_addresses.issubset(local_ips):
                 return server.id
+            else:
+                for ip in api_addresses:
+                    api_ip_map[ip] = server.id
+
+        # If there was no match, log an error containing all the local
+        # and remote IPs.
+        COMPUTE_INSTANCE_ID_NOT_FOUND(local_ips=local_ips, api_ips=api_ip_map)
 
     def create_volume(self, dataset_id, size):
         """
