@@ -5,7 +5,6 @@
 The command-line ``flocker-*-agent`` tools.
 """
 
-from functools import partial
 from socket import socket
 from os import getpid
 
@@ -32,7 +31,6 @@ from ..common.script import (
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
-from ..control._model import ip_to_uuid
 from ..ca import ControlServicePolicy, NodeCredential
 
 
@@ -61,7 +59,21 @@ def _get_external_ip(host, port):
         sock.close()
 
 
-def _context_factory(path, host, port):
+class _TLSContext(PRecord):
+    """
+    Information extracted from the TLS certificates for this node.
+
+    :ivar context_factory: A TLS
+        context factory will validate the control service and present
+        the node's certificate to the control service.
+
+    :ivar NodeCredential node_credential: The node's certificate information.
+    """
+    context_factory = field(mandatory=True)
+    node_credential = field(mandatory=True)
+
+
+def _context_factory_and_credential(path, host, port):
     """
     Load a TLS context factory for the AMP client from the path where
     configuration and certificates live.
@@ -73,8 +85,7 @@ def _context_factory(path, host, port):
     :param bytes host: The host we will be connecting to.
     :param int port: The port we will be connecting to.
 
-    :return: TLS context factory that will validate the control service
-        and present the node's certificate to the control service.
+    :return: ``_TLSContext`` instance.
     """
     ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
     # This is a hack; from_path should be more
@@ -82,7 +93,8 @@ def _context_factory(path, host, port):
     node_credential = NodeCredential.from_path(path, b"node")
     policy = ControlServicePolicy(
         ca_certificate=ca, client_credential=node_credential.credential)
-    return policy.creatorForNetloc(host, port)
+    return _TLSContext(context_factory=policy.creatorForNetloc(host, port),
+                       node_credential=node_credential)
 
 
 def validate_configuration(configuration):
@@ -226,9 +238,11 @@ class AgentServiceFactory(PRecord):
 
     :ivar deployer_factory: A two-argument callable to create an
         ``IDeployer`` provider for this script.  The arguments are a
-        ``hostname`` keyword argument and a ``node_uuid`` keyword
-        argument. They must be passed by keyword.
+        ``hostname`` keyword argument, a ``cluster_uuid`` keyword and a
+        ``node_uuid`` keyword argument. They must be passed by keyword.
     """
+    # This should have an explicit interface:
+    # https://clusterhq.atlassian.net/browse/FLOC-1929
     deployer_factory = field(mandatory=True)
 
     def get_service(self, reactor, options):
@@ -241,6 +255,10 @@ class AgentServiceFactory(PRecord):
         :param AgentOptions options: The command-line options to use to
             configure the loop and the loop's deployer.
 
+        :param context_factory: TLS context factory to pass to service.
+
+        :param NodeCredential node_credential: The node credential.
+
         :return: The ``AgentLoopService`` instance.
         """
         agent_config = options[u'agent-config']
@@ -251,14 +269,15 @@ class AgentServiceFactory(PRecord):
         host = configuration['control-service']['hostname']
         port = configuration['control-service'].get('port', 4524)
         ip = _get_external_ip(host, port)
+        tls_info = _context_factory_and_credential(
+            options["agent-config"].parent(), host, port)
         return AgentLoopService(
             reactor=reactor,
-            # Temporary hack, to be fixed in FLOC-1783 probably:
-            deployer=self.deployer_factory(node_uuid=ip_to_uuid(ip),
-                                           hostname=ip),
+            deployer=self.deployer_factory(
+                node_uuid=tls_info.node_credential.uuid, hostname=ip,
+                cluster_uuid=tls_info.node_credential.cluster_uuid),
             host=host, port=port,
-            context_factory=_context_factory(options["agent-config"].parent(),
-                                             host, port),
+            context_factory=tls_info.context_factory,
         )
 
 
@@ -272,10 +291,10 @@ def zfs_dataset_deployer(volume_service):
     :return: A callable which can be called with a node UUID and hostname to
         create a ZFS deployer.
     """
-    return partial(
-        P2PManifestationDeployer,
-        volume_service=volume_service,
-    )
+    def deployer_factory(hostname, node_uuid, cluster_uuid):
+        return P2PManifestationDeployer(hostname=hostname, node_uuid=node_uuid,
+                                        volume_service=volume_service)
+    return deployer_factory
 
 
 def loopback_dataset_deployer(volume_service):
@@ -288,24 +307,26 @@ def loopback_dataset_deployer(volume_service):
     :return: A callable which can be called with a node UUID and hostname to
         create a loopback deployer.
     """
-    # Later, construction of this object can be moved into
-    # AgentServiceFactory.get_service where various options passed on
-    # the command line could alter what is created and how it is initialized.
-    api = LoopbackBlockDeviceAPI.from_path(
-        b"/var/lib/flocker/loopback",
-        # Make up a new value every time this script starts.  This will ensure
-        # different instances of the script using this backend always appear to
-        # be running on different nodes (as far as attachment is concerned).
-        # This is a good thing since it makes it easy to simulate a multi-node
-        # cluster by running multiple instances of the script.  Similar effect
-        # could be achieved by making this id a command line argument but that
-        # would be harder to implement and harder to use.
-        compute_instance_id=bytes(getpid()).decode('utf-8'),
-    )
-    return partial(
-        BlockDeviceDeployer,
-        block_device_api=api,
-    )
+    def deployer_factory(hostname, node_uuid, cluster_uuid):
+        # In FLOC-1925 deployer_factory might also be called with the config
+        # file, allowing for alteration of what is created and how it is
+        # initialized.  That code will also want to pass cluster_uuid in
+        # to relevant backend APIs, e.g. Cinder and EBS both want it.
+        api = LoopbackBlockDeviceAPI.from_path(
+            b"/var/lib/flocker/loopback",
+            # Make up a new value every time this script starts.  This
+            # will ensure different instances of the script using this
+            # backend always appear to be running on different nodes (as
+            # far as attachment is concerned).  This is a good thing since
+            # it makes it easy to simulate a multi-node cluster by running
+            # multiple instances of the script.  Similar effect could be
+            # achieved by making this id a command line argument but that
+            # would be harder to implement and harder to use.
+            compute_instance_id=bytes(getpid()).decode('utf-8'),
+        )
+        return BlockDeviceDeployer(block_device_api=api, hostname=hostname,
+                                   node_uuid=node_uuid)
+    return deployer_factory
 
 
 def dataset_deployer_from_configuration(dataset_configuration, volume_service):
@@ -390,8 +411,10 @@ def flocker_container_agent_main():
 
     This starts a Docker-based container convergence agent.
     """
+    def deployer_factory(cluster_uuid, **kwargs):
+        return ApplicationNodeDeployer(**kwargs)
     service_factory = AgentServiceFactory(
-        deployer_factory=ApplicationNodeDeployer
+        deployer_factory=deployer_factory
     ).get_service
     agent_script = AgentScript(service_factory=service_factory)
     return FlockerScriptRunner(
