@@ -143,7 +143,7 @@ class GenericDockerClientTests(TestCase):
         """
         client = DockerClient()
         self.assertEqual(client._client.base_url,
-                         u'http+unix://var/run/docker.sock')
+                         u'http+docker://localunixsocket')
 
     def test_custom_base_url_tcp_http(self):
         """
