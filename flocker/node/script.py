@@ -106,7 +106,7 @@ def validate_configuration(configuration):
     :raises: jsonschema.ValidationError if the configuration is invalid.
     """
     # XXX Create a function which loads and validates, and also setting
-    # defaults. FLOC-1791.
+    # defaults. FLOC-1925.
     schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
@@ -165,32 +165,6 @@ def validate_configuration(configuration):
     v.validate(configuration)
 
 
-@implementer(ICommandLineVolumeScript)
-class ZFSAgentScript(object):
-    """
-    A command to start a long-running process to manage volumes on one node of
-    a Flocker cluster.
-    """
-    def main(self, reactor, options, volume_service):
-        agent_config = options[u'agent-config']
-        configuration = yaml.safe_load(agent_config.getContent())
-
-        validate_configuration(configuration=configuration)
-
-        host = configuration['control-service']['hostname']
-        port = configuration['control-service'].get("port", 4524)
-        ip = _get_external_ip(host, port)
-        tls_info = _context_factory_and_credential(
-            options["agent-config"].parent(), host, port)
-        deployer = P2PManifestationDeployer(
-            ip, volume_service, node_uuid=tls_info.node_credential.uuid)
-        loop = AgentLoopService(reactor=reactor, deployer=deployer,
-                                host=host, port=port,
-                                context_factory=tls_info.context_factory)
-        volume_service.setServiceParent(loop)
-        return main_for_service(reactor, loop)
-
-
 @flocker_standard_options
 @flocker_volume_options
 class _AgentOptions(Options):
@@ -234,6 +208,9 @@ class ContainerAgentOptions(_AgentOptions):
 @implementer(ICommandLineScript)
 class AgentScript(PRecord):
     """
+    XXX This is temporarily not used for the ``flocker-dataset-agent`` script.
+    See FLOC-1924.
+
     Implement top-level logic for the ``flocker-dataset-agent`` and
     ``flocker-container-agent`` scripts.
 
@@ -304,16 +281,34 @@ class AgentServiceFactory(PRecord):
         )
 
 
-def flocker_dataset_agent_main():
+def zfs_dataset_deployer(volume_service):
     """
-    Implementation of the ``flocker-dataset-agent`` command line script.
+    Create a deployer factory for a ZFS backend.
 
-    This starts a dataset convergence agent.  It currently supports only the
-    loopback block device backend.  Later it will be capable of starting a
-    dataset agent using any of the support dataset backends.
+    :param VolumeService dataset_configuration: An already started volume
+        service.
+
+    :return: A callable which can be called with a node UUID and hostname to
+        create a ZFS deployer.
     """
     def deployer_factory(hostname, node_uuid, cluster_uuid):
-        # Later, deployer_factory might also be called with the config
+        return P2PManifestationDeployer(hostname=hostname, node_uuid=node_uuid,
+                                        volume_service=volume_service)
+    return deployer_factory
+
+
+def loopback_dataset_deployer(volume_service):
+    """
+    Create a deployer factory for a loopback backend.
+
+    :param VolumeService dataset_configuration: An already started volume
+        service.
+
+    :return: A callable which can be called with a node UUID and hostname to
+        create a loopback deployer.
+    """
+    def deployer_factory(hostname, node_uuid, cluster_uuid):
+        # In FLOC-1925 deployer_factory might also be called with the config
         # file, allowing for alteration of what is created and how it is
         # initialized.  That code will also want to pass cluster_uuid in
         # to relevant backend APIs, e.g. Cinder and EBS both want it.
@@ -331,25 +326,81 @@ def flocker_dataset_agent_main():
         )
         return BlockDeviceDeployer(block_device_api=api, hostname=hostname,
                                    node_uuid=node_uuid)
+    return deployer_factory
 
+
+def dataset_deployer_from_configuration(dataset_configuration, volume_service):
+    """
+    Given a dataset configuration, return a dataset deployer factory.
+
+    :param dict dataset_configuration: Desired configuration for a dataset
+        deployer.
+    :param VolumeService dataset_configuration: An already started volume
+        service.
+
+    :return: A callable which can be called with a node UUID and hostname to
+        create a dataset deployer.
+    """
+    backend_to_deployer_factory = {
+        'zfs': zfs_dataset_deployer,
+        'loopback': loopback_dataset_deployer,
+    }
+    backend = dataset_configuration['backend']
+    deployer_factory = backend_to_deployer_factory[backend]
+    return deployer_factory(
+        volume_service=volume_service
+    )
+
+
+@implementer(ICommandLineVolumeScript)
+class GenericAgentScript(PRecord):
+    """
+    Implement top-level logic for the ``flocker-dataset-agent`` script.
+
+    This is a temporary script, until the volume service can be created in
+    ``zfs_dataset_deployer``. The majority of this script will be in
+    ``flocker_dataset_agent_main`` and ``AgentScript``. See FLOC-1924.
+    """
+    def main(self, reactor, options, volume_service):
+        agent_config = options[u'agent-config']
+        configuration = yaml.safe_load(agent_config.getContent())
+
+        validate_configuration(configuration=configuration)
+
+        deployer_factory = dataset_deployer_from_configuration(
+            dataset_configuration=configuration['dataset'],
+            volume_service=volume_service
+        )
+
+        service_factory = AgentServiceFactory(
+            deployer_factory=deployer_factory
+        ).get_service
+
+        service = service_factory(reactor, options)
+
+        if configuration['dataset']['backend'] == 'zfs':
+            # XXX This should not be a special case,
+            # see https://clusterhq.atlassian.net/browse/FLOC-1924.
+            volume_service.setServiceParent(service)
+
+        return main_for_service(
+            reactor=reactor,
+            service=service,
+        )
+
+
+def flocker_dataset_agent_main():
+    """
+    Implementation of the ``flocker-dataset-agent`` command line script.
+
+    This starts a dataset convergence agent.  It currently supports only the
+    loopback block device backend.  Later it will be capable of starting a
+    dataset agent using any of the support dataset backends.
+    """
     options = DatasetAgentOptions()
 
-    # XXX This should use dynamic dispatch in the deployer_factory
-    # There should be only AgentScript, not ZFSAgentScript, and it should
-    # do the right thing for the configured backend. FLOC-1791.
     return FlockerScriptRunner(
-        script=VolumeScript(ZFSAgentScript()),
-        options=options,
-    ).main()
-
-    service_factory = AgentServiceFactory(
-        deployer_factory=deployer_factory
-    ).get_service
-    agent_script = AgentScript(
-        service_factory=service_factory,
-    )
-    return FlockerScriptRunner(
-        script=agent_script,
+        script=VolumeScript(GenericAgentScript()),
         options=options,
     ).main()
 

@@ -8,7 +8,7 @@ import time
 from uuid import UUID
 from subprocess import check_output
 
-from bitmath import Byte, GB
+from bitmath import Byte, GiB
 
 from eliot import Message, start_action
 
@@ -44,11 +44,16 @@ class ICinderVolumeManager(Interface):
     See:
     https://github.com/openstack/python-cinderclient/blob/master/cinderclient/v1/volumes.py#L135
     """
+
+    # The OpenStack Cinder API documentation says the size is in GB (multiples
+    # of 10 ** 9 bytes).  Real world observations indicate size is actually in
+    # GiB (multiples of 2 ** 30).  So this method is documented as accepting
+    # GiB values.  https://bugs.launchpad.net/openstack-api-site/+bug/1456631
     def create(size, metadata=None):
         """
         Creates a volume.
 
-        :param size: Size of volume in GB
+        :param size: Size of volume in GiB
         :param metadata: Optional metadata to set on volume creation
         :rtype: :class:`Volume`
         """
@@ -217,12 +222,12 @@ class CinderBlockDeviceAPI(object):
         with start_action(action_type=action_type):
             # There could be difference between user-requested and
             # Cinder-created volume sizes due to several reasons:
-            # 1) Round off from converting user-supplied 'size' to 'GB' int.
+            # 1) Round off from converting user-supplied 'size' to 'GiB' int.
             # 2) Cinder-specific size constraints.
             # XXX: Address size mistach (see
             # (https://clusterhq.atlassian.net/browse/FLOC-1874).
             requested_volume = self.cinder_volume_manager.create(
-                size=Byte(size).to_GB().value,
+                size=Byte(size).to_GiB().value,
                 metadata=metadata,
             )
             Message.new(blockdevice_id=requested_volume.id).write()
@@ -374,7 +379,7 @@ def _blockdevicevolume_from_cinder_volume(cinder_volume):
 
     return BlockDeviceVolume(
         blockdevice_id=unicode(cinder_volume.id),
-        size=int(GB(cinder_volume.size).to_Byte().value),
+        size=int(GiB(cinder_volume.size).to_Byte().value),
         attached_to=server_id,
         dataset_id=UUID(cinder_volume.metadata[DATASET_ID_LABEL])
     )
