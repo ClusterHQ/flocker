@@ -4,6 +4,7 @@
 Tests for :module:`flocker.node.script`.
 """
 import yaml
+from ipaddr import IPAddress
 
 from jsonschema.exceptions import ValidationError
 
@@ -266,7 +267,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         spied = []
 
         def deployer_factory(node_uuid, hostname):
-            spied.append(hostname)
+            spied.append(IPAddress(hostname))
             return object()
 
         reactor = MemoryCoreReactor()
