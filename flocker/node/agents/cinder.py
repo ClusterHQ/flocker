@@ -227,7 +227,7 @@ class CinderBlockDeviceAPI(object):
         addresses on this node.
         """
         local_ips = get_all_ips()
-        for server in self.nova_server_manager.list(detailed=True):
+        for server in self.nova_server_manager.list():
             api_addresses = _extract_nova_server_addresses(server.addresses)
             if api_addresses.issubset(local_ips):
                 return server.id
