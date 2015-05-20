@@ -52,7 +52,7 @@ API_IPS = Field(
 )
 
 COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
-    u"blockdevice:cinder:compute_instance_id:not_found"
+    u"blockdevice:cinder:compute_instance_id:not_found",
     [LOCAL_IPS, API_IPS],
     u"Unable to determine the instance ID of this node.",
 )
