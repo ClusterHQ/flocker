@@ -223,10 +223,8 @@ class CinderBlockDeviceAPI(object):
 
     def compute_instance_id(self):
         """
-        Find the Nova API server with the same non-loopback IP
-        addresses as this node.
-        That server is assumed to be this node.
-        Return the instance ID of that server.
+        Find the Nova API server with a subset of the IPv4 and IPv6
+        addresses on this node.
         """
         local_ips = get_all_ips()
         for server in self.nova_server_manager.list(detailed=True):
