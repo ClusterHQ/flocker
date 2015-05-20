@@ -545,12 +545,12 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
         dispatcher,
         configure_cluster(control_node=nodes[0], agent_nodes=nodes,
                           certificates=certificates))
-    result = yield run_tests(
+    result = yield run_cluster_tests(
         reactor=reactor,
         nodes=nodes,
         control_node=nodes[0], agent_nodes=nodes,
         volume_backend=VolumeBackend.zfs,
-        trial_args=options['trial-args'],
+        trial_args=trial_args,
         certificates_path=ca_directory)
 
     returnValue(result)
