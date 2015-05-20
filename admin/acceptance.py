@@ -469,7 +469,6 @@ def main(reactor, args, base_path, top_level):
             runner.stop_nodes(reactor)
         elif options['keep']:
             print "--keep specified, not destroying nodes."
-            import pdb; pdb.set_trace()
             print ("To run acceptance tests against these nodes, "
                    "set the following environment variables: ")
 
