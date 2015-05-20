@@ -21,10 +21,10 @@ from twisted.web.http import (
     NOT_ALLOWED as METHOD_NOT_ALLOWED
 )
 from twisted.web.http_headers import Headers
-from twisted.web.server import Site
 from twisted.web.client import FileBodyProducer, readBody
 from twisted.application.service import IService
 from twisted.python.filepath import FilePath
+from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
 from ...restapi.testtools import (
@@ -2629,22 +2629,9 @@ class CreateAPIServiceTests(SynchronousTestCase):
         """
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        verifyObject(IService, create_api_service(None, None, endpoint))
-
-    def test_listens_endpoint(self):
-        """
-        ``create_api_service`` returns a service that listens using the given
-        endpoint with a HTTP server.
-        """
-        reactor = MemoryReactor()
-        endpoint = TCP4ServerEndpoint(reactor, 6789)
-        service = create_api_service(None, None, endpoint)
-        self.addCleanup(service.stopService)
-        service.startService()
-        server = reactor.tcpServers[0]
-        port = server[0]
-        factory = server[1].__class__
-        self.assertEqual((port, factory), (6789, Site))
+        verifyObject(IService, create_api_service(
+            ConfigurationPersistenceService(reactor, FilePath(self.mktemp())),
+            ClusterStateService(reactor), endpoint, ClientContextFactory()))
 
 
 class DatasetsStateTestsMixin(APITestsMixin):
@@ -2690,7 +2677,9 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 uuid=expected_uuid,
                 manifestations={expected_dataset.dataset_id:
                                 expected_manifestation},
-                paths={expected_dataset.dataset_id: FilePath(b"/path/dataset")}
+                paths={
+                    expected_dataset.dataset_id: FilePath(b"/path/dataset")},
+                devices={},
             )
         ])
         expected_dict = dict(
@@ -2725,6 +2714,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 manifestations={expected_dataset1.dataset_id:
                                 expected_manifestation1},
                 paths={expected_dataset1.dataset_id: FilePath(b"/aa")},
+                devices={},
             ),
             NodeState(
                 uuid=expected_uuid2,
@@ -2732,6 +2722,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
                 manifestations={expected_dataset2.dataset_id:
                                 expected_manifestation2},
                 paths={expected_dataset2.dataset_id: FilePath(b"/bb")},
+                devices={},
             )
         ])
         expected_dict1 = dict(
@@ -3050,7 +3041,9 @@ class ContainerStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 uuid=expected_uuid,
                 applications={expected_application},
+                used_ports=[],
                 manifestations={manifestation.dataset_id: manifestation},
+                devices={}, paths={},
             )
         ])
         expected_dict = dict(
@@ -3098,7 +3091,9 @@ class ContainerStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname,
                 uuid=expected_uuid,
                 applications={expected_application},
+                used_ports=[],
                 manifestations={manifestation.dataset_id: manifestation},
+                devices={}, paths={},
             )
         ])
         expected_dict = dict(
@@ -3132,6 +3127,7 @@ class ContainerStateTestsMixin(APITestsMixin):
                 uuid=expected_uuid,
                 hostname=expected_hostname,
                 applications={expected_application},
+                used_ports=[],
             )
         ])
         expected_dict = dict(
@@ -3165,11 +3161,13 @@ class ContainerStateTestsMixin(APITestsMixin):
                 hostname=expected_hostname1,
                 uuid=expected_uuid1,
                 applications={expected_application1},
+                used_ports=[],
             ),
             NodeState(
                 hostname=expected_hostname2,
                 uuid=expected_uuid2,
                 applications={expected_application2},
+                used_ports=[],
             )
         ])
         expected_dict1 = dict(

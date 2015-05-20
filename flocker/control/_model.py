@@ -389,6 +389,12 @@ def _keys_match(attribute):
     :return: A function suitable for use as a pyrsistent invariant.
     """
     def key_match_invariant(pmap):
+        # Either the field allows None, in which case this is necessary,
+        # or it doesn't in which case this won't do any harm since
+        # invalidity of None will be enforced elsewhere:
+        if pmap is None:
+            return (True, "")
+
         for (key, value) in pmap.items():
             if key != getattr(value, attribute):
                 return (
@@ -704,12 +710,26 @@ class NodeState(PRecord):
     :ivar PMap paths: The filesystem paths of the manifestations on this
         node. Maps ``dataset_id`` to a ``FilePath``.
     """
+    # Attributes that may be set to None to indicate ignorance:
+    _POTENTIALLY_IGNORANT_ATTRIBUTES = ["used_ports", "applications",
+                                        "manifestations", "paths",
+                                        "devices"]
+
+    # Dataset attributes that must all be non-None if one is non-None:
+    _DATASET_ATTRIBUTES = {"manifestations", "paths", "devices"}
+
+    # Application attributes that must all be non-None if one is non-None:
+    _APPLICATION_ATTRIBUTES = {"applications", "used_ports"}
+
     def __invariant__(self):
-        if self.manifestations is None:
-            return (True, "")
-        for key, value in self.manifestations.items():
-            if key != value.dataset_id:
-                return (False, '%r is not correct key for %r' % (key, value))
+        def _field_missing(fields):
+            num_known_attributes = sum(getattr(self, name) is None
+                                       for name in fields)
+            return num_known_attributes not in (0, len(fields))
+        for fields in (self._APPLICATION_ATTRIBUTES, self._DATASET_ATTRIBUTES):
+            if _field_missing(fields):
+                return (False,
+                        "Either all or none of {} must be set.".format(fields))
         return (True, "")
 
     def __new__(cls, **kwargs):
@@ -725,19 +745,15 @@ class NodeState(PRecord):
 
     uuid = field(type=UUID, mandatory=True)
     hostname = field(type=unicode, factory=unicode, mandatory=True)
-    used_ports = pset_field(int, optional=True)
-    applications = pset_field(Application, optional=True)
-    manifestations = pmap_field(unicode, Manifestation, optional=True)
-    paths = pmap_field(unicode, FilePath, optional=True)
-    devices = pmap_field(UUID, FilePath, optional=True)
+    used_ports = pset_field(int, optional=True, initial=None)
+    applications = pset_field(Application, optional=True, initial=None)
+    manifestations = pmap_field(unicode, Manifestation, optional=True,
+                                initial=None, invariant=_keys_match_dataset_id)
+    paths = pmap_field(unicode, FilePath, optional=True, initial=None)
+    devices = pmap_field(UUID, FilePath, optional=True, initial=None)
 
     def update_cluster_state(self, cluster_state):
         return cluster_state.update_node(self)
-
-    # Attributes that may be set to None to indicate ignorance:
-    _POTENTIALLY_IGNORANT_ATTRIBUTES = ["used_ports", "applications",
-                                        "manifestations", "paths",
-                                        "devices"]
 
     def _provides_information(self):
         """
@@ -781,9 +797,10 @@ class _WipeNodeState(PRecord):
         if not nodes:
             return cluster_state
         [original_node] = nodes
-        updated_node = original_node
+        updated_node = original_node.evolver()
         for attribute in self.attributes:
             updated_node = updated_node.set(attribute, None)
+        updated_node = updated_node.persistent()
         final_nodes = cluster_state.nodes.discard(original_node)
         if updated_node._provides_information():
             final_nodes = final_nodes.add(updated_node)
@@ -840,12 +857,13 @@ class DeploymentState(PRecord):
         if not nodes:
             return self.transform(["nodes"], lambda s: s.add(node_state))
         [original_node] = nodes
-        updated_node = original_node
+        updated_node = original_node.evolver()
         for key, value in node_state.items():
             if value is not None:
                 updated_node = updated_node.set(key, value)
         return self.set(
-            "nodes", self.nodes.discard(original_node).add(updated_node))
+            "nodes", self.nodes.discard(original_node).add(
+                updated_node.persistent()))
 
 
 @implementer(IClusterStateChange)

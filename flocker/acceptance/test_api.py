@@ -10,6 +10,8 @@ from uuid import uuid4
 
 from twisted.trial.unittest import TestCase
 
+from twisted.internet import reactor
+
 from treq import get, json_content
 
 from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
@@ -67,7 +69,7 @@ class ContainerAPITests(APITestCase):
             u"ports": [{u"internal": 80, u"external": 8080}],
             u'restart_policy': {u'name': u'never'}
         }
-        waiting_for_cluster = get_test_cluster(node_count=1)
+        waiting_for_cluster = get_test_cluster(reactor, node_count=1)
 
         def create_container(cluster, data):
             data[u"node_uuid"] = cluster.nodes[0].uuid
@@ -107,7 +109,7 @@ class ContainerAPITests(APITestCase):
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'},
             u'restart_policy': {u'name': u'never'},
         }
-        waiting_for_cluster = get_test_cluster(node_count=1)
+        waiting_for_cluster = get_test_cluster(reactor, node_count=1)
 
         def create_container(cluster, data):
             data[u"node_uuid"] = cluster.nodes[0].uuid
@@ -311,7 +313,7 @@ def create_dataset(test_case, nodes=1,
         actual cluster state.
     """
     # Create a cluster
-    waiting_for_cluster = get_test_cluster(node_count=nodes)
+    waiting_for_cluster = get_test_cluster(reactor, node_count=nodes)
 
     # Configure a dataset on node1
     def configure_dataset(cluster):
@@ -362,7 +364,7 @@ class DatasetAPITests(APITestCase):
         A dataset can be moved from one node to another.
         """
         # Create a 2 node cluster
-        waiting_for_cluster = get_test_cluster(node_count=2)
+        waiting_for_cluster = get_test_cluster(reactor, node_count=2)
 
         # Configure a dataset on node1
         def configure_dataset(cluster):

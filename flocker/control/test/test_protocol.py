@@ -23,6 +23,7 @@ from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet.defer import succeed, fail
 from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
+from twisted.internet.ssl import ClientContextFactory
 from twisted.internet.task import Clock
 
 from .._protocol import (
@@ -97,6 +98,7 @@ MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
 NODE_STATE = NodeState(hostname=u'node1.example.com',
                        applications=[APP1, APP2],
                        used_ports=[1, 2],
+                       devices={}, paths={},
                        manifestations={MANIFESTATION.dataset_id:
                                        MANIFESTATION})
 
@@ -199,7 +201,9 @@ def build_control_amp_service(test):
     persistence_service.startService()
     test.addCleanup(persistence_service.stopService)
     return ControlAMPService(cluster_state, persistence_service,
-                             TCP4ServerEndpoint(MemoryReactor(), 1234))
+                             TCP4ServerEndpoint(MemoryReactor(), 1234),
+                             # Easiest TLS context factory to create:
+                             ClientContextFactory())
 
 
 class ControlTestCase(SynchronousTestCase):
@@ -355,7 +359,8 @@ class ControlAMPServiceTests(ControlTestCase):
         service = build_control_amp_service(self)
         initial = service.endpoint_service.running
         service.startService()
-        protocol = service.endpoint_service.factory.buildProtocol(None)
+        control_factory = service.endpoint_service.factory.wrappedFactory
+        protocol = control_factory.buildProtocol(None)
         self.assertEqual(
             (initial, service.endpoint_service.running,
              service.endpoint_service.__class__,
