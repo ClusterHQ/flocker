@@ -328,7 +328,7 @@ def get_clean_nodes(test_case, num_nodes):
     getting = get_test_cluster(reactor)
 
     def clean_containers(cluster):
-        get_containers = cluster.current_containers()
+        get_containers = cluster.configured_containers()
 
         def delete_containers(result):
             cluster, containers = result
