@@ -18,6 +18,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
+from twisted.internet.defer import DeferredList
 
 from eliot import Logger, start_action, Message
 from eliot.twisted import DeferredContext
@@ -42,7 +43,7 @@ except ImportError:
     PYMONGO_INSTALLED = False
 
 __all__ = [
-    'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
+    'assert_expected_deployment', 'flocker_deploy', 'get_clean_nodes',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli', 'create_application',
     'create_attached_volume'
@@ -262,7 +263,7 @@ require_moving_backend = skip_backend(
     reason="doesn't support moving")
 
 
-def get_nodes(test_case, num_nodes):
+def get_clean_nodes(test_case, num_nodes):
     """
     Create or get ``num_nodes`` nodes with no Docker containers on them.
 
@@ -324,32 +325,66 @@ def get_nodes(test_case, num_nodes):
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
-    clean_applications = {u"version": 1,
-                          u"applications": {}}
     getting = get_test_cluster(reactor)
 
-    def got_cluster(cluster):
-        # Remove all existing containers; we make sure to pass in node
-        # hostnames since we still rely on flocker-deploy to distribute SSH
-        # keys for now.
-        clean_deploy = {u"version": 1,
-                        u"nodes": {node.address: [] for node in cluster.nodes}}
-        flocker_deploy(test_case, clean_deploy, clean_applications)
-        return cluster
-    getting.addCallback(got_cluster)
+    def clean_containers(cluster):
+        get_containers = cluster.current_containers()
 
-    def no_containers(cluster):
-        d = cluster.current_containers()
-        d.addCallback(lambda result: len(result[1]) == 0)
-        return d
-    getting.addCallback(lambda cluster:
-                        loop_until(lambda: no_containers(cluster)))
+        def delete_containers(result):
+            cluster, containers = result
+            results_list = []
+            for container in containers:
+                results_list.append(
+                    cluster.remove_container(container[u"name"]))
+            deleting = DeferredList(results_list)
+            deleting.addCallback(lambda _: cluster)
+            return deleting
 
-    def clean_zfs(_):
-        for node in reachable_nodes:
-            _clean_node(test_case, node)
-    if get_volume_backend(test_case) == b'zfs':
-        getting.addCallback(clean_zfs)
+        get_containers.addCallback(delete_containers)
+
+        def no_containers(cluster):
+            d = cluster.current_containers()
+            d.addCallback(lambda result: len(result[1]) == 0)
+            return d
+
+        def check_clean(cluster):
+            d = loop_until(lambda: no_containers(cluster))
+            d.addCallback(lambda _: cluster)
+            return d
+
+        get_containers.addCallback(check_clean)
+        return get_containers
+
+    getting.addCallback(clean_containers)
+
+    def clean_datasets(cluster):
+        get_datasets = cluster.datasets_state()
+
+        def delete_datasets(datasets):
+            results_list = []
+            for dataset in datasets:
+                results_list.append(
+                    cluster.delete_dataset(dataset[u"dataset_id"]))
+            deleting = DeferredList(results_list)
+            deleting.addCallback(lambda _: cluster)
+            return deleting
+
+        get_datasets.addCallback(delete_datasets)
+
+        def no_datasets(cluster):
+            d = cluster.datasets_state()
+            d.addCallback(lambda datasets: len(datasets) == 0)
+            return d
+
+        def check_datasets(cluster):
+            d = loop_until(lambda: no_datasets(cluster))
+            d.addCallback(lambda _: cluster)
+            return d
+
+        get_datasets.addCallback(check_datasets)
+        return get_datasets
+
+    getting.addCallback(clean_datasets)
     getting.addCallback(lambda _: reachable_nodes)
     return getting
 
@@ -897,7 +932,7 @@ def require_cluster(num_nodes):
             # reachable and clean them up prior to the test.
             # The nodes must already have been started and their flocker
             # services started.
-            waiting_for_nodes = get_nodes(test_case, num_nodes)
+            waiting_for_nodes = get_clean_nodes(test_case, num_nodes)
             waiting_for_cluster = waiting_for_nodes.addCallback(
                 lambda nodes: get_test_cluster(reactor, node_count=num_nodes)
             )
