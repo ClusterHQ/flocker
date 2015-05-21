@@ -24,8 +24,8 @@ from ...common.script import ICommandLineScript
 from ..script import (
     AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
-    _context_factory_and_credential, NewAgentScript,
-    AgentService,
+    _context_factory_and_credential, DatasetServiceFactory,
+    AgentService, BackendDescription,
 )
 
 from .._loop import AgentLoopService
@@ -103,66 +103,38 @@ class DummyAgentService(PRecord):
         return self.loop_service
 
 
-class ZFSGenericAgentScriptTests(SynchronousTestCase):
+class DatasetServiceFactoryTests(SynchronousTestCase):
     """
-    Tests for ``NewAgentScript`` using ZFS configuration.
+    Tests for ``DatasetServiceFactory`` using ZFS configuration.
     """
     def setUp(self):
         setup_config(self)
 
-    def test_no_immediate_stop(self):
-        """
-        The ``Deferred`` returned from ``NewAgentScript`` is not fired.
-        """
-        script = NewAgentScript()
-        options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
-        self.assertNoResult(script.main(MemoryCoreReactor(), options))
-
-    def test_starts_convergence_loop(self):
-        """
-        ``NewAgentScript.main`` starts a convergence loop service.
-        """
-
-        options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
-
-        loop_service = Service()
-        agent_service_factory = DummyAgentService.for_loop_service(
-            loop_service
-        )
-        script = NewAgentScript(agent_service_factory=agent_service_factory)
-        script.main(MemoryCoreReactor(), options)
-
-        self.assertTrue(loop_service.running)
-
     def test_config_validated(self):
         """
-        ``NewAgentScript.main`` validates the configuration file.
+        ``DatasetServiceFactory.get_service`` validates the configuration file.
         """
         self.config.setContent(b"INVALID")
 
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        test_reactor = MemoryCoreReactor()
 
         self.assertRaises(
             ValidationError,
-            NewAgentScript().main, test_reactor, options,
+            DatasetServiceFactory().get_service, MemoryCoreReactor(), options,
         )
 
     def test_missing_configuration_file(self):
         """
-        ``NewAgentScript.main`` raises an ``IOError`` if the given
-        configuration file does not exist.
+        ``DatasetServiceFactory.get_service`` raises an ``IOError`` if the
+        given configuration file does not exist.
         """
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.non_existent_file.path])
-        test_reactor = MemoryCoreReactor()
 
         self.assertRaises(
             IOError,
-            NewAgentScript().main, test_reactor, options,
+            DatasetServiceFactory().get_service, MemoryCoreReactor(), options,
         )
 
 
@@ -181,7 +153,7 @@ def agent_service_setup(test):
         node_credential=test.ca_set.node,
         ca_certificate=test.ca_set.root.credential.certificate,
 
-        backend=u"anything",
+        backend_name=u"anything",
         api_args={},
     )
 
@@ -206,12 +178,18 @@ class AgentServiceAPITests(SynchronousTestCase):
             pass
 
         agent_service = self.agent_service.set(
-            "backends", {
-                u"foo": (API, {}, False, False),
-                u"bar": (WrongAPI, {}, False, False),
-            }
+            "backends", [
+                BackendDescription(
+                    name=u"foo", needs_reactor=False, needs_id=False,
+                    api_factory=API, deployer_type=u"p2p",
+                ),
+                BackendDescription(
+                    name=u"bar", needs_reactor=False, needs_id=False,
+                    api_factory=WrongAPI, deployer_type=u"block",
+                ),
+            ],
         ).set(
-            "backend", u"foo"
+            "backend_name", u"foo"
         ).set(
             "api_args", {"a": "x", "b": "y"},
         )
@@ -234,9 +212,13 @@ class AgentServiceAPITests(SynchronousTestCase):
             reactor = field()
 
         agent_service = self.agent_service.set(
-            "backends", {
-                self.agent_service.backend: (API, {}, True, False),
-            },
+            "backends", [
+                BackendDescription(
+                    name=self.agent_service.backend_name,
+                    needs_reactor=True, needs_id=False,
+                    api_factory=API, deployer_type=u"p2p",
+                ),
+            ],
         ).set(
             "reactor", reactor,
         )
@@ -257,9 +239,13 @@ class AgentServiceAPITests(SynchronousTestCase):
             cluster_id = field()
 
         agent_service = self.agent_service.set(
-            "backends", {
-                self.agent_service.backend: (API, {}, False, True),
-            },
+            "backends", [
+                BackendDescription(
+                    name=self.agent_service.backend_name,
+                    needs_reactor=False, needs_id=True,
+                    api_factory=API, deployer_type=u"p2p",
+                ),
+            ],
         )
         api = agent_service.get_api()
         self.assertEqual(
@@ -301,8 +287,16 @@ class AgentServiceDeployerTests(SynchronousTestCase):
         agent_service = self.agent_service.set(
             "get_external_ip", get_external_ip,
         ).set(
+            "backends", [
+                BackendDescription(
+                    name=self.agent_service.backend_name,
+                    needs_reactor=False, needs_id=False,
+                    api_factory=None, deployer_type=u"magic",
+                ),
+            ],
+        ).set(
             "deployers", {
-                self.agent_service.backend: Deployer,
+                u"magic": Deployer,
                 b"bar": WrongDeployer,
             },
         )
@@ -318,6 +312,17 @@ class AgentServiceDeployerTests(SynchronousTestCase):
             deployer,
         )
 
+
+class AgentServiceTLSContextTests(SynchronousTestCase):
+    """
+    Tests for ``AgentService.get_tls_context``.
+    """
+    setUp = agent_service_setup
+
+    def test_x(self):
+        # XXX Assertions are so hard :(
+        tls_context = self.agent_service.get_tls_context()
+        tls_context
 
 
 class AgentServiceLoopTests(SynchronousTestCase):

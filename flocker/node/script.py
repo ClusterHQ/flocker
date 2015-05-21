@@ -6,13 +6,12 @@ The command-line ``flocker-*-agent`` tools.
 """
 
 from socket import socket
-from os import getpid
 
 import yaml
 
 from jsonschema import FormatChecker, Draft4Validator
 
-from pyrsistent import PRecord, field, PMap, pmap
+from pyrsistent import PRecord, field, PMap, pmap, pvector
 
 from zope.interface import implementer
 
@@ -20,10 +19,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
-
-from ..volume.service import (
-    ICommandLineVolumeScript, VolumeScript,
-)
+from twisted.python.constants import Names, NamedConstant
 
 from ..volume.script import flocker_volume_options
 from ..volume.filesystems import zfs
@@ -40,7 +36,44 @@ from ..ca import ControlServicePolicy, NodeCredential
 
 __all__ = [
     "flocker_dataset_agent_main",
+    "flocker_container_agent_main",
 ]
+
+
+def flocker_dataset_agent_main():
+    """
+    Implementation of the ``flocker-dataset-agent`` command line script.
+
+    This starts a dataset convergence agent.  It currently supports only the
+    loopback block device backend.  Later it will be capable of starting a
+    dataset agent using any of the supported dataset backends.
+    """
+    service_factory = DatasetServiceFactory()
+    agent_script = AgentScript(service_factory=service_factory.get_service)
+    options = DatasetAgentOptions()
+
+    return FlockerScriptRunner(
+        script=agent_script,
+        options=options,
+    ).main()
+
+
+def flocker_container_agent_main():
+    """
+    Implementation of the ``flocker-container-agent`` command line script.
+
+    This starts a Docker-based container convergence agent.
+    """
+    def deployer_factory(cluster_uuid, **kwargs):
+        return ApplicationNodeDeployer(**kwargs)
+    service_factory = AgentServiceFactory(
+        deployer_factory=deployer_factory
+    ).get_service
+    agent_script = AgentScript(service_factory=service_factory)
+    return FlockerScriptRunner(
+        script=agent_script,
+        options=ContainerAgentOptions()
+    ).main()
 
 
 def _get_external_ip(host, port):
@@ -285,40 +318,6 @@ class AgentServiceFactory(PRecord):
         )
 
 
-def flocker_dataset_agent_main():
-    """
-    Implementation of the ``flocker-dataset-agent`` command line script.
-
-    This starts a dataset convergence agent.  It currently supports only the
-    loopback block device backend.  Later it will be capable of starting a
-    dataset agent using any of the supported dataset backends.
-    """
-    options = DatasetAgentOptions()
-
-    return FlockerScriptRunner(
-        script=NewAgentScript(),
-        options=options,
-    ).main()
-
-
-def flocker_container_agent_main():
-    """
-    Implementation of the ``flocker-container-agent`` command line script.
-
-    This starts a Docker-based container convergence agent.
-    """
-    def deployer_factory(cluster_uuid, **kwargs):
-        return ApplicationNodeDeployer(**kwargs)
-    service_factory = AgentServiceFactory(
-        deployer_factory=deployer_factory
-    ).get_service
-    agent_script = AgentScript(service_factory=service_factory)
-    return FlockerScriptRunner(
-        script=agent_script,
-        options=ContainerAgentOptions()
-    ).main()
-
-
 def get_configuration(options):
     agent_config = options[u'agent-config']
     configuration = yaml.safe_load(agent_config.getContent())
@@ -336,6 +335,17 @@ def get_configuration(options):
 
 
 def _zfs_storagepool(reactor, name, mount_root, volume_config_path):
+    """
+    Create a ``VolumeService`` with a ``zfs.StoragePool``.
+
+    :param name: The name of the ZFS storage pool to use.
+    :param bytes mount_root: The path to the directory where ZFS filesystems
+        will be mounted.
+    :param bytes volume_config_path: The path to the volume service's
+        configuration file.
+
+    :return: The ``VolumeService``, started.
+    """
     pool = zfs.StoragePool(
         reactor=reactor, name=name, mount_root=FilePath(mount_root),
     )
@@ -347,39 +357,86 @@ def _zfs_storagepool(reactor, name, mount_root, volume_config_path):
     api.startService()
     return api
 
+
+class DeployerType(Names):
+    """
+    References to the different ``IDeployer`` implementations that are
+    available.
+
+    :ivar p2p: The "peer-to-peer" deployer - suitable for use with systems like
+        ZFS where nodes interact directly with each other for data movement.
+    :ivar block: The Infrastructure-as-a-Service deployer - suitable for use
+        with system like EBS where volumes can be attached to nodes as block
+        devices and then detached (and then re-attached to other nodes).
+    """
+    p2p = NamedConstant()
+    block = NamedConstant()
+
+
+class BackendDescription(PRecord):
+    """
+    Represent one kind of storage backend we might be able to use.
+
+    :ivar name: The human-meaningful name of this storage backend.
+    :ivar needs_reactor: A flag which indicates whether this backend's API
+        factory needs to have a reactor passed to it.
+    :ivar needs_id: A flag which indicates whether this backend's API factory
+        needs to have the cluster's unique identifier passed to it.
+    :ivar api_factory: An object which can be called with some simple
+        configuration data and which returns the API object implementing this
+        storage backend.
+    :ivar deployer_type: A constant from ``DeployerType`` indicating which kind
+        of ``IDeployer`` the API object returned by ``api_factory`` is usable
+        with.
+    """
+    name = field(type=unicode, mandatory=True)
+    needs_reactor = field(type=bool, mandatory=True)
+    # XXX Eventually everyone will take cluster_id so we will throw this flag
+    # out.
+    needs_id = field(type=bool, mandatory=True)
+    api_factory = field(mandatory=True)
+    deployer_type = field(mandatory=True)
+
 # These structures should be created dynamically to handle plug-ins
-default_backends = {
+_DEFAULT_BACKENDS = [
     # P2PManifestationDeployer doesn't current know anything about
     # cluster_uuid.  It probably should so that it can make sure it
     # only talks to other nodes in the same cluster (maybe the
     # authentication layer would mostly handle this but maybe not if
     # you're slightly careless with credentials - also ZFS backend
     # doesn't use TLS yet).
+    BackendDescription(
+        name=u"zfs", needs_reactor=True, needs_id=False,
+        api_factory=_zfs_storagepool, deployer_type=u"p2p",
+    ),
+    BackendDescription(
+        name=u"loopback", needs_reactor=False, needs_id=False,
+        api_factory=LoopbackBlockDeviceAPI.from_path, deployer_type=u"block",
+    ),
 
-    # api_factory, ignored, needs_reactor, needs_cluster_id
-    'zfs': (_zfs_storagepool, {}, True, False),
-    'loopback': (LoopbackBlockDeviceAPI.from_path, {
-        'root_path': b"/var/lib/flocker/loopback",
-        'compute_instance_id': bytes(getpid()).decode('utf-8'),
-    }, False)
-    # 'openstack': (CinderBlockDeviceAPI.from_config, {
-    #    XXX Eventually everyone will take cluster_id so we will throw this
-    #    flag out.
-    # 'cluster_id': True,
-    #     })
-}
-default_deployers = {
-    'zfs': lambda api, **kw:
+    # BackendDescription(
+    #     name=u"openstack", needs_reactor=False, needs_id=True,
+    #     factory=cinder_from_configuration, deployer_type=u"block",
+    # ),
+]
+
+_DEFAULT_DEPLOYERS = {
+    'p2p': lambda api, **kw:
         P2PManifestationDeployer(volume_service=api, **kw),
-    'loopback': lambda api, **kw:
+    'block': lambda api, **kw:
         BlockDeviceDeployer(block_device_api=api, **kw),
-    # 'openstack': lambda ... BlockDeviceDeployer ...,
 }
 
 
 class AgentService(PRecord):
-    backends = field(initial=default_backends, mandatory=True)
-    deployers = field(initial=default_deployers, mandatory=True)
+    """
+    :ivar PVector backends: ``BackendDescription`` instances describing how to
+        use each available storage backend.
+    """
+    backends = field(
+        factory=pvector, initial=_DEFAULT_BACKENDS, mandatory=True,
+    )
+    deployers = field(initial=_DEFAULT_DEPLOYERS, mandatory=True)
     reactor = field(initial=reactor, mandatory=True)
 
     get_external_ip = field(initial=_get_external_ip, mandatory=True)
@@ -391,11 +448,18 @@ class AgentService(PRecord):
     # Cannot use type=Certificate; pyrsistent rejects classic classes.
     ca_certificate = field(mandatory=True)
 
-    backend = field(type=unicode, mandatory=True)
+    backend_name = field(type=unicode, mandatory=True)
     api_args = field(type=PMap, factory=pmap, mandatory=True)
 
     @classmethod
     def from_configuration(cls, configuration):
+        """
+        Load configuration from a data structure loaded from the configuration
+        file and only minimally processed.
+
+        :return: A new instance of ``cls`` with values loaded from the
+            configuration.
+        """
         host = configuration['control-service']['hostname']
         port = configuration['control-service'].get('port', 4524)
 
@@ -403,7 +467,7 @@ class AgentService(PRecord):
         ca_certificate = configuration['ca-certificate']
 
         api_args = configuration['dataset']
-        backend = api_args.pop('backend')
+        backend_name = api_args.pop('backend')
 
         return cls(
             control_service_host=host,
@@ -412,11 +476,27 @@ class AgentService(PRecord):
             node_credential=node_credential,
             ca_certificate=ca_certificate,
 
-            backend=backend.decode("ascii"),
+            backend_name=backend_name.decode("ascii"),
             api_args=api_args,
         )
 
+    def get_backend(self):
+        """
+        Find the backend in ``self.backends`` that matches the one named by
+        ``self.backend_name``.
+        """
+        for backend in self.backends:
+            if backend.name == self.backend_name:
+                return backend
+        raise ValueError(
+            "Backend named {} not available".format(self.backend_name),
+        )
+
     def get_tls_context(self):
+        """
+        Get some TLS configuration objects which will authenticate this node to
+        the control service node and the reverse.
+        """
         policy = ControlServicePolicy(
             ca_certificate=self.ca_certificate,
             client_credential=self.node_credential.credential,
@@ -436,18 +516,16 @@ class AgentService(PRecord):
             using the configuration from ``self.api_args`` and other useful
             state on ``self``.
         """
-        (api_factory, _, needs_reactor, needs_cluster_id) = self.backends[
-            self.backend
-        ]
+        backend = self.get_backend()
 
         api_args = self.api_args
-        if needs_cluster_id:
+        if backend.needs_id:
             cluster_id = self.node_credential.cluster_uuid
             api_args = api_args.set("cluster_id", cluster_id)
-        if needs_reactor:
+        if backend.needs_reactor:
             api_args = api_args.set("reactor", self.reactor)
 
-        return api_factory(**api_args)
+        return backend.api_factory(**api_args)
 
     def get_deployer(self, api):
         """
@@ -456,7 +534,8 @@ class AgentService(PRecord):
 
         :return: The ``IDeployer`` provider.
         """
-        deployer_factory = self.deployers[self.backend]
+        backend = self.get_backend()
+        deployer_factory = self.deployers[backend.deployer_type]
 
         hostname = self.get_external_ip(
             self.control_service_host, self.control_service_port,
@@ -483,13 +562,19 @@ class AgentService(PRecord):
         )
 
 
-class NewAgentScript(PRecord):
-
+class DatasetServiceFactory(PRecord):
+    """
+    A helper for creating most of the pieces that go into a dataset convergence
+    agent.
+    """
     agent_service_factory = field(initial=AgentService.from_configuration)
     configuration_factory = field(initial=get_configuration)
 
-    def main(self, reactor, options):
-
+    def get_service(self, reactor, options):
+        """
+        Create an ``AgentLoopService`` instance which will run a dataset
+        convergence agent.
+        """
         configuration = self.configuration_factory(options)
 
         agent_service = self.agent_service_factory(configuration)
@@ -501,7 +586,4 @@ class NewAgentScript(PRecord):
 
         loop_service = agent_service.get_loop_service(deployer)
 
-        return main_for_service(
-            reactor,
-            loop_service
-        )
+        return loop_service
