@@ -59,6 +59,10 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    Keep VMs around, if the tests fail.
 
+.. option:: --no-pull
+
+   Do not pull any Docker images when provisioning nodes.
+
 Vagrant
 -------
 
