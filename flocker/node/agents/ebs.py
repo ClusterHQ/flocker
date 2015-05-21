@@ -235,6 +235,9 @@ class EBSBlockDeviceAPI(object):
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
 
+    # FLOC-1874 - Implement allocation_unit().  It returns a constant, I think?
+    # 1GiB.
+
     def compute_instance_id(self):
         """
         Look up the EC2 instance ID for this node.

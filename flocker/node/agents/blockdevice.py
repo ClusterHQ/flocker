@@ -777,6 +777,12 @@ class CreateBlockDeviceDataset(PRecord):
         :returns: An already fired ``Deferred`` with result ``None``.
         """
         api = deployer.block_device_api
+
+        # FLOC-1874 - Round maximum_size up to the nearest
+        # api.allocation_unit().  It might be better to do this in
+        # BlockDeviceDeployer but it's a ton easier to do it here (it's hard to
+        # do it there because calculate_changes shouldn't really make calls
+        # onto the api object).
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
             size=self.dataset.maximum_size,
@@ -811,6 +817,8 @@ class IBlockDeviceAsyncAPI(Interface):
     Common operations provided by all block device backends, exposed via
     asynchronous methods.
     """
+    # FLOC-1874 - allocation_unit
+
     def compute_instance_id():
         """
         See ``IBlockDeviceAPI.compute_instance_id``.
@@ -881,6 +889,19 @@ class IBlockDeviceAPI(Interface):
     Note: This is an early sketch of the interface and it'll be refined as we
     real blockdevice providers are implemented.
     """
+    # FLOC-1874 - New method for finding what we need to round to.  It's not an
+    # attribute because the interface proxying stuff doesn't support
+    # attributes.
+    def allocation_unit():
+        """
+        The size in bytes up to which the requested block device size will be
+        rounded by the underlying storage layer.  (XXX Don't imply we'll
+        actually pass in sizes that need to be rounded; BlockDeviceDeployer
+        will do the rounding.)
+
+        :rtype: ``int``
+        """
+
     def compute_instance_id():
         """
         Get an identifier for this node.
@@ -1187,6 +1208,12 @@ class LoopbackBlockDeviceAPI(object):
         except OSError:
             pass
 
+    # FLOC-1874 - Implement allocation_unit().  Probably accept an argument to
+    # __init__ that determines this.  Specify it in the tests as necessary to
+    # be sure we get test coverage for all the rounding cases so that our tests
+    # that use BlockDeviceDeployer against this storage driver are still
+    # comprehensive.
+
     def compute_instance_id(self):
         return self._compute_instance_id
 
@@ -1490,6 +1517,12 @@ class BlockDeviceDeployer(PRecord):
             NodeState(
                 uuid=self.node_uuid,
                 hostname=self.hostname,
+                # FLOC-1874 The sizes of the datasets for these manifestations
+                # will be the size of the actual storage-driver-supplied
+                # volume.  This may not be the size requested in the
+                # configuration.  File a follow-up issue for fixing this if it
+                # matters.  Fixing this requires having access to the
+                # configuration - which we do not!
                 manifestations=manifestations,
                 paths=paths,
                 devices=devices,
@@ -1585,6 +1618,11 @@ class BlockDeviceDeployer(PRecord):
             local_state.devices, local_state.paths, configured_manifestations,
         ))
         deletes = self._calculate_deletes(configured_manifestations)
+
+        # FLOC-1874 - The API doesn't support resizing.  Drop this calculation
+        # for now.  Re-introduce it later when we actually want to support
+        # resize.  Teach resize about allocation_unit() when we re-introduce
+        # this.
         resizes = list(self._calculate_resizes(
             configured_manifestations, local_state
         ))
