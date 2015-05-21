@@ -130,12 +130,36 @@ def validate_configuration(configuration):
             },
             "dataset": {
                 "type": "object",
-                "required": ["backend"],
-                "properties": {
-                    "backend": {
-                        "type": "string",
+                "oneOf": [
+                    # Add further "oneOf" option for openstack, which itself
+                    # has "oneOf" options for each auth plugin.
+                    # We may use references to split this part of the schema up.
+                    {
+                        "required": ["backend"],
+                        "properties": {
+                            "backend": {
+                                "type": "string",
+                                "pattern": "zfs",
+                            },
+                            "pool": {
+                                "type": "string",
+                            },
+                        }
                     },
-                }
+                    {
+                        "required": ["backend"],
+                        "properties": {
+                            "backend": {
+                                "type": "string",
+                                "pattern": "loopback",
+                            },
+                            "pool": {
+                                "type": "string",
+                            },
+                        }
+
+                    },
+                ]
             }
         }
     }

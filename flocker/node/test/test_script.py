@@ -496,6 +496,9 @@ def make_amp_agent_options_tests(options_type):
     return Tests
 
 
+# This is getting large.
+# We will add tests to it, to validate the proposed backends (see PR description).
+# We think it might be best to split this up (e.g. ControlServiceValidationTests, ZFSBackendValidationTests, OpenStackBackendValidationTests)
 class ValidateConfigurationTests(SynchronousTestCase):
     """
     Tests for :func:`validate_configuration`.
@@ -509,7 +512,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
                 u"port": 1234,
             },
             u"dataset": {
-                u"backend": u"backend_example",
+                u"backend": u"zfs",
+                u"pool": u"custom-pool",
             },
             "version": 1,
         }
@@ -522,11 +526,45 @@ class ValidateConfigurationTests(SynchronousTestCase):
         # Nothing is raised
         validate_configuration(self.configuration)
 
+    def test_valid_loopback_configuration(self):
+        """
+        No exception is raised when validating a valid configuration with a
+        loopback backend.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"loopback",
+            u"pool": u"custom-pool",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
     def test_port_optional(self):
         """
         The control service agent's port is optional.
         """
         self.configuration['control-service'].pop('port')
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_zfs_pool_optional(self):
+        """
+        No exception is raised when validating a ZFS backend is specified but
+        a ZFS pool is not.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"zfs",
+        }
+        # Nothing is raised
+        validate_configuration(self.configuration)
+
+    def test_loopback_pool_optional(self):
+        """
+        No exception is raised when validating a loopback backend is specified
+        but a loopback pool is not.
+        """
+        self.configuration['dataset'] = {
+            u"backend": u"loopback",
+        }
         # Nothing is raised
         validate_configuration(self.configuration)
 
@@ -615,6 +653,14 @@ class ValidateConfigurationTests(SynchronousTestCase):
         The dataset key must contain a backend type.
         """
         self.configuration['dataset'] = {}
+        self.assertRaises(
+            ValidationError, validate_configuration, self.configuration)
+
+    def test_error_on_invalid_dataset_type(self):
+        """
+        The dataset key must contain a valid dataset type.
+        """
+        self.configuration['dataset'] = {"backend": "invalid"}
         self.assertRaises(
             ValidationError, validate_configuration, self.configuration)
 
