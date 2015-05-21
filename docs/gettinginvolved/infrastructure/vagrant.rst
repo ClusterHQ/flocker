@@ -40,7 +40,7 @@ Tutorial boxes and metadata for them are published to `Amazon S3 <https://consol
 
 To publish the latest development box which has been built by BuildBot, run ``admin/publish-dev-box``.
 This should be done whenever there is a change to the development box.
-TODO Change the Vagrantfile to look at S3.
+
 TODO The script should load http://build.clusterhq.com/results/vagrant/master/flocker-dev.json
 
 Testing
