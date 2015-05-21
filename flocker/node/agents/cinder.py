@@ -6,9 +6,6 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 import time
 from uuid import UUID
-from bitmath import Byte, GB
-from ipaddr import IPAddress
-from subprocess import check_output
 
 from bitmath import Byte, GiB
 
@@ -25,7 +22,9 @@ from twisted.python.filepath import FilePath
 
 from zope.interface import implementer, Interface
 
-from ...common import auto_openstack_logging, get_all_ips
+from ...common import (
+    auto_openstack_logging, get_all_ips, ipaddress_from_string
+)
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, get_blockdevice_volume,
@@ -217,7 +216,9 @@ def _extract_nova_server_addresses(addresses):
     all_addresses = set()
     for network_name, addresses in addresses.items():
         for address_info in addresses:
-            all_addresses.add(IPAddress(address_info['addr']))
+            all_addresses.add(
+                ipaddress_from_string(address_info['addr'])
+            )
 
     return all_addresses
 
