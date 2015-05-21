@@ -23,15 +23,15 @@ They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flo
 
 It is possible to see the available unit names, and then view the logs with ``journalctl``:
 
-.. prompt:: bash [root@node1 ~]# auto
+.. prompt:: bash [root@node1]# auto
 
-   [root@node1 ~]# ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
+   [root@node1]# ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
    flocker-dataset-agent
    flocker-container-agent
    flocker-control
-   [root@node1 ~]# journalctl -u flocker-dataset-agent
-   [root@node1 ~]# journalctl -u flocker-container-agent
-   [root@node1 ~]# journalctl -u flocker-control
+   [root@node1]# journalctl -u flocker-dataset-agent
+   [root@node1]# journalctl -u flocker-container-agent
+   [root@node1]# journalctl -u flocker-control
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
 .. _`eliot`: https://github.com/ClusterHQ/eliot
