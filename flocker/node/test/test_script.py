@@ -405,20 +405,11 @@ class AgentServiceLoopTests(SynchronousTestCase):
         )
 
 
-# AgentService tests :
+# FLOC-1945
 #
-# get_loop returns an AgentLoopService with the right reactor, host, port,
-# deployer, context factory
+# AgentService tests:
 #
-# get_deployer returns a P2PManifestationDeployer for zfs config, a
-# BlockDeviceDeployer for loopback config
-#
-# get_deployer passes the node_uuid taken from the node_credentials in to the
-# deployer_factory
-#
-# AgentService has a default port of 4524 I guess
-#
-# in the zfs case, get_api returns a started VolumeService
+# AgentService.from_configuration has a default port of 4524 I guess
 
 
 def get_all_ips():

@@ -298,16 +298,14 @@ class AgentServiceFactory(PRecord):
 
         :return: The ``AgentLoopService`` instance.
         """
-        agent_config = options[u'agent-config']
-        configuration = yaml.safe_load(agent_config.getContent())
-
-        validate_configuration(configuration=configuration)
-
+        configuration = get_configuration(options)
         host = configuration['control-service']['hostname']
-        port = configuration['control-service'].get('port', 4524)
+        port = configuration['control-service']['port']
         ip = _get_external_ip(host, port)
+
         tls_info = _context_factory_and_credential(
             options["agent-config"].parent(), host, port)
+
         return AgentLoopService(
             reactor=reactor,
             deployer=self.deployer_factory(
@@ -319,10 +317,18 @@ class AgentServiceFactory(PRecord):
 
 
 def get_configuration(options):
+    """
+    Load and validate the configuration in the file specified by the given
+    options.
+
+    :return: A ``dict`` representing the configuration loaded from the file.
+    """
     agent_config = options[u'agent-config']
     configuration = yaml.safe_load(agent_config.getContent())
 
     validate_configuration(configuration=configuration)
+
+    configuration['control-service'].setdefault('port', 4524)
 
     path = agent_config.parent()
     # This is a hack; from_path should be more
@@ -463,7 +469,7 @@ class AgentService(PRecord):
             configuration.
         """
         host = configuration['control-service']['hostname']
-        port = configuration['control-service'].get('port', 4524)
+        port = configuration['control-service']['port']
 
         node_credential = configuration['node-credential']
         ca_certificate = configuration['ca-certificate']
