@@ -453,13 +453,17 @@ class AgentService(PRecord):
         )
 
     def get_loop_service(self, deployer):
-        loop = AgentLoopService(
+        """
+        :return: An ``AgentLoopService`` which will use the given deployer to
+            discover changes to send to the control service and to deploy
+            configuration changes received from the control service.
+        """
+        return AgentLoopService(
             reactor=self.reactor,
             deployer=deployer,
             host=self.control_service_host, port=self.control_service_port,
             context_factory=self.get_tls_context().context_factory,
         )
-        return loop
 
 
 class NewAgentScript(PRecord):
