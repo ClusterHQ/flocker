@@ -9,7 +9,7 @@ from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
-from bitmath import MB, Byte
+from bitmath import MB, MiB, Byte
 
 import psutil
 
@@ -2832,7 +2832,7 @@ class CreateBlockDeviceDatasetTests(
         requested size is less than ``allocation_unit``.
         """
         dataset_id = uuid4()
-        allocation_unit = int(MB(1).to_Byte().value)
+        allocation_unit = int(MiB(10).to_Byte().value)
         (volume,
          device_path,
          expected_mountpoint,
