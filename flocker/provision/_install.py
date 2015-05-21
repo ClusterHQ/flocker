@@ -610,8 +610,6 @@ def configure_cluster(control_node, agent_nodes,
         ),
         sequence([
             sequence([
-                Effect(
-                    Func(lambda node=node: configure_ssh(node.address, 22))),
                 run_remotely(
                     username='root',
                     address=node.address,
