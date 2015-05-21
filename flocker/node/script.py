@@ -431,15 +431,27 @@ def get_configuration(options):
     validate_configuration(configuration=configuration)
 
     path = agent_config.parent()
-    ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
     # This is a hack; from_path should be more
     # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
+    configuration['ca-certificate'] = Certificate.loadPEM(
+        path.child(b"cluster.crt").getContent())
     configuration['node-credential'] = NodeCredential.from_path(path, b"node")
 
     return configuration
 
 
-from flocker.volume import zfs
+from ..volume.filesystems import zfs
+
+
+def ZFSDeviceAPI(reactor):
+    from tempfile import mkdtemp
+    pool = FilesystemStoragePool(FilePath(mkdtemp()))
+    volume_service = VolumeService(
+        config_path=FilePath(mkdtemp()).child('volume.json'),
+        pool=pool,
+        reactor=reactor,
+    )
+    return 'something that gets passes to P2PManifestationDeployer'
 
 # These structures should be created dynamically to handle plug-ins
 default_backends = {
@@ -463,8 +475,9 @@ default_deployers = {
 class AgentService:
 
     def __init__(
-            self, configuration, backends=default_backends,
+            self, reactor, configuration, backends=default_backends,
             deployers=default_deployers):
+        self._reactor = reactor
         self._configuration = configuration
         self._backends = backends
         self._deployers = deployers
@@ -472,7 +485,8 @@ class AgentService:
         self._port = configuration['control-service'].get('port', 4524)
         node_credential = configuration['node-credential']
         policy = ControlServicePolicy(
-            ca_certificate=ca, client_credential=node_credential.credential)
+            ca_certificate=configuration['ca-certificate'],
+            client_credential=node_credential.credential)
         self._tls_context = _TLSContext(
             context_factory=policy.creatorForNetloc(self._host, self._port),
             node_credential=node_credential)
@@ -487,12 +501,19 @@ class AgentService:
         hostname = _get_external_ip(self._host, self._port)
         node_uuid = self._tls_context.node_credential.uuid
         # cluster_uuid = self._tls_context.node_credential.cluster_uuid
-        return deployer_factory(
-            block_device_api=api, hostname=hostname, node_uuid=node_uuid)
+        from .agents.blockdevice import IBlockDeviceAPI
+        if IBlockDeviceAPI.providedBy(api):
+            return deployer_factory(
+                block_device_api=api, hostname=hostname, node_uuid=node_uuid)
+        else:
+            from twisted.application.service import Service
+            assert isinstance(api, Service), api
+            return deployer_factory(
+                hostname=hostname, node_uuid=node_uuid, volume_service=api)
 
-    def get_loop_service(self, deployer, reactor):
+    def get_loop_service(self, deployer):
         return AgentLoopService(
-            reactor=reactor,
+            reactor=self._reactor,
             deployer=deployer,
             host=self._host, port=self._port,
             context_factory=self._tls_context.context_factory,
@@ -508,13 +529,13 @@ class AgentService:
 class NewAgentScript(PRecord):
 
     agent_service_factory = field(type=object, initial=AgentService)
-    configuration_factory = field(type=callable, initial=get_configuration)
+    configuration_factory = field(type=object, initial=get_configuration)
 
-    def main(self, reactor, options):
+    def main(self, reactor, options, volume_service):
 
         configuration = self.configuration_factory(options)
 
-        agent_service = agent_service_factory(configuration)
+        agent_service = self.agent_service_factory(configuration)
 
         api = agent_service.get_api()
 
@@ -522,12 +543,13 @@ class NewAgentScript(PRecord):
 
         loop_service = agent_service.get_loop_service(deployer)
 
-        agent_service.register_service(api, loop)
+        agent_service.register_service(api, loop_service)
 
         return main_for_service(
             reactor,
             loop_service
         )
+
 
 def new_flocker_dataset_agent_main():
     """

@@ -22,7 +22,7 @@ from ...common.script import ICommandLineScript
 from ..script import (
     AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
-    _context_factory_and_credential, GenericAgentScript,
+    _context_factory_and_credential, NewAgentScript,
 )
 
 from .._loop import AgentLoopService
@@ -73,26 +73,26 @@ def deployer_factory_stub(**kw):
 
 class ZFSGenericAgentScriptTests(SynchronousTestCase):
     """
-    Tests for ``GenericAgentScript`` using ZFS configuration.
+    Tests for ``NewAgentScript`` using ZFS configuration.
     """
     def setUp(self):
         setup_config(self)
 
     def test_main_starts_service(self):
         """
-        ``GenericAgentScript.main`` starts the given service.
+        ``NewAgentScript.main`` starts the given service.
         """
         service = Service()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        GenericAgentScript().main(MemoryCoreReactor(), options, service)
+        NewAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
     def test_no_immediate_stop(self):
         """
-        The ``Deferred`` returned from ``GenericAgentScript`` is not fired.
+        The ``Deferred`` returned from ``NewAgentScript`` is not fired.
         """
-        script = GenericAgentScript()
+        script = NewAgentScript()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         self.assertNoResult(script.main(MemoryCoreReactor(), options,
@@ -100,13 +100,13 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
 
     def test_starts_convergence_loop(self):
         """
-        ``GenericAgentScript.main`` starts a convergence loop service.
+        ``NewAgentScript.main`` starts a convergence loop service.
         """
         service = Service()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
-        GenericAgentScript().main(test_reactor, options, service)
+        NewAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
         # P2PManifestationDeployer is difficult to compare automatically,
         # so do so manually:
@@ -131,14 +131,14 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
         service = Service()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        GenericAgentScript().main(MemoryCoreReactor(), options, service)
+        NewAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertEqual(
             self.ca_set.node.uuid,
             service.parent.deployer.node_uuid)
 
     def test_default_port(self):
         """
-        ``GenericAgentScript.main`` starts a convergence loop service with port
+        ``NewAgentScript.main`` starts a convergence loop service with port
         4524 if no port is specified.
         """
         self.config.setContent(
@@ -156,7 +156,7 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
-        GenericAgentScript().main(test_reactor, options, service)
+        NewAgentScript().main(test_reactor, options, service)
         parent_service = service.parent
         # P2PManifestationDeployer is difficult to compare automatically,
         # so do so manually:
@@ -175,7 +175,7 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
 
     def test_config_validated(self):
         """
-        ``GenericAgentScript.main`` validates the configuration file.
+        ``NewAgentScript.main`` validates the configuration file.
         """
         self.config.setContent("INVALID")
 
@@ -186,12 +186,12 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
 
         self.assertRaises(
             ValidationError,
-            GenericAgentScript().main, test_reactor, options, service,
+            NewAgentScript().main, test_reactor, options, service,
         )
 
     def test_missing_configuration_file(self):
         """
-        ``GenericAgentScript.main`` raises an ``IOError`` if the given
+        ``NewAgentScript.main`` raises an ``IOError`` if the given
         configuration file does not exist.
         """
         service = Service()
@@ -201,7 +201,7 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
 
         self.assertRaises(
             IOError,
-            GenericAgentScript().main, test_reactor, options, service,
+            NewAgentScript().main, test_reactor, options, service,
         )
 
 
