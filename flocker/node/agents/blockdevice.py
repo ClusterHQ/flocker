@@ -1157,7 +1157,7 @@ class LoopbackBlockDeviceAPI(object):
     _attached_directory_name = 'attached'
     _unattached_directory_name = 'unattached'
 
-    def __init__(self, root_path, compute_instance_id):
+    def __init__(self, root_path, compute_instance_id, allocation_unit):
         """
         :param FilePath root_path: The path beneath which all loopback backing
             files and their organising directories will be created.
@@ -1169,9 +1169,10 @@ class LoopbackBlockDeviceAPI(object):
         """
         self._root_path = root_path
         self._compute_instance_id = compute_instance_id
+        self._allocation_unit = allocation_unit
 
     @classmethod
-    def from_path(cls, root_path, compute_instance_id):
+    def from_path(cls, root_path, compute_instance_id, allocation_unit):
         """
         :param bytes root_path: The path to a directory in which loop back
             backing files will be created.  The directory is created if it does
@@ -1183,6 +1184,7 @@ class LoopbackBlockDeviceAPI(object):
         api = cls(
             root_path=FilePath(root_path),
             compute_instance_id=compute_instance_id,
+            allocation_unit=allocation_unit,
         )
         api._initialise_directories()
         return api
@@ -1213,6 +1215,9 @@ class LoopbackBlockDeviceAPI(object):
     # be sure we get test coverage for all the rounding cases so that our tests
     # that use BlockDeviceDeployer against this storage driver are still
     # comprehensive.
+
+    def allocation_unit(self):
+        return self._allocation_unit
 
     def compute_instance_id(self):
         return self._compute_instance_id

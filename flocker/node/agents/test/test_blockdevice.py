@@ -1939,7 +1939,7 @@ def losetup_detach_all(root_path):
             losetup_detach(device_file)
 
 
-def loopbackblockdeviceapi_for_test(test_case):
+def loopbackblockdeviceapi_for_test(test_case, allocation_unit=1024):
     """
     :returns: A ``LoopbackBlockDeviceAPI`` with a temporary root directory
         created for the supplied ``test_case``.
@@ -1956,6 +1956,7 @@ def loopbackblockdeviceapi_for_test(test_case):
     loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
         root_path=root_path,
         compute_instance_id=random_name(test_case),
+        allocation_unit=allocation_unit,
     )
     test_case.addCleanup(detach_destroy_volumes, loopback_blockdevice_api)
     return loopback_blockdevice_api
@@ -2757,7 +2758,7 @@ class CreateBlockDeviceDatasetTests(
     """
     Tests for ``CreateBlockDeviceDataset``.
     """
-    def _create_blockdevice_dataset(self, dataset_id, maximum_size):
+    def _create_blockdevice_dataset(self, dataset_id, maximum_size, allocation_unit=None):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.
 
@@ -2770,7 +2771,7 @@ class CreateBlockDeviceDatasetTests(
             * The ``FilePath`` of the device where the volume is attached.
             * The ``FilePath`` where the volume is expected to be mounted.
         """
-        api = loopbackblockdeviceapi_for_test(self)
+        api = loopbackblockdeviceapi_for_test(self, allocation_unit=allocation_unit)
         mountroot = mountroot_for_test(self)
         expected_mountpoint = mountroot.child(
             unicode(dataset_id).encode("ascii")
@@ -2824,6 +2825,28 @@ class CreateBlockDeviceDatasetTests(
         self.assertEqual(expected_volume, volume)
 
     # FLOC-1874 A test like test_run_create that requires rounding to happen.
+
+    def test_run_create_round_up(self):
+        """
+        ``CreateBlockDeviceDataset.run`` rounds up the size if the
+        requested size is less than ``allocation_unit``.
+        """
+        dataset_id = uuid4()
+        allocation_unit = int(MB(1).to_Byte().value)
+        (volume,
+         device_path,
+         expected_mountpoint,
+         compute_instance_id) = self._create_blockdevice_dataset(
+            dataset_id=dataset_id,
+            maximum_size=allocation_unit - 1,
+            allocation_unit=allocation_unit,
+        )
+        expected_size = allocation_unit
+        expected_volume = _blockdevicevolume_from_dataset_id(
+            dataset_id=dataset_id, attached_to=compute_instance_id,
+            size=expected_size,
+        )
+        self.assertEqual(expected_volume, volume)
 
     def test_run_mkfs_and_mount(self):
         """
