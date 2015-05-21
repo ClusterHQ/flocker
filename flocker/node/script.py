@@ -131,6 +131,9 @@ def validate_configuration(configuration):
             "dataset": {
                 "type": "object",
                 "oneOf": [
+                    # Add further "oneOf" option for openstack, which itself
+                    # has "oneOf" options for each auth plugin.
+                    # We may use references to split this part of the schema up.
                     {
                         "required": ["backend"],
                         "properties": {
