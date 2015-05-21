@@ -268,6 +268,58 @@ class AgentServiceAPITests(SynchronousTestCase):
         )
 
 
+class AgentServiceDeployerTests(SynchronousTestCase):
+    """
+    Tests for ``AgentService.get_deployer``.
+    """
+    setUp = agent_service_setup
+
+    def test_backend_selection(self):
+        """
+        ``AgentService.get_deployer`` finds a factory the configured backend in
+        its ``deployers`` dictionary and uses it to create the new
+        ``IDeployer`` provider with the supplied API object and the local
+        host's external IP address and unique node identifier.
+        """
+        ip = b"192.0.2.7"
+        ips = {
+            (self.agent_service.control_service_host,
+             self.agent_service.control_service_port): ip,
+        }
+
+        class Deployer(PRecord):
+            api = field(mandatory=True)
+            hostname = field(mandatory=True)
+            node_uuid = field(mandatory=True)
+
+        class WrongDeployer(PRecord):
+            pass
+
+        def get_external_ip(host, port):
+            return ips[host, port]
+
+        agent_service = self.agent_service.set(
+            "get_external_ip", get_external_ip,
+        ).set(
+            "deployers", {
+                self.agent_service.backend: Deployer,
+                b"bar": WrongDeployer,
+            },
+        )
+
+        api = object()
+        deployer = agent_service.get_deployer(api)
+        self.assertEqual(
+            Deployer(
+                api=api,
+                hostname=ip,
+                node_uuid=self.ca_set.node.uuid,
+            ),
+            deployer,
+        )
+
+
+
 class AgentServiceLoopTests(SynchronousTestCase):
     """
     Tests for ``AgentService.get_loop_service``.

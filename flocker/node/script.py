@@ -382,6 +382,8 @@ class AgentService(PRecord):
     deployers = field(initial=default_deployers, mandatory=True)
     reactor = field(initial=reactor, mandatory=True)
 
+    get_external_ip = field(initial=_get_external_ip, mandatory=True)
+
     control_service_host = field(type=bytes, mandatory=True)
     control_service_port = field(type=int, mandatory=True)
 
@@ -448,9 +450,15 @@ class AgentService(PRecord):
         return api_factory(**api_args)
 
     def get_deployer(self, api):
+        """
+        Create an ``IDeployer`` provider suitable for the configured backend
+        and this node.
+
+        :return: The ``IDeployer`` provider.
+        """
         deployer_factory = self.deployers[self.backend]
 
-        hostname = _get_external_ip(
+        hostname = self.get_external_ip(
             self.control_service_host, self.control_service_port,
         )
         node_uuid = self.node_credential.uuid
