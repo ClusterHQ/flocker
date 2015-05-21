@@ -454,6 +454,9 @@ class AgentService(PRecord):
 
     def get_loop_service(self, deployer):
         """
+        :param IDeployer deployer: The deployer which the loop service can use
+            to interact with the system.
+
         :return: An ``AgentLoopService`` which will use the given deployer to
             discover changes to send to the control service and to deploy
             configuration changes received from the control service.
