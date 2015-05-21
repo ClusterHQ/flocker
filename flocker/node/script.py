@@ -440,8 +440,7 @@ class AgentService(PRecord):
 
         api_args = self.api_args
         if needs_cluster_id:
-            # cluster_id = self.node_credential.cluster_uuid
-            cluster_id = None
+            cluster_id = self.node_credential.cluster_uuid
             api_args = api_args.set("cluster_id", cluster_id)
         if needs_reactor:
             api_args = api_args.set("reactor", self.reactor)

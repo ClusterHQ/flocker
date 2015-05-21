@@ -246,6 +246,30 @@ class AgentServiceDeployerTests(SynchronousTestCase):
             api,
         )
 
+    def test_needs_cluster_id(self):
+        """
+        If the flag for needing a cluster id as an extra argument is set in the
+        selected backend, the ``AgentService`` passes the cluster id extracted
+        from the node certificate when ``AgentService.get_api`` calls the
+        backend factory.
+        """
+        class API(PRecord):
+            cluster_id = field()
+
+        agent_service = self.agent_service.set(
+            "backends", {
+                self.agent_service.backend: (API, {}, False, True),
+            },
+        )
+        api = agent_service.get_api()
+        self.assertEqual(
+            API(cluster_id=self.ca_set.node.cluster_uuid),
+            api,
+        )
+
+
+
+
 
 class AgentServiceLoopTests(SynchronousTestCase):
     """
