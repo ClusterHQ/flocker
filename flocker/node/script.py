@@ -423,7 +423,6 @@ def flocker_container_agent_main():
     ).main()
 
 
-
 def get_configuration(options):
     agent_config = options[u'agent-config']
     configuration = yaml.safe_load(agent_config.getContent())
@@ -440,22 +439,9 @@ def get_configuration(options):
     return configuration
 
 
-from ..volume.filesystems import zfs
-
-
-def ZFSDeviceAPI(reactor):
-    from tempfile import mkdtemp
-    pool = FilesystemStoragePool(FilePath(mkdtemp()))
-    volume_service = VolumeService(
-        config_path=FilePath(mkdtemp()).child('volume.json'),
-        pool=pool,
-        reactor=reactor,
-    )
-    return 'something that gets passes to P2PManifestationDeployer'
-
 # These structures should be created dynamically to handle plug-ins
 default_backends = {
-    'zfs': (zfs.StoragePool, {}),
+    'zfs': (None, {}),
     'loopback': (LoopbackBlockDeviceAPI.from_path, {
         'root_path': b"/var/lib/flocker/loopback",
         'compute_instance_id': bytes(getpid()).decode('utf-8'),
@@ -494,36 +480,46 @@ class AgentService:
 
     def get_api(self):
         (api_factory, api_args) = self._backends[self._backend]
-        return api_factory(**api_args)
+        if self._backend == 'zfs':
+            from tempfile import mkdtemp
+            from flocker.filesystems.pool import FilesystemStoragePool
+            from flocker.volume.service import VolumeService
+            pool = FilesystemStoragePool(FilePath(mkdtemp()))
+            api = VolumeService(
+                config_path=FilePath(mkdtemp()).child('volume.json'),
+                pool=pool,
+                reactor=self._reactor,
+            )
+            self._api = api
+        else:
+            api = api_factory(**api_args)
+        return api
 
     def get_deployer(self, api):
         deployer_factory = self._deployers[self._backend]
         hostname = _get_external_ip(self._host, self._port)
         node_uuid = self._tls_context.node_credential.uuid
         # cluster_uuid = self._tls_context.node_credential.cluster_uuid
-        from .agents.blockdevice import IBlockDeviceAPI
-        if IBlockDeviceAPI.providedBy(api):
-            return deployer_factory(
-                block_device_api=api, hostname=hostname, node_uuid=node_uuid)
-        else:
-            from twisted.application.service import Service
-            assert isinstance(api, Service), api
+        from twisted.application.service import Service
+        if isinstance(api, Service):
             return deployer_factory(
                 hostname=hostname, node_uuid=node_uuid, volume_service=api)
+        else:
+            return deployer_factory(
+                block_device_api=api, hostname=hostname, node_uuid=node_uuid)
 
     def get_loop_service(self, deployer):
-        return AgentLoopService(
+        loop = AgentLoopService(
             reactor=self._reactor,
             deployer=deployer,
             host=self._host, port=self._port,
             context_factory=self._tls_context.context_factory,
         )
-
-    def register_service(self, api, loop):
         if self._backend == 'zfs':
             # XXX This should not be a special case,
             # see https://clusterhq.atlassian.net/browse/FLOC-1924.
-            api.setServiceParent(loop)
+            self._api.setServiceParent(loop)
+        return loop
 
 
 class NewAgentScript(PRecord):
@@ -535,15 +531,13 @@ class NewAgentScript(PRecord):
 
         configuration = self.configuration_factory(options)
 
-        agent_service = self.agent_service_factory(configuration)
+        agent_service = self.agent_service_factory(reactor, configuration)
 
         api = agent_service.get_api()
 
         deployer = agent_service.get_deployer(api)
 
         loop_service = agent_service.get_loop_service(deployer)
-
-        agent_service.register_service(api, loop_service)
 
         return main_for_service(
             reactor,
