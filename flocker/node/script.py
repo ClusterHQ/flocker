@@ -421,3 +421,128 @@ def flocker_container_agent_main():
         script=agent_script,
         options=ContainerAgentOptions()
     ).main()
+
+
+
+def get_configuration(options):
+    agent_config = options[u'agent-config']
+    configuration = yaml.safe_load(agent_config.getContent())
+
+    validate_configuration(configuration=configuration)
+
+    path = agent_config.parent()
+    ca = Certificate.loadPEM(path.child(b"cluster.crt").getContent())
+    # This is a hack; from_path should be more
+    # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
+    configuration['node-credential'] = NodeCredential.from_path(path, b"node")
+
+    return configuration
+
+
+from flocker.volume import zfs
+
+# These structures should be created dynamically to handle plug-ins
+default_backends = {
+    'zfs': (zfs.StoragePool, {}),
+    'loopback': (LoopbackBlockDeviceAPI.from_path, {
+        'root_path': b"/var/lib/flocker/loopback",
+        'compute_instance_id': bytes(getpid()).decode('utf-8'),
+        })
+    # 'openstack': (CinderBlockDeviceAPI.from_path, {
+    #     'root_path': b"/var/lib/flocker/loopback",
+    #     'compute_instance_id': bytes(getpid()).decode('utf-8'),
+    #     })
+}
+default_deployers = {
+    'zfs': P2PManifestationDeployer,
+    'loopback': BlockDeviceDeployer,
+    # 'openstack': BlockDeviceDeployer,
+}
+
+
+class AgentService:
+
+    def __init__(
+            self, configuration, backends=default_backends,
+            deployers=default_deployers):
+        self._configuration = configuration
+        self._backends = backends
+        self._deployers = deployers
+        self._host = configuration['control-service']['hostname']
+        self._port = configuration['control-service'].get('port', 4524)
+        node_credential = configuration['node-credential']
+        policy = ControlServicePolicy(
+            ca_certificate=ca, client_credential=node_credential.credential)
+        self._tls_context = _TLSContext(
+            context_factory=policy.creatorForNetloc(self._host, self._port),
+            node_credential=node_credential)
+        self._backend = self._configuration['dataset']['backend']
+
+    def get_api(self):
+        (api_factory, api_args) = self._backends[self._backend]
+        return api_factory(**api_args)
+
+    def get_deployer(self, api):
+        deployer_factory = self._deployers[self._backend]
+        hostname = _get_external_ip(self._host, self._port)
+        node_uuid = self._tls_context.node_credential.uuid
+        # cluster_uuid = self._tls_context.node_credential.cluster_uuid
+        return deployer_factory(
+            block_device_api=api, hostname=hostname, node_uuid=node_uuid)
+
+    def get_loop_service(self, deployer, reactor):
+        return AgentLoopService(
+            reactor=reactor,
+            deployer=deployer,
+            host=self._host, port=self._port,
+            context_factory=self._tls_context.context_factory,
+        )
+
+
+class NewAgentScript(PRecord):
+
+    agent_service_factory = field(type=object, initial=AgentService)
+    configuration_factory = field(type=callable, initial=get_configuration)
+    api_factory = field(type=callable, initial=get_api)
+    deployer_factory = field(type=callable, initial=get_deployer)
+    service_factory = field(type=callable, initial=get_loop_service)
+    post_loop = field(type=callable, initial=lambda loop: None)
+
+    def main(self, reactor, options):
+
+        configuration = self.configuration_factory(options)
+
+        agent_service = agent_service_factory(configuration)
+
+        api = agent_service.get_api()
+
+        host = configuration['control-service']['hostname']
+        port = configuration['control-service'].get('port', 4524)
+        tls_info = _context_factory_and_credential(
+            options["agent-config"].parent(), host, port)
+
+        deployer = self.deployer_factory(configuration, api, tls_info)
+
+        loop_service = self.service_factory(deployer)
+
+        api.set_service(loop_service)
+
+        return main_for_service(
+            reactor,
+            loop_service
+        )
+
+def new_flocker_dataset_agent_main():
+    """
+    Implementation of the ``flocker-dataset-agent`` command line script.
+
+    This starts a dataset convergence agent.  It currently supports only the
+    loopback block device backend.  Later it will be capable of starting a
+    dataset agent using any of the supported dataset backends.
+    """
+    options = DatasetAgentOptions()
+
+    return FlockerScriptRunner(
+        script=NewAgentScript(),
+        options=options,
+    ).main()
