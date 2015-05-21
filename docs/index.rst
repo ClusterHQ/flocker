@@ -18,6 +18,7 @@ Contents:
    gettingstarted/index
    indepth/index
    advanced/index
+   reference/index
    gettinginvolved/index
    roadmap/index
    faq/index
