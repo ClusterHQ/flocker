@@ -19,19 +19,19 @@ Fedora / CentOS
 ^^^^^^^^^^^^^^^
 
 Logs from the Flocker processes running on the nodes are written to `systemd's journal`_.
-They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flocker-agent``.
+They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flocker-dataset-agent``.
 
 It is possible to see the available unit names, and then view the logs with ``journalctl``:
 
-.. prompt:: bash $ auto
+.. prompt:: bash [root@node1]# auto
 
-   $ ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
-   flocker-agent
+   [root@node1]# ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
+   flocker-dataset-agent
    flocker-container-agent
    flocker-control
-   $ journalctl -u flocker-agent
-   $ journalctl -u flocker-container-agent
-   $ journalctl -u flocker-control
+   [root@node1]# journalctl -u flocker-dataset-agent
+   [root@node1]# journalctl -u flocker-container-agent
+   [root@node1]# journalctl -u flocker-control
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
 .. _`eliot`: https://github.com/ClusterHQ/eliot
