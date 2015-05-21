@@ -18,6 +18,7 @@ from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutputAndValue
 from twisted.web.resource import Resource
 from twisted.web.server import Site
+from twisted.internet.ssl import DefaultOpenSSLContextFactory
 
 from ...control import (
     FlockerConfiguration, model_from_configuration, NodeState)
@@ -27,6 +28,8 @@ from ...control._persistence import ConfigurationPersistenceService
 from ...control._clusterstate import ClusterStateService
 from ...control.test.test_config import (
     COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML)
+
+from ...ca.testtools import get_credential_sets
 
 from ..script import _OK_MESSAGE
 
@@ -43,10 +46,15 @@ class FlockerDeployTests(TestCase):
     """
     @_require_installed
     def setUp(self):
+        ca_set, _ = get_credential_sets()
+        self.certificate_path = FilePath(self.mktemp())
+        self.certificate_path.makedirs()
+        ca_set.copy_to(self.certificate_path, user=True)
+
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
-        self.cluster_state_service = ClusterStateService()
+        self.cluster_state_service = ClusterStateService(reactor)
         self.cluster_state_service.startService()
         self.cluster_state_service.apply_changes(
             [NodeState(uuid=uuid4(), hostname=ip)
@@ -57,8 +65,14 @@ class FlockerDeployTests(TestCase):
                                      self.cluster_state_service).app
         api_root = Resource()
         api_root.putChild('v1', app.resource())
-        self.port = reactor.listenTCP(0, Site(api_root),
-                                      interface="127.0.0.1")
+        # Simplest possible TLS context that presents correct control
+        # service certificate; no need to validate flocker-deploy here.
+        self.port = reactor.listenSSL(
+            0, Site(api_root), DefaultOpenSSLContextFactory(
+                ca_set.path.globChildren(b"control-*.key")[0].path,
+                ca_set.path.globChildren(b"control-*.crt")[0].path),
+            interface="127.0.0.1"
+        )
         self.addCleanup(self.port.stopListening)
         self.port_number = self.port.getHost().port
 
@@ -83,8 +97,11 @@ class FlockerDeployTests(TestCase):
         app_config.setContent(safe_dump(application_config_yaml))
         deployment_config = FilePath(self.mktemp())
         deployment_config.setContent(safe_dump(deployment_config_yaml))
+        # This duplicates some code in the acceptance tests...
+        # https://clusterhq.atlassian.net/browse/FLOC-1904
         return getProcessOutputAndValue(
             b"flocker-deploy", [
+                b"--certificates-directory", self.certificate_path.path,
                 b"--port", unicode(self.port_number).encode("ascii"),
                 b"localhost", deployment_config.path, app_config.path],
             env=environ)

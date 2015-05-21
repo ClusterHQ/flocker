@@ -60,7 +60,7 @@ Now run ``flocker-deploy`` to deploy the MySQL application to the target Virtual
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy mysql-deployment.yml mysql-application.yml
+   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 mysql-deployment.yml mysql-application.yml
    alice@mercury:~/flocker-tutorial$
 
 Connect to MySQL & Insert Sample Data
@@ -106,7 +106,7 @@ Then run ``flocker-deploy`` to move the MySQL application along with its data to
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy mysql-deployment-moved.yml mysql-application.yml
+   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 mysql-deployment-moved.yml mysql-application.yml
    alice@mercury:~/flocker-tutorial$
 
 Verify Data Has Moved

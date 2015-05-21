@@ -63,6 +63,9 @@ else:
 # Install flocker-node
 check_call(['yum', 'install', '-y'] + branch_opt + [package])
 
+# Install ZFS.
+check_call(['yum', 'install', '-y', 'zfs'])
+
 # Enable docker.
 # We don't need to start it, since when the box is packaged,
 # the machine will be reset.

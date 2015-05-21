@@ -981,8 +981,6 @@ class OmnibusPackageBuilderTests(TestCase):
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-container-agent'),
                          flocker_node_path),
-                        (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
-                         flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
                          flocker_node_path),
                     ]

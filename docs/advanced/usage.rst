@@ -12,17 +12,18 @@ If you haven't :doc:`installed that package <../indepth/installation>` yet, you 
 Command Line Arguments
 ======================
 
-``flocker-deploy`` takes just two arguments.
-The first of these is the path to a deployment configuration file.
-The second is the path to an application configuration file.
+``flocker-deploy`` takes three arguments:
+
+1. The hostname of the machine where the control service (including the Flocker REST API) is running.
+2. The path to a deployment configuration file.
+3. The path to an application configuration file.
 
 .. code-block:: console
 
-    $ flocker-deploy clusterhq_deployment.yml clusterhq_app.yml
+    $ flocker-deploy controlservice.example.com clusterhq_deployment.yml clusterhq_app.yml
 
-The contents of these two configuration files determine what actions Flocker actually takes.
-The configuration files completely control this; there are no other command line arguments or options.
-See :ref:`configuration` for details about these two files.
+The contents of the two configuration files determine what actions Flocker actually takes by replacing the existing cluster configuration.
+See :ref:`configuration` for details about the two files.
 
 You can run ``flocker-deploy`` anywhere you have it installed.
 The containers you are managing do not need to be running on the same host as ``flocker-deploy``\ .
@@ -34,37 +35,19 @@ Setup
 -----
 
 ``flocker-deploy`` lets you manage containers on one or more hosts.
+
 Before ``flocker-deploy`` can do this it needs to be able to authenticate itself to these hosts.
-Flocker uses SSH to communicate with the hosts you specify in the deployment configuration file.
-It requires that you configure SSH access to the root user in advance.
-The recommended configuration is to `generate an SSH key`_ (if you don't already have one):
+
+Flocker uses TLS mutual authentication to communicate with the control service you specify as the first command line argument.
+
+To authenticate with the control service, you will need a copy of the public cluster certificate created when you first :ref:`installed flocker on your nodes <authentication>` and an API user certificate, which you can :doc:`generate <./api/authentication>` using the ``flocker-ca`` tool.
+
+For ``flocker-deploy``, your API user certificate and key should be in files named ``user.crt`` and ``user.key`` and the cluster certificate in file ``cluster.crt``.
+
+By default, ``flocker-deploy`` will look for these certificate files in the current working directory.
+If this is not where the files are located, you may specify the ``--certificates-directory`` option to ``flocker-deploy``:
 
 .. code-block:: console
 
-    $ ssh-keygen
+   $ flocker-deploy --certificates-directory=/home/alice/flocker-credentials 172.16.255.250 clusterhq_deployment.yml clusterhq_app.yml
 
-Then add it to your `SSH key agent`_:
-
-.. code-block:: console
-
-    $ ssh-add <path to key file>
-
-
-Finally add it to the ``authorized_keys`` file of each host you want to manage:
-
-.. code-block:: console
-
-    $ ssh-copy-id -i <path to key file> root@<hostname>
-
-This will allow ``flocker-deploy`` to connect to these hosts (as long as the key is still available in your key agent).
-
-If you have a different preferred SSH authentication configuration which allows non-interactive SSH authentication you may use this instead.
-
-Other Keys
-----------
-
-``flocker-deploy`` will generate an additional SSH key.
-This key is deployed to each host you manage with Flocker and allows the hosts to authenticate to each other.
-
-.. _`generate an SSH key`: https://en.wikipedia.org/wiki/Ssh-keygen
-.. _`SSH key agent`: https://en.wikipedia.org/wiki/Ssh-agent

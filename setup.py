@@ -90,6 +90,10 @@ install_requirements = [
     "pytz",
     "characteristic >= 14.1.0",
     "Twisted == 15.1.0",
+    # TLS support libraries for Twisted:
+    "service_identity == 14.0.0",
+    "idna == 2.0",
+    "pyOpenSSL == 0.15.1",
 
     "PyYAML == 3.10",
 
@@ -103,7 +107,6 @@ install_requirements = [
     "klein == 0.2.3",
     "pyrsistent == 0.9.1",
     "pycrypto == 2.6.1",
-    "pyOpenSSL == 0.14",
     "effect==0.1a13",
     "bitmath==1.2.3-4",
     "boto==2.38.0",
@@ -165,7 +168,6 @@ setup(
         'console_scripts': [
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
-            'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
             'flocker-container-agent = flocker.node.script:flocker_container_agent_main',  # noqa
             'flocker-dataset-agent = flocker.node.script:flocker_dataset_agent_main',  # noqa
             'flocker-control = flocker.control.script:flocker_control_main',
