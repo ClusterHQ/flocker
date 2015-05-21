@@ -79,4 +79,11 @@ def ensure_agent_has_ssh_key(reactor, key):
                     return True
             raise KeyNotFound(expected_key=key)
         connected.addCallback(check_keys)
+
+        def disconnect(result):
+            disconnected = agent_protocol.transport.loseConnection()
+            disconnected.addCallback(lambda _: result)
+            return disconnected
+        connected.addBoth(disconnect)
+
         return connected.addActionFinish()

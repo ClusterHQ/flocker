@@ -22,8 +22,8 @@ class EnsureKeyTests(TestCase):
     def test_public_key_in_agent(self):
         """
         If the running ssh-agent has the private key, associated to the
-        provided public key, then ``ssh_agent_has_ssh_key`` returns a successful
-        deferred.
+        provided public key, then ``ssh_agent_has_ssh_key`` returns a
+        successful deferred.
         """
         key_file = FilePath(self.mktemp())
         key = generate_ssh_key(key_file).public()
