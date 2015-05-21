@@ -498,7 +498,7 @@ class AgentService:
             context_factory=self._tls_context.context_factory,
         )
 
-    def register_service(api, loop):
+    def register_service(self, api, loop):
         if self._backend == 'zfs':
             # XXX This should not be a special case,
             # see https://clusterhq.atlassian.net/browse/FLOC-1924.
