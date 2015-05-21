@@ -15,12 +15,15 @@ from yaml import safe_dump
 
 from twisted.web.http import OK, CREATED
 from twisted.python.filepath import FilePath
+from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
+from twisted.internet import reactor
 
-from eliot import Logger, start_action
+from eliot import Logger, start_action, Message
 from eliot.twisted import DeferredContext
 
-from treq import get, post, delete, json_content, content
+from treq import json_content, content
+
 from pyrsistent import PRecord, field, CheckedPVector, pmap
 
 from ..control import (
@@ -28,8 +31,8 @@ from ..control import (
 )
 
 from ..control.httpapi import container_configuration_response, REST_API_PORT
-
-from flocker.testtools import loop_until
+from ..ca import treq_with_authentication
+from ..testtools import loop_until
 
 try:
     from pymongo import MongoClient
@@ -203,6 +206,62 @@ def _clean_node(test_case, node):
         pass
 
 
+class VolumeBackend(Names):
+    loopback = NamedConstant()
+    zfs = NamedConstant()
+    aws = NamedConstant()
+    openstack = NamedConstant()
+
+
+def get_volume_backend(test_case):
+    """
+    Get the volume backend the acceptance tests are running as.
+
+    :param test_case: The ``TestCase`` running this unit test.
+
+    :return VolumeBackend: The configured backend.
+    :raise SkipTest: if the backend is specified.
+    """
+    backend = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
+    if backend is None:
+        raise SkipTest(
+            "Set acceptance testing volume backend using the " +
+            "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
+    return VolumeBackend.lookupByName(backend)
+
+
+def skip_backend(unsupported, reason):
+    """
+    Create decorator that skips a test if the volume backend doesn't support
+    the operations required by the test.
+
+    :param supported: List of supported volume backends for this test.
+    :param reason: The reason the backend isn't supported.
+    """
+    def decorator(test_method):
+        """
+        :param test_method: The test method that should be skipped.
+        """
+        @wraps(test_method)
+        def wrapper(test_case, *args, **kwargs):
+            backend = get_volume_backend(test_case)
+
+            if backend in unsupported:
+                raise SkipTest(
+                    "Backend not supported: {backend} ({reason}).".format(
+                        backend=backend,
+                        reason=reason,
+                    )
+                )
+            return test_method(test_case, *args, **kwargs)
+        return wrapper
+    return decorator
+
+require_moving_backend = skip_backend(
+    unsupported={VolumeBackend.loopback},
+    reason="doesn't support moving")
+
+
 def get_nodes(test_case, num_nodes):
     """
     Create or get ``num_nodes`` nodes with no Docker containers on them.
@@ -265,15 +324,19 @@ def get_nodes(test_case, num_nodes):
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
-    # Remove all existing containers; we make sure to pass in node
-    # hostnames since we still rely on flocker-deploy to distribute SSH
-    # keys for now.
-    clean_deploy = {u"version": 1,
-                    u"nodes": {node: [] for node in reachable_nodes}}
     clean_applications = {u"version": 1,
                           u"applications": {}}
-    flocker_deploy(test_case, clean_deploy, clean_applications)
-    getting = get_test_cluster()
+    getting = get_test_cluster(reactor)
+
+    def got_cluster(cluster):
+        # Remove all existing containers; we make sure to pass in node
+        # hostnames since we still rely on flocker-deploy to distribute SSH
+        # keys for now.
+        clean_deploy = {u"version": 1,
+                        u"nodes": {node.address: [] for node in cluster.nodes}}
+        flocker_deploy(test_case, clean_deploy, clean_applications)
+        return cluster
+    getting.addCallback(got_cluster)
 
     def no_containers(cluster):
         d = cluster.current_containers()
@@ -285,7 +348,8 @@ def get_nodes(test_case, num_nodes):
     def clean_zfs(_):
         for node in reachable_nodes:
             _clean_node(test_case, node)
-    getting.addCallback(clean_zfs)
+    if get_volume_backend(test_case) == b'zfs':
+        getting.addCallback(clean_zfs)
     getting.addCallback(lambda _: reachable_nodes)
     return getting
 
@@ -298,7 +362,10 @@ def flocker_deploy(test_case, deployment_config, application_config):
     :param dict deployment_config: The desired deployment configuration.
     :param dict application_config: The desired application configuration.
     """
+    # This is duplicate code, see
+    # https://clusterhq.atlassian.net/browse/FLOC-1903
     control_node = environ.get("FLOCKER_ACCEPTANCE_CONTROL_NODE")
+    certificate_path = environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"]
     if control_node is None:
         raise SkipTest("Set control node address using "
                        "FLOCKER_ACCEPTANCE_CONTROL_NODE environment variable.")
@@ -311,9 +378,9 @@ def flocker_deploy(test_case, deployment_config, application_config):
 
     application = temp.child(b"application.yml")
     application.setContent(safe_dump(application_config))
-
-    check_call([b"flocker-deploy", control_node, deployment.path,
-                application.path])
+    check_call([b"flocker-deploy", b"--certificates-directory",
+               certificate_path, control_node, deployment.path,
+               application.path])
 
 
 def get_mongo_client(host, port=27017):
@@ -365,7 +432,7 @@ def assert_expected_deployment(test_case, expected_deployment):
 
     :return Deferred: Fires on end of assertion.
     """
-    d = get_test_cluster()
+    d = get_test_cluster(reactor)
 
     def got_cluster(cluster):
         ip_to_uuid = {node.address: node.uuid for node in cluster.nodes}
@@ -476,12 +543,14 @@ class Cluster(PRecord):
     A record of the control service and the nodes in a cluster for acceptance
     testing.
 
-    :param Node control_node: The node running the ``flocker-control``
+    :ivar Node control_node: The node running the ``flocker-control``
         service.
-    :param list nodes: The ``Node`` s in this cluster.
+    :ivar list nodes: The ``Node`` s in this cluster.
+    :ivar treq: A ``treq`` client.
     """
-    control_node = field(type=ControlService)
-    nodes = field(type=_NodeList)
+    control_node = field(mandatory=True, type=ControlService)
+    nodes = field(mandatory=True, type=_NodeList)
+    treq = field(mandatory=True)
 
     @property
     def base_url(self):
@@ -489,7 +558,7 @@ class Cluster(PRecord):
         :returns: The base url for API requests to this cluster's control
             service.
         """
-        return b"http://{}:{}/v1".format(
+        return b"https://{}:{}/v1".format(
             self.control_node.address, REST_API_PORT
         )
 
@@ -501,7 +570,8 @@ class Cluster(PRecord):
         :return: ``Deferred`` firing with a list of dataset dictionaries,
             the state of the cluster.
         """
-        request = get(self.base_url + b"/state/datasets", persistent=False)
+        request = self.treq.get(
+            self.base_url + b"/state/datasets", persistent=False)
         request.addCallback(check_and_decode_json, OK)
         return request
 
@@ -549,7 +619,7 @@ class Cluster(PRecord):
             API response when a dataset with the supplied properties has been
             persisted to the cluster configuration.
         """
-        request = post(
+        request = self.treq.post(
             self.base_url + b"/configuration/datasets",
             data=dumps(dataset_properties),
             headers={b"content-type": b"application/json"},
@@ -571,7 +641,7 @@ class Cluster(PRecord):
             create.
         :returns: A 2-tuple of (cluster, api_response)
         """
-        request = post(
+        request = self.treq.post(
             self.base_url + b"/configuration/datasets/%s" % (
                 dataset_id.encode('ascii'),
             ),
@@ -594,7 +664,7 @@ class Cluster(PRecord):
 
         :returns: A 2-tuple of (cluster, api_response)
         """
-        request = delete(
+        request = self.treq.delete(
             self.base_url + b"/configuration/datasets/%s" % (
                 dataset_id.encode('ascii'),
             ),
@@ -617,7 +687,7 @@ class Cluster(PRecord):
 
         :returns: A tuple of (cluster, api_response)
         """
-        request = post(
+        request = self.treq.post(
             self.base_url + b"/configuration/containers",
             data=dumps(properties),
             headers={b"content-type": b"application/json"},
@@ -638,7 +708,7 @@ class Cluster(PRecord):
             be moved.
         :returns: A tuple of (cluster, api_response)
         """
-        request = post(
+        request = self.treq.post(
             self.base_url + b"/configuration/containers/" +
             name.encode("ascii"),
             data=dumps({u"node_uuid": node_uuid}),
@@ -659,7 +729,7 @@ class Cluster(PRecord):
 
         :returns: A tuple of (cluster, api_response)
         """
-        request = delete(
+        request = self.treq.delete(
             self.base_url + b"/configuration/containers/" +
             name.encode("ascii"),
             persistent=False
@@ -677,7 +747,7 @@ class Cluster(PRecord):
         :return: A ``Deferred`` firing with a tuple (cluster instance, API
             response).
         """
-        request = get(
+        request = self.treq.get(
             self.base_url + b"/state/containers",
             persistent=False
         )
@@ -731,7 +801,7 @@ class Cluster(PRecord):
         :return: A ``Deferred`` firing with a tuple (cluster instance, API
             response).
         """
-        request = get(
+        request = self.treq.get(
             self.base_url + b"/state/nodes",
             persistent=False
         )
@@ -741,7 +811,7 @@ class Cluster(PRecord):
         return request
 
 
-def get_test_cluster(node_count=0):
+def get_test_cluster(reactor, node_count=0):
     """
     Build a ``Cluster`` instance with at least ``node_count`` nodes.
 
@@ -771,15 +841,25 @@ def get_test_cluster(node_count=0):
                        "{existing} node(s) are set.".format(
                            necessary=node_count, existing=len(agent_nodes)))
 
+    certificates_path = FilePath(
+        environ["FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH"])
     cluster = Cluster(
         control_node=ControlService(address=control_node),
-        nodes=[]
+        nodes=[],
+        treq=treq_with_authentication(reactor, certificates_path)
     )
 
     # Wait until nodes are up and running:
     def nodes_available():
+        def failed_query(failure):
+            Message.new(message_type="acceptance:is_available_error",
+                        reason=unicode(failure),
+                        exception=unicode(failure.__class__)).write()
+            return False
         d = cluster.current_nodes()
-        d.addCallback(lambda (cluster, nodes): len(nodes) >= node_count)
+        d.addCallbacks(lambda (cluster, nodes): len(nodes) >= node_count,
+                       # Control service may not be up yet, keep trying:
+                       failed_query)
         return d
     agents_connected = loop_until(nodes_available)
 
@@ -819,7 +899,7 @@ def require_cluster(num_nodes):
             # services started.
             waiting_for_nodes = get_nodes(test_case, num_nodes)
             waiting_for_cluster = waiting_for_nodes.addCallback(
-                lambda nodes: get_test_cluster(node_count=num_nodes)
+                lambda nodes: get_test_cluster(reactor, node_count=num_nodes)
             )
             calling_test_method = waiting_for_cluster.addCallback(
                 call_test_method_with_cluster,

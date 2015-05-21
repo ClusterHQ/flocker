@@ -20,15 +20,14 @@ from .._persistence import (
     )
 from .._model import (
     Deployment, Application, DockerImage, Node, Dataset, Manifestation,
-    AttachedVolume, SERIALIZABLE_CLASSES)
+    AttachedVolume, SERIALIZABLE_CLASSES, NodeState)
 
 
 DATASET = Dataset(dataset_id=unicode(uuid4()),
                   metadata={u"name": u"myapp"})
 MANIFESTATION = Manifestation(dataset=DATASET, primary=True)
 TEST_DEPLOYMENT = Deployment(
-    nodes=[Node(hostname=u'node1.example.com',
-                uuid=uuid4(),
+    nodes=[Node(uuid=uuid4(),
                 applications=[
                     Application(
                         name=u'myapp',
@@ -190,3 +189,13 @@ class WireEncodeDecodeTests(SynchronousTestCase):
         # Possibly future versions might throw exception, the key point is
         # that the returned object is not a Temp instance.
         self.assertFalse(isinstance(wire_decode(data), Temp))
+
+    def test_complex_keys(self):
+        """
+        Objects with attributes that are ``PMap``\s with complex keys
+        (i.e. not strings) can be roundtripped.
+        """
+        node_state = NodeState(hostname=u'127.0.0.1', uuid=uuid4(),
+                               manifestations={}, paths={},
+                               devices={uuid4(): FilePath(b"/tmp")})
+        self.assertEqual(node_state, wire_decode(wire_encode(node_state)))

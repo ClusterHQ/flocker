@@ -201,8 +201,14 @@ def loop_until(predicate):
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
-    msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
-                                   getsourcelines(predicate)[1]))
+    try:
+        msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
+                                       getsourcelines(predicate)[1]))
+    except IOError:
+        # One debugging method involves changing .py files and is incompatible
+        # with inspecting the source.
+        msg("Looping on %s" % (predicate,))
+
     d = maybeDeferred(predicate)
 
     def loop(result):
@@ -717,13 +723,14 @@ from twisted.internet.base import _ThreePhaseEvent
 
 
 @implementer(IReactorCore)
-class MemoryCoreReactor(MemoryReactor):
+class MemoryCoreReactor(MemoryReactor, Clock):
     """
-    Fake reactor with listenTCP and just enough of an implementation of
-    IReactorCore.
+    Fake reactor with listenTCP, IReactorTime and just enough of an
+    implementation of IReactorCore.
     """
     def __init__(self):
         MemoryReactor.__init__(self)
+        Clock.__init__(self)
         self._triggers = {}
 
     def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):

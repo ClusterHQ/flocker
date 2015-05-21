@@ -49,7 +49,7 @@ Now run ``flocker-deploy`` to deploy the PostgreSQL application to the target Vi
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy postgres-deployment.yml postgres-application.yml
+   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 postgres-deployment.yml postgres-application.yml
    alice@mercury:~/flocker-tutorial$
    
 Confirm the container is running in its destination host:
@@ -115,7 +115,7 @@ Then run ``flocker-deploy`` to move the PostgreSQL application along with its da
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy postgres-deployment-moved.yml postgres-application.yml
+   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 postgres-deployment-moved.yml postgres-application.yml
    alice@mercury:~/flocker-tutorial$
 
 Verify Data Has Moved
