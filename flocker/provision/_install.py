@@ -238,7 +238,7 @@ def task_enable_flocker_control(distribution):
         ])
     elif distribution == 'ubuntu-14.04':
         # Since the flocker-control service is currently installed
-        # alongside the flocker-agent service, the default control
+        # alongside the flocker-dataset-agent service, the default control
         # service configuration does not automatically start the
         # service.  Here, we provide an override file to start it.
         return sequence([
@@ -298,15 +298,15 @@ def task_enable_flocker_agent(distribution, control_node):
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
             put_config_file,
-            run_from_args(['systemctl', 'enable', 'flocker-agent']),
-            run_from_args(['systemctl', 'start', 'flocker-agent']),
+            run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
+            run_from_args(['systemctl', 'start', 'flocker-dataset-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
             run_from_args(['systemctl', 'start', 'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
             put_config_file,
-            run_from_args(['service', 'flocker-agent', 'start']),
+            run_from_args(['service', 'flocker-dataset-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
     else:
@@ -585,8 +585,8 @@ def provision(distribution, package_source, variants):
 
 def configure_cluster(control_node, agent_nodes, certificates):
     """
-    Configure flocker-control, flocker-agent and flocker-container-agent
-    on a collection of nodes.
+    Configure flocker-control, flocker-dataset-agent and
+    flocker-container-agent on a collection of nodes.
 
     :param INode control_node: The control node.
     :param INode agent_nodes: List of agent nodes.
