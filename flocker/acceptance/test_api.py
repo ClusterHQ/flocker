@@ -145,7 +145,7 @@ class ContainerAPITests(TestCase):
         to move the container. Wait until we can connect to the running
         container on the new host and verify the data has moved with it.
         """
-        creating_dataset = create_dataset(self, nodes=2)
+        creating_dataset = create_dataset(self, cluster)
 
         def created_dataset(result):
             cluster, dataset = result
@@ -220,7 +220,7 @@ class ContainerAPITests(TestCase):
         shut it down, create a new container with same dataset, make sure
         the data is still there.
         """
-        creating_dataset = create_dataset(self)
+        creating_dataset = create_dataset(self, cluster)
 
         def created_dataset(result):
             cluster, dataset = result
@@ -286,46 +286,35 @@ class ContainerAPITests(TestCase):
         return creating
 
 
-def create_dataset(test_case, nodes=1,
+def create_dataset(test_case, cluster,
                    maximum_size=REALISTIC_BLOCKDEVICE_SIZE):
     """
     Create a dataset on a cluster.
 
     :param TestCase test_case: The test the API is running on.
-    :param int nodes: The number of nodes to create. Defaults to 1.
+    :param Cluster cluster: The test ``Cluster``.
     :param int maximum_size: The size of the dataset to create on the test
         cluster.
     :return: ``Deferred`` firing with a tuple of (``Cluster``
         instance, dataset dictionary) once the dataset is present in
         actual cluster state.
     """
-    # Create a cluster
-    waiting_for_cluster = get_test_cluster(reactor, node_count=nodes)
-
     # Configure a dataset on node1
-    def configure_dataset(cluster):
-        """
-        Send a dataset creation request on node1.
-        """
-        requested_dataset = {
-            u"primary": cluster.nodes[0].uuid,
-            u"dataset_id": unicode(uuid4()),
-            u"maximum_size": maximum_size,
-            u"metadata": {u"name": u"my_volume"},
-        }
+    requested_dataset = {
+        u"primary": cluster.nodes[0].uuid,
+        u"dataset_id": unicode(uuid4()),
+        u"maximum_size": maximum_size,
+        u"metadata": {u"name": u"my_volume"},
+    }
 
-        d = cluster.create_dataset(requested_dataset)
+    configuring_dataset = cluster.create_dataset(requested_dataset)
 
-        def got_result(result):
-            test_case.addCleanup(
-                cluster.delete_dataset, requested_dataset[u"dataset_id"])
-            return result
-        d.addCallback(got_result)
-        return d
+    def got_result(result):
+        test_case.addCleanup(
+            cluster.delete_dataset, requested_dataset[u"dataset_id"])
+        return result
 
-    configuring_dataset = waiting_for_cluster.addCallback(
-        configure_dataset
-    )
+    configuring_dataset.addCallback(got_result)
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(
@@ -344,7 +333,7 @@ class DatasetAPITests(TestCase):
         """
         A dataset can be created on a specific node.
         """
-        return create_dataset(self)
+        return create_dataset(self, cluster)
 
     @require_cluster(2)
     @require_moving_backend
@@ -352,24 +341,14 @@ class DatasetAPITests(TestCase):
         """
         A dataset can be moved from one node to another.
         """
-        # Create a 2 node cluster
-        waiting_for_cluster = get_test_cluster(reactor, node_count=2)
+        # Send a dataset creation request on node1.
+        requested_dataset = {
+            u"primary": cluster.nodes[0].uuid,
+            u"dataset_id": unicode(uuid4()),
+            u"metadata": {u"name": u"my_volume"}
+        }
 
-        # Configure a dataset on node1
-        def configure_dataset(cluster):
-            """
-            Send a dataset creation request on node1.
-            """
-            requested_dataset = {
-                u"primary": cluster.nodes[0].uuid,
-                u"dataset_id": unicode(uuid4()),
-                u"metadata": {u"name": u"my_volume"}
-            }
-
-            return cluster.create_dataset(requested_dataset)
-        configuring_dataset = waiting_for_cluster.addCallback(
-            configure_dataset
-        )
+        configuring_dataset = cluster.create_dataset(requested_dataset)
 
         # Wait for the dataset to be created
         waiting_for_create = configuring_dataset.addCallback(
@@ -396,7 +375,7 @@ class DatasetAPITests(TestCase):
         """
         A dataset can be deleted, resulting in its removal from the node.
         """
-        created = create_dataset(self)
+        created = create_dataset(self, cluster)
 
         def delete_dataset(result):
             cluster, dataset = result
