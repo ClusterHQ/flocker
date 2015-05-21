@@ -496,9 +496,6 @@ def make_amp_agent_options_tests(options_type):
     return Tests
 
 
-# This is getting large.
-# We will add tests to it, to validate the proposed backends (see PR description).
-# We think it might be best to split this up (e.g. ControlServiceValidationTests, ZFSBackendValidationTests, OpenStackBackendValidationTests)
 class ValidateConfigurationTests(SynchronousTestCase):
     """
     Tests for :func:`validate_configuration`.
