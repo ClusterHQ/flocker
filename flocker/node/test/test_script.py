@@ -222,6 +222,30 @@ class AgentServiceDeployerTests(SynchronousTestCase):
             api,
         )
 
+    def test_needs_reactor(self):
+        """
+        If the flag for needing a reactor as an extra argument is set in the
+        selected backend, the ``AgentService`` passes its own reactor when
+        ``AgentService.get_api`` calls the backend factory.
+        """
+        reactor = MemoryCoreReactor()
+
+        class API(PRecord):
+            reactor = field()
+
+        agent_service = self.agent_service.set(
+            "backends", {
+                self.agent_service.backend: (API, {}, True, False),
+            },
+        ).set(
+            "reactor", reactor,
+        )
+        api = agent_service.get_api()
+        self.assertEqual(
+            API(reactor=reactor),
+            api,
+        )
+
 
 class AgentServiceLoopTests(SynchronousTestCase):
     """
