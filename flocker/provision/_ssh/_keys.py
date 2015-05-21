@@ -44,7 +44,7 @@ def ensure_agent_has_ssh_key(reactor, key):
     :param reactor: The reactor to use to connect to the agent.
     :param Key key: The ssh key to check for in the agent.
 
-    :return Deferred: That fires with a succesful result if the key is found.
+    :return Deferred: That fires with a successful result if the key is found.
        Otherwise, fires with ``AgentNotFound`` or ``KeyNotFound``.
     """
     try:
