@@ -274,11 +274,13 @@ def task_open_control_firewall(distribution):
     ])
 
 
-def task_enable_flocker_agent(distribution, control_node):
+def task_enable_flocker_agent(distribution, control_node, dataset_backend):
     """
     Configure and enable the flocker agents.
 
     :param bytes control_node: The address of the control agent.
+    :param DatasetBackend dataset_backend: The volume backend the nodes are
+        configured with.
     """
     put_config_file = put(
         path='/etc/flocker/agent.yml',
@@ -290,7 +292,7 @@ def task_enable_flocker_agent(distribution, control_node):
                     "port": 4524,
                 },
                 "dataset": {
-                    "backend": "zfs",
+                    "backend": dataset_backend.name,
                 },
             },
         ),
@@ -583,7 +585,8 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(control_node, agent_nodes, certificates):
+def configure_cluster(control_node, agent_nodes,
+                      certificates, dataset_backend):
     """
     Configure flocker-control, flocker-dataset-agent and
     flocker-container-agent on a collection of nodes.
@@ -591,6 +594,7 @@ def configure_cluster(control_node, agent_nodes, certificates):
     :param INode control_node: The control node.
     :param INode agent_nodes: List of agent nodes.
     :param Certificates certificates: Certificates to upload.
+    :param DatasetBackend dataset_backend: Dataset backend to configure.
     """
     return sequence([
         run_remotely(
@@ -619,6 +623,7 @@ def configure_cluster(control_node, agent_nodes, certificates):
                         task_enable_flocker_agent(
                             distribution=node.distribution,
                             control_node=control_node.address,
+                            dataset_backend=dataset_backend,
                         )]),
                     ),
             ]) for certnkey, node in zip(certificates.nodes, agent_nodes)

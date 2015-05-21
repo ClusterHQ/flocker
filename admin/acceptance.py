@@ -464,13 +464,14 @@ def main(reactor, args, base_path, top_level):
         )
 
         control_node = nodes[0]
+        dataset_backend = options['dataset-backend']
 
         yield perform(
             make_dispatcher(reactor),
             configure_cluster(control_node=control_node, agent_nodes=nodes,
-                              certificates=certificates))
+                              certificates=certificates,
+                              dataset_backend=dataset_backend))
 
-        dataset_backend = options['dataset-backend']
         result = yield run_tests(
             reactor=reactor,
             nodes=nodes,
