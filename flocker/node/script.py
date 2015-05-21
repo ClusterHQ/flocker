@@ -498,6 +498,12 @@ class AgentService:
             context_factory=self._tls_context.context_factory,
         )
 
+    def register_service(api, loop):
+        if self._backend == 'zfs':
+            # XXX This should not be a special case,
+            # see https://clusterhq.atlassian.net/browse/FLOC-1924.
+            api.setServiceParent(loop)
+
 
 class NewAgentScript(PRecord):
 
@@ -516,7 +522,7 @@ class NewAgentScript(PRecord):
 
         loop_service = agent_service.get_loop_service(deployer)
 
-        api.set_service(loop_service)
+        agent_service.register_service(api, loop)
 
         return main_for_service(
             reactor,
