@@ -405,13 +405,6 @@ class AgentServiceLoopTests(SynchronousTestCase):
         )
 
 
-# FLOC-1945
-#
-# AgentService tests:
-#
-# AgentService.from_configuration has a default port of 4524 I guess
-
-
 def get_all_ips():
     """
     Find all IPs for this machine.
