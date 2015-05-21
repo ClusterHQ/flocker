@@ -2027,7 +2027,6 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
             aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
         self.assertEqual(metadata_versions, expected_metadata_versions)
 
-# TODO make a wrapper for this - it should be possible to upload the dev box
 
 class CopyTutorialVagrantBox(SynchronousTestCase):
     """
