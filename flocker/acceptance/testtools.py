@@ -18,7 +18,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
-from twisted.internet.defer import gatherResults
+from twisted.internet.defer import DeferredList, FirstError
 
 from eliot import Logger, start_action, Message
 from eliot.twisted import DeferredContext
@@ -30,6 +30,8 @@ from pyrsistent import PRecord, field, CheckedPVector, pmap
 from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
 )
+
+from ..common import gather_deferreds
 
 from ..control.httpapi import container_configuration_response, REST_API_PORT
 from ..ca import treq_with_authentication
@@ -334,9 +336,9 @@ def get_clean_nodes(test_case, num_nodes):
             cluster, containers = result
             results_list = []
             for container in containers:
-                results_list.append(
-                    cluster.remove_container(container[u"name"]))
-            deleting = gatherResults(results_list)
+                d = cluster.remove_container(container[u"name"])
+                results_list.append(d)
+            deleting = gather_deferreds(results_list)
             deleting.addCallback(lambda _: cluster)
             return deleting
 
@@ -363,9 +365,9 @@ def get_clean_nodes(test_case, num_nodes):
         def delete_datasets(datasets):
             results_list = []
             for dataset in datasets:
-                results_list.append(
-                    cluster.delete_dataset(dataset[u"dataset_id"]))
-            deleting = gatherResults(results_list)
+                d = cluster.delete_dataset(dataset[u"dataset_id"])
+                results_list.append(d)
+            deleting = gather_deferreds(results_list)
             deleting.addCallback(lambda _: cluster)
             return deleting
 
