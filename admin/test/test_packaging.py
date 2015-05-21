@@ -478,6 +478,7 @@ def canned_package(root, version=b'0.3.2'):
     Create a directory containing an empty Python package which can be
     installed and with a name and version which can later be tested.
 
+    :param FilePath root: The top-level directory of the canned package.
     :param test_case: The ``TestCase`` whose mktemp method will be called.
     :param version: The version of the created package.
     :return: A ``PythonPackage`` instance.
@@ -979,8 +980,6 @@ class OmnibusPackageBuilderTests(TestCase):
                         (FilePath('/opt/flocker/bin/flocker-control'),
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-container-agent'),
-                         flocker_node_path),
-                        (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
                          flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
                          flocker_node_path),

@@ -35,14 +35,6 @@ from .interfaces import (
 from .._model import VolumeSize
 
 
-def random_name():
-    """Return a random pool name.
-
-    :return: Random ``bytes``.
-    """
-    return os.urandom(8).encode("hex")
-
-
 class CommandFailed(Exception):
     """The ``zfs`` command failed for some reasons."""
 

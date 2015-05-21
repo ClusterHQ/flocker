@@ -10,24 +10,27 @@ class RunRemotely(PRecord):
     :ivar bytes address: The address of the remote host to connect to.
     :ivar bytes username: The user to connect as.
     :ivar Effect commands: The commands to run.
+    :ivar int port: The port of the ssh server to connect to.
     """
-    username = field(type=bytes)
-    address = field(type=bytes)
-    commands = field(type=Effect)
+    username = field(type=bytes, mandatory=True)
+    address = field(type=bytes, mandatory=True)
+    commands = field(type=Effect, mandatory=True)
+    port = field(type=int, initial=22)
 
 
-def run_remotely(username, address, commands):
+def run_remotely(username, address, commands, port=22):
     """
     Run some commands on a remote host.
 
     :param bytes address: The address of the remote host to connect to.
     :param bytes username: The user to connect as.
     :param Effect commands: The commands to run.
+    :param int port: The port of the ssh server to connect to.
 
     :return Effect:
     """
     return Effect(RunRemotely(
-        username=username, address=address, commands=commands))
+        username=username, address=address, commands=commands, port=port))
 
 
 class Run(PRecord):
@@ -36,7 +39,7 @@ class Run(PRecord):
 
     :ivar bytes command: The command to run.
     """
-    command = field(type=bytes)
+    command = field(type=bytes, mandatory=True)
 
     @classmethod
     def from_args(cls, command_args):
@@ -49,7 +52,7 @@ class Sudo(PRecord):
 
     :ivar bytes command: The command to run.
     """
-    command = field(type=bytes)
+    command = field(type=bytes, mandatory=True)
 
     @classmethod
     def from_args(cls, command_args):
@@ -63,8 +66,8 @@ class Put(PRecord):
     :ivar bytes content: The desired contents.
     :ivar bytes path: The remote path to create.
     """
-    content = field(type=bytes)
-    path = field(type=bytes)
+    content = field(type=bytes, mandatory=True)
+    path = field(type=bytes, mandatory=True)
 
 
 class Comment(PRecord):
@@ -73,7 +76,7 @@ class Comment(PRecord):
 
     :ivar bytes comment: The desired comment.
     """
-    comment = field(type=bytes)
+    comment = field(type=bytes, mandatory=True)
 
 
 def run(command):

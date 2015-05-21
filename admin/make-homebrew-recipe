@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
-Create a Homebrew recipe for Flocker, using the VERSION environment variable.
-
-Invoke using e.g.:
-  $ export VERSION=0.1.2
-  $ ./make-homebrew-recipe > flocker-${VERSION}.rb
+Create a Homebrew recipe for Flocker.
 """
+
+from _preamble import TOPLEVEL, BASEPATH
+
+import sys
 
 if __name__ == '__main__':
     from admin.homebrew import main
-    main()
+    main(sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)

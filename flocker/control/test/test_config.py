@@ -14,8 +14,8 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 
 from .._config import (
-    ConfigurationError, FlockerConfiguration, marshal_configuration,
-    current_from_configuration, deployment_from_configuration,
+    ConfigurationError, FlockerConfiguration,
+    deployment_from_configuration,
     model_from_configuration, FigConfiguration,
     parse_storage_string, ApplicationMarshaller,
     FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
@@ -24,7 +24,7 @@ from .._config import (
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
     NodeState, RestartNever, RestartAlways, RestartOnFailure, Dataset,
-    Manifestation,
+    Manifestation, DeploymentState,
 )
 
 
@@ -2333,7 +2333,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         """
         exception = self.assertRaises(ConfigurationError,
                                       deployment_from_configuration,
-                                      {}, set())
+                                      DeploymentState(), {}, set())
         self.assertEqual(
             "Deployment configuration has an error. Missing 'nodes' key.",
             exception.message
@@ -2348,7 +2348,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         config = dict(nodes={})
         exception = self.assertRaises(ConfigurationError,
                                       deployment_from_configuration,
-                                      config, set())
+                                      DeploymentState(), config, set())
         self.assertEqual(
             "Deployment configuration has an error. Missing 'version' key.",
             exception.message
@@ -2362,7 +2362,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         config = dict(nodes={}, version=2)
         exception = self.assertRaises(ConfigurationError,
                                       deployment_from_configuration,
-                                      config, set())
+                                      DeploymentState(), config, set())
         self.assertEqual(
             "Deployment configuration has an error. "
             "Incorrect version specified.",
@@ -2378,6 +2378,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(
             ConfigurationError,
             deployment_from_configuration,
+            DeploymentState(),
             dict(version=1, nodes={'node1.example.com': None}),
             set()
         )
@@ -2403,6 +2404,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(
             ConfigurationError,
             deployment_from_configuration,
+            DeploymentState(),
             dict(
                 version=1,
                 nodes={'node1.example.com': ['site-hybridcluster']}),
@@ -2411,6 +2413,25 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             'Node node1.example.com has a config error. '
             'Unrecognised application name: site-hybridcluster.',
+            exception.message
+        )
+
+    def test_error_on_unknown_ip(self):
+        """
+        ``deployment_from_configuration`` raises a ``ConfigurationError`` if
+        the deployment_configuration refers to a non-existent IP.
+        """
+        exception = self.assertRaises(
+            ConfigurationError,
+            deployment_from_configuration,
+            DeploymentState(),
+            dict(
+                version=1,
+                nodes={'1.2.3.4': []}),
+            {},
+        )
+        self.assertEqual(
+            'No known node with address 1.2.3.4.',
             exception.message
         )
 
@@ -2435,16 +2456,21 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                     manifestation=manifestation,
                     mountpoint=FilePath(b'/var/lib/db')))
         }
+        node_uuid = uuid4()
+        hostname = u'node1.example.com'
+
         result = deployment_from_configuration(
+            DeploymentState(
+                nodes=[NodeState(hostname=hostname, uuid=node_uuid)]),
             dict(
                 version=1,
-                nodes={'node1.example.com': ['mysql-hybridcluster']}),
+                nodes={hostname: ['mysql-hybridcluster']}),
             applications
         )
 
         expected = set([
             Node(
-                hostname='node1.example.com',
+                uuid=node_uuid,
                 applications=frozenset(applications.values()),
                 manifestations={manifestation.dataset_id: manifestation},
             )
@@ -2465,7 +2491,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         application_configuration = {}
         deployment_configuration = {'nodes': {}, 'version': 1}
         result = model_from_configuration(
-            application_configuration, deployment_configuration)
+            DeploymentState(), application_configuration,
+            deployment_configuration)
         expected_result = Deployment(nodes=frozenset())
         self.assertEqual(expected_result, result)
 
@@ -2488,14 +2515,19 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                 'node2.example.com': ['site-hybridcluster'],
             }
         }
+        node1_uuid = uuid4()
+        node2_uuid = uuid4()
         config = FlockerConfiguration(application_configuration)
         applications = config.applications()
         result = model_from_configuration(
+            DeploymentState(nodes=[
+                NodeState(uuid=node1_uuid, hostname=u"node1.example.com"),
+                NodeState(uuid=node2_uuid, hostname=u"node2.example.com")]),
             applications, deployment_configuration)
         expected_result = Deployment(
             nodes=frozenset([
                 Node(
-                    hostname='node1.example.com',
+                    uuid=node1_uuid,
                     applications=frozenset([
                         Application(
                             name='mysql-hybridcluster',
@@ -2509,7 +2541,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                     ])
                 ),
                 Node(
-                    hostname='node2.example.com',
+                    uuid=node2_uuid,
                     applications=frozenset([
                         Application(
                             name='site-hybridcluster',
@@ -2525,518 +2557,6 @@ class ModelFromConfigurationTests(SynchronousTestCase):
             ])
         )
         self.assertEqual(expected_result, result)
-
-
-class MarshalConfigurationTests(SynchronousTestCase):
-    """
-    Tests for ``Configuration.marshal_configuration``.
-    """
-    def test_no_applications(self):
-        """
-        A dict with a version and empty applications list are returned if no
-        applications are supplied.
-        """
-        result = marshal_configuration(NodeState(hostname=u"example"))
-        expected = {
-            'applications': {},
-            'used_ports': [],
-            'version': 1,
-        }
-        self.assertEqual(expected, result)
-
-    def test_one_application(self):
-        """
-        A dictionary of application name -> image is produced where the
-        ``marshal_configuration`` method is called with state containing only
-        one application.
-        """
-        applications = [
-            Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql',
-                                  tag='v1.0.0')
-            )
-        ]
-        result = marshal_configuration(
-            NodeState(hostname=u"example", applications=applications))
-        expected = {
-            'used_ports': [],
-            'applications': {
-                'mysql-hybridcluster': {
-                    'image': u'flocker/mysql:v1.0.0',
-                    'restart_policy': {'name': 'never'}
-                }
-            },
-            'version': 1,
-        }
-        self.assertEqual(expected, result)
-
-    def test_multiple_applications(self):
-        """
-        The dictionary includes a representation of each supplied application.
-        """
-        applications = [
-            Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql',
-                                  tag='v1.0.0')
-            ),
-            Application(
-                name='site-hybridcluster',
-                image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0')
-            )
-        ]
-        result = marshal_configuration(
-            NodeState(hostname=u"example", applications=applications))
-        expected = {
-            'used_ports': [],
-            'applications': {
-                'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0',
-                    'restart_policy': {'name': 'never'},
-                },
-                'mysql-hybridcluster': {
-                    'image': u'flocker/mysql:v1.0.0',
-                    'restart_policy': {'name': 'never'},
-                }
-            },
-            'version': 1,
-        }
-        self.assertEqual(expected, result)
-
-    def test_application_ports(self):
-        """
-        The dictionary includes a representation of each supplied application,
-        including exposed internal and external ports where the
-        ``Application`` specifies these.
-        """
-        applications = [
-            Application(
-                name='site-hybridcluster',
-                image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0'),
-                ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)])
-            )
-        ]
-        result = marshal_configuration(
-            NodeState(hostname=u"example", applications=applications))
-        expected = {
-            'used_ports': [],
-            'applications': {
-                'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}],
-                    'restart_policy': {'name': 'never'},
-                },
-            },
-            'version': 1,
-        }
-        self.assertEqual(expected, result)
-
-    def test_application_links(self):
-        """
-        The dictionary includes a representation of each supplied application,
-        including links to other application when the ``Application`` specifies
-        these.
-        """
-        applications = [
-            Application(
-                name='site-hybridcluster',
-                image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0'),
-                links=frozenset([Link(local_port=3306,
-                                      remote_port=63306,
-                                      alias='mysql')])
-            )
-        ]
-        result = marshal_configuration(
-            NodeState(hostname=u"example", applications=applications))
-        expected = {
-            'used_ports': [],
-            'applications': {
-                'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0',
-                    'links': [{'local_port': 3306, 'remote_port': 63306,
-                               'alias': 'mysql'}],
-                    'restart_policy': {'name': 'never'},
-                },
-            },
-            'version': 1
-        }
-        self.assertEqual(expected, result)
-
-    def test_application_with_volume_includes_mountpoint(self):
-        """
-        If the supplied applications have a volume, the resulting yaml will
-        also include the volume mountpoint.
-        """
-        applications = [
-            Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
-                ports=frozenset(),
-                volume=AttachedVolume(manifestation=Manifestation(
-                    dataset=Dataset(
-                        dataset_id=dataset_id_from_name(
-                            "mysql-hybridcluster"),
-                        metadata=pmap({'name': 'mysql-hybridcluster'})),
-                    primary=True),
-                    mountpoint=FilePath(b'/var/mysql/data'))
-            ),
-            Application(
-                name='site-hybridcluster',
-                image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0'),
-                ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)])
-            )
-        ]
-        result = marshal_configuration(
-            NodeState(hostname=u"example", applications=applications))
-        expected = {
-            'used_ports': [],
-            'applications': {
-                'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}],
-                    'restart_policy': {'name': 'never'},
-                },
-                'mysql-hybridcluster': {
-                    'volume': {'mountpoint': '/var/mysql/data',
-                               'dataset_id':
-                               dataset_id_from_name('mysql-hybridcluster')},
-                    'image': u'flocker/mysql:v1.0.0',
-                    'restart_policy': {'name': 'never'},
-                }
-            },
-            'version': 1,
-        }
-        self.assertEqual(expected, result)
-
-    def test_application_with_volume_includes_max_size(self):
-        """
-        If the supplied applications have a volume, the resulting yaml will
-        also include the volume maximum_size if present in the
-        ``AttachedVolume`` instance.
-        """
-        EXPECTED_MAX_SIZE = 100000000
-        applications = [
-            Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
-                ports=frozenset(),
-                volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=Dataset(
-                            dataset_id=dataset_id_from_name(
-                                "mysql-hybridcluster"),
-                            metadata=pmap({'name': 'mysql-hybridcluster'}),
-                            maximum_size=EXPECTED_MAX_SIZE),
-                        primary=True),
-                    mountpoint=FilePath(b'/var/mysql/data'),
-                ),
-            )
-        ]
-        result = marshal_configuration(
-            NodeState(hostname=u"example", applications=applications))
-        expected = {
-            'used_ports': [],
-            'applications': {
-                'mysql-hybridcluster': {
-                    'volume': {'mountpoint': '/var/mysql/data',
-                               'maximum_size': unicode(EXPECTED_MAX_SIZE),
-                               'dataset_id':
-                               dataset_id_from_name('mysql-hybridcluster')},
-                    'image': u'flocker/mysql:v1.0.0',
-                    'restart_policy': {'name': 'never'},
-                }
-            },
-            'version': 1,
-        }
-        self.assertEqual(expected, result)
-
-    def test_application_with_volume_includes_dataset_id(self):
-        """
-        If the supplied applications has a volume with a dataset that has a
-        dataset ID, the resulting yaml will also include this dataset ID.
-        """
-        dataset_id = unicode(uuid4())
-
-        applications = [
-            Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
-                ports=frozenset(),
-                volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=Dataset(
-                            dataset_id=dataset_id,
-                            metadata=pmap({'name': 'mysql-hybridcluster'})),
-                        primary=True),
-                    mountpoint=FilePath(b'/var/mysql/data'),
-                ),
-            )
-        ]
-        result = marshal_configuration(
-            NodeState(hostname=u"example", applications=applications))
-        expected = {
-            'used_ports': [],
-            'applications': {
-                'mysql-hybridcluster': {
-                    'volume': {'mountpoint': '/var/mysql/data',
-                               'dataset_id': dataset_id},
-                    'image': u'flocker/mysql:v1.0.0',
-                    'restart_policy': {'name': 'never'},
-                }
-            },
-            'version': 1,
-        }
-        self.assertEqual(expected, result)
-
-    def test_applications(self):
-        """
-        All applications are marshalled into the result.
-        """
-        running = Application(
-            name='mysql-hybridcluster',
-            image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
-            ports=frozenset(),
-        )
-
-        not_running = Application(
-            name='site-hybridcluster',
-            image=DockerImage(repository='flocker/wordpress',
-                              tag='v1.0.0'),
-            ports=frozenset([Port(internal_port=80, external_port=8080)]),
-            running=False,
-        )
-
-        result = marshal_configuration(
-            NodeState(hostname=u"example",
-                      applications=[running, not_running]))
-
-        expected = {
-            'used_ports': [],
-            'applications': {
-                'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}],
-                    'restart_policy': {'name': 'never'},
-                },
-                'mysql-hybridcluster': {
-                    'image': u'flocker/mysql:v1.0.0',
-                    'restart_policy': {'name': 'never'},
-                }
-            },
-            'version': 1
-        }
-        self.assertEqual(expected, result)
-
-    def test_used_ports(self):
-        """
-        The ports in ``NodeState.used_ports`` are included in the result of
-        ``marshal_configuration``.
-        """
-        used_ports = frozenset({1, 20, 250, 15020, 65000})
-        state = NodeState(hostname=u"host", used_ports=used_ports)
-        expected = {
-            'used_ports': sorted(used_ports),
-            'applications': {},
-            'version': 1,
-        }
-        self.assertEqual(
-            expected,
-            marshal_configuration(state)
-        )
-
-    def test_able_to_unmarshal_configuration(self):
-        """
-        ``Configuration._applications_from_configuration`` can load the output
-        of ``marshal_configuration`` into ``Application``\ s.
-        """
-        applications = [
-            Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
-                ports=frozenset(),
-                links=frozenset(),
-            ),
-            Application(
-                name='site-hybridcluster',
-                image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0'),
-                ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)]),
-                links=frozenset([Link(local_port=3306,
-                                      remote_port=63306,
-                                      alias='mysql')]),
-            )
-        ]
-        expected_applications = {
-            b'mysql-hybridcluster': Application(
-                name=b'mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql',
-                                  tag='v1.0.0'),
-                ports=frozenset(),
-                links=frozenset(),
-            ),
-            b'site-hybridcluster': Application(
-                name=b'site-hybridcluster',
-                image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0'),
-                ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)]),
-                links=frozenset([Link(local_port=3306,
-                                      remote_port=63306,
-                                      alias='mysql')]),
-            )
-        }
-        result = marshal_configuration(
-            NodeState(hostname=u"example",
-                      applications=applications))
-        config = FlockerConfiguration(result)
-        apps = config.applications()
-        self.assertEqual(expected_applications, apps)
-
-
-class CurrentFromConfigurationTests(SynchronousTestCase):
-    """
-    Tests for ``current_from_configuration``.
-    """
-    def test_deployment(self):
-        """
-        ``current_from_configuration`` creates a ``Deployment`` object with
-        the appropriate configuration for each included node.
-        """
-        config = {'example.com': {
-            'applications': {
-                'site-hybridcluster': {
-                    'image': 'unknown',
-                },
-                'mysql-hybridcluster': {
-                    'image': 'unknown',
-                }
-            },
-            'version': 1
-        }}
-        expected = Deployment(nodes=frozenset([
-            Node(hostname='example.com', applications=frozenset([
-                Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                ),
-                Application(
-                    name='site-hybridcluster',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                )]))]))
-        self.assertEqual(expected,
-                         current_from_configuration(config))
-
-    def test_volume(self):
-        """
-        ``current_from_configuration`` creates a ``Deployment`` object with
-        the appropriate volumes for each included node.
-        """
-        config = {'example.com': {
-            'applications': {
-                'mysql-hybridcluster': {
-                    'image': 'unknown',
-                    'volume': {'mountpoint': '/xxx'},
-                }
-            },
-            'version': 1
-        }}
-        manifestation = Manifestation(
-            dataset=Dataset(
-                dataset_id=dataset_id_from_name("mysql-hybridcluster"),
-                metadata=pmap({"name": "mysql-hybridcluster"})),
-            primary=True)
-        expected = Deployment(nodes=frozenset([
-            Node(hostname='example.com',
-                 applications=frozenset([
-                     Application(
-                         name='mysql-hybridcluster',
-                         image=DockerImage.from_string('unknown'),
-                         ports=frozenset(),
-                         links=frozenset(),
-                         volume=AttachedVolume(
-                             manifestation=manifestation,
-                             mountpoint=FilePath(b"/xxx")),
-                     )]),
-                 manifestations={manifestation.dataset_id:
-                                 manifestation})]))
-        self.assertEqual(expected,
-                         current_from_configuration(config))
-
-    def test_multiple_hosts(self):
-        """
-        ``current_from_configuration`` can handle information from multiple
-        hosts.
-        """
-        config = {
-            'example.com': {
-                'applications': {
-                    'site-hybridcluster': {
-                        'image': 'unknown',
-                    },
-                },
-                'version': 1,
-            },
-            'example.net': {
-                'applications': {
-                    'mysql-hybridcluster': {
-                        'image': 'unknown',
-                    }
-                },
-                'version': 1,
-            },
-        }
-        expected = Deployment(nodes=frozenset([
-            Node(hostname='example.com', applications=frozenset([
-                Application(
-                    name='site-hybridcluster',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                )])),
-            Node(hostname='example.net', applications=frozenset([
-                Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                )]))]))
-        self.assertEqual(expected,
-                         current_from_configuration(config))
-
-    def test_error_on_mountpoint_none(self):
-        """
-        ``current_from_configuration`` rejects ``None`` for volume
-        mountpoints, raising a ``ConfigurationError``.
-        """
-        config = {'example.com': {
-            'applications': {
-                'mysql-hybridcluster': {
-                    'image': 'unknown',
-                    'volume': {'mountpoint': None},
-                }
-            },
-            'version': 1
-        }}
-
-        e = self.assertRaises(ConfigurationError, current_from_configuration,
-                              config)
-        expected = (
-            "Application 'mysql-hybridcluster' has a config error. Invalid "
-            "volume specification. Mountpoint \"None\" is not a string."
-        )
-        self.assertEqual(e.message, expected)
 
 
 def marshalled_restart_policy(policy):

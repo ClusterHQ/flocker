@@ -2,8 +2,7 @@
 Description=Flocker Container Agent
 
 [Service]
-ExecStart=/usr/sbin/flocker-container-agent $FLOCKER_CONTROL_NODE
-EnvironmentFile=/etc/sysconfig/flocker-agent
+ExecStart=/usr/sbin/flocker-container-agent
 
 [Install]
 WantedBy=multi-user.target

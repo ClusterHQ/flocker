@@ -38,6 +38,7 @@ from twisted.protocols.amp import (
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
+from twisted.protocols.tls import TLSMemoryBIOFactory
 
 from ._persistence import wire_encode, wire_decode
 from ._model import Deployment, NodeState, DeploymentState, NonManifestDatasets
@@ -197,19 +198,27 @@ class ControlAMPService(Service):
     """
     logger = Logger()
 
-    def __init__(self, cluster_state, configuration_service, endpoint):
+    def __init__(self, cluster_state, configuration_service,
+                 endpoint, context_factory):
         """
         :param ClusterStateService cluster_state: Object that records known
             cluster state.
         :param ConfigurationPersistenceService configuration_service:
             Persistence service for desired cluster configuration.
         :param endpoint: Endpoint to listen on.
+        :param context_factory: TLS context factory.
         """
         self.connections = set()
         self.cluster_state = cluster_state
         self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
-            endpoint, ServerFactory.forProtocol(lambda: ControlAMP(self)))
+            endpoint,
+            TLSMemoryBIOFactory(
+                context_factory,
+                False,
+                ServerFactory.forProtocol(lambda: ControlAMP(self))
+            )
+        )
         # When configuration changes, notify all connected clients:
         self.configuration_service.register(
             lambda: self._send_state_to_connections(self.connections))

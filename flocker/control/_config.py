@@ -1208,9 +1208,13 @@ class FlockerConfiguration(object):
             self._applications[application_name] = Application(**attributes)
 
 
-def deployment_from_configuration(deployment_configuration, all_applications):
+def deployment_from_configuration(deployment_state, deployment_configuration,
+                                  all_applications):
     """
     Validate and parse a given deployment configuration.
+
+    :param DeploymentState deployment_state: The current state of the
+        cluster.
 
     :param dict deployment_configuration: The intermediate configuration
         representation to load into ``Node`` instances.  See
@@ -1235,6 +1239,7 @@ def deployment_from_configuration(deployment_configuration, all_applications):
         raise ConfigurationError("Deployment configuration has an error. "
                                  "Incorrect version specified.")
 
+    node_states = {node.hostname: node for node in deployment_state.nodes}
     nodes = []
     for hostname, application_names in (
             deployment_configuration['nodes'].items()):
@@ -1257,7 +1262,10 @@ def deployment_from_configuration(deployment_configuration, all_applications):
                         hostname=hostname, application_name=name)
                 )
             node_applications.append(application)
-        node = Node(hostname=hostname,
+        if hostname not in node_states:
+            raise ConfigurationError("No known node with address {}.".format(
+                hostname))
+        node = Node(uuid=node_states[hostname].uuid,
                     applications=frozenset(node_applications),
                     manifestations={app.volume.manifestation.dataset_id:
                                     app.volume.manifestation
@@ -1267,10 +1275,14 @@ def deployment_from_configuration(deployment_configuration, all_applications):
     return set(nodes)
 
 
-def model_from_configuration(applications, deployment_configuration):
+def model_from_configuration(deployment_state, applications,
+                             deployment_configuration):
     """
     Validate and coerce the supplied application configuration and
     deployment configuration dictionaries into a ``Deployment`` instance.
+
+    :param DeploymentState deployment_state: The current state of the
+        cluster.
 
     :param dict applications: Map of application names to ``Application``
         instances.
@@ -1283,60 +1295,5 @@ def model_from_configuration(applications, deployment_configuration):
     :returns: A ``Deployment`` object.
     """
     nodes = deployment_from_configuration(
-        deployment_configuration, applications)
+        deployment_state, deployment_configuration, applications)
     return Deployment(nodes=frozenset(nodes))
-
-
-def current_from_configuration(current_configuration):
-    """
-    Validate and coerce the supplied current cluster configuration into a
-    ``Deployment`` instance.
-
-    The passed in configuration is the aggregated output of
-    ``marshal_configuration`` as combined by ``flocker-deploy``.
-
-    :param dict current_configuration: Map of node names to list of
-        application maps.
-
-    :raises ConfigurationError: if there are validation errors.
-
-    :returns: A ``Deployment`` object.
-    """
-    nodes = []
-    for hostname, applications in current_configuration.items():
-        configuration = FlockerConfiguration(applications)
-        node_applications = configuration.applications().values()
-        manifestations = {
-            app.volume.manifestation.dataset_id: app.volume.manifestation
-            for app in node_applications
-            if app.volume is not None}
-
-        nodes.append(Node(hostname=hostname,
-                          applications=node_applications,
-                          manifestations=manifestations))
-    return Deployment(nodes=frozenset(nodes))
-
-
-def marshal_configuration(state):
-    """
-    Generate representation of a node's applications using only simple Python
-    types.
-
-    :param NodeState state: The configuration state to marshal.
-
-    :return: An object representing the node configuration in a structure
-        roughly compatible with the configuration file format.  Only "simple"
-        (easily serialized) Python types will be used: ``dict``, ``list``,
-        ``int``, ``unicode``, etc.
-    """
-    result = {}
-    for application in state.applications:
-        converter = ApplicationMarshaller(application)
-
-        result[application.name] = converter.convert()
-
-    return {
-        "version": 1,
-        "applications": result,
-        "used_ports": sorted(state.used_ports),
-    }
