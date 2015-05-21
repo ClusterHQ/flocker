@@ -27,7 +27,7 @@ from ..script import (
 
 from .._loop import AgentLoopService
 from .._deploy import P2PManifestationDeployer
-from ...testtools import MemoryCoreReactor
+from ...testtools import MemoryCoreReactor, random_name
 from ...ca.testtools import get_credential_sets
 
 
@@ -53,6 +53,13 @@ def setup_config(test):
             },
             u"dataset": {
                 u"backend": u"zfs",
+                u"name": random_name(test),
+                # XXX Can't put FilePath in a yaml file (well you can but
+                # .... :/)
+                u"mount_root": scratch_directory.child(b"mount_root").path,
+                u"volume_config_path": scratch_directory.child(
+                    b"volume_config.json"
+                ).path,
             },
             u"version": 1,
         }))
@@ -71,22 +78,30 @@ def deployer_factory_stub(**kw):
     return deployer
 
 
+class DummyAgentService:
+    def __init__(self, loop_service, reactor, configuration):
+        self.loop_service = loop_service
+
+    @classmethod
+    def for_loop_service(cls, loop_service):
+        return lambda *a, **kw: cls(loop_service, *a, **kw)
+
+    def get_api(self):
+        return None
+
+    def get_deployer(self, api):
+        return None
+
+    def get_loop_service(self, deployer):
+        return self.loop_service
+
+
 class ZFSGenericAgentScriptTests(SynchronousTestCase):
     """
     Tests for ``NewAgentScript`` using ZFS configuration.
     """
     def setUp(self):
         setup_config(self)
-
-    def test_main_starts_service(self):
-        """
-        ``NewAgentScript.main`` starts the given service.
-        """
-        service = Service()
-        options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
-        NewAgentScript().main(MemoryCoreReactor(), options, service)
-        self.assertTrue(service.running)
 
     def test_no_immediate_stop(self):
         """
@@ -95,98 +110,38 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
         script = NewAgentScript()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        self.assertNoResult(script.main(MemoryCoreReactor(), options,
-                                        Service()))
+        self.assertNoResult(script.main(MemoryCoreReactor(), options))
 
     def test_starts_convergence_loop(self):
         """
         ``NewAgentScript.main`` starts a convergence loop service.
         """
-        service = Service()
+
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
-        test_reactor = MemoryCoreReactor()
-        NewAgentScript().main(test_reactor, options, service)
-        parent_service = service.parent
-        # P2PManifestationDeployer is difficult to compare automatically,
-        # so do so manually:
-        deployer = parent_service.deployer
-        parent_service.deployer = None
-        context_factory = _context_factory_and_credential(
-            self.config.parent(), b"10.0.0.1", 1234).context_factory
-        self.assertEqual((parent_service, deployer.__class__,
-                          deployer.volume_service,
-                          parent_service.running),
-                         (AgentLoopService(reactor=test_reactor,
-                                           deployer=None,
-                                           host=u"10.0.0.1",
-                                           port=1234,
-                                           context_factory=context_factory),
-                          P2PManifestationDeployer, service, True))
 
-    def test_uuid_from_certificate(self):
-        """
-        The created deployer got its node UUID from the given node certificate.
-        """
-        service = Service()
-        options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
-        NewAgentScript().main(MemoryCoreReactor(), options, service)
-        self.assertEqual(
-            self.ca_set.node.uuid,
-            service.parent.deployer.node_uuid)
+        loop_service = Service()
+        agent_service_factory = DummyAgentService.for_loop_service(
+            loop_service
+        )
+        script = NewAgentScript(agent_service_factory=agent_service_factory)
+        script.main(MemoryCoreReactor(), options)
 
-    def test_default_port(self):
-        """
-        ``NewAgentScript.main`` starts a convergence loop service with port
-        4524 if no port is specified.
-        """
-        self.config.setContent(
-            yaml.safe_dump({
-                u"control-service": {
-                    u"hostname": u"10.0.0.1",
-                },
-                u"dataset": {
-                    u"backend": u"zfs",
-                },
-                u"version": 1,
-            }))
-
-        service = Service()
-        options = DatasetAgentOptions()
-        options.parseOptions([b"--agent-config", self.config.path])
-        test_reactor = MemoryCoreReactor()
-        NewAgentScript().main(test_reactor, options, service)
-        parent_service = service.parent
-        # P2PManifestationDeployer is difficult to compare automatically,
-        # so do so manually:
-        deployer = parent_service.deployer
-        parent_service.deployer = None
-        self.assertEqual((parent_service, deployer.__class__,
-                          deployer.volume_service,
-                          parent_service.running),
-                         (AgentLoopService(
-                             reactor=test_reactor,
-                             deployer=None,
-                             host=u"10.0.0.1",
-                             port=4524,
-                             context_factory=ClientContextFactory()),
-                          P2PManifestationDeployer, service, True))
+        self.assertTrue(loop_service.running)
 
     def test_config_validated(self):
         """
         ``NewAgentScript.main`` validates the configuration file.
         """
-        self.config.setContent("INVALID")
+        self.config.setContent(b"INVALID")
 
-        service = Service()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         test_reactor = MemoryCoreReactor()
 
         self.assertRaises(
             ValidationError,
-            NewAgentScript().main, test_reactor, options, service,
+            NewAgentScript().main, test_reactor, options,
         )
 
     def test_missing_configuration_file(self):
@@ -194,15 +149,30 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
         ``NewAgentScript.main`` raises an ``IOError`` if the given
         configuration file does not exist.
         """
-        service = Service()
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.non_existent_file.path])
         test_reactor = MemoryCoreReactor()
 
         self.assertRaises(
             IOError,
-            NewAgentScript().main, test_reactor, options, service,
+            NewAgentScript().main, test_reactor, options,
         )
+
+
+# AgentService tests :
+#
+# get_loop returns an AgentLoopService with the right reactor, host, port,
+# deployer, context factory
+#
+# get_deployer returns a P2PManifestationDeployer for zfs config, a
+# BlockDeviceDeployer for loopback config
+#
+# get_deployer passes the node_uuid taken from the node_credentials in to the
+# deployer_factory
+#
+# AgentService has a default port of 4524 I guess
+#
+# in the zfs case, get_api returns a started VolumeService
 
 
 def get_all_ips():

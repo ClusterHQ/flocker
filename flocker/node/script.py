@@ -7,6 +7,7 @@ The command-line ``flocker-*-agent`` tools.
 
 from socket import socket
 from os import getpid
+from tempfile import mkdtemp
 
 import yaml
 
@@ -25,6 +26,9 @@ from ..volume.service import (
 )
 
 from ..volume.script import flocker_volume_options
+from ..volume.filesystems import zfs
+from ..volume.service import VolumeService
+
 from ..common.script import (
     ICommandLineScript,
     flocker_standard_options, FlockerScriptRunner, main_for_service)
@@ -307,7 +311,7 @@ def loopback_dataset_deployer(volume_service):
     :return: A callable which can be called with a node UUID and hostname to
         create a loopback deployer.
     """
-    def deployer_factory(hostname, node_uuid, cluster_uuid):
+    def deployer_factory(api, hostname, node_uuid, cluster_uuid):
         # In FLOC-1925 deployer_factory might also be called with the config
         # file, allowing for alteration of what is created and how it is
         # initialized.  That code will also want to pass cluster_uuid in
@@ -439,22 +443,45 @@ def get_configuration(options):
     return configuration
 
 
+def _zfs_storagepool(reactor, name, mount_root, volume_config_path):
+    pool = zfs.StoragePool(
+        reactor=reactor, name=name, mount_root=FilePath(mount_root),
+    )
+    api = VolumeService(
+        config_path=FilePath(volume_config_path),
+        pool=pool,
+        reactor=reactor,
+    )
+    api.startService()
+    return api
+
 # These structures should be created dynamically to handle plug-ins
 default_backends = {
-    'zfs': (None, {}),
+    # P2PManifestationDeployer doesn't current know anything about
+    # cluster_uuid.  It probably should so that it can make sure it
+    # only talks to other nodes in the same cluster (maybe the
+    # authentication layer would mostly handle this but maybe not if
+    # you're slightly careless with credentials - also ZFS backend
+    # doesn't use TLS yet).
+
+    # api_factory, ignored, needs_reactor, needs_cluster_id
+    'zfs': (_zfs_storagepool, {}, True, False),
     'loopback': (LoopbackBlockDeviceAPI.from_path, {
         'root_path': b"/var/lib/flocker/loopback",
         'compute_instance_id': bytes(getpid()).decode('utf-8'),
-        })
-    # 'openstack': (CinderBlockDeviceAPI.from_path, {
-    #     'root_path': b"/var/lib/flocker/loopback",
-    #     'compute_instance_id': bytes(getpid()).decode('utf-8'),
+    }, False)
+    # 'openstack': (CinderBlockDeviceAPI.from_config, {
+    #    XXX Eventually everyone will take cluster_id so we will throw this
+    #    flag out.
+    # 'cluster_id': True,
     #     })
 }
 default_deployers = {
-    'zfs': P2PManifestationDeployer,
-    'loopback': BlockDeviceDeployer,
-    # 'openstack': BlockDeviceDeployer,
+    'zfs': lambda api, **kw:
+        P2PManifestationDeployer(volume_service=api, **kw),
+    'loopback': lambda api, **kw:
+        BlockDeviceDeployer(block_device_api=api, **kw),
+    # 'openstack': lambda ... BlockDeviceDeployer ...,
 }
 
 
@@ -469,6 +496,7 @@ class AgentService:
         self._deployers = deployers
         self._host = configuration['control-service']['hostname']
         self._port = configuration['control-service'].get('port', 4524)
+
         node_credential = configuration['node-credential']
         policy = ControlServicePolicy(
             ca_certificate=configuration['ca-certificate'],
@@ -476,37 +504,32 @@ class AgentService:
         self._tls_context = _TLSContext(
             context_factory=policy.creatorForNetloc(self._host, self._port),
             node_credential=node_credential)
-        self._backend = self._configuration['dataset']['backend']
+        self._api_args = self._configuration['dataset']
+        self._backend = self._api_args.pop('backend')
 
     def get_api(self):
-        (api_factory, api_args) = self._backends[self._backend]
-        if self._backend == 'zfs':
-            from tempfile import mkdtemp
-            from flocker.filesystems.pool import FilesystemStoragePool
-            from flocker.volume.service import VolumeService
-            pool = FilesystemStoragePool(FilePath(mkdtemp()))
-            api = VolumeService(
-                config_path=FilePath(mkdtemp()).child('volume.json'),
-                pool=pool,
-                reactor=self._reactor,
-            )
-            self._api = api
-        else:
-            api = api_factory(**api_args)
-        return api
+        api_args = self._api_args.copy()
+        (api_factory, _, needs_reactor, needs_cluster_id) = self._backends[
+            self._backend
+        ]
+
+        if needs_cluster_id:
+            # cluster_id = self._tls_context.node_credential.cluster_uuid
+            cluster_id = None
+            api_args["cluster_id"] = cluster_id
+        if needs_reactor:
+            api_args["reactor"] = self._reactor
+
+        return api_factory(**api_args)
 
     def get_deployer(self, api):
         deployer_factory = self._deployers[self._backend]
+
         hostname = _get_external_ip(self._host, self._port)
         node_uuid = self._tls_context.node_credential.uuid
-        # cluster_uuid = self._tls_context.node_credential.cluster_uuid
-        from twisted.application.service import Service
-        if isinstance(api, Service):
-            return deployer_factory(
-                hostname=hostname, node_uuid=node_uuid, volume_service=api)
-        else:
-            return deployer_factory(
-                block_device_api=api, hostname=hostname, node_uuid=node_uuid)
+        return deployer_factory(
+            api=api, hostname=hostname, node_uuid=node_uuid,
+        )
 
     def get_loop_service(self, deployer):
         loop = AgentLoopService(
@@ -515,10 +538,6 @@ class AgentService:
             host=self._host, port=self._port,
             context_factory=self._tls_context.context_factory,
         )
-        if self._backend == 'zfs':
-            # XXX This should not be a special case,
-            # see https://clusterhq.atlassian.net/browse/FLOC-1924.
-            self._api.setServiceParent(loop)
         return loop
 
 
@@ -527,7 +546,7 @@ class NewAgentScript(PRecord):
     agent_service_factory = field(type=object, initial=AgentService)
     configuration_factory = field(type=object, initial=get_configuration)
 
-    def main(self, reactor, options, volume_service):
+    def main(self, reactor, options):
 
         configuration = self.configuration_factory(options)
 
