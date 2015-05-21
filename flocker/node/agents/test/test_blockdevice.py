@@ -1288,16 +1288,17 @@ class IBlockDeviceAPITestsMixin(object):
 
         # Check 1: Assert that size reported in BlockDeviceVolume
         # matches device size reported by `lsblk`.
-        self.assertEqual(device_size, volume_size)
-
-        # Check 2: Assert that device size reported by `lsblk` matches
-        # user input size at volume creation time.
         # Rounding up to GiB before comparing is not ideal,
         # but due to storage backend size constraints, requested
         # size in Bytes might not exactly match with created
         # volume size. See
         # https://clusterhq.atlassian.net/browse/FLOC-1874
         device_size_GiB = int(Byte(device_size).to_GiB().value)
+        volume_size_GiB = int(Byte(volume_size).to_GiB().value)
+        self.assertEqual(device_size_GiB, volume_size_GiB)
+
+        # Check 2: Assert that device size reported by `lsblk` matches
+        # user input size at volume creation time.
         size_GiB = int(Byte(size).to_GiB().value)
         self.assertEqual(device_size_GiB, size_GiB)
 

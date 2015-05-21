@@ -28,7 +28,7 @@ DATASET_ID_LABEL = u'flocker-dataset-id'
 METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
-BOTO_NUM_RETRIES = u'10'
+BOTO_NUM_RETRIES = u'15'
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
