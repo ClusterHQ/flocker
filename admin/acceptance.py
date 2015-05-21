@@ -218,7 +218,7 @@ class VagrantRunner(object):
         if self.variants:
             raise UsageError("Variants unsupported on vagrant.")
 
-    def provision(self, nodes):
+    def provision_cluster(self, nodes):
         """
         Provision Vagrant nodes for acceptance tests.
 
@@ -298,7 +298,7 @@ class LibcloudRunner(object):
             )
         self.creator = creator
 
-    def provision(self, nodes):
+    def provision_cluster(self, nodes):
         """
         Provision cloud nodes for acceptance tests.
 
@@ -552,7 +552,7 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args, volume_backend):
     certificates = Certificates.generate(ca_directory, nodes[0].address,
                                          len(nodes))
 
-    yield perform(dispatcher, runner.provision(nodes))
+    yield perform(dispatcher, runner.provision_cluster(nodes))
     yield perform(
         dispatcher,
         parallel([
