@@ -186,15 +186,15 @@ def agent_service_setup(test):
     )
 
 
-class AgentServiceDeployerTests(SynchronousTestCase):
+class AgentServiceAPITests(SynchronousTestCase):
     """
-    Tests for ``AgentService.get_deployer``.
+    Tests for ``AgentService.get_api``.
     """
     setUp = agent_service_setup
 
     def test_backend_selection(self):
         """
-        ``AgentService.get_deployer`` returns an object constructed by the
+        ``AgentService.get_api`` returns an object constructed by the
         factory corresponding to the agent's ``backend`` in the agent's
         ``backends`` dictionary, supplying ``api_args``.
         """
@@ -266,9 +266,6 @@ class AgentServiceDeployerTests(SynchronousTestCase):
             API(cluster_id=self.ca_set.node.cluster_uuid),
             api,
         )
-
-
-
 
 
 class AgentServiceLoopTests(SynchronousTestCase):
