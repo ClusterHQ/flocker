@@ -166,12 +166,68 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
         )
 
 
+def agent_service_setup(test):
+    test.ca_set, _ = get_credential_sets()
+
+    test.host = b"192.0.2.5"
+    test.port = 54123
+    test.reactor = MemoryCoreReactor()
+
+    test.agent_service = AgentService(
+        reactor=test.reactor,
+
+        control_service_host=test.host,
+        control_service_port=test.port,
+        node_credential=test.ca_set.node,
+        ca_certificate=test.ca_set.root.credential.certificate,
+
+        backend=u"anything",
+        api_args={},
+    )
+
+
+class AgentServiceDeployerTests(SynchronousTestCase):
+    """
+    Tests for ``AgentService.get_deployer``.
+    """
+    setUp = agent_service_setup
+
+    def test_backend_selection(self):
+        """
+        ``AgentService.get_deployer`` returns an object constructed by the
+        factory corresponding to the agent's ``backend`` in the agent's
+        ``backends`` dictionary, supplying ``api_args``.
+        """
+        class API(PRecord):
+            a = field()
+            b = field()
+
+        class WrongAPI(object):
+            pass
+
+        agent_service = self.agent_service.set(
+            "backends", {
+                u"foo": (API, {}, False, False),
+                u"bar": (WrongAPI, {}, False, False),
+            }
+        ).set(
+            "backend", u"foo"
+        ).set(
+            "api_args", {"a": "x", "b": "y"},
+        )
+
+        api = agent_service.get_api()
+        self.assertEqual(
+            API(a="x", b="y"),
+            api,
+        )
+
+
 class AgentServiceLoopTests(SynchronousTestCase):
     """
     Tests for ``AgentService.get_loop_service``.
     """
-    def setUp(self):
-        self.ca_set, _ = get_credential_sets()
+    setUp = agent_service_setup
 
     def test_agentloopservice(self):
         """
@@ -179,31 +235,15 @@ class AgentServiceLoopTests(SynchronousTestCase):
         using the given deployer and all of the configuration supplied to
         the``AgentService``.
         """
-        host = b"192.0.2.5"
-        port = 54123
-        reactor = MemoryCoreReactor()
-
-        agent_service = AgentService(
-            reactor=reactor,
-
-            control_service_host=host,
-            control_service_port=port,
-            node_credential=self.ca_set.node,
-            ca_certificate=self.ca_set.root.credential.certificate,
-
-            backend=u"anything",
-            api_args={},
-        )
-
         deployer = object()
-        loop_service = agent_service.get_loop_service(deployer)
-        context_factory = agent_service.get_tls_context().context_factory
+        loop_service = self.agent_service.get_loop_service(deployer)
+        context_factory = self.agent_service.get_tls_context().context_factory
         self.assertEqual(
             AgentLoopService(
-                reactor=reactor,
+                reactor=self.reactor,
                 deployer=deployer,
-                host=host,
-                port=port,
+                host=self.host,
+                port=self.port,
                 context_factory=context_factory,
             ),
             loop_service,
