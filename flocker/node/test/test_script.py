@@ -22,7 +22,7 @@ from ...common.script import ICommandLineScript
 from ..script import (
     AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
-    _context_factory, GenericAgentScript,
+    _context_factory_and_credential, GenericAgentScript,
 )
 
 from .._loop import AgentLoopService
@@ -57,13 +57,16 @@ def setup_config(test):
             u"version": 1,
         }))
     ca_set.copy_to(scratch_directory, node=True)
+    test.ca_set = ca_set
     test.non_existent_file = scratch_directory.child('missing-config.yml')
 
 deployer = object()
 
 
+# This should have an explicit interface:
+# https://clusterhq.atlassian.net/browse/FLOC-1929
 def deployer_factory_stub(**kw):
-    if set(kw.keys()) != {"node_uuid", "hostname"}:
+    if set(kw.keys()) != {"node_uuid", "cluster_uuid", "hostname"}:
         raise TypeError("wrong arguments")
     return deployer
 
@@ -109,6 +112,8 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
         # so do so manually:
         deployer = parent_service.deployer
         parent_service.deployer = None
+        context_factory = _context_factory_and_credential(
+            self.config.parent(), b"10.0.0.1", 1234).context_factory
         self.assertEqual((parent_service, deployer.__class__,
                           deployer.volume_service,
                           parent_service.running),
@@ -116,10 +121,20 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
                                            deployer=None,
                                            host=u"10.0.0.1",
                                            port=1234,
-                                           context_factory=_context_factory(
-                                               self.config.parent(),
-                                               b"10.0.0.1", 1234)),
+                                           context_factory=context_factory),
                           P2PManifestationDeployer, service, True))
+
+    def test_uuid_from_certificate(self):
+        """
+        The created deployer got its node UUID from the given node certificate.
+        """
+        service = Service()
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        GenericAgentScript().main(MemoryCoreReactor(), options, service)
+        self.assertEqual(
+            self.ca_set.node.uuid,
+            service.parent.deployer.node_uuid)
 
     def test_default_port(self):
         """
@@ -215,6 +230,26 @@ class AgentServiceFactoryTests(SynchronousTestCase):
     def setUp(self):
         setup_config(self)
 
+    def test_uuids_from_certificate(self):
+        """
+        The created deployer got its node UUID and cluster UUID from the given
+        node certificate.
+        """
+        result = []
+
+        def factory(hostname, node_uuid, cluster_uuid):
+            result.append((node_uuid, cluster_uuid))
+            return object()
+
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        service_factory = AgentServiceFactory(deployer_factory=factory)
+        service_factory.get_service(MemoryCoreReactor(), options)
+        self.assertEqual(
+            (self.ca_set.node.uuid,
+             self.ca_set.node.cluster_uuid),
+            result[0])
+
     def test_get_service(self):
         """
         ``AgentServiceFactory.get_service`` creates an ``AgentLoopService``
@@ -233,9 +268,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 deployer=deployer,
                 host=b"10.0.0.1",
                 port=1234,
-                # Simplest possible TLS context factory; not what we'd use
-                # in practice.
-                context_factory=ClientContextFactory(),
+                context_factory=_context_factory_and_credential(
+                    self.config.parent(), b"10.0.0.1", 1234).context_factory,
             ),
             service_factory.get_service(reactor, options)
         )
@@ -268,8 +302,8 @@ class AgentServiceFactoryTests(SynchronousTestCase):
                 deployer=deployer,
                 host=b"10.0.0.2",
                 port=4524,
-                context_factory=_context_factory(self.config.parent(),
-                                                 b"10.0.0.2", 4524),
+                context_factory=_context_factory_and_credential(
+                    self.config.parent(), b"10.0.0.2", 4524).context_factory,
             ),
             service_factory.get_service(reactor, options)
         )
@@ -298,7 +332,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         """
         spied = []
 
-        def deployer_factory(node_uuid, hostname):
+        def deployer_factory(node_uuid, hostname, cluster_uuid):
             spied.append(hostname)
             return object()
 

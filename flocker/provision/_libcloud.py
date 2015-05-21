@@ -8,6 +8,8 @@ from zope.interface import (
     Attribute as InterfaceAttribute, Interface, implementer)
 from characteristic import attributes, Attribute
 
+from flocker.provision._ssh import run_remotely, run_from_args
+
 
 def _fixed_OpenStackNodeDriver_to_node(self, api_node):
     """
@@ -189,11 +191,21 @@ class LibcloudNode(object):
     def reboot(self):
         """
         Reboot the node.
-        """
-        self._node.reboot()
 
-        self._node, self.addresses = (
-            self._node.driver.wait_until_running([self._node])[0])
+        :return Effect:
+        """
+
+        def do_reboot(_):
+            self._node.reboot()
+            self._node, self.addresses = (
+                self._node.driver.wait_until_running([self._node])[0])
+            return
+
+        return run_remotely(
+            username="root",
+            address=self.address,
+            commands=run_from_args(["sync"])
+        ).on(success=do_reboot)
 
     def get_default_username(self):
         """

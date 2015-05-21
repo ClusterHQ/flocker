@@ -49,14 +49,12 @@ class ReceivingProtocol(Protocol):
 
     def dataReceived(self, data):
         self._buffer += data
-        if self._buffer == EXPECTED_STRING:
-            self.result.callback("handshake!")
-            self.result = None
 
     def connectionLost(self, reason):
-        if self.result is not None:
+        if self._buffer == EXPECTED_STRING:
+            self.result.callback("handshake!")
+        else:
             self.result.errback(reason)
-            self.result = None
 
 
 class PeerContextFactory(object):

@@ -28,6 +28,7 @@ from flocker.provision._install import (
     install_cli,
     task_pull_docker_images,
     configure_cluster,
+    configure_zfs,
 )
 from flocker.provision._libcloud import INode
 from flocker.provision._ca import Certificates
@@ -257,14 +258,6 @@ class VagrantRunner(object):
 
         for node in self.NODE_ADDRESSES:
             yield remove_known_host(reactor, node)
-            yield perform(
-                make_dispatcher(reactor),
-                run_remotely(
-                    username='root',
-                    address=node,
-                    commands=task_pull_docker_images()
-                ),
-            )
         returnValue([
             VagrantNode(address=address, distribution=self.distribution)
             for address in self.NODE_ADDRESSES
@@ -278,11 +271,17 @@ class VagrantRunner(object):
 
 
 @attributes(RUNNER_ATTRIBUTES + [
-    'provisioner'
+    'provisioner',
+    'volume_backend',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
-    Run the tests against rackspace nodes.
+    Start and stop cloud nodes for acceptance testing.
+
+    :ivar LibcloudProvioner provisioner: The provisioner to use to create the
+        nodes.
+    :ivar VolumeBackend volume_backend: The volume backend the nodes are
+        configured with.
     """
     def __init__(self):
         self.nodes = []
@@ -308,11 +307,20 @@ class LibcloudRunner(object):
         :param nodes: The list of nodes to be provisioned.
         :return: an Effect to provision the cloud nodes.
         """
-        return parallel([
+        commands = parallel([
             node.provision(
                 package_source=self.package_source, variants=self.variants)
             for node in nodes
         ])
+
+        if self.volume_backend == VolumeBackend.zfs:
+            zfs_commands = parallel([
+                configure_zfs(node, variants=self.variants)
+                for node in self.nodes
+            ])
+            commands = commands.on(success=lambda _: zfs_commands)
+
+        return commands
 
     @inlineCallbacks
     def start_nodes(self, reactor, node_count):
@@ -413,6 +421,7 @@ class RunOptions(Options):
         Options.__init__(self)
         self.top_level = top_level
         self['variants'] = []
+        self['volume-backend'] = VolumeBackend.zfs
 
     def opt_variant(self, arg):
         """
@@ -473,6 +482,7 @@ class RunOptions(Options):
                 distribution=self['distribution'],
                 package_source=package_source,
                 provisioner=provisioner,
+                volume_backend=self['volume-backend'],
                 variants=self['variants'],
             )
         else:
@@ -506,13 +516,14 @@ def eliot_output(message):
 
 
 @inlineCallbacks
-def do_client_acceptance_tests(reactor, runner, trial_args):
+def do_client_acceptance_tests(reactor, runner, trial_args, volume_backend):
     """
     Run acceptance tests for client.
 
     :param reactor: Twisted reactor.
     :param runner: Cloud or Vagrant runner to start nodes.
-    :param trial_args: arguments to pass to trial.
+    :param trial_args: arguments to pass to trial (ignored).
+    :param volume_backend: volume backend to pass to trial (ignored).
     :return int: exit code of Trial run.
     """
     nodes = yield runner.start_nodes(reactor, node_count=1)
@@ -523,13 +534,14 @@ def do_client_acceptance_tests(reactor, runner, trial_args):
 
 
 @inlineCallbacks
-def do_cluster_acceptance_tests(reactor, runner, trial_args):
+def do_cluster_acceptance_tests(reactor, runner, trial_args, volume_backend):
     """
     Run acceptance tests for cluster.
 
     :param reactor: Twisted reactor.
     :param runner: Cloud or Vagrant runner to start nodes.
     :param trial_args: arguments to pass to trial.
+    :param volume_backend: volume backend to pass to trial.
     :return int: exit code of Trial run.
     """
     dispatcher = make_dispatcher(reactor)
@@ -543,13 +555,23 @@ def do_cluster_acceptance_tests(reactor, runner, trial_args):
     yield perform(dispatcher, runner.provision(nodes))
     yield perform(
         dispatcher,
+        parallel([
+            run_remotely(
+                username='root',
+                address=node.address,
+                commands=task_pull_docker_images()
+            ) for node in nodes
+        ]),
+    )
+    yield perform(
+        dispatcher,
         configure_cluster(control_node=nodes[0], agent_nodes=nodes,
                           certificates=certificates))
     result = yield run_cluster_tests(
         reactor=reactor,
         nodes=nodes,
         control_node=nodes[0], agent_nodes=nodes,
-        volume_backend=VolumeBackend.zfs,
+        volume_backend=volume_backend,
         trial_args=trial_args,
         certificates_path=ca_directory)
 
@@ -583,7 +605,7 @@ def main(reactor, args, base_path, top_level):
 
     try:
         result = yield test_type_runner[options['type']](
-            reactor, runner, options['trial-args'])
+            reactor, runner, options['trial-args'], options['volume-backend'])
     except:
         result = 1
         raise
