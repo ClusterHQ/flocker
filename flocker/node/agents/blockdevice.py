@@ -783,9 +783,15 @@ class CreateBlockDeviceDataset(PRecord):
         # BlockDeviceDeployer but it's a ton easier to do it here (it's hard to
         # do it there because calculate_changes shouldn't really make calls
         # onto the api object).
+        allocation_unit = api.allocation_unit()
+        requested_size = self.dataset.maximum_size
+        previous_interval_size = (requested_size // allocation_unit) * allocation_unit
+        if previous_interval_size < requested_size:
+            requested_size = previous_interval_size + allocation_unit
+
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
-            size=self.dataset.maximum_size,
+            size=requested_size,
         )
 
         # This duplicates AttachVolume now.
