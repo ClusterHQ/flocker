@@ -893,6 +893,8 @@ class CreateReleaseBranchOptions(Options):
 
 def create_release_branch_main(args, base_path, top_level):
     """
+    Create a release branch.
+
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
@@ -935,6 +937,8 @@ def create_release_branch_main(args, base_path, top_level):
 
 def publish_dev_box_main(args, base_path, top_level):
     """
+    Publish a development Vagrant box.
+
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
@@ -948,16 +952,27 @@ def publish_dev_box_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
+    scratch_directory = FilePath(tempfile.mkdtemp(
+        prefix=b'flocker-upload-'))
+    scratch_directory.child('vagrant').createDirectory()
+
     # TODO Change this function (name)
-    copy_tutorial_vagrant_box(
-        target_bucket=options['target'],
-        dev_bucket='clusterhq-dev-archive',
-        version=options['flocker-version'],
-    ),
-    publish_vagrant_metadata(
-        version=options['flocker-version'],
-        box_url="TODO",
-        scratch_directory=scratch_directory.child('vagrant'),
-        box_name="flocker-dev",
-        target_bucket=options['target'],
-    ),
+    sync_perform(
+        dispatcher=base_dispatcher,
+        effect=sequence([
+            copy_tutorial_vagrant_box(
+                target_bucket=options['target'],
+                dev_bucket='clusterhq-dev-archive',
+                version=options['flocker-version'],
+            ),
+            publish_vagrant_metadata(
+                # TODO perhaps get this information from the metadata?
+                # Does it have to be ruby-ified?
+                version=options['flocker-version'],
+                box_url="TODO",
+                scratch_directory=scratch_directory.child('vagrant'),
+                box_name="flocker-dev",
+                target_bucket=options['target'],
+            ),
+        ]),
+    )
