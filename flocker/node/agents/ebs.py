@@ -17,7 +17,10 @@ from zope.interface import implementer
 from boto import ec2
 from boto import config
 from boto.utils import get_instance_metadata
+from boto.exception import BotoClientError, BotoServerError
+from boto.ec2.connection import EC2Connection
 from twisted.python.filepath import FilePath
+from eliot import Field, MessageType
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
@@ -30,6 +33,42 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'10'
 BOTO_DEBUG_LEVEL = u'1'
+
+CODE = Field.for_types("code", [int], u"The HTTP response code.")
+MESSAGE = Field.for_types(
+    "message", [bytes, unicode],
+    u"A human-readable error message given by the response.",
+)
+DETAILS = Field.for_types("details", [dict], u"Extra details about the error.")
+REQUEST_ID = Field.for_types(
+    "request_id", [bytes, unicode],
+    u"The unique identifier assigned by the server for this request.",
+)
+URL = Field.for_types("url", [bytes, unicode], u"The request URL.")
+METHOD = Field.for_types("method", [bytes, unicode], u"The request method.")
+
+RESPONSE = Field.for_types("response", [bytes, unicode], u"The response body.")
+BOTO_CLIENT_ERROR = MessageType(
+    u"boto:boto_client_error", [
+        CODE,
+        RESPONSE,
+        MESSAGE,
+        DETAILS,
+        REQUEST_ID,
+        URL,
+        METHOD,
+    ],
+)
+BOTO_SERVER_ERROR = MessageType(
+    u"boto:boto_server_error", [
+        CODE,
+        MESSAGE,
+        DETAILS,
+        REQUEST_ID,
+        URL,
+        METHOD,
+    ],
+)
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -64,12 +103,66 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     config.set('Boto', 'debug', BOTO_DEBUG_LEVEL)
 
     return _EC2(zone=zone,
-                connection=ec2.connect_to_region(
-                    region,
+                connection=ec2.connect_to_region(region,
                     aws_access_key_id=access_key_id,
                     aws_secret_access_key=secret_access_key))
 
 
+def _boto_logged_method(method_name, original_name):
+    """
+    Run a method and log additional information about any exceptions that are
+    raised.
+
+    :param str method_name: The name of the method of the wrapped object to
+        call.
+    :param str original_name: The name of the attribute of self where the
+        wrapped object can be found.
+
+    :return: A function which will call the method of the wrapped object and do
+        the extra exception logging.
+    """
+    def _run_with_logging(self, *args, **kwargs):
+        import pdb
+        pdb.set_trace()
+        original = getattr(self, original_name)
+        method = getattr(original, method_name)
+        try:
+            return method(*args, **kwargs)
+        except BotoClientError as e:
+            BOTO_CLIENT_ERROR(
+                code=e.code,
+                response=e.response.text,
+                message=e.message,
+                details=e.details,
+                request_id=e.request_id,
+                url=e.url,
+                method=e.method,
+            ).write()
+            raise
+        except BotoServerError as e:
+            BOTO_SERVER_ERROR(
+                code=e.code,
+                message=e.message,
+                details=e.details,
+                request_id=e.request_id,
+                url=e.url,
+                method=e.method,
+            ).write()
+            raise
+    return _run_with_logging
+
+
+def auto_boto_logging(*args, **kwargs):
+    def _class_decorator(className):
+        for attr in EC2Connection.__dict__:
+            attribute = getattr(EC2Connection, attr)
+            import pdb; pdb.set_trace()
+            if callable(attribute):
+                setattr(EC2Connection, attr, _boto_logged_method(attr, *args, **kwargs))
+    return _class_decorator
+
+
+@auto_boto_logging("connection")
 class _EC2(PRecord):
     """
     :ivar str zone: The name of the zone for the connection.
