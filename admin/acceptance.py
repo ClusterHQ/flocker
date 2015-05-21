@@ -32,7 +32,7 @@ from flocker.provision._ca import Certificates
 from effect import parallel
 from effect.twisted import perform
 from flocker.provision._ssh._conch import make_dispatcher
-from flocker.acceptance.testtools import VolumeBackend
+from flocker.acceptance.testtools import DatasetBackend
 
 from .runner import run
 
@@ -61,7 +61,7 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def run_tests(reactor, nodes, control_node, agent_nodes, volume_backend,
+def run_tests(reactor, nodes, control_node, agent_nodes, dataset_backend,
               trial_args, certificates_path):
     """
     Run the acceptance tests.
@@ -72,7 +72,7 @@ def run_tests(reactor, nodes, control_node, agent_nodes, volume_backend,
         tests against.
     :param list agent_nodes: The list of INode nodes running flocker
         agent, to run API acceptance tests against.
-    :param VolumeBackend volume_backend: The volume backend the nodes are
+    :param DatasetBackend dataset_backend: The volume backend the nodes are
         configured with.
     :param list trial_args: Arguments to pass to trial. If not
         provided, defaults to ``['flocker.acceptance']``.
@@ -100,7 +100,7 @@ def run_tests(reactor, nodes, control_node, agent_nodes, volume_backend,
             FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
                 node.address for node in agent_nodes),
             FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH=certificates_path.path,
-            FLOCKER_ACCEPTANCE_VOLUME_BACKEND=volume_backend.name,
+            FLOCKER_ACCEPTANCE_VOLUME_BACKEND=dataset_backend.name,
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -207,7 +207,7 @@ class VagrantRunner(object):
 
 @attributes(RUNNER_ATTRIBUTES + [
     'provisioner',
-    'volume_backend',
+    'dataset_backend',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
@@ -215,7 +215,7 @@ class LibcloudRunner(object):
 
     :ivar LibcloudProvioner provisioner: The provisioner to use to create the
         nodes.
-    :ivar VolumeBackend volume_backend: The volume backend the nodes are
+    :ivar DatasetBackend dataset_backend: The volume backend the nodes are
         configured with.
     """
     def __init__(self):
@@ -270,7 +270,7 @@ class LibcloudRunner(object):
                            variants=self.variants)
             for node in self.nodes
         ])
-        if self.volume_backend == VolumeBackend.zfs:
+        if self.dataset_backend == DatasetBackend.zfs:
             zfs_commands = parallel([
                 configure_zfs(node, variants=self.variants)
                 for node in self.nodes
@@ -331,7 +331,7 @@ class RunOptions(Options):
         Options.__init__(self)
         self.top_level = top_level
         self['variants'] = []
-        self['volume-backend'] = VolumeBackend.zfs
+        self['dataset-backend'] = DatasetBackend.zfs
 
     def opt_variant(self, arg):
         """
@@ -392,7 +392,7 @@ class RunOptions(Options):
                 distribution=self['distribution'],
                 package_source=package_source,
                 provisioner=provisioner,
-                volume_backend=self['volume-backend'],
+                dataset_backend=self['dataset-backend'],
                 variants=self['variants'],
             )
         else:
@@ -470,13 +470,13 @@ def main(reactor, args, base_path, top_level):
             configure_cluster(control_node=control_node, agent_nodes=nodes,
                               certificates=certificates))
 
-        volume_backend = options['volume-backend']
+        dataset_backend = options['dataset-backend']
         result = yield run_tests(
             reactor=reactor,
             nodes=nodes,
             control_node=control_node,
             agent_nodes=nodes,
-            volume_backend=volume_backend,
+            dataset_backend=dataset_backend,
             trial_args=options['trial-args'],
             certificates_path=ca_directory)
     except:
@@ -498,7 +498,7 @@ def main(reactor, args, base_path, top_level):
                 'FLOCKER_ACCEPTANCE_CONTROL_NODE': control_node.address,
                 'FLOCKER_ACCEPTANCE_AGENT_NODES':
                     ':'.join(node.address for node in nodes),
-                'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': volume_backend.name,
+                'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': dataset_backend.name,
                 'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': ca_directory.path,
             }
 
