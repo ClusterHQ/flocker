@@ -321,7 +321,7 @@ Release
    Wait for the build to complete successfully.
 
 #. Build Python and RPM packages and upload them to Amazon S3,
-   and copy the tutorial box to the final location:
+   and publish the tutorial box:
 
    .. prompt:: bash [vagrant@localhost]$
 
