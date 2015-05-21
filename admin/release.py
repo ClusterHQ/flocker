@@ -931,3 +931,33 @@ def create_release_branch_main(args, base_path, top_level):
         sys.stderr.write("%s: The release branch already exists.\n"
                          % (base_path.basename(),))
         raise SystemExit(1)
+
+
+def publish_dev_box_main(args, base_path, top_level):
+    """
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    # TODO create these options
+    options = PublishDevBoxOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    # TODO Change this function (name)
+    copy_tutorial_vagrant_box(
+        target_bucket=options['target'],
+        dev_bucket='clusterhq-dev-archive',
+        version=options['flocker-version'],
+    ),
+    publish_vagrant_metadata(
+        version=options['flocker-version'],
+        box_url="TODO",
+        scratch_directory=scratch_directory.child('vagrant'),
+        box_name="flocker-dev",
+        target_bucket=options['target'],
+    ),
