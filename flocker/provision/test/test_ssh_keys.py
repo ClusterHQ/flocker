@@ -21,8 +21,8 @@ class EnsureKeyTests(TestCase):
     """
     def test_public_key_in_agent(self):
         """
-        If the running ssh-agent has the private key, assoicated to the
-        provided public key, then ``ssh_agent_has_ssh_key`` returns a succesful
+        If the running ssh-agent has the private key, associated to the
+        provided public key, then ``ssh_agent_has_ssh_key`` returns a successful
         deferred.
         """
         key_file = FilePath(self.mktemp())
@@ -32,13 +32,13 @@ class EnsureKeyTests(TestCase):
 
         result = ensure_agent_has_ssh_key(reactor, key)
         # No assertion, since the deferred should fire with a
-        # succesful result.
+        # successful result.
         return result
 
     def test_private_key_in_agent(self):
         """
         If the running ssh-agent has the provided private key, then
-        ``ssh_agent_has_ssh_key`` returns a succesful deferred.
+        ``ssh_agent_has_ssh_key`` returns a successful deferred.
         """
         key_file = FilePath(self.mktemp())
         key = generate_ssh_key(key_file)
@@ -47,14 +47,14 @@ class EnsureKeyTests(TestCase):
 
         result = ensure_agent_has_ssh_key(reactor, key)
         # No assertion, since the deferred should fire with a
-        # succesful result.
+        # successful result.
         return result
 
     def test_public_key_not_in_agent(self):
         """
-        If the running ssh-agent does not have a key assoicated to the given
-        public key, then ``ssh_agent_has_ssh_key`` returns ``False``.
-        a deferred that fails with ``KeyNotFound``.
+        If the running ssh-agent does not have a key associated to the given
+        public key, then ``ssh_agent_has_ssh_key`` returns a deferred that
+        fails with ``KeyNotFound``.
         """
         key_file = FilePath(self.mktemp())
         generate_ssh_key(key_file)
@@ -67,7 +67,7 @@ class EnsureKeyTests(TestCase):
 
     def test_agent_not_found(self):
         """
-        If there is not a running ssh-agent, ``ssh_agent_has_ssh_key returns
+        If there is not a running ssh-agent, ``ssh_agent_has_ssh_key`` returns
         a deferred that fails with ``AgentNotFound``.
         """
         try:

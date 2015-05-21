@@ -133,13 +133,14 @@ class INodeRunner(Interface):
             stopped.
         """
 
-    def ensure_keys(self, reactor):
+    def ensure_keys(reactor):
         """
         Ensure that the running ssh-agent has the ssh-keys needed to connect to
         created nodes.
 
         :param reactor: Reactor to use.
-        :return Deferred: Deferred which fires with ...
+        :return Deferred: That fires with a succesful result if the key is
+            found.  Otherwise, fires with ``AgentNotFound`` or ``KeyNotFound``.
         """
 
 
