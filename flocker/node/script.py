@@ -12,13 +12,14 @@ import yaml
 
 from jsonschema import FormatChecker, Draft4Validator
 
-from pyrsistent import PRecord, field
+from pyrsistent import PRecord, field, PMap, pmap
 
 from zope.interface import implementer
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 from twisted.internet.ssl import Certificate
+from twisted.internet import reactor
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript,
@@ -376,72 +377,102 @@ default_deployers = {
 }
 
 
-class AgentService:
+class AgentService(PRecord):
+    backends = field(initial=default_backends, mandatory=True)
+    deployers = field(initial=default_deployers, mandatory=True)
+    reactor = field(initial=reactor, mandatory=True)
 
-    def __init__(
-            self, reactor, configuration, backends=default_backends,
-            deployers=default_deployers):
-        self._reactor = reactor
-        self._configuration = configuration
-        self._backends = backends
-        self._deployers = deployers
-        self._host = configuration['control-service']['hostname']
-        self._port = configuration['control-service'].get('port', 4524)
+    control_service_host = field(type=bytes, mandatory=True)
+    control_service_port = field(type=int, mandatory=True)
+
+    node_credential = field(type=NodeCredential, mandatory=True)
+    # Cannot use type=Certificate; pyrsistent rejects classic classes.
+    ca_certificate = field(mandatory=True)
+
+    backend = field(type=unicode, mandatory=True)
+    api_args = field(type=PMap, factory=pmap, mandatory=True)
+
+    @classmethod
+    def from_configuration(cls, configuration):
+        host = configuration['control-service']['hostname']
+        port = configuration['control-service'].get('port', 4524)
 
         node_credential = configuration['node-credential']
+        ca_certificate = configuration['ca-certificate']
+
+        api_args = configuration['dataset']
+        backend = api_args.pop('backend')
+
+        return cls(
+            control_service_host=host,
+            control_service_port=port,
+
+            node_credential=node_credential,
+            ca_certificate=ca_certificate,
+
+            backend=backend.decode("ascii"),
+            api_args=api_args,
+        )
+
+    def get_tls_context(self):
         policy = ControlServicePolicy(
-            ca_certificate=configuration['ca-certificate'],
-            client_credential=node_credential.credential)
-        self._tls_context = _TLSContext(
-            context_factory=policy.creatorForNetloc(self._host, self._port),
-            node_credential=node_credential)
-        self._api_args = self._configuration['dataset']
-        self._backend = self._api_args.pop('backend')
+            ca_certificate=self.ca_certificate,
+            client_credential=self.node_credential.credential,
+        )
+        return _TLSContext(
+            context_factory=policy.creatorForNetloc(
+                self.control_service_host, self.control_service_port,
+            ),
+            node_credential=self.node_credential,
+        )
 
     def get_api(self):
-        api_args = self._api_args.copy()
-        (api_factory, _, needs_reactor, needs_cluster_id) = self._backends[
-            self._backend
+        (api_factory, _, needs_reactor, needs_cluster_id) = self.backends[
+            self.backend
         ]
 
+        api_args = self.api_args
         if needs_cluster_id:
-            # cluster_id = self._tls_context.node_credential.cluster_uuid
+            # cluster_id = self.node_credential.cluster_uuid
             cluster_id = None
-            api_args["cluster_id"] = cluster_id
+            api_args = api_args.set("cluster_id", cluster_id)
         if needs_reactor:
-            api_args["reactor"] = self._reactor
+            api_args = api_args.set("reactor", self.reactor)
 
         return api_factory(**api_args)
 
     def get_deployer(self, api):
-        deployer_factory = self._deployers[self._backend]
+        deployer_factory = self.deployers[self.backend]
 
-        hostname = _get_external_ip(self._host, self._port)
-        node_uuid = self._tls_context.node_credential.uuid
+        hostname = _get_external_ip(
+            self.control_service_host, self.control_service_port,
+        )
+        node_uuid = self.node_credential.uuid
         return deployer_factory(
             api=api, hostname=hostname, node_uuid=node_uuid,
         )
 
     def get_loop_service(self, deployer):
         loop = AgentLoopService(
-            reactor=self._reactor,
+            reactor=self.reactor,
             deployer=deployer,
-            host=self._host, port=self._port,
-            context_factory=self._tls_context.context_factory,
+            host=self.control_service_host, port=self.control_service_port,
+            context_factory=self.get_tls_context().context_factory,
         )
         return loop
 
 
 class NewAgentScript(PRecord):
 
-    agent_service_factory = field(type=object, initial=AgentService)
-    configuration_factory = field(type=object, initial=get_configuration)
+    agent_service_factory = field(initial=AgentService.from_configuration)
+    configuration_factory = field(initial=get_configuration)
 
     def main(self, reactor, options):
 
         configuration = self.configuration_factory(options)
 
-        agent_service = self.agent_service_factory(reactor, configuration)
+        agent_service = self.agent_service_factory(configuration)
+        agent_service = agent_service.set(reactor=reactor)
 
         api = agent_service.get_api()
 

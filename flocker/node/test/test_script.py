@@ -6,6 +6,8 @@ Tests for :module:`flocker.node.script`.
 import netifaces
 import yaml
 
+from pyrsistent import PRecord, field
+
 from jsonschema.exceptions import ValidationError
 
 from zope.interface.verify import verifyObject
@@ -23,6 +25,7 @@ from ..script import (
     AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
     _context_factory_and_credential, NewAgentScript,
+    AgentService,
 )
 
 from .._loop import AgentLoopService
@@ -78,13 +81,17 @@ def deployer_factory_stub(**kw):
     return deployer
 
 
-class DummyAgentService:
-    def __init__(self, loop_service, reactor, configuration):
-        self.loop_service = loop_service
+class DummyAgentService(PRecord):
+    reactor = field()
+    loop_service = field()
+    configuration = field()
 
     @classmethod
     def for_loop_service(cls, loop_service):
-        return lambda *a, **kw: cls(loop_service, *a, **kw)
+        return lambda configuration: cls(
+            loop_service=loop_service,
+            configuration=configuration,
+        )
 
     def get_api(self):
         return None
@@ -156,6 +163,50 @@ class ZFSGenericAgentScriptTests(SynchronousTestCase):
         self.assertRaises(
             IOError,
             NewAgentScript().main, test_reactor, options,
+        )
+
+
+class AgentServiceLoopTests(SynchronousTestCase):
+    """
+    Tests for ``AgentService.get_loop_service``.
+    """
+    def setUp(self):
+        self.ca_set, _ = get_credential_sets()
+
+    def test_agentloopservice(self):
+        """
+        ```AgentService.get_loop_service`` returns an ``AgentLoopService``
+        using the given deployer and all of the configuration supplied to
+        the``AgentService``.
+        """
+        host = b"192.0.2.5"
+        port = 54123
+        reactor = MemoryCoreReactor()
+
+        agent_service = AgentService(
+            reactor=reactor,
+
+            control_service_host=host,
+            control_service_port=port,
+            node_credential=self.ca_set.node,
+            ca_certificate=self.ca_set.root.credential.certificate,
+
+            backend=u"anything",
+            api_args={},
+        )
+
+        deployer = object()
+        loop_service = agent_service.get_loop_service(deployer)
+        context_factory = agent_service.get_tls_context().context_factory
+        self.assertEqual(
+            AgentLoopService(
+                reactor=reactor,
+                deployer=deployer,
+                host=host,
+                port=port,
+                context_factory=context_factory,
+            ),
+            loop_service,
         )
 
 
