@@ -25,7 +25,7 @@ from ..script import (
     AgentScript, ContainerAgentOptions,
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
     _context_factory_and_credential, DatasetServiceFactory,
-    AgentService, BackendDescription,
+    AgentService, BackendDescription, get_configuration,
 )
 
 from .._loop import AgentLoopService
@@ -34,7 +34,7 @@ from ...testtools import MemoryCoreReactor, random_name
 from ...ca.testtools import get_credential_sets
 
 
-def setup_config(test):
+def setup_config(test, host=u"10.0.0.1", port=1234, name=None):
     """
     Create a configuration file and certificates for a dataset agent in a
     temporary directory.
@@ -44,6 +44,8 @@ def setup_config(test):
 
     :param test: A ``TestCase`` instance.
     """
+    if name is None:
+        name = random_name(test)
     ca_set, _ = get_credential_sets()
     scratch_directory = FilePath(test.mktemp())
     scratch_directory.makedirs()
@@ -51,12 +53,12 @@ def setup_config(test):
     test.config.setContent(
         yaml.safe_dump({
             u"control-service": {
-                u"hostname": u"10.0.0.1",
-                u"port": 1234,
+                u"hostname": host,
+                u"port": port,
             },
             u"dataset": {
                 u"backend": u"zfs",
-                u"name": random_name(test),
+                u"name": name,
                 # XXX Can't put FilePath in a yaml file (well you can but
                 # .... :/)
                 u"mount_root": scratch_directory.child(b"mount_root").path,
@@ -139,6 +141,9 @@ class DatasetServiceFactoryTests(SynchronousTestCase):
 
 
 def agent_service_setup(test):
+    """
+    Do some setup common to all of the ``AgentService`` test cases.
+    """
     test.ca_set, _ = get_credential_sets()
 
     test.host = b"192.0.2.5"
@@ -156,6 +161,54 @@ def agent_service_setup(test):
         backend_name=u"anything",
         api_args={},
     )
+
+
+class AgentServiceFromConfigurationTests(SynchronousTestCase):
+    """
+    Tests for ``AgentService.from_configuration``
+    """
+    def test_initialized(self):
+        """
+        ``AgentService.from_configuration`` returns an ``AgentService``
+        instance with all of its fields initialized from parts of the
+        configuration passed in.
+        """
+        host = b"192.0.2.13"
+        port = 2314
+        name = u"from_config-test"
+
+        setup_config(self, host=host, port=port, name=name)
+        options = DatasetAgentOptions()
+        options.parseOptions([b"--agent-config", self.config.path])
+        config = get_configuration(options)
+        agent_service = AgentService.from_configuration(config)
+        self.assertEqual(
+            AgentService(
+                control_service_host=host,
+                control_service_port=port,
+
+                # Compare this separately :/
+                node_credential=None,
+                ca_certificate=self.ca_set.root.credential.certificate,
+
+                backend_name=u"zfs",
+                api_args={
+                    "name": name,
+                    "mount_root": self.config.sibling(b"mount_root").path,
+                    "volume_config_path": self.config.sibling(
+                        b"volume_config.json"
+                    ).path,
+                },
+            ),
+            agent_service.set(node_credential=None),
+        )
+        # The credentials differ only by the path they were loaded from.
+        self.assertEqual(
+            self.ca_set.node.transform(["credential", "path"], None),
+            agent_service.node_credential.transform(
+                ["credential", "path"], None
+            ),
+        )
 
 
 class AgentServiceAPITests(SynchronousTestCase):

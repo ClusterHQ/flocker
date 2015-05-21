@@ -444,7 +444,9 @@ class AgentService(PRecord):
     control_service_host = field(type=bytes, mandatory=True)
     control_service_port = field(type=int, mandatory=True)
 
-    node_credential = field(type=NodeCredential, mandatory=True)
+    # Cannot use type=NodeCredential because one of the tests really wants to
+    # set this to None.
+    node_credential = field(mandatory=True)
     # Cannot use type=Certificate; pyrsistent rejects classic classes.
     ca_certificate = field(mandatory=True)
 
