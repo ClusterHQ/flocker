@@ -427,6 +427,13 @@ class AgentService(PRecord):
         )
 
     def get_api(self):
+        """
+        Get an storage driver which can be used to create an ``IDeployer``.
+
+        :return: An object created by one of the factories in ``self.backends``
+            using the configuration from ``self.api_args`` and other useful
+            state on ``self``.
+        """
         (api_factory, _, needs_reactor, needs_cluster_id) = self.backends[
             self.backend
         ]
