@@ -503,10 +503,6 @@ class NewAgentScript(PRecord):
 
     agent_service_factory = field(type=object, initial=AgentService)
     configuration_factory = field(type=callable, initial=get_configuration)
-    api_factory = field(type=callable, initial=get_api)
-    deployer_factory = field(type=callable, initial=get_deployer)
-    service_factory = field(type=callable, initial=get_loop_service)
-    post_loop = field(type=callable, initial=lambda loop: None)
 
     def main(self, reactor, options):
 
@@ -516,14 +512,9 @@ class NewAgentScript(PRecord):
 
         api = agent_service.get_api()
 
-        host = configuration['control-service']['hostname']
-        port = configuration['control-service'].get('port', 4524)
-        tls_info = _context_factory_and_credential(
-            options["agent-config"].parent(), host, port)
+        deployer = agent_service.get_deployer(api)
 
-        deployer = self.deployer_factory(configuration, api, tls_info)
-
-        loop_service = self.service_factory(deployer)
+        loop_service = agent_service.get_loop_service(deployer)
 
         api.set_service(loop_service)
 
