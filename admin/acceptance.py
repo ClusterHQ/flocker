@@ -151,6 +151,16 @@ class INodeRunner(Interface):
             tests against.
         """
 
+    def provision_cluster(self, nodes):
+        """
+        Provision cloud nodes for acceptance tests.
+
+        Returns an Effect to provision each node in parallel.
+
+        :param nodes: The list of nodes to be provisioned.
+        :return: an Effect to provision the cloud nodes.
+        """
+
     def stop_nodes(reactor):
         """
         Stop the nodes started by `start_nodes`.
@@ -270,6 +280,7 @@ class VagrantRunner(object):
             path=self.vagrant_path.path)
 
 
+@implementer(INodeRunner)
 @attributes(RUNNER_ATTRIBUTES + [
     'provisioner',
     'volume_backend',
