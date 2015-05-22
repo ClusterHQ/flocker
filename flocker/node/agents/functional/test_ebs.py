@@ -10,6 +10,7 @@ from uuid import uuid4
 from bitmath import Byte
 
 from twisted.trial.unittest import SkipTest
+from boto.exception import EC2ResponseError
 
 from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL, UnattachedVolume)
 from ....testtools import skip_except
@@ -66,6 +67,7 @@ def ebsblockdeviceapi_for_test(test_case):
         'test_detach_volume',
         'test_attach_volume_validate_size',
         'test_attached_volume_missing_device_tag',
+        'test_boto_ec2response_error',
     ]
 )
 class EBSBlockDeviceAPIInterfaceTests(
@@ -135,3 +137,17 @@ class EBSBlockDeviceAPIInterfaceTests(
 
         self.assertRaises(UnattachedVolume, self.api.get_device_path,
                           volume.blockdevice_id)
+
+    def test_boto_ec2response_error(self):
+        """
+        """
+        # Test 1: Create volume with size 0.
+        # Result: EC2ResponseError
+        self.assertRaises(EC2ResponseError, self.api.create_volume,
+                          dataset_id=uuid4(), size=0,)
+
+        # Test 2: Set EC2 connection zone to an invalid string.
+        # Result: EC2ResponseError
+        self.api.zone = u'invalid_zone'
+        self.assertRaises(EC2ResponseError, self.api.create_volume,
+                          dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE,)

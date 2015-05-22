@@ -18,7 +18,7 @@ from boto import ec2
 from boto import config
 from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
-from boto.exception import BotoClientError, BotoServerError
+from boto.exception import EC2ResponseError
 from twisted.python.filepath import FilePath
 from eliot import Field, MessageType
 
@@ -32,9 +32,18 @@ METADATA_VERSION_LABEL = u'flocker-metadata-version'
 CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'10'
+
+# Set Boto debug level to `1`, requesting basic debug messages from Boto
+# to be printed.
+# See https://code.google.com/p/boto/wiki/BotoConfig#Boto
+# for available debug levels.
+# Warning: BotoConfig is a Boto global option, so, all Boto clients from
+# from this process will have their log levels modified. See
+# https://clusterhq.atlassian.net/browse/FLOC-1962
+# to track evaluation of impact of log level change.
 BOTO_DEBUG_LEVEL = u'1'
 
-# Scaffolding for logging Boto client and server exceptions
+# Begin: Scaffolding for logging Boto client and server exceptions
 # via Eliot.
 CODE = Field.for_types("code", [int], u"The HTTP response code.")
 MESSAGE = Field.for_types(
@@ -50,27 +59,17 @@ URL = Field.for_types("url", [bytes, unicode], u"The request URL.")
 METHOD = Field.for_types("method", [bytes, unicode], u"The request method.")
 
 RESPONSE = Field.for_types("response", [bytes, unicode], u"The response body.")
-BOTO_CLIENT_ERROR = MessageType(
-    u"boto:boto_client_error", [
-        CODE,
-        RESPONSE,
-        MESSAGE,
-        DETAILS,
-        REQUEST_ID,
-        URL,
-        METHOD,
-    ],
-)
-BOTO_SERVER_ERROR = MessageType(
-    u"boto:boto_server_error", [
+
+# Log boto.exception.BotoEC2ResponseError, covering all errors from AWS:
+# server operation rate limit exceeded, invalid server request parameters, etc.
+BOTO_EC2RESPONSE_ERROR = MessageType(
+    u"boto:boto_ec2response_error", [
         CODE,
         MESSAGE,
-        DETAILS,
         REQUEST_ID,
-        URL,
-        METHOD,
     ],
 )
+# End: Scaffolding for logging Boto errors.
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -135,25 +134,11 @@ def _boto_logged_method(method_name, original_name):
         method = getattr(original, method_name)
         try:
             return method(*args, **kwargs)
-        except BotoClientError as e:
-            BOTO_CLIENT_ERROR(
-                code=e.code,
-                response=e.response.text,
-                message=e.message,
-                details=e.details,
-                request_id=e.request_id,
-                url=e.url,
-                method=e.method,
-            ).write()
-            raise
-        except BotoServerError as e:
-            BOTO_SERVER_ERROR(
+        except EC2ResponseError as e:
+            BOTO_EC2RESPONSE_ERROR(
                 code=e.code,
                 message=e.message,
-                details=e.details,
                 request_id=e.request_id,
-                url=e.url,
-                method=e.method,
             ).write()
             raise
     return _run_with_logging
@@ -173,7 +158,8 @@ def boto_logger(*args, **kwargs):
             if attr != '__init__':
                 attribute = getattr(EC2Connection, attr)
                 if callable(attribute):
-                    setattr(cls, attr, _boto_logged_method(attr, *args, **kwargs))
+                    setattr(cls, attr,
+                            _boto_logged_method(attr, *args, **kwargs))
         return cls
     return _class_decorator
 
