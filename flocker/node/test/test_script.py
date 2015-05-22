@@ -33,15 +33,20 @@ from ...testtools import MemoryCoreReactor, random_name
 from ...ca.testtools import get_credential_sets
 
 
-def setup_config(test, host=u"10.0.0.1", port=1234, name=None):
+def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
+                 name=None):
     """
     Create a configuration file and certificates for a dataset agent in a
     temporary directory.
 
-    Sets ``config`` attribute on the test instance with the path to the
-    config file.
+    Sets ``config`` attribute on the test instance with the path to the config
+    file.
 
     :param test: A ``TestCase`` instance.
+    :param unicode control_address: The address of the control service.
+    :param int control_port: The port number of the control service.
+    :param unicode name: The ZFS pool name.  If ``None``, a random one will be
+        generated that identifies the given test.
     """
     if name is None:
         name = random_name(test)
@@ -52,8 +57,8 @@ def setup_config(test, host=u"10.0.0.1", port=1234, name=None):
     test.config.setContent(
         yaml.safe_dump({
             u"control-service": {
-                u"hostname": host,
-                u"port": port,
+                u"hostname": control_address,
+                u"port": control_port,
             },
             u"dataset": {
                 u"backend": u"zfs",
@@ -176,7 +181,7 @@ class AgentServiceFromConfigurationTests(SynchronousTestCase):
         port = 2314
         name = u"from_config-test"
 
-        setup_config(self, host=host, port=port, name=name)
+        setup_config(self, control_address=host, control_port=port, name=name)
         options = DatasetAgentOptions()
         options.parseOptions([b"--agent-config", self.config.path])
         config = get_configuration(options)
