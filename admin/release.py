@@ -757,12 +757,14 @@ def publish_artifacts_main(args, base_path, top_level):
                     scratch_directory=scratch_directory.child('pip'),
                     target_bucket=options['target'],
                 ),
-                CopyS3Keys(
-                    source_bucket=DEV_ARCHIVE_BUCKET,
-                    source_prefix=vagrant_prefix,
-                    destination_bucket=options['target'],
-                    destination_prefix=vagrant_prefix,
-                    keys=[box_name],
+                Effect(
+                    CopyS3Keys(
+                        source_bucket=DEV_ARCHIVE_BUCKET,
+                        source_prefix=vagrant_prefix,
+                        destination_bucket=options['target'],
+                        destination_prefix=vagrant_prefix,
+                        keys=[box_name],
+                    )
                 ),
                 publish_vagrant_metadata(
                     version=options['flocker-version'],
@@ -979,14 +981,16 @@ def publish_dev_box_main(args, base_path, top_level):
     )
 
     sync_perform(
-        dispatcher=base_dispatcher,
+        dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
         effect=sequence([
-            CopyS3Keys(
-                source_bucket=DEV_ARCHIVE_BUCKET,
-                source_prefix=prefix,
-                destination_bucket=options['target'],
-                destination_prefix=prefix,
-                keys=[box_name],
+            Effect(
+                CopyS3Keys(
+                    source_bucket=DEV_ARCHIVE_BUCKET,
+                    source_prefix=prefix,
+                    destination_bucket=options['target'],
+                    destination_prefix=prefix,
+                    keys=[box_name],
+                )
             ),
             publish_vagrant_metadata(
                 version=options['flocker-version'],
