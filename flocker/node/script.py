@@ -519,6 +519,9 @@ class AgentService(PRecord):
         """
         Find the backend in ``self.backends`` that matches the one named by
         ``self.backend_name``.
+
+        :raise ValueError: If ``backend_name`` doesn't match any known backend.
+        :return: The matching ``BackendDescription``.
         """
         for backend in self.backends:
             if backend.name == self.backend_name:
