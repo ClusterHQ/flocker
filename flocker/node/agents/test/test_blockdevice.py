@@ -2135,6 +2135,30 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
 
         self.assertEqual([blockdevice_volume], self.api.list_volumes())
 
+    def test_stale_attachments(self):
+        """
+        If there are volumes in the ``LoopbackBlockDeviceAPI``\ 's "attached"
+        directory that do not have a corresponding loopback device, one is
+        created for them.
+        """
+        this_node = self.api.compute_instance_id()
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+        )
+        unattached = self.api._root_path.descendant([
+            b"unattached", volume.blockdevice_id,
+        ])
+        attached = self.api._root_path.descendant([
+            b"attached", this_node.encode("utf-8"), volume.blockdevice_id,
+        ])
+        attached.parent().makedirs()
+        unattached.moveTo(attached)
+
+        self.assertNotEqual(
+            None,
+            self.api.get_device_path(volume.blockdevice_id),
+        )
+
 
 class LosetupListTests(SynchronousTestCase):
     """
