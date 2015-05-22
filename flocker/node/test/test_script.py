@@ -25,6 +25,7 @@ from ..script import (
     AgentServiceFactory, DatasetAgentOptions, validate_configuration,
     _context_factory_and_credential, DatasetServiceFactory,
     AgentService, BackendDescription, get_configuration,
+    DeployerType,
 )
 
 from .._loop import AgentLoopService
@@ -232,11 +233,11 @@ class AgentServiceAPITests(SynchronousTestCase):
             "backends", [
                 BackendDescription(
                     name=u"foo", needs_reactor=False, needs_cluster_id=False,
-                    api_factory=API, deployer_type=u"p2p",
+                    api_factory=API, deployer_type=DeployerType.p2p,
                 ),
                 BackendDescription(
                     name=u"bar", needs_reactor=False, needs_cluster_id=False,
-                    api_factory=WrongAPI, deployer_type=u"block",
+                    api_factory=WrongAPI, deployer_type=DeployerType.block,
                 ),
             ],
         ).set(
@@ -267,7 +268,7 @@ class AgentServiceAPITests(SynchronousTestCase):
                 BackendDescription(
                     name=self.agent_service.backend_name,
                     needs_reactor=True, needs_cluster_id=False,
-                    api_factory=API, deployer_type=u"p2p",
+                    api_factory=API, deployer_type=DeployerType.p2p,
                 ),
             ],
         ).set(
@@ -294,7 +295,7 @@ class AgentServiceAPITests(SynchronousTestCase):
                 BackendDescription(
                     name=self.agent_service.backend_name,
                     needs_reactor=False, needs_cluster_id=True,
-                    api_factory=API, deployer_type=u"p2p",
+                    api_factory=API, deployer_type=DeployerType.p2p,
                 ),
             ],
         )
@@ -342,13 +343,13 @@ class AgentServiceDeployerTests(SynchronousTestCase):
                 BackendDescription(
                     name=self.agent_service.backend_name,
                     needs_reactor=False, needs_cluster_id=False,
-                    api_factory=None, deployer_type=u"magic",
+                    api_factory=None, deployer_type=DeployerType.p2p,
                 ),
             ],
         ).set(
             "deployers", {
-                u"magic": Deployer,
-                b"bar": WrongDeployer,
+                DeployerType.p2p: Deployer,
+                DeployerType.block: WrongDeployer,
             },
         )
 
