@@ -16,9 +16,9 @@ from pyrsistent import PRecord, field
 from zope.interface import implementer
 from boto import ec2
 from boto import config
+from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
 from boto.exception import BotoClientError, BotoServerError
-from boto.ec2.connection import EC2Connection
 from twisted.python.filepath import FilePath
 from eliot import Field, MessageType
 
@@ -34,6 +34,8 @@ ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'10'
 BOTO_DEBUG_LEVEL = u'1'
 
+# Scaffolding for logging Boto client and server exceptions
+# via Eliot.
 CODE = Field.for_types("code", [int], u"The HTTP response code.")
 MESSAGE = Field.for_types(
     "message", [bytes, unicode],
@@ -102,16 +104,19 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     # "1": basic debug messages
     config.set('Boto', 'debug', BOTO_DEBUG_LEVEL)
 
+    # Get Boto connection to EC2 with `BotoClientError` and
+    # `BotoServerError` exceptions logged in Eliot.
+    connection = ec2.connect_to_region(region,
+                                       aws_access_key_id=access_key_id,
+                                       aws_secret_access_key=secret_access_key)
     return _EC2(zone=zone,
-                connection=ec2.connect_to_region(region,
-                    aws_access_key_id=access_key_id,
-                    aws_secret_access_key=secret_access_key))
+                connection=_LoggedBotoConnection(connection=connection))
 
 
 def _boto_logged_method(method_name, original_name):
     """
-    Run a method and log additional information about any exceptions that are
-    raised.
+    Run a boto.ec2.connection.EC2Connection method and
+    log additional information about any exceptions that are raised.
 
     :param str method_name: The name of the method of the wrapped object to
         call.
@@ -122,8 +127,10 @@ def _boto_logged_method(method_name, original_name):
         the extra exception logging.
     """
     def _run_with_logging(self, *args, **kwargs):
-        import pdb
-        pdb.set_trace()
+        """
+        Run given boto.ec2.connection.EC2Connection method with exception
+        logging for `BotoClientError` and `BotoServerError`.
+        """
         original = getattr(self, original_name)
         method = getattr(original, method_name)
         try:
@@ -152,17 +159,38 @@ def _boto_logged_method(method_name, original_name):
     return _run_with_logging
 
 
-def auto_boto_logging(*args, **kwargs):
-    def _class_decorator(className):
+def boto_logger(*args, **kwargs):
+    """
+    Decorator to log all callable boto.ec2.connection.EC2Connection
+    methods.
+
+    :return: A function that will decorate all methods of the given
+        class with Boto exception logging.
+    """
+    def _class_decorator(cls):
         for attr in EC2Connection.__dict__:
-            attribute = getattr(EC2Connection, attr)
-            import pdb; pdb.set_trace()
-            if callable(attribute):
-                setattr(EC2Connection, attr, _boto_logged_method(attr, *args, **kwargs))
+            # Log wrap all callable methods except `__init__`.
+            if attr != '__init__':
+                attribute = getattr(EC2Connection, attr)
+                if callable(attribute):
+                    setattr(cls, attr, _boto_logged_method(attr, *args, **kwargs))
+        return cls
     return _class_decorator
 
 
-@auto_boto_logging("connection")
+@boto_logger("connection")
+class _LoggedBotoConnection(PRecord):
+    """
+    Wrapper `PRecord` around `boto.ec2.connection.EC2Connection` to
+    facilitate logging of exceptions from Boto APIs.
+
+    :ivar boto.ec2.connection.EC2Connection connection: Object
+        representing connection to an EC2 instance with logged
+        `BotoClientError` and `BotoServerError` exceptions.
+    """
+    connection = field(mandatory=True)
+
+
 class _EC2(PRecord):
     """
     :ivar str zone: The name of the zone for the connection.
