@@ -1984,14 +1984,15 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
     def test_version_already_exists(self):
         """
         If a version already exists then its data is overwritten by the new
-        metadata.
+        metadata. This works even if the version is changed when being
+        normalised.
         """
         existing_metadata = json.dumps({
             "description": "clusterhq/flocker-tutorial box.",
             "name": "clusterhq/flocker-tutorial",
             "versions": [
                 {
-                    "version": "0.3.0",
+                    "version": "0.4.0.2314.g941011b",
                     "providers": [
                         {
                             "url": "old_url",
@@ -2012,19 +2013,20 @@ class PublishVagrantMetadataTests(SynchronousTestCase):
         )
 
         expected_metadata_versions = [{
-            "version": "0.3.0",
+            "version": "0.4.0.2314.g941011b",
             "providers": [
                 {
-                    "url": "https://example.com/flocker-tutorial-0.3.0.box",
+                    "url": "https://example.com/flocker-tutorial-0.4.0-2314-g941011b.box",  # noqa
                     "name": "virtualbox"
                 },
             ],
         }]
 
-        self.publish_vagrant_metadata(aws=aws, version='0.3.0')
+        self.publish_vagrant_metadata(aws=aws, version='0.4.0-2314-g941011b')
 
         metadata_versions = json.loads(
             aws.s3_buckets[self.target_bucket][self.metadata_key])['versions']
+
         self.assertEqual(metadata_versions, expected_metadata_versions)
 
 
