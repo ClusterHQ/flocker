@@ -44,9 +44,10 @@ def flocker_dataset_agent_main():
     """
     Implementation of the ``flocker-dataset-agent`` command line script.
 
-    This starts a dataset convergence agent.  It currently supports only the
-    loopback block device backend.  Later it will be capable of starting a
-    dataset agent using any of the supported dataset backends.
+    This starts a dataset convergence agent.  It currently supports only a
+    small number of hard-coded storage drivers.  Later it will be capable of
+    starting a dataset agent using any Flocker-supplied storage driver any
+    third-party drivers via plugins.
     """
     service_factory = DatasetServiceFactory()
     agent_script = AgentScript(service_factory=service_factory.get_service)
