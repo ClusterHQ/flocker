@@ -220,7 +220,7 @@ class AgentServiceFromConfigurationTests(SynchronousTestCase):
         )
 
 
-class AgentServiceAPITests(SynchronousTestCase):
+class AgentServiceGetAPITests(SynchronousTestCase):
     """
     Tests for ``AgentService.get_api``.
     """
