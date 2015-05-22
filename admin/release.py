@@ -952,24 +952,34 @@ def publish_dev_box_main(args, base_path, top_level):
         prefix=b'flocker-upload-'))
     scratch_directory.child('vagrant').createDirectory()
 
-    box_url = "https://s3.amazonaws.com/{bucket}/vagrant/dev/flocker-dev-{version}.box"
+    box_type = "flocker-dev"
+    prefix = 'vagrant/dev/'
+
+    box_name = "{box_type}-{version}.box".format(
+        box_type=box_type,
+        version=options['flocker-version'],
+    )
+
+    box_url = "https://s3.amazonaws.com/{bucket}/{key}".format(
+        bucket=options['target'],
+        key=prefix + box_name,
+    )
 
     sync_perform(
         dispatcher=base_dispatcher,
         effect=sequence([
             CopyS3Keys(
                 source_bucket=DEV_ARCHIVE_BUCKET,
-                source_prefix='vagrant/dev/',
+                source_prefix=prefix,
                 destination_bucket=options['target'],
-                destination_prefix='vagrant/dev/',
-                keys=['flocker-dev-{}.box'.format(
-                    options['flocker-version'])],
+                destination_prefix=prefix,
+                keys=[box_name],
             ),
             publish_vagrant_metadata(
                 version=options['flocker-version'],
-                box_url="TODO",
+                box_url=box_url,
                 scratch_directory=scratch_directory.child('vagrant'),
-                box_name="flocker-dev",
+                box_name=box_type,
                 target_bucket=options['target'],
             ),
         ]),
