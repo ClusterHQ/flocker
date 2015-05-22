@@ -397,7 +397,7 @@ the easiest way to get appropriate headers is to upgrade the kernel and install 
 
 You will need to reboot the node after updating the kernel.
 
-.. prompt:: bash [root@aws]#
+.. prompt:: bash [root@centos-7]#
 
    shutdown -r now
 
