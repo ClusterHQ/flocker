@@ -308,7 +308,7 @@ class RunOptions(Options):
          'The target provider to test against. '
          'One of {}.'.format(', '.join(PROVIDERS))],
         ['dataset-backend', None, 'loopback',
-         'The dataset backend to testt against. '
+         'The dataset backend to test against. '
          'One of {}'.format(', '.join(backend.name for backend
                                       in DatasetBackend.iterconstants()))],
         ['config-file', None, None,

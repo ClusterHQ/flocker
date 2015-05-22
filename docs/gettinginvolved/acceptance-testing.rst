@@ -67,7 +67,6 @@ Vagrant
 -------
 
 A configuration file is not required for the vagrant provider.
-The default dataset backend is the ZFS backend.
 
 You will need a ssh agent running with access to the insecure vagrant private key:
 
