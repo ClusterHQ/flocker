@@ -38,10 +38,14 @@ This will generate a :file:`flocker-<box>-<version>.box` file.
 
 Tutorial boxes and metadata for them are published to `Amazon S3 <https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=vagrant/`_ during the :ref:`release-process`.
 
-To publish the latest development box which has been built by BuildBot, run ``admin/publish-dev-box``.
-This should be done whenever there is a change to the development box.
+To publish the latest development box which has been built by BuildBot:
 
-TODO The script should load http://build.clusterhq.com/results/vagrant/master/flocker-dev.json
+* Merge a branch into ``master`` with changes to the development box,
+* Wait for the development box to be built again for the ``master`` branch,
+* Check out an up to date ``master`` branch,
+* Run ``admin/publish-dev-box``.
+
+This should be done whenever there is a change to the development box.
 
 Testing
 ^^^^^^^
