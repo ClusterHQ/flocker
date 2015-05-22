@@ -24,7 +24,10 @@ from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
-from eliot.testing import validate_logging, LoggedAction
+from eliot.testing import (
+    validate_logging, capture_logging,
+    LoggedAction, assertHasMessage,
+)
 
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
@@ -42,6 +45,8 @@ from ..blockdevice import (
     DESTROY_VOLUME,
     RESIZE_BLOCK_DEVICE_DATASET, RESIZE_VOLUME, ATTACH_VOLUME,
     RESIZE_FILESYSTEM, MOUNT_BLOCK_DEVICE,
+
+    INVALID_DEVICE_PATH,
 
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
@@ -397,6 +402,61 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
                 unexpected.dataset_id: device,
             },
         )
+
+    def _incorrect_device_path_test(self, bad_value):
+        """
+        Assert that when ``IBlockDeviceAPI.get_device_path`` returns a value
+        that must be wrong, the corresponding manifestation is not included in
+        the discovered state for the node.
+        """
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE,
+        )
+        self.api.attach_volume(
+            volume.blockdevice_id, self.api.compute_instance_id(),
+        )
+
+        # Break the API object now.
+        self.patch(
+            self.api, "get_device_path", lambda blockdevice_id: bad_value
+        )
+
+        assert_discovered_state(
+            self, self.deployer,
+            expected_manifestations=[],
+            expected_nonmanifest_datasets=None,
+            expected_devices={},
+        )
+
+    @capture_logging(
+        assertHasMessage,
+        INVALID_DEVICE_PATH, {
+            u"invalid_value": FilePath(b"/definitely/wrong"),
+        },
+    )
+    def test_attached_with_incorrect_device_path(self, logger):
+        """
+        If a volume is attached but the ``IBlockDeviceAPI`` returns a path that
+        is not a block device, an error is logged and no manifestation
+        corresponding to the volume is included in the discovered state.
+        """
+        self.patch(blockdevice, "_logger", logger)
+        self._incorrect_device_path_test(FilePath(b"/definitely/wrong"))
+
+    @capture_logging(
+        assertHasMessage,
+        INVALID_DEVICE_PATH, {
+            u"invalid_value": None,
+        },
+    )
+    def test_attached_with_wrong_device_path_type(self, logger):
+        """
+        If a volume is attached but the ``IBlockDeviceAPI`` returns a value
+        other than a ``FilePath``, an error is logged and no manifestation
+        corresponding to the volume is included in the discovered state.
+        """
+        self.patch(blockdevice, "_logger", logger)
+        self._incorrect_device_path_test(None)
 
     def test_unrelated_mounted(self):
         """
