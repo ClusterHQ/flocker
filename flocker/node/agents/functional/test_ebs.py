@@ -140,14 +140,17 @@ class EBSBlockDeviceAPIInterfaceTests(
 
     def test_boto_ec2response_error(self):
         """
+        Test that invalid parameters to Boto's EBS API calls
+        raise the right error after logging to Eliot.
+        XXX Add verification of Eliot log output.
         """
         # Test 1: Create volume with size 0.
-        # Result: EC2ResponseError
+        # Raises: EC2ResponseError
         self.assertRaises(EC2ResponseError, self.api.create_volume,
                           dataset_id=uuid4(), size=0,)
 
         # Test 2: Set EC2 connection zone to an invalid string.
-        # Result: EC2ResponseError
+        # Raises: EC2ResponseError
         self.api.zone = u'invalid_zone'
         self.assertRaises(EC2ResponseError, self.api.create_volume,
                           dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE,)
