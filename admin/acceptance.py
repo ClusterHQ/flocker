@@ -407,10 +407,12 @@ class RunOptions(Options):
 MESSAGE_FORMATS = {
     "flocker.provision.ssh:run":
         "[%(username)s@%(address)s]: Running %(command)s\n",
-    "flocker.provision.ssh:run:output":
-        "[%(username)s@%(address)s]: %(line)s\n",
     "admin.runner:run":
         "Running %(command)s\n",
+}
+ACTION_START_FORMATS = {
+    "flocker.provision.ssh:run:output":
+        "[%(username)s@%(address)s]: %(line)s\n",
     "admin.runner:run:output":
         "%(line)s\n",
 }
@@ -420,8 +422,19 @@ def eliot_output(message):
     """
     Write pretty versions of eliot log messages to stdout.
     """
-    message_type = message.get('message_type', message.get('action_type'))
-    sys.stdout.write(MESSAGE_FORMATS.get(message_type, '') % message)
+    message_type = message.get('message_type')
+    action_type = message.get('action_type')
+    action_status = message.get('action_status')
+
+    format = ''
+    if message_type is not None:
+        format = MESSAGE_FORMATS.get(message_type, '')
+    elif action_type is not None:
+        if action_status == 'started':
+            format = ACTION_START_FORMATS.get('action_type', '')
+        # We don't consider other status, since we
+        # have no meaningful messages to write.
+    sys.stdout.write(format % message)
     sys.stdout.flush()
 
 
