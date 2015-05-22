@@ -8,7 +8,7 @@ devices.
 """
 
 from errno import EEXIST
-from uuid import UUID
+from uuid import UUID, uuid4
 from subprocess import check_output
 
 from eliot import MessageType, ActionType, Field, Logger
@@ -1136,7 +1136,7 @@ class LoopbackBlockDeviceAPI(object):
     _attached_directory_name = 'attached'
     _unattached_directory_name = 'unattached'
 
-    def __init__(self, root_path, compute_instance_id):
+    def __init__(self, root_path, compute_instance_id=None):
         """
         :param FilePath root_path: The path beneath which all loopback backing
             files and their organising directories will be created.
@@ -1147,10 +1147,13 @@ class LoopbackBlockDeviceAPI(object):
             different ``compute_instance_id``.
         """
         self._root_path = root_path
+        if not compute_instance_id:
+            # If no compute_instance_id provided, invent one.
+            compute_instance_id = unicode(uuid4())
         self._compute_instance_id = compute_instance_id
 
     @classmethod
-    def from_path(cls, root_path, compute_instance_id):
+    def from_path(cls, root_path, compute_instance_id=None):
         """
         :param bytes root_path: The path to a directory in which loop back
             backing files will be created.  The directory is created if it does

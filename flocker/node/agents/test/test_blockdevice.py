@@ -1970,6 +1970,35 @@ class LoopbackBlockDeviceAPITests(
     """
 
 
+class LoopbackBlockDeviceAPIConstructorTests(SynchronousTestCase):
+    """
+    Implementation specific constructor tests.
+    """
+    def test_constructor_creates_instance_id_if_not_provided(self):
+        """
+        Calling constructor with empty instance id creates an id.
+        """
+        loopback_blockdevice_api = LoopbackBlockDeviceAPI(root_path='')
+        self.assertTrue(loopback_blockdevice_api.compute_instance_id())
+
+    def test_from_path_creates_instance_id_if_not_provided(self):
+        """
+        Calling ``from_path`` with empty instance id creates a unique id.
+        """
+        loopback_blockdevice_api = LoopbackBlockDeviceAPI.from_path(
+            root_path='')
+        self.assertTrue(loopback_blockdevice_api.compute_instance_id())
+
+    def test_unique_instance_id_if_not_provided(self):
+        """
+        Calling constructor with empty instance id creates a different
+        id each time.
+        """
+        self.assertNotEqual(
+            LoopbackBlockDeviceAPI(root_path='').compute_instance_id(),
+            LoopbackBlockDeviceAPI(root_path='').compute_instance_id())
+
+
 class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
     """
     Implementation specific tests for ``LoopbackBlockDeviceAPI``.
