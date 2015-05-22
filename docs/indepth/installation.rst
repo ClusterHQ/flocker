@@ -507,7 +507,7 @@ Run the following commands to enable the agent service:
 What to do next
 ---------------
 
-You have now installed ``clusterhq-flocker-node`` and created a ZFS for it.
+You have now installed ``clusterhq-flocker-node`` and created a ZFS pool for it.
 
 Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>`, to ensure that your nodes are correctly configured.
 Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
