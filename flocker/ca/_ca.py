@@ -546,11 +546,9 @@ class ControlCredential(PRecord):
             additional_extensions=[
                 # subjectAltName overrides common name for validation
                 # purposes, and we want to be able to validate against
-                # "control-service".
-                crypto.X509Extension(
-                    b"subjectAltName", False, b"DNS:control-service"),
-                crypto.X509Extension(
-                    b"subjectAltName", False, alt_name)
+                # "control-service", so we include it too.
+                crypto.X509Extension(b"subjectAltName", False,
+                                     b"DNS:control-service," + alt_name),
             ])
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
