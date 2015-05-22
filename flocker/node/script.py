@@ -181,13 +181,16 @@ def validate_configuration(configuration):
                         }
                     },
                     {
-                        "required": ["backend"],
+                        "required": ["backend", "root_path"],
                         "properties": {
                             "backend": {
                                 "type": "string",
                                 "pattern": "loopback",
                             },
-                            "pool": {
+                            "root_path": {
+                                "type": "string",
+                            },
+                            "compute_instance_id": {
                                 "type": "string",
                             },
                         }

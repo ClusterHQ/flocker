@@ -728,7 +728,8 @@ class ValidateConfigurationTests(SynchronousTestCase):
         """
         self.configuration['dataset'] = {
             u"backend": u"loopback",
-            u"pool": u"custom-pool",
+            u"root_path": u"/tmp",
+            u"compute_instance_id": u"42",
         }
         # Nothing is raised
         validate_configuration(self.configuration)
@@ -752,13 +753,14 @@ class ValidateConfigurationTests(SynchronousTestCase):
         # Nothing is raised
         validate_configuration(self.configuration)
 
-    def test_loopback_pool_optional(self):
+    def test_loopback_compute_instance_id_optional(self):
         """
         No exception is raised when validating a loopback backend is specified
         but a loopback pool is not.
         """
         self.configuration['dataset'] = {
             u"backend": u"loopback",
+            u"root_path": u"/tmp",
         }
         # Nothing is raised
         validate_configuration(self.configuration)
