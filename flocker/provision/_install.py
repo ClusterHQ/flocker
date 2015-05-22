@@ -13,6 +13,7 @@ import yaml
 
 from characteristic import attributes
 
+from flocker.acceptance.testtools import DatasetBackend
 from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
@@ -274,13 +275,14 @@ def task_open_control_firewall(distribution):
     ])
 
 
-def task_enable_flocker_agent(distribution, control_node, dataset_backend):
+def task_enable_flocker_agent(distribution, control_node,
+                              dataset_backend=DatasetBackend.zfs):
     """
     Configure and enable the flocker agents.
 
     :param bytes control_node: The address of the control agent.
     :param DatasetBackend dataset_backend: The volume backend the nodes are
-        configured with.
+        configured with. (This has a default for use in the documentation).
     """
     put_config_file = put(
         path='/etc/flocker/agent.yml',
