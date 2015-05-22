@@ -451,13 +451,22 @@ _DEFAULT_DEPLOYERS = {
 
 class AgentService(PRecord):
     """
-    :ivar PVector backends: ``BackendDescription`` instances describing how to
-        use each available storage backend.
+    :ivar backends: ``BackendDescription`` instances describing how to use each
+        available storage backend.
+    :ivar deployers: Factories to create ``IDeployer`` providers given an API
+        object and some extra keyword arguments.  Keyed on a value from
+        ``DeployerType``.
+    :ivar node_credential: Credentials with which to configure this agent.
+    :ivar ca_certificate: The root certificate to use to validate the control
+        service certificate.
+    :ivar backend_name: The name of the storage driver to instantiate.  This
+        must name one of the items in ``backends``.
+    :ivar api_args: Extra arguments to pass to the factory from ``backends``.
     """
     backends = field(
         factory=pvector, initial=_DEFAULT_BACKENDS, mandatory=True,
     )
-    deployers = field(initial=_DEFAULT_DEPLOYERS, mandatory=True)
+    deployers = field(factory=pmap, initial=_DEFAULT_DEPLOYERS, mandatory=True)
     reactor = field(initial=reactor, mandatory=True)
 
     get_external_ip = field(initial=_get_external_ip, mandatory=True)
