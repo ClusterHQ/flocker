@@ -376,7 +376,7 @@ class DeployerType(Names):
     References to the different ``IDeployer`` implementations that are
     available.
 
-    :ivar p2p: The "peer-to-peer" deployer - suitable for use with systems like
+    :ivar p2p: The "peer-to-peer" deployer - suitable for use with system like
         ZFS where nodes interact directly with each other for data movement.
     :ivar block: The Infrastructure-as-a-Service deployer - suitable for use
         with system like EBS where volumes can be attached to nodes as block
