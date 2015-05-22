@@ -442,9 +442,9 @@ _DEFAULT_BACKENDS = [
 ]
 
 _DEFAULT_DEPLOYERS = {
-    'p2p': lambda api, **kw:
+    DeployerType.p2p: lambda api, **kw:
         P2PManifestationDeployer(volume_service=api, **kw),
-    'block': lambda api, **kw:
+    DeployerType.block: lambda api, **kw:
         BlockDeviceDeployer(block_device_api=api, **kw),
 }
 
