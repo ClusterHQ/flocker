@@ -417,9 +417,10 @@ Installing ZFS on Ubuntu 14.04
 Creating a ZFS pool
 ...................
 
+.. XXX: With the backend configuration file, is there any requirement for the pool to be named flocker?
+
 Flocker requires a ZFS pool named ``flocker``.
-The following commands will create a 10 gigabyte ZFS pool backed by a file.
-Paste them into a root console:
+The following commands will create a 10 gigabyte ZFS pool backed by a file:
 
 .. task:: create_flocker_pool_file
    :prompt: [root@node]#
@@ -460,8 +461,19 @@ The optional ``port`` variable is the port on the control node to connect to:
    "control-service":
       "hostname": "${CONTROL_NODE}"
       "port": 4524
-	"dataset":
-	  "backend": "zfs"
+   "dataset":
+      "backend": "zfs"
+      "pool": "flocker"
+
+For a ``loopback`` device, change the ``dataset`` clause to:
+
+.. code-block:: yaml
+
+   "dataset":
+      "backend": "loopback"
+      "root_path": "/var/lib/flocker/loopback"
+
+Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
@@ -495,8 +507,19 @@ The optional ``port`` variable is the port on the control node to connect to:
    "control-service":
       "hostname": "${CONTROL_NODE}"
       "port": 4524
-  	"dataset":
-  	  "backend": "zfs"
+   "dataset":
+     "backend": "zfs"
+     "pool": "flocker"
+
+For a ``loopback`` device, change the ``dataset`` clause to:
+
+.. code-block:: yaml
+
+   "dataset":
+      "backend": "loopback"
+      "root_path": "/var/lib/flocker/loopback"
+
+Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
