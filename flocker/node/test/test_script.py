@@ -375,18 +375,6 @@ class AgentServiceDeployerTests(SynchronousTestCase):
         )
 
 
-class AgentServiceTLSContextTests(SynchronousTestCase):
-    """
-    Tests for ``AgentService.get_tls_context``.
-    """
-    setUp = agent_service_setup
-
-    def test_x(self):
-        # XXX Assertions are so hard :(
-        tls_context = self.agent_service.get_tls_context()
-        tls_context
-
-
 class AgentServiceLoopTests(SynchronousTestCase):
     """
     Tests for ``AgentService.get_loop_service``.

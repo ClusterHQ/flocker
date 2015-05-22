@@ -530,6 +530,7 @@ class AgentService(PRecord):
             "Backend named {} not available".format(self.backend_name),
         )
 
+    # Needs tests: FLOC-1964.
     def get_tls_context(self):
         """
         Get some TLS configuration objects which will authenticate this node to
