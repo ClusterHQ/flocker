@@ -8,9 +8,7 @@ import os
 import yaml
 from tempfile import mkdtemp
 
-from zope.interface import (
-    Interface, implementer, Attribute as InterfaceAttribute,
-)
+from zope.interface import Interface, implementer
 from characteristic import attributes
 from eliot import add_destination
 from twisted.internet.error import ProcessTerminated
@@ -114,8 +112,6 @@ class INodeRunner(Interface):
     Interface for starting and stopping nodes for acceptance testing.
     """
 
-    DEFAULT_DATASET_BACKEND = InterfaceAttribute("Default dataset backend")
-
     def start_nodes(reactor):
         """
         Start nodes for running acceptance tests.
@@ -161,8 +157,6 @@ class VagrantRunner(object):
     # https://clusterhq.atlassian.net/browse/FLOC-1163
 
     NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
-
-    DEFAULT_DATASET_BACKEND = DatasetBackend.zfs
 
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
@@ -224,8 +218,6 @@ class LibcloudRunner(object):
     :ivar DatasetBackend dataset_backend: The volume backend the nodes are
         configured with.
     """
-
-    DEFAULT_DATASET_BACKEND = DatasetBackend.loopback
 
     def __init__(self):
         self.nodes = []
@@ -360,6 +352,13 @@ class RunOptions(Options):
         if self['distribution'] is None:
             raise UsageError("Distribution required.")
 
+        try:
+            self.dataset_backend = DatasetBackend.lookupByName(
+                self['dataset-backend'])
+        except ValueError:
+            raise UsageError("Unknown dataset backend: %s"
+                             % (self['dataset-backend']))
+
         if self['config-file'] is not None:
             config_file = FilePath(self['config-file'])
             self['config'] = yaml.safe_load(config_file.getContent())
@@ -404,7 +403,7 @@ class RunOptions(Options):
                 distribution=self['distribution'],
                 package_source=package_source,
                 provisioner=provisioner,
-                dataset_backend=self['dataset-backend'],
+                dataset_backend=self.dataset_backend,
                 variants=self['variants'],
             )
         else:
@@ -415,12 +414,6 @@ class RunOptions(Options):
                 package_source=package_source,
                 variants=self['variants'],
             )
-
-        if self['dataset-backend'] is not None:
-            self.dataset_backend = DatasetBackend.lookupByName(
-                self['dataset-backend'])
-        else:
-            self.dataset_backend = self.runner.DEFAULT_DATASET_BACKEND
 
 
 MESSAGE_FORMATS = {
@@ -483,7 +476,7 @@ def main(reactor, args, base_path, top_level):
         )
 
         control_node = nodes[0]
-        dataset_backend = options['dataset-backend']
+        dataset_backend = options.dataset_backend
 
         yield perform(
             make_dispatcher(reactor),
