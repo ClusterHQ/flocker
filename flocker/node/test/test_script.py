@@ -16,7 +16,6 @@ from twisted.internet.defer import Deferred
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.application.service import Service
-from twisted.internet.ssl import ClientContextFactory
 
 from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
@@ -29,7 +28,6 @@ from ..script import (
 )
 
 from .._loop import AgentLoopService
-from .._deploy import P2PManifestationDeployer
 from ...testtools import MemoryCoreReactor, random_name
 from ...ca.testtools import get_credential_sets
 
