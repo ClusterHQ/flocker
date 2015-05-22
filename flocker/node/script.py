@@ -578,12 +578,12 @@ class AgentService(PRecord):
         backend = self.get_backend()
         deployer_factory = self.deployers[backend.deployer_type]
 
-        hostname = self.get_external_ip(
+        address = self.get_external_ip(
             self.control_service_host, self.control_service_port,
         )
         node_uuid = self.node_credential.uuid
         return deployer_factory(
-            api=api, hostname=hostname, node_uuid=node_uuid,
+            api=api, hostname=address, node_uuid=node_uuid,
         )
 
     def get_loop_service(self, deployer):
