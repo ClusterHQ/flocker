@@ -8,7 +8,9 @@ import os
 import yaml
 from tempfile import mkdtemp
 
-from zope.interface import Interface, implementer
+from zope.interface import (
+    Interface, implementer, Attribute as InterfaceAttribute,
+)
 from characteristic import attributes
 from eliot import add_destination
 from twisted.internet.error import ProcessTerminated
@@ -112,6 +114,8 @@ class INodeRunner(Interface):
     Interface for starting and stopping nodes for acceptance testing.
     """
 
+    DEFAULT_DATASET_BACKEND = InterfaceAttribute("Default dataset backend")
+
     def start_nodes(reactor):
         """
         Start nodes for running acceptance tests.
@@ -157,6 +161,8 @@ class VagrantRunner(object):
     # https://clusterhq.atlassian.net/browse/FLOC-1163
 
     NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
+
+    DEFAULT_DATASET_BACKEND = DatasetBackend.zfs
 
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
@@ -218,6 +224,9 @@ class LibcloudRunner(object):
     :ivar DatasetBackend dataset_backend: The volume backend the nodes are
         configured with.
     """
+
+    DEFAULT_DATASET_BACKEND = DatasetBackend.loopback
+
     def __init__(self):
         self.nodes = []
 
@@ -306,6 +315,10 @@ class RunOptions(Options):
         ['provider', None, 'vagrant',
          'The target provider to test against. '
          'One of {}.'.format(', '.join(PROVIDERS))],
+        ['dataset-backend', None, 'loopback',
+         'The dataset backend to testt against. '
+         'One of {}'.format(', '.join(backend.name for backend
+                                      in DatasetBackend.iterconstants()))],
         ['config-file', None, None,
          'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab packages from'],
@@ -331,7 +344,6 @@ class RunOptions(Options):
         Options.__init__(self)
         self.top_level = top_level
         self['variants'] = []
-        self['dataset-backend'] = DatasetBackend.zfs
 
     def opt_variant(self, arg):
         """
@@ -403,6 +415,13 @@ class RunOptions(Options):
                 package_source=package_source,
                 variants=self['variants'],
             )
+
+        if self['dataset-backend'] is not None:
+            self.dataset_backend = DatasetBackend.lookupByName(
+                self['dataset-backend'])
+        else:
+            self.dataset_backend = self.runner.DEFAULT_DATASET_BACKEND
+
 
 MESSAGE_FORMATS = {
     "flocker.provision.ssh:run":
