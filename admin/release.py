@@ -548,6 +548,21 @@ def copy_tutorial_vagrant_box(target_bucket, dev_bucket, version):
                    keys=['flocker-tutorial-{}.box'.format(version)]))
 
 
+@do
+def copy_dev_vagrant_box(target_bucket, dev_bucket, version):
+    """
+    Copy the development box from a ``dev_bucket`` to a ``target_bucket``.
+
+    :param bytes target_bucket: S3 bucket to copy development box to.
+    :param bytes dev_bucket: S3 bucket to copy development box from.
+    :param bytes version: Version of Flocker to copy the development box for.
+    """
+    yield Effect(
+        CopyS3Keys(source_bucket=dev_bucket,
+                   source_prefix='vagrant/dev/',
+                   destination_bucket=target_bucket,
+                   destination_prefix='vagrant/dev/',
+                   keys=['flocker-dev-{}.box'.format(version)]))
 
 @do
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
@@ -967,11 +982,10 @@ def publish_dev_box_main(args, base_path, top_level):
         prefix=b'flocker-upload-'))
     scratch_directory.child('vagrant').createDirectory()
 
-    # TODO Change this function (name)
     sync_perform(
         dispatcher=base_dispatcher,
         effect=sequence([
-            copy_tutorial_vagrant_box(
+            copy_dev_vagrant_box(
                 target_bucket=options['target'],
                 dev_bucket='clusterhq-dev-archive',
                 version=options['flocker-version'],
