@@ -407,14 +407,14 @@ class RunOptions(Options):
 MESSAGE_FORMATS = {
     "flocker.provision.ssh:run":
         "[%(username)s@%(address)s]: Running %(command)s\n",
-    "admin.runner:run":
-        "Running %(command)s\n",
-}
-ACTION_START_FORMATS = {
     "flocker.provision.ssh:run:output":
         "[%(username)s@%(address)s]: %(line)s\n",
     "admin.runner:run:output":
         "%(line)s\n",
+}
+ACTION_START_FORMATS = {
+    "admin.runner:run":
+        "Running %(command)s\n",
 }
 
 
