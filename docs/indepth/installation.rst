@@ -379,6 +379,58 @@ Your firewall will need to allow access to the ports your applications are expos
    Keep in mind the consequences of exposing unsecured services to the Internet.
    Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
 
+ZFS Backend Configuration
+-------------------------
+
+The ZFS backend requires ZFS to be installed.
+
+
+Installing ZFS on CentOS 7
+..........................
+
+Installing ZFS requires the kernel development headers for the running kernel.
+Since CentOS doesn't provide easy access to old package versions,
+the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
+
+.. task:: upgrade_kernel centos-7
+   :prompt: [root@centos-7]#
+
+You will need to reboot the node after updating the kernel.
+
+.. prompt:: bash [root@aws]#
+
+   shutdown -r now
+
+You must also install the ZFS package repository.
+
+.. task:: install_zfs centos-7
+   :prompt: [root@centos-7]#
+
+
+Installing ZFS on Ubuntu 14.04
+..............................
+
+.. task:: install_zfs ubuntu-14.04
+   :prompt: [root@ubuntu-14.04]#
+
+
+Creating a ZFS pool
+...................
+
+Flocker requires a ZFS pool named ``flocker``.
+The following commands will create a 10 gigabyte ZFS pool backed by a file.
+Paste them into a root console:
+
+.. task:: create_flocker_pool_file
+   :prompt: [root@node]#
+
+.. note:: It is also possible to create the pool on a block device.
+
+.. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
+
+To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
+So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
+
 To enable the Flocker control service on Fedora / CentOS
 --------------------------------------------------------
 
@@ -459,54 +511,3 @@ Replace the IP addresses in the ``deployment.yaml`` files with the IP address of
 Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
 
 
-ZFS Backend Configuration
--------------------------
-
-The ZFS backend requires ZFS to be installed.
-
-
-Installing ZFS on CentOS 7
-..........................
-
-Installing ZFS requires the kernel development headers for the running kernel.
-Since CentOS doesn't provide easy access to old package versions,
-the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
-
-.. task:: upgrade_kernel centos-7
-   :prompt: [root@centos-7]#
-
-You will need to reboot the node after updating the kernel.
-
-.. prompt:: bash [root@aws]#
-
-   shutdown -r now
-
-You must also install the ZFS package repository.
-
-.. task:: install_zfs centos-7
-   :prompt: [root@centos-7]#
-
-
-Installing ZFS on Ubuntu 14.04
-..............................
-
-.. task:: install_zfs ubuntu-14.04
-   :prompt: [root@ubuntu-14.04]#
-
-
-Creating a ZFS pool
-...................
-
-Flocker requires a ZFS pool named ``flocker``.
-The following commands will create a 10 gigabyte ZFS pool backed by a file.
-Paste them into a root console:
-
-.. task:: create_flocker_pool_file
-   :prompt: [root@node]#
-
-.. note:: It is also possible to create the pool on a block device.
-
-.. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
-
-To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
-So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.
