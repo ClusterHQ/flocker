@@ -464,8 +464,8 @@ For more details on configuring the firewall, see Ubuntu's `UFW documentation <h
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
-To enable the Flocker agent service on Fedora / CentOS
-------------------------------------------------------
+To enable the Flocker agent service
+-----------------------------------
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
@@ -489,35 +489,16 @@ For a ``loopback`` device, change the ``dataset`` clause to:
       "backend": "loopback"
       "root_path": "/var/lib/flocker/loopback"
 
+Fedora / CentOS
+...............
+
 Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
 
-To enable the Flocker agent service on Ubuntu
----------------------------------------------
-
-To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
-This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The optional ``port`` variable is the port on the control node to connect to:
-
-.. code-block:: yaml
-
-   "version": 1
-   "control-service":
-      "hostname": "${CONTROL_NODE}"
-      "port": 4524
-   "dataset":
-     "backend": "zfs"
-     "pool": "flocker"
-
-For a ``loopback`` device, change the ``dataset`` clause to:
-
-.. code-block:: yaml
-
-   "dataset":
-      "backend": "loopback"
-      "root_path": "/var/lib/flocker/loopback"
+Ubuntu
+......
 
 Run the following commands to enable the agent service:
 
