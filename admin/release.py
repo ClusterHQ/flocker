@@ -969,7 +969,6 @@ def publish_dev_box_main(args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    # TODO create these options
     options = PublishDevBoxOptions()
 
     try:
