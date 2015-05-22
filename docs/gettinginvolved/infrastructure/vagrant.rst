@@ -36,7 +36,7 @@ To build the development box, install the necessary Vagrant plugins as follows:
 
 This will generate a :file:`flocker-<box>-<version>.box` file.
 
-Tutorial boxes and metadata for them are published to `Amazon S3 <https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=vagrant/`_ during the :ref:`release-process`.
+Tutorial boxes and metadata for them are published to `Amazon S3 <https://console.aws.amazon.com/s3/home?region=us-west-2#&bucket=clusterhq-archive&prefix=vagrant/>`_ during the :ref:`release-process`.
 
 To publish the latest development box which has been built by BuildBot:
 
