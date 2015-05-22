@@ -166,6 +166,16 @@ DOCUMENTATION_CONFIGURATIONS = {
             dev_bucket="clusterhq-dev-docs"),
 }
 
+ARCHIVE_CONFIGURATIONS = {
+    Environments.PRODUCTION:
+        DocumentationConfiguration(
+            archive_bucket=ARCHIVE_BUCKET,
+            dev_bucket="clusterhq-dev-archive"),
+    Environments.STAGING:
+        DocumentationConfiguration(
+            archive_bucket="clusterhq-archive-staging",
+            dev_bucket="clusterhq-dev-archive"),
+}
 
 @do
 def publish_docs(flocker_version, doc_version, environment):
