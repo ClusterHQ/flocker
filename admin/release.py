@@ -557,6 +557,7 @@ def copy_dev_vagrant_box(target_bucket, dev_bucket, version):
     :param bytes dev_bucket: S3 bucket to copy development box from.
     :param bytes version: Version of Flocker to copy the development box for.
     """
+    # TODO tests for this.
     yield Effect(
         CopyS3Keys(source_bucket=dev_bucket,
                    source_prefix='vagrant/dev/',
@@ -990,8 +991,6 @@ def publish_dev_box_main(args, base_path, top_level):
                 version=options['flocker-version'],
             ),
             publish_vagrant_metadata(
-                # TODO perhaps get this information from the metadata?
-                # Does it have to be ruby-ified?
                 version=options['flocker-version'],
                 box_url="TODO",
                 scratch_directory=scratch_directory.child('vagrant'),
