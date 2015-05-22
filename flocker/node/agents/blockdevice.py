@@ -1217,6 +1217,17 @@ class LoopbackBlockDeviceAPI(object):
         )
         volume_path.remove()
 
+    def _allocate_device(self, backing_file_path):
+        """
+        Create a loopback device backed by the file at the given path.
+
+        :param FilePath backing_file_path: The path of the file that is the
+            backing store for the new device.
+        """
+        # The --find option allocates the next available /dev/loopX device
+        # name to the device.
+        check_output(["losetup", "--find", backing_file_path.path])
+
     def attach_volume(self, blockdevice_id, attach_to):
         """
         Move an existing ``unattached`` file into a per-node directory and
@@ -1244,9 +1255,7 @@ class LoopbackBlockDeviceAPI(object):
                 pass
             new_path = host_directory.child(blockdevice_id)
             old_path.moveTo(new_path)
-            # The --find option allocates the next available /dev/loopX device
-            # name to the device.
-            check_output(["losetup", "--find", new_path.path])
+            self._allocate_device(new_path)
             attached_volume = volume.set(attached_to=attach_to)
             return attached_volume
 
@@ -1339,7 +1348,13 @@ class LoopbackBlockDeviceAPI(object):
              volume.blockdevice_id.encode("ascii")]
         )
         # May be None if the file hasn't been used for a loop device.
-        return _device_for_path(volume_path)
+        path = _device_for_path(volume_path)
+        if path is None:
+            # It was supposed to be attached but it has no loopback device.  So
+            # it's roughly half attached.  Fix it so it's all-the-way attached.
+            self._allocate_device(volume_path)
+            path = _device_for_path(volume_path)
+        return path
 
 
 def _manifestation_from_volume(volume):
