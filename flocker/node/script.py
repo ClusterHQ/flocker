@@ -420,6 +420,7 @@ _DEFAULT_BACKENDS = [
     ),
     BackendDescription(
         name=u"loopback", needs_reactor=False, needs_id=False,
+        # XXX compute_instance_id is the wrong type
         api_factory=LoopbackBlockDeviceAPI.from_path, deployer_type=u"block",
     ),
 
