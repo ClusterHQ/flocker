@@ -18,7 +18,6 @@ from twisted.python.filepath import FilePath
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.procutils import which
 from twisted.internet import reactor
-from twisted.internet.defer import DeferredList, FirstError
 
 from eliot import Logger, start_action, Message
 from eliot.twisted import DeferredContext
