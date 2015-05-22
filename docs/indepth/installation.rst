@@ -414,12 +414,11 @@ Installing ZFS on Ubuntu 14.04
    :prompt: [root@ubuntu-14.04]#
 
 
-Creating a ZFS pool
+Creating a ZFS Pool
 ...................
 
-.. XXX: With the backend configuration file, is there any requirement for the pool to be named flocker?
-
-Flocker requires a ZFS pool named ``flocker``.
+Flocker requires a ZFS pool.
+The pool is typically named named ``flocker`` but this is not required.
 The following commands will create a 10 gigabyte ZFS pool backed by a file:
 
 .. task:: create_flocker_pool_file
