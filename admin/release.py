@@ -353,7 +353,7 @@ class UploadOptions(Options):
     """
     optParameters = [
         ["flocker-version", None, flocker.__version__,
-         "The version of Flocker to upload packages for."
+         "The version of Flocker to upload artifacts for."
          "Python packages for " + flocker.__version__ + "will be uploaded.\n"],
         ["target", None, ARCHIVE_BUCKET,
          "The bucket to upload artifacts to.\n"],
@@ -941,10 +941,9 @@ class PublishDevBoxOptions(Options):
     """
     optParameters = [
         ["flocker-version", None, flocker.__version__,
-         "The version of Flocker to upload packages for."
-         "Python packages for " + flocker.__version__ + "will be uploaded.\n"],
+         "The version of Flocker to upload a development box for.\n"],
         ["target", None, ARCHIVE_BUCKET,
-         "The bucket to upload artifacts to.\n"],
+         "The bucket to upload a development box to.\n"],
     ]
 
 def publish_dev_box_main(args, base_path, top_level):
