@@ -393,8 +393,8 @@ class BackendDescription(PRecord):
     :ivar name: The human-meaningful name of this storage backend.
     :ivar needs_reactor: A flag which indicates whether this backend's API
         factory needs to have a reactor passed to it.
-    :ivar needs_id: A flag which indicates whether this backend's API factory
-        needs to have the cluster's unique identifier passed to it.
+    :ivar needs_cluster_id: A flag which indicates whether this backend's API
+        factory needs to have the cluster's unique identifier passed to it.
     :ivar api_factory: An object which can be called with some simple
         configuration data and which returns the API object implementing this
         storage backend.
@@ -406,7 +406,7 @@ class BackendDescription(PRecord):
     needs_reactor = field(type=bool, mandatory=True)
     # XXX Eventually everyone will take cluster_id so we will throw this flag
     # out.
-    needs_id = field(type=bool, mandatory=True)
+    needs_cluster_id = field(type=bool, mandatory=True)
     api_factory = field(mandatory=True)
     deployer_type = field(mandatory=True)
 
@@ -419,17 +419,17 @@ _DEFAULT_BACKENDS = [
     # you're slightly careless with credentials - also ZFS backend
     # doesn't use TLS yet).
     BackendDescription(
-        name=u"zfs", needs_reactor=True, needs_id=False,
+        name=u"zfs", needs_reactor=True, needs_cluster_id=False,
         api_factory=_zfs_storagepool, deployer_type=u"p2p",
     ),
     BackendDescription(
-        name=u"loopback", needs_reactor=False, needs_id=False,
+        name=u"loopback", needs_reactor=False, needs_cluster_id=False,
         # XXX compute_instance_id is the wrong type
         api_factory=LoopbackBlockDeviceAPI.from_path, deployer_type=u"block",
     ),
 
     # BackendDescription(
-    #     name=u"openstack", needs_reactor=False, needs_id=True,
+    #     name=u"openstack", needs_reactor=False, needs_cluster_id=True,
     #     factory=cinder_from_configuration, deployer_type=u"block",
     # ),
 ]
@@ -535,7 +535,7 @@ class AgentService(PRecord):
         backend = self.get_backend()
 
         api_args = self.api_args
-        if backend.needs_id:
+        if backend.needs_cluster_id:
             cluster_id = self.node_credential.cluster_uuid
             api_args = api_args.set("cluster_id", cluster_id)
         if backend.needs_reactor:

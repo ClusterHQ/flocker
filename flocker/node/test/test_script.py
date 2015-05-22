@@ -231,11 +231,11 @@ class AgentServiceAPITests(SynchronousTestCase):
         agent_service = self.agent_service.set(
             "backends", [
                 BackendDescription(
-                    name=u"foo", needs_reactor=False, needs_id=False,
+                    name=u"foo", needs_reactor=False, needs_cluster_id=False,
                     api_factory=API, deployer_type=u"p2p",
                 ),
                 BackendDescription(
-                    name=u"bar", needs_reactor=False, needs_id=False,
+                    name=u"bar", needs_reactor=False, needs_cluster_id=False,
                     api_factory=WrongAPI, deployer_type=u"block",
                 ),
             ],
@@ -266,7 +266,7 @@ class AgentServiceAPITests(SynchronousTestCase):
             "backends", [
                 BackendDescription(
                     name=self.agent_service.backend_name,
-                    needs_reactor=True, needs_id=False,
+                    needs_reactor=True, needs_cluster_id=False,
                     api_factory=API, deployer_type=u"p2p",
                 ),
             ],
@@ -293,7 +293,7 @@ class AgentServiceAPITests(SynchronousTestCase):
             "backends", [
                 BackendDescription(
                     name=self.agent_service.backend_name,
-                    needs_reactor=False, needs_id=True,
+                    needs_reactor=False, needs_cluster_id=True,
                     api_factory=API, deployer_type=u"p2p",
                 ),
             ],
@@ -341,7 +341,7 @@ class AgentServiceDeployerTests(SynchronousTestCase):
             "backends", [
                 BackendDescription(
                     name=self.agent_service.backend_name,
-                    needs_reactor=False, needs_id=False,
+                    needs_reactor=False, needs_cluster_id=False,
                     api_factory=None, deployer_type=u"magic",
                 ),
             ],
