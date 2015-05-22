@@ -325,6 +325,9 @@ def get_configuration(options):
     Load and validate the configuration in the file specified by the given
     options.
 
+    :param DatasetAgentOptions options: The dataset agent options specifying
+        the location of the configuration.
+
     :return: A ``dict`` representing the configuration loaded from the file.
     """
     agent_config = options[u'agent-config']
