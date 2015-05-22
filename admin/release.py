@@ -192,6 +192,7 @@ def publish_docs(flocker_version, doc_version, environment):
             or is_pre_release(doc_version)):
         raise NotARelease()
 
+    # TODO This is what we want to do
     if environment == Environments.PRODUCTION:
         if get_doc_version(flocker_version) != doc_version:
             raise NotTagged()

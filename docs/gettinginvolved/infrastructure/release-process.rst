@@ -327,7 +327,7 @@ Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      admin/publish-artifacts
+      admin/publish-artifacts --production
 
 #. Add the tutorial box to Atlas:
 
