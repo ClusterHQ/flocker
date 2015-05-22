@@ -1136,7 +1136,7 @@ class LoopbackBlockDeviceAPI(object):
     _attached_directory_name = 'attached'
     _unattached_directory_name = 'unattached'
 
-    def __init__(self, root_path, compute_instance_id=None):
+    def __init__(self, root_path, compute_instance_id):
         """
         :param FilePath root_path: The path beneath which all loopback backing
             files and their organising directories will be created.
@@ -1147,9 +1147,6 @@ class LoopbackBlockDeviceAPI(object):
             different ``compute_instance_id``.
         """
         self._root_path = root_path
-        if not compute_instance_id:
-            # If no compute_instance_id provided, invent one.
-            compute_instance_id = unicode(uuid4())
         self._compute_instance_id = compute_instance_id
 
     @classmethod
@@ -1158,10 +1155,14 @@ class LoopbackBlockDeviceAPI(object):
         :param bytes root_path: The path to a directory in which loop back
             backing files will be created.  The directory is created if it does
             not already exist.
-        :param compute_instance_id: See ``__init__``
+        :param compute_instance_id: See ``__init__``.  Additionally, if not
+            given, a new random id will be generated.
 
         :returns: A ``LoopbackBlockDeviceAPI`` with the supplied ``root_path``.
         """
+        if compute_instance_id is None:
+            # If no compute_instance_id provided, invent one.
+            compute_instance_id = unicode(uuid4())
         api = cls(
             root_path=FilePath(root_path),
             compute_instance_id=compute_instance_id,
