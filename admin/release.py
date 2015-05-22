@@ -731,7 +731,7 @@ def publish_artifacts_main(args, base_path, top_level):
         version=options['flocker-version'],
     )
 
-    box_url = "https://s3.amazonaws.com/{bucket}/{key}".format(
+    box_url = "https://{bucket}.s3.amazonaws.com/{key}".format(
         bucket=options['target'],
         key=vagrant_prefix + box_name,
     )
@@ -975,7 +975,7 @@ def publish_dev_box_main(args, base_path, top_level):
         version=options['flocker-version'],
     )
 
-    box_url = "https://s3.amazonaws.com/{bucket}/{key}".format(
+    box_url = "https://{bucket}.s3.amazonaws.com/{key}".format(
         bucket=options['target'],
         key=prefix + box_name,
     )
