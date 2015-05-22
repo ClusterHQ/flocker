@@ -19,8 +19,6 @@ SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-dev"
-  # TODO change the URL for tutorial to be like this
-  # TODO make a generic function to get a key's public address
   config.vm.box_url = "https://clusterhq-archive-testing.s3.amazonaws.com/vagrant/flocker-dev.json"
   config.vm.box_version = "> 0.3.2.1714"
 
