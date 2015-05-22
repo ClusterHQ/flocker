@@ -2099,18 +2099,17 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         file.
         """
         expected_size = REALISTIC_BLOCKDEVICE_SIZE
-        api = loopbackblockdeviceapi_for_test(test_case=self)
         expected_dataset_id = uuid4()
         blockdevice_volume = _blockdevicevolume_from_dataset_id(
             size=expected_size,
             dataset_id=expected_dataset_id,
         )
-        with (api._root_path
+        with (self.api._root_path
               .child('unattached')
               .child(blockdevice_volume.blockdevice_id.encode('ascii'))
               .open('wb')) as f:
             f.truncate(expected_size)
-        self.assertEqual([blockdevice_volume], api.list_volumes())
+        self.assertEqual([blockdevice_volume], self.api.list_volumes())
 
     def test_list_attached_volumes(self):
         """
@@ -2119,8 +2118,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         expected_size = REALISTIC_BLOCKDEVICE_SIZE
         expected_dataset_id = uuid4()
-        api = loopbackblockdeviceapi_for_test(test_case=self)
-        this_node = api.compute_instance_id()
+        this_node = self.api.compute_instance_id()
 
         blockdevice_volume = _blockdevicevolume_from_dataset_id(
             size=expected_size,
@@ -2128,14 +2126,14 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             dataset_id=expected_dataset_id,
         )
 
-        host_dir = api._root_path.descendant([
+        host_dir = self.api._root_path.descendant([
             b'attached', this_node.encode("utf-8")
         ])
         host_dir.makedirs()
         with host_dir.child(blockdevice_volume.blockdevice_id).open('wb') as f:
             f.truncate(expected_size)
 
-        self.assertEqual([blockdevice_volume], api.list_volumes())
+        self.assertEqual([blockdevice_volume], self.api.list_volumes())
 
 
 class LosetupListTests(SynchronousTestCase):
