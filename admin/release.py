@@ -69,6 +69,7 @@ from .packaging import Distribution
 
 DEV_ARCHIVE_BUCKET = 'clusterhq-dev-archive'
 
+
 class NotTagged(Exception):
     """
     Raised if publishing to production and the version being published version
@@ -722,6 +723,19 @@ def publish_artifacts_main(args, base_path, top_level):
     scratch_directory.child('vagrant').createDirectory()
     scratch_directory.child('homebrew').createDirectory()
 
+    box_type = "flocker-tutorial"
+    vagrant_prefix = 'vagrant/tutorial/'
+
+    box_name = "{box_type}-{version}.box".format(
+        box_type=box_type,
+        version=options['flocker-version'],
+    )
+
+    box_url = "https://s3.amazonaws.com/{bucket}/{key}".format(
+        bucket=options['target'],
+        key=vagrant_prefix + box_name,
+    )
+
     try:
         sync_perform(
             dispatcher=dispatcher,
@@ -745,17 +759,16 @@ def publish_artifacts_main(args, base_path, top_level):
                 ),
                 CopyS3Keys(
                     source_bucket=DEV_ARCHIVE_BUCKET,
-                    source_prefix='vagrant/tutorial/',
+                    source_prefix=vagrant_prefix,
                     destination_bucket=options['target'],
-                    destination_prefix='vagrant/tutorial/',
-                    keys=['flocker-tutorial-{}.box'.format(
-                        options['flocker-version'])],
+                    destination_prefix=vagrant_prefix,
+                    keys=[box_name],
                 ),
                 publish_vagrant_metadata(
                     version=options['flocker-version'],
-                    box_url="TODO",
+                    box_url=box_url,
                     scratch_directory=scratch_directory.child('vagrant'),
-                    box_name="flocker-tutorial",
+                    box_name=box_type,
                     target_bucket=options['target'],
                 ),
             ]),
