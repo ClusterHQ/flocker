@@ -111,7 +111,8 @@ class DummyAgentService(PRecord):
 
 class DatasetServiceFactoryTests(SynchronousTestCase):
     """
-    Tests for ``DatasetServiceFactory`` using ZFS configuration.
+    Generic tests for ``DatasetServiceFactory``, independent of the storage
+    driver being used.
     """
     def setUp(self):
         setup_config(self)
@@ -147,6 +148,10 @@ class DatasetServiceFactoryTests(SynchronousTestCase):
 def agent_service_setup(test):
     """
     Do some setup common to all of the ``AgentService`` test cases.
+
+    Various attributes will be set on ``test`` for use by the test method.
+
+    :param test: A ``TestCase`` instance.
     """
     test.ca_set = get_credential_sets()[0]
 
