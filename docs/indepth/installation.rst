@@ -448,6 +448,22 @@ For more details on configuring the firewall, see Fedora's `FirewallD documentat
 
 On AWS, an external firewall is used instead, which will need to be configured similarly.
 
+To enable the Flocker control service on Ubuntu
+-----------------------------------------------
+
+.. task:: enable_flocker_control ubuntu-14.04
+   :prompt: [root@control-node]#
+
+The control service needs to accessible remotely.
+To configure ``UFW`` to allow access to the control service REST API, and for agent connections:
+
+.. task:: open_control_firewall ubuntu-14.04
+   :prompt: [root@control-node]#
+
+For more details on configuring the firewall, see Ubuntu's `UFW documentation <https://help.ubuntu.com/community/UFW>`_.
+
+On AWS, an external firewall is used instead, which will need to be configured similarly.
+
 To enable the Flocker agent service on Fedora / CentOS
 ------------------------------------------------------
 
@@ -477,22 +493,6 @@ Run the following commands to enable the agent service:
 
 .. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
    :prompt: [root@agent-node]#
-
-To enable the Flocker control service on Ubuntu
------------------------------------------------
-
-.. task:: enable_flocker_control ubuntu-14.04
-   :prompt: [root@control-node]#
-
-The control service needs to accessible remotely.
-To configure ``UFW`` to allow access to the control service REST API, and for agent connections:
-
-.. task:: open_control_firewall ubuntu-14.04
-   :prompt: [root@control-node]#
-
-For more details on configuring the firewall, see Ubuntu's `UFW documentation <https://help.ubuntu.com/community/UFW>`_.
-
-On AWS, an external firewall is used instead, which will need to be configured similarly.
 
 To enable the Flocker agent service on Ubuntu
 ---------------------------------------------
