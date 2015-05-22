@@ -417,7 +417,7 @@ class BackendDescription(PRecord):
 
 # These structures should be created dynamically to handle plug-ins
 _DEFAULT_BACKENDS = [
-    # P2PManifestationDeployer doesn't current know anything about
+    # P2PManifestationDeployer doesn't currently know anything about
     # cluster_uuid.  It probably should so that it can make sure it
     # only talks to other nodes in the same cluster (maybe the
     # authentication layer would mostly handle this but maybe not if
@@ -569,6 +569,9 @@ class AgentService(PRecord):
         """
         Create an ``IDeployer`` provider suitable for the configured backend
         and this node.
+
+        :param api: The storage driver which will be supplied to the
+            ``IDeployer`` factory defined by the ``BackendDescription``.
 
         :return: The ``IDeployer`` provider.
         """
