@@ -935,6 +935,18 @@ def create_release_branch_main(args, base_path, top_level):
         raise SystemExit(1)
 
 
+class PublishDevBoxOptions(Options):
+    """
+    Options for publishing a Vagrant development box.
+    """
+    optParameters = [
+        ["flocker-version", None, flocker.__version__,
+         "The version of Flocker to upload packages for."
+         "Python packages for " + flocker.__version__ + "will be uploaded.\n"],
+        ["target", None, ARCHIVE_BUCKET,
+         "The bucket to upload artifacts to.\n"],
+    ]
+
 def publish_dev_box_main(args, base_path, top_level):
     """
     Publish a development Vagrant box.
