@@ -50,7 +50,7 @@ def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
     """
     if name is None:
         name = random_name(test)
-    ca_set, _ = get_credential_sets()
+    ca_set = get_credential_sets()[0]
     scratch_directory = FilePath(test.mktemp())
     scratch_directory.makedirs()
     test.config = scratch_directory.child('dataset-config.yml')
@@ -148,7 +148,7 @@ def agent_service_setup(test):
     """
     Do some setup common to all of the ``AgentService`` test cases.
     """
-    test.ca_set, _ = get_credential_sets()
+    test.ca_set = get_credential_sets()[0]
 
     test.host = b"192.0.2.5"
     test.port = 54123
