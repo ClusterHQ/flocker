@@ -12,6 +12,8 @@ To give a user access to a cluster's REST API, use the ``flocker-ca`` tool to ge
 The ``flocker-ca`` tool is installed as part of the flocker-cli package.
 If you have not already followed these steps, see the :doc:`flocker-node installation instructions <../../indepth/installation>`.
 
+.. _generate-api:
+
 Generate an API user certificate
 ================================
 
