@@ -1,6 +1,11 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+# Virtual Machine for developing and releasing Flocker.
+# After changing this file, refer to
+# http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/vagrant.html
+# for information on how to publish a new version.
+
 Vagrant.require_version ">= 1.6.2"
 
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
