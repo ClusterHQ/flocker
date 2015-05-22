@@ -532,41 +532,6 @@ def update_repo(package_directory, target_bucket, target_key, source_repo,
         files=downloaded_packages | new_metadata,
         ))
 
-
-@do
-def copy_tutorial_vagrant_box(target_bucket, dev_bucket, version):
-    """
-    Copy the tutorial box from a ``dev_bucket`` to a ``target_bucket``.
-
-    :param bytes target_bucket: S3 bucket to copy tutorial box to.
-    :param bytes dev_bucket: S3 bucket to copy tutorial box from.
-    :param bytes version: Version of Flocker to copy the tutorial box for.
-    """
-    yield Effect(
-        CopyS3Keys(source_bucket=dev_bucket,
-                   source_prefix='vagrant/tutorial/',
-                   destination_bucket=target_bucket,
-                   destination_prefix='vagrant/tutorial/',
-                   keys=['flocker-tutorial-{}.box'.format(version)]))
-
-
-@do
-def copy_dev_vagrant_box(target_bucket, dev_bucket, version):
-    """
-    Copy the development box from a ``dev_bucket`` to a ``target_bucket``.
-
-    :param bytes target_bucket: S3 bucket to copy development box to.
-    :param bytes dev_bucket: S3 bucket to copy development box from.
-    :param bytes version: Version of Flocker to copy the development box for.
-    """
-    # TODO tests for this.
-    yield Effect(
-        CopyS3Keys(source_bucket=dev_bucket,
-                   source_prefix='vagrant/dev/',
-                   destination_bucket=target_bucket,
-                   destination_prefix='vagrant/dev/',
-                   keys=['flocker-dev-{}.box'.format(version)]))
-
 @do
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
@@ -778,10 +743,13 @@ def publish_artifacts_main(args, base_path, top_level):
                     scratch_directory=scratch_directory.child('pip'),
                     target_bucket=options['target'],
                 ),
-                copy_tutorial_vagrant_box(
-                    target_bucket=options['target'],
-                    dev_bucket=DEV_ARCHIVE_BUCKET,
-                    version=options['flocker-version'],
+                CopyS3Keys(
+                    source_bucket=DEV_ARCHIVE_BUCKET,
+                    source_prefix='vagrant/tutorial/',
+                    destination_bucket=options['target'],
+                    destination_prefix='vagrant/tutorial/',
+                    keys=['flocker-tutorial-{}.box'.format(
+                        options['flocker-version'])],
                 ),
                 publish_vagrant_metadata(
                     version=options['flocker-version'],
@@ -984,13 +952,18 @@ def publish_dev_box_main(args, base_path, top_level):
         prefix=b'flocker-upload-'))
     scratch_directory.child('vagrant').createDirectory()
 
+    box_url = "https://s3.amazonaws.com/{bucket}/vagrant/dev/flocker-dev-{version}.box"
+
     sync_perform(
         dispatcher=base_dispatcher,
         effect=sequence([
-            copy_dev_vagrant_box(
-                target_bucket=options['target'],
-                dev_bucket=DEV_ARCHIVE_BUCKET,
-                version=options['flocker-version'],
+            CopyS3Keys(
+                source_bucket=DEV_ARCHIVE_BUCKET,
+                source_prefix='vagrant/dev/',
+                destination_bucket=options['target'],
+                destination_prefix='vagrant/dev/',
+                keys=['flocker-dev-{}.box'.format(
+                    options['flocker-version'])],
             ),
             publish_vagrant_metadata(
                 version=options['flocker-version'],
