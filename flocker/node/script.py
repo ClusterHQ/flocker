@@ -408,7 +408,12 @@ class BackendDescription(PRecord):
     # out.
     needs_cluster_id = field(type=bool, mandatory=True)
     api_factory = field(mandatory=True)
-    deployer_type = field(mandatory=True)
+    deployer_type = field(
+        mandatory=True,
+        invariant=lambda value: (
+            value in DeployerType.iterconstants(), "Unknown deployer_type"
+        ),
+    )
 
 # These structures should be created dynamically to handle plug-ins
 _DEFAULT_BACKENDS = [
@@ -420,17 +425,19 @@ _DEFAULT_BACKENDS = [
     # doesn't use TLS yet).
     BackendDescription(
         name=u"zfs", needs_reactor=True, needs_cluster_id=False,
-        api_factory=_zfs_storagepool, deployer_type=u"p2p",
+        api_factory=_zfs_storagepool, deployer_type=DeployerType.p2p,
     ),
     BackendDescription(
         name=u"loopback", needs_reactor=False, needs_cluster_id=False,
         # XXX compute_instance_id is the wrong type
-        api_factory=LoopbackBlockDeviceAPI.from_path, deployer_type=u"block",
+        api_factory=LoopbackBlockDeviceAPI.from_path,
+        deployer_type=DeployerType.block,
     ),
 
     # BackendDescription(
     #     name=u"openstack", needs_reactor=False, needs_cluster_id=True,
-    #     factory=cinder_from_configuration, deployer_type=u"block",
+    #     factory=cinder_from_configuration,
+    #     deployer_type=DeployerType.block,
     # ),
 ]
 
