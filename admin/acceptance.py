@@ -307,7 +307,7 @@ class RunOptions(Options):
         ['provider', None, 'vagrant',
          'The target provider to test against. '
          'One of {}.'.format(', '.join(PROVIDERS))],
-        ['dataset-backend', None, 'loopback',
+        ['dataset-backend', None, 'zfs',
          'The dataset backend to test against. '
          'One of {}'.format(', '.join(backend.name for backend
                                       in DatasetBackend.iterconstants()))],
