@@ -451,6 +451,8 @@ def publish_vagrant_metadata(version, box_url, scratch_directory, box_name,
             # In the future we may want to have multiple providers for the
             # same version but for now we discard any current providers for
             # the version being added.
+            # TODO this doesn't actually work - another thing can be added
+            # with the same version
             if version_metadata['version'] != version:
                 metadata['versions'].append(version_metadata)
 
