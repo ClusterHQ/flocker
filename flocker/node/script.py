@@ -489,6 +489,9 @@ class AgentService(PRecord):
         Load configuration from a data structure loaded from the configuration
         file and only minimally processed.
 
+        :param dict configuration: Agent configuration as returned by
+            ``get_configuration``.
+
         :return: A new instance of ``cls`` with values loaded from the
             configuration.
         """
