@@ -93,8 +93,13 @@ def make_validation_tests(context_factory_fixture,
 
     :return: ``TestCase``-subclass with tests for given validator.
     """
+    # For purposes of selecting other certs, control and control_dns are
+    # equivalent:
+    non_bad = good_certificate_name
+    if non_bad == "control_dns":
+        non_bad = "control"
     bad_name, another_bad_name = {"user", "node", "control"}.difference(
-        {good_certificate_name})
+        {non_bad})
 
     class ValidationTests(TestCase):
         """
@@ -238,6 +243,40 @@ class ControlServicePolicyValidationTests(make_validation_tests(
         "control", validator_is_client=True)):
     """
     Tests for validation of the control service certificate by clients.
+    """
+
+
+class ControlServicePolicyIPValidationTests(make_validation_tests(
+        lambda port, good_ca: ControlServicePolicy(
+            ca_certificate=good_ca.root.credential.certificate,
+            # The exposed client credential isn't actually tested by these
+            # tests, but is necessary for the code to run:
+            client_credential=good_ca.user.credential).creatorForNetloc(
+                b"127.0.0.1", port),
+        # We are testing a client that is validating the control
+        # service certificate:
+        "control", validator_is_client=True)):
+    """
+    Tests for validation of the control service certificate by clients
+    when the control service certificate was generated with IP as its
+    hostname.
+    """
+
+
+class ControlServicePolicyDNSValidationTests(make_validation_tests(
+        lambda port, good_ca: ControlServicePolicy(
+            ca_certificate=good_ca.root.credential.certificate,
+            # The exposed client credential isn't actually tested by these
+            # tests, but is necessary for the code to run:
+            client_credential=good_ca.user.credential).creatorForNetloc(
+                b"localhost", port),
+        # We are testing a client that is validating the control
+        # service certificate:
+        "control_dns", validator_is_client=True)):
+    """
+    Tests for validation of the control service certificate by clients
+    when the control service certificate was generated with DNS name as
+    its hostname.
     """
 
 

@@ -362,6 +362,14 @@ class ControlCredentialTests(
         self.assertEqual(
             subject.CN, b"control-service")
 
+    def test_subjectAltName_control_service(self):
+        """
+        A certificate written by ``ControlCredential.initialize`` has the
+        subjectAltName "DNS:control-service".
+        """
+        assert_has_extension(self, self.credential.credential,
+                             b"subjectAltName", b"DNS:control-service")
+
     def test_subjectAltName_dns(self):
         """
         If given a domain name as hostname, the generated certificate has a
