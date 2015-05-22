@@ -67,6 +67,8 @@ from .homebrew import make_recipe
 from .packaging import Distribution
 
 
+DEV_ARCHIVE_BUCKET = 'clusterhq-dev-archive'
+
 class NotTagged(Exception):
     """
     Raised if publishing to production and the version being published version
@@ -778,7 +780,7 @@ def publish_artifacts_main(args, base_path, top_level):
                 ),
                 copy_tutorial_vagrant_box(
                     target_bucket=options['target'],
-                    dev_bucket='clusterhq-dev-archive',
+                    dev_bucket=DEV_ARCHIVE_BUCKET,
                     version=options['flocker-version'],
                 ),
                 publish_vagrant_metadata(
@@ -987,7 +989,7 @@ def publish_dev_box_main(args, base_path, top_level):
         effect=sequence([
             copy_dev_vagrant_box(
                 target_bucket=options['target'],
-                dev_bucket='clusterhq-dev-archive',
+                dev_bucket=DEV_ARCHIVE_BUCKET,
                 version=options['flocker-version'],
             ),
             publish_vagrant_metadata(
