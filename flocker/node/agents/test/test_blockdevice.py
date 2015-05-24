@@ -2742,7 +2742,7 @@ class CreateBlockDeviceDatasetInitTests(
     """
 
 
-class CreateBlockDeviceDatasetTests(
+class CreateBlockDeviceDatasetInterfaceTests(
     make_istatechange_tests(
         CreateBlockDeviceDataset,
         lambda _uuid=uuid4(): dict(
@@ -2756,7 +2756,13 @@ class CreateBlockDeviceDatasetTests(
     )
 ):
     """
-    Tests for ``CreateBlockDeviceDataset``.
+    ``CreateBlockDeviceDataset`` interface adherance tests.
+    """
+
+
+class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
+    """
+    ``CreateBlockDeviceDataset`` implementation tests.
     """
     def _create_blockdevice_dataset(self, dataset_id, maximum_size, allocation_unit=None):
         """
