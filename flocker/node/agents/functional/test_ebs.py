@@ -75,7 +75,7 @@ class EBSBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
-            over_allocation_unit=get_over_allocation(),
+            over_allocation=get_over_allocation(),
         )
 ):
 
