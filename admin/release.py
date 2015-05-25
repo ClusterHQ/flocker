@@ -488,7 +488,6 @@ def copy_tutorial_vagrant_box(target_bucket, dev_bucket, version):
                    keys=['flocker-tutorial-{}.box'.format(version)]))
 
 
-
 @do
 def upload_rpms(scratch_directory, target_bucket, version, build_server):
     """
@@ -864,6 +863,7 @@ def create_release_branch_main(args, base_path, top_level):
                          % (base_path.basename(),))
         raise SystemExit(1)
 
+
 class TestRedirectsOptions(Options):
     """
     Arguments for ``test-redirects`` script.
@@ -878,6 +878,7 @@ class TestRedirectsOptions(Options):
     optFlags = [
         ["production", None, "Check the production documentation site."],
     ]
+
 
 def test_redirects_main(args, base_path, top_level):
     """
@@ -925,13 +926,10 @@ def test_redirects_main(args, base_path, top_level):
         if not final_url == expected_url:
             message = (
                 "'{original_url}' expected to redirect to '{expected_url}', "
-                "instead redirects to '{final_url}'. "
-                "It takes some time for CloudFront invalidations to propagate "
-                "so wait up to one hour to try again."
-            ).format(
-                original_url=original_url,
-                expected_url=expected_url,
-                final_url=final_url,
+                "instead redirects to '{final_url}'. ").format(
+                    original_url=original_url,
+                    expected_url=expected_url,
+                    final_url=final_url,
             )
 
             sys.stderr.write(message)
