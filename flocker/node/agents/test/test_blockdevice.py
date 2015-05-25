@@ -1939,7 +1939,7 @@ def losetup_detach_all(root_path):
             losetup_detach(device_file)
 
 
-def loopbackblockdeviceapi_for_test(test_case, allocation_unit=1024):
+def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     """
     :returns: A ``LoopbackBlockDeviceAPI`` with a temporary root directory
         created for the supplied ``test_case``.

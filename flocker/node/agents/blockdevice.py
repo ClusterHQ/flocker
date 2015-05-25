@@ -20,7 +20,7 @@ from pyrsistent import PRecord, field
 from characteristic import attributes, with_cmp
 
 import psutil
-from bitmath import Byte
+from bitmath import Byte, MiB
 
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
@@ -1175,10 +1175,12 @@ class LoopbackBlockDeviceAPI(object):
         """
         self._root_path = root_path
         self._compute_instance_id = compute_instance_id
+        if allocation_unit is None:
+            allocation_unit = int(MiB(1).to_Byte().value)
         self._allocation_unit = allocation_unit
 
     @classmethod
-    def from_path(cls, root_path, compute_instance_id, allocation_unit):
+    def from_path(cls, root_path, compute_instance_id, allocation_unit=None):
         """
         :param bytes root_path: The path to a directory in which loop back
             backing files will be created.  The directory is created if it does
