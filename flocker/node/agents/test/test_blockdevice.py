@@ -3305,16 +3305,16 @@ class ResizeFilesystemTests(
 
         filesystem = u"ext4"
 
-        original_size = REALISTIC_BLOCKDEVICE_SIZE
-        new_size = int(original_size * size_factor)
-
         deployer = create_blockdevicedeployer(self)
         api = deployer.block_device_api
         this_node = api.compute_instance_id()
 
         volume = api.create_volume(
-            dataset_id=dataset_id, size=original_size,
+            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
         )
+        original_size = volume.size
+        new_size = int(original_size * size_factor)
+        new_allocated_size = allocated_size(api.allocation_unit(), new_size)
         api.attach_volume(
             volume.blockdevice_id, attach_to=this_node,
         )
@@ -3335,7 +3335,7 @@ class ResizeFilesystemTests(
 
         # Test the state change.
         self.successResultOf(run_state_change(
-            ResizeFilesystem(volume=volume, size=new_size),
+            ResizeFilesystem(volume=volume, size=new_allocated_size),
             deployer
         ))
 

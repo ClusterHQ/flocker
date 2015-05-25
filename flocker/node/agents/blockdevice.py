@@ -1360,16 +1360,17 @@ class LoopbackBlockDeviceAPI(object):
         volume = get_blockdevice_volume(self, blockdevice_id)
         filename = _backing_file_name(volume)
         backing_path = self._unattached_directory.child(filename)
+        new_size = allocated_size(self.allocation_unit(), size)
         try:
             backing_file = backing_path.open("r+")
         except IOError:
             raise UnknownVolume(blockdevice_id)
         else:
             try:
-                backing_file.truncate(size)
+                backing_file.truncate(new_size)
             finally:
                 backing_file.close()
-        resized_volume = volume.set('size', size)
+        resized_volume = volume.set('size', new_size)
         resized_filename = _backing_file_name(resized_volume)
         backing_path.moveTo(backing_path.sibling(resized_filename))
 
