@@ -1365,26 +1365,26 @@ class IBlockDeviceAPITestsMixin(object):
 
     def test_listed_volume_attributes(self):
         """
-        ``list_volumes`` returns ``BlockDeviceVolume`` s that have the same
-        dataset_id and size as was passed to ``create_volume``.
+        ``list_volumes`` returns ``BlockDeviceVolume`` s that have the
+        same dataset_id and (maybe over-allocated size) as was passed
+        to ``create_volume``.
         """
         expected_dataset_id = uuid4()
+        requested_size = REALISTIC_BLOCKDEVICE_SIZE
+        expected_size = allocated_size(
+            self.api.allocation_unit(),
+            requested_size
+        )
+
         self.api.create_volume(
             dataset_id=expected_dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=requested_size,
         )
         [listed_volume] = self.api.list_volumes()
 
-        # Rounding up to GiB before comparing is not ideal,
-        # but due to storage backend size constraints, requested
-        # size in Bytes might not exactly match with created
-        # volume size. See
-        # https://clusterhq.atlassian.net/browse/FLOC-1874
-        volume_size_GiB = int(Byte(listed_volume.size).to_GiB().value)
-        create_size_GiB = int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GiB().value)
         self.assertEqual(
-            (expected_dataset_id, create_size_GiB),
-            (listed_volume.dataset_id, volume_size_GiB)
+            (expected_dataset_id, expected_size),
+            (listed_volume.dataset_id, listed_volume.size)
         )
 
     def test_created_volume_attributes(self):
@@ -1393,21 +1393,20 @@ class IBlockDeviceAPITestsMixin(object):
         and a size.
         """
         expected_dataset_id = uuid4()
-        new_volume = self.api.create_volume(
-            dataset_id=expected_dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+        requested_size = REALISTIC_BLOCKDEVICE_SIZE
+        expected_size = allocated_size(
+            self.api.allocation_unit(),
+            requested_size
         )
 
-        # Rounding up to GiB before comparing is not ideal,
-        # but due to storage backend size constraints, requested
-        # size in Bytes might not exactly match with created
-        # volume size. See
-        # https://clusterhq.atlassian.net/browse/FLOC-1874
-        volume_size_GiB = int(Byte(new_volume.size).to_GiB().value)
-        create_size_GiB = int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GiB().value)
+        new_volume = self.api.create_volume(
+            dataset_id=expected_dataset_id,
+            size=requested_size,
+        )
+
         self.assertEqual(
-            (expected_dataset_id, create_size_GiB),
-            (new_volume.dataset_id, volume_size_GiB)
+            (expected_dataset_id, expected_size),
+            (new_volume.dataset_id, new_volume.size)
         )
 
     def test_attach_unknown_volume(self):
