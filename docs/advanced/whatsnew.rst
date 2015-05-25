@@ -15,7 +15,7 @@ Next Release
 * Flocker-initiated communication is secured with TLS.
   See :ref:`authentication`.
 * Docker restart policies are adhered to.
-* New API endpoint: List the hosts currently in the cluster. XXX Link
+* New API endpoint: List the hosts currently in the cluster.
   See :ref:`api`.
 
 v0.4
