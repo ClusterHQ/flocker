@@ -918,14 +918,15 @@ def test_redirects_main(args, base_path, top_level):
     for path in expected_redirects:
         original_url = base_url + path
         expected_url = base_url + expected_redirects[path]
+        final_url = requests.get(original_url).url
 
-        if not expected_url == requests.get(original_url).url:
+        if not expected_url == final_url:
             message = (
                 "'{original_url}' expected to redirect to '{expected_url}', "
                 "instead redirects to '{final_url}'.\n").format(
                     original_url=original_url,
                     expected_url=expected_url,
-                    final_url=response.url,
+                    final_url=final_url,
             )
 
             sys.stderr.write(message)
