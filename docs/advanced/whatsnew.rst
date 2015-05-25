@@ -10,6 +10,13 @@ Next Release
 ============
 
 * ``flocker-deploy`` now takes an extra argument, the hostname of the control service.
+* It is now necessary to specify a dataset backend for each agent node.
+  See :ref:`post-installation-configuration`.
+* Flocker-initiated communication is secured with TLS.
+  See :ref:`authentication`.
+* Docker restart policies are adhered to.
+* New API endpoint: List the hosts currently in the cluster. XXX Link
+  See :ref:`api`.
 
 v0.4
 ====
