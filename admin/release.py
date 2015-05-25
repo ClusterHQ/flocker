@@ -22,6 +22,8 @@ from effect.do import do
 from characteristic import attributes
 from git import GitCommandError, Repo
 
+import requests
+
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.python.constants import Names, NamedConstant
@@ -860,4 +862,33 @@ def create_release_branch_main(args, base_path, top_level):
     except BranchExists:
         sys.stderr.write("%s: The release branch already exists.\n"
                          % (base_path.basename(),))
+        raise SystemExit(1)
+
+def test_redirects_main(args, base_path, top_level):
+    """
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
+    # TODO change docs
+    # environment
+    # flocker-version
+
+    original_url = 'xxx'
+    response = requests.get(original_url)
+    final_url = response.history[-1].url
+    expected_url = 'foo'
+    if not final_url == expected_url:
+        message = (
+            "'{original_url}' expected to redirect to '{expected_url}', "
+            "instead redirects to '{final_url}'. "
+            "It takes some time for CloudFront invalidations to propagate "
+            "so wait up to one hour to try again."
+        ).format(
+            original_url=original_url,
+            expected_url=expected_url,
+            final_url=final_url,
+        )
+
+        sys.stderr.write(message)
         raise SystemExit(1)
