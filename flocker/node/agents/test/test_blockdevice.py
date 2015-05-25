@@ -48,6 +48,7 @@ from ..blockdevice import (
     DatasetWithoutVolume,
     allocated_size,
     get_blockdevice_volume,
+    _backing_file_name,
 )
 
 from ... import run_state_change, in_parallel
@@ -99,7 +100,7 @@ def get_size_info(api, volume):
         reported size of the backing file for the given volume.
     """
     backing_file = api._root_path.descendant(
-        ['unattached', volume.blockdevice_id]
+        ['unattached', _backing_file_name(volume)]
     )
     # Get actual number of 512 byte blocks used by the file.  See
     # http://stackoverflow.com/a/3212102
@@ -2094,15 +2095,16 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         ``create_volume`` creates sparse files.
         """
         # 1GB
-        apparent_size = REALISTIC_BLOCKDEVICE_SIZE
+        requested_size = REALISTIC_BLOCKDEVICE_SIZE
         volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=apparent_size
+            size=requested_size,
         )
+        allocated_size = volume.size
         size = get_size_info(self.api, volume)
 
         self.assertEqual(
-            (0, apparent_size),
+            (0, allocated_size),
             (size.actual, size.reported)
         )
 
@@ -2110,16 +2112,20 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         ``resize_volume`` extends backing files sparsely.
         """
+        requested_size = REALISTIC_BLOCKDEVICE_SIZE
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=uuid4(), size=requested_size
         )
-        apparent_size = volume.size * 2
+
+        larger_size = requested_size * 2
         self.api.resize_volume(
-            volume.blockdevice_id, apparent_size,
+            volume.blockdevice_id, larger_size,
         )
+        [volume] = self.api.list_volumes()
+        allocated_size_2 = volume.size
         size = get_size_info(self.api, volume)
         self.assertEqual(
-            (0, apparent_size),
+            (0, allocated_size_2),
             (size.actual, size.reported)
         )
 
@@ -2132,7 +2138,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         end_size = start_size * 2
         volume = self.api.create_volume(dataset_id=uuid4(), size=start_size)
         backing_file = self.api._root_path.descendant(
-            ['unattached', volume.blockdevice_id]
+            ['unattached', _backing_file_name(volume)]
         )
         # Make up a bit pattern that seems kind of interesting.  Not being
         # particularly rigorous here.  Assuming any failures will be pretty
@@ -2147,7 +2153,11 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             fObj.write(expected_data)
 
         self.api.resize_volume(volume.blockdevice_id, end_size)
+        [volume] = self.api.list_volumes()
 
+        backing_file = self.api._root_path.descendant(
+            ['unattached', _backing_file_name(volume)]
+        )
         with backing_file.open("r") as fObj:
             data_after_resize = fObj.read(start_size)
 
@@ -2167,7 +2177,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         )
         with (api._root_path
               .child('unattached')
-              .child(blockdevice_volume.blockdevice_id.encode('ascii'))
+              .child(_backing_file_name(blockdevice_volume))
               .open('wb')) as f:
             f.truncate(expected_size)
         self.assertEqual([blockdevice_volume], api.list_volumes())
@@ -2192,7 +2202,8 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             b'attached', this_node.encode("utf-8")
         ])
         host_dir.makedirs()
-        with host_dir.child(blockdevice_volume.blockdevice_id).open('wb') as f:
+        filename = _backing_file_name(blockdevice_volume)
+        with host_dir.child(filename).open('wb') as f:
             f.truncate(expected_size)
 
         self.assertEqual([blockdevice_volume], api.list_volumes())
