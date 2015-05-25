@@ -2764,7 +2764,8 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
     """
     ``CreateBlockDeviceDataset`` implementation tests.
     """
-    def _create_blockdevice_dataset(self, dataset_id, maximum_size, allocation_unit=None):
+    def _create_blockdevice_dataset(self,
+                                    dataset_id, maximum_size, allocation_unit):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.
 
@@ -2777,7 +2778,8 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
             * The ``FilePath`` of the device where the volume is attached.
             * The ``FilePath`` where the volume is expected to be mounted.
         """
-        api = loopbackblockdeviceapi_for_test(self, allocation_unit=allocation_unit)
+        api = loopbackblockdeviceapi_for_test(
+            self, allocation_unit=allocation_unit)
         mountroot = mountroot_for_test(self)
         expected_mountpoint = mountroot.child(
             unicode(dataset_id).encode("ascii")
@@ -2814,13 +2816,15 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         """
         dataset_id = uuid4()
         maximum_size = REALISTIC_BLOCKDEVICE_SIZE
+        allocation_unit = int(MiB(1).to_Byte().value)
         # Return the cloud_instance_id here
         (volume,
          device_path,
          expected_mountpoint,
          compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
-            maximum_size=maximum_size
+            maximum_size=maximum_size,
+            allocation_unit=allocation_unit,
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
@@ -2839,15 +2843,20 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         """
         dataset_id = uuid4()
         allocation_unit = int(MiB(10).to_Byte().value)
+
+        # A realistic size which is divisible by the allocation_unit
+        expected_size = (
+            allocation_unit * (REALISTIC_BLOCKDEVICE_SIZE // allocation_unit)
+        )
         (volume,
          device_path,
          expected_mountpoint,
          compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
-            maximum_size=allocation_unit - 1,
+            # Request a size which will force over allocation.
+            maximum_size=expected_size - 1,
             allocation_unit=allocation_unit,
         )
-        expected_size = allocation_unit
         expected_volume = _blockdevicevolume_from_dataset_id(
             dataset_id=dataset_id, attached_to=compute_instance_id,
             size=expected_size,
@@ -2861,13 +2870,14 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         """
         dataset_id = uuid4()
         maximum_size = REALISTIC_BLOCKDEVICE_SIZE
-
+        allocation_unit = int(MiB(1).to_Byte().value)
         (volume,
          device_path,
          expected_mountpoint,
          compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
-            maximum_size=maximum_size
+            maximum_size=maximum_size,
+            allocation_unit=allocation_unit,
         )
 
         self.assertIn(
