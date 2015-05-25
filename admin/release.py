@@ -875,6 +875,10 @@ class TestRedirectsOptions(Options):
         ],
     ]
 
+    optFlags = [
+        ["production", None, "Check the production documentation site."],
+    ]
+
 def test_redirects_main(args, base_path, top_level):
     """
     :param list args: The arguments passed to the script.
@@ -894,7 +898,7 @@ def test_redirects_main(args, base_path, top_level):
 
     doc_version = options['doc-version']
 
-    if '--production specified':
+    if options['production']:
         base_url = 'https://docs.clusterhq.com/'
     else:
         base_url = 'https://docs.staging.clusterhq.com/'
