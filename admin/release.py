@@ -886,8 +886,6 @@ def test_redirects_main(args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    # TODO change docs
-
     options = TestRedirectsOptions()
 
     try:
@@ -919,10 +917,9 @@ def test_redirects_main(args, base_path, top_level):
 
     for path in expected_redirects:
         original_url = base_url + path
-        response = requests.get(original_url)
         expected_url = base_url + expected_redirects[path]
 
-        if not expected_url == response.url:
+        if not expected_url == requests.get(original_url).url:
             message = (
                 "'{original_url}' expected to redirect to '{expected_url}', "
                 "instead redirects to '{final_url}'.\n").format(
