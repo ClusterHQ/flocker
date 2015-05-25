@@ -901,8 +901,8 @@ def test_redirects_main(args, base_path, top_level):
     else:
         base_url = 'https://docs.staging.clusterhq.com/'
 
-    # TODO the docs are weird on this, check the code
-    if is_weekly_release(doc_version):
+    is_dev = not is_release(doc_version)
+    if is_dev:
         expected_redirects = {
             'en/devel': 'en/' + doc_version + '/',
             'en/devel/authors.html': 'en/' + doc_version + '/authors.html',
