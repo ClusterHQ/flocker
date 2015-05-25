@@ -906,20 +906,20 @@ def test_redirects_main(args, base_path, top_level):
     doc_version = options['doc-version']
 
     document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
-    base_url = 'https://' + document_configuration.cloudfront_cname + '/'
+    base_url = 'https://' + document_configuration.cloudfront_cname
 
     is_dev = not is_release(doc_version)
     if is_dev:
         expected_redirects = {
-            'en/devel': 'en/' + doc_version + '/',
-            'en/devel/authors.html': 'en/' + doc_version + '/authors.html',
+            '/en/devel': '/en/' + doc_version + '/',
+            '/en/devel/authors.html': '/en/' + doc_version + '/authors.html',
         }
     else:
         expected_redirects = {
-            '': 'en/' + doc_version + '/',
-            'en/': 'en/' + doc_version + '/',
-            'en/latest': 'en/' + doc_version + '/',
-            'en/latest/authors.html': 'en/' + doc_version + '/authors.html',
+            '/': '/en/' + doc_version + '/',
+            '/en/': '/en/' + doc_version + '/',
+            '/en/latest': '/en/' + doc_version + '/',
+            '/en/latest/authors.html': '/en/' + doc_version + '/authors.html',
         }
 
     failed_redirects = []
