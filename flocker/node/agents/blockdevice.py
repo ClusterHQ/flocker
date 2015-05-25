@@ -823,7 +823,13 @@ class IBlockDeviceAsyncAPI(Interface):
     Common operations provided by all block device backends, exposed via
     asynchronous methods.
     """
-    # FLOC-1874 - allocation_unit
+    def allocation_unit():
+        """
+        See ``IBlockDeviceAPI.allocation_unit``.
+
+        :returns: A ``Deferred`` that fires with ``int`` size of the
+            allocation_unit.
+        """
 
     def compute_instance_id():
         """
@@ -895,9 +901,6 @@ class IBlockDeviceAPI(Interface):
     Note: This is an early sketch of the interface and it'll be refined as we
     real blockdevice providers are implemented.
     """
-    # FLOC-1874 - New method for finding what we need to round to.  It's not an
-    # attribute because the interface proxying stuff doesn't support
-    # attributes.
     def allocation_unit():
         """
         The size in bytes up to which the requested block device size will be
