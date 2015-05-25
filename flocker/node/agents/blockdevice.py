@@ -1267,7 +1267,7 @@ class LoopbackBlockDeviceAPI(object):
         """
         actual_size = allocated_size(self.allocation_unit(), size)
         volume = _blockdevicevolume_from_dataset_id(
-            size=size, dataset_id=dataset_id,
+            size=actual_size, dataset_id=dataset_id,
         )
         with self._unattached_directory.child(
             self._backing_file_name(volume)
