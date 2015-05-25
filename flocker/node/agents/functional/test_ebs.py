@@ -20,7 +20,7 @@ from ..test.test_blockdevice import (
 
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdeviceapi_args,
-    get_blockdeviceapi_with_cleanup, get_device_allocation_unit,
+    get_blockdeviceapi_with_cleanup, get_over_allocation,
 )
 
 
@@ -75,7 +75,7 @@ class EBSBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
-            device_allocation_unit=get_device_allocation_unit(),
+            over_allocation_unit=get_over_allocation(),
         )
 ):
 

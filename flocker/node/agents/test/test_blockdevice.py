@@ -1282,8 +1282,8 @@ class IBlockDeviceAPITestsMixin(object):
         ``IBlockDeviceAPI.list_volumes`` return ``BlockDeviceVolume``s
         with the ``expected_volume_size`` and that
         ``IBlockDeviceAPI.create_volume``, creates devices with an
-        ``expected_device_size`` (expected_volume_size rounded up to
-        some platform specific allocation_unit.)
+        ``expected_device_size`` (expected_volume_size plus platform
+        specific over allocation).
 
         A device is created and attached and ``lsblk`` is used to
         measure the size of the block device reported by the kernel of
@@ -1319,10 +1319,7 @@ class IBlockDeviceAPITestsMixin(object):
                    b"--output", b"SIZE", device_path.encode("ascii")]
         command_output = check_output(command).split(b'\n')[0]
         device_size = int(command_output.strip().decode("ascii"))
-        expected_device_size = allocated_size(
-            allocation_unit=self.device_allocation_unit,
-            requested_size=expected_volume_size,
-        )
+        expected_device_size = expected_volume_size + self.over_allocation
         self.assertEqual(
             (expected_volume_size, expected_device_size),
             (volume.size, device_size)
@@ -1901,28 +1898,24 @@ class IBlockDeviceAPITestsMixin(object):
         self.assertNotIn(flocker_volume, self.api.list_volumes())
 
 
-def make_iblockdeviceapi_tests(blockdevice_api_factory,
-                               device_allocation_unit):
+def make_iblockdeviceapi_tests(blockdevice_api_factory, over_allocation):
     """
     :param blockdevice_api_factory: A factory which will be called
         with the generated ``TestCase`` during the ``setUp`` for each
         test and which should return an implementation of
         ``IBlockDeviceAPI`` to be tested.
-    :param int device_allocation_unit: A size (in ``bytes``) which is
-        the allocation_unit for the devices created by the API under
-        test. This may be different to the size reported by
-        ``IBlockDeviceAPI.allocation_unit()`` if the storage system is
-        unable to allocate sizes as small as the allocation_unit
-        allowed by the platform API eg Cinder allows sizes to be
-        supplied in GiB, but certain Cinder storage drivers may create
-        devices with a minumum allocation unit of 8GiB.
+    :param int over_allocation: A size (in ``bytes``) by which the
+        storage system is expected to over allocate eg Cinder allows
+        sizes to be supplied in GiB, but certain Cinder storage
+        drivers may create devices 4GiB larger than the requested
+        size.
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
             self.api = blockdevice_api_factory(test_case=self)
-            self.device_allocation_unit = device_allocation_unit
+            self.over_allocation = over_allocation
             self.this_node = self.api.compute_instance_id()
 
     return Tests
@@ -2025,7 +2018,7 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
 class LoopbackBlockDeviceAPITests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=loopbackblockdeviceapi_for_test,
-            device_allocation_unit=1
+            over_allocation=0
         )
 ):
     """

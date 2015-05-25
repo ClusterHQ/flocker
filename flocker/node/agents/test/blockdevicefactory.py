@@ -269,16 +269,16 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
     return api
 
 
-DEVICE_ALLOCATION_UNITS = {
-    'openstack': GiB(1),
+OVER_ALLOCATION_UNITS = {
+    'openstack': GiB(0),
     'redhat-openstack': GiB(4),
-    'aws': GiB(1),
+    'aws': GiB(0),
 }
 
 
-def get_device_allocation_unit():
+def get_over_allocation():
     """
-    Return a platform specific device allocation unit.
+    Return a platform specific device over allocation unit.
     """
     # ie cust0, rackspace, aws
     # XXX This is copied from get_blockdeviceapi_args and needs refactoring.
@@ -289,4 +289,4 @@ def get_device_allocation_unit():
             'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER environment variable.'
         )
 
-    return int(DEVICE_ALLOCATION_UNITS[platform_name].to_Byte().value)
+    return int(OVER_ALLOCATION_UNITS[platform_name].to_Byte().value)
