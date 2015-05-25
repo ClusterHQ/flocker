@@ -6,11 +6,10 @@ A Cinder implementation of the ``IBlockDeviceAPI``.
 """
 import time
 from uuid import UUID
-from subprocess import check_output
 
 from bitmath import Byte, GiB
 
-from eliot import Message, start_action
+from eliot import Message, MessageType, Field, start_action
 
 from pyrsistent import PRecord, field
 
@@ -23,7 +22,9 @@ from twisted.python.filepath import FilePath
 
 from zope.interface import implementer, Interface
 
-from ...common import auto_openstack_logging
+from ...common import (
+    auto_openstack_logging, get_all_ips, ipaddress_from_string
+)
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, get_blockdevice_volume,
@@ -36,6 +37,24 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 # The key name used for identifying the Flocker dataset_id in the metadata for
 # a volume.
 DATASET_ID_LABEL = u'flocker-dataset-id'
+
+LOCAL_IPS = Field(
+    u"local_ips",
+    repr,
+    u"The IP addresses found on the target node."
+)
+
+API_IPS = Field(
+    u"api_ips",
+    repr,
+    u"The IP addresses and instance_ids for all nodes."
+)
+
+COMPUTE_INSTANCE_ID_NOT_FOUND = MessageType(
+    u"blockdevice:cinder:compute_instance_id:not_found",
+    [LOCAL_IPS, API_IPS],
+    u"Unable to determine the instance ID of this node.",
+)
 
 
 class ICinderVolumeManager(Interface):
@@ -132,6 +151,18 @@ class INovaVolumeManager(Interface):
         """
 
 
+class INovaServerManager(Interface):
+    """
+    The parts of ``novaclient.v2.servers.ServerManager`` that we use.
+    See:
+    https://github.com/openstack/python-novaclient/blob/master/novaclient/v2/servers.py
+    """
+    def list():
+        """
+        Get a list of servers.
+        """
+
+
 def wait_for_volume(volume_manager, expected_volume,
                     expected_status=u'available',
                     time_limit=60):
@@ -174,24 +205,48 @@ def wait_for_volume(volume_manager, expected_volume,
             )
 
 
+def _extract_nova_server_addresses(addresses):
+    """
+    :param dict addresses: A ``dict`` mapping OpenStack network names
+        to lists of address dictionaries in that network assigned to a
+        server.
+    :return: A ``set`` of all the IPv4 and IPv6 addresses from the
+        ``addresses`` attribute of a ``Server``.
+    """
+    all_addresses = set()
+    for network_name, addresses in addresses.items():
+        for address_info in addresses:
+            all_addresses.add(
+                ipaddress_from_string(address_info['addr'])
+            )
+
+    return all_addresses
+
+
 @implementer(IBlockDeviceAPI)
 class CinderBlockDeviceAPI(object):
     """
     A cinder implementation of ``IBlockDeviceAPI`` which creates block devices
     in an OpenStack cluster using Cinder APIs.
     """
-    def __init__(self, cinder_volume_manager, nova_volume_manager, cluster_id):
+    def __init__(self,
+                 cinder_volume_manager,
+                 nova_volume_manager, nova_server_manager,
+                 cluster_id):
         """
         :param ICinderVolumeManager cinder_volume_manager: A client for
             interacting with Cinder API.
         :param INovaVolumeManager nova_volume_manager: A client for interacting
             with Nova volume API.
+        :param INovaServerManager nova_server_manager: A client for interacting
+            with Nova servers API.
         :param UUID cluster_id: An ID that will be included in the names of
             Cinder block devices in order to associate them with a particular
             Flocker cluster.
         """
         self.cinder_volume_manager = cinder_volume_manager
         self.nova_volume_manager = nova_volume_manager
+        self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
 
     # FLOC-1874 - Implement allocation_unit().  It probably needs to be loaded
@@ -205,14 +260,22 @@ class CinderBlockDeviceAPI(object):
 
     def compute_instance_id(self):
         """
-        Look up the Xen instance ID for this node.
+        Find the Nova API server with a subset of the IPv4 and IPv6
+        addresses on this node.
         """
-        # See http://wiki.christophchamp.com/index.php/Xenstore
-        # $ sudo xenstore-read name
-        # instance-6ddfb6c0-d264-4e77-846a-aa67e4fe89df
-        prefix = u"instance-"
-        command = [b"xenstore-read", b"name"]
-        return check_output(command).strip().decode("ascii")[len(prefix):]
+        local_ips = get_all_ips()
+        api_ip_map = {}
+        for server in self.nova_server_manager.list():
+            api_addresses = _extract_nova_server_addresses(server.addresses)
+            if api_addresses.issubset(local_ips):
+                return server.id
+            else:
+                for ip in api_addresses:
+                    api_ip_map[ip] = server.id
+
+        # If there was no match, log an error containing all the local
+        # and remote IPs.
+        COMPUTE_INSTANCE_ID_NOT_FOUND(local_ips=local_ips, api_ips=api_ip_map)
 
     def create_volume(self, dataset_id, size):
         """
@@ -305,8 +368,8 @@ class CinderBlockDeviceAPI(object):
     def detach_volume(self, blockdevice_id):
         our_id = self.compute_instance_id()
         try:
-            nova_volume = self.nova_volume_manager.get(blockdevice_id)
-        except NovaNotFound:
+            cinder_volume = self.cinder_volume_manager.get(blockdevice_id)
+        except CinderNotFound:
             raise UnknownVolume(blockdevice_id)
 
         try:
@@ -319,8 +382,8 @@ class CinderBlockDeviceAPI(object):
 
         # This'll blow up if the volume is deleted from elsewhere.  FLOC-1882.
         wait_for_volume(
-            volume_manager=self.nova_volume_manager,
-            expected_volume=nova_volume,
+            volume_manager=self.cinder_volume_manager,
+            expected_volume=cinder_volume,
             expected_status=u'available',
         )
 
@@ -404,6 +467,11 @@ class _LoggingNovaVolumeManager(PRecord):
     _nova_volumes = field(mandatory=True)
 
 
+@auto_openstack_logging(INovaServerManager, "_nova_servers")
+class _LoggingNovaServerManager(PRecord):
+    _nova_servers = field(mandatory=True)
+
+
 def cinder_api(cinder_client, nova_client, cluster_id):
     """
     :param cinderclient.v1.client.Client cinder_client: The Cinder API client
@@ -419,11 +487,15 @@ def cinder_api(cinder_client, nova_client, cluster_id):
     logging_cinder = _LoggingCinderVolumeManager(
         _cinder_volumes=cinder_client.volumes
     )
-    logging_nova = _LoggingNovaVolumeManager(
+    logging_nova_volume_manager = _LoggingNovaVolumeManager(
         _nova_volumes=nova_client.volumes
+    )
+    logging_nova_server_manager = _LoggingNovaServerManager(
+        _nova_servers=nova_client.servers
     )
     return CinderBlockDeviceAPI(
         cinder_volume_manager=logging_cinder,
-        nova_volume_manager=logging_nova,
+        nova_volume_manager=logging_nova_volume_manager,
+        nova_server_manager=logging_nova_server_manager,
         cluster_id=cluster_id,
     )
