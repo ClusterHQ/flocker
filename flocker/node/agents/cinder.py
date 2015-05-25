@@ -27,7 +27,7 @@ from ...common import (
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume,
+    UnattachedVolume, get_blockdevice_volume, allocated_size,
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -251,13 +251,19 @@ class CinderBlockDeviceAPI(object):
 
     def allocation_unit(self):
         """
-        Return a fixed allocation_unit for now; one which should work
-        on all currently supported and soon-to-be supported platforms.
+        Return a 1GiB fixed allocation_unit for now; one which should
+        work on all currently supported and soon-to-be supported
+        platforms.
+
+        This is the minimum allocation unit described by the OpenStack
+        Cinder API documentation.
+         * http://developer.openstack.org/api-ref-blockstorage-v2.html#createVolume # noqa
 
         XXX: This should be loaded from configuration because
-        different Cinder configurations have different constraints.
+        different Cinder configurations have different
+        constraints...except that would violate the API, so not sure.
         """
-        return int(GiB(8).to_Byte().value)
+        return int(GiB(1).to_Byte().value)
 
     def compute_instance_id(self):
         """
@@ -293,14 +299,8 @@ class CinderBlockDeviceAPI(object):
         }
         action_type = u"blockdevice:cinder:create_volume"
         with start_action(action_type=action_type):
-            # There could be difference between user-requested and
-            # Cinder-created volume sizes due to several reasons:
-            # 1) Round off from converting user-supplied 'size' to 'GiB' int.
-            # 2) Cinder-specific size constraints.
-            # XXX: Address size mistach (see
-            # (https://clusterhq.atlassian.net/browse/FLOC-1874).
             requested_volume = self.cinder_volume_manager.create(
-                size=Byte(size).to_GiB().value,
+                size=allocated_size(self.allocation_unit(), size),
                 metadata=metadata,
             )
             Message.new(blockdevice_id=requested_volume.id).write()

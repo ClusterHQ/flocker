@@ -1276,17 +1276,19 @@ class IBlockDeviceAPITestsMixin(object):
     def _verify_volume_size(self, requested_size, expected_size):
         """
         Assert that all implementations of
-        ``IBlockDeviceAPI.list_volumes`` return ``BlockDeviceVolume``
-        s with the ``requested_size`` and that
+        ``IBlockDeviceAPI.list_volumes`` return ``BlockDeviceVolume``s
+        with the ``expected_size`` and that
         ``IBlockDeviceAPI.create_volume``, creates devices with the
-        expected size.
+        ``expected_size`` rounded up to some platform specific allocation_unit.
 
         A device is created and attached and ``lsblk`` is used to
         measure the size of the block device reported by the kernel of
         the machine to which the device is attached.
 
-        This is used for testing volumes size which are (in)divisible
-        by the reported ``allocation_unit``.
+        This is used for testing volume sizes which are (in)divisible
+        by the reported ``allocation_unit`` and for verifying that our
+        supported platforms create block devices with the expected
+        allocation units.
 
         :param int requested_size: Requested size of created volume.
         :param int expected_size: Expected size of created device.

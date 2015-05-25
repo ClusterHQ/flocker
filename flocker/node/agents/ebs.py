@@ -10,7 +10,7 @@ import threading
 import time
 from uuid import UUID
 
-from bitmath import Byte, GiB
+from bitmath import GiB
 
 from pyrsistent import PRecord, field
 from zope.interface import implementer
@@ -21,7 +21,7 @@ from twisted.python.filepath import FilePath
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume
+    UnattachedVolume, get_blockdevice_volume, allocated_size,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -306,14 +306,8 @@ class EBSBlockDeviceAPI(object):
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        # There could be difference between user-requested and
-        # created volume sizes due to several reasons:
-        # 1) Round off from converting user-supplied 'size' to 'GiB' int.
-        # 2) EBS-specific size constraints.
-        # XXX: Address size mistach (see
-        # (https://clusterhq.atlassian.net/browse/FLOC-1874).
         requested_volume = self.connection.create_volume(
-            size=int(Byte(size).to_GiB().value), zone=self.zone)
+            size=allocated_size(self.allocation_unit(), size), zone=self.zone)
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {
