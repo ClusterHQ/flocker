@@ -9,14 +9,47 @@ from zope.interface.interface import Method
 from twisted.internet.threads import deferToThreadPool
 
 
-def _threaded_method(sync_name, method_name, reactor_name, threadpool_name):
+# TODO: Add tests and documentation for this, make it public (somewhere else).
+# https://clusterhq.atlassian.net/browse/FLOC-1847
+def _interface_decorator(decorator_name, interface, method_decorator,
+                         *args, **kwargs):
+    """
+    Create a class decorator which applies a method decorator to each method of
+    an interface.
+
+    :param str decorator_name: A human-meaningful name for the class decorator
+        that will be returned by this function.
+    :param zope.interface.InterfaceClass interface: The interface from which to
+        take methods.
+    :param method_decorator: A callable which will decorate a method from the
+        interface.  It will be called with the name of the method as the first
+        argument and any additional positional and keyword arguments passed to
+        ``_interface_decorator``.
+
+    :return: The class decorator.
+    """
+    for method_name in interface.names():
+        if not isinstance(interface[method_name], Method):
+            raise TypeError(
+                "{} does not support interfaces with non-methods "
+                "attributes".format(decorator_name)
+            )
+
+    def _class_decorator(cls):
+        for name in interface.names():
+            setattr(cls, name, method_decorator(name, *args, **kwargs))
+        return cls
+    return _class_decorator
+
+
+def _threaded_method(method_name, sync_name, reactor_name, threadpool_name):
     """
     Create a method that calls another method in a threadpool.
 
-    :param str sync_name: The name of the attribute of ``self`` on which to
-        look up the other method to run.  This is the "sync" object.
     :param str method_name: The name of the method to look up on the "sync"
         object.
+    :param str sync_name: The name of the attribute of ``self`` on which to
+        look up the other method to run.  This is the "sync" object.
     :param str reactor_name: The name of the attribute of ``self`` referencing
         the reactor to use to get results back to the calling thread.
     :param str threadpool_name: The name of the attribute of ``self``
@@ -60,17 +93,8 @@ def auto_threaded(interface, reactor, sync, threadpool):
 
     :return: The class decorator.
     """
-    for name in interface.names():
-        if not isinstance(interface[name], Method):
-            raise TypeError(
-                "auto_threaded does not support interfaces with non-methods "
-                "attributes"
-            )
-
-    def _threaded_class_decorator(cls):
-        for name in interface.names():
-            setattr(
-                cls, name, _threaded_method(sync, name, reactor, threadpool)
-            )
-        return cls
-    return _threaded_class_decorator
+    return _interface_decorator(
+        "auto_threaded",
+        interface, _threaded_method,
+        sync, reactor, threadpool,
+    )

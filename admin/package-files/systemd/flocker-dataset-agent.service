@@ -1,0 +1,10 @@
+[Unit]
+Description=Flocker Dataset Agent
+
+[Service]
+ExecStart=/usr/sbin/flocker-dataset-agent
+
+# We can't have a private mount namespace, since we need to create mounts visible to Docker.
+
+[Install]
+WantedBy=multi-user.target

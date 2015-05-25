@@ -18,8 +18,7 @@ from ...control._model import (
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
-    random_name, DockerImageBuilder, assertContainsAll, loop_until,
-    run_process)
+    random_name, DockerImageBuilder, assertContainsAll, loop_until)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 
@@ -51,9 +50,11 @@ class P2PNodeDeployer(object):
             app_discovery = self.applications_deployer.discover_state(
                 manifestations_state)
             app_discovery.addCallback(
-                lambda app_state: [app_state[0].set(
+                lambda app_state: [app_state[0].evolver().set(
                     "manifestations", manifestations_state.manifestations).set(
-                        "paths", manifestations_state.paths)])
+                        "paths", manifestations_state.paths).set(
+                            "devices", manifestations_state.devices
+                        ).persistent()])
             return app_discovery
         d.addCallback(got_manifestations_state)
         return d
@@ -82,7 +83,10 @@ def change_node_state(deployer, desired_configuration):
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
     def converge():
-        d = deployer.discover_state(NodeState(hostname=deployer.hostname))
+        d = deployer.discover_state(
+            NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
+                      applications=[], used_ports=[],
+                      manifestations={}, paths={}, devices={}))
 
         def got_changes(changes):
             cluster_state = DeploymentState()
@@ -104,50 +108,6 @@ class DeployerTests(TestCase):
     """
     Functional tests for ``Deployer``.
     """
-    @if_docker_configured
-    def test_restart(self):
-        """
-        Stopped applications that are supposed to be running are restarted
-        when the calcualted actions are run.
-        """
-        name = random_name(self)
-        docker_client = DockerClient()
-        deployer = ApplicationNodeDeployer(
-            u"localhost", docker_client, make_memory_network(),
-            node_uuid=uuid4())
-        self.addCleanup(docker_client.remove, name)
-
-        desired_state = Deployment(nodes=frozenset([
-            Node(uuid=deployer.node_uuid,
-                 applications=frozenset([Application(
-                     name=name,
-                     image=DockerImage.from_string(
-                         u"openshift/busybox-http-app"),
-                     links=frozenset(),
-                     )]))]))
-
-        d = change_node_state(deployer, desired_state)
-        d.addCallback(lambda _: wait_for_unit_state(docker_client, name,
-                                                    [u'active']))
-
-        def started(_):
-            # Now that it's running, stop it behind our back:
-            run_process([b"docker", b"stop",
-                         docker_client._to_container_name(name)])
-            return wait_for_unit_state(docker_client, name,
-                                       [u'inactive', u'failed'])
-        d.addCallback(started)
-
-        def stopped(_):
-            # Redeploy, which should restart it:
-            return change_node_state(deployer, desired_state)
-        d.addCallback(stopped)
-        d.addCallback(lambda _: wait_for_unit_state(docker_client, name,
-                                                    [u'active']))
-
-        # Test will timeout if unit was not restarted:
-        return d
-
     @if_docker_configured
     def test_environment(self):
         """

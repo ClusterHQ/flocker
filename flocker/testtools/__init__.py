@@ -20,7 +20,7 @@ from unittest import skipIf, skipUnless
 from inspect import getfile, getsourcelines
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen
 
-from bitmath import GB
+from bitmath import GiB
 
 from pyrsistent import PRecord, field
 
@@ -54,7 +54,7 @@ from ..common.script import (
 # This is currently set to the minimum size for a SATA based Rackspace Cloud
 # Block Storage volume. See:
 # * http://www.rackspace.com/knowledge_center/product-faq/cloud-block-storage
-REALISTIC_BLOCKDEVICE_SIZE = int(GB(100).to_Byte().value)
+REALISTIC_BLOCKDEVICE_SIZE = int(GiB(100).to_Byte().value)
 
 
 @implementer(IProcessTransport)
@@ -200,8 +200,14 @@ def loop_until(predicate):
     :return: A ``Deferred`` firing with the first ``Truthy`` response from
         ``predicate``.
     """
-    msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
-                                   getsourcelines(predicate)[1]))
+    try:
+        msg("Looping on %s (%s:%s)" % (predicate, getfile(predicate),
+                                       getsourcelines(predicate)[1]))
+    except IOError:
+        # One debugging method involves changing .py files and is incompatible
+        # with inspecting the source.
+        msg("Looping on %s" % (predicate,))
+
     d = maybeDeferred(predicate)
 
     def loop(result):
@@ -622,13 +628,14 @@ from twisted.internet.base import _ThreePhaseEvent
 
 
 @implementer(IReactorCore)
-class MemoryCoreReactor(MemoryReactor):
+class MemoryCoreReactor(MemoryReactor, Clock):
     """
-    Fake reactor with listenTCP and just enough of an implementation of
-    IReactorCore.
+    Fake reactor with listenTCP, IReactorTime and just enough of an
+    implementation of IReactorCore.
     """
     def __init__(self):
         MemoryReactor.__init__(self)
+        Clock.__init__(self)
         self._triggers = {}
 
     def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
@@ -755,6 +762,17 @@ class _ProcessResult(PRecord):
     status = field(type=int, mandatory=True)
 
 
+class _CalledProcessError(CalledProcessError):
+    """
+    Just like ``CalledProcessError`` except output is included in the string
+    representation.
+    """
+    def __str__(self):
+        base = super(_CalledProcessError, self).__str__()
+        lines = "\n".join("    |" + line for line in self.output.splitlines())
+        return base + " and output:\n" + lines
+
+
 def run_process(command, *args, **kwargs):
     """
     Run a child process, capturing its stdout and stderr.
@@ -773,7 +791,9 @@ def run_process(command, *args, **kwargs):
     status = process.wait()
     result = _ProcessResult(command=command, output=output, status=status)
     if result.status:
-        raise CalledProcessError(returncode=status, cmd=command, output=output)
+        raise _CalledProcessError(
+            returncode=status, cmd=command, output=output,
+        )
     return result
 
 

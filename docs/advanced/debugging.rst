@@ -3,16 +3,36 @@ Debugging
 =========
 
 Logging
-=======
+-------
 
-The Flocker processes running on the nodes will write their logs to ``/var/log/flocker/``.
-The log files are named ``<processname>-<pid>.log``, e.g. ``flocker-volume-1234.log``.
+Flocker processes use `eliot`_ for logging.
+These logs can be rendered as an ASCII tree using `eliottree`_.
 
-Logs from the Docker containers are written to `systemd's journal`_ with a unit name constructed with a ``ctr-`` prefix.
-For example if you've started an application called ``mymongodb`` you can view its logs by running the following command on the node where the application was started:
+Logs from the Docker containers can be viewed using `the Docker CLI <https://docs.docker.com/reference/commandline/cli/#logs>`_.
 
-.. code-block:: console
+Ubuntu
+^^^^^^
 
-   $ journalctl -u ctr-mymongodb
+XXX This should be documented, see :issue:`1877`.
+
+Fedora / CentOS
+^^^^^^^^^^^^^^^
+
+Logs from the Flocker processes running on the nodes are written to `systemd's journal`_.
+They have unit names starting constructed with a ``flocker-`` prefix, e.g. ``flocker-dataset-agent``.
+
+It is possible to see the available unit names, and then view the logs with ``journalctl``:
+
+.. prompt:: bash [root@node1]# auto
+
+   [root@node1]# ls /etc/systemd/system/multi-user.target.wants/flocker-*.service | xargs -n 1 -I {} sh -c 'basename {} .service'
+   flocker-dataset-agent
+   flocker-container-agent
+   flocker-control
+   [root@node1]# journalctl -u flocker-dataset-agent
+   [root@node1]# journalctl -u flocker-container-agent
+   [root@node1]# journalctl -u flocker-control
 
 .. _`systemd's journal`: http://www.freedesktop.org/software/systemd/man/journalctl.html
+.. _`eliot`: https://github.com/ClusterHQ/eliot
+.. _`eliottree`: https://github.com/jonathanj/eliottree

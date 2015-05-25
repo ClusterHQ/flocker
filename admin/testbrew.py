@@ -17,17 +17,25 @@ The guest virtual machine must have:
 import os
 import sys
 import urllib2
-from subprocess import check_output, CalledProcessError
 
+from eliot import add_destination
+
+from twisted.internet.defer import inlineCallbacks
+from twisted.internet.error import ProcessTerminated
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
-from flocker.provision._install import task_test_homebrew
+from flocker.provision._install import (
+    task_test_homebrew,
+    task_configure_brew_path,
+)
 from flocker.provision._ssh import run_remotely
-from flocker.provision._ssh._fabric import dispatcher
-from effect import sync_perform as perform
+from flocker.provision._ssh._conch import make_dispatcher
+from flocker.provision._effect import sequence
+from effect.twisted import perform
 from flocker import __version__
 
+from .runner import run
 
 YOSEMITE_VMX_PATH = os.path.expanduser((
     "~/Documents/Virtual Machines.localized/"
@@ -73,7 +81,29 @@ class TestBrewOptions(Options):
         sys.exit(0)
 
 
-def main(args):
+MESSAGE_FORMATS = {
+    "flocker.provision.ssh:run":
+        "[%(username)s@%(address)s]: Running %(command)s\n",
+    "flocker.provision.ssh:run:output":
+        "[%(username)s@%(address)s]: %(line)s\n",
+    "admin.runner:run":
+        "Running %(command)s\n",
+    "admin.runner:run:output":
+        "%(line)s\n",
+}
+
+
+def eliot_output(message):
+    """
+    Write pretty versions of eliot log messages to stdout.
+    """
+    message_type = message.get('message_type', message.get('action_type'))
+    sys.stdout.write(MESSAGE_FORMATS.get(message_type, '') % message)
+    sys.stdout.flush()
+
+
+@inlineCallbacks
+def main(reactor, args, base_path, top_level):
     try:
         options = TestBrewOptions()
         try:
@@ -81,38 +111,40 @@ def main(args):
         except UsageError as e:
             sys.stderr.write("Error: {error}.\n".format(error=str(e)))
             sys.exit(1)
+
+        add_destination(eliot_output)
+
         recipe_url = options['recipe_url']
         options['vmpath'] = FilePath(options['vmpath'])
         # Open the recipe URL just to validate and verify that it exists.
         # We do not need to read its content.
         urllib2.urlopen(recipe_url)
-        check_output([
+        yield run(reactor, [
             "vmrun", "revertToSnapshot",
             options['vmpath'].path, options['vmsnapshot'],
         ])
-        check_output([
+        yield run(reactor, [
             "vmrun", "start", options['vmpath'].path, "nogui",
         ])
-        perform(
-            dispatcher,
+        yield perform(
+            make_dispatcher(reactor),
             run_remotely(
                 username=options['vmuser'],
                 address=options['vmhost'],
-                commands=task_test_homebrew(recipe_url)
+                commands=sequence([
+                    task_configure_brew_path(),
+                    task_test_homebrew(recipe_url),
+                ]),
             ),
         )
-        check_output([
+        yield run(reactor, [
             "vmrun", "stop", options['vmpath'].path, "hard",
         ])
         print "Done."
-    except CalledProcessError as e:
+    except ProcessTerminated as e:
         sys.stderr.write(
             (
-                "Error: Command {cmd} terminated with exit status {code}.\n"
-            ).format(cmd=" ".join(e.cmd), code=e.returncode)
+                "Error: Command terminated with exit status {code}.\n"
+            ).format(code=e.exitCode)
         )
         raise
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

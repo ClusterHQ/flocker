@@ -8,12 +8,10 @@ from ._libcloud import monkeypatch, LibcloudProvisioner
 from ._install import (
     provision,
     task_open_control_firewall,
-    task_upgrade_kernel,
 )
 from ._ssh import run_remotely
 
 from ._effect import sequence
-from effect import Func, Effect
 
 
 def provision_rackspace(node, package_source, distribution, variants):
@@ -27,16 +25,6 @@ def provision_rackspace(node, package_source, distribution, variants):
         provisioning
     """
     commands = []
-    if distribution in ('centos-7',):
-        commands.append(run_remotely(
-            username='root',
-            address=node.address,
-            commands=sequence([
-                task_upgrade_kernel(node.distribution),
-                Effect(Func(node.reboot)),
-            ]),
-        ))
-
     commands.append(run_remotely(
         username='root',
         address=node.address,

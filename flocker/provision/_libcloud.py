@@ -8,6 +8,8 @@ from zope.interface import (
     Attribute as InterfaceAttribute, Interface, implementer)
 from characteristic import attributes, Attribute
 
+from flocker.provision._ssh import run_remotely, run_from_args
+
 
 def _fixed_OpenStackNodeDriver_to_node(self, api_node):
     """
@@ -170,11 +172,21 @@ class LibcloudNode(object):
     def reboot(self):
         """
         Reboot the node.
-        """
-        self._node.reboot()
 
-        self._node, self.addresses = (
-            self._node.driver.wait_until_running([self._node])[0])
+        :return Effect:
+        """
+
+        def do_reboot(_):
+            self._node.reboot()
+            self._node, self.addresses = (
+                self._node.driver.wait_until_running([self._node])[0])
+            return
+
+        return run_remotely(
+            username="root",
+            address=self.address,
+            commands=run_from_args(["sync"])
+        ).on(success=do_reboot)
 
     def provision(self, package_source, variants=()):
         """
@@ -220,7 +232,6 @@ class LibcloudProvisioner(object):
     """
 
     def create_node(self, name, distribution,
-                    userdata=None,
                     size=None, disk_size=8,
                     keyname=None, metadata={}):
         """
@@ -229,7 +240,6 @@ class LibcloudProvisioner(object):
         :param str name: The name of the node.
         :param str distribution: The name of the distribution to
             install on the node.
-        :param bytes userdata: User data to pass to the instance.
         :param str size: The name of the size to use.
         :param int disk_size: The size of disk to allocate.
         :param dict metadata: Metadata to associate with the node.
@@ -255,7 +265,6 @@ class LibcloudProvisioner(object):
             image=get_image(self._driver, image_name),
             size=get_size(self._driver, size),
             ex_keyname=keyname,
-            ex_userdata=userdata,
             ex_metadata=metadata,
             **create_node_arguments
         )

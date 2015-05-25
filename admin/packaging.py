@@ -61,6 +61,7 @@ PACKAGE_ARCHITECTURE = {
     'clusterhq-python-flocker': 'native',
 }
 
+
 def package_filename(package_type, package, architecture, rpm_version):
     package_name_format = PACKAGE_NAME_FORMAT[package_type]
     return package_name_format.format(
@@ -212,8 +213,6 @@ DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
 FedoraDockerDependency = partial(
     Dependency, package='docker-io', compare='>=', version='1.4.1-8.fc20')
 
-ZFSDependency = partial(Dependency, compare='>=', version='0.6.3')
-
 # We generate three packages.  ``clusterhq-python-flocker`` contains the entire
 # code base.  ``clusterhq-flocker-cli`` and ``clusterhq-flocker-node`` are meta
 # packages which symlink only the cli or node specific scripts and load only
@@ -236,20 +235,17 @@ DEPENDENCIES = {
         'fedora': (
             FedoraDockerDependency(),
             Dependency(package='/usr/sbin/iptables'),
-            ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
         ),
         'centos': (
             DockerDependency(package='docker'),
             Dependency(package='/usr/sbin/iptables'),
-            ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
         ),
         'ubuntu': (
             # trust-updates version
             DockerDependency(package='docker.io'),
             Dependency(package='iptables'),
-            ZFSDependency(package='zfsutils'),
             Dependency(package='openssh-client'),
         ),
     },
@@ -592,12 +588,12 @@ IGNORED_WARNINGS = {
         'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
 
         # Upstart control files are not installed as conffiles.
-        'non-conffile-in-etc /etc/init/flocker-agent.conf',
+        'non-conffile-in-etc /etc/init/flocker-dataset-agent.conf',
         'non-conffile-in-etc /etc/init/flocker-container-agent.conf',
         'non-conffile-in-etc /etc/init/flocker-control.conf',
 
         # Cryptography hazmat bindings
-        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',
+        'package-installs-python-pycache-dir opt/flocker/lib/python2.7/site-packages/cryptography/hazmat/bindings/__pycache__/',  # noqa
 
         # We require an old version of setuptools
         # XXX This should not be necessary after
@@ -659,7 +655,7 @@ IGNORED_WARNINGS = {
          'etc/ufw/applications.d/flocker-control'),
 
         # Upstart control files are not installed as conffiles.
-        'file-in-etc-not-marked-as-conffile etc/init/flocker-agent.conf',
+        'file-in-etc-not-marked-as-conffile etc/init/flocker-dataset-agent.conf',  # noqa
         'file-in-etc-not-marked-as-conffile etc/init/flocker-container-agent.conf',  # noqa
         'file-in-etc-not-marked-as-conffile etc/init/flocker-control.conf',
 
@@ -916,12 +912,6 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-container-agent'),
                      flocker_node_path),
-                    (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
-                     flocker_node_path),
-                    # Eventually we'll get rid of flocker-zfs-agent and
-                    # make that functionality part of
-                    # flocker-dataset-agent, controlled by a command line
-                    # argument or some such. See FLOC-1721.
                     (FilePath('/opt/flocker/bin/flocker-dataset-agent'),
                      flocker_node_path),
                 ]
