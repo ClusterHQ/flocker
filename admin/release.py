@@ -903,32 +903,32 @@ def test_redirects_main(args, base_path, top_level):
     else:
         base_url = 'https://docs.staging.clusterhq.com/'
 
+    # TODO the docs are weird on this, check the code
     if is_weekly_release(doc_version):
         expected_redirects = {
-            'en/devel': 'en/' + doc_version,
+            'en/devel': 'en/' + doc_version + '/',
             'en/devel/authors.html': 'en/' + doc_version + '/authors.html',
         }
     else:
         expected_redirects = {
-            '': 'en/' + doc_version,
-            'en/': 'en/' + doc_version,
-            'en/latest': 'en/' + doc_version,
+            '': 'en/' + doc_version + '/',
+            'en/': 'en/' + doc_version + '/',
+            'en/latest': 'en/' + doc_version + '/',
             'en/latest/authors.html': 'en/' + doc_version + '/authors.html',
         }
 
     for path in expected_redirects:
         original_url = base_url + path
         response = requests.get(original_url)
-        final_url = response.history[-1].url
         expected_url = base_url + expected_redirects[path]
 
-        if not final_url == expected_url:
+        if not expected_url == response.url:
             message = (
                 "'{original_url}' expected to redirect to '{expected_url}', "
                 "instead redirects to '{final_url}'.\n").format(
                     original_url=original_url,
                     expected_url=expected_url,
-                    final_url=final_url,
+                    final_url=response.url,
             )
 
             sys.stderr.write(message)
