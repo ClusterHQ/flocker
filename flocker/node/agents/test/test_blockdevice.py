@@ -1272,7 +1272,7 @@ class IBlockDeviceAPITestsMixin(object):
     """
     this_node = None
 
-    def _assert_volume_size(self, volume, size):
+    def _assert_volume_size(self, volume):
         """
         Assert that volume size is consistent across EBS, OS, IBlockDeviceAPI.
 
@@ -1291,17 +1291,6 @@ class IBlockDeviceAPITestsMixin(object):
         # Check 1: Assert that size reported in BlockDeviceVolume
         # matches device size reported by `lsblk`.
         self.assertEqual(device_size, volume_size)
-
-        # Check 2: Assert that device size reported by `lsblk` matches
-        # user input size at volume creation time.
-        # Rounding up to GiB before comparing is not ideal,
-        # but due to storage backend size constraints, requested
-        # size in Bytes might not exactly match with created
-        # volume size. See
-        # https://clusterhq.atlassian.net/browse/FLOC-1874
-        device_size_GiB = int(Byte(device_size).to_GiB().value)
-        size_GiB = int(Byte(size).to_GiB().value)
-        self.assertEqual(device_size_GiB, size_GiB)
 
     def test_interface(self):
         """
@@ -1415,7 +1404,7 @@ class IBlockDeviceAPITestsMixin(object):
             new_volume.blockdevice_id, attach_to=self.this_node,
         )
 
-        self._assert_volume_size(attached_volume, REALISTIC_BLOCKDEVICE_SIZE)
+        self._assert_volume_size(attached_volume)
 
     def test_attach_attached_volume(self):
         """
