@@ -165,25 +165,7 @@ Preparing For a Release
 
       git push
 
-#. Ensure all the required tests pass on BuildBot:
-
-   Go to the `BuildBot web status`_ and force a build on the just-created branch.
-
-   The next steps in this section can be done while waiting for BuildBot to run, unless otherwise stated.
-
-   Unfortunately it is acceptable or expected for some tests to fail.
-   Discuss with the team whether the release can continue given any failed tests.
-   Some Buildbot builders may have to be run again if temporary issues with external dependencies have caused failures.
-
-   In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
-
-   XXX This should be explicit in Buildbot, see :issue:`1700`.
-
-   At least the following builders do not have to pass in order to continue with the release process:
-
-   - ``flocker-vagrant-dev-box``
-   - Any ``docker-head`` builders.
-   - Any builders in the "Expected failures" section.
+#. Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
 #. Update the Getting Started Guide ``Vagrantfile`` in a new branch:
 
@@ -215,13 +197,36 @@ Preparing For a Release
 
       aws configure
 
-#. Update the staging documentation:
+#. Ensure all the required tests pass on BuildBot:
 
-   This requires the BuildBot step to have finished.
+   Unfortunately it is acceptable or expected for some tests to fail.
+   Discuss with the team whether the release can continue given any failed tests.
+   Some Buildbot builders may have to be run again if temporary issues with external dependencies have caused failures.
+
+   In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
+
+   XXX This should be explicit in Buildbot, see :issue:`1700`.
+
+   At least the following builders do not have to pass in order to continue with the release process:
+
+   - ``flocker-vagrant-dev-box``
+   - Any ``docker-head`` builders.
+   - Any builders in the "Expected failures" section.
+
+#. Update the staging documentation:
 
    .. prompt:: bash [vagrant@localhost]$
 
       ~/flocker-${VERSION}/admin/publish-docs --doc-version ${VERSION}
+
+#. Check that the staging documentation is set up correctly:
+
+   The following command outputs error messages if the documentation does not redirect correctly.
+   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      ~/flocker-${VERSION}/admin/test-redirects --doc-version ${VERSION}
 
 #. Make a pull request on GitHub:
 
@@ -246,33 +251,6 @@ So it is important to check that the code in the release branch is working befor
 .. note::
 
    Make sure to follow the latest version of this documentation when reviewing a release.
-
-#. Check that the staging documentation is set up correctly:
-
-   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
-   To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
-
-   XXX This should be automated, see :issue:`1701`.
-
-   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
-
-   - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
-
-   - For a marketing release, the following URLs should redirect to the above URL.
-
-     - https://docs.staging.clusterhq.com/
-     - https://docs.staging.clusterhq.com/en/
-     - https://docs.staging.clusterhq.com/en/latest/
-
-     In addition, check that deep-links to `/en/latest/` work.
-     https://docs.staging.clusterhq.com/en/latest/authors.html
-     should redirect to
-     ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
-
-   - For a development release, the following redirects should work.
-
-     - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
-     - https://docs.staging.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Check the changes in the Pull Request:
 
