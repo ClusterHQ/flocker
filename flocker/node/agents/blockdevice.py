@@ -20,7 +20,7 @@ from pyrsistent import PRecord, field
 from characteristic import attributes, with_cmp
 
 import psutil
-from bitmath import Byte, MiB
+from bitmath import Byte, MB, MiB
 
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
@@ -1177,7 +1177,7 @@ class LoopbackBlockDeviceAPI(object):
     _attached_directory_name = 'attached'
     _unattached_directory_name = 'unattached'
 
-    def __init__(self, root_path, compute_instance_id, allocation_unit):
+    def __init__(self, root_path, compute_instance_id, allocation_unit=None):
         """
         :param FilePath root_path: The path beneath which all loopback backing
             files and their organising directories will be created.
@@ -1190,7 +1190,7 @@ class LoopbackBlockDeviceAPI(object):
         self._root_path = root_path
         self._compute_instance_id = compute_instance_id
         if allocation_unit is None:
-            allocation_unit = int(MiB(1).to_Byte().value)
+            allocation_unit = 1
         self._allocation_unit = allocation_unit
 
     @classmethod
@@ -1252,13 +1252,14 @@ class LoopbackBlockDeviceAPI(object):
         See ``IBlockDeviceAPI.create_volume`` for parameter and return type
         documentation.
         """
+        actual_size = allocated_size(self.allocation_unit(), size)
         volume = _blockdevicevolume_from_dataset_id(
             size=size, dataset_id=dataset_id,
         )
         with self._unattached_directory.child(
             volume.blockdevice_id.encode('ascii')
         ).open('wb') as f:
-            f.truncate(size)
+            f.truncate(actual_size)
         return volume
 
     def destroy_volume(self, blockdevice_id):
