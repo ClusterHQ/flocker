@@ -930,22 +930,17 @@ def test_redirects_main(args, base_path, top_level):
         final_url = requests.get(original_url).url
 
         if expected_url != final_url:
-            failed_redirects.append({
-                'original_url': original_url,
-                'expected_url': expected_url,
-                'final_url': final_url,
-            })
+            failed_redirects.append(original_url)
 
-    for failed_redirect in failed_redirects:
-        message = (
-            "'{original_url}' expected to redirect to '{expected_url}', "
-            "instead redirects to '{final_url}'.\n").format(
-                original_url=failed_redirect['original_url'],
-                expected_url=failed_redirect['expected_url'],
-                final_url=failed_redirect['final_url'],
-        )
+            message = (
+                "'{original_url}' expected to redirect to '{expected_url}', "
+                "instead redirects to '{final_url}'.\n").format(
+                    original_url=original_url,
+                    expected_url=expected_url,
+                    final_url=final_url,
+            )
 
-        sys.stderr.write(message)
+            sys.stderr.write(message)
 
     if len(failed_redirects):
          raise SystemExit(1)
