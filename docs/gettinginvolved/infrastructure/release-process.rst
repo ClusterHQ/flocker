@@ -222,15 +222,13 @@ Preparing For a Release
 #. Check that the staging documentation is set up correctly:
 
    The following command outputs error messages if the documentation does not redirect correctly.
-   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
 
    .. prompt:: bash [vagrant@localhost]$
 
       ~/flocker-${VERSION}/admin/test-redirects --doc-version ${VERSION}
 
 #. Make a pull request on GitHub:
-
-   This requires the BuildBot step to have finished.
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
    Add a note to the pull request why any failed tests were deemed acceptable.
@@ -363,7 +361,7 @@ Release
 
 #. If the release is a marketing release, merge the new ``vagrant-flocker`` branch.
 
-   .. warning:: It takes some time for CloudFront invalidations to propagate.
+   .. warning:: It takes some time for `CloudFront`_ invalidations to propagate.
       This means that there will be a short period for some users where the documentation will still be for the previous version but the ``Vagrantfile`` downloads the latest tutorial box.
 
    .. prompt:: bash [vagrant@localhost]$
@@ -390,7 +388,7 @@ Post-Release Review Process
 
 #. Check that the documentation is set up correctly:
 
-   It takes some time for CloudFront invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
    To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
 
    XXX This should be automated, see :issue:`1701`.
@@ -443,4 +441,3 @@ The issue(s) for the planned improvements should be put into the next sprint.
 .. _Homebrew: http://brew.sh
 .. _CloudFront: https://console.aws.amazon.com/cloudfront/home
 .. _S3: https://console.aws.amazon.com/s3/home
-.. _BrowserStack: https://www.browserstack.com/
