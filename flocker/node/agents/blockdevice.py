@@ -800,7 +800,7 @@ class CreateBlockDeviceDataset(PRecord):
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
             size=allocated_size(
-                allocation_unit=api.allocation_unit,
+                allocation_unit=api.allocation_unit(),
                 requested_size=self.dataset.maximum_size,
             ),
         )
