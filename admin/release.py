@@ -864,6 +864,17 @@ def create_release_branch_main(args, base_path, top_level):
                          % (base_path.basename(),))
         raise SystemExit(1)
 
+class TestRedirectsOptions(Options):
+    """
+    Arguments for ``test-redirects`` script.
+    """
+    optParameters = [
+        ["doc-version", None, flocker.__version__,
+         "The version which the documentation sites are expected to redirect"
+         "to.\n"
+        ],
+    ]
+
 def test_redirects_main(args, base_path, top_level):
     """
     :param list args: The arguments passed to the script.
@@ -871,13 +882,31 @@ def test_redirects_main(args, base_path, top_level):
     :param FilePath top_level: The top-level of the flocker repository.
     """
     # TODO change docs
-    # environment
-    # flocker-version
 
-    original_url = 'xxx'
+    options = TestRedirectsOptions()
+
+    try:
+        options.parseOptions(args)
+    except UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    doc_version = options['doc-version']
+
+    flocker_version = flocker.__version__
+
+    if (is_release(flocker_version)
+        or is_weekly_release(flocker_version)
+        or is_pre_release(flocker_version)):
+        original_url = 'live url'
+        expected_url = 'live my_version'
+    else:
+        original_url = 'staging url'
+        expected_url = 'staging my_version'
+
     response = requests.get(original_url)
     final_url = response.history[-1].url
-    expected_url = 'foo'
+
     if not final_url == expected_url:
         message = (
             "'{original_url}' expected to redirect to '{expected_url}', "
