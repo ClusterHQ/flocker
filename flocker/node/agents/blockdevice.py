@@ -1244,6 +1244,25 @@ class LoopbackBlockDeviceAPI(object):
     def compute_instance_id(self):
         return self._compute_instance_id
 
+    def _backing_file_name(self, volume):
+        """
+        :param BlockDeviceVolume: The volume for which to generate a
+            loopback file name.
+        :returns: A filename containing the encoded
+            ``volume.blockdevic_id`` and ``volume.size``.
+        """
+        return volume.blockdevice_id.encode('ascii') + '_' + bytes(volume.size)
+
+    def _parse_backing_file_name(self, filename):
+        """
+        :param unicode filename: The backing file name to decode.
+        :returns: A 2-tuple of ``unicode`` blockdevice_id, and ``int``
+            size.
+        """
+        blockdevice_id, size = filename.rsplit('_', 1)
+        size = int(size)
+        return blockdevice_id, size
+
     def create_volume(self, dataset_id, size):
         """
         Create a "sparse" file of some size and put it in the ``unattached``
@@ -1257,7 +1276,7 @@ class LoopbackBlockDeviceAPI(object):
             size=size, dataset_id=dataset_id,
         )
         with self._unattached_directory.child(
-            volume.blockdevice_id.encode('ascii')
+            self._backing_file_name(volume)
         ).open('wb') as f:
             f.truncate(actual_size)
         return volume
@@ -1268,7 +1287,7 @@ class LoopbackBlockDeviceAPI(object):
         """
         volume = get_blockdevice_volume(self, blockdevice_id)
         volume_path = self._unattached_directory.child(
-            volume.blockdevice_id.encode("ascii")
+            self._backing_file_name(volume)
         )
         volume_path.remove()
 
@@ -1288,8 +1307,9 @@ class LoopbackBlockDeviceAPI(object):
         documentation.
         """
         volume = get_blockdevice_volume(self, blockdevice_id)
+        filename = self._backing_file_name(volume)
         if volume.attached_to is None:
-            old_path = self._unattached_directory.child(blockdevice_id)
+            old_path = self._unattached_directory.child(filename)
             host_directory = self._attached_directory.child(
                 attach_to.encode("ascii"),
             )
@@ -1297,7 +1317,7 @@ class LoopbackBlockDeviceAPI(object):
                 host_directory.makedirs()
             except OSError:
                 pass
-            new_path = host_directory.child(blockdevice_id)
+            new_path = host_directory.child(filename)
             old_path.moveTo(new_path)
             # The --find option allocates the next available /dev/loopX device
             # name to the device.
@@ -1323,12 +1343,13 @@ class LoopbackBlockDeviceAPI(object):
                 self.get_device_path(blockdevice_id).path
             ])
 
+        filename = self._backing_file_name(volume)
         volume_path = self._attached_directory.descendant([
             volume.attached_to.encode("ascii"),
-            volume.blockdevice_id.encode("ascii"),
+            filename,
         ])
         new_path = self._unattached_directory.child(
-            volume.blockdevice_id.encode("ascii")
+            filename
         )
         volume_path.moveTo(new_path)
 
@@ -1341,9 +1362,9 @@ class LoopbackBlockDeviceAPI(object):
         This implementation is limited to being able to resize volumes only if
         they are unattached.
         """
-        backing_path = self._unattached_directory.child(
-            blockdevice_id.encode("ascii")
-        )
+        volume = get_blockdevice_volume(self, blockdevice_id)
+        filename = self._backing_file_name(volume)
+        backing_path = self._unattached_directory.child(filename)
         try:
             backing_file = backing_path.open("r+")
         except IOError:
@@ -1353,6 +1374,9 @@ class LoopbackBlockDeviceAPI(object):
                 backing_file.truncate(size)
             finally:
                 backing_file.close()
+        resized_volume = volume.set('size', size)
+        resized_filename = self._backing_file_name(resized_volume)
+        backing_path.moveTo(backing_path.sibling(resized_filename))
 
     def list_volumes(self):
         """
@@ -1364,20 +1388,24 @@ class LoopbackBlockDeviceAPI(object):
         """
         volumes = []
         for child in self._root_path.child('unattached').children():
-            blockdevice_id = child.basename().decode('ascii')
+            blockdevice_id, size = self._parse_backing_file_name(
+                child.basename().decode('ascii')
+            )
             volume = _blockdevicevolume_from_blockdevice_id(
                 blockdevice_id=blockdevice_id,
-                size=child.getsize(),
+                size=size,
             )
             volumes.append(volume)
 
         for host_directory in self._root_path.child('attached').children():
             compute_instance_id = host_directory.basename().decode('ascii')
             for child in host_directory.children():
-                blockdevice_id = child.basename().decode('ascii')
+                blockdevice_id, size = self._parse_backing_file_name(
+                    child.basename().decode('ascii')
+                )
                 volume = _blockdevicevolume_from_blockdevice_id(
                     blockdevice_id=blockdevice_id,
-                    size=child.getsize(),
+                    size=size,
                     attached_to=compute_instance_id,
                 )
                 volumes.append(volume)
@@ -1391,7 +1419,7 @@ class LoopbackBlockDeviceAPI(object):
 
         volume_path = self._attached_directory.descendant(
             [volume.attached_to.encode("ascii"),
-             volume.blockdevice_id.encode("ascii")]
+             self._backing_file_name(volume)]
         )
         # May be None if the file hasn't been used for a loop device.
         return _device_for_path(volume_path)
