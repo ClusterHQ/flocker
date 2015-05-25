@@ -897,13 +897,18 @@ def test_redirects_main(args, base_path, top_level):
 
     if (is_release(flocker_version)
         or is_weekly_release(flocker_version)
-        or is_pre_release(flocker_version)):
+        or is_pre_release(flocker_version)
+        or get_doc_version(flocker_version) != flocker_version):
+        # TODO redirect for documentation release is different?
         # TODO dictionary of expected to original
         # TODO docs should say that what's new should be checked rendered at
         # the live URL
+
         original_url = 'live url'
         expected_url = 'live my_version'
     else:
+        base_url = 'https://docs.staging.clusterhq.com/'
+
         original_url = 'staging url'
         expected_url = 'staging my_version'
 
