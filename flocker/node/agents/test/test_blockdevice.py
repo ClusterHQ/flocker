@@ -444,10 +444,12 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         and the volume's filesystem is mounted in the right place.
         """
         dataset_id = uuid4()
+        requested_size = REALISTIC_BLOCKDEVICE_SIZE
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=requested_size,
         )
+        allocated_size = new_volume.size
         self.api.attach_volume(
             new_volume.blockdevice_id,
             attach_to=self.this_node,
@@ -459,7 +461,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         mount(device, mountpoint)
         expected_dataset = Dataset(
             dataset_id=dataset_id,
-            maximum_size=REALISTIC_BLOCKDEVICE_SIZE
+            maximum_size=allocated_size,
         )
         expected_manifestation = Manifestation(
             dataset=expected_dataset, primary=True
