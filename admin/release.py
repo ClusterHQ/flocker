@@ -870,7 +870,7 @@ class TestRedirectsOptions(Options):
     """
     optParameters = [
         ["doc-version", None, get_doc_version(flocker.__version__),
-         "The version which the documentation sites are expected to redirect"
+         "The version which the documentation sites are expected to redirect "
          "to.\n"
         ],
     ]
@@ -920,7 +920,7 @@ def test_redirects_main(args, base_path, top_level):
         original_url = base_url + path
         response = requests.get(original_url)
         final_url = response.history[-1].url
-        expected_url = expected_redirects[path]
+        expected_url = base_url + expected_redirects[path]
 
         if not final_url == expected_url:
             message = (
