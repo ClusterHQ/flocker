@@ -47,6 +47,7 @@ from ..blockdevice import (
     _SyncToThreadedAsyncAPIAdapter,
     DatasetWithoutVolume,
     allocated_size,
+    get_blockdevice_volume,
 )
 
 from ... import run_state_change, in_parallel
@@ -1272,25 +1273,48 @@ class IBlockDeviceAPITestsMixin(object):
     """
     this_node = None
 
-    def _assert_volume_size(self, volume):
+    def _verify_volume_size(self, requested_size, expected_size):
         """
-        Assert that volume size is consistent across EBS, OS, IBlockDeviceAPI.
+        Assert that all implementations of
+        ``IBlockDeviceAPI.list_volumes`` return ``BlockDeviceVolume``
+        s with the ``requested_size`` and that
+        ``IBlockDeviceAPI.create_volume``, creates devices with the
+        expected size.
 
-        :param BlockDeviceVolume volume: Volume we are interested in.
-        :param int size: Expected size of input volume.
+        A device is created and attached and ``lsblk`` is used to
+        measure the size of the block device reported by the kernel of
+        the machine to which the device is attached.
+
+        This is used for testing volumes size which are (in)divisible
+        by the reported ``allocation_unit``.
+
+        :param int requested_size: Requested size of created volume.
+        :param int expected_size: Expected size of created device.
         """
-        volume_size = volume.size
+        dataset_id = uuid4()
+        # Create a new volume.
+        volume = self.api.create_volume(
+            dataset_id=dataset_id,
+            size=requested_size,
+        )
+        # Attach it, so that we can measure its size, as reported by
+        # the kernel of the machine to which it's attached.
+        self.api.attach_volume(
+            volume.blockdevice_id, attach_to=self.this_node,
+        )
         device_path = self.api.get_device_path(volume.blockdevice_id).path
-        device = device_path.encode("ascii")
 
         command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
-                   b"--output", b"SIZE", device]
+                   b"--output", b"SIZE", device_path.encode("ascii")]
         command_output = check_output(command).split(b'\n')[0]
         device_size = int(command_output.strip().decode("ascii"))
-
-        # Check 1: Assert that size reported in BlockDeviceVolume
-        # matches device size reported by `lsblk`.
-        self.assertEqual(device_size, volume_size)
+        # This reloads the volume using
+        # ``IBlockDeviceAPI.list_volumes``.
+        volume = get_blockdevice_volume(self.api, volume.blockdevice_id)
+        self.assertEqual(
+            (requested_size, expected_size),
+            (volume.size, device_size)
+        )
 
     def test_interface(self):
         """
@@ -1389,22 +1413,43 @@ class IBlockDeviceAPITestsMixin(object):
             attach_to=self.this_node,
         )
 
-    def test_attach_volume_validate_size(self):
+    def test_size_divisible_by_allocation_unit(self):
         """
-        Validate that attached volume size reported from EBS, OS,
-        and IBlockDeviceAPI layers is consistent.
+        Validate that block devices created by the API, allocate size
+        in intervals of ``allocation_unit`` when the requested size is
+        divisible by the ``allocation_unit``.
         """
-        dataset_id = uuid4()
-
-        new_volume = self.api.create_volume(
-            dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
-        )
-        attached_volume = self.api.attach_volume(
-            new_volume.blockdevice_id, attach_to=self.this_node,
+        requested_size = allocated_size(
+            self.api.allocation_unit(),
+            REALISTIC_BLOCKDEVICE_SIZE
         )
 
-        self._assert_volume_size(attached_volume)
+        self._verify_volume_size(
+            requested_size=requested_size,
+            expected_size=requested_size
+        )
+
+    def test_size_round_up(self):
+        """
+        Validate that block devices created by the API, allocate size
+        in intervals of ``allocation_unit`` when the requested size is
+        not divisible by the ``allocation_unit``.
+        """
+        expected_size = allocated_size(
+            self.api.allocation_unit(),
+            REALISTIC_BLOCKDEVICE_SIZE,
+        )
+
+        self._verify_volume_size(
+            # Request a realistically large size which is 1MiB less
+            # than the next interval. We use 1MiB because otherwise
+            # the ``losetup`` tools used by the
+            # ``LoopbackBlockDeviceAPI`` implementation complaint
+            # about backing file sizes that don't match block
+            # boundaries when over allocation is not in use).
+            requested_size=expected_size - int(MiB(1).to_Byte().value),
+            expected_size=expected_size
+        )
 
     def test_attach_attached_volume(self):
         """
