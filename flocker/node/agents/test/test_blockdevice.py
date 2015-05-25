@@ -1273,13 +1273,14 @@ class IBlockDeviceAPITestsMixin(object):
     """
     this_node = None
 
-    def _verify_volume_size(self, requested_size, expected_size):
+    def _verify_volume_size(self, requested_size, expected_volume_size):
         """
         Assert that all implementations of
         ``IBlockDeviceAPI.list_volumes`` return ``BlockDeviceVolume``s
-        with the ``expected_size`` and that
-        ``IBlockDeviceAPI.create_volume``, creates devices with the
-        ``expected_size`` rounded up to some platform specific allocation_unit.
+        with the ``expected_volume_size`` and that
+        ``IBlockDeviceAPI.create_volume``, creates devices with an
+        ``expected_device_size`` (expected_volume_size rounded up to
+        some platform specific allocation_unit.)
 
         A device is created and attached and ``lsblk`` is used to
         measure the size of the block device reported by the kernel of
@@ -1304,17 +1305,23 @@ class IBlockDeviceAPITestsMixin(object):
         self.api.attach_volume(
             volume.blockdevice_id, attach_to=self.this_node,
         )
+        # Reload the volume using ``IBlockDeviceAPI.list_volumes`` in
+        # case the implementation hasn't verified that the requested
+        # size has actually been stored.
+        volume = get_blockdevice_volume(self.api, volume.blockdevice_id)
+
         device_path = self.api.get_device_path(volume.blockdevice_id).path
 
         command = [b"/bin/lsblk", b"--noheadings", b"--bytes",
                    b"--output", b"SIZE", device_path.encode("ascii")]
         command_output = check_output(command).split(b'\n')[0]
         device_size = int(command_output.strip().decode("ascii"))
-        # This reloads the volume using
-        # ``IBlockDeviceAPI.list_volumes``.
-        volume = get_blockdevice_volume(self.api, volume.blockdevice_id)
+        expected_device_size = allocated_size(
+            allocation_unit=self.device_allocation_unit,
+            requested_size=expected_volume_size,
+        )
         self.assertEqual(
-            (requested_size, expected_size),
+            (expected_volume_size, expected_device_size),
             (volume.size, device_size)
         )
 
@@ -1428,7 +1435,7 @@ class IBlockDeviceAPITestsMixin(object):
 
         self._verify_volume_size(
             requested_size=requested_size,
-            expected_size=requested_size
+            expected_volume_size=requested_size
         )
 
     def test_size_round_up(self):
@@ -1450,7 +1457,7 @@ class IBlockDeviceAPITestsMixin(object):
             # about backing file sizes that don't match block
             # boundaries when over allocation is not in use).
             requested_size=expected_size - int(MiB(1).to_Byte().value),
-            expected_size=expected_size
+            expected_volume_size=expected_size
         )
 
     def test_attach_attached_volume(self):
@@ -1892,14 +1899,28 @@ class IBlockDeviceAPITestsMixin(object):
         self.assertNotIn(flocker_volume, self.api.list_volumes())
 
 
-def make_iblockdeviceapi_tests(blockdevice_api_factory):
+def make_iblockdeviceapi_tests(blockdevice_api_factory,
+                               device_allocation_unit):
     """
+    :param blockdevice_api_factory: A factory which will be called
+        with the generated ``TestCase`` during the ``setUp`` for each
+        test and which should return an implementation of
+        ``IBlockDeviceAPI`` to be tested.
+    :param int device_allocation_unit: A size (in ``bytes``) which is
+        the allocation_unit for the devices created by the API under
+        test. This may be different to the size reported by
+        ``IBlockDeviceAPI.allocation_unit()`` if the storage system is
+        unable to allocate sizes as small as the allocation_unit
+        allowed by the platform API eg Cinder allows sizes to be
+        supplied in GiB, but certain Cinder storage drivers may create
+        devices with a minumum allocation unit of 8GiB.
     :returns: A ``TestCase`` with tests that will be performed on the
        supplied ``IBlockDeviceAPI`` provider.
     """
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
             self.api = blockdevice_api_factory(test_case=self)
+            self.device_allocation_unit = device_allocation_unit
             self.this_node = self.api.compute_instance_id()
 
     return Tests
@@ -2001,7 +2022,8 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
 
 class LoopbackBlockDeviceAPITests(
         make_iblockdeviceapi_tests(
-            blockdevice_api_factory=loopbackblockdeviceapi_for_test
+            blockdevice_api_factory=loopbackblockdeviceapi_for_test,
+            device_allocation_unit=1
         )
 ):
     """

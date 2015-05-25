@@ -23,6 +23,7 @@ from uuid import uuid4
 from functools import partial
 
 from yaml import safe_load
+from bitmath import GiB
 
 from twisted.trial.unittest import SkipTest
 from twisted.python.constants import Names, NamedConstant
@@ -266,3 +267,26 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
         raise SkipTest(str(e))
     test_case.addCleanup(detach_destroy_volumes, api)
     return api
+
+
+DEVICE_ALLOCATION_UNITS = {
+    'openstack': GiB(1),
+    'redhat-openstack': GiB(4),
+    'aws': GiB(1),
+}
+
+
+def get_device_allocation_unit():
+    """
+    Return a platform specific device allocation unit.
+    """
+    # ie cust0, rackspace, aws
+    # XXX This is copied from get_blockdeviceapi_args and needs refactoring.
+    platform_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+    if platform_name is None:
+        raise InvalidConfig(
+            'Supply the platform on which you are running tests using the '
+            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER environment variable.'
+        )
+
+    return int(DEVICE_ALLOCATION_UNITS[platform_name].to_Byte().value)

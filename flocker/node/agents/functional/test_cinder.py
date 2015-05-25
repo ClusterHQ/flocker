@@ -26,7 +26,7 @@ from ..test.test_blockdevice import (
 )
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdeviceapi_args,
-    get_blockdeviceapi_with_cleanup,
+    get_blockdeviceapi_with_cleanup, get_device_allocation_unit
 )
 from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
 
@@ -54,7 +54,8 @@ class CinderBlockDeviceAPIInterfaceTests(
                 lambda test_case: cinderblockdeviceapi_for_test(
                     test_case=test_case,
                 )
-            )
+            ),
+            device_allocation_unit=get_device_allocation_unit(),
         )
 ):
     """
