@@ -299,8 +299,9 @@ class CinderBlockDeviceAPI(object):
         }
         action_type = u"blockdevice:cinder:create_volume"
         with start_action(action_type=action_type):
+            allocated_bytes = allocated_size(self.allocation_unit(), size)
             requested_volume = self.cinder_volume_manager.create(
-                size=allocated_size(self.allocation_unit(), size),
+                size=int(Byte(allocated_bytes).to_GiB().value),
                 metadata=metadata,
             )
             Message.new(blockdevice_id=requested_volume.id).write()

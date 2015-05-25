@@ -10,7 +10,7 @@ import threading
 import time
 from uuid import UUID
 
-from bitmath import GiB
+from bitmath import Byte, GiB
 
 from pyrsistent import PRecord, field
 from zope.interface import implementer
@@ -306,8 +306,9 @@ class EBSBlockDeviceAPI(object):
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
+        allocated_bytes = allocated_size(self.allocation_unit(), size)
         requested_volume = self.connection.create_volume(
-            size=allocated_size(self.allocation_unit(), size), zone=self.zone)
+            size=int(Byte(allocated_bytes).to_GiB().value), zone=self.zone)
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {
