@@ -887,7 +887,6 @@ def test_redirects_main(args, base_path, top_level):
     :param FilePath top_level: The top-level of the flocker repository.
     """
     # TODO change docs
-    # TODO wrapper
 
     options = TestRedirectsOptions()
 
