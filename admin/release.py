@@ -898,6 +898,7 @@ def test_redirects_main(args, base_path, top_level):
     if (is_release(flocker_version)
         or is_weekly_release(flocker_version)
         or is_pre_release(flocker_version)):
+        # TODO dictionary of expected to original
         original_url = 'live url'
         expected_url = 'live my_version'
     else:
