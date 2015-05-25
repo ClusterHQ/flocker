@@ -1232,12 +1232,6 @@ class LoopbackBlockDeviceAPI(object):
         except OSError:
             pass
 
-    # FLOC-1874 - Implement allocation_unit().  Probably accept an argument to
-    # __init__ that determines this.  Specify it in the tests as necessary to
-    # be sure we get test coverage for all the rounding cases so that our tests
-    # that use BlockDeviceDeployer against this storage driver are still
-    # comprehensive.
-
     def allocation_unit(self):
         return self._allocation_unit
 
