@@ -249,14 +249,15 @@ class CinderBlockDeviceAPI(object):
         self.nova_server_manager = nova_server_manager
         self.cluster_id = cluster_id
 
-    # FLOC-1874 - Implement allocation_unit().  It probably needs to be loaded
-    # from configuration because different Cinder configurations have different
-    # constraints.  Perhaps hard-code to 1GiB to start with so this work
-    # doesn't conflict with the ongoing work to develop a configuration file.
-    # Be sure to prove that getting this value exactly correct is important for
-    # this backend before bothering to make it configurable.  Possibly Cinder's
-    # built-in overallocation (which we think is available across all
-    # deployment configurations?) is good enough.
+    def allocation_unit(self):
+        """
+        Return a fixed allocation_unit for now; one which should work
+        on all currently supported and soon-to-be supported platforms.
+
+        XXX: This should be loaded from configuration because
+        different Cinder configurations have different constraints.
+        """
+        return int(GiB(8).to_Byte().value)
 
     def compute_instance_id(self):
         """

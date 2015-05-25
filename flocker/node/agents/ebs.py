@@ -235,8 +235,17 @@ class EBSBlockDeviceAPI(object):
         self.cluster_id = cluster_id
         self.lock = threading.Lock()
 
-    # FLOC-1874 - Implement allocation_unit().  It returns a constant, I think?
-    # 1GiB.
+    def allocation_unit(self):
+        """
+        Return a fixed allocation_unit for now; one which we observe
+        to work on AWS.
+
+        XXX: Perhas this should also be loaded from configuration
+        because there are things like Eucalyptus which claim to
+        provide an AWS API but which may have different storage
+        contraints.
+        """
+        return int(GiB(1).to_Byte().value)
 
     def compute_instance_id(self):
         """
