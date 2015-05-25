@@ -743,6 +743,25 @@ class DestroyVolume(PRecord):
         return succeed(None)
 
 
+def allocated_size(allocation_unit, requested_size):
+    """
+    Round ``requested_size`` up to the nearest ``allocation_unit``.
+
+    :param int allocation_unit: The interval in ``bytes`` to which
+        ``requested_size`` will be rounded up.
+    :param int requested_size: The size in ``bytes`` that is required.
+    :return: The ``allocated_size`` in ``bytes``.
+    """
+    previous_interval_size = (
+        (requested_size // allocation_unit)
+        * allocation_unit
+    )
+    if previous_interval_size < requested_size:
+        return previous_interval_size + allocation_unit
+    else:
+        return requested_size
+
+
 # Get rid of this in favor of calculating each individual operation in
 # BlockDeviceDeployer.calculate_changes.  FLOC-1771
 @implementer(IStateChange)
@@ -778,20 +797,12 @@ class CreateBlockDeviceDataset(PRecord):
         """
         api = deployer.block_device_api
 
-        # FLOC-1874 - Round maximum_size up to the nearest
-        # api.allocation_unit().  It might be better to do this in
-        # BlockDeviceDeployer but it's a ton easier to do it here (it's hard to
-        # do it there because calculate_changes shouldn't really make calls
-        # onto the api object).
-        allocation_unit = api.allocation_unit()
-        requested_size = self.dataset.maximum_size
-        previous_interval_size = (requested_size // allocation_unit) * allocation_unit
-        if previous_interval_size < requested_size:
-            requested_size = previous_interval_size + allocation_unit
-
         volume = api.create_volume(
             dataset_id=UUID(self.dataset.dataset_id),
-            size=requested_size,
+            size=allocated_size(
+                allocation_unit=api.allocation_unit,
+                requested_size=self.dataset.maximum_size,
+            ),
         )
 
         # This duplicates AttachVolume now.

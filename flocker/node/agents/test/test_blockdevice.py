@@ -9,7 +9,7 @@ from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
-from bitmath import MB, MiB, Byte
+from bitmath import Byte, MB, MiB, GB, GiB
 
 import psutil
 
@@ -46,6 +46,7 @@ from ..blockdevice import (
     IBlockDeviceAsyncAPI,
     _SyncToThreadedAsyncAPIAdapter,
     DatasetWithoutVolume,
+    allocated_size,
 )
 
 from ... import run_state_change, in_parallel
@@ -3316,3 +3317,74 @@ class ResizeFilesystemTests(
         size of the filesystem.
         """
         self._resize_test(0.5)
+
+
+class AllocatedSizeTestsMixin(object):
+    """
+    Tests for ``allocated_size``.
+    """
+    def test_size_is_allocation_unit(self):
+        """
+        ``allocated_size`` returns the ``requested_size`` when it
+        exactly matches the ``allocation_unit``.
+        """
+        requested_size = self.allocation_unit
+        expected_size = requested_size
+        self.assertEqual(
+            expected_size,
+            allocated_size(self.allocation_unit, requested_size)
+        )
+
+    def test_size_is_multiple_of_allocation_unit(self):
+        """
+        ``allocated_size`` returns the ``requested_size`` when it
+        is a multiple of the ``allocation_unit``.
+        """
+        requested_size = self.allocation_unit * 10
+        expected_size = requested_size
+        self.assertEqual(
+            expected_size,
+            allocated_size(self.allocation_unit, requested_size)
+        )
+
+    def test_round_up(self):
+        """
+        ``allocated_size`` returns next multiple of
+        ``allocation_unit`` if ``requested_size`` is not a multiple of
+        ``allocation_unit``.
+        """
+        requested_size = self.allocation_unit + 1
+        expected_size = self.allocation_unit * 2
+        self.assertEqual(
+            expected_size,
+            allocated_size(self.allocation_unit, requested_size)
+        )
+
+
+def make_allocated_size_tests(allocation_unit):
+    """
+    :param Bitmath allocation_unit: The allocation_unit.
+    :return: A ``TestCase`` to run ``AllocatedSizeTestsMixin`` tests
+        against the supplied ``allocation_unit``. The name of the test
+        contains the classname of ``allocation_unit``.
+    """
+    class Tests(AllocatedSizeTestsMixin, SynchronousTestCase):
+        def setUp(self):
+            self.allocation_unit = int(allocation_unit.to_Byte().value)
+
+    Tests.__name__ = (
+        'AllocatedSize' + allocation_unit.__class__.__name__ + 'Tests'
+    )
+    return Tests
+
+
+def _make_allocated_size_testcases():
+    """
+    Build test cases for some common allocation_units.
+    """
+    for unit in (Byte, MB, MiB, GB, GiB):
+        for size in (1, 2, 4, 8):
+            test_case = make_allocated_size_tests(unit(size))
+            globals()[test_case.__name__] = test_case
+_make_allocated_size_testcases()
+del _make_allocated_size_testcases
