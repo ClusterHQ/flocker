@@ -869,7 +869,7 @@ class TestRedirectsOptions(Options):
     Arguments for ``test-redirects`` script.
     """
     optParameters = [
-        ["doc-version", None, get_doc_version(flocker.__version__),
+        ["doc-version", None, None,
          "The version which the documentation sites are expected to redirect "
          "to.\n"
         ],
@@ -878,6 +878,15 @@ class TestRedirectsOptions(Options):
     optFlags = [
         ["production", None, "Check the production documentation site."],
     ]
+
+    environment = Environments.STAGING
+
+    def parseArgs(self):
+        if self['doc-version'] is None:
+            self['doc-version'] = get_doc_version(self['flocker-version'])
+
+        if self['production']:
+            self.environment = Environments.PRODUCTION
 
 
 def test_redirects_main(args, base_path, top_level):
@@ -896,10 +905,8 @@ def test_redirects_main(args, base_path, top_level):
 
     doc_version = options['doc-version']
 
-    if options['production']:
-        base_url = 'https://docs.clusterhq.com/'
-    else:
-        base_url = 'https://docs.staging.clusterhq.com/'
+    document_configuration = DOCUMENTATION_CONFIGURATIONS[options.environment]
+    base_url = 'https://' + document_configuration.cloudfront_cname + '/'
 
     is_dev = not is_release(doc_version)
     if is_dev:
