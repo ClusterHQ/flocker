@@ -189,7 +189,7 @@ def flocker_deploy_main():
     return FlockerScriptRunner(
         script=DeployScript(),
         options=DeployOptions,
-        logging=CLILoggingPolicy(),
+        logging_policy=CLILoggingPolicy(),
     ).main()
 
 
@@ -198,5 +198,5 @@ def flocker_cli_main():
     return FlockerScriptRunner(
         script=CLIScript(),
         options=CLIOptions(),
-        logging=CLILoggingPolicy(),
+        logging_policy=CLILoggingPolicy(),
     ).main()

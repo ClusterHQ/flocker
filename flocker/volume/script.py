@@ -249,5 +249,5 @@ def flocker_volume_main():
     return FlockerScriptRunner(
         script=VolumeScript(VolumeManagerScript()),
         options=VolumeOptions,
-        logging=NullLoggingPolicy(),
+        logging_policy=NullLoggingPolicy(),
     ).main()
