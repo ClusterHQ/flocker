@@ -371,6 +371,15 @@ Release
       git merge origin/release/flocker-${VERSION}
       git push
 
+#. Check that the staging documentation is set up correctly:
+
+   The following command outputs error messages if the documentation does not redirect correctly.
+   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
+
+   .. prompt:: bash [vagrant@localhost]$
+
+      ~/flocker-${VERSION}/admin/test-redirects --production
+
 #. Copy the AWS configuration to your local home directory:
 
    If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
@@ -385,33 +394,6 @@ Release
 
 Post-Release Review Process
 ---------------------------
-
-#. Check that the documentation is set up correctly:
-
-   It takes some time for `CloudFront`_ invalidations to propagate and so wait up to one hour to try again if the documentation does not redirect correctly.
-   To avoid some potential caching issues, try a solution like `BrowserStack`_ if the documentation does not redirect correctly after some time.
-
-   XXX This should be automated, see :issue:`1701`.
-
-   In the following URLs, treat ${VERSION} as meaning the version number of the release being reviewed.
-
-   - The documentation should be available at https://docs.clusterhq.com/en/${VERSION}/.
-
-   - For a marketing release, the following URLs should redirect to the above URL.
-
-     - https://docs.clusterhq.com/
-     - https://docs.clusterhq.com/en/
-     - https://docs.clusterhq.com/en/latest/
-
-     In addition, check that deep-links to `/en/latest/` work.
-     https://docs.clusterhq.com/en/latest/authors.html
-     should redirect to
-     ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
-
-   - For a development release, the following redirects should work.
-
-     - https://docs.clusterhq.com/en/devel/ should redirect to ``https://docs.clusterhq.com/en/${VERSION}/``
-     - https://docs.clusterhq.com/en/devel/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Verify that the client (``flocker-deploy``) can be installed on all supported platforms:
 
