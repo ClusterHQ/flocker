@@ -869,7 +869,7 @@ class TestRedirectsOptions(Options):
     Arguments for ``test-redirects`` script.
     """
     optParameters = [
-        ["doc-version", None, flocker.__version__,
+        ["doc-version", None, get_doc_version(flocker.__version__),
          "The version which the documentation sites are expected to redirect"
          "to.\n"
         ],
@@ -895,22 +895,25 @@ def test_redirects_main(args, base_path, top_level):
 
     flocker_version = flocker.__version__
 
-    if (is_release(flocker_version)
-        or is_weekly_release(flocker_version)
-        or is_pre_release(flocker_version)
-        or get_doc_version(flocker_version) != flocker_version):
-        # TODO redirect for documentation release is different?
-        # TODO dictionary of expected to original
-        # TODO docs should say that what's new should be checked rendered at
-        # the live URL
-
-        original_url = 'live url'
-        expected_url = 'live my_version'
+    # TODO separated function for expected redirects?
+    if '--production specified':
+        base_url = 'https://docs.clusterhq.com/'
     else:
         base_url = 'https://docs.staging.clusterhq.com/'
 
-        original_url = 'staging url'
-        expected_url = 'staging my_version'
+    if is_weekly_release(doc_version):
+        expected_redirects = {
+            '': 'en/' + doc_version,
+            'en/': 'en/' + doc_version,
+            'en/latest': 'en/' + doc_version,
+            'en/latest/authors.html': 'en/' + doc_version + '/authors.html',
+        }
+    else:
+        expected_redirects = {
+            '': 'en/' + doc_version,
+            'en/devel': 'en/' + doc_version,
+            'en/devel/authors.html': 'en/' + doc_version + '/authors.html',
+        }
 
     response = requests.get(original_url)
     final_url = response.history[-1].url
