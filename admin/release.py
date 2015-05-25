@@ -882,6 +882,7 @@ def test_redirects_main(args, base_path, top_level):
     :param FilePath top_level: The top-level of the flocker repository.
     """
     # TODO change docs
+    # TODO wrapper
 
     options = TestRedirectsOptions()
 
@@ -893,7 +894,6 @@ def test_redirects_main(args, base_path, top_level):
 
     doc_version = options['doc-version']
 
-    # TODO separated function for expected redirects?
     if '--production specified':
         base_url = 'https://docs.clusterhq.com/'
     else:
