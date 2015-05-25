@@ -926,7 +926,7 @@ def test_redirects_main(args, base_path, top_level):
         if not final_url == expected_url:
             message = (
                 "'{original_url}' expected to redirect to '{expected_url}', "
-                "instead redirects to '{final_url}'. ").format(
+                "instead redirects to '{final_url}'.\n").format(
                     original_url=original_url,
                     expected_url=expected_url,
                     final_url=final_url,
