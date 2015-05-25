@@ -27,7 +27,9 @@ from ..volume.service import (
 from ..volume.script import flocker_volume_options
 from ..common.script import (
     ICommandLineScript,
-    flocker_standard_options, FlockerScriptRunner, main_for_service)
+    FlockerScriptRunner, main_for_service,
+    StdoutLoggingPolicy,
+    )
 from . import P2PManifestationDeployer, ApplicationNodeDeployer
 from ._loop import AgentLoopService
 from .agents.blockdevice import LoopbackBlockDeviceAPI, BlockDeviceDeployer
@@ -165,7 +167,6 @@ def validate_configuration(configuration):
     v.validate(configuration)
 
 
-@flocker_standard_options
 @flocker_volume_options
 class _AgentOptions(Options):
     """
@@ -402,6 +403,7 @@ def flocker_dataset_agent_main():
     return FlockerScriptRunner(
         script=VolumeScript(GenericAgentScript()),
         options=options,
+        logging_policy=StdoutLoggingPolicy(),
     ).main()
 
 
@@ -419,5 +421,6 @@ def flocker_container_agent_main():
     agent_script = AgentScript(service_factory=service_factory)
     return FlockerScriptRunner(
         script=agent_script,
-        options=ContainerAgentOptions()
+        options=ContainerAgentOptions,
+        logging_policy=StdoutLoggingPolicy(),
     ).main()

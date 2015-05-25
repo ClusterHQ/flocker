@@ -18,6 +18,7 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.utils import getProcessOutput
 from twisted.internet.defer import succeed, Deferred
 from twisted.python.log import msg, err
+from twisted.python.filepath import FilePath
 
 from ..script import ICommandLineScript
 
@@ -65,72 +66,156 @@ class SigintScript(object):
         return Deferred()
 
 
-class FlockerScriptRunnerTests(TestCase):
+def read_eliot_logs(data):
     """
-    Functional tests for ``FlockerScriptRunner``.
+    Parse lines of eliot log output in to a list of message dictionaries.
+
+    :param bytes data: Lines of eliot log output.
+
+    :return: List of eliot message dictionaries.
     """
-    def run_script(self, script):
-        """
-        Run a script that logs messages and uses ``FlockerScriptRunner``.
+    return map(loads, data.splitlines())
 
-        :param ICommandLineScript: Script to run. Must be class in this module.
 
-        :return: ``Deferred`` that fires with list of decoded JSON messages.
+def make_functional_logging_test(run_script):
+    """
+    Create tests for :class:`ILoggingPolicy` providers.
+
+    :param run_script: Function that takes a test case, and a
+        :class:`ICommandLineScript` implementer from this module,
+        and returns the log output of running the script.
+    """
+
+    class FlockerScriptRunnerTests(TestCase):
         """
-        code = b'''\
+        Functional logging tests for ``FlockerScriptRunner``.
+        """
+
+        def test_eliot_messages(self):
+            """
+            Logged ``eliot`` messages get written to standard out.
+            """
+            d = run_script(self, EliotScript).addCallback(read_eliot_logs)
+            d.addCallback(
+                lambda messages: assertContainsFields(self, messages[1],
+                                                      {u"key": 123}))
+            return d
+
+        def test_twisted_messages(self):
+            """
+            Logged Twisted messages get written to standard out as ``eliot``
+            messages.
+            """
+            d = run_script(self, TwistedScript).addCallback(read_eliot_logs)
+            d.addCallback(lambda messages: assertContainsFields(
+                self, messages[1], {u"message_type": u"twisted:log",
+                                    u"message": u"hello",
+                                    u"error": False}))
+            return d
+
+        def test_twisted_errors(self):
+            """
+            Logged Twisted errors get written to standard out as ``eliot``
+            messages.
+            """
+            message = (u'A zero division ono\n'
+                       u'Traceback (most recent call last):\n'
+                       u'Failure: exceptions.ZeroDivisionError: onoes\n')
+            d = run_script(
+                self, TwistedErrorScript).addCallback(read_eliot_logs)
+            d.addCallback(lambda messages: assertContainsFields(
+                self, messages[1], {u"message_type": u"twisted:log",
+                                    u"message": message,
+                                    u"error": True}))
+            return d
+
+        def test_error(self):
+            """
+            A script that raises an exception exits, logging the error as an
+            ``eliot` message.
+            """
+            d = run_script(self, FailScript).addCallback(read_eliot_logs)
+
+            def got_messages(messages):
+                assertContainsFields(self, messages[1],
+                                     {u"message_type": u"twisted:log",
+                                      u"error": True})
+                self.assertTrue(messages[1][u"message"].startswith(
+                    u"Unhandled Error\nTraceback (most recent call last):\n"))
+                self.assertTrue(messages[1][u"message"].endswith(
+                    u"ZeroDivisionError: ono\n"))
+            d.addCallback(got_messages)
+            return d
+
+        def test_sigint(self):
+            """
+            A script that is killed by signal exits, logging the signal.
+            """
+            d = run_script(self, SigintScript).addCallback(read_eliot_logs)
+            d.addCallback(lambda messages: assertContainsFields(
+                self, messages[1],
+                {u"message_type": u"twisted:log",
+                 u"message": u"Received SIGINT, shutting down.",
+                 u"error": False}))
+            return d
+
+    return FlockerScriptRunnerTests
+
+
+def log_script_output(output, script, source):
+    """
+    Log the output of a script for testing debugging.
+
+    :param bytes output: The output of the script.
+    :param ICommandLineScript script: The script being run.
+    :param unicode source: The source of the output.
+
+    :return bytes: The output of the script.
+    """
+    Message.new(
+        message_type=u"flocker.common.functional.test_script:script_output",
+        source=source,
+        script=script.__name__,
+        output=output).write()
+    return output
+
+
+def run_stdout_script(case, script):
+    """
+    Run a script that uses ``FlockerScriptRunner`` and ``StdoutLoggingPolicy``.
+
+    :param ICommandLineScript: Script to run. Must be class in this module.
+
+    :return: ``Deferred`` that fires with the output of the script.
+    """
+    code = b'''\
 from twisted.python.usage import Options
-from flocker.common.script import FlockerScriptRunner
+from flocker.common.script import FlockerScriptRunner, StdoutLoggingPolicy
 
 from flocker.common.functional.test_script import {}
 
-FlockerScriptRunner({}(), Options()).main()
+FlockerScriptRunner({}(), Options, logging_policy=StdoutLoggingPolicy()).main()
 '''.format(script.__name__, script.__name__)
-        d = getProcessOutput(sys.executable, [b"-c", code], env=os.environ,
-                             errortoo=True)
-        d.addCallback(lambda data: map(loads, data.splitlines()))
-        return d
+    d = getProcessOutput(sys.executable, [b"-c", code], env=os.environ,
+                         errortoo=True)
 
-    def test_eliot_messages(self):
-        """
-        Logged ``eliot`` messages get written to standard out.
-        """
-        d = self.run_script(EliotScript)
-        d.addCallback(lambda messages: assertContainsFields(self, messages[1],
-                                                            {u"key": 123}))
-        return d
+    d.addCallback(log_script_output, script=script, source=u"stdout")
+    return d
 
-    def test_twisted_messages(self):
-        """
-        Logged Twisted messages get written to standard out as ``eliot``
-        messages.
-        """
-        d = self.run_script(TwistedScript)
-        d.addCallback(lambda messages: assertContainsFields(
-            self, messages[1], {u"message_type": u"twisted:log",
-                                u"message": u"hello",
-                                u"error": False}))
-        return d
 
-    def test_twisted_errors(self):
-        """
-        Logged Twisted errors get written to standard out as ``eliot``
-        messages.
-        """
-        message = (u'A zero division ono\nTraceback (most recent call '
-                   u'last):\nFailure: exceptions.ZeroDivisionError: onoes\n')
-        d = self.run_script(TwistedErrorScript)
-        d.addCallback(lambda messages: assertContainsFields(
-            self, messages[1], {u"message_type": u"twisted:log",
-                                u"message": message,
-                                u"error": True}))
-        return d
+class StdoutLoggingTests(make_functional_logging_test(run_stdout_script)):
+    """
+    Functional test for logging  for ``FlockerScriptRunner`` with
+    ``StdoutLoggingPolicy``.
+    """
 
     def test_stdout_stderr(self):
         """
         Output from Python code writing to ``sys.stdout`` and ``sys.stderr``
         is captured and turned into Eliot log messages.
         """
-        d = self.run_script(StdoutStderrScript)
+        d = run_stdout_script(
+            self, StdoutStderrScript).addCallback(read_eliot_logs)
 
         def got_messages(messages):
             assertContainsFields(self, messages[1],
@@ -144,31 +229,85 @@ FlockerScriptRunner({}(), Options()).main()
         d.addCallback(got_messages)
         return d
 
-    def test_error(self):
-        """
-        A script that raises an exception exits, logging the error as an
-        ``eliot` message.
-        """
-        d = self.run_script(FailScript)
 
-        def got_messages(messages):
-            assertContainsFields(self, messages[1],
-                                 {u"message_type": u"twisted:log",
-                                  u"error": True})
-            self.assertTrue(messages[1][u"message"].startswith(
-                u"Unhandled Error\nTraceback (most recent call last):\n"))
-            self.assertTrue(messages[1][u"message"].endswith(
-                u"ZeroDivisionError: ono\n"))
-        d.addCallback(got_messages)
+def run_cli_script(case, script, capture_stdout=False):
+    """
+    Run a script that uses ``FlockerScriptRunner`` and ``CLILoggingPolicy``.
+
+    :param ICommandLineScript: Script to run. Must be class in this module.
+    :param bool capture_stdout: Whether to capture the standard output of the
+        script, or the logfile generated by the script.
+
+    :return: ``Deferred`` that fires with output the script or the contents
+        of the generated logfile.
+    """
+    log_dir = FilePath(case.mktemp())
+    log_dir.createDirectory()
+
+    code = b'''\
+from twisted.python.usage import Options
+from flocker.common.script import FlockerScriptRunner, CLILoggingPolicy
+
+from flocker.common.functional.test_script import {}
+
+def getpid():
+    return 1234
+
+FlockerScriptRunner(
+    {}(), Options,
+    logging_policy=CLILoggingPolicy(_getpid=getpid)).main()
+'''.format(script.__name__, script.__name__)
+    d = getProcessOutput(
+        sys.executable,
+        [b"-c", code, '--log-dir', log_dir.path],
+        env=os.environ,
+        errortoo=True)
+
+    d.addCallback(log_script_output, script=script, source=u"stdout")
+
+    if not capture_stdout:
+        d.addCallback(lambda _: log_dir.child('-c-1234.log').getContent())
+        d.addCallback(log_script_output, script=script, source=u"logfile")
+    return d
+
+
+class CLILoggingTests(make_functional_logging_test(run_cli_script)):
+    """
+    Functional test for logging  for ``FlockerScriptRunner`` with
+    ``CLILoggingPolicy``.
+    """
+
+    def test_stdout_stderr(self):
+        """
+        Output from Python code writing to ``sys.stdout`` and ``sys.stderr``
+        is passed to standard output or error.
+        """
+        d = run_cli_script(self, StdoutStderrScript, capture_stdout=True)
+
+        def got_output(output):
+            # We use a set here since stdout and stderr aren't ordered
+            # with respect to one another.
+            self.assertEqual(
+                set(output.splitlines()),
+                {b"stdout!", b"stderr!"})
+        d.addCallback(got_output)
         return d
 
-    def test_sigint(self):
+    def test_stdout_stderr_logfile(self):
         """
-        A script that is killed by signal exits, logging the signal.
+        Output from Python code writing to ``sys.stdout`` and ``sys.stderr``
+        is not captured.
         """
-        d = self.run_script(SigintScript)
-        d.addCallback(lambda messages: assertContainsFields(
-            self, messages[1], {u"message_type": u"twisted:log",
-                                u"message": u"Received SIGINT, shutting down.",
-                                u"error": False}))
+        d = run_cli_script(
+            self, StdoutStderrScript).addCallback(read_eliot_logs)
+
+        def got_messages(messages):
+            twisted_messages = {
+                message[u'message']
+                for message in messages
+                if message[u'message_type'] == u"twisted:log"}
+            self.assertFalse(
+                twisted_messages.intersection({u"stdout!", u"stderr!"}),
+                "Standard output or error captured in log.")
+        d.addCallback(got_messages)
         return d

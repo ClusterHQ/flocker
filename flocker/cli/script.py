@@ -22,8 +22,9 @@ from yaml.error import YAMLError
 
 from characteristic import attributes
 
-from ..common.script import (flocker_standard_options, ICommandLineScript,
-                             FlockerScriptRunner)
+from ..common.script import (ICommandLineScript,
+                             FlockerScriptRunner,
+                             CLILoggingPolicy)
 from ..control.httpapi import REST_API_PORT
 from ..ca import treq_with_authentication
 
@@ -47,7 +48,6 @@ class NodeTarget(object):
     """
 
 
-@flocker_standard_options
 class DeployOptions(Options):
     """
     Command line options for ``flocker-deploy``.
@@ -159,7 +159,6 @@ class DeployScript(object):
         return posted
 
 
-@flocker_standard_options
 class CLIOptions(Options):
     """
     Command line options for ``flocker`` CLI.
@@ -189,8 +188,8 @@ class CLIScript(object):
 def flocker_deploy_main():
     return FlockerScriptRunner(
         script=DeployScript(),
-        options=DeployOptions(),
-        logging=False,
+        options=DeployOptions,
+        logging_policy=CLILoggingPolicy(),
     ).main()
 
 
@@ -199,5 +198,5 @@ def flocker_cli_main():
     return FlockerScriptRunner(
         script=CLIScript(),
         options=CLIOptions(),
-        logging=False,
+        logging_policy=CLILoggingPolicy(),
     ).main()

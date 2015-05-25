@@ -110,6 +110,7 @@ install_requirements = [
     "effect==0.1a13",
     "bitmath==1.2.3-4",
     "boto==2.38.0",
+    "appdirs==1.4.0",
 ]
 
 # The test suite uses network namespaces
@@ -176,7 +177,8 @@ setup(
         ],
     },
 
-    install_requires=install_requirements,    extras_require={
+    install_requires=install_requirements,
+    extras_require={
         # This extra allows you to build and check the documentation for
         # Flocker.
         "doc": [

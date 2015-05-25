@@ -3,9 +3,15 @@
 """Tests for :module:`flocker.common.script`."""
 
 import sys
+import os
+
+from zope.interface.verify import verifyObject
 
 from eliot.testing import validateLogging, assertHasMessage
 
+from appdirs import AppDirs
+
+from twisted.application.service import IService
 from twisted.internet import task
 from twisted.internet.defer import succeed
 from twisted.python import usage
@@ -13,17 +19,164 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.failure import Failure
 from twisted.python.log import LogPublisher
 from twisted.python import log as twisted_log
+from twisted.python.filepath import FilePath
 from twisted.internet.defer import Deferred
 from twisted.application.service import Service
+from twisted.python.usage import Options
+
+# XXX: We shouldn't be using this private fake and Twisted probably
+# shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
+# https://twistedmatrix.com/trac/ticket/7527
+from twisted.test.test_task import _FakeReactor
 
 from ..script import (
-    flocker_standard_options, FlockerScriptRunner, main_for_service,
+    FlockerScriptRunner, main_for_service,
     EliotObserver, TWISTED_LOG_MESSAGE,
+    _flocker_standard_options,
+    ILoggingPolicy,
+    StdoutLoggingPolicy,
+    NullLoggingPolicy,
+    CLILoggingPolicy,
     )
 from ...testtools import (
-    help_problems, FakeSysModule, StandardOptionsTestsMixin,
+    help_problems, FakeSysModule,
     MemoryCoreReactor,
     )
+from ... import __version__
+
+
+def make_ilogging_policy_tests(fixture):
+    """
+    Create tests for :class:`ILoggingPolicy` providers.
+
+    :param fixture: Function that creates an :class:`ILoggingPolicy` provider.
+    """
+
+    class ILoggingPolicyTests(SynchronousTestCase):
+        """
+        Tests for :class:`ILoggingPolicy` providers.
+        """
+        def test_interface(self):
+            """
+            The logging policy provides :class:`ILoggingPolicy`.
+            """
+            verifyObject(ILoggingPolicy, fixture(self))
+
+        def test_service(self):
+            """
+            :class:`ILoggingPolicy.service` returns an object that provides
+            :class:`IService`.
+            """
+            policy = fixture(self)
+            options = policy.options_wrapper(TestOptions)()
+            verifyObject(IService, policy.service(_FakeReactor(), options))
+
+        def test_options(self):
+            """
+            :class:`ILoggingPolicy.options_wrapper` returns a subclass of
+            the :class:`Options` subclass passed to it.
+            """
+            self.assertIsInstance(
+                fixture(self).options_wrapper(TestOptions)(),
+                TestOptions)
+
+    return ILoggingPolicyTests
+
+
+class StdoutLoggingPolicyTests(
+        make_ilogging_policy_tests(lambda self: StdoutLoggingPolicy())):
+    """
+    Tests for :class:`StdoutLoggingPolicy`.
+    """
+
+    def test_sys_default(self):
+        """
+        `StdoutLoggingPolicy.sys_module` is `sys` by default.
+        """
+        self.assertIs(
+            sys,
+            StdoutLoggingPolicy().sys_module)
+
+    def test_sys_override(self):
+        """
+        `StdoutLoggingPolicy.sys_module` can be overridden in the constructor.
+        """
+        dummy_sys = object()
+        self.assertIs(
+            dummy_sys,
+            StdoutLoggingPolicy(sys_module=dummy_sys).sys_module
+        )
+
+
+class NullLoggingPolicyTests(
+        make_ilogging_policy_tests(lambda self: NullLoggingPolicy())):
+    """
+    Tests for :class:`NullLoggingPolicy`.
+    """
+
+
+class FakeAppDirs(object):
+    """
+    Fake implementation of :class:`appdirs.Appdirs`.
+
+    :ivar bytes user_log_dir: The directory where logs for this application
+        should be written.
+    """
+    def __init__(self, case):
+        """
+        :param case: Test case to use for creating temporary directory.
+        """
+        log_dir = FilePath(case.mktemp())
+        log_dir.createDirectory()
+        self.user_log_dir = log_dir.path
+
+
+class CLILoggingPolicyTests(
+        make_ilogging_policy_tests(
+            lambda self: CLILoggingPolicy(appdirs=FakeAppDirs(self)))):
+    """
+    Tests for :class:`CLILoggingPolicy`.
+    """
+
+    def test_appdirs_default(self):
+        """
+        `CLILoggingPolicy`s default log-dir is from ``AppDirs.user_log_dir``.
+        """
+        policy = CLILoggingPolicy()
+        options = policy.options_wrapper(TestOptions)()
+        self.assertEqual(
+            AppDirs("Flocker", "ClusterHQ").user_log_dir,
+            options['log-dir'])
+
+    def test_appdirs_override(self):
+        """
+        `CLILoggingPolicy`s default log-dir can be overridden in the
+        constructor.
+        """
+        appdirs = FakeAppDirs(self)
+        policy = CLILoggingPolicy(appdirs=appdirs)
+        options = policy.options_wrapper(TestOptions)()
+        self.assertIs(
+            appdirs.user_log_dir,
+            options['log-dir'])
+
+    def test_getpid_default(self):
+        """
+        `CLILoggingPolicy._getpid` is `os.getpid` by default.
+        """
+        policy = CLILoggingPolicy()
+        self.assertEqual(
+            os.getpid, policy._getpid)
+
+    def test_getpid_override(self):
+        """
+        `CLILoggingPolicy._getpid` can be overridden in the constructor.
+        """
+        def getpid():
+            return 5
+        policy = CLILoggingPolicy(_getpid=getpid)
+        self.assertEqual(
+            getpid, policy._getpid)
 
 
 class FlockerScriptRunnerInitTests(SynchronousTestCase):
@@ -36,7 +189,9 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         self.assertIs(
             sys,
             FlockerScriptRunner(
-                script=None, options=None).sys_module
+                script=None, options=Options,
+                logging_policy=NullLoggingPolicy(),
+                ).sys_module
         )
 
     def test_sys_override(self):
@@ -46,7 +201,8 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         dummySys = object()
         self.assertIs(
             dummySys,
-            FlockerScriptRunner(script=None, options=None,
+            FlockerScriptRunner(script=None, options=Options,
+                                logging_policy=NullLoggingPolicy(),
                                 sys_module=dummySys).sys_module
         )
 
@@ -56,7 +212,21 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         """
         self.assertIs(
             task.react,
-            FlockerScriptRunner(script=None, options=None)._react
+            FlockerScriptRunner(script=None, options=Options,
+                                logging_policy=NullLoggingPolicy(),
+                                )._react
+        )
+
+    def test_logging_policy(self):
+        """
+        `FlockerScriptRunner.logging_policy` can be set in the constructor.
+        """
+        logging_policy = NullLoggingPolicy()
+        self.assertIs(
+            logging_policy,
+            FlockerScriptRunner(script=None, options=Options,
+                                logging_policy=logging_policy,
+                                ).logging_policy
         )
 
 
@@ -74,7 +244,8 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
                 self.parseOptionsArguments = arguments
 
         expectedArguments = [object(), object()]
-        runner = FlockerScriptRunner(script=None, options=OptionsSpy())
+        runner = FlockerScriptRunner(script=None, options=OptionsSpy,
+                                     logging_policy=NullLoggingPolicy())
         options = runner._parse_options(expectedArguments)
         self.assertEqual(expectedArguments, options.parseOptionsArguments)
 
@@ -95,8 +266,9 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
 
         fake_sys = FakeSysModule()
 
-        runner = FlockerScriptRunner(script=None, options=FakeOptions(),
-                                     sys_module=fake_sys)
+        runner = FlockerScriptRunner(script=None, options=FakeOptions,
+                                     sys_module=fake_sys,
+                                     logging_policy=NullLoggingPolicy())
         error = self.assertRaises(SystemExit, runner._parse_options, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
         errorText = fake_sys.stderr.getvalue()
@@ -125,17 +297,13 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
                 self.arguments = arguments
                 return succeed(None)
 
-        options = SpyOptions()
+        options = SpyOptions
         script = SpyScript()
         sys = FakeSysModule(argv=[b"flocker", b"--hello", b"world"])
-        # XXX: We shouldn't be using this private fake and Twisted probably
-        # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
-        # https://twistedmatrix.com/trac/ticket/7527
-        from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
         runner = FlockerScriptRunner(script, options,
                                      reactor=fakeReactor, sys_module=sys,
-                                     logging=False)
+                                     logging_policy=NullLoggingPolicy())
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(b"world", script.arguments.value)
 
@@ -151,30 +319,59 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
 
         script = Script()
         sys = FakeSysModule(argv=[])
-        # XXX: We shouldn't be using this private fake and Twisted probably
-        # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
-        # https://twistedmatrix.com/trac/ticket/7527
-        from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(script, usage.Options(),
+        runner = FlockerScriptRunner(script, usage.Options,
                                      reactor=fakeReactor, sys_module=sys,
-                                     logging=False)
+                                     logging_policy=NullLoggingPolicy())
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(sys.stdout.getvalue(), b"")
 
 
-@flocker_standard_options
 class TestOptions(usage.Options):
     """An unmodified ``usage.Options`` subclass for use in testing."""
 
 
-class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
-                                  SynchronousTestCase):
-    """Tests for ``flocker_standard_options``
+class FlockerStandardOptionsTests(SynchronousTestCase):
+    """Tests for ``_flocker_standard_options``
 
     Using a decorating an unmodified ``usage.Options`` subclass.
     """
-    options = TestOptions
+    options = _flocker_standard_options(TestOptions)
+
+    def test_sys_module_default(self):
+        """
+        ``flocker_standard_options`` adds a ``_sys_module`` attribute which is
+        ``sys`` by default.
+        """
+        self.assertIs(sys, self.options()._sys_module)
+
+    def test_sys_module_override(self):
+        """
+        ``flocker_standard_options`` adds a ``sys_module`` argument to the
+        initialiser which is assigned to ``_sys_module``.
+        """
+        dummy_sys_module = object()
+        self.assertIs(
+            dummy_sys_module,
+            self.options(sys_module=dummy_sys_module)._sys_module
+        )
+
+    def test_version(self):
+        """
+        Flocker commands have a `--version` option which prints the current
+        version string to stdout and causes the command to exit with status
+        `0`.
+        """
+        sys = FakeSysModule()
+        error = self.assertRaises(
+            SystemExit,
+            self.options(sys_module=sys).parseOptions,
+            ['--version']
+        )
+        self.assertEqual(
+            (__version__ + '\n', 0),
+            (sys.stdout.getvalue(), error.code)
+        )
 
 
 class AsyncStopService(Service):

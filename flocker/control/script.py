@@ -15,7 +15,7 @@ from .httpapi import create_api_service, REST_API_PORT
 from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
 from ..common.script import (
-    flocker_standard_options, FlockerScriptRunner, main_for_service)
+    FlockerScriptRunner, main_for_service, StdoutLoggingPolicy)
 from ._protocol import ControlAMPService
 from ..ca import (
     rest_api_context_factory, ControlCredential, amp_server_context_factory,
@@ -24,7 +24,6 @@ from ..ca import (
 DEFAULT_CERTIFICATE_PATH = b"/etc/flocker"
 
 
-@flocker_standard_options
 class ControlOptions(Options):
     """
     Command line options for ``flocker-control`` cluster management process.
@@ -79,5 +78,6 @@ class ControlScript(object):
 def flocker_control_main():
     return FlockerScriptRunner(
         script=ControlScript(),
-        options=ControlOptions()
+        options=ControlOptions,
+        logging_policy=StdoutLoggingPolicy(),
     ).main()

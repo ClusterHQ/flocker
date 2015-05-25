@@ -15,7 +15,8 @@ from .service import (
     Volume, VolumeScript, ICommandLineVolumeScript, VolumeName,
     )
 from ..common.script import (
-    flocker_standard_options, FlockerScriptRunner
+    FlockerScriptRunner,
+    NullLoggingPolicy,
     )
 
 
@@ -201,7 +202,6 @@ class _CloneToSubcommandOptions(Options):
             parent, VolumeName.from_bytes(self["child_name"]))
 
 
-@flocker_standard_options
 @flocker_volume_options
 class VolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
@@ -248,6 +248,6 @@ class VolumeManagerScript(object):
 def flocker_volume_main():
     return FlockerScriptRunner(
         script=VolumeScript(VolumeManagerScript()),
-        options=VolumeOptions(),
-        logging=False,
+        options=VolumeOptions,
+        logging_policy=NullLoggingPolicy(),
     ).main()

@@ -1,65 +1,62 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.common.test.test_script -*-
 
 """Helpers for flocker shell commands."""
 
 import sys
+import os
+
+from pyrsistent import PRecord, field
 
 from eliot import MessageType, fields, Logger
 from eliot.logwriter import ThreadedFileWriter
 
+from twisted.application.service import Service, MultiService
 from twisted.internet import task, reactor as global_reactor
 from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
+from twisted.python.filepath import FilePath
 from twisted.python.log import textFromEventDict, startLoggingWithObserver, err
 from twisted.python import log as twisted_log
 
-from zope.interface import Interface
+from zope.interface import Interface, implementer
 
 from .. import __version__
 
+from appdirs import AppDirs
 
 __all__ = [
-    'flocker_standard_options',
     'ICommandLineScript',
     'FlockerScriptRunner',
     'main_for_service',
 ]
 
 
-def flocker_standard_options(cls):
+def _flocker_standard_options(cls):
     """Add various standard command line options to flocker commands.
 
     :param type cls: The `class` to decorate.
     :return: The decorated `class`.
     """
-    original_init = cls.__init__
+    class FlockerStandardOptions(cls):
 
-    def __init__(self, *args, **kwargs):
-        """Set the default verbosity to `0`
+        def __init__(self, *args, **kwargs):
+            """Set the default verbosity to `0`
 
-        Calls the original ``cls.__init__`` method finally.
+            Calls the original ``cls.__init__`` method finally.
 
-        :param sys_module: An optional ``sys`` like module for use in
-            testing. Defaults to ``sys``.
-        """
-        self._sys_module = kwargs.pop('sys_module', sys)
-        self['verbosity'] = 0
-        original_init(self, *args, **kwargs)
-    cls.__init__ = __init__
+            :param sys_module: An optional ``sys`` like module for use in
+                testing. Defaults to ``sys``.
+            """
+            self._sys_module = kwargs.pop('sys_module', sys)
+            cls.__init__(self, *args, **kwargs)
 
-    def opt_version(self):
-        """Print the program's version and exit."""
-        self._sys_module.stdout.write(__version__.encode('utf-8') + b'\n')
-        raise SystemExit(0)
-    cls.opt_version = opt_version
+        def opt_version(self):
+            """Print the program's version and exit."""
+            self._sys_module.stdout.write(__version__.encode('utf-8') + b'\n')
+            raise SystemExit(0)
 
-    def opt_verbose(self):
-        """Turn on verbose logging."""
-        self['verbosity'] += 1
-    cls.opt_verbose = opt_verbose
-    cls.opt_v = opt_verbose
-
-    return cls
+    return FlockerStandardOptions
 
 
 class ICommandLineScript(Interface):
@@ -71,6 +68,85 @@ class ICommandLineScript(Interface):
         :return: A ``Deferred`` which fires when the script has completed.
         """
 
+
+def eliot_logging_service(log_file, reactor, set_stdout):
+    service = MultiService()
+    ThreadedFileWriter(log_file, reactor).setServiceParent(service)
+    EliotObserver(set_stdout=set_stdout).setServiceParent(service)
+    return service
+
+
+class ILoggingPolicy(Interface):
+    """
+    Logging policy for flocker commans.
+    """
+    def service(reactor, options):
+        """
+        Get a service that controls logging.
+
+        :param reactor: Reactor to use.
+
+        :return IService:
+        """
+
+    def options_wrapper(cls):
+        """
+        """
+
+
+@implementer(ILoggingPolicy)
+class StdoutLoggingPolicy(PRecord):
+    """
+    Logging policy that logs to standard output.
+
+    :ivar sys_module: An optional ``sys`` like module for use in
+        testing. Defaults to ``sys``.
+    """
+    sys_module = field(mandatory=True, initial=sys)
+
+    def service(self, reactor, options):
+        return eliot_logging_service(
+            self.sys_module.stdout, reactor, set_stdout=True)
+
+    def options_wrapper(self, cls):
+        return cls
+
+
+@implementer(ILoggingPolicy)
+class CLILoggingPolicy(PRecord):
+    appdirs = field(mandatory=True, initial=AppDirs("Flocker", "ClusterHQ"))
+    _getpid = field(mandatory=True, initial=os.getpid)
+
+    def service(self, reactor, options):
+        log_dir = FilePath(options['log-dir'])
+        log_file = log_dir.child(
+            b"%s-%d.log" % (os.path.basename(sys.argv[0]),
+                            self._getpid())).open("a")
+        return eliot_logging_service(log_file, reactor, set_stdout=False)
+
+    def options_wrapper(self, cls):
+        """
+        Add standard command line options for logging in CLI commands.
+
+        :param type cls: The `class` to decorate.
+        :return: The decorated `class`.
+        """
+        class FlockerLoggingOptions(cls):
+            optParameters = [
+                ['log-dir', None, self.appdirs.user_log_dir,
+                 "Directory to put log-files in."]]
+
+        return FlockerLoggingOptions
+
+
+@implementer(ILoggingPolicy)
+class NullLoggingPolicy(object):
+    def service(self, reactor, options):
+        return Service()
+
+    def options_wrapper(self, cls):
+        return cls
+
 # This should probably be built-in functionality in Eliot;
 # see https://github.com/ClusterHQ/eliot/issues/143
 TWISTED_LOG_MESSAGE = MessageType("twisted:log",
@@ -78,17 +154,18 @@ TWISTED_LOG_MESSAGE = MessageType("twisted:log",
                                   u"A log message from Twisted.")
 
 
-class EliotObserver(object):
+class EliotObserver(Service):
     """
     A Twisted log observer that logs to Eliot.
     """
-    def __init__(self, publisher=twisted_log):
+    def __init__(self, publisher=twisted_log, set_stdout=True):
         """
         :param publisher: A ``LogPublisher`` to capture logs from, or if no
             argument is given the default Twisted log system.
         """
         self.logger = Logger()
         self.publisher = publisher
+        self.set_stdout = set_stdout
 
     def __call__(self, msg):
         error = bool(msg.get("isError"))
@@ -99,11 +176,12 @@ class EliotObserver(object):
         message = unicode(textFromEventDict(msg), "charmap")
         TWISTED_LOG_MESSAGE(error=error, message=message).write(self.logger)
 
-    def start(self):
+    def startService(self):
         """
         Start capturing Twisted logs.
         """
-        startLoggingWithObserver(self)
+        # We don't bother shutting this down.
+        startLoggingWithObserver(self, setStdout=self.set_stdout)
 
 
 class FlockerScriptRunner(object):
@@ -115,19 +193,20 @@ class FlockerScriptRunner(object):
     """
     _react = staticmethod(task.react)
 
-    def __init__(self, script, options, logging=True,
+    def __init__(self, script, options, logging_policy,
                  reactor=None, sys_module=None):
         """
         :param ICommandLineScript script: The script object to be run.
-        :param usage.Options options: An option parser object.
-        :param logging: If ``True``, log to stdout; otherwise don't log.
+        :param type options: ``usage.Options`` subclass.
+        :param logging_policy: If ``True``, log to stdout; otherwise don't log.
         :param reactor: Optional reactor to override default one.
         :param sys_module: An optional ``sys`` like module for use in
             testing. Defaults to ``sys``.
         """
         self.script = script
-        self.options = options
-        self.logging = logging
+        self.logging_policy = logging_policy
+        self.options_class = logging_policy.options_wrapper(
+            _flocker_standard_options(options))
         if reactor is None:
             reactor = global_reactor
         self._reactor = reactor
@@ -146,13 +225,14 @@ class FlockerScriptRunner(object):
         :return: A ``dict`` of configuration options.
         """
         try:
-            self.options.parseOptions(arguments)
+            options = self.options_class()
+            options.parseOptions(arguments)
         except usage.UsageError as e:
-            self.sys_module.stderr.write(unicode(self.options).encode('utf-8'))
+            self.sys_module.stderr.write(unicode(options).encode('utf-8'))
             self.sys_module.stderr.write(
                 b'ERROR: ' + e.message.encode('utf-8') + b'\n')
             raise SystemExit(1)
-        return self.options
+        return options
 
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
@@ -160,16 +240,9 @@ class FlockerScriptRunner(object):
         # always do this first before any side-effecty code is run:
         options = self._parse_options(self.sys_module.argv[1:])
 
-        if self.logging:
-            log_writer = ThreadedFileWriter(self.sys_module.stdout,
-                                            self._reactor)
-            log_writer.startService()
-            observer = EliotObserver()
-            # We don't bother shutting this down; the process will exit
-            # once we return from this function. The ThreadedFileWriter in
-            # contrast needs to be shutdown because it starts a thread
-            # that will keep the process from exiting.
-            observer.start()
+        log_writer = self.logging_policy.service(
+            reactor=self._reactor, options=options)
+        log_writer.startService()
 
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
@@ -186,8 +259,7 @@ class FlockerScriptRunner(object):
         try:
             self._react(run_and_log, [], _reactor=self._reactor)
         finally:
-            if self.logging:
-                log_writer.stopService()
+            log_writer.stopService()
 
 
 def _chain_stop_result(service, stop):

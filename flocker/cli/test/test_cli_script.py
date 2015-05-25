@@ -1,7 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 from twisted.trial.unittest import TestCase, SynchronousTestCase
-from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
+from ...testtools import FlockerScriptTestsMixin
 from ..script import CLIScript, CLIOptions
 
 
@@ -12,7 +12,7 @@ class FlockerCLITests(FlockerScriptTestsMixin, TestCase):
     command_name = u'flocker'
 
 
-class CLIOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class CLIOptionsTests(SynchronousTestCase):
     """Tests for :class:`CLIOptions`."""
     options = CLIOptions
 
