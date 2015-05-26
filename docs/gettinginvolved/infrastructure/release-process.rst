@@ -297,9 +297,8 @@ So it is important to check that the code in the release branch is working befor
 Release
 -------
 
-#. If it is not running in to the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`:
-
-   From the cloned Flocker repository created in :ref:`preparing-for-a-release`:
+#. The following steps should be done in the :doc:`Flocker development machine <vagrant>` created in :ref:`preparing-for-a-release`.
+   If this is not running, start it again from the cloned Flocker repository created in :ref:`preparing-for-a-release`:
 
    .. prompt:: bash $
 
