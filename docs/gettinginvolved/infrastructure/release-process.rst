@@ -98,7 +98,9 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       vagrant up
-      vagrant ssh -c "echo export VERSION=${VERSION} >> .bashrc"
+      vagrant scp default:/home/vagrant/.bashrc vagrant_bashrc
+      echo export VERSION=${VERSION} >> vagrant_bashrc
+      vagrant scp vagrant_bashrc /home/vagrant/.bashrc
       if [ -d ~/.aws ]; then vagrant scp "~/.aws" /home/vagrant; fi
       vagrant ssh -- -A
 
