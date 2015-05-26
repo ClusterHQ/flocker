@@ -588,7 +588,7 @@ IGNORED_WARNINGS = {
         'non-conffile-in-etc /etc/ufw/applications.d/flocker-control',
 
         # Upstart control files are not installed as conffiles.
-        'non-conffile-in-etc /etc/init/flocker-agent.conf',
+        'non-conffile-in-etc /etc/init/flocker-dataset-agent.conf',
         'non-conffile-in-etc /etc/init/flocker-container-agent.conf',
         'non-conffile-in-etc /etc/init/flocker-control.conf',
 
@@ -655,7 +655,7 @@ IGNORED_WARNINGS = {
          'etc/ufw/applications.d/flocker-control'),
 
         # Upstart control files are not installed as conffiles.
-        'file-in-etc-not-marked-as-conffile etc/init/flocker-agent.conf',
+        'file-in-etc-not-marked-as-conffile etc/init/flocker-dataset-agent.conf',  # noqa
         'file-in-etc-not-marked-as-conffile etc/init/flocker-container-agent.conf',  # noqa
         'file-in-etc-not-marked-as-conffile etc/init/flocker-control.conf',
 

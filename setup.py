@@ -90,6 +90,10 @@ install_requirements = [
     "pytz",
     "characteristic >= 14.1.0",
     "Twisted == 15.1.0",
+    # TLS support libraries for Twisted:
+    "service_identity == 14.0.0",
+    "idna == 2.0",
+    "pyOpenSSL == 0.15.1",
 
     "PyYAML == 3.10",
 
@@ -101,9 +105,8 @@ install_requirements = [
     "docker-py == 0.7.1",
     "jsonschema == 2.4.0",
     "klein == 0.2.3",
-    "pyrsistent == 0.9.1",
+    "pyrsistent == 0.9.2",
     "pycrypto == 2.6.1",
-    "pyOpenSSL == 0.14",
     "effect==0.1a13",
     "bitmath==1.2.3-4",
     "boto==2.38.0",

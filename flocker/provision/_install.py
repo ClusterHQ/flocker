@@ -13,6 +13,7 @@ import yaml
 
 from characteristic import attributes
 
+from flocker.acceptance.testtools import DatasetBackend
 from ._common import PackageSource, Variants
 from ._ssh import (
     run, run_from_args,
@@ -238,7 +239,7 @@ def task_enable_flocker_control(distribution):
         ])
     elif distribution == 'ubuntu-14.04':
         # Since the flocker-control service is currently installed
-        # alongside the flocker-agent service, the default control
+        # alongside the flocker-dataset-agent service, the default control
         # service configuration does not automatically start the
         # service.  Here, we provide an override file to start it.
         return sequence([
@@ -274,11 +275,14 @@ def task_open_control_firewall(distribution):
     ])
 
 
-def task_enable_flocker_agent(distribution, control_node):
+def task_enable_flocker_agent(distribution, control_node,
+                              dataset_backend=DatasetBackend.zfs):
     """
     Configure and enable the flocker agents.
 
     :param bytes control_node: The address of the control agent.
+    :param DatasetBackend dataset_backend: The volume backend the nodes are
+        configured with. (This has a default for use in the documentation).
     """
     put_config_file = put(
         path='/etc/flocker/agent.yml',
@@ -290,7 +294,7 @@ def task_enable_flocker_agent(distribution, control_node):
                     "port": 4524,
                 },
                 "dataset": {
-                    "backend": "zfs",
+                    "backend": dataset_backend.name,
                 },
             },
         ),
@@ -298,15 +302,15 @@ def task_enable_flocker_agent(distribution, control_node):
     if distribution in ('centos-7', 'fedora-20'):
         return sequence([
             put_config_file,
-            run_from_args(['systemctl', 'enable', 'flocker-agent']),
-            run_from_args(['systemctl', 'start', 'flocker-agent']),
+            run_from_args(['systemctl', 'enable', 'flocker-dataset-agent']),
+            run_from_args(['systemctl', 'start', 'flocker-dataset-agent']),
             run_from_args(['systemctl', 'enable', 'flocker-container-agent']),
             run_from_args(['systemctl', 'start', 'flocker-container-agent']),
         ])
     elif distribution == 'ubuntu-14.04':
         return sequence([
             put_config_file,
-            run_from_args(['service', 'flocker-agent', 'start']),
+            run_from_args(['service', 'flocker-dataset-agent', 'start']),
             run_from_args(['service', 'flocker-container-agent', 'start']),
         ])
     else:
@@ -583,14 +587,16 @@ def provision(distribution, package_source, variants):
     return sequence(commands)
 
 
-def configure_cluster(control_node, agent_nodes, certificates):
+def configure_cluster(control_node, agent_nodes,
+                      certificates, dataset_backend):
     """
-    Configure flocker-control, flocker-agent and flocker-container-agent
-    on a collection of nodes.
+    Configure flocker-control, flocker-dataset-agent and
+    flocker-container-agent on a collection of nodes.
 
     :param INode control_node: The control node.
     :param INode agent_nodes: List of agent nodes.
     :param Certificates certificates: Certificates to upload.
+    :param DatasetBackend dataset_backend: Dataset backend to configure.
     """
     return sequence([
         run_remotely(
@@ -606,8 +612,6 @@ def configure_cluster(control_node, agent_nodes, certificates):
         ),
         sequence([
             sequence([
-                Effect(
-                    Func(lambda node=node: configure_ssh(node.address, 22))),
                 run_remotely(
                     username='root',
                     address=node.address,
@@ -619,6 +623,7 @@ def configure_cluster(control_node, agent_nodes, certificates):
                         task_enable_flocker_agent(
                             distribution=node.distribution,
                             control_node=control_node.address,
+                            dataset_backend=dataset_backend,
                         )]),
                     ),
             ]) for certnkey, node in zip(certificates.nodes, agent_nodes)

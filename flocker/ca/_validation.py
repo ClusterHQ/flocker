@@ -45,7 +45,7 @@ class ControlServicePolicy(PRecord):
             clientCertificate=self.client_credential.private_certificate())
 
 
-class _ClientContextFactory(object):
+class _ControlServiceContextFactory(object):
     """
     Context factory that validates various kinds of clients that can
     connect to the control service.
@@ -61,10 +61,13 @@ class _ClientContextFactory(object):
         :param bytes prefix: The required prefix on certificate common names.
         """
         self.prefix = prefix
-        self._default_options = control_credential._default_options(
-            ca_certificate)
+        self.control_credential = control_credential
+        self.ca_certificate = ca_certificate
 
     def getContext(self):
+        default_options = self.control_credential._default_options(
+            self.ca_certificate)
+
         def verify(conn, cert, errno, depth, preverify_ok):
             if depth > 0:
                 # Certificate authority chain:
@@ -73,7 +76,7 @@ class _ClientContextFactory(object):
             if not preverify_ok:
                 return preverify_ok
             return cert.get_subject().commonName.startswith(self.prefix)
-        context = self._default_options.getContext()
+        context = default_options.getContext()
         context.set_verify(VERIFY_PEER | VERIFY_FAIL_IF_NO_PEER_CERT,
                            verify)
         return context
@@ -93,7 +96,8 @@ def amp_server_context_factory(ca_certificate, control_credential):
     :return: TLS context factory suitable for use by the control service
         AMP server.
     """
-    return _ClientContextFactory(ca_certificate, control_credential, b"node-")
+    return _ControlServiceContextFactory(
+        ca_certificate, control_credential, b"node-")
 
 
 def rest_api_context_factory(ca_certificate, control_credential):
@@ -110,7 +114,8 @@ def rest_api_context_factory(ca_certificate, control_credential):
     :return: TLS context factory suitable for use by the control service
         REST API server.
     """
-    return _ClientContextFactory(ca_certificate, control_credential, b"user-")
+    return _ControlServiceContextFactory(
+        ca_certificate, control_credential, b"user-")
 
 
 def treq_with_authentication(reactor, certificates_path):
