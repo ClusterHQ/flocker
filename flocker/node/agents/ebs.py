@@ -33,7 +33,7 @@ CLUSTER_ID_LABEL = u'flocker-cluster-id'
 ATTACHED_DEVICE_LABEL = u'attached-device-name'
 BOTO_NUM_RETRIES = u'10'
 
-# Set Boto debug level to `1`, requesting basic debug messages from Boto
+# Set Boto debug level to ``1``, requesting basic debug messages from Boto
 # to be printed.
 # See https://code.google.com/p/boto/wiki/BotoConfig#Boto
 # for available debug levels.
@@ -83,11 +83,11 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     """
 
     # Set 2 retry knobs in Boto to BOTO_NUM_RETRIES:
-    # 1. `num_retries`:
+    # 1. ``num_retries``:
     # Request automatic exponential backoff and retry
     # attempts by Boto if an EC2 API call fails with
-    # `RequestLimitExceeded` due to system load.
-    # 2. `metadata_service_num_attempts`:
+    # ``RequestLimitExceeded`` due to system load.
+    # 2. ``metadata_service_num_attempts``:
     # Request for retry attempts by Boto to
     # retrieve data from Metadata Service used to retrieve
     # credentials for IAM roles on EC2 instances.
@@ -97,11 +97,10 @@ def ec2_client(region, zone, access_key_id, secret_access_key):
     config.set('Boto', 'metadata_service_num_attempts', BOTO_NUM_RETRIES)
 
     # Set Boto debug level to BOTO_DEBUG_LEVEL:
-    # "1": basic debug messages
+    # ``1``: log basic debug messages
     config.set('Boto', 'debug', BOTO_DEBUG_LEVEL)
 
-    # Get Boto connection to EC2 with `BotoClientError` and
-    # `BotoServerError` exceptions logged in Eliot.
+    # Get Boto EC2 connection with ``EC2ResponseError`` logged by Eliot.
     connection = ec2.connect_to_region(region,
                                        aws_access_key_id=access_key_id,
                                        aws_secret_access_key=secret_access_key)
@@ -125,7 +124,7 @@ def _boto_logged_method(method_name, original_name):
     def _run_with_logging(self, *args, **kwargs):
         """
         Run given boto.ec2.connection.EC2Connection method with exception
-        logging for `BotoClientError` and `BotoServerError`.
+        logging for ``EC2ResponseError``.
         """
         original = getattr(self, original_name)
         method = getattr(original, method_name)
