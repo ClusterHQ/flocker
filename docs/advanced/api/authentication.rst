@@ -38,6 +38,7 @@ The following is an example of an authenticated request to create a new containe
 
 .. code-block:: console
 
-   $ curl -H "Content-Type: application/json" -X POST -d '{"host": "172.255.250.251", "name": "webserver", "image": "nginx:latest"}' --cacert cluster.crt --cert alice.crt --key alice.key https://172.16.255.250/v1/configuration/containers
-   
+   $ curl --cacert $PWD/cluster.crt --cert $PWD/user.crt --key $PWD/user.key \
+          https://172.16.255.250:4523/v1/configuration/containers
+
 You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../security>`.
