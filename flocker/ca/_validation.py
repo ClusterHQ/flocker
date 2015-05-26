@@ -74,7 +74,6 @@ class _ClientContextFactory(object):
                 return preverify_ok
             return cert.get_subject().commonName.startswith(self.prefix)
         context = self._default_options.getContext()
-        context.set_options(OP_ALL)
         context.set_verify(VERIFY_PEER | VERIFY_FAIL_IF_NO_PEER_CERT,
                            verify)
         return context

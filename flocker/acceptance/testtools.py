@@ -208,20 +208,20 @@ def _clean_node(test_case, node):
         pass
 
 
-class VolumeBackend(Names):
+class DatasetBackend(Names):
     loopback = NamedConstant()
     zfs = NamedConstant()
     aws = NamedConstant()
     openstack = NamedConstant()
 
 
-def get_volume_backend(test_case):
+def get_dataset_backend(test_case):
     """
     Get the volume backend the acceptance tests are running as.
 
     :param test_case: The ``TestCase`` running this unit test.
 
-    :return VolumeBackend: The configured backend.
+    :return DatasetBackend: The configured backend.
     :raise SkipTest: if the backend is specified.
     """
     backend = environ.get("FLOCKER_ACCEPTANCE_VOLUME_BACKEND")
@@ -229,7 +229,7 @@ def get_volume_backend(test_case):
         raise SkipTest(
             "Set acceptance testing volume backend using the " +
             "FLOCKER_ACCEPTANCE_VOLUME_BACKEND environment variable.")
-    return VolumeBackend.lookupByName(backend)
+    return DatasetBackend.lookupByName(backend)
 
 
 def skip_backend(unsupported, reason):
@@ -246,7 +246,7 @@ def skip_backend(unsupported, reason):
         """
         @wraps(test_method)
         def wrapper(test_case, *args, **kwargs):
-            backend = get_volume_backend(test_case)
+            backend = get_dataset_backend(test_case)
 
             if backend in unsupported:
                 raise SkipTest(
@@ -260,7 +260,7 @@ def skip_backend(unsupported, reason):
     return decorator
 
 require_moving_backend = skip_backend(
-    unsupported={VolumeBackend.loopback},
+    unsupported={DatasetBackend.loopback},
     reason="doesn't support moving")
 
 
