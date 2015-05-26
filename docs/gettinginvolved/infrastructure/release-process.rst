@@ -127,7 +127,7 @@ Preparing For a Release
 
       .. prompt:: bash [vagrant@localhost]$
 
-          # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
+          # Choose the tag of the last version with a "NEWS" entry to compare the latest version to.
           export OLD_VERSION=0.3.0
           git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
