@@ -11,7 +11,7 @@ from tempfile import mkdtemp
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
-from eliot import add_destination
+from eliot import add_destination, writeFailure
 from twisted.internet.error import ProcessTerminated
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
@@ -473,7 +473,7 @@ def capture_journal(reactor, host):
             '-u', 'flocker-dataset-agent',
             '-u', 'flocker-container-agent',
         ])),
-    ])
+    ]).addErrback(writeFailure)
 
 
 @inlineCallbacks
