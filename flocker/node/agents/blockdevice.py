@@ -20,7 +20,7 @@ from pyrsistent import PRecord, field
 from characteristic import attributes, with_cmp
 
 import psutil
-from bitmath import Byte, GiB
+from bitmath import Byte, MiB
 
 from twisted.internet.defer import succeed, fail, gatherResults
 from twisted.python.filepath import FilePath
@@ -1202,7 +1202,7 @@ class LoopbackBlockDeviceAPI(object):
         self._root_path = root_path
         self._compute_instance_id = compute_instance_id
         if allocation_unit is None:
-            allocation_unit = int(GiB(8).to_Byte().value)
+            allocation_unit = int(MiB(64).to_Byte().value)
         self._allocation_unit = allocation_unit
 
     @classmethod
