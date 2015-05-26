@@ -135,6 +135,7 @@ def _context_factory_and_credential(path, host, port):
                        node_credential=node_credential)
 
 
+# FLOC-1925 remove this
 def validate_configuration(configuration):
     """
     Validate a provided configuration.
@@ -333,7 +334,13 @@ def get_configuration(options):
     agent_config = options[u'agent-config']
     configuration = yaml.safe_load(agent_config.getContent())
 
-    validate_configuration(configuration=configuration)
+    # FLOC-1925 remove this.
+    # It doesn't really work at the moment:
+    # https://github.com/ClusterHQ/flocker/pull/1440#issuecomment-105502142
+    # And if we want to support pluggable backends the config validation
+    # has to be pluggable too.
+    # JSON Schema style validation can be done
+    # validate_configuration(configuration=configuration)
 
     configuration['control-service'].setdefault('port', 4524)
 
