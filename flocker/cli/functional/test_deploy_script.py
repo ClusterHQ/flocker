@@ -69,8 +69,8 @@ class FlockerDeployTests(TestCase):
         # service certificate; no need to validate flocker-deploy here.
         self.port = reactor.listenSSL(
             0, Site(api_root), DefaultOpenSSLContextFactory(
-                ca_set.path.globChildren(b"control-*.key")[0].path,
-                ca_set.path.globChildren(b"control-*.crt")[0].path),
+                ca_set.path.child(b"control-127.0.0.1.key").path,
+                ca_set.path.child(b"control-127.0.0.1.crt").path),
             interface="127.0.0.1"
         )
         self.addCleanup(self.port.stopListening)

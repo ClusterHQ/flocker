@@ -9,9 +9,15 @@ from uuid import uuid4
 
 from bitmath import Byte
 
-from twisted.trial.unittest import SkipTest
+from boto.exception import EC2ResponseError
 
-from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL, UnattachedVolume)
+from twisted.trial.unittest import SkipTest
+from eliot.testing import LoggedMessage, capture_logging
+
+from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL,
+                   BOTO_EC2RESPONSE_ERROR, UnattachedVolume,
+                   CODE, MESSAGE, REQUEST_ID)
+
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
     REALISTIC_BLOCKDEVICE_SIZE
@@ -108,3 +114,32 @@ class EBSBlockDeviceAPIInterfaceTests(
 
         self.assertRaises(UnattachedVolume, self.api.get_device_path,
                           volume.blockdevice_id)
+
+    @capture_logging(lambda self, logger: None)
+    def test_boto_ec2response_error(self, logger):
+        """
+        1. Test that invalid parameters to Boto's EBS API calls
+        raise the right exception after logging to Eliot.
+        2. Verify Eliot log output for expected message fields
+        from logging decorator for boto.exception.EC2Exception
+        originating from boto.ec2.connection.EC2Connection.
+        """
+        # Test 1: Create volume with size 0.
+        # Raises: EC2ResponseError
+        self.assertRaises(EC2ResponseError, self.api.create_volume,
+                          dataset_id=uuid4(), size=0,)
+
+        # Test 2: Set EC2 connection zone to an invalid string.
+        # Raises: EC2ResponseError
+        self.api.zone = u'invalid_zone'
+        self.assertRaises(EC2ResponseError, self.api.create_volume,
+                          dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE,)
+
+        # Validate decorated method for exception logging
+        # actually logged to ``Eliot`` logger.
+        expected_message_keys = {CODE.key, MESSAGE.key, REQUEST_ID.key}
+        for logged in LoggedMessage.of_type(logger.messages,
+                                            BOTO_EC2RESPONSE_ERROR,):
+            key_subset = set(key for key in expected_message_keys
+                             if key in logged.message.keys())
+            self.assertEqual(expected_message_keys, key_subset)
