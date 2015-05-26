@@ -319,12 +319,12 @@ Release
 
    Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
-   .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
-             Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
+   .. note:: We force a build on the tag as well as the branch because the packages built before pushing the tag won't have the right version.
+             Also, the package upload script currently expects the packages to be built from the tag, rather than the branch.
 
    Wait for the build to complete successfully.
 
-#. Build Python and RPM packages and upload them to Amazon S3,
+#. Build packages and upload them to Amazon S3,
    and copy the tutorial box to the final location:
 
    .. prompt:: bash [vagrant@localhost]$
