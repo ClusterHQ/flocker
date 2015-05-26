@@ -1,8 +1,8 @@
 :tocdepth: 2
 
-====================================
-Flocker In-Depth Tutorial & Examples
-====================================
+=============
+Using Flocker
+=============
 
 Flocker is a lightweight volume and container manager.
 It lets you:
@@ -18,6 +18,7 @@ This Getting Started guide will walk you step-by-step through installing Flocker
    :maxdepth: 2
 
    installing/index
+   security
    tutorial/index
    examples/apps
    examples/features
