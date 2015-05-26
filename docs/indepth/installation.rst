@@ -468,7 +468,8 @@ To enable the Flocker agent service
 
 To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
 This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
-The optional ``port`` variable is the port on the control node to connect to:
+The optional ``port`` variable is the port on the control node to connect to.
+The ZFS ``pool`` variable should match the pool name created in the ZFS section.
 
 .. code-block:: yaml
 
@@ -479,6 +480,9 @@ The optional ``port`` variable is the port on the control node to connect to:
    "dataset":
       "backend": "zfs"
       "pool": "flocker"
+
+.. The following is put in to demonstrate how to format alternative backends.
+   Once OpenStack or EBS is added, the loopback device can be removed, as it is only for testing.
 
 For a ``loopback`` device, change the ``dataset`` clause to:
 
@@ -510,7 +514,7 @@ What to do next
 You have now installed ``clusterhq-flocker-node`` and created a ZFS pool for it.
 
 Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>`, to ensure that your nodes are correctly configured.
-Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
+Replace the IP addresses in the ``deployment.yml`` files with the IP addresses of your own nodes.
 Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
 
 
