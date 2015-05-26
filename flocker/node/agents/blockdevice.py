@@ -1558,6 +1558,9 @@ class BlockDeviceDeployer(PRecord):
                     volume
                 )
             elif volume.attached_to is None:
+                # XXX: Looks like we don't attempt to report the size
+                # of non-manifest datasets.
+                # Why not? The size is available from the volume.
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         system_mounts = self._get_system_mounts(volumes, compute_instance_id)
@@ -1587,6 +1590,12 @@ class BlockDeviceDeployer(PRecord):
                 del manifestations[dataset_id]
                 # FLOC-1806 Populate the Dataset's size information from the
                 # volume object.
+                # XXX: Here again, it we mark the dataset as
+                # `nonmanifest`` unless it's actually mounted but we
+                # don't attempt to report the size.
+                # Why not? The size is available from the volume.
+                # It seems like state reporting bug and separate from
+                # (although blocking) FLOC-1806.
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         state = (
