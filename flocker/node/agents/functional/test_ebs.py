@@ -15,7 +15,8 @@ from twisted.trial.unittest import SkipTest
 from eliot.testing import LoggedMessage, capture_logging
 
 from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL,
-                   BOTO_EC2RESPONSE_ERROR, UnattachedVolume)
+                   BOTO_EC2RESPONSE_ERROR, UnattachedVolume,
+                   CODE, MESSAGE, REQUEST_ID)
 from ....testtools import skip_except
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
@@ -163,7 +164,7 @@ class EBSBlockDeviceAPIInterfaceTests(
 
         # Validate decorated method for exception logging
         # actually logged to ``Eliot`` logger.
-        expected_message_keys = {u"code", u"message", u"request_id"}
+        expected_message_keys = {CODE.key, MESSAGE.key, REQUEST_ID.key}
         for logged in LoggedMessage.of_type(logger.messages,
                                             BOTO_EC2RESPONSE_ERROR,):
             key_subset = set(key for key in expected_message_keys

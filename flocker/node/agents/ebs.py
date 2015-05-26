@@ -45,20 +45,17 @@ BOTO_DEBUG_LEVEL = u'1'
 
 # Begin: Scaffolding for logging Boto client and server exceptions
 # via Eliot.
-CODE = Field.for_types("code", [int], u"The HTTP response code.")
+CODE = Field.for_types(
+    "code", [bytes, unicode],
+    u"The error response code.")
 MESSAGE = Field.for_types(
     "message", [bytes, unicode],
     u"A human-readable error message given by the response.",
 )
-DETAILS = Field.for_types("details", [dict], u"Extra details about the error.")
 REQUEST_ID = Field.for_types(
     "request_id", [bytes, unicode],
     u"The unique identifier assigned by the server for this request.",
 )
-URL = Field.for_types("url", [bytes, unicode], u"The request URL.")
-METHOD = Field.for_types("method", [bytes, unicode], u"The request method.")
-
-RESPONSE = Field.for_types("response", [bytes, unicode], u"The response body.")
 
 # Log boto.exception.BotoEC2ResponseError, covering all errors from AWS:
 # server operation rate limit exceeded, invalid server request parameters, etc.
