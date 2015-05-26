@@ -752,6 +752,9 @@ def allocated_size(allocation_unit, requested_size):
     :param int requested_size: The size in ``bytes`` that is required.
     :return: The ``allocated_size`` in ``bytes``.
     """
+    allocation_unit = int(allocation_unit)
+    requested_size = int(requested_size)
+
     previous_interval_size = (
         (requested_size // allocation_unit)
         * allocation_unit

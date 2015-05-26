@@ -3382,6 +3382,64 @@ class ResizeFilesystemTests(
         self._resize_test(0.5)
 
 
+class AllocatedSizeTypeTests(SynchronousTestCase):
+    """
+    Tests for type coercion of parameters supplied to
+    ``allocated_size``.
+    """
+    def test_allocation_unit_bytes(self):
+        """
+        ``allocated_size`` returns ``int`` if the supplied
+        ``allocation_unit`` is of type ``bytes``.
+        """
+        self.assertIsInstance(
+            allocated_size(
+                allocation_unit=b"10",
+                requested_size=1
+            ),
+            int,
+        )
+
+    def test_allocation_unit_float(self):
+        """
+        ``allocated_size`` returns ``int`` if the supplied
+        ``allocation_unit`` is of type ``float``.
+        """
+        self.assertIsInstance(
+            allocated_size(
+                allocation_unit=10.0,
+                requested_size=1
+            ),
+            int,
+        )
+
+    def test_requested_size_bytes(self):
+        """
+        ``allocated_size`` returns ``int`` if the supplied
+        ``requested_size`` is of type ``bytes``.
+        """
+        self.assertIsInstance(
+            allocated_size(
+                allocation_unit=10,
+                requested_size=b"1",
+            ),
+            int,
+        )
+
+    def test_requested_size_float(self):
+        """
+        ``allocated_size`` raises ``TypeError`` if the supplied
+        ``requested_size`` is of type ``float``.
+        """
+        self.assertIsInstance(
+            allocated_size(
+                allocation_unit=10,
+                requested_size=1.0,
+            ),
+            int,
+        )
+
+
 class AllocatedSizeTestsMixin(object):
     """
     Tests for ``allocated_size``.
