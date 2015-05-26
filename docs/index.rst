@@ -19,5 +19,4 @@ Contents:
    using/index
    releasenotes/index
    faq/index
-   roadmap/index
    gettinginvolved/index
