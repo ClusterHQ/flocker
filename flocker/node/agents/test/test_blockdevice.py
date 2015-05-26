@@ -1125,7 +1125,6 @@ class BlockDeviceDeployerDetachCalculateChangesTests(
         )
 
 
-# FLOC-1874 - Skip or remove all these tests.
 class BlockDeviceDeployerResizeCalculateChangesTests(
         SynchronousTestCase, ScenarioMixin
 ):
@@ -2910,8 +2909,6 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         )
 
         self.assertEqual(expected_volume, volume)
-
-    # FLOC-1874 A test like test_run_create that requires rounding to happen.
 
     def test_run_create_round_up(self):
         """
