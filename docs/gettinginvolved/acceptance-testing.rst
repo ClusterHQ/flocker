@@ -24,9 +24,9 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    Specifies what provider to use to create the nodes.
 
-.. option:: --variant <variant>
+.. option:: --dataset-backend <dataset-backend>
 
-   Specify a variant of the provisioning to run.
+   Specifies what dataset backend to use for the cluster.
 
 .. option:: --flocker-version <version>
 

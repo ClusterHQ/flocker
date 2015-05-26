@@ -33,7 +33,7 @@ from keystoneclient.session import Session
 from cinderclient.client import Client as CinderClient
 from novaclient.client import Client as NovaClient
 
-from ..cinder import CinderBlockDeviceAPI
+from ..cinder import cinder_api
 from ..ebs import EBSBlockDeviceAPI, ec2_client
 from ..test.test_blockdevice import detach_destroy_volumes
 
@@ -169,8 +169,7 @@ def _openstack(**config):
         necessary to authenticate a session for use with the CinderClient and
         NovaClient.
 
-    :return: A ``dict`` giving initializer arguments for
-        ``CinderBlockDeviceAPI``.
+    :return: A ``dict`` of keyword arguments for ``cinder_api``.
     """
     # The execution context should have set up this environment variable,
     # probably by inspecting some cloud-y state to discover where this code is
@@ -179,7 +178,9 @@ def _openstack(**config):
     # case) instead of forcing me to figure out how to upper case things in
     # bash (I already learned a piece of shell syntax today, once is all I can
     # take).
-    region = environ['FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION'].upper()
+    region = environ.get('FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION')
+    if region is not None:
+        region = region.upper()
     auth = _openstack_auth_from_config(**config)
     session = Session(auth=auth)
     cinder_client = CinderClient(
@@ -189,8 +190,8 @@ def _openstack(**config):
         session=session, region_name=region, version=2
     )
     return dict(
-        cinder_volume_manager=cinder_client.volumes,
-        nova_volume_manager=nova_client.volumes,
+        cinder_client=cinder_client,
+        nova_client=nova_client
     )
 
 
@@ -220,9 +221,9 @@ def _aws(**config):
 # Map provider labels to IBlockDeviceAPI factory and a corresponding argument
 # factory.
 _BLOCKDEVICE_TYPES = {
-    ProviderType.openstack: (CinderBlockDeviceAPI, _openstack),
+    ProviderType.openstack: (cinder_api, _openstack),
     ProviderType.rackspace:
-        (CinderBlockDeviceAPI, partial(_openstack, auth_plugin="rackspace")),
+        (cinder_api, partial(_openstack, auth_plugin="rackspace")),
     ProviderType.aws: (EBSBlockDeviceAPI, _aws),
 }
 
@@ -245,11 +246,20 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
     :param provider: A provider type the ``IBlockDeviceAPI`` is to be
         compatible with.  A value from ``ProviderType``.
 
-    :raises: ``SkipTest`` if a ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
-        was not set and the default config file could not be read.
+    :raises: ``SkipTest`` if either:
+        1) A ``FLOCKER_FUNCTIONAL_TEST_CLOUD_CONFIG_FILE``
+        was not set and the default config file could not be read, or,
+        2) ``FLOCKER_FUNCTIONAL_TEST`` environment variable was unset.
 
     :return: The new ``IBlockDeviceAPI`` provider.
     """
+    flocker_functional_test = environ.get('FLOCKER_FUNCTIONAL_TEST')
+    if flocker_functional_test is None:
+        raise SkipTest(
+            'Please set FLOCKER_FUNCTIONAL_TEST environment variable to '
+            'run storage backend functional tests.'
+        )
+
     try:
         api = get_blockdeviceapi(provider)
     except InvalidConfig as e:
