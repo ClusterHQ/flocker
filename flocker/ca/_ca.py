@@ -520,7 +520,7 @@ class ControlCredential(PRecord):
         """
         # The common name for the control service certificate.  This is
         # used to distinguish between control service and node
-        # certificates. In practice it gets overriden for validation
+        # certificates. In practice it gets overridden for validation
         # purposes by the subjectAltName, so we add record there too.
         name = b"control-service"
         # The organizational unit is set to the organizational_unit of the
