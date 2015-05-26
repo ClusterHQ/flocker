@@ -163,12 +163,12 @@ def boto_logger(*args, **kwargs):
 @boto_logger("connection")
 class _LoggedBotoConnection(PRecord):
     """
-    Wrapper `PRecord` around `boto.ec2.connection.EC2Connection` to
-    facilitate logging of exceptions from Boto APIs.
+    Wrapper ``PRecord`` around ``boto.ec2.connection.EC2Connection``
+    to facilitate logging of exceptions from Boto APIs.
 
     :ivar boto.ec2.connection.EC2Connection connection: Object
         representing connection to an EC2 instance with logged
-        `BotoClientError` and `BotoServerError` exceptions.
+        ``EC2ConnectionError``.
     """
     connection = field(mandatory=True)
 
