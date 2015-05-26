@@ -17,7 +17,7 @@ AWS_ACTION = ActionType(
     u"flocker:node:agents:blockdevice:aws",
     [OPERATION],
     [],
-    u"An IBlockDeviceAPI command is executing against EBS.")
+    u"An IBlockDeviceAPI command is executing using AWS storage driver.")
 
 # Three fields to gather from EC2 response to Boto.
 AWS_CODE = Field.for_types(
