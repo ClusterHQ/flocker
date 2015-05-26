@@ -98,6 +98,9 @@ class InstallFlockerTests(SynchronousTestCase):
             run(command="add-apt-repository -y 'deb {} /'".format(CLUSTERHQ_REPO[distribution])),  # noqa
             run(command="add-apt-repository -y "
                         "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
+            put(
+                content='Package:  *\nPin: origin build.clusterhq.com\nPin-Priority: 900\n',  # noqa
+                path='/etc/apt/preferences.d/buildbot-900'),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
