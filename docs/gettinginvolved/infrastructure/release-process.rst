@@ -354,8 +354,6 @@ Release
    Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
    after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch:
 
-   XXX This process should be automated, see :issue:`1309`.
-
    .. prompt:: bash $
 
       git checkout release/flocker-${VERSION}
