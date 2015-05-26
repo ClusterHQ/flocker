@@ -20,11 +20,13 @@ from boto.ec2.connection import EC2Connection
 from boto.utils import get_instance_metadata
 from boto.exception import EC2ResponseError
 from twisted.python.filepath import FilePath
-from eliot import Field, MessageType
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
     UnattachedVolume, get_blockdevice_volume
+)
+from ._logging import (
+    AWS_ACTION, BOTO_EC2RESPONSE_ERROR
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -42,31 +44,6 @@ BOTO_NUM_RETRIES = u'10'
 # https://clusterhq.atlassian.net/browse/FLOC-1962
 # to track evaluation of impact of log level change.
 BOTO_DEBUG_LEVEL = u'1'
-
-# Begin: Scaffolding for logging Boto client and server exceptions
-# via Eliot.
-CODE = Field.for_types(
-    "code", [bytes, unicode],
-    u"The error response code.")
-MESSAGE = Field.for_types(
-    "message", [bytes, unicode],
-    u"A human-readable error message given by the response.",
-)
-REQUEST_ID = Field.for_types(
-    "request_id", [bytes, unicode],
-    u"The unique identifier assigned by the server for this request.",
-)
-
-# Log boto.exception.BotoEC2ResponseError, covering all errors from AWS:
-# server operation rate limit exceeded, invalid server request parameters, etc.
-BOTO_EC2RESPONSE_ERROR = MessageType(
-    u"boto:boto_ec2response_error", [
-        CODE,
-        MESSAGE,
-        REQUEST_ID,
-    ],
-)
-# End: Scaffolding for logging Boto errors.
 
 
 def ec2_client(region, zone, access_key_id, secret_access_key):
@@ -128,15 +105,16 @@ def _boto_logged_method(method_name, original_name):
         """
         original = getattr(self, original_name)
         method = getattr(original, method_name)
-        try:
-            return method(*args, **kwargs)
-        except EC2ResponseError as e:
-            BOTO_EC2RESPONSE_ERROR(
-                code=e.code,
-                message=e.message,
-                request_id=e.request_id,
-            ).write()
-            raise
+        with AWS_ACTION(operation=[method_name, args, kwargs]):
+            try:
+                return method(*args, **kwargs)
+            except EC2ResponseError as e:
+                BOTO_EC2RESPONSE_ERROR(
+                    code=e.code,
+                    message=e.message,
+                    request_id=e.request_id,
+                ).write()
+                raise
     return _run_with_logging
 
 
