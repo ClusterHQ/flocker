@@ -1421,7 +1421,7 @@ class IBlockDeviceAPITestsMixin(object):
             attach_to=self.this_node,
         )
 
-    def test_size_divisible_by_allocation_unit(self):
+    def test_realistic_size_divisible_by_allocation_unit(self):
         """
         Validate that block devices created by the API, allocate size
         in intervals of ``allocation_unit`` when the requested size is
