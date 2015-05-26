@@ -182,6 +182,7 @@ def _openstack(**config):
     # case) instead of forcing me to figure out how to upper case things in
     # bash (I already learned a piece of shell syntax today, once is all I can
     # take).
+    # FLOC-1925 Region will come from the supplied config dict instead.
     region = environ['FLOCKER_FUNCTIONAL_TEST_OPENSTACK_REGION'].upper()
     auth = _openstack_auth_from_config(**config)
     session = Session(auth=auth)
