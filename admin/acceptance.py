@@ -443,6 +443,7 @@ def eliot_output(message):
 def capture_journal(reactor, host):
     run(reactor, [
         "ssh",
+        b"-C",  # compress traffic
         b"-q",  # suppress warnings
         b"-l", 'root',
         # We're ok with unknown hosts; we'll be switching away from
@@ -465,8 +466,12 @@ def capture_journal(reactor, host):
         ' '.join(map(shell_quote, [
             'journalctl',
             '--lines', '0',
-            '--output', 'json',
             '--follow',
+            # Only bother with units we care about:
+            '-u', 'docker',
+            '-u', 'flocker-control',
+            '-u', 'flocker-dataset-agent',
+            '-u', 'flocker-container-agent',
         ])),
     ])
 
