@@ -393,6 +393,10 @@ class DeployerType(Names):
     block = NamedConstant()
 
 
+def cinder_from_configuration():
+    pass
+
+
 class BackendDescription(PRecord):
     """
     Represent one kind of storage backend we might be able to use.
@@ -440,12 +444,12 @@ _DEFAULT_BACKENDS = [
         api_factory=LoopbackBlockDeviceAPI.from_path,
         deployer_type=DeployerType.block,
     ),
-
-    # BackendDescription(
-    #     name=u"openstack", needs_reactor=False, needs_cluster_id=True,
-    #     factory=cinder_from_configuration,
-    #     deployer_type=DeployerType.block,
-    # ),
+    # FLOC-1925
+    BackendDescription(
+        name=u"openstack", needs_reactor=False, needs_cluster_id=True,
+        factory=cinder_from_configuration,
+        deployer_type=DeployerType.block,
+    ),
 ]
 
 _DEFAULT_DEPLOYERS = {
