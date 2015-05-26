@@ -4,9 +4,7 @@ Run the acceptance tests.
 """
 
 import sys
-import os
 import yaml
-from tempfile import mkdtemp
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
@@ -16,38 +14,19 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks, returnValue
 
-from admin.vagrant import vagrant_version
 from flocker.common.version import make_rpm_version
-from flocker.provision import PackageSource, Variants, CLOUD_PROVIDERS
+from flocker.provision import PackageSource, CLOUD_PROVIDERS
 import flocker
 from flocker.provision._ssh import (
     run_remotely)
 from flocker.provision._install import (
-    task_pull_docker_images,
-    configure_cluster,
-    configure_zfs,
+    task_client_installation_test,
+    install_cli,
 )
-from flocker.provision._libcloud import INode
-from flocker.provision._ca import Certificates
-from effect import parallel
 from effect.twisted import perform
 from flocker.provision._ssh._conch import make_dispatcher
-from flocker.acceptance.testtools import VolumeBackend
 
 from .runner import run
-
-
-def extend_environ(**kwargs):
-    """
-    Return a copy of ``os.environ`` with some additional environment variables
-        added.
-
-    :param **kwargs: The enviroment variables to add.
-    :return dict: The new environment.
-    """
-    env = os.environ.copy()
-    env.update(kwargs)
-    return env
 
 
 def remove_known_host(reactor, hostname):
@@ -61,29 +40,14 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def run_tests(reactor, nodes, control_node, agent_nodes, volume_backend,
-              trial_args, certificates_path):
+def run_client_tests(reactor, node):
     """
-    Run the acceptance tests.
+    Run the client acceptance tests.
 
-    :param list nodes: The list of INode nodes to run the acceptance
-        tests against.
-    :param INode control_node: The control node to run API acceptance
-        tests against.
-    :param list agent_nodes: The list of INode nodes running flocker
-        agent, to run API acceptance tests against.
-    :param VolumeBackend volume_backend: The volume backend the nodes are
-        configured with.
-    :param list trial_args: Arguments to pass to trial. If not
-        provided, defaults to ``['flocker.acceptance']``.
-    :param FilePath certificates_path: Directory where certificates can be
-        found; specifically the directory used by ``Certificates``.
+    :param INode node: The node to run client acceptance tests against.
 
     :return int: The exit-code of trial.
     """
-    if not trial_args:
-        trial_args = ['--rterrors', 'flocker.acceptance']
-
     def check_result(f):
         f.trap(ProcessTerminated)
         if f.value.exitCode is not None:
@@ -91,16 +55,10 @@ def run_tests(reactor, nodes, control_node, agent_nodes, volume_backend,
         else:
             return f
 
-    return run(
-        reactor,
-        ['trial'] + list(trial_args),
-        env=extend_environ(
-            FLOCKER_ACCEPTANCE_NODES=':'.join(node.address for node in nodes),
-            FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node.address,
-            FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
-                node.address for node in agent_nodes),
-            FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH=certificates_path.path,
-            FLOCKER_ACCEPTANCE_VOLUME_BACKEND=volume_backend.name,
+    return perform(make_dispatcher(reactor), run_remotely(
+        username=node.get_default_username(),
+        address=node.address,
+        commands=task_client_installation_test()
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -132,82 +90,13 @@ class INodeRunner(Interface):
 
 
 RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'package_source', 'variants'
+    'distribution', 'top_level', 'config', 'package_source'
 ]
 
 
-@implementer(INode)
-@attributes(['address', 'distribution'], apply_immutable=True)
-class VagrantNode(object):
-    """
-    Node run using VagrantRunner
-    """
-
-
 @implementer(INodeRunner)
-@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
-class VagrantRunner(object):
-    """
-    Start and stop vagrant nodes for acceptance testing.
-
-    :cvar list NODE_ADDRESSES: List of address of vagrant nodes created.
-    """
-    # TODO: This should acquire the vagrant image automatically,
-    # rather than assuming it is available.
-    # https://clusterhq.atlassian.net/browse/FLOC-1163
-
-    NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
-
-    def __init__(self):
-        self.vagrant_path = self.top_level.descendant([
-            'admin', 'vagrant-acceptance-targets', self.distribution,
-        ])
-        if not self.vagrant_path.exists():
-            raise UsageError("Distribution not found: %s."
-                             % (self.distribution,))
-
-        if self.variants:
-            raise UsageError("Variants unsupported on vagrant.")
-
-    @inlineCallbacks
-    def start_nodes(self, reactor):
-        # Destroy the box to begin, so that we are guaranteed
-        # a clean build.
-        yield run(
-            reactor,
-            ['vagrant', 'destroy', '-f'],
-            path=self.vagrant_path.path)
-
-        if self.package_source.version:
-            env = extend_environ(
-                FLOCKER_BOX_VERSION=vagrant_version(
-                    self.package_source.version))
-        else:
-            env = os.environ
-        # Boot the VMs
-        yield run(
-            reactor,
-            ['vagrant', 'up'],
-            path=self.vagrant_path.path,
-            env=env)
-
-        for node in self.NODE_ADDRESSES:
-            yield remove_known_host(reactor, node)
-        returnValue([
-            VagrantNode(address=address, distribution=self.distribution)
-            for address in self.NODE_ADDRESSES
-            ])
-
-    def stop_nodes(self, reactor):
-        return run(
-            reactor,
-            ['vagrant', 'destroy', '-f'],
-            path=self.vagrant_path.path)
-
-
 @attributes(RUNNER_ATTRIBUTES + [
     'provisioner',
-    'volume_backend',
 ], apply_immutable=True)
 class LibcloudRunner(object):
     """
@@ -234,21 +123,21 @@ class LibcloudRunner(object):
         self.creator = creator
 
     @inlineCallbacks
-    def start_nodes(self, reactor):
+    def start_nodes(self, reactor, node_count):
         """
-        Provision cloud nodes for acceptance tests.
+        Start cloud nodes for client tests.
 
-        :return list: List of addresses of nodes to connect to, for acceptance
+        :return list: List of addresses of nodes to connect to, for client
             tests.
         """
         metadata = {
-            'purpose': 'acceptance-testing',
+            'purpose': 'client-testing',
             'distribution': self.distribution,
         }
         metadata.update(self.metadata)
 
-        for index in range(2):
-            name = "acceptance-test-%s-%d" % (self.creator, index)
+        for index in range(node_count):
+            name = "client-test-%s-%d" % (self.creator, index)
             try:
                 print "Creating node %d: %s" % (index, name)
                 node = self.provisioner.create_node(
@@ -265,19 +154,6 @@ class LibcloudRunner(object):
             self.nodes.append(node)
             del node
 
-        commands = parallel([
-            node.provision(package_source=self.package_source,
-                           variants=self.variants)
-            for node in self.nodes
-        ])
-        if self.volume_backend == VolumeBackend.zfs:
-            zfs_commands = parallel([
-                configure_zfs(node, variants=self.variants)
-                for node in self.nodes
-            ])
-            commands = commands.on(success=lambda _: zfs_commands)
-        yield perform(make_dispatcher(reactor), commands)
-
         returnValue(self.nodes)
 
     def stop_nodes(self, reactor):
@@ -293,17 +169,17 @@ class LibcloudRunner(object):
 
 
 DISTRIBUTIONS = ('centos-7', 'fedora-20', 'ubuntu-14.04')
-PROVIDERS = tuple(sorted(['vagrant'] + CLOUD_PROVIDERS.keys()))
+PROVIDERS = tuple(sorted(CLOUD_PROVIDERS.keys()))
 
 
 class RunOptions(Options):
-    description = "Run the acceptance tests."
+    description = "Run the client tests."
 
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
          'One of {}.'.format(', '.join(DISTRIBUTIONS))],
-        ['provider', None, 'vagrant',
+        ['provider', None, 'rackspace',
          'The target provider to test against. '
          'One of {}.'.format(', '.join(PROVIDERS))],
         ['config-file', None, None,
@@ -321,8 +197,8 @@ class RunOptions(Options):
         ["keep", "k", "Keep VMs around, if the tests fail."],
     ]
 
-    synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
-                '[--provider <provider>] [<test-cases>]')
+    synopsis = ('Usage: run-client-tests --distribution <distribution> '
+                '[--provider <provider>]')
 
     def __init__(self, top_level):
         """
@@ -330,19 +206,6 @@ class RunOptions(Options):
         """
         Options.__init__(self)
         self.top_level = top_level
-        self['variants'] = []
-        self['volume-backend'] = VolumeBackend.zfs
-
-    def opt_variant(self, arg):
-        """
-        Specify a variant of the provisioning to run.
-
-        Supported variants: distro-testing, docker-head, zfs-testing.
-        """
-        self['variants'].append(Variants.lookupByValue(arg))
-
-    def parseArgs(self, *trial_args):
-        self['trial-args'] = trial_args
 
     def postOptions(self):
         if self['distribution'] is None:
@@ -392,16 +255,6 @@ class RunOptions(Options):
                 distribution=self['distribution'],
                 package_source=package_source,
                 provisioner=provisioner,
-                volume_backend=self['volume-backend'],
-                variants=self['variants'],
-            )
-        else:
-            self.runner = VagrantRunner(
-                config=self['config'],
-                top_level=self.top_level,
-                distribution=self['distribution'],
-                package_source=package_source,
-                variants=self['variants'],
             )
 
 MESSAGE_FORMATS = {
@@ -445,34 +298,11 @@ def main(reactor, args, base_path, top_level):
     runner = options.runner
 
     try:
-        nodes = yield runner.start_nodes(reactor)
-
-        ca_directory = FilePath(mkdtemp())
-        print("Generating certificates in: {}".format(ca_directory.path))
-        certificates = Certificates.generate(ca_directory, nodes[0].address,
-                                             len(nodes))
-
+        nodes = yield runner.start_nodes(reactor, node_count=1)
         yield perform(
             make_dispatcher(reactor),
-            parallel([
-                run_remotely(
-                    username='root',
-                    address=node.address,
-                    commands=task_pull_docker_images()
-                ) for node in nodes
-            ]),
-        )
-        yield perform(
-            make_dispatcher(reactor),
-            configure_cluster(control_node=nodes[0], agent_nodes=nodes,
-                              certificates=certificates))
-        result = yield run_tests(
-            reactor=reactor,
-            nodes=nodes,
-            control_node=nodes[0], agent_nodes=nodes,
-            volume_backend=options['volume-backend'],
-            trial_args=options['trial-args'],
-            certificates_path=ca_directory)
+            install_cli(runner.package_source, nodes[0]))
+        result = yield run_client_tests(reactor=reactor, node=nodes[0])
     except:
         result = 1
         raise
