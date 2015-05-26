@@ -45,8 +45,10 @@ CLUSTERHQ_REPO = {
                     ),
     # FLOC-1828 TODO - use ARCHIVE_BUCKET rather than clusterhq-archive-testing
     # This needs a release to be done to add .deb files to clusterhq-archive
-    'ubuntu-14.04': 'https://clusterhq-archive-testing.s3.amazonaws.com/'
-                'ubuntu/14.04/$(ARCH)',
+    'ubuntu-14.04': 'https://clusterhq-archive.s3.amazonaws.com/'
+                'ubuntu-testing/14.04/$(ARCH)'.format(
+                    archive_bucket=ARCHIVE_BUCKET
+                    ),
 }
 
 
