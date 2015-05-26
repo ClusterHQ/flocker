@@ -394,19 +394,33 @@ class DeployerType(Names):
 
 
 from flocker.node.agents.cinder import cinder_api
+from flocker.node.agents.test.blockdevicefactory import (
+    _openstack_auth_from_config
+)
+from keystoneclient.session import Session
+from cinderclient.client import Client as CinderClient
+from novaclient.client import Client as NovaClient
 
 
-def cinder_from_configuration(cluster_id):
+def cinder_from_configuration(**config):
     """
     :param UUID cluster_id:
     """
-    return cinder_api(
-        cinder_client=object(),
-        nova_client=object(),
-        cluster_id=cinder_api
+    region = config.pop('region')
+    auth = _openstack_auth_from_config(**config)
+    session = Session(auth=auth)
+    cinder_client = CinderClient(
+        session=session, region_name=region, version=1
+    )
+    nova_client = NovaClient(
+        session=session, region_name=region, version=2
     )
 
-
+    return cinder_api(
+        cinder_client=cinder_client,
+        nova_client=nova_client,
+        cluster_id=cinder_api
+    )
 
 
 class BackendDescription(PRecord):

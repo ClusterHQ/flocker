@@ -3,5 +3,9 @@ control-service:
     port: 4524
 dataset:
     backend: "openstack"
-
+    region: "LON"
+    auth_plugin: "rackspace"
+    username: "joe.bloggs.rackspace"
+    api_key: "aaa-bbb-ccc-ddd"
+    auth_url: "https://identity.api.rackspacecloud.com/v2.0"
 version: 1
