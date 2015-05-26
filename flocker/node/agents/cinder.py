@@ -251,17 +251,14 @@ class CinderBlockDeviceAPI(object):
 
     def allocation_unit(self):
         """
-        Return a 1GiB fixed allocation_unit for now; one which should
-        work on all currently supported and soon-to-be supported
-        platforms.
-
-        This is the minimum allocation unit described by the OpenStack
+        1GiB is the minimum allocation unit described by the OpenStack
         Cinder API documentation.
          * http://developer.openstack.org/api-ref-blockstorage-v2.html#createVolume # noqa
 
-        XXX: This should be loaded from configuration because
-        different Cinder configurations have different
-        constraints...except that would violate the API, so not sure.
+        Some Cinder storage drivers may actually allocate more than
+        this, but as long as the requested size is a multiple of this
+        unit, the Cinder API will always report the size that was
+        requested.
         """
         return int(GiB(1).to_Byte().value)
 
