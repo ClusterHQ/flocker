@@ -2103,6 +2103,19 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             (size.actual, size.reported)
         )
 
+    def test_create_with_non_allocation_unit(self):
+        """
+        ``create_volume`` raises ``ValueError`` unless the supplied
+        ``size`` is a multiple of
+        ``IBlockDeviceAPI.allocated_unit()``.
+        """
+        self.assertRaises(
+            ValueError,
+            self.api.create_volume,
+            dataset_id=uuid4(),
+            size=self.api.allocation_unit() + 1,
+        )
+
     def test_resize_grow_sparse(self):
         """
         ``resize_volume`` extends backing files sparsely.
