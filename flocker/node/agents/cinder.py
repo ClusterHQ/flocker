@@ -27,7 +27,7 @@ from ...common import (
 )
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume, allocated_size,
+    UnattachedVolume, get_blockdevice_volume,
 )
 
 # The key name used for identifying the Flocker cluster_id in the metadata for
@@ -296,9 +296,8 @@ class CinderBlockDeviceAPI(object):
         }
         action_type = u"blockdevice:cinder:create_volume"
         with start_action(action_type=action_type):
-            allocated_bytes = allocated_size(self.allocation_unit(), size)
             requested_volume = self.cinder_volume_manager.create(
-                size=int(Byte(allocated_bytes).to_GiB().value),
+                size=int(Byte(size).to_GiB().value),
                 metadata=metadata,
             )
             Message.new(blockdevice_id=requested_volume.id).write()
