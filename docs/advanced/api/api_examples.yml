@@ -58,7 +58,7 @@
     POST /v1/configuration/datasets HTTP/1.1
 
     {"primary": "%(NODE_0)s"}
-
+    # FLOC-1956 Add maximum_size here and elsewhere in the examples.
   response: |
     HTTP/1.1 201 Created
 
@@ -108,24 +108,6 @@
     HTTP/1.1 409 Conflict
 
     {"description": "Specified dataset_id already associated with a dataset."}
-
--
-  id:
-    "create dataset with maximum_size"
-
-  doc: |
-    Create a new dataset that has an upper bound on the amount of data it will
-    store.
-
-  request: |
-    POST /v1/configuration/datasets HTTP/1.1
-
-    {"primary": "%(NODE_0)s", "maximum_size": 1073741824}
-
-  response: |
-    HTTP/1.1 201 Created
-
-    {"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}, "deleted": false}
 
 -
   id:
