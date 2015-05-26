@@ -8,7 +8,7 @@ We rely on Twisted's ``CertificateOptions`` to provide certain defaults,
 e.g. TLS only (no SSL).
 """
 
-from OpenSSL.SSL import VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT, OP_ALL
+from OpenSSL.SSL import VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT
 
 from zope.interface import implementer
 
