@@ -348,7 +348,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         unmounted = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.api.allocation_unit(),
         )
         self.api.attach_volume(
             unmounted.blockdevice_id,
@@ -374,7 +374,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         """
         unexpected = self.api.create_volume(
             dataset_id=uuid4(),
-            size=LOOPBACK_BLOCKDEVICE_SIZE,
+            size=self.api.allocation_unit(),
         )
 
         self.api.attach_volume(
@@ -444,7 +444,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         and the volume's filesystem is mounted in the right place.
         """
         dataset_id = uuid4()
-        requested_size = REALISTIC_BLOCKDEVICE_SIZE
+        requested_size = self.api.allocation_unit()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
             size=requested_size,
@@ -482,7 +482,7 @@ class BlockDeviceDeployerDiscoverStateTests(SynchronousTestCase):
         dataset_id = uuid4()
         new_volume = self.api.create_volume(
             dataset_id=dataset_id,
-            size=REALISTIC_BLOCKDEVICE_SIZE
+            size=self.api.allocation_unit()
         )
         self.api.attach_volume(
             new_volume.blockdevice_id,
@@ -738,7 +738,7 @@ class BlockDeviceDeployerDestructionCalculateChangesTests(
 
         api = loopbackblockdeviceapi_for_test(self)
         volume = api.create_volume(
-            dataset_id=self.DATASET_ID, size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=self.DATASET_ID, size=api.allocation_unit()
         )
         api.attach_volume(volume.blockdevice_id, self.NODE)
 
@@ -3187,7 +3187,7 @@ class AttachVolumeTests(
         deployer = create_blockdevicedeployer(self, hostname=host)
         api = deployer.block_device_api
         volume = api.create_volume(
-            dataset_id=dataset_id, size=REALISTIC_BLOCKDEVICE_SIZE,
+            dataset_id=dataset_id, size=api.allocation_unit()
         )
         change = AttachVolume(dataset_id=dataset_id)
         self.successResultOf(run_state_change(change, deployer))
