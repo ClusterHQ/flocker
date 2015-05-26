@@ -19,6 +19,8 @@ This Getting Started guide will walk you step-by-step through installing Flocker
 
    installing/index
    security
+   config/index
+   administering/index
    tutorial/index
    examples/apps
    examples/features
