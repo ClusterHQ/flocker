@@ -422,6 +422,22 @@ def cinder_from_configuration(**config):
         cluster_id=cinder_api
     )
 
+from flocker.node.agents.ebs import EBSBlockDeviceAPI, ec2_client
+
+
+def aws_from_configuration(**config):
+    """
+    """
+    return EBSBlockDeviceAPI(
+        ec2_client=ec2_client(
+            region=config['region'],
+            zone=config['zone'],
+            access_key_id=config['access_key_id'],
+            secret_access_key=config['secret_access_key'],
+        ),
+        cluster_id=config['cluster_id']
+    )
+
 
 class BackendDescription(PRecord):
     """
@@ -474,6 +490,12 @@ _DEFAULT_BACKENDS = [
     BackendDescription(
         name=u"openstack", needs_reactor=False, needs_cluster_id=True,
         api_factory=cinder_from_configuration,
+        deployer_type=DeployerType.block,
+    ),
+    # FLOC-1925
+    BackendDescription(
+        name=u"aws", needs_reactor=False, needs_cluster_id=True,
+        api_factory=aws_from_configuration,
         deployer_type=DeployerType.block,
     ),
 ]

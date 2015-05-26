@@ -210,6 +210,7 @@ def _aws(**config):
     # We just get the credentials from the config file.
     # We ignore the region specified in acceptance test configuration,
     # and instead get the region from the zone of the host.
+    # FLOC-1925 Refactor this.
     zone = environ['FLOCKER_FUNCTIONAL_TEST_AWS_AVAILABILITY_ZONE']
     # The region is the zone, without the trailing [abc].
     region = zone[:-1]
@@ -224,6 +225,7 @@ def _aws(**config):
 
 # Map provider labels to IBlockDeviceAPI factory and a corresponding argument
 # factory.
+# FLOC-1925 Refactor this.
 _BLOCKDEVICE_TYPES = {
     ProviderType.openstack: (cinder_api, _openstack),
     ProviderType.rackspace:

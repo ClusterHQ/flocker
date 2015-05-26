@@ -1,0 +1,10 @@
+control-service:
+    hostname: 'localhost'
+    port: 4524
+dataset:
+    backend: "aws"
+    region: "us-west-1"
+    zone: "us-west-1a"
+    access_key_id: "foo"
+    secret_access_key: "bar"
+version: 1
