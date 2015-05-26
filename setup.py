@@ -105,7 +105,7 @@ install_requirements = [
     "docker-py == 0.7.1",
     "jsonschema == 2.4.0",
     "klein == 0.2.3",
-    "pyrsistent == 0.9.1",
+    "pyrsistent == 0.9.2",
     "pycrypto == 2.6.1",
     "effect==0.1a13",
     "bitmath==1.2.3-4",
