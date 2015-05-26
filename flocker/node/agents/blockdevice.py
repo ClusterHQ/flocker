@@ -917,10 +917,8 @@ class IBlockDeviceAPI(Interface):
     """
     def allocation_unit():
         """
-        The size in bytes up to which the requested block device size will be
-        rounded by the underlying storage layer.  (XXX Don't imply we'll
-        actually pass in sizes that need to be rounded; BlockDeviceDeployer
-        will do the rounding.)
+        The size, in bytes up to which ``IDeployer`` will round volume
+        sizes before calling ``IBlockDeviceAPI.create_volume``.
 
         :rtype: ``int``
         """
