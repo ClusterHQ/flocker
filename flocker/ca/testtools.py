@@ -95,9 +95,9 @@ class CredentialSet(PRecord):
         """
         self.path.child(b"cluster.crt").copyTo(directory.child(b"cluster.crt"))
         if control:
-            self.path.globChildren(b"control-*.crt")[0].copyTo(
+            self.path.child(b"control-127.0.0.1.crt").copyTo(
                 directory.child(b"control-service.crt"))
-            self.path.globChildren(b"control-*.key")[0].copyTo(
+            self.path.child(b"control-127.0.0.1.key").copyTo(
                 directory.child(b"control-service.key"))
         if user:
             self.path.child(b"allison.crt").copyTo(
