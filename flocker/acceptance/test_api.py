@@ -76,8 +76,7 @@ class ContainerAPITests(TestCase):
         d.addCallback(check_result)
         return d
 
-    @require_cluster(1)
-    def test_create_container_with_ports(self, cluster):
+    def test_create_container_with_ports(self):
         """
         Create a container including port mappings on a single-node cluster.
         """
@@ -96,13 +95,9 @@ class ContainerAPITests(TestCase):
             u"environment": {u"ACCEPTANCE_ENV_LABEL": 'acceptance test ok'},
             u'restart_policy': {u'name': u'never'},
         }
-        waiting_for_cluster = get_test_cluster(reactor, node_count=1)
 
-        def create_container(cluster, data):
-            data[u"node_uuid"] = cluster.nodes[0].uuid
-            return cluster.create_container(data)
-
-        d = waiting_for_cluster.addCallback(create_container, data)
+        data[u"node_uuid"] = cluster.nodes[0].uuid
+        d = cluster.create_container(data)
 
         def check_result((cluster, response)):
             self.addCleanup(cluster.remove_container, data[u"name"])
@@ -265,8 +260,7 @@ class ContainerAPITests(TestCase):
         creating_dataset.addCallback(created_dataset)
         return creating_dataset
 
-    @require_cluster(1)
-    def test_current(self, cluster):
+    def test_current(self):
         """
         The current container endpoint includes a currently running container.
         """
@@ -308,13 +302,6 @@ def create_dataset(test_case, cluster,
     }
 
     configuring_dataset = cluster.create_dataset(requested_dataset)
-
-    def got_result(result):
-        test_case.addCleanup(
-            cluster.delete_dataset, requested_dataset[u"dataset_id"])
-        return result
-
-    configuring_dataset.addCallback(got_result)
 
     # Wait for the dataset to be created
     waiting_for_create = configuring_dataset.addCallback(
