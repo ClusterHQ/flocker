@@ -1437,28 +1437,6 @@ class IBlockDeviceAPITestsMixin(object):
             expected_volume_size=requested_size
         )
 
-    def test_size_round_up(self):
-        """
-        Validate that block devices created by the API, allocate size
-        in intervals of ``allocation_unit`` when the requested size is
-        not divisible by the ``allocation_unit``.
-        """
-        expected_size = allocated_size(
-            self.api.allocation_unit(),
-            REALISTIC_BLOCKDEVICE_SIZE,
-        )
-
-        self._verify_volume_size(
-            # Request a realistically large size which is 1MiB less
-            # than the next interval. We use 1MiB because otherwise
-            # the ``losetup`` tools used by the
-            # ``LoopbackBlockDeviceAPI`` implementation complaint
-            # about backing file sizes that don't match block
-            # boundaries when over allocation is not in use).
-            requested_size=expected_size - int(MiB(1).to_Byte().value),
-            expected_volume_size=expected_size
-        )
-
     def test_attach_attached_volume(self):
         """
         An attempt to attach an already attached ``BlockDeviceVolume`` raises
