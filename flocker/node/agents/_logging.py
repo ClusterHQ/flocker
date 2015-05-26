@@ -16,14 +16,14 @@ AWS_ACTION = ActionType(
 # Begin: Scaffolding for logging Boto client and server exceptions
 # via Eliot.
 AWS_CODE = Field.for_types(
-    "code", [bytes, unicode],
+    "aws_code", [bytes, unicode],
     u"The error response code.")
 AWS_MESSAGE = Field.for_types(
-    "message", [bytes, unicode],
+    "aws_message", [bytes, unicode],
     u"A human-readable error message given by the response.",
 )
 AWS_REQUEST_ID = Field.for_types(
-    "request_id", [bytes, unicode],
+    "aws_request_id", [bytes, unicode],
     u"The unique identifier assigned by the server for this request.",
 )
 

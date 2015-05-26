@@ -110,9 +110,9 @@ def _boto_logged_method(method_name, original_name):
                 return method(*args, **kwargs)
             except EC2ResponseError as e:
                 BOTO_EC2RESPONSE_ERROR(
-                    code=e.code,
-                    message=e.message,
-                    request_id=e.request_id,
+                    aws_code=e.code,
+                    aws_message=e.message,
+                    aws_request_id=e.request_id,
                 ).write()
                 raise
     return _run_with_logging
