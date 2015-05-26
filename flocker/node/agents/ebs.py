@@ -21,7 +21,7 @@ from twisted.python.filepath import FilePath
 
 from .blockdevice import (
     IBlockDeviceAPI, BlockDeviceVolume, UnknownVolume, AlreadyAttachedVolume,
-    UnattachedVolume, get_blockdevice_volume, allocated_size,
+    UnattachedVolume, get_blockdevice_volume,
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -239,11 +239,6 @@ class EBSBlockDeviceAPI(object):
         """
         Return a fixed allocation_unit for now; one which we observe
         to work on AWS.
-
-        XXX: Perhas this should also be loaded from configuration
-        because there are things like Eucalyptus which claim to
-        provide an AWS API but which may have different storage
-        contraints.
         """
         return int(GiB(1).to_Byte().value)
 
@@ -306,9 +301,8 @@ class EBSBlockDeviceAPI(object):
         as volume tag data.
         Open issues: https://clusterhq.atlassian.net/browse/FLOC-1792
         """
-        allocated_bytes = allocated_size(self.allocation_unit(), size)
         requested_volume = self.connection.create_volume(
-            size=int(Byte(allocated_bytes).to_GiB().value), zone=self.zone)
+            size=int(Byte(size).to_GiB().value), zone=self.zone)
 
         # Stamp created volume with Flocker-specific tags.
         metadata = {
