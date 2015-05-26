@@ -17,7 +17,7 @@ Contents:
    introduction/index
    gettingstarted/index
    using/index
-   gettinginvolved/index
-   roadmap/index
+   releasenotes/index
    faq/index
-   authors
+   roadmap/index
+   gettinginvolved/index

@@ -8,4 +8,5 @@ Getting Involved
    contributing
    acceptance-testing
    infrastructure/index
-
+   authors
+   
