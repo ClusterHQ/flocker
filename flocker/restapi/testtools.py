@@ -179,13 +179,18 @@ def buildIntegrationTests(mixinClass, name, fixture):
         """
         def setUp(self):
             self.app = fixture(self)
-            self.port = reactor.listenTCP(0, Site(self.app.resource()),
-                                          interface="127.0.0.1")
+            self.port = reactor.listenTCP(
+                0, Site(self.app.resource()),
+                interface=b"127.0.0.1",
+            )
             self.addCleanup(self.port.stopListening)
             portno = self.port.getHost().port
             self.agent = ProxyAgent(
-                TCP4ClientEndpoint(reactor, "127.0.0.1", portno),
-                reactor)
+                TCP4ClientEndpoint(
+                    reactor, "127.0.0.1", portno,
+                ),
+                reactor
+            )
             super(RealTests, self).setUp()
 
     class MemoryTests(mixinClass, TestCase):

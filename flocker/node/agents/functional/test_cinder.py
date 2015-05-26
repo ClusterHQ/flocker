@@ -39,8 +39,9 @@ def cinderblockdeviceapi_for_test(test_case):
 
     :param TestCase test_case: The test being run.
 
-    :returns: A ``CinderBlockDeviceAPI`` instance whose volumes will be
-        destroyed at the end of the test method being run by ``test_case``.
+    :returns: A ``CinderBlockDeviceAPI`` instance.  Any volumes it creates will
+        be cleaned up at the end of the test (using ``test_case``\ 's cleanup
+        features).
     """
     return get_blockdeviceapi_with_cleanup(test_case, ProviderType.openstack)
 
@@ -59,6 +60,17 @@ class CinderBlockDeviceAPIInterfaceTests(
     """
     Interface adherence Tests for ``CinderBlockDeviceAPI``.
     """
+
+    # We haven't implemented resize functionality yet.
+    def test_resize_destroyed_volume(self):
+        raise SkipTest("Resize not implemented on Cinder - FLOC-1484")
+
+    def test_resize_unknown_volume(self):
+        raise SkipTest("Resize not implemented on Cinder - FLOC-1484")
+
+    def test_resize_volume_listed(self):
+        raise SkipTest("Resize not implemented on Cinder - FLOC-1484")
+
     def test_foreign_volume(self):
         """
         Non-Flocker Volumes are not listed.
@@ -67,16 +79,16 @@ class CinderBlockDeviceAPIInterfaceTests(
             cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
         except InvalidConfig as e:
             raise SkipTest(str(e))
-        cinder_volumes = kwargs["cinder_volume_manager"]
-        requested_volume = cinder_volumes.create(
+        cinder_client = kwargs["cinder_client"]
+        requested_volume = cinder_client.volumes.create(
             size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
         )
         self.addCleanup(
-            cinder_volumes.delete,
+            cinder_client.volumes.delete,
             requested_volume.id,
         )
         wait_for_volume(
-            volume_manager=cinder_volumes,
+            volume_manager=cinder_client.volumes,
             expected_volume=requested_volume
         )
         self.assertEqual([], self.api.list_volumes())

@@ -13,9 +13,14 @@ from OpenSSL.SSL import VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT
 from zope.interface import implementer
 
 from twisted.web.iweb import IPolicyForHTTPS
-from twisted.internet.ssl import optionsForClientTLS
+from twisted.internet.ssl import optionsForClientTLS, Certificate
+from twisted.web.client import Agent
+
+from treq.client import HTTPClient
 
 from pyrsistent import PRecord, field
+
+from ._ca import UserCredential
 
 
 @implementer(IPolicyForHTTPS)
@@ -27,19 +32,20 @@ class ControlServicePolicy(PRecord):
     :ivar Certificate ca_certificate: The certificate authority's
         certificate.
 
-    :ivar PrivateCertificate client_certificate: Client's
-        certificate/private key pair.
+    :ivar FlockerCredential client_credential: Client's certificate and
+        private key pair.
     """
     ca_certificate = field(mandatory=True)
-    client_certificate = field(mandatory=True)
+    client_credential = field(mandatory=True)
 
     def creatorForNetloc(self, hostname, port):
-        return optionsForClientTLS(u"control-service",
-                                   trustRoot=self.ca_certificate,
-                                   clientCertificate=self.client_certificate)
+        return optionsForClientTLS(
+            u"control-service",
+            trustRoot=self.ca_certificate,
+            clientCertificate=self.client_credential.private_certificate())
 
 
-class _ClientContextFactory(object):
+class _ControlServiceContextFactory(object):
     """
     Context factory that validates various kinds of clients that can
     connect to the control service.
@@ -55,10 +61,13 @@ class _ClientContextFactory(object):
         :param bytes prefix: The required prefix on certificate common names.
         """
         self.prefix = prefix
-        self._default_options = control_credential._default_options(
-            ca_certificate)
+        self.control_credential = control_credential
+        self.ca_certificate = ca_certificate
 
     def getContext(self):
+        default_options = self.control_credential._default_options(
+            self.ca_certificate)
+
         def verify(conn, cert, errno, depth, preverify_ok):
             if depth > 0:
                 # Certificate authority chain:
@@ -67,7 +76,7 @@ class _ClientContextFactory(object):
             if not preverify_ok:
                 return preverify_ok
             return cert.get_subject().commonName.startswith(self.prefix)
-        context = self._default_options.getContext()
+        context = default_options.getContext()
         context.set_verify(VERIFY_PEER | VERIFY_FAIL_IF_NO_PEER_CERT,
                            verify)
         return context
@@ -87,7 +96,8 @@ def amp_server_context_factory(ca_certificate, control_credential):
     :return: TLS context factory suitable for use by the control service
         AMP server.
     """
-    return _ClientContextFactory(ca_certificate, control_credential, b"node-")
+    return _ControlServiceContextFactory(
+        ca_certificate, control_credential, b"node-")
 
 
 def rest_api_context_factory(ca_certificate, control_credential):
@@ -104,4 +114,29 @@ def rest_api_context_factory(ca_certificate, control_credential):
     :return: TLS context factory suitable for use by the control service
         REST API server.
     """
-    return _ClientContextFactory(ca_certificate, control_credential, b"user-")
+    return _ControlServiceContextFactory(
+        ca_certificate, control_credential, b"user-")
+
+
+def treq_with_authentication(reactor, certificates_path):
+    """
+    Create a ``treq``-API object that implements the REST API TLS
+    authentication.
+
+    That is, validating the control service as well as presenting a
+    certificate to the control service for authentication.
+
+    :param reactor: The reactor to use.
+    :param FilePath certificates_path: Directory where certificates and
+        private key can be found.
+
+    :return: ``treq`` compatible object.
+    """
+    ca = Certificate.loadPEM(
+        certificates_path.child(b"cluster.crt").getContent())
+    # This is a hack; from_path should be more
+    # flexible. https://clusterhq.atlassian.net/browse/FLOC-1865
+    user_credential = UserCredential.from_path(certificates_path, u"user")
+    policy = ControlServicePolicy(
+        ca_certificate=ca, client_credential=user_credential.credential)
+    return HTTPClient(Agent(reactor, contextFactory=policy))

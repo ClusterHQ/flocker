@@ -1,14 +1,14 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-from twisted.web.server import Site
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from ..script import ControlOptions, ControlScript
 from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin
 from .._clusterstate import ClusterStateService
-from .._protocol import ControlAMP, ControlAMPService
 from ..httpapi import REST_API_PORT
+
+from ...ca.testtools import get_credential_sets
 
 
 class ControlOptionsTests(StandardOptionsTestsMixin,
@@ -75,66 +75,46 @@ class ControlScriptEffectsTests(SynchronousTestCase):
     """
     Tests for effects ``ControlScript``.
     """
-    def test_starts_http_api_server(self):
+    def setUp(self):
         """
-        ``ControlScript.main`` starts a HTTP server on the given port.
+        Create some certificates to use when creating the control service.
         """
-        options = ControlOptions()
-        options.parseOptions(
-            [b"--port", b"tcp:8001", b"--data-path", self.mktemp()])
-        reactor = MemoryCoreReactor()
-        ControlScript().main(reactor, options)
-        server = reactor.tcpServers[0]
-        port = server[0]
-        factory = server[1].__class__
-        self.assertEqual((port, factory), (8001, Site))
+        ca_set, _ = get_credential_sets()
+        self.certificate_path = FilePath(self.mktemp())
+        self.certificate_path.makedirs()
+        ca_set.copy_to(self.certificate_path, control=True)
+        self.script = ControlScript()
+        self.options = ControlOptions()
+        self.data_path = FilePath(self.mktemp())
+        self.options.parseOptions([
+            b"--port", b"tcp:8001", b"--agent-port", b"tcp:8002",
+            b"--data-path", self.data_path.path,
+            b"--certificates-directory", self.certificate_path.path
+        ])
 
     def test_no_immediate_stop(self):
         """
         The ``Deferred`` returned from ``ControlScript`` is not fired.
         """
-        script = ControlScript()
-        options = ControlOptions()
-        options.parseOptions([b"--data-path", self.mktemp()])
-        self.assertNoResult(script.main(MemoryCoreReactor(), options))
+        self.assertNoResult(
+            self.script.main(MemoryCoreReactor(), self.options))
 
     def test_starts_persistence_service(self):
         """
         ``ControlScript.main`` starts a configuration persistence service.
         """
-        path = FilePath(self.mktemp())
-        options = ControlOptions()
-        options.parseOptions([b"--data-path", path.path])
         reactor = MemoryCoreReactor()
-        ControlScript().main(reactor, options)
-        self.assertTrue(path.isdir())
+        self.script.main(reactor, self.options)
+        self.assertTrue(self.data_path.isdir())
 
     def test_starts_cluster_state_service(self):
         """
         ``ControlScript.main`` starts a cluster state service.
         """
-        options = ControlOptions()
-        options.parseOptions(
-            [b"--port", b"tcp:8001", b"--data-path", self.mktemp()])
         reactor = MemoryCoreReactor()
-        ControlScript().main(reactor, options)
+        self.script.main(reactor, self.options)
         server = reactor.tcpServers[0]
-        service = server[1].resource._v1_user.cluster_state_service
+        control_resource = server[1].wrappedFactory.resource
+        service = control_resource._v1_user.cluster_state_service
         self.assertEqual((service.__class__, service.running),
                          (ClusterStateService, True))
-
-    def test_starts_control_amp_service(self):
-        """
-        ``ControlScript.main`` starts a AMP service on the given port.
-        """
-        options = ControlOptions()
-        options.parseOptions(
-            [b"--agent-port", b"tcp:8001", b"--data-path", self.mktemp()])
-        reactor = MemoryCoreReactor()
-        ControlScript().main(reactor, options)
-        server = reactor.tcpServers[1]
-        port = server[0]
-        protocol = server[1].buildProtocol(None)
-        self.assertEqual(
-            (port, protocol.__class__, protocol.control_amp_service.__class__),
-            (8001, ControlAMP, ControlAMPService))

@@ -24,6 +24,10 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    Specifies what provider to use to create the nodes.
 
+.. option:: --dataset-backend <dataset-backend>
+
+   Specifies what dataset backend to use for the cluster.
+
 .. option:: --flocker-version <version>
 
    Specifies the version of flocker to install.
@@ -55,6 +59,13 @@ The :program:`admin/run-acceptance-tests` script has several options:
    the contents will be added as metadata of the created nodes,
    if the provider supports it.
 
+.. option:: --keep
+
+   Keep VMs around, if the tests fail.
+
+.. option:: --no-pull
+
+   Do not pull any Docker images when provisioning nodes.
 
 Vagrant
 -------
