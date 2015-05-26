@@ -393,8 +393,20 @@ class DeployerType(Names):
     block = NamedConstant()
 
 
-def cinder_from_configuration():
-    pass
+from flocker.node.agents.cinder import cinder_api
+
+
+def cinder_from_configuration(cluster_id):
+    """
+    :param UUID cluster_id:
+    """
+    return cinder_api(
+        cinder_client=object(),
+        nova_client=object(),
+        cluster_id=cinder_api
+    )
+
+
 
 
 class BackendDescription(PRecord):
@@ -447,7 +459,7 @@ _DEFAULT_BACKENDS = [
     # FLOC-1925
     BackendDescription(
         name=u"openstack", needs_reactor=False, needs_cluster_id=True,
-        factory=cinder_from_configuration,
+        api_factory=cinder_from_configuration,
         deployer_type=DeployerType.block,
     ),
 ]

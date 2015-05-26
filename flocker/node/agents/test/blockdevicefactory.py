@@ -165,6 +165,9 @@ def _openstack(**config):
     a ``CinderBlockDeviceAPI``.  They will be configured to use the region
     where the server that is running this code is running.
 
+    # FLOC-1925 Make this a public helper function
+    # Move the REGION from environment parts elsewhere.
+
     :param config: Any additional configuration (possibly provider-specific)
         necessary to authenticate a session for use with the CinderClient and
         NovaClient.
