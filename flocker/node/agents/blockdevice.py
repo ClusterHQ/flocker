@@ -1561,6 +1561,7 @@ class BlockDeviceDeployer(PRecord):
                 # XXX: Looks like we don't attempt to report the size
                 # of non-manifest datasets.
                 # Why not? The size is available from the volume.
+                # https://clusterhq.atlassian.net/browse/FLOC-1983
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         system_mounts = self._get_system_mounts(volumes, compute_instance_id)
@@ -1596,6 +1597,7 @@ class BlockDeviceDeployer(PRecord):
                 # Why not? The size is available from the volume.
                 # It seems like state reporting bug and separate from
                 # (although blocking) FLOC-1806.
+                # https://clusterhq.atlassian.net/browse/FLOC-1983
                 nonmanifest[dataset_id] = Dataset(dataset_id=dataset_id)
 
         state = (
