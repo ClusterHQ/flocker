@@ -1700,10 +1700,10 @@ class BlockDeviceDeployer(PRecord):
         ))
         deletes = self._calculate_deletes(configured_manifestations)
 
-        # FLOC-1874 - The API doesn't support resizing.  Drop this calculation
-        # for now.  Re-introduce it later when we actually want to support
-        # resize.  Teach resize about allocation_unit() when we re-introduce
-        # this.
+        # FLOC-1484 Support resize for block storage backends. Teach
+        # resize about allocation_unit() when we re-introduce this.
+        # For now the REST API does not accept resize requests. See
+        # FLOC-1875.
         resizes = list(self._calculate_resizes(
             configured_manifestations, local_state
         ))
