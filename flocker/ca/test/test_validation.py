@@ -23,8 +23,8 @@ class ClientValidationContextFactoryTests(SynchronousTestCase):
         ca_set, _ = get_credential_sets()
         context_factory = amp_server_context_factory(
             ca_set.root.credential.certificate, ca_set.control)
-        self.assertNotIdentical(context_factory.getContext(),
-                                context_factory.getContext())
+        self.assertIsNot(context_factory.getContext(),
+                         context_factory.getContext())
 
     def test_rest_new_context_each_time(self):
         """
@@ -35,5 +35,5 @@ class ClientValidationContextFactoryTests(SynchronousTestCase):
         ca_set, _ = get_credential_sets()
         context_factory = rest_api_context_factory(
             ca_set.root.credential.certificate, ca_set.control)
-        self.assertNotIdentical(context_factory.getContext(),
-                                context_factory.getContext())
+        self.assertIsNot(context_factory.getContext(),
+                         context_factory.getContext())
