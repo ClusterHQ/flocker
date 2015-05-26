@@ -175,7 +175,7 @@ def install_cli_commands_ubuntu(distribution, package_source):
             Package:  *
             Pin: origin {}
             Pin-Priority: 900
-            '''.format(buildbot_host))), '/tmp/apt-pref')
+            '''.format(buildbot_host)), '/tmp/apt-pref'))
         commands.append(sudo_from_args([
             'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-900']))
 
@@ -631,13 +631,13 @@ def task_install_flocker(
             # Use a pin file to ensure that any Buildbot repo has higher
             # priority than the ClusterHQ repo.
             buildbot_host = urlparse(package_source.build_server).hostname
-            commands.append(put(dedent('''\
-                Package:  *
-                Pin: origin {}
-                Pin-Priority: 900
-                '''.format(buildbot_host))), '/tmp/apt-pref')
-            commands.append(sudo_from_args([
-                'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-900']))
+            commands.append(put(
+                dedent('''\
+                    Package:  *
+                    Pin: origin {}
+                    Pin-Priority: 900
+                    '''.format(buildbot_host)),
+                '/etc/apt/preferences.d/buildbot-900'))
 
         commands += [
             # Update to read package info from new repos
