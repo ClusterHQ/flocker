@@ -11,7 +11,7 @@ This ensures that the control service, convergence agents, and API end users are
 Mutual Authentication Overview
 ==============================
 
-When :doc:`installing the flocker-node package <../indepth/installation>`, the ``flocker-ca`` tool (provided as part of ``flocker-cli``) generates a root certificate for your cluster, comprising a private key and public certificate, as well as certificates and private keys for the control service and convergence agents.
+When :doc:`installing the flocker-node package <installing/index>`, the ``flocker-ca`` tool (provided as part of ``flocker-cli``) generates a root certificate for your cluster, comprising a private key and public certificate, as well as certificates and private keys for the control service and convergence agents.
 The certificates and private keys for the control service and nodes are installed on the cluster alongside the cluster's root public certificate file.
 
 API end users are issued their own certificate and private key, also with a copy of the cluster's public certificate file.
