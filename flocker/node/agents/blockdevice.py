@@ -1593,12 +1593,6 @@ class BlockDeviceDeployer(PRecord):
             NodeState(
                 uuid=self.node_uuid,
                 hostname=self.hostname,
-                # FLOC-1874 The sizes of the datasets for these manifestations
-                # will be the size of the actual storage-driver-supplied
-                # volume.  This may not be the size requested in the
-                # configuration.  File a follow-up issue for fixing this if it
-                # matters.  Fixing this requires having access to the
-                # configuration - which we do not!
                 manifestations=manifestations,
                 paths=paths,
                 devices=devices,
