@@ -231,21 +231,6 @@ def make_validation_tests(context_factory_fixture,
     return ValidationTests
 
 
-class ControlServicePolicyValidationTests(make_validation_tests(
-        lambda port, good_ca: ControlServicePolicy(
-            ca_certificate=good_ca.root.credential.certificate,
-            # The exposed client credential isn't actually tested by these
-            # tests, but is necessary for the code to run:
-            client_credential=good_ca.user.credential).creatorForNetloc(
-                b"127.0.0.1", port),
-        # We are testing a client that is validating the control
-        # service certificate:
-        "control", validator_is_client=True)):
-    """
-    Tests for validation of the control service certificate by clients.
-    """
-
-
 class ControlServicePolicyIPValidationTests(make_validation_tests(
         lambda port, good_ca: ControlServicePolicy(
             ca_certificate=good_ca.root.credential.certificate,
