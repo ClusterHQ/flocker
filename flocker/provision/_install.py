@@ -7,7 +7,7 @@ Install flocker on a remote node.
 
 import posixpath
 from textwrap import dedent
-from urlparse import urljoin
+from urlparse import urljoin, urlparse
 from effect import Func, Effect
 import yaml
 
@@ -166,6 +166,18 @@ def install_cli_commands_ubuntu(distribution, package_source):
         # Add BuildBot repo for running tests
         commands.append(sudo_from_args([
             "add-apt-repository", "-y", "deb {} /".format(base_url)]))
+        # During a release, the ClusterHQ repo may contain packages with
+        # a higher version number than the Buildbot repo for a branch.
+        # Use a pin file to ensure that any Buildbot repo has higher
+        # priority than the ClusterHQ repo.
+        buildbot_host = urlparse(package_source.build_server).hostname
+        commands.append(put(dedent('''\
+            Package:  *
+            Pin: origin {}
+            Pin-Priority: 900
+            '''.format(buildbot_host))), '/tmp/apt-pref')
+        commands.append(sudo_from_args([
+            'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-900']))
 
     # Update to read package info from new repos
     commands.append(sudo_from_args(["apt-get", "update"]))
@@ -614,6 +626,18 @@ def task_install_flocker(
             # Add BuildBot repo for testing
             commands.append(run_from_args([
                 "add-apt-repository", "-y", "deb {} /".format(base_url)]))
+            # During a release, the ClusterHQ repo may contain packages with
+            # a higher version number than the Buildbot repo for a branch.
+            # Use a pin file to ensure that any Buildbot repo has higher
+            # priority than the ClusterHQ repo.
+            buildbot_host = urlparse(package_source.build_server).hostname
+            commands.append(put(dedent('''\
+                Package:  *
+                Pin: origin {}
+                Pin-Priority: 900
+                '''.format(buildbot_host))), '/tmp/apt-pref')
+            commands.append(sudo_from_args([
+                'mv', '/tmp/apt-pref', '/etc/apt/preferences.d/buildbot-900']))
 
         commands += [
             # Update to read package info from new repos
