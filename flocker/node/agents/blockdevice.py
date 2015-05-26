@@ -1268,7 +1268,14 @@ class LoopbackBlockDeviceAPI(object):
         See ``IBlockDeviceAPI.create_volume`` for parameter and return type
         documentation.
         """
-        actual_size = allocated_size(self.allocation_unit(), size)
+        allocation_unit = self.allocation_unit()
+        actual_size = allocated_size(allocation_unit, size)
+        if size != actual_size:
+            raise ValueError(
+                'Supplied size {!r} is not divisible by {!r}'.format(
+                    size, allocation_unit
+                )
+            )
         volume = _blockdevicevolume_from_dataset_id(
             size=actual_size, dataset_id=dataset_id,
         )
