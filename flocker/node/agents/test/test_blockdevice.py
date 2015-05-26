@@ -2053,7 +2053,10 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         )
 
     def setUp(self):
-        self.api = loopbackblockdeviceapi_for_test(test_case=self)
+        self.api = loopbackblockdeviceapi_for_test(
+            test_case=self,
+            allocation_unit=int(MiB(1).to_Byte().value)
+        )
 
     def test_initialise_directories(self):
         """
@@ -2089,8 +2092,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         ``create_volume`` creates sparse files.
         """
-        # 1GB
-        requested_size = REALISTIC_BLOCKDEVICE_SIZE
+        requested_size = self.api.allocation_unit()
         volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=requested_size,
@@ -2120,7 +2122,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         ``resize_volume`` extends backing files sparsely.
         """
-        requested_size = REALISTIC_BLOCKDEVICE_SIZE
+        requested_size = self.api.allocation_unit()
         volume = self.api.create_volume(
             dataset_id=uuid4(), size=requested_size
         )
@@ -2142,7 +2144,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         ``resize_volume`` does not modify the data contained inside the backing
         file.
         """
-        start_size = 1024 * 64
+        start_size = self.api.allocation_unit()
         end_size = start_size * 2
         volume = self.api.create_volume(dataset_id=uuid4(), size=start_size)
         backing_file = self.api._root_path.descendant(
