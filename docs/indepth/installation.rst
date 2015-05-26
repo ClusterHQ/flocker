@@ -162,7 +162,6 @@ Using Amazon Web Services
    However, we do recommend at least the ``m3.large`` instance size.
 
    If you wish to customize the instance's security settings make sure to permit SSH access both from the intended client machine (for example, your laptop) and from any other instances on which you plan to install ``clusterhq-flocker-node``.
-   The ``flocker-deploy`` CLI requires SSH access to the Flocker nodes to control them and Flocker nodes need SSH access to each other for volume data transfers.
 
    .. warning::
 
@@ -196,26 +195,6 @@ Using Amazon Web Services
 
       ssh root@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
-#. Upgrade the Kernel
-
-   Some operating systems require an updated kernel.
-
-   Fedora kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
-   On Fedora, run:
-
-   .. task:: upgrade_kernel fedora-20
-      :prompt: [root@aws]#
-
-   On CentOS, run:
-
-   .. task:: upgrade_kernel centos-7
-      :prompt: [root@aws]#
-
-   Reboot the machine to make use of the new kernel.
-
-   .. prompt:: bash [root@aws]#
-
-         shutdown -r now
 
 #. Follow the operating system specific installation instructions below.
 
@@ -253,31 +232,22 @@ Installing on Fedora 20
 
 .. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
 
-Flocker requires ``zfs`` which in turn requires the ``kernel-devel`` package to be installed.
-Before installing ``clusterhq-flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
-Here is a short script to help you install the correct ``kernel-devel`` package.
-Copy and paste it into a root console on the target node:
-
-.. task:: install_kernel_devel
-   :prompt: [root@fedora]#
-
-.. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
-
 Now install the ``clusterhq-flocker-node`` package.
 To install ``clusterhq-flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
-You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
 Paste them into a root console on the target node:
 
 .. task:: install_flocker fedora-20
-   :prompt: [root@fedora]#
-
+   :prompt: [root@node]#
+   
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker fedora-20
    :prompt: [root@fedora]#
 
+Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
 .. _centos-7-install:
 
@@ -298,19 +268,20 @@ First disable SELinux.
 
 Now install the ``flocker-node`` package.
 To install ``flocker-node`` on CentOS 7 you must install the RPM provided by the ClusterHQ repository.
-You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``flocker-node`` package.
 Paste them into a root console on the target node:
 
 .. task:: install_flocker centos-7
-   :prompt: [root@centos]#
+   :prompt: [root@node]#
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker centos-7
    :prompt: [root@centos]#
-
+   
+Finally, you will need to run the ``flocker-ca`` tool that is installed as part of the CLI package.
+This tool generates TLS certificates that are used to identify and authenticate the components of your cluster when they communicate, which you will need to copy over to your nodes. Please see the :ref:`cluster authentication <authentication>` instructions.
 
 .. _ubuntu-14.04-install:
 
@@ -324,8 +295,201 @@ Setup the pre-requisite repositories and install the ``clusterhq-flocker-node`` 
 .. task:: install_flocker ubuntu-14.04
    :prompt: [root@ubuntu]#
 
+.. _authentication:
+
+Cluster Authentication Layer Configuration
+------------------------------------------
+
+Communication between the different parts of your cluster is secured and authenticated via TLS.
+The Flocker CLI package includes the ``flocker-ca`` tool that is used to generate TLS certificate and key files that you will need to copy over to your nodes.
+
+Once you have installed the ``flocker-node`` package, you will need to generate:
+
+- A control service certificate and key file, to be copied over to the machine running your :doc:`control service <../advanced/architecture>`.
+- A certificate and key file for each of your nodes, which you will also need to copy over to the nodes.
+
+Both types of certificate will be signed by a certificate authority identifying your cluster, which is also generated using the ``flocker-ca`` tool.
+
+Using the machine on which you installed the ``flocker-cli`` package, run the following command to generate your cluster's root certificate authority, replacing ``mycluster`` with any name you like to uniquely identify this cluster.
+
+.. code-block:: console
+
+    $ flocker-ca initialize mycluster
+    Created cluster.key and cluster.crt. Please keep cluster.key secret, as anyone who can access it will be able to control your cluster.
+
+You will find the files ``cluster.key`` and ``cluster.crt`` have been created in your working directory.
+The file ``cluster.key`` should be kept only by the cluster administrator; it does not need to be copied anywhere.
+
+.. warning::
+
+   The cluster administrator needs this file to generate new control service, node and API certificates.
+   The security of your cluster depends on this file remaining private.
+   Do not lose the cluster private key file, or allow a copy to be obtained by any person other than the authorised cluster administrator.
+
+You are now able to generate authentication certificates for the control service and each of your nodes.
+To generate the control service certificate, run the following command from the same directory containing your authority certificate generated in the previous step.
+Replace ``example.org`` with the hostname of your control service node; this hostname should match the one you will give to REST API clients.
+
+.. code-block:: console
+
+   $ flocker-ca create-control-certificate example.org
+   Created control-example.org.crt. Copy it over to /etc/flocker/control-service.crt on your control service machine and make sure to chmod 0600 it.
+   
+You will need to copy both ``control-example.org.crt`` and ``control-example.org.key`` over to the node that is running your control service, to the directory ``/etc/flocker/`` and rename the files to ``control-service.crt`` and ``control-service.key`` respectively.
+You should also copy the cluster's public certificate, the `cluster.crt` file.
+On the server, the ``/etc/flocker`` directory and private key file should be set to secure permissions via ``chmod``:
+
+.. code-block:: console
+
+   root@mercury:~/$ chmod 0700 /etc/flocker
+   root@mercury:~/$ chmod 0600 /etc/flocker/control-service.key
+
+You should copy these files via a secure communication medium such as SSH, SCP or SFTP.
+
+.. warning::
+
+   Only copy the file ``cluster.crt`` to the control service and node machines, not the ``cluster.key`` file; this must kept only by the cluster administrator.
+
+You will also need to generate authentication certificates for each of your nodes.
+Do this by running the following command as many times as you have nodes; for example, if you have two nodes in your cluster, you will need to run this command twice.
+This step should be followed for all nodes on the cluster, as well as the machine running the control service.
+Run the command in the same directory containing the certificate authority files you generated in the first step.
+
+.. code-block:: console
+
+   $ flocker-ca create-node-certificate
+   Created 8eab4b8d-c0a2-4ce2-80aa-0709277a9a7a.crt. Copy it over to /etc/flocker/node.crt on your node machine, and make sure to chmod 0600 it.
+
+The actual certificate and key file names generated in this step will vary from the example above; when you run ``flocker-ca create-node-certificate``, a UUID for a node will be generated to uniquely identify it on the cluster and the files produced are named with that UUID.
+
+As with the control service certificate, you should securely copy the generated certificate and key file over to your node, along with the `cluster.crt` certificate.
+Copy the generated files to ``/etc/flocker/`` on the target node and name them ``node.crt`` and ``node.key``.
+Perform the same ``chmod 600`` commands on ``node.key`` as you did for the control service in the instructions above.
+The ``/etc/flocker/`` directory should be set to ``chmod 700``.
+
+You can read more about how Flocker's authentication layer works in the :doc:`security and authentication guide <../advanced/security>`.
+
 Post installation configuration
 -------------------------------
+
+Your firewall will need to allow access to the ports your applications are exposing.
+
+.. warning::
+
+   Keep in mind the consequences of exposing unsecured services to the Internet.
+   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
+
+To enable the Flocker control service on Fedora / CentOS
+--------------------------------------------------------
+
+.. task:: enable_flocker_control fedora-20
+   :prompt: [root@control-node]#
+
+The control service needs to accessible remotely.
+To configure FirewallD to allow access to the control service REST API, and for agent connections:
+
+.. task:: open_control_firewall fedora-20
+   :prompt: [root@control-node]#
+
+For more details on configuring the firewall, see Fedora's `FirewallD documentation <https://fedoraproject.org/wiki/FirewallD>`_.
+
+On AWS, an external firewall is used instead, which will need to be configured similarly.
+
+To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
+This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
+The optional ``port`` variable is the port on the control node to connect to:
+
+.. code-block:: yaml
+
+   "version": 1
+   "control-service":
+      "hostname": "${CONTROL_NODE}"
+      "port": 4524
+	"dataset":
+	  "backend": "zfs"
+
+.. task:: enable_flocker_agent fedora-20 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
+To enable the Flocker control service on Ubuntu
+-----------------------------------------------
+
+.. task:: enable_flocker_control ubuntu-14.04
+   :prompt: [root@control-node]#
+
+The control service needs to accessible remotely.
+To configure ``UFW`` to allow access to the control service REST API, and for agent connections:
+
+.. task:: open_control_firewall ubuntu-14.04
+   :prompt: [root@control-node]#
+
+For more details on configuring the firewall, see Ubuntu's `UFW documentation <https://help.ubuntu.com/community/UFW>`_.
+
+On AWS, an external firewall is used instead, which will need to be configured similarly.
+
+To start the agents on a node, a configuration file must exist on the node at ``/etc/flocker/agent.yml``.
+This should be as follows, replacing ``${CONTROL_NODE}`` with the address of the control node.
+The optional ``port`` variable is the port on the control node to connect to:
+
+.. code-block:: yaml
+
+   "version": 1
+   "control-service":
+      "hostname": "${CONTROL_NODE}"
+      "port": 4524
+  	"dataset":
+  	  "backend": "zfs"
+
+.. task:: enable_flocker_agent ubuntu-14.04 ${CONTROL_NODE}
+   :prompt: [root@agent-node]#
+
+What to do next
+---------------
+
+You have now installed ``clusterhq-flocker-node`` and created a ZFS for it.
+
+Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>`, to ensure that your nodes are correctly configured.
+Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
+Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+
+
+ZFS Backend Configuration
+-------------------------
+
+The ZFS backend requires ZFS to be installed.
+
+
+Installing ZFS on CentOS 7
+..........................
+
+Installing ZFS requires the kernel development headers for the running kernel.
+Since CentOS doesn't provide easy access to old package versions,
+the easiest way to get appropriate headers is to upgrade the kernel and install the headers.
+
+.. task:: upgrade_kernel centos-7
+   :prompt: [root@centos-7]#
+
+You will need to reboot the node after updating the kernel.
+
+.. prompt:: bash [root@aws]#
+
+   shutdown -r now
+
+You must also install the ZFS package repository.
+
+.. task:: install_zfs centos-7
+   :prompt: [root@centos-7]#
+
+
+Installing ZFS on Ubuntu 14.04
+..............................
+
+.. task:: install_zfs ubuntu-14.04
+   :prompt: [root@ubuntu-14.04]#
+
+
+Creating a ZFS pool
+...................
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
@@ -338,22 +502,5 @@ Paste them into a root console:
 
 .. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
 
-The Flocker command line client (``flocker-deploy``) must be able to establish an SSH connection to each node.
-Additionally, every node must be able to establish an SSH connection to all other nodes.
-So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
-Your firewall will also need to allow access to the ports your applications are exposing.
-
-.. warning::
-
-   Keep in mind the consequences of exposing unsecured services to the Internet.
-   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
-
-The Flocker command line client must also be able to log into each node as user ``root``.
-Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
-
-You have now installed ``clusterhq-flocker-node`` and created a ZFS for it.
-You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
-
-Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
-Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
-Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
+To support moving data with the ZFS backend, every node must be able to establish an SSH connection to all other nodes.
+So ensure that the firewall allows access to TCP port 22 on each node from the every node's IP addresses.

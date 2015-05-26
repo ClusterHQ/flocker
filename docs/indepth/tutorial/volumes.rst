@@ -18,7 +18,7 @@ Next we'll use a new configuration file that moves the application to a differen
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy port-deployment-moved.yml port-application.yml
+   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 port-deployment-moved.yml port-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
    4d117c7e653e    clusterhq/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-port-example
@@ -59,7 +59,7 @@ Then we'll run these configuration files with ``flocker-deploy``:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy volume-deployment.yml volume-application.yml
+   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 volume-deployment.yml volume-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
    4d117c7e653e    clusterhq/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-volume-example
@@ -87,7 +87,7 @@ Next we'll move the application to the other node.
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy volume-deployment-moved.yml volume-application.yml
+   alice@mercury:~/flocker-tutorial$ flocker-deploy 172.16.255.250 volume-deployment-moved.yml volume-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
    4d117c7e653e    clusterhq/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-volume-example

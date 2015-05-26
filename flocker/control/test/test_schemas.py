@@ -530,8 +530,15 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
     # wrong type for maximum size
     {u"primary": a_uuid, u"maximum_size": u"123"},
 
-    # too-small value for maximum size
-    {u"primary": a_uuid, u"maximum_size": 123},
+    # wrong numeric type for maximum size
+    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64 + 0.5},
+
+    # too-small (but multiple of 1024) value for maximum size
+    {u"primary": a_uuid, u"maximum_size": 1024},
+
+    # Value for maximum_size that is not a multiple of 1024 (but is larger than
+    # the minimum allowed)
+    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64 + 1023},
 
     # wrong type for primary
     {u"primary": 10,
@@ -554,35 +561,38 @@ CONFIGURATION_DATASETS_FAILING_INSTANCES = [
      u"deleted": u"hello"},
 ]
 
-CONFIGURATION_DATASETS_PASSING_INSTANCES = [
+CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES = [
     # everything optional except primary
     {u"primary": a_uuid},
-
-    # metadata is an object with a handful of short string key/values
-    {u"primary": a_uuid,
-     u"metadata":
-         dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
-
-    # maximum_size is an integer of at least 64MiB
-    {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
-
-    # maximum_size may be null, which means no size limit
-    {u"primary": a_uuid, u"maximum_size": None},
-
-    # dataset_id is a string of 36 characters
-    {u"primary": a_uuid, u"dataset_id": u"x" * 36},
-
-    # deleted is a boolean
-    {u"primary": a_uuid, u"deleted": False},
-
-    # All of them can be combined.
-    {u"primary": a_uuid,
-     u"metadata":
-         dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
-     u"maximum_size": 1024 * 1024 * 64,
-     u"dataset_id": u"x" * 36,
-     u"deleted": True},
 ]
+
+CONFIGURATION_DATASETS_PASSING_INSTANCES = (
+    CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES + [
+        # metadata is an object with a handful of short string key/values
+        {u"primary": a_uuid,
+         u"metadata":
+             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
+
+        # dataset_id is a string of 36 characters
+        {u"primary": a_uuid, u"dataset_id": u"x" * 36},
+
+        # deleted is a boolean
+        {u"primary": a_uuid, u"deleted": False},
+        # maximum_size is an integer of at least 64MiB
+        {u"primary": a_uuid, u"maximum_size": 1024 * 1024 * 64},
+
+        # maximum_size may be null, which means no size limit
+        {u"primary": a_uuid, u"maximum_size": None},
+
+        # All of them can be combined.
+        {u"primary": a_uuid,
+         u"metadata":
+             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
+         u"maximum_size": 1024 * 1024 * 64,
+         u"dataset_id": u"x" * 36,
+         u"deleted": True},
+    ]
+)
 
 ConfigurationDatasetsSchemaTests = build_schema_test(
     name="ConfigurationDatasetsSchemaTests",
@@ -600,7 +610,7 @@ ConfigurationDatasetsUpdateSchemaTests = build_schema_test(
             '/v1/endpoints.json#/definitions/configuration_datasets_update'},
     schema_store=SCHEMAS,
     failing_instances=CONFIGURATION_DATASETS_FAILING_INSTANCES,
-    passing_instances=CONFIGURATION_DATASETS_PASSING_INSTANCES,
+    passing_instances=CONFIGURATION_DATASETS_UPDATE_PASSING_INSTANCES,
 )
 
 
@@ -721,5 +731,32 @@ StateContainersArrayTests = build_schema_test(
              u'image': u'nginx:latest',
              u'name': u'webserver',
              u'running': False}],
+    ],
+)
+
+
+NodesTests = build_schema_test(
+    name="NodesTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/nodes_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Wrong type
+        {'host': '192.168.1.10', 'uuid': unicode(uuid4())},
+        # Missing host
+        [{"uuid": unicode(uuid4())}],
+        # Missing uuid
+        [{'host': '192.168.1.10'}],
+        # Wrong uuid type
+        [{'host': '192.168.1.10', 'uuid': 123}],
+        # Wrong host type
+        [{'host': 192, 'uuid': unicode(uuid4())}],
+        # Extra key
+        [{'host': '192.168.1.10', 'uuid': unicode(uuid4()), 'x': 'y'}],
+    ],
+    passing_instances=[
+        [],
+        [{'host': '192.168.1.10', 'uuid': unicode(uuid4())}],
+        [{'host': '192.168.1.10', 'uuid': unicode(uuid4())},
+         {'host': '192.168.1.11', 'uuid': unicode(uuid4())}],
     ],
 )

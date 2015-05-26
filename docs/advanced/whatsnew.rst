@@ -6,6 +6,11 @@ What's New
 
 .. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
 
+v0.5
+====
+
+* ``flocker-deploy`` now takes an extra argument, the hostname of the control service.
+
 v0.4
 ====
 

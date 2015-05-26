@@ -4,6 +4,7 @@
 The command-line ``flocker-deploy`` tool.
 """
 
+import os
 import sys
 from json import dumps
 
@@ -12,7 +13,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 from twisted.web.http import OK
 
-from treq import post, json_content
+from treq import json_content
 
 from zope.interface import implementer
 
@@ -24,6 +25,7 @@ from characteristic import attributes
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..control.httpapi import REST_API_PORT
+from ..ca import treq_with_authentication
 
 
 FEEDBACK_CLI_TEXT = (
@@ -60,8 +62,13 @@ class DeployOptions(Options):
                 "<control-host> <deployment.yml-path> <application.yml-path>"
                 "{feedback}").format(feedback=FEEDBACK_CLI_TEXT)
 
-    optParameters = [["port", "p", REST_API_PORT,
-                      "The REST API port on the server.", int]]
+    optParameters = [
+        ["port", "p", REST_API_PORT,
+         "The REST API port on the server.", int],
+        ["certificates-directory", "c",
+         None, ("Path to directory where TLS certificate and keys can be "
+                "found. Defaults to current directory.")],
+    ]
 
     def parseArgs(self, control_host, deployment_config, application_config):
         deployment_config = FilePath(deployment_config)
@@ -75,7 +82,7 @@ class DeployOptions(Options):
             raise UsageError('No file exists at {path}'
                              .format(path=application_config.path))
 
-        self["url"] = u"http://{}:{}/v1/configuration/_compose".format(
+        self["url"] = u"https://{}:{}/v1/configuration/_compose".format(
             control_host, self["port"]).encode("ascii")
         self["application_config"] = application_config.getContent()
 
@@ -101,6 +108,11 @@ class DeployOptions(Options):
                     error=str(e)
                 )
             )
+        if self["certificates-directory"] is None:
+            self["certificates-directory"] = FilePath(os.getcwd())
+        else:
+            self["certificates-directory"] = FilePath(
+                self["certificates-directory"])
 
 
 @implementer(ICommandLineScript)
@@ -117,9 +129,14 @@ class DeployScript(object):
         """
         body = dumps({"applications": options["application_config"],
                       "deployment": options["deployment_config"]})
-        posted = post(options["url"], data=body,
-                      headers={b"content-type": b"application/json"},
-                      persistent=False)
+
+        treq_client = treq_with_authentication(
+            reactor, options["certificates-directory"])
+        posted = treq_client.post(
+            options["url"], data=body,
+            headers={b"content-type": b"application/json"},
+            persistent=False
+        )
 
         def fail(msg):
             raise SystemExit(msg)
