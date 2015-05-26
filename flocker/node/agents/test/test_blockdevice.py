@@ -6,6 +6,7 @@ Tests for ``flocker.node.agents.blockdevice``.
 
 from errno import ENOTDIR
 from os import getuid, statvfs
+import time
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
 
@@ -61,6 +62,7 @@ from ....control import (
 from ....common.test.test_thread import NonThreadPool, NonReactor
 
 LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
+CLEANUP_RETRY_LIMIT = 10
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -188,14 +190,22 @@ def create_blockdevicedeployer(
 def detach_destroy_volumes(api):
     """
     Detach and destroy all volumes known to this API.
+    If we failed to detach a volume for any reason,
+    sleep for 1 second and retry until we hit RETRY_LIMIT.
+    This is to facilitate best effort cleanup of of
+    storage environment after each test run.
     """
     volumes = api.list_volumes()
+    retry = 0
+    while retry < CLEANUP_RETRY_LIMIT and len(volumes) > 0:
+        for volume in volumes:
+            if volume.attached_to is not None:
+                api.detach_volume(volume.blockdevice_id)
 
-    for volume in volumes:
-        if volume.attached_to is not None:
-            api.detach_volume(volume.blockdevice_id)
-
-        api.destroy_volume(volume.blockdevice_id)
+            api.destroy_volume(volume.blockdevice_id)
+        volumes = api.list_volumes()
+        retry += 1
+        time.sleep(1.0)
 
 
 class BlockDeviceDeployerTests(
@@ -1413,6 +1423,8 @@ class IBlockDeviceAPITestsMixin(object):
             new_volume.blockdevice_id, attach_to=self.this_node,
         )
 
+        self.assertNotEqual(attached_volume, None)
+
         self._assert_volume_size(attached_volume, REALISTIC_BLOCKDEVICE_SIZE)
 
     def test_attach_attached_volume(self):
@@ -1429,6 +1441,8 @@ class IBlockDeviceAPITestsMixin(object):
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id, attach_to=self.this_node,
         )
+
+        self.assertNotEqual(attached_volume, None)
 
         self.assertRaises(
             AlreadyAttachedVolume,
@@ -1454,6 +1468,8 @@ class IBlockDeviceAPITestsMixin(object):
             new_volume.blockdevice_id,
             attach_to=self.this_node,
         )
+
+        self.assertNotEqual(attached_volume, None)
 
         self.assertRaises(
             AlreadyAttachedVolume,
