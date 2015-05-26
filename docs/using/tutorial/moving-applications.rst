@@ -2,7 +2,7 @@
 Moving Applications
 ===================
 
-.. note:: If you haven't already, make sure to :doc:`install the flocker-cli package <../installation>` before continuing with this tutorial.
+.. note:: If you haven't already, make sure to :doc:`install the flocker-cli package <../installing/index>` before continuing with this tutorial.
 
 Starting an Application
 =======================
