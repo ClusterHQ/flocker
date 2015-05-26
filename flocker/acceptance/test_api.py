@@ -12,9 +12,11 @@ from twisted.trial.unittest import TestCase
 
 from twisted.internet import reactor
 
-from treq import get, json_content
+from treq import get, json_content, content
 
-from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
+from ..testtools import (
+    REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name, find_free_port,
+)
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
     get_test_cluster, require_cluster,
@@ -285,6 +287,55 @@ class ContainerAPITests(TestCase):
             return loop_until(in_current)
         creating.addCallback(created)
         return creating
+
+    @require_cluster(1)
+    def test_non_root_container_can_access_dataset(self, cluster):
+        """
+        A container running as a user that is not root can still write to a
+        dataset attached as a volume.
+        """
+        port = find_free_port()
+        creating_dataset = create_dataset(self)
+
+        def created_dataset(result):
+            cluster, dataset = result
+            container = {
+                u"name": random_name(self),
+                u"node_uuid": cluster.nodes[0].uuid,
+                u"image": u"busybox",
+                u"ports": [{u"internal": 8080, u"external": port}],
+                u'restart_policy': {u'name': u'never'},
+                u"volumes": [{u"dataset_id": dataset[u"dataset_id"],
+                              u"mountpoint": u"/data"}],
+                u"command_line": [
+                    # Run as non-root user:
+                    u"su", u"-", u"nobody", u"sh", u"-c",
+                    # Write something to volume we attached:
+                    u"echo '#!/bin/sh\necho -n hello' > /data/script.sh; " +
+                    u"chmod +x /data/script.sh; " +
+                    # Expose what we wrote via a hacked-up HTTP 0.9 web server:
+                    u"nc -ll -p 8080 -e /data/script.sh"],
+            }
+            created = cluster.create_container(container)
+            created.addCallback(lambda _: self.addCleanup(
+                cluster.remove_container, container[u"name"]))
+        creating_dataset.addCallback(created_dataset)
+
+        def query(_):
+            req = get(
+                "http://127.0.0.1:{port}".format(port=port),
+                persistent=False
+            ).addCallback(content)
+            return req
+
+        def checked(cluster):
+            host = cluster.nodes[0].address
+            d = verify_socket(host, port)
+            d.addCallback(query)
+            return d
+        creating_dataset.addCallback(checked)
+        creating_dataset.addCallback(self.assertEqual, b"hello!")
+        return creating_dataset
 
 
 def create_dataset(test_case, nodes=1,
