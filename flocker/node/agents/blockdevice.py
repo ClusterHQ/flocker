@@ -939,8 +939,9 @@ class IBlockDeviceAPI(Interface):
         """
         Create a new volume.
 
-        XXX: Probably needs to be some checking of valid sizes for different
-        backends. Perhaps the allowed sizes should be defined as constants?
+        When called by ``IDeployer``, the supplied size will be
+        rounded up to the nearest
+        ``IBlockDeviceAPI.allocation_unit()``
 
         :param UUID dataset_id: The Flocker dataset ID of the dataset on this
             volume.
