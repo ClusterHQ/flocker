@@ -1202,6 +1202,10 @@ class LoopbackBlockDeviceAPI(object):
         self._root_path = root_path
         self._compute_instance_id = compute_instance_id
         if allocation_unit is None:
+            # 64MiB because that's the minumum size of a ZFS filesystem.
+            # XXX:
+            #  * Find reference.
+            #  * Justify this size.
             allocation_unit = int(MiB(64).to_Byte().value)
         self._allocation_unit = allocation_unit
 
