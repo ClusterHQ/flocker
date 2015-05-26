@@ -105,6 +105,8 @@ def _boto_logged_method(method_name, original_name):
         """
         original = getattr(self, original_name)
         method = getattr(original, method_name)
+
+        # Trace IBlockDeviceAPI ``method`` as Eliot Action.
         with AWS_ACTION(operation=[method_name, args, kwargs]):
             try:
                 return method(*args, **kwargs)

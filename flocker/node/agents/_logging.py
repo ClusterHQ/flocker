@@ -2,19 +2,24 @@
 
 from eliot import Field, ActionType, MessageType
 
+# Begin: Helper datastructures to log all
+# IBlockDeviceAPI calls from AWS storage driver using Eliot.
+
+# An OPERATION is a list of:
+# IBlockDeviceAPI name, positional arguments, keyword arguments.
 OPERATION = Field.forTypes(
     u"operation", [list],
     u"The IBlockDeviceAPI command being executed, \
     along with positional and keyword arguments.")
 
+# ActionType used by AWS storage driver.
 AWS_ACTION = ActionType(
     u"flocker:node:agents:blockdevice:aws",
     [OPERATION],
     [],
     u"An IBlockDeviceAPI command is executing against EBS.")
 
-# Begin: Scaffolding for logging Boto client and server exceptions
-# via Eliot.
+# Three fields to gather from EC2 response to Boto.
 AWS_CODE = Field.for_types(
     "aws_code", [bytes, unicode],
     u"The error response code.")
@@ -36,3 +41,5 @@ BOTO_EC2RESPONSE_ERROR = MessageType(
         AWS_REQUEST_ID,
     ],
 )
+
+# End: Helper datastructures used by AWS storage driver.
