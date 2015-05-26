@@ -309,12 +309,15 @@ class ContainerAPITests(TestCase):
                               u"mountpoint": u"/data"}],
                 u"command_line": [
                     # Run as non-root user:
-                    u"su", u"-", u"nobody", u"sh", u"-c",
-                    # Write something to volume we attached:
-                    u"echo '#!/bin/sh\necho -n hello' > /data/script.sh; " +
-                    u"chmod +x /data/script.sh; " +
-                    # Expose what we wrote via a hacked-up HTTP 0.9 web server:
-                    u"nc -ll -p 8080 -e /data/script.sh"],
+                    u"sh", u"-c",
+                    # Write something to volume we attached, and then
+                    # expose what we wrote via a hacked-up HTTP 0.9 web
+                    # server:
+                    u"""\
+mkdir /tmp/foo;
+cd /tmp/foo;
+nc -ll -p 8080 -e printenv
+"""],
             }
             created = cluster.create_container(container)
             created.addCallback(lambda _: self.addCleanup(
