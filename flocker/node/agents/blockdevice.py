@@ -1366,8 +1366,12 @@ class LoopbackBlockDeviceAPI(object):
         # May be None if the file hasn't been used for a loop device.
         path = _device_for_path(volume_path)
         if path is None:
-            # It was supposed to be attached but it has no loopback device.  So
-            # it's roughly half attached.  Fix it so it's all-the-way attached.
+            # It was supposed to be attached (the backing file was stored in a
+            # child of the "attached" directory, so someone had called
+            # `attach_volume` and not `detach_volume` for it) but it has no
+            # loopback device.  So its actual state is only partially attached.
+            # Fix it so it's all-the-way attached.  This might happen because
+            # the node OS was rebooted, for example.
             self._allocate_device(volume_path)
             path = _device_for_path(volume_path)
         return path
