@@ -63,8 +63,6 @@ def setup_config(test, control_address=u"10.0.0.1", control_port=1234,
             u"dataset": {
                 u"backend": u"zfs",
                 u"name": name,
-                # XXX Can't put FilePath in a yaml file (well you can but
-                # .... :/)
                 u"mount_root": scratch_directory.child(b"mount_root").path,
                 u"volume_config_path": scratch_directory.child(
                     b"volume_config.json"
