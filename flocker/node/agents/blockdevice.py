@@ -765,6 +765,24 @@ def allocated_size(allocation_unit, requested_size):
         return requested_size
 
 
+def check_allocatable_size(allocation_unit, requested_size):
+    """
+    :param int allocation_unit: The interval in ``bytes`` to which
+        ``requested_size`` will be rounded up.
+    :param int requested_size: The size in ``bytes`` that is required.
+    :raises: ``ValueError`` unless ``requested_size`` is exactly
+        divisible by ``allocation_unit``.
+    """
+    actual_size = allocated_size(allocation_unit, requested_size)
+    if requested_size != actual_size:
+        raise ValueError(
+            'Requested size {!r} is not divisible by {!r}'.format(
+                requested_size, allocation_unit
+            )
+        )
+
+
+
 # Get rid of this in favor of calculating each individual operation in
 # BlockDeviceDeployer.calculate_changes.  FLOC-1771
 @implementer(IStateChange)
@@ -1272,21 +1290,14 @@ class LoopbackBlockDeviceAPI(object):
         See ``IBlockDeviceAPI.create_volume`` for parameter and return type
         documentation.
         """
-        allocation_unit = self.allocation_unit()
-        actual_size = allocated_size(allocation_unit, size)
-        if size != actual_size:
-            raise ValueError(
-                'Supplied size {!r} is not divisible by {!r}'.format(
-                    size, allocation_unit
-                )
-            )
+        check_allocatable_size(self.allocation_unit(), size)
         volume = _blockdevicevolume_from_dataset_id(
-            size=actual_size, dataset_id=dataset_id,
+            size=size, dataset_id=dataset_id,
         )
         with self._unattached_directory.child(
             _backing_file_name(volume)
         ).open('wb') as f:
-            f.truncate(actual_size)
+            f.truncate(size)
         return volume
 
     def destroy_volume(self, blockdevice_id):
@@ -1370,20 +1381,20 @@ class LoopbackBlockDeviceAPI(object):
         This implementation is limited to being able to resize volumes only if
         they are unattached.
         """
+        check_allocatable_size(self.allocation_unit(), size)
         volume = get_blockdevice_volume(self, blockdevice_id)
         filename = _backing_file_name(volume)
         backing_path = self._unattached_directory.child(filename)
-        new_size = allocated_size(self.allocation_unit(), size)
         try:
             backing_file = backing_path.open("r+")
         except IOError:
             raise UnknownVolume(blockdevice_id)
         else:
             try:
-                backing_file.truncate(new_size)
+                backing_file.truncate(size)
             finally:
                 backing_file.close()
-        resized_volume = volume.set('size', new_size)
+        resized_volume = volume.set('size', size)
         resized_filename = _backing_file_name(resized_volume)
         backing_path.moveTo(backing_path.sibling(resized_filename))
 

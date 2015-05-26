@@ -47,6 +47,7 @@ from ..blockdevice import (
     _SyncToThreadedAsyncAPIAdapter,
     DatasetWithoutVolume,
     allocated_size,
+    check_allocatable_size,
     get_blockdevice_volume,
     _backing_file_name,
 )
@@ -2115,6 +2116,25 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         self.assertEqual(
             (0, allocated_size_2),
             (size.actual, size.reported)
+        )
+
+    def test_resize_with_non_allocation_unit(self):
+        """
+        ``resize_volume`` raises ``ValueError`` unless the supplied
+        ``size`` is a multiple of
+        ``IBlockDeviceAPI.allocated_unit()``.
+        """
+        allocation_unit = self.api.allocation_unit()
+        volume = self.api.create_volume(
+            dataset_id=uuid4(), size=allocation_unit
+        )
+
+        larger_size = allocation_unit + 1
+        self.assertRaises(
+            ValueError,
+            self.api.resize_volume,
+            blockdevice_id=volume.blockdevice_id,
+            size=larger_size,
         )
 
     def test_resize_data_preserved(self):
