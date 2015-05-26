@@ -1,0 +1,7 @@
+control-service:
+    hostname: 'localhost'
+    port: 4524
+dataset:
+    backend: "openstack"
+
+version: 1
