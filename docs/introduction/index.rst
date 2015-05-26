@@ -25,3 +25,8 @@ The diagram below provides a high level representation of how Flocker addresses 
          Filesystem state gets moved around with ZFS.
 
 Future versions of Flocker will also support network block storage like EBS and OpenStack Cinder.
+
+.. toctree::
+   :maxdepth: 2
+   
+   whatsnew
