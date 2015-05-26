@@ -294,7 +294,7 @@ class ContainerAPITests(TestCase):
         A container running as a user that is not root can still write to a
         dataset attached as a volume.
         """
-        port = find_free_port()
+        _, port = find_free_port()
         creating_dataset = create_dataset(self)
 
         def created_dataset(result):
@@ -319,11 +319,13 @@ class ContainerAPITests(TestCase):
             created = cluster.create_container(container)
             created.addCallback(lambda _: self.addCleanup(
                 cluster.remove_container, container[u"name"]))
+            created.addCallback(lambda _: cluster)
+            return created
         creating_dataset.addCallback(created_dataset)
 
-        def query(_):
+        def query(host):
             req = get(
-                "http://127.0.0.1:{port}".format(port=port),
+                "http://{host}:{port}".format(host=host, port=port),
                 persistent=False
             ).addCallback(content)
             return req
@@ -331,7 +333,7 @@ class ContainerAPITests(TestCase):
         def checked(cluster):
             host = cluster.nodes[0].address
             d = verify_socket(host, port)
-            d.addCallback(query)
+            d.addCallback(query, host)
             return d
         creating_dataset.addCallback(checked)
         creating_dataset.addCallback(self.assertEqual, b"hello!")
