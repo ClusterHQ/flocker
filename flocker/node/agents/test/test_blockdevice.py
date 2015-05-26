@@ -26,6 +26,7 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from eliot.testing import validate_logging, LoggedAction
+from eliot import MessageType, Field
 
 from .. import blockdevice
 from ...test.istatechange import make_istatechange_tests
@@ -63,6 +64,17 @@ from ....common.test.test_thread import NonThreadPool, NonReactor
 
 LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
 CLEANUP_RETRY_LIMIT = 10
+
+# Helper structures to Eliot output leftover volumes after a test run.
+VOLUMES = Field.for_types(
+    "volumes", [list],
+    u"A list of volumes of interest to the test runner.",
+)
+LEFTOVER_VOLUME_DETAILS = MessageType(
+    u"agent:blockdevice:failedcleanup:details",
+    [VOLUMES],
+    u"Volumes created by this test run that test failed to clean up."
+)
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -191,9 +203,10 @@ def detach_destroy_volumes(api):
     """
     Detach and destroy all volumes known to this API.
     If we failed to detach a volume for any reason,
-    sleep for 1 second and retry until we hit RETRY_LIMIT.
-    This is to facilitate best effort cleanup of of
-    storage environment after each test run.
+    sleep for 1 second and retry until we hit CLEANUP_RETRY_LIMIT.
+    This is to facilitate best effort cleanup of volume
+    environment after each test run, so that future runs
+    are not impacted.
     """
     volumes = api.list_volumes()
     retry = 0
@@ -203,9 +216,12 @@ def detach_destroy_volumes(api):
                 api.detach_volume(volume.blockdevice_id)
 
             api.destroy_volume(volume.blockdevice_id)
+        time.sleep(1.0)
         volumes = api.list_volumes()
         retry += 1
-        time.sleep(1.0)
+
+    if len(volumes) > 0:
+        LEFTOVER_VOLUME_DETAILS(volumes=volumes).write()
 
 
 class BlockDeviceDeployerTests(
