@@ -12,7 +12,6 @@ from bitmath import Byte
 from twisted.trial.unittest import SkipTest
 
 from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL, UnattachedVolume)
-from ....testtools import skip_except
 from ..test.test_blockdevice import (
     make_iblockdeviceapi_tests,
     REALISTIC_BLOCKDEVICE_SIZE
