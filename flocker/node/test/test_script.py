@@ -3,8 +3,8 @@
 """
 Tests for :module:`flocker.node.script`.
 """
-import netifaces
 import yaml
+from ipaddr import IPAddress
 
 from pyrsistent import PRecord, field
 
@@ -19,6 +19,7 @@ from twisted.application.service import Service
 
 from ...volume.testtools import make_volume_options_tests
 from ...common.script import ICommandLineScript
+from ...common import get_all_ips
 
 from ..script import (
     AgentScript, ContainerAgentOptions,
@@ -400,24 +401,6 @@ class AgentServiceLoopTests(SynchronousTestCase):
         )
 
 
-def get_all_ips():
-    """
-    Find all IPs for this machine.
-
-    :return: ``list`` of IP addresses (``bytes``).
-    """
-    ips = []
-    interfaces = netifaces.interfaces()
-    for interface in interfaces:
-        addresses = netifaces.ifaddresses(interface)
-        ipv4 = addresses.get(netifaces.AF_INET)
-        if not ipv4:
-            continue
-        for address in ipv4:
-            ips.append(address['addr'])
-    return ips
-
-
 class AgentServiceFactoryTests(SynchronousTestCase):
     """
     Tests for ``AgentServiceFactory``.
@@ -528,7 +511,7 @@ class AgentServiceFactoryTests(SynchronousTestCase):
         spied = []
 
         def deployer_factory(node_uuid, hostname, cluster_uuid):
-            spied.append(hostname)
+            spied.append(IPAddress(hostname))
             return object()
 
         reactor = MemoryCoreReactor()
