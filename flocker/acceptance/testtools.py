@@ -336,79 +336,48 @@ def get_clean_nodes(test_case, num_nodes):
         :param Cluster cluster: The test cluster to act on.
         :param configuration_method: The function to obtain the configured
             entities.
-        :param state_method: The function to obtain the actual entities state.
         :param delete_method: The method to delete an entity.
 
         :return: A `Deferred` that fires with the cluster object.
         """
-        get_items = cluster.configuration_method()
+        get_items = configuration_method(cluster)
+
         def delete_items(items):
-            results_list = []
-            for item in items:
-                d = cluster.delete_method()
+            return gather_deferreds(list(
+                delete_method(cluster, item)
+                for item in items
+            ))
+        get_items.addCallback(delete_items)
+        get_items.addCallback(
+            lambda ignored: loop_until(
+                lambda: [] == state_method(cluster)
+            )
+        )
+        return get_items
 
-    def clean_containers(cluster):
-        get_containers = cluster.configured_containers()
+    def cleanup_containers(cluster):
+        return api_clean_state(
+            cluster,
+            lambda cluster: cluster.configured_containers(),
+            lambda cluster: cluster.current_containers(),
+            lambda cluster, item: cluster.remove_container(item[u"name"]),
+        ).addCallback(lambda ignored: cluster)
 
-        def delete_containers(result):
-            cluster, containers = result
-            results_list = []
-            for container in containers:
-                d = cluster.remove_container(container[u"name"])
-                results_list.append(d)
-            deleting = gather_deferreds(results_list)
+    def cleanup_datasets(cluster):
+        return api_clean_state(
+            cluster,
+            lambda cluster: cluster.configured_datasets(),
+            lambda cluster: list(
+                dataset
+                for dataset
+                in cluster.datasets_state()
+                if not dataset[u"deleted"]
+            ),
+            lambda cluster, item: cluster.delete_dataset(item[u"dataset_id"]),
+        )
 
-            def no_containers(cluster):
-                d = cluster.current_containers()
-                d.addCallback(lambda result: len(result) == 0)
-                return d
-
-            def check_containers(cluster):
-                d = loop_until(lambda: no_containers(cluster))
-                d.addCallback(lambda _: cluster)
-                return d
-
-            deleting.addCallback(lambda _: cluster)
-            deleting.addCallback(check_containers)
-            deleting.addCallback(lambda _: cluster)
-            return deleting
-
-        get_containers.addCallback(delete_containers)
-
-        return get_containers
-
-    def clean_datasets(cluster):
-        get_datasets = cluster.configured_datasets()
-
-        def delete_datasets(datasets):
-            results_list = []
-            for dataset in datasets:
-                if not dataset[u"deleted"]:
-                    d = cluster.delete_dataset(dataset[u"dataset_id"])
-                    results_list.append(d)
-            deleting = gather_deferreds(results_list)
-
-            def no_datasets(cluster):
-                d = cluster.datasets_state()
-                d.addCallback(lambda datasets: len(datasets) == 0)
-                return d
-
-            def check_datasets(cluster):
-                d = loop_until(lambda: no_datasets(cluster))
-                d.addCallback(lambda _: cluster)
-                return d
-
-            deleting.addCallback(lambda _: cluster)
-            deleting.addCallback(check_datasets)
-            deleting.addCallback(lambda _: cluster)
-            return deleting
-
-        get_datasets.addCallback(delete_datasets)
-
-        return get_datasets
-
-    getting.addCallback(clean_containers)
-    getting.addCallback(clean_datasets)
+    getting.addCallback(cleanup_containers)
+    getting.addCallback(cleanup_datasets)
     getting.addCallback(lambda _: reachable_nodes)
     return getting
 
