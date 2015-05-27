@@ -39,7 +39,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.box = "box-cutter/centos70"
   # Update kernel and start to configure base system
-  config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
+  config.vm.provision :shell, :path => "bootstrap.py", :privileged => true
   config.vm.provision :reload
   # Finish configuring base system
   config.vm.provision :shell, :path => "post-reboot-bootstrap.py", :privileged => true,
