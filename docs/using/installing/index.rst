@@ -11,9 +11,9 @@ This should be installed on a machine with SSH credentials to control the cluste
 There is also a ``clusterhq-flocker-node`` package which is installed on each node in the cluster.
 It contains the services that need to run on each node.
 
-.. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
+.. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :ref:`Vagrant configuration in the tutorial <tutvagrantp>`.
 
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
+.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :ref:`contribute`.
 
 .. _installing-flocker-cli:
 
