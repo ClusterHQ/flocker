@@ -31,9 +31,9 @@ def verify_socket(host, port):
     :return Deferred: Firing when connection is possible.
     """
     def can_connect():
-        s = socket.socket()
-        conn = s.connect_ex((host, port))
-        return conn == 0
+        with socket.socket() as s:
+            conn = s.connect_ex((host, port))
+            return conn == 0
 
     dl = loop_until(can_connect)
     return dl
