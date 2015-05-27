@@ -2283,10 +2283,10 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
         )
         unattached = self.api._root_path.descendant([
-            b"unattached", volume.blockdevice_id,
+            b"unattached", _backing_file_name(volume),
         ])
         attached = self.api._root_path.descendant([
-            b"attached", this_node.encode("utf-8"), volume.blockdevice_id,
+            b"attached", this_node.encode("utf-8"), _backing_file_name(volume),
         ])
         attached.parent().makedirs()
         unattached.moveTo(attached)
