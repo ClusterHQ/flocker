@@ -7,6 +7,8 @@ Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
 
 from uuid import uuid4
 
+from bitmath import Byte
+
 from boto.exception import EC2ResponseError
 
 from twisted.trial.unittest import SkipTest
@@ -68,7 +70,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         ec2_client = kwargs["ec2_client"]
         requested_volume = ec2_client.connection.create_volume(
-            self.minimum_allocatable_size,
+            int(Byte(self.minimum_allocatable_size).to_GiB().value),
             ec2_client.zone)
         self.addCleanup(ec2_client.connection.delete_volume,
                         requested_volume.id)

@@ -15,6 +15,8 @@ See https://github.com/rackerlabs/mimic/issues/218
 
 from uuid import uuid4
 
+from bitmath import Byte
+
 from twisted.trial.unittest import SkipTest
 
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
@@ -81,7 +83,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         cinder_client = kwargs["cinder_client"]
         requested_volume = cinder_client.volumes.create(
-            size=self.minimum_allocatable_size
+            size=int(Byte(self.minimum_allocatable_size).to_GiB().value)
         )
         self.addCleanup(
             cinder_client.volumes.delete,
