@@ -185,27 +185,6 @@ Preparing For a Release
    - Any ``docker-head`` builders.
    - Any builders in the "Expected failures" section.
 
-#. Update the Getting Started Guide ``Vagrantfile`` in a new branch:
-
-   XXX This process should be changed, see :issue:`1307`.
-
-   Change ``config.vm.box_version`` in the ``Vagrantfile`` to the version being released, in a new branch of the ``vagrant-flocker`` repository:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      cd
-      git clone git@github.com:ClusterHQ/vagrant-flocker.git
-      cd vagrant-flocker
-      git checkout -b release/flocker-${VERSION} origin/master
-      vi Vagrantfile
-
-   Commit the changes and push the branch:
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      git commit -am "Updated Vagrantfile"
-      git push --set-upstream origin release/flocker-${VERSION}
-
 #. Set up ``AWS Access Key ID`` and ``AWS Secret Access Key`` Amazon S3 credentials:
 
    Creating the Vagrant machine attempts to copy the ``~/.aws`` configuration directory from the host machine.
@@ -340,31 +319,6 @@ Release
       echo https://s3.amazonaws.com/clusterhq-archive/vagrant/tutorial/flocker-tutorial-${VERSION}.box
 
    Use the echoed URL as the public link to the Vagrant box, and perform the steps to :ref:`add-vagrant-box-to-atlas`.
-
-#. Test the Getting Started Guide:
-
-   XXX This process should be changed, see :issue:`1307`.
-
-   XXX This process should be automated, see :issue:`1309`.
-
-   .. note:: This cannot be done from within the  :doc:`Flocker development machine <vagrant>` (but keep that open for later steps).
-
-   Run through the Getting Started guide from the documentation built for the tag on any one client platform, with Vagrant as the node platform, with one change:
-   after cloning ``vagrant-flocker`` in the Installation > Vagrant section, check out the new branch:
-
-   XXX This process should be automated, see :issue:`1309`.
-
-   .. prompt:: bash $
-
-      git checkout release/flocker-${VERSION}
-
-   Test the client install instructions work on all supported platforms by following the instructions and checking the version:
-
-   .. prompt:: bash $
-
-      flocker-deploy --version
-
-   The expected version is the version being released.
 
 #. Update the documentation.
 
