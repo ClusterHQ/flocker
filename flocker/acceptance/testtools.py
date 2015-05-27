@@ -929,6 +929,7 @@ def get_test_cluster(reactor, node_count=0):
         Message.new(
             message_type="acceptance:get_test_cluster:polling",
         ).write()
+
         def failed_query(failure):
             Message.new(message_type="acceptance:is_available_error",
                         reason=unicode(failure),
