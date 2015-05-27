@@ -21,7 +21,6 @@ from twisted.internet.ssl import Certificate
 from twisted.internet import reactor
 from twisted.python.constants import Names, NamedConstant
 
-from ..volume.script import flocker_volume_options
 from ..volume.filesystems import zfs
 from ..volume.service import (
     VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT, FLOCKER_POOL)
@@ -214,7 +213,6 @@ def validate_configuration(configuration):
 
 
 @flocker_standard_options
-@flocker_volume_options
 class _AgentOptions(Options):
     """
     Command line options for agents.
@@ -224,7 +222,7 @@ class _AgentOptions(Options):
 
     optParameters = [
         ["agent-config", "c", "/etc/flocker/agent.yml",
-         "The configuration file to set the control service."],
+         "The configuration file to set the node service."],
     ]
 
     def postOptions(self):
