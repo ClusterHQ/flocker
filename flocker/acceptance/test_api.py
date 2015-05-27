@@ -273,7 +273,7 @@ class ContainerAPITests(TestCase):
 
             def in_current():
                 current = cluster.current_containers()
-                current.addCallback(lambda result: data in result[1])
+                current.addCallback(lambda result: data in result)
                 return current
             return loop_until(in_current)
         creating.addCallback(created)

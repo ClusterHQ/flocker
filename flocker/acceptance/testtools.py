@@ -341,7 +341,7 @@ def get_clean_nodes(test_case, num_nodes):
 
             def no_containers(cluster):
                 d = cluster.current_containers()
-                d.addCallback(lambda result: len(result[1]) == 0)
+                d.addCallback(lambda result: len(result) == 0)
                 return d
 
             def check_containers(cluster):
@@ -823,7 +823,7 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
+        request.addCallback(lambda response: response)
         return request
 
     @log_method
