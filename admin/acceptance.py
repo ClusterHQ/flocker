@@ -462,7 +462,7 @@ def main(reactor, args, base_path, top_level):
     log_writer = eliot_logging_service(
         log_file=log_file,
         reactor=reactor,
-        set_stdout=False)
+        capture_stdout=False)
     log_writer.startService()
     reactor.addSystemEventTrigger(
         'before', 'shutdown', log_writer.stopService)

@@ -73,10 +73,10 @@ class ICommandLineScript(Interface):
         """
 
 
-def eliot_logging_service(log_file, reactor, set_stdout):
+def eliot_logging_service(log_file, reactor, capture_stdout):
     service = MultiService()
     ThreadedFileWriter(log_file, reactor).setServiceParent(service)
-    EliotObserver(set_stdout=set_stdout).setServiceParent(service)
+    EliotObserver(capture_stdout=capture_stdout).setServiceParent(service)
     return service
 
 
@@ -91,14 +91,16 @@ class EliotObserver(Service):
     """
     A Twisted log observer that logs to Eliot.
     """
-    def __init__(self, publisher=twisted_log, set_stdout=True):
+    def __init__(self, publisher=twisted_log, capture_stdout=True):
         """
         :param publisher: A ``LogPublisher`` to capture logs from, or if no
             argument is given the default Twisted log system.
+        :param bool capture_stdout: Wether to capture standard output and
+            standard error to eliot.
         """
         self.logger = Logger()
         self.publisher = publisher
-        self.set_stdout = set_stdout
+        self.capture_stdout = capture_stdout
 
     def __call__(self, msg):
         error = bool(msg.get("isError"))
@@ -114,7 +116,7 @@ class EliotObserver(Service):
         Start capturing Twisted logs.
         """
         # We don't bother shutting this down.
-        startLoggingWithObserver(self, setStdout=self.set_stdout)
+        startLoggingWithObserver(self, setStdout=self.capture_stdout)
 
 
 class FlockerScriptRunner(object):
