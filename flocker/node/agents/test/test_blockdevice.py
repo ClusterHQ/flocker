@@ -5,6 +5,7 @@ Tests for ``flocker.node.agents.blockdevice``.
 """
 
 from errno import ENOTDIR
+from functools import partial
 from os import getuid, statvfs
 from uuid import UUID, uuid4
 from subprocess import STDOUT, PIPE, Popen, check_output
@@ -1425,24 +1426,15 @@ class IBlockDeviceAPITestsMixin(object):
         to ``create_volume``.
         """
         expected_dataset_id = uuid4()
-        # Request an allocatable size in the region of
-        # REALISTIC_BLOCKDEVICE_SIZE.
-        # LoopbackBlockDeviceAPI raises ``ValueError`` if an
-        # unallocatable size is supplied.
-        # Other implementations may or may not do the same.
-        requested_size = allocated_size(
-            self.api.allocation_unit(),
-            REALISTIC_BLOCKDEVICE_SIZE
-        )
 
         self.api.create_volume(
             dataset_id=expected_dataset_id,
-            size=requested_size,
+            size=self.minimum_allocatable_size,
         )
         [listed_volume] = self.api.list_volumes()
 
         self.assertEqual(
-            (expected_dataset_id, requested_size),
+            (expected_dataset_id, self.minimum_allocatable_size),
             (listed_volume.dataset_id, listed_volume.size)
         )
 
@@ -1935,12 +1927,16 @@ class IBlockDeviceAPITestsMixin(object):
         self.assertNotIn(flocker_volume, self.api.list_volumes())
 
 
-def make_iblockdeviceapi_tests(blockdevice_api_factory, over_allocation):
+def make_iblockdeviceapi_tests(
+        blockdevice_api_factory, minimum_allocatable_size, over_allocation):
     """
     :param blockdevice_api_factory: A factory which will be called
         with the generated ``TestCase`` during the ``setUp`` for each
         test and which should return an implementation of
         ``IBlockDeviceAPI`` to be tested.
+    :param int minimum_allocatable_size: The minumum block device size
+        (in bytes) supported on the platform under test. This must be
+        a multiple ``IBlockDeviceAPI.allocation_unit()``.
     :param int over_allocation: A size (in ``bytes``) by which the
         storage system is expected to over allocate eg Cinder allows
         sizes to be supplied in GiB, but certain Cinder storage
@@ -1952,6 +1948,11 @@ def make_iblockdeviceapi_tests(blockdevice_api_factory, over_allocation):
     class Tests(IBlockDeviceAPITestsMixin, SynchronousTestCase):
         def setUp(self):
             self.api = blockdevice_api_factory(test_case=self)
+            check_allocatable_size(
+                self.api.allocation_unit(),
+                minimum_allocatable_size
+            )
+            self.minimum_allocatable_size = minimum_allocatable_size
             self.over_allocation = over_allocation
             self.this_node = self.api.compute_instance_id()
 
@@ -2052,10 +2053,18 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     return loopback_blockdevice_api
 
 
+LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
+LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(64).to_Byte().value)
+
+
 class LoopbackBlockDeviceAPITests(
         make_iblockdeviceapi_tests(
-            blockdevice_api_factory=loopbackblockdeviceapi_for_test,
-            over_allocation=0
+            blockdevice_api_factory=partial(
+                loopbackblockdeviceapi_for_test,
+                allocation_unit=LOOPBACK_ALLOCATION_UNIT
+            ),
+            minimum_allocatable_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
+            over_allocation=0,
         )
 ):
     """
@@ -2092,8 +2101,9 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
     def setUp(self):
         self.api = loopbackblockdeviceapi_for_test(
             test_case=self,
-            allocation_unit=int(MiB(1).to_Byte().value)
+            allocation_unit=LOOPBACK_ALLOCATION_UNIT,
         )
+        self.minimum_allocatable_size = LOOPBACK_MINIMUM_ALLOCATABLE_SIZE
 
     def test_initialise_directories(self):
         """
@@ -2129,7 +2139,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         ``create_volume`` creates sparse files.
         """
-        requested_size = self.api.allocation_unit()
+        requested_size = self.minimum_allocatable_size
         volume = self.api.create_volume(
             dataset_id=uuid4(),
             size=requested_size,
@@ -2152,14 +2162,14 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
             ValueError,
             self.api.create_volume,
             dataset_id=uuid4(),
-            size=self.api.allocation_unit() + 1,
+            size=self.minimum_allocatable_size + 1,
         )
 
     def test_resize_grow_sparse(self):
         """
         ``resize_volume`` extends backing files sparsely.
         """
-        requested_size = self.api.allocation_unit()
+        requested_size = self.minimum_allocatable_size
         volume = self.api.create_volume(
             dataset_id=uuid4(), size=requested_size
         )
@@ -2182,17 +2192,15 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         ``size`` is a multiple of
         ``IBlockDeviceAPI.allocated_unit()``.
         """
-        allocation_unit = self.api.allocation_unit()
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=allocation_unit
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
         )
 
-        larger_size = allocation_unit + 1
         self.assertRaises(
             ValueError,
             self.api.resize_volume,
             blockdevice_id=volume.blockdevice_id,
-            size=larger_size,
+            size=self.minimum_allocatable_size + 1,
         )
 
     def test_resize_data_preserved(self):
@@ -2200,7 +2208,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         ``resize_volume`` does not modify the data contained inside the backing
         file.
         """
-        start_size = self.api.allocation_unit()
+        start_size = self.minimum_allocatable_size
         end_size = start_size * 2
         volume = self.api.create_volume(dataset_id=uuid4(), size=start_size)
         backing_file = self.api._root_path.descendant(
@@ -2234,7 +2242,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         ``list_volumes`` returns a ``BlockVolume`` for each unattached volume
         file.
         """
-        expected_size = REALISTIC_BLOCKDEVICE_SIZE
+        expected_size = self.minimum_allocatable_size
         expected_dataset_id = uuid4()
         blockdevice_volume = _blockdevicevolume_from_dataset_id(
             size=expected_size,
@@ -2252,7 +2260,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         ``list_volumes`` returns a ``BlockVolume`` for each attached volume
         file.
         """
-        expected_size = REALISTIC_BLOCKDEVICE_SIZE
+        expected_size = self.minimum_allocatable_size
         expected_dataset_id = uuid4()
         this_node = self.api.compute_instance_id()
 
@@ -2280,7 +2288,7 @@ class LoopbackBlockDeviceAPIImplementationTests(SynchronousTestCase):
         """
         this_node = self.api.compute_instance_id()
         volume = self.api.create_volume(
-            dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE
+            dataset_id=uuid4(), size=self.minimum_allocatable_size
         )
         unattached = self.api._root_path.descendant([
             b"unattached", _backing_file_name(volume),

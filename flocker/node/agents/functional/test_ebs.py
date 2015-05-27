@@ -7,8 +7,6 @@ Functional tests for ``flocker.node.agents.ebs`` using an EC2 cluster.
 
 from uuid import uuid4
 
-from bitmath import Byte
-
 from boto.exception import EC2ResponseError
 
 from twisted.trial.unittest import SkipTest
@@ -18,14 +16,12 @@ from ..ebs import (_wait_for_volume, ATTACHED_DEVICE_LABEL,
                    BOTO_EC2RESPONSE_ERROR, UnattachedVolume,
                    CODE, MESSAGE, REQUEST_ID)
 
-from ..test.test_blockdevice import (
-    make_iblockdeviceapi_tests,
-    REALISTIC_BLOCKDEVICE_SIZE
-)
+from ..test.test_blockdevice import make_iblockdeviceapi_tests
 
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdeviceapi_args,
     get_blockdeviceapi_with_cleanup, get_over_allocation,
+    get_minimum_allocatable_size,
 )
 
 
@@ -43,6 +39,7 @@ class EBSBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
+            minimum_allocatable_size=get_minimum_allocatable_size(),
             over_allocation=get_over_allocation(),
         )
 ):
@@ -71,7 +68,7 @@ class EBSBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         ec2_client = kwargs["ec2_client"]
         requested_volume = ec2_client.connection.create_volume(
-            int(Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GiB().value),
+            self.minimum_allocatable_size,
             ec2_client.zone)
         self.addCleanup(ec2_client.connection.delete_volume,
                         requested_volume.id)
@@ -90,7 +87,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         )
         flocker_volume = blockdevice_api2.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
         self.assert_foreign_volume(flocker_volume)
 
@@ -102,7 +99,7 @@ class EBSBlockDeviceAPIInterfaceTests(
         """
         volume = self.api.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
         )
         self.api.attach_volume(
             volume.blockdevice_id,
@@ -132,8 +129,12 @@ class EBSBlockDeviceAPIInterfaceTests(
         # Test 2: Set EC2 connection zone to an invalid string.
         # Raises: EC2ResponseError
         self.api.zone = u'invalid_zone'
-        self.assertRaises(EC2ResponseError, self.api.create_volume,
-                          dataset_id=uuid4(), size=REALISTIC_BLOCKDEVICE_SIZE,)
+        self.assertRaises(
+            EC2ResponseError,
+            self.api.create_volume,
+            dataset_id=uuid4(),
+            size=self.minimum_allocatable_size,
+        )
 
         # Validate decorated method for exception logging
         # actually logged to ``Eliot`` logger.

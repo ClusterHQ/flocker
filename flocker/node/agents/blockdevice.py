@@ -798,7 +798,6 @@ def check_allocatable_size(allocation_unit, requested_size):
         )
 
 
-
 # Get rid of this in favor of calculating each individual operation in
 # BlockDeviceDeployer.calculate_changes.  FLOC-1771
 @implementer(IStateChange)

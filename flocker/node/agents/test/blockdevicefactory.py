@@ -20,7 +20,7 @@ See `acceptance testing <acceptance-testing>`_ for details.
 
 from os import environ
 from uuid import uuid4
-from functools import partial
+from functools import partial, wraps
 
 from yaml import safe_load
 from bitmath import GiB
@@ -270,23 +270,60 @@ def get_blockdeviceapi_with_cleanup(test_case, provider):
 
 
 OVER_ALLOCATION_UNITS = {
+    # This really means Rackspace
     'openstack': GiB(0),
     'redhat-openstack': GiB(4),
     'aws': GiB(0),
 }
 
 
-def get_over_allocation():
+def require_cloud_provider(original):
     """
-    Return a platform specific device over allocation unit.
-    """
-    # ie cust0, rackspace, aws
-    # XXX This is copied from get_blockdeviceapi_args and needs refactoring.
-    platform_name = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-    if platform_name is None:
-        raise InvalidConfig(
-            'Supply the platform on which you are running tests using the '
-            'FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER environment variable.'
-        )
+    A decorator which gets a
+    ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER`` value from the
+    environment and supplies it to the decorated function as keyword
+    argument ``cloud_provider``.
 
-    return int(OVER_ALLOCATION_UNITS[platform_name].to_Byte().value)
+    :param callable original: The function to decorate.
+    :returns: The decorated function.
+    :raises: ``InvalidConfig`` if
+        FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER is not in the
+        environment.
+    """
+    @wraps(original)
+    def decorated(*args, **kwargs):
+        cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+        if cloud_provider is None:
+            raise InvalidConfig(
+                'Supply the cloud provider on which you are running tests '
+                'using the FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER '
+                'environment variable.'
+            )
+        kwargs['cloud_provider'] = cloud_provider
+        return original(*args, **kwargs)
+
+    return decorated
+
+
+@require_cloud_provider
+def get_over_allocation(cloud_provider):
+    """
+    Return a provider specific device over allocation unit.
+    """
+    return int(OVER_ALLOCATION_UNITS[cloud_provider].to_Byte().value)
+
+
+MINIMUM_ALLOCATABLE_SIZES = {
+    # This really means Rackspace
+    'openstack': GiB(100),
+    'redhat-openstack': GiB(1),
+    'aws': GiB(1),
+}
+
+
+@require_cloud_provider
+def get_minimum_allocatable_size(cloud_provider):
+    """
+    Return a provider specific minimum_allocatable_size.
+    """
+    return int(MINIMUM_ALLOCATABLE_SIZES[cloud_provider].to_Byte().value)

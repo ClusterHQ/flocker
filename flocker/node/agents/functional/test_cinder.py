@@ -15,8 +15,6 @@ See https://github.com/rackerlabs/mimic/issues/218
 
 from uuid import uuid4
 
-from bitmath import Byte
-
 from twisted.trial.unittest import SkipTest
 
 # make_iblockdeviceapi_tests should really be in flocker.node.agents.testtools,
@@ -26,9 +24,9 @@ from ..test.test_blockdevice import (
 )
 from ..test.blockdevicefactory import (
     InvalidConfig, ProviderType, get_blockdeviceapi_args,
-    get_blockdeviceapi_with_cleanup, get_over_allocation
+    get_blockdeviceapi_with_cleanup, get_over_allocation,
+    get_minimum_allocatable_size,
 )
-from ....testtools import REALISTIC_BLOCKDEVICE_SIZE
 
 from ..cinder import wait_for_volume
 
@@ -55,6 +53,7 @@ class CinderBlockDeviceAPIInterfaceTests(
                     test_case=test_case,
                 )
             ),
+            minimum_allocatable_size=get_minimum_allocatable_size(),
             over_allocation=get_over_allocation(),
         )
 ):
@@ -82,7 +81,7 @@ class CinderBlockDeviceAPIInterfaceTests(
             raise SkipTest(str(e))
         cinder_client = kwargs["cinder_client"]
         requested_volume = cinder_client.volumes.create(
-            size=Byte(REALISTIC_BLOCKDEVICE_SIZE).to_GB().value
+            size=self.minimum_allocatable_size
         )
         self.addCleanup(
             cinder_client.volumes.delete,
@@ -104,6 +103,6 @@ class CinderBlockDeviceAPIInterfaceTests(
             )
         flocker_volume = blockdevice_api2.create_volume(
             dataset_id=uuid4(),
-            size=REALISTIC_BLOCKDEVICE_SIZE,
+            size=self.minimum_allocatable_size,
             )
         self.assert_foreign_volume(flocker_volume)
