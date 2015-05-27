@@ -72,7 +72,7 @@ class P2PNodeDeployer(object):
         ])
 
 
-def change_node_state(deployer, desired_configuration):
+def change_node_state(deployer, desired_configuration, iterations=3):
     """
     Change the local state to match the given desired state.
 
@@ -80,6 +80,8 @@ def change_node_state(deployer, desired_configuration):
         calculate changes.
     :param Deployment desired_configuration: The intended configuration of all
         nodes.
+    :param iterations: Number of times to run discover/calculate/apply
+        loop.
     :return: ``Deferred`` that fires when the necessary changes are done.
     """
     def converge():
@@ -245,6 +247,45 @@ class DeployerTests(TestCase):
                 needles=['{}={}\n'.format(k, v)
                          for k, v in expected_variables])
         d.addCallback(started)
+        return d
+
+    @if_docker_configured
+    def test_links_lowercase(self):
+        """
+        Lower-cased link aliases do not result in lack of covergence.
+
+        Environment variables introspected by the Docker client for links
+        are all upper-case, a source of potential problems in detecting
+        the state.
+        """
+        application_name = random_name(self)
+        docker_client = DockerClient()
+        self.addCleanup(docker_client.remove, application_name)
+
+        deployer = ApplicationNodeDeployer(
+            u"localhost", docker_client,
+            make_memory_network(), node_uuid=uuid4())
+
+        link = Link(alias=u"alias",
+                    local_port=80,
+                    remote_port=8080)
+        application = Application(
+            name=application_name,
+            image=DockerImage.from_string(u"busybox"),
+            links=[link],
+            command_line=[u"nc", u"-l", u"-p", u"8080"])
+        desired_configuration = Deployment(nodes=[
+            Node(uuid=deployer.node_uuid,
+                 applications=[application])])
+        d = change_node_state(deployer, desired_configuration, iterations=1)
+        d.addCallback(lambda _: deployer.discover_state(
+            NodeState(hostname=deployer.hostname, uuid=deployer.node_uuid,
+                      applications=[], used_ports=[],
+                      manifestations={}, paths={}, devices={})))
+        d.addCallback(
+            lambda results: self.assertIn(
+                application.links,
+                [app.links for app in results[0].applications]))
         return d
 
     @if_docker_configured
