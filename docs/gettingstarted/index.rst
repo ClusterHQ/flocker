@@ -210,19 +210,24 @@ Getting started with Flocker
       You should have the Flocker client installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.
       Now you can try our simple tutorial: a Python web application and a Redis server.
 
-      .. code-block:: console
+      .. version-code-block:: console
 
-         you@laptop:~$ git clone https://github.com/clusterhq/flocker-quickstart
-         you@laptop:~$ cd flocker-quickstart
+         you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/fig.yml
+         you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/deployment-node1.yml
+         you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/deployment-node2.yml
 
       fig.yml
       -------
+
+      :download:`fig.yml`
 
       .. literalinclude:: fig.yml
          :language: yaml
 
       deployment-node1.yml
       --------------------
+
+      :download:`deployment-node1.yml`
 
       .. literalinclude:: deployment-node1.yml
          :language: yaml
@@ -255,6 +260,8 @@ Getting started with Flocker
 
       deployment-node2.yml
       --------------------
+
+      :download:`deployment-node2.yml`
 
       .. literalinclude:: deployment-node2.yml
          :language: yaml
