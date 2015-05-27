@@ -3488,7 +3488,7 @@ class AllocatedSizeTypeTests(SynchronousTestCase):
 
     def test_requested_size_float(self):
         """
-        ``allocated_size`` raises ``TypeError`` if the supplied
+        ``allocated_size`` returns ``int`` if the supplied
         ``requested_size`` is of type ``float``.
         """
         self.assertIsInstance(
