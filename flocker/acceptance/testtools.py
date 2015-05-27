@@ -793,7 +793,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: response)
         return request
 
     @log_method
@@ -810,7 +809,6 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: response)
         return request
 
     @log_method
