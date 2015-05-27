@@ -867,12 +867,3 @@ class ContainerAgentOptionsTests(
     """
     Tests for ``ContainerAgentOptions``.
     """
-
-
-class DatasetAgentVolumeTests(make_volume_options_tests(
-        DatasetAgentOptions, [])):
-    """
-    Tests for the volume configuration arguments of ``DatasetAgentOptions``.
-
-    XXX This should be removed as part of FLOC-1924.
-    """
