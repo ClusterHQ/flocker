@@ -1425,10 +1425,14 @@ class IBlockDeviceAPITestsMixin(object):
         to ``create_volume``.
         """
         expected_dataset_id = uuid4()
-        requested_size = REALISTIC_BLOCKDEVICE_SIZE
-        expected_size = allocated_size(
+        # Request an allocatable size in the region of
+        # REALISTIC_BLOCKDEVICE_SIZE.
+        # LoopbackBlockDeviceAPI raises ``ValueError`` if an
+        # unallocatable size is supplied.
+        # Other implementations may or may not do the same.
+        requested_size = allocated_size(
             self.api.allocation_unit(),
-            requested_size
+            REALISTIC_BLOCKDEVICE_SIZE
         )
 
         self.api.create_volume(
@@ -1438,7 +1442,7 @@ class IBlockDeviceAPITestsMixin(object):
         [listed_volume] = self.api.list_volumes()
 
         self.assertEqual(
-            (expected_dataset_id, expected_size),
+            (expected_dataset_id, requested_size),
             (listed_volume.dataset_id, listed_volume.size)
         )
 
