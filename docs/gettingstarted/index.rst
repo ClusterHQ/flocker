@@ -81,11 +81,8 @@ Getting started with Flocker
 
          Install the Flocker client on your Mac (requires Homebrew):
 
-         .. version-code-block:: console
-
-            you@laptop:~$ brew update && \
-              brew tap clusterhq/flocker && \
-              brew install flocker-|latest-installable|
+         .. task:: test_homebrew flocker-|latest-installable|
+            :prompt: you@laptop:~$
 
       .. noscript-content::
 
@@ -118,11 +115,8 @@ Getting started with Flocker
 
          Install the Flocker client on your Mac (requires Homebrew):
 
-         .. version-code-block:: console
-
-            you@laptop:~$ brew update && \
-              brew tap clusterhq/flocker && \
-              brew install flocker-|latest-installable|
+         .. task:: test_homebrew flocker-|latest-installable|
+            :prompt: you@laptop:~$
 
          Ubuntu 14.04
          ^^^^^^^^^^^^
