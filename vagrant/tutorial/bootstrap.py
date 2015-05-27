@@ -34,7 +34,12 @@ def main():
     # of the kernel.
     check_output(["/etc/init.d/vboxadd", "setup"])
 
-    # Create the 'docker' group (???)
+    # Create the 'docker' group.  The Vagrant feature for pulling Docker images
+    # (used in the Vagrant file) wants to be able to add the `vagrant` user to
+    # the `docker` group (so that it can use the `docker` CLI, presumably).
+    # You might think the Docker package would create this group.  Maybe it
+    # does, I don't know (the script fails if this group isn't added here,
+    # though).
     check_output(["groupadd", "docker"])
 
 
