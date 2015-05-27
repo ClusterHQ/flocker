@@ -25,7 +25,7 @@ from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
-from eliot import MessageType, Field
+from eliot import start_action, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
     LoggedAction, assertHasMessage,
@@ -69,17 +69,6 @@ from ....common.test.test_thread import NonThreadPool, NonReactor
 
 LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
 CLEANUP_RETRY_LIMIT = 10
-
-# Helper structures to Eliot output leftover volumes after a test run.
-VOLUMES = Field.for_types(
-    "volumes", [list],
-    u"A list of volumes of interest to the test runner.",
-)
-LEFTOVER_VOLUME_DETAILS = MessageType(
-    u"agent:blockdevice:failedcleanup:details",
-    [VOLUMES],
-    u"Volumes created by this test run that test failed to clean up."
-)
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -215,18 +204,26 @@ def detach_destroy_volumes(api):
     """
     volumes = api.list_volumes()
     retry = 0
-    while retry < CLEANUP_RETRY_LIMIT and len(volumes) > 0:
-        for volume in volumes:
-            if volume.attached_to is not None:
-                api.detach_volume(volume.blockdevice_id)
+    action_type = u"agent:blockdevice:cleanup:details"
+    with start_action(action_type=action_type):
+        while retry < CLEANUP_RETRY_LIMIT and len(volumes) > 0:
+            for volume in volumes:
+                try:
+                    if volume.attached_to is not None:
+                        api.detach_volume(volume.blockdevice_id)
+                    api.destroy_volume(volume.blockdevice_id)
+                except Exception as e:
+                    Message.new(u"agent:blockdevice:failedcleanup:volume",
+                                blockdevice_id=volume.blockdevice_id,
+                                error=str(e).write(Logger()))
 
-            api.destroy_volume(volume.blockdevice_id)
-        time.sleep(1.0)
-        volumes = api.list_volumes()
-        retry += 1
+            time.sleep(1.0)
+            volumes = api.list_volumes()
+            retry += 1
 
-    if len(volumes) > 0:
-        LEFTOVER_VOLUME_DETAILS(volumes=volumes).write()
+        if len(volumes) > 0:
+            Message.new(u"agent:blockdevice:failedcleanup:volumes",
+                        volumes=volumes).write()
 
 
 class BlockDeviceDeployerTests(
