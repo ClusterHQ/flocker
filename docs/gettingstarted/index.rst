@@ -164,8 +164,7 @@ Getting started with Flocker
 
          .. code-block:: console
 
-            you@laptop:~$ git clone \
-              https://github.com/clusterhq/vagrant-flocker && \
+            you@laptop:~$ curl https://docs.clusterhq.com/en/0.4.0/_downloads/Vagrantfile && \
               cd vagrant-flocker && \
               vagrant up && \
               [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
@@ -185,9 +184,7 @@ Getting started with Flocker
 
          .. code-block:: console
 
-            you@laptop:~$ git clone \
-              https://github.com/clusterhq/vagrant-flocker && \
-              cd vagrant-flocker && \
+            you@laptop:~$ curl https://docs.clusterhq.com/en/0.4.0/_downloads/Vagrantfile && \
               vagrant up && \
               [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
               ssh-add ~/.vagrant.d/insecure_private_key
