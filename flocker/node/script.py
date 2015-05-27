@@ -254,9 +254,6 @@ class ContainerAgentOptions(_AgentOptions):
 @implementer(ICommandLineScript)
 class AgentScript(PRecord):
     """
-    XXX This is temporarily not used for the ``flocker-dataset-agent`` script.
-    See FLOC-1924.
-
     Implement top-level logic for the ``flocker-dataset-agent`` and
     ``flocker-container-agent`` scripts.
 
