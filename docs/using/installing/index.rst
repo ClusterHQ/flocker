@@ -1,3 +1,5 @@
+.. _installflocker:
+
 ==================
 Installing Flocker
 ==================
