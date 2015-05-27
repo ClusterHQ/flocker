@@ -478,8 +478,7 @@ def assert_expected_deployment(test_case, expected_deployment):
         ip_to_uuid = {node.address: node.uuid for node in cluster.nodes}
         uuid_to_ip = {node.uuid: node.address for node in cluster.nodes}
 
-        def got_results(results):
-            cluster, existing_containers = results
+        def got_results(existing_containers):
             expected = []
             for hostname, apps in expected_deployment.items():
                 node_uuid = ip_to_uuid[hostname]
