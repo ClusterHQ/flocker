@@ -162,9 +162,9 @@ Getting started with Flocker
 
          Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
-            you@laptop:~$ curl https://docs.clusterhq.com/en/0.4.0/_downloads/Vagrantfile && \
+            you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/Vagrantfile && \
               cd vagrant-flocker && \
               vagrant up && \
               [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
@@ -182,9 +182,9 @@ Getting started with Flocker
 
          Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
-            you@laptop:~$ curl https://docs.clusterhq.com/en/0.4.0/_downloads/Vagrantfile && \
+            you@laptop:~$ curl -O https://docs.clusterhq.com/en/|latest-installable|/_downloads/Vagrantfile && \
               vagrant up && \
               [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
               ssh-add ~/.vagrant.d/insecure_private_key
