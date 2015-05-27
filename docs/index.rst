@@ -14,7 +14,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   introduction
+   introduction/index
    gettingstarted/index
    indepth/index
    advanced/index

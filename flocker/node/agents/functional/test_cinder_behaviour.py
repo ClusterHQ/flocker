@@ -19,13 +19,13 @@ def cinder_volume_manager():
     """
     Get an ``ICinderVolumeManager`` configured to work on this environment.
 
-    It will not automatically clean up after itself.
+    XXX: It will not automatically clean up after itself. See FLOC-1824.
     """
     try:
         cls, kwargs = get_blockdeviceapi_args(ProviderType.openstack)
     except InvalidConfig as e:
         raise SkipTest(str(e))
-    return kwargs["cinder_volume_manager"]
+    return kwargs["cinder_client"].volumes
 
 
 # All of the following tests could be part of the suite returned by

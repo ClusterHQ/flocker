@@ -362,13 +362,25 @@ class ControlCredentialTests(
         self.assertEqual(
             subject.CN, b"control-service")
 
-    def test_subjectAltName(self):
+    def test_subjectAltName_dns(self):
         """
-        The generated certificate has a subjectAltName containing the given
-        hostname.
+        If given a domain name as hostname, the generated certificate has a
+        subjectAltName containing the given hostname as a DNS record.
         """
         assert_has_extension(self, self.credential.credential,
-                             b"subjectAltName", b"DNS:control.example.com")
+                             b"subjectAltName",
+                             b"DNS:control-service,DNS:control.example.com")
+
+    def test_subjectAltName_ipv4(self):
+        """
+        If given a IPv4 address as the hostname, the generated certificate has
+        a subjectAltName containing with a IP record.
+        """
+        credential = ControlCredential.initialize(
+            self.path, self.ca, begin=self.start_date, hostname=b"127.0.0.1")
+        assert_has_extension(self, credential.credential,
+                             b"subjectAltName",
+                             b"DNS:control-service,IP:127.0.0.1")
 
 
 class RootCredentialTests(SynchronousTestCase):
