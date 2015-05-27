@@ -367,7 +367,7 @@ def _zfs_storagepool(
     else:
         mount_root = FilePath(mount_root)
     if volume_config_path is None:
-        config_path = DEFAULT_CONFIG_PATH.path
+        config_path = DEFAULT_CONFIG_PATH
     else:
         config_path = FilePath(volume_config_path)
 
