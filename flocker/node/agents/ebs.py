@@ -26,7 +26,8 @@ from .blockdevice import (
     UnattachedVolume, get_blockdevice_volume
 )
 from ._logging import (
-    AWS_ACTION, BOTO_EC2RESPONSE_ERROR
+    AWS_ACTION, BOTO_EC2RESPONSE_ERROR, NO_AVAILABLE_DEVICE,
+    NO_NEW_DEVICE_IN_OS
 )
 
 DATASET_ID_LABEL = u'flocker-dataset-id'
@@ -280,6 +281,7 @@ def _wait_for_new_device(base, size, time_limit=60):
                 return new_device
         time.sleep(0.1)
         elapsed_time = time.time() - start_time
+    NO_NEW_DEVICE_IN_OS(devices=base, size=size, time_limit=time_limit).write()
     return None
 
 
@@ -373,6 +375,10 @@ class EBSBlockDeviceAPI(object):
             file_name = u'/dev/sd' + suffix
             if file_name not in devices:
                 return file_name
+
+        # Could not find any suitable device that is available
+        # for attachment. Log to Eliot before giving up.
+        NO_AVAILABLE_DEVICE(devices=devices).write()
         return None
 
     def create_volume(self, dataset_id, size):
