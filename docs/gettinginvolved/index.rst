@@ -7,4 +7,5 @@ Getting Involved
 
    contributing
    acceptance-testing
+   client-testing
    infrastructure/index
