@@ -100,9 +100,13 @@ class UserCertificateOptions(PrettyOptions):
     Creates a certificate signed by a previously generated certificate
     authority (see flocker-ca initialize command for more information).
 
-    Required parameters:
+    Usage:
 
-    * name: A username for which the certificate should be created.
+    flocker-ca create-api-certificate <username>
+
+    Parameters:
+
+    * username: A username for which the certificate should be created.
     """
 
     synopsis = "<name> [options]"
@@ -198,11 +202,11 @@ class NodeCertificateOptions(PrettyOptions):
                 ca = RootCredential.from_path(self["inputpath"])
                 nc = NodeCredential.initialize(self["outputpath"], ca)
                 self._sys_module.stdout.write(
-                    b"Created {uuid}.crt. Copy it over to "
-                    b"/etc/flocker/node.crt on your node "
-                    b"machine and make sure to chmod 0600 it.".format(
+                    u"Created {uuid}.crt. Copy it over to "
+                    u"/etc/flocker/node.crt on your node "
+                    u"machine and make sure to chmod 0600 it.\n".format(
                         uuid=nc.uuid
-                    )
+                    ).encode("utf-8")
                 )
             except PathError as e:
                 raise UsageError(str(e))
@@ -232,6 +236,15 @@ class ControlCertificateOptions(PrettyOptions):
     The generated files will be stored in the specified output directory
     (defaults to current working directory) with the names
     "control-<hostname>.crt" and "control-<hostname>.key".
+
+    Usage:
+
+    flocker-ca create-control-certificate <hostname>
+
+    Parameters:
+
+    * hostname: The hostname that this control service's API will run on.
+      e.g. "example.org".
     """
 
     synopsis = "[options] <hostname>"
@@ -270,20 +283,20 @@ class ControlCertificateOptions(PrettyOptions):
                 ControlCredential.initialize(self["outputpath"], ca,
                                              self["hostname"])
                 output_certificate_filename = (
-                    b"control-" + self["hostname"] + b".crt")
+                    b"control-" + self["hostname"] + b".crt").decode("utf-8")
                 output_key_filename = (
-                    b"control-" + self["hostname"] + b".key")
+                    b"control-" + self["hostname"] + b".key").decode("utf-8")
                 success_message = (
-                    b"Created {certificate} and {key}.\n"
-                    b"Copy these files to the directory /etc/flocker on your "
-                    b"control service machine. Rename the files to "
-                    b"control-service.crt and control-service.key and "
-                    b"set the correct permissions by running chmod 0600 on "
-                    b"both files."
-                    b"\n".format(
+                    u"Created {certificate} and {key}\n"
+                    u"Copy these files to the directory /etc/flocker on your "
+                    u"control service machine.\nRename the files to "
+                    u"control-service.crt and control-service.key and "
+                    u"set the correct permissions by running chmod 0600 on "
+                    u"both files."
+                    u"\n".format(
                         certificate=output_certificate_filename,
                         key=output_key_filename
-                    )
+                    ).encode("utf-8")
                 )
                 self._sys_module.stdout.write(success_message)
             except (
@@ -308,6 +321,10 @@ class InitializeOptions(PrettyOptions):
     in the current working directory. Once this has been done other
     ``flocker-ca`` commands can be run in this directory to create
     certificates singed by this particular certificate authority.
+
+    Usage:
+
+    flocker-ca initialize <name>
 
     Parameters:
 
@@ -334,7 +351,7 @@ class InitializeOptions(PrettyOptions):
                 self._sys_module.stdout.write(
                     b"Created cluster.key and cluster.crt. "
                     b"Please keep cluster.key secret, as anyone who can "
-                    b"access it will be able to control your cluster."
+                    b"access it will be able to control your cluster.\n"
                 )
             except (
                 KeyAlreadyExistsError, CertificateAlreadyExistsError, PathError
