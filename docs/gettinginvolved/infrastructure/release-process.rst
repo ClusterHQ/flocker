@@ -322,15 +322,6 @@ Release
 
 #. Update the documentation.
 
-   This should be done from the :doc:`Flocker development machine <vagrant>`.
-
-   If this machine is no longer connected to, go to the clone of ``flocker-${VERSION}`` and SSH into the machine:
-
-   .. prompt:: bash $
-
-      vagrant up
-      vagrant ssh -- -A
-
    .. prompt:: bash [vagrant@localhost]$
 
       cd ~/flocker-${VERSION}
