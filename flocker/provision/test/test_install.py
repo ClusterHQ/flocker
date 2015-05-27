@@ -56,10 +56,9 @@ class InstallFlockerTests(SynchronousTestCase):
         distribution = 'ubuntu-14.04'
         commands = task_install_flocker(distribution=distribution)
         self.assertEqual(commands, sequence([
-            run(command='apt-get -y install software-properties-common'),
+            run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
             run(command='add-apt-repository -y ppa:james-page/docker'),
-            run(command="add-apt-repository -y "
-                        "'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'"),  # noqa
+            run(command="add-apt-repository -y 'deb {} /'".format(CLUSTERHQ_REPO[distribution])),  # noqa
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
@@ -76,10 +75,9 @@ class InstallFlockerTests(SynchronousTestCase):
             package_source=source,
             distribution=distribution)
         self.assertEqual(commands, sequence([
-            run(command='apt-get -y install software-properties-common'),
+            run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
             run(command='add-apt-repository -y ppa:james-page/docker'),
-            run(command="add-apt-repository -y "
-                        "'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'"),  # noqa
+            run(command="add-apt-repository -y 'deb {} /'".format(CLUSTERHQ_REPO[distribution])),  # noqa
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node=1.2.3-1'),  # noqa
         ]))
@@ -95,12 +93,14 @@ class InstallFlockerTests(SynchronousTestCase):
             package_source=source,
             distribution=distribution)
         self.assertEqual(commands, sequence([
-            run(command='apt-get -y install software-properties-common'),
+            run(command='apt-get -y install apt-transport-https software-properties-common'),  # noqa
             run(command='add-apt-repository -y ppa:james-page/docker'),
-            run(command="add-apt-repository -y "
-                        "'deb https://s3.amazonaws.com/clusterhq-archive/ubuntu 14.04/amd64/'"),  # noqa
+            run(command="add-apt-repository -y 'deb {} /'".format(CLUSTERHQ_REPO[distribution])),  # noqa
             run(command="add-apt-repository -y "
                         "'deb http://build.clusterhq.com/results/omnibus/branch-FLOC-1234/ubuntu-14.04 /'"),  # noqa
+            put(
+                content='Package:  *\nPin: origin build.clusterhq.com\nPin-Priority: 900\n',  # noqa
+                path='/etc/apt/preferences.d/buildbot-900'),
             run(command='apt-get update'),
             run(command='apt-get -y --force-yes install clusterhq-flocker-node'),  # noqa
         ]))
