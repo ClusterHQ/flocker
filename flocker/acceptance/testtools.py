@@ -298,18 +298,27 @@ def get_clean_nodes(test_case, num_nodes):
                        "{existing} node(s) are set.".format(
                            necessary=num_nodes, existing=len(nodes)))
 
+    Message.new(
+        message_type="acceptance:get_clean_nodes:seeking",
+        num_nodes=num_nodes
+    ).write()
+
     reachable_nodes = set()
 
     for node in nodes:
-        sock = socket()
-        try:
-            can_connect = not sock.connect_ex((node, 22))
-        except gaierror:
-            can_connect = False
-        finally:
-            if can_connect:
-                reachable_nodes.add(node)
-            sock.close()
+        with socket() as sock:
+            try:
+                can_connect = not sock.connect_ex((node, 22))
+            except gaierror:
+                can_connect = False
+            finally:
+                if can_connect:
+                    reachable_nodes.add(node)
+
+    Message.new(
+        message_type="acceptance:get_clean_nodes:found",
+        nodes=reachable_nodes,
+    ).write()
 
     if len(reachable_nodes) < num_nodes:
         unreachable_nodes = set(nodes) - reachable_nodes
@@ -553,13 +562,25 @@ def log_method(function):
     """
     Decorator that log calls to the given function.
     """
+    label = "acceptance:" + function.__name__
+
+    def log_result(result):
+        Message.new(
+            action_type=label + ":result",
+            value=result,
+        ).write()
+        return result
+
     @wraps(function)
     def wrapper(self, *args, **kwargs):
-        context = start_action(Logger(),
-                               action_type="acceptance:" + function.__name__,
-                               args=args, kwargs=kwargs)
+        context = start_action(
+            Logger(),
+            action_type=label,
+            args=args, kwargs=kwargs,
+        )
         with context.context():
             d = DeferredContext(function(self, *args, **kwargs))
+            d.addCallback(log_result)
             d.addActionFinish()
             return d.result
     return wrapper
@@ -905,6 +926,9 @@ def get_test_cluster(reactor, node_count=0):
 
     # Wait until nodes are up and running:
     def nodes_available():
+        Message.new(
+            message_type="acceptance:get_test_cluster:polling",
+        ).write()
         def failed_query(failure):
             Message.new(message_type="acceptance:is_available_error",
                         reason=unicode(failure),
