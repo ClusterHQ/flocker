@@ -187,14 +187,14 @@ def _wait_for_volume(volume,
                      transient_status,
                      end_status):
     """
-    Helper function to wait for a given volume to state change
+    Helper function to wait for a given volume to change state
     from ``start_status`` via ``transient_status`` to ``end_status``.
 
     :param boto.ec2.volume volume: Volume to check
         status for.
     :param unicode start_status: Volume status at starting point.
     :param unicode transient_status: Allowed transient state for
-        volume to be on the way to ``end_status``.
+        volume to be in, on the way to ``end_status``.
     :param unicode end_status: Expected destination status for
         the input volume.
 
@@ -208,7 +208,7 @@ def _wait_for_volume(volume,
         volume.update()
     if volume.status != end_status:
         raise Exception(
-            'Timed out while waiting for volume. '
+            'Timed out while waiting for volume to change state. '
             'Volume: {!r}, '
             'Start Status: {!r}, '
             'Transient Status: {!r}, '

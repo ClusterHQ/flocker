@@ -51,7 +51,7 @@ BOTO_EC2RESPONSE_ERROR = MessageType(
 
 DEVICES = Field.forTypes(
     u"devices", [list],
-    u"The list of devices currently in use by the compute instance.")
+    u"List of devices currently in use by the compute instance.")
 NO_AVAILABLE_DEVICE = MessageType(
     u"flocker:node:agents:blockdevice:aws:no_available_device",
     [DEVICES],
@@ -59,13 +59,13 @@ NO_AVAILABLE_DEVICE = MessageType(
 
 NEW_DEVICES = Field.forTypes(
     u"new_devices", [list],
-    u"The list of new devices in the compute instance.")
+    u"List of new devices in the compute instance.")
 NEW_DEVICES_SIZE = Field.forTypes(
     u"new_devices_size", [list],
-    u"The list of sizes of new devices in the compute instance.")
+    u"List of sizes of new devices in the compute instance.")
 SIZE = Field.forTypes(
     u"size", [int],
-    u"The size, in bytes, of new device we are expecting to manifest."
+    u"Size, in bytes, of new device we are expecting to manifest."
     u"in the OS.")
 TIME_LIMIT = Field.forTypes(
     u"time_limit", [int],
@@ -73,6 +73,6 @@ TIME_LIMIT = Field.forTypes(
 NO_NEW_DEVICE_IN_OS = MessageType(
     u"flocker:node:agents:blockdevice:aws:no_new_device",
     [NEW_DEVICES, NEW_DEVICES_SIZE, SIZE, TIME_LIMIT],
-    u"No new block device manifested in the OS since given base device list.",)
+    u"No new block device manifested in the OS in given time.",)
 
 # End: Helper datastructures used by AWS storage driver.
