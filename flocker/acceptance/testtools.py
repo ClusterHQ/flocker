@@ -328,6 +328,25 @@ def get_clean_nodes(test_case, num_nodes):
 
     getting = get_test_cluster(reactor)
 
+    def api_clean_state(cluster, configuration_method,
+                        state_method, delete_method):
+        """
+        Clean containers and datasets via the API.
+
+        :param Cluster cluster: The test cluster to act on.
+        :param configuration_method: The function to obtain the configured
+            entities.
+        :param state_method: The function to obtain the actual entities state.
+        :param delete_method: The method to delete an entity.
+
+        :return: A `Deferred` that fires with the cluster object.
+        """
+        get_items = cluster.configuration_method()
+        def delete_items(items):
+            results_list = []
+            for item in items:
+                d = cluster.delete_method()
+
     def clean_containers(cluster):
         get_containers = cluster.configured_containers()
 
@@ -805,7 +824,7 @@ class Cluster(PRecord):
         )
 
         request.addCallback(check_and_decode_json, OK)
-        request.addCallback(lambda response: (self, response))
+        request.addCallback(lambda response: response)
         return request
 
     @log_method
