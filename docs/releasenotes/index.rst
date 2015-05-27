@@ -45,9 +45,9 @@ v0.3
 v0.2
 ====
 
-* Moving volumes between nodes is now done with a :doc:`two-phase push<./clustering>` that should dramatically decrease application downtime when moving large amounts of data.
-* Added support for environment variables in the :doc:`application configuration<./configuration>`.
-* Added basic support for links between containers in the :doc:`application configuration<./configuration>`.
+* Moving volumes between nodes is now done with a :ref:`two-phase push<clustering>` that should dramatically decrease application downtime when moving large amounts of data.
+* Added support for environment variables in the :ref:`application configuration<configuration>`.
+* Added basic support for links between containers in the :ref:`application configuration<configuration>`.
 
 v0.1
 ====
@@ -67,6 +67,5 @@ You can learn more about where we might be going with future releases by:
 
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
-* Reading :doc:`../roadmap/index`.
 
 .. _`Fig`: http://www.fig.sh/yml.html

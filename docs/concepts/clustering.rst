@@ -1,3 +1,5 @@
+.. _clustering:
+
 ========================
 Data-Oriented Clustering
 ========================
