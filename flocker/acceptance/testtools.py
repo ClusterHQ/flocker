@@ -845,8 +845,7 @@ class Cluster(PRecord):
             """
             request = self.current_containers()
 
-            def got_response(result):
-                cluster, containers = result
+            def got_response(containers):
                 expected_container = container_properties.copy()
                 for container in containers:
                     container_items = container.items()
