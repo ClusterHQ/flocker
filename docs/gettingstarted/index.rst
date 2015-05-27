@@ -219,7 +219,9 @@ Getting started with Flocker
       fig.yml
       -------
 
-      :download:`fig.yml`
+      .. container:: hidden
+
+         :download:`fig.yml`
 
       .. literalinclude:: fig.yml
          :language: yaml
@@ -227,7 +229,9 @@ Getting started with Flocker
       deployment-node1.yml
       --------------------
 
-      :download:`deployment-node1.yml`
+      .. container:: hidden
+
+         :download:`deployment-node1.yml`
 
       .. literalinclude:: deployment-node1.yml
          :language: yaml
@@ -261,7 +265,9 @@ Getting started with Flocker
       deployment-node2.yml
       --------------------
 
-      :download:`deployment-node2.yml`
+      .. container:: hidden
+
+         :download:`deployment-node2.yml`
 
       .. literalinclude:: deployment-node2.yml
          :language: yaml
