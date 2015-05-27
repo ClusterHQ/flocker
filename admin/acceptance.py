@@ -453,8 +453,16 @@ def eliot_output(message):
     sys.stdout.flush()
 
 
-def capture_journal(reactor, host):
-    run(reactor, [
+def capture_journal(reactor, host, output_file):
+    """
+    SSH into given machine and capture relevant logs, writing them to
+    output file.
+
+    :param reactor: The reactor.
+    :param bytes host: Machine to SSH into.
+    :param file output_file: File to write to.
+    """
+    ran = run(reactor, [
         "ssh",
         b"-C",  # compress traffic
         b"-q",  # suppress warnings
@@ -486,7 +494,8 @@ def capture_journal(reactor, host):
             '-u', 'flocker-dataset-agent',
             '-u', 'flocker-container-agent',
         ])),
-    ]).addErrback(writeFailure)
+    ], handle_line=lambda line: output_file.write(line + b'\n'))
+    ran.addErrback(writeFailure)
 
 
 @inlineCallbacks
@@ -521,8 +530,9 @@ def main(reactor, args, base_path, top_level):
     try:
         nodes = yield runner.start_nodes(reactor)
         if options['distribution'] in ('fedora-20', 'centos-7'):
+            remote_logs_file = open("remote_logs.log", "a")
             for node in nodes:
-                capture_journal(reactor, node.address)
+                capture_journal(reactor, node.address, remote_logs_file)
 
         ca_directory = FilePath(mkdtemp())
         print("Generating certificates in: {}".format(ca_directory.path))
