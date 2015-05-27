@@ -61,6 +61,17 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
+def get_trial_environment_variables(
+        control_node, agent_nodes, dataset_backend, ca_directory):
+    return {
+        'FLOCKER_ACCEPTANCE_CONTROL_NODE': control_node.address,
+        'FLOCKER_ACCEPTANCE_AGENT_NODES':
+            ':'.join(node.address for node in agent_nodes),
+        'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': dataset_backend.name,
+        'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': ca_directory.path,
+    }
+
+
 def run_tests(reactor, nodes, control_node, agent_nodes, dataset_backend,
               trial_args, certificates_path):
     """
@@ -95,11 +106,8 @@ def run_tests(reactor, nodes, control_node, agent_nodes, dataset_backend,
         reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
-            FLOCKER_ACCEPTANCE_CONTROL_NODE=control_node.address,
-            FLOCKER_ACCEPTANCE_AGENT_NODES=':'.join(
-                node.address for node in agent_nodes),
-            FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH=certificates_path.path,
-            FLOCKER_ACCEPTANCE_VOLUME_BACKEND=dataset_backend.name,
+            **get_trial_environment_variables(
+                control_node, agent_nodes, dataset_backend, certificates_path)
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -507,13 +515,8 @@ def main(reactor, args, base_path, top_level):
             print ("To run acceptance tests against these nodes, "
                    "set the following environment variables: ")
 
-            environment_variables = {
-                'FLOCKER_ACCEPTANCE_CONTROL_NODE': control_node.address,
-                'FLOCKER_ACCEPTANCE_AGENT_NODES':
-                    ':'.join(node.address for node in nodes),
-                'FLOCKER_ACCEPTANCE_VOLUME_BACKEND': dataset_backend.name,
-                'FLOCKER_ACCEPTANCE_API_CERTIFICATES_PATH': ca_directory.path,
-            }
+            environment_variables = get_trial_environment_variables(
+                control_node, nodes, dataset_backend, ca_directory)
 
             for environment_variable in environment_variables:
                 print "export {name}={value};".format(
