@@ -88,6 +88,18 @@ class PrettyOptions(Options):
 
         return synopsis
 
+    def getUsage(self, width=None):
+        base = super(PrettyOptions, self).getUsage(width)
+        usage = base
+        if self.subCommand is not None:
+            subUsage = (
+                "Run flocker-ca "
+                + self.subCommand +
+                " --help for command usage and help."
+            )
+            usage = usage + "\n\n" + subUsage + "\n\n"
+        return usage
+
 
 @flocker_standard_options
 class UserCertificateOptions(PrettyOptions):
