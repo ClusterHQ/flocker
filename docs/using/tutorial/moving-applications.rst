@@ -1,3 +1,5 @@
+.. _movingapps:
+
 ===================
 Moving Applications
 ===================

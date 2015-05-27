@@ -1,4 +1,4 @@
-.. _tutbvagrant:
+.. _tutvagrant:
 
 ================
 Before You Begin
