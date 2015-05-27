@@ -518,9 +518,10 @@ class ControlCredential(PRecord):
         :param bytes hostname: The hostname of the node where the control
             service will be running.
         """
-        # The common name for the control service certificate.
-        # This is used to distinguish between control service and node
-        # certificates.
+        # The common name for the control service certificate.  This is
+        # used to distinguish between control service and node
+        # certificates. In practice it gets overridden for validation
+        # purposes by the subjectAltName, so we add record there too.
         name = b"control-service"
         # The organizational unit is set to the organizational_unit of the
         # authority, which in our case is the cluster UUID.
@@ -543,8 +544,11 @@ class ControlCredential(PRecord):
             authority.credential.certificate.original.get_subject(), request,
             serial, EXPIRY_20_YEARS, 'sha256', start=begin,
             additional_extensions=[
-                crypto.X509Extension(
-                    b"subjectAltName", False, alt_name)
+                # subjectAltName overrides common name for validation
+                # purposes, and we want to be able to validate against
+                # "control-service", so we include it too.
+                crypto.X509Extension(b"subjectAltName", False,
+                                     b"DNS:control-service," + alt_name),
             ])
         credential = FlockerCredential(
             path=path, keypair=keypair, certificate=cert)
