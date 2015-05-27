@@ -12,9 +12,11 @@ from twisted.trial.unittest import TestCase
 
 from twisted.internet import reactor
 
-from treq import get, json_content
+from treq import get, json_content, content
 
-from ..testtools import REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name
+from ..testtools import (
+    REALISTIC_BLOCKDEVICE_SIZE, loop_until, random_name, find_free_port,
+)
 from .testtools import (
     MONGO_IMAGE, require_mongo, get_mongo_client,
     get_test_cluster, require_cluster,
@@ -285,6 +287,70 @@ class ContainerAPITests(TestCase):
             return loop_until(in_current)
         creating.addCallback(created)
         return creating
+
+    @require_cluster(2)
+    def test_linking(self, cluster):
+        """
+        A container one machine can be linked to another.
+        """
+        _, destination_port = find_free_port()
+        _, port = find_free_port()
+
+        destination_container = {
+            u"name": random_name(self),
+            u"node_uuid": cluster.nodes[0].uuid,
+            u"image": u"busybox",
+            u"ports": [{u"internal": 8080, u"external": destination_port}],
+            u"command_line": [
+                u"sh", u"-c",
+                u"""\
+echo -n '#!/bin/sh
+echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
+' > /tmp/script.sh;
+chmod +x /tmp/script.sh;
+nc -ll -p 8080 -e /tmp/script.sh
+                """]}
+        created = cluster.create_container(destination_container)
+        created.addCallback(lambda _: self.addCleanup(
+            cluster.remove_container, destination_container[u"name"]))
+
+        def created_destination(_):
+            container = {
+                u"name": random_name(self),
+                u"node_uuid": cluster.nodes[1].uuid,
+                u"image": u"busybox",
+                u"links": [{u"alias": "DEST", u"local_port": 80,
+                            u"remote_port": destination_port}],
+                u"ports": [{u"internal": 9000, u"external": port}],
+                u"command_line": [
+                    u"sh", u"-c", u"""\
+echo -n '#!/bin/sh
+nc $DEST_PORT_80_TCP_ADDR $DEST_PORT_80_TCP_PORT
+' > /tmp/script.sh;
+chmod +x /tmp/script.sh;
+nc -ll -p 9000 -e /tmp/script.sh
+                """]}
+            created = cluster.create_container(container)
+            created.addCallback(lambda _: self.addCleanup(
+                cluster.remove_container, container[u"name"]))
+            return created
+        created.addCallback(created_destination)
+
+        def query(host):
+            req = get(
+                "http://{host}:{port}".format(host=host, port=port),
+                persistent=False
+            ).addCallback(content)
+            return req
+
+        def checked(_):
+            host = cluster.nodes[0].address
+            d = verify_socket(host, port)
+            d.addCallback(lambda _: query(host))
+            return d
+        created.addCallback(checked)
+        created.addCallback(self.assertEqual, b"hi")
+        return created
 
 
 def create_dataset(test_case, nodes=1,
