@@ -328,18 +328,6 @@ Release
       workon flocker-release-${VERSION}
       admin/publish-docs --production
 
-#. If the release is a marketing release, merge the new ``vagrant-flocker`` branch.
-
-   .. warning:: It takes some time for CloudFront invalidations to propagate.
-      This means that there will be a short period for some users where the documentation will still be for the previous version but the ``Vagrantfile`` downloads the latest tutorial box.
-
-   .. prompt:: bash [vagrant@localhost]$
-
-      cd ~/vagrant-flocker
-      git checkout master
-      git merge origin/release/flocker-${VERSION}
-      git push
-
 #. Copy the AWS configuration to your local home directory:
 
    If the AWS configuration is on your workstation it will not have to be recreated next time you do a release.
