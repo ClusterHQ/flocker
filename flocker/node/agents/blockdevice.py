@@ -1477,7 +1477,7 @@ class BlockDeviceDeployer(PRecord):
         manifestations = {}
         nonmanifest = {}
 
-        def check_device_path(dataset_id, path):
+        def is_existing_block_device(dataset_id, path):
             if isinstance(path, FilePath) and path.isBlockDevice():
                 return True
             INVALID_DEVICE_PATH(
@@ -1495,7 +1495,7 @@ class BlockDeviceDeployer(PRecord):
             u_dataset_id = unicode(dataset_id)
             if volume.attached_to == compute_instance_id:
                 device_path = api.get_device_path(volume.blockdevice_id)
-                if check_device_path(dataset_id, device_path):
+                if is_existing_block_device(dataset_id, device_path):
                     devices[dataset_id] = device_path
                     manifestations[u_dataset_id] = _manifestation_from_volume(
                         volume
