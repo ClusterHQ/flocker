@@ -71,6 +71,9 @@ from ....control import (
 from ....common.test.test_thread import NonThreadPool, NonReactor
 
 LOOPBACK_BLOCKDEVICE_SIZE = int(MB(64).to_Byte().value)
+LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
+# Enough space for the Ext4 journal
+LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(4).to_Byte().value)
 
 if not platform.isLinux():
     # The majority of Flocker isn't supported except on Linux - this test
@@ -2053,10 +2056,6 @@ def loopbackblockdeviceapi_for_test(test_case, allocation_unit=None):
     return loopback_blockdevice_api
 
 
-LOOPBACK_ALLOCATION_UNIT = int(MiB(1).to_Byte().value)
-LOOPBACK_MINIMUM_ALLOCATABLE_SIZE = int(MiB(64).to_Byte().value)
-
-
 class LoopbackBlockDeviceAPITests(
         make_iblockdeviceapi_tests(
             blockdevice_api_factory=partial(
@@ -2930,7 +2929,8 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
     ``CreateBlockDeviceDataset`` implementation tests.
     """
     def _create_blockdevice_dataset(self,
-                                    dataset_id, maximum_size, allocation_unit):
+                                    dataset_id, maximum_size,
+                                    allocation_unit=LOOPBACK_ALLOCATION_UNIT):
         """
         Call ``CreateBlockDeviceDataset.run`` with a ``BlockDeviceDeployer``.
 
@@ -2980,21 +2980,17 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         to create a new volume.
         """
         dataset_id = uuid4()
-        maximum_size = REALISTIC_BLOCKDEVICE_SIZE
-        allocation_unit = int(MiB(1).to_Byte().value)
-        # Return the cloud_instance_id here
         (volume,
          device_path,
          expected_mountpoint,
          compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
-            maximum_size=maximum_size,
-            allocation_unit=allocation_unit,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
         expected_volume = _blockdevicevolume_from_dataset_id(
             dataset_id=dataset_id, attached_to=compute_instance_id,
-            size=maximum_size,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
         self.assertEqual(expected_volume, volume)
@@ -3005,24 +3001,18 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         requested size is less than ``allocation_unit``.
         """
         dataset_id = uuid4()
-        allocation_unit = int(MiB(10).to_Byte().value)
-
-        # A realistic size which is divisible by the allocation_unit
-        expected_size = (
-            allocation_unit * (REALISTIC_BLOCKDEVICE_SIZE // allocation_unit)
-        )
         (volume,
          device_path,
          expected_mountpoint,
          compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
             # Request a size which will force over allocation.
-            maximum_size=expected_size - 1,
-            allocation_unit=allocation_unit,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE + 1,
+            allocation_unit=LOOPBACK_ALLOCATION_UNIT,
         )
         expected_volume = _blockdevicevolume_from_dataset_id(
             dataset_id=dataset_id, attached_to=compute_instance_id,
-            size=expected_size,
+            size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE + LOOPBACK_ALLOCATION_UNIT,
         )
         self.assertEqual(expected_volume, volume)
 
@@ -3032,15 +3022,12 @@ class CreateBlockDeviceDatasetImplementationTests(SynchronousTestCase):
         with an ext4 filesystem and mounts it.
         """
         dataset_id = uuid4()
-        maximum_size = REALISTIC_BLOCKDEVICE_SIZE
-        allocation_unit = int(MiB(1).to_Byte().value)
         (volume,
          device_path,
          expected_mountpoint,
          compute_instance_id) = self._create_blockdevice_dataset(
             dataset_id=dataset_id,
-            maximum_size=maximum_size,
-            allocation_unit=allocation_unit,
+            maximum_size=LOOPBACK_MINIMUM_ALLOCATABLE_SIZE,
         )
 
         self.assertIn(
