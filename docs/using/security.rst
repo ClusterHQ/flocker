@@ -1,3 +1,5 @@
+.. _security:
+
 =================================
 Cluster Security & Authentication
 =================================
