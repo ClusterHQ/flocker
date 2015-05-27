@@ -883,7 +883,7 @@ class TestRedirectsOptions(Options):
 
     def parseArgs(self):
         if self['doc-version'] is None:
-            self['doc-version'] = get_doc_version(self['flocker-version'])
+            self['doc-version'] = get_doc_version(flocker.__version__)
 
         if self['production']:
             self.environment = Environments.PRODUCTION
