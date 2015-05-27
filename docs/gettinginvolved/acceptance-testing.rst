@@ -24,6 +24,10 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    Specifies what provider to use to create the nodes.
 
+.. option:: --dataset-backend <dataset-backend>
+
+   Specifies what dataset backend to use for the cluster.
+
 .. option:: --flocker-version <version>
 
    Specifies the version of flocker to install.
@@ -42,7 +46,7 @@ The :program:`admin/run-acceptance-tests` script has several options:
    Specifies the branch from which packages are installed.
    If this isn't specified, packages will be installed from the release repository.
 
-.. option:: --buildserver <buildserver>
+.. option:: --build-server <buildserver>
 
    Specifies the base URL of the build server to install from.
    This is probably only useful when testing changes to the build server.
@@ -58,6 +62,17 @@ The :program:`admin/run-acceptance-tests` script has several options:
 .. option:: --keep
 
    Keep VMs around, if the tests fail.
+
+.. option:: --no-pull
+
+   Do not pull any Docker images when provisioning nodes.
+
+To see the supported values for each option, run:
+
+.. prompt:: bash $
+
+   admin/run-acceptance-tests --help
+
 
 Vagrant
 -------
@@ -139,6 +154,71 @@ You will need a ssh agent running with access to the corresponding private key.
 .. prompt:: bash $
 
   admin/run-acceptance-tests --distribution fedora-20 --provider aws --config-file config.yml
+
+
+Client Testing
+==================
+
+Flocker includes client installation tests and a tool for running them.
+It is called like this:
+
+.. prompt:: bash $
+
+   admin/run-cluster-tests <options> [<test-cases>]
+
+
+The :program:`admin/run-client-tests` script has several options:
+
+.. program:: admin/run-client-tests
+
+.. option:: --distribution <distribution>
+
+   Specifies what distribution to use on the created nodes.
+
+.. option:: --provider <provider>
+
+   Specifies what provider to use to create the nodes.
+
+.. option:: --flocker-version <version>
+
+   Specifies the version of flocker to install.
+   If this isn't specified, the most recent version will be installed.
+   If a branch is also specified, the most recent version from that branch will be installed.
+   If a branch is not specified, the most recent release will be installed.
+
+   .. note::
+
+      The build server merges forward before building packages, except on release branches.
+      If you want to run the acceptance tests against a branch in development,
+      you probably only want to specify the branch.
+
+.. option:: --branch <branch>
+
+   Specifies the branch from which packages are installed.
+   If this isn't specified, packages will be installed from the release repository.
+
+.. option:: --build-server <buildserver>
+
+   Specifies the base URL of the build server to install from.
+   This is probably only useful when testing changes to the build server.
+
+.. option:: --config-file <config-file>
+
+   Specifies a YAML configuration file that contains provider specific configuration.
+   See the acceptance testing section above for the required configuration options.
+   If the configuration contains a ``metadata`` key,
+   the contents will be added as metadata of the created nodes,
+   if the provider supports it.
+
+.. option:: --keep
+
+   Keep VMs around, if the tests fail.
+
+To see the supported values for each option, run:
+
+.. prompt:: bash $
+
+   admin/run-client-tests --help
 
 
 Functional Testing

@@ -18,5 +18,6 @@ Contents:
    using/index
    concepts/index
    releasenotes/index
+   reference/index
    faq/index
    gettinginvolved/index
