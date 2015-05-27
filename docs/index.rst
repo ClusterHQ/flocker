@@ -17,7 +17,7 @@ Contents:
    introduction/index
    using/index
    concepts/index
-   releasenotes/index
    reference/index
+   releasenotes/index
    faq/index
    gettinginvolved/index
