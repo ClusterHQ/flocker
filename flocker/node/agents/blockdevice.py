@@ -1127,6 +1127,9 @@ def get_blockdevice_volume(api, blockdevice_id):
     raise UnknownVolume(blockdevice_id)
 
 
+DEFAULT_LOOPBACK_PATH = '/var/lib/flocker/loopback'
+
+
 @implementer(IBlockDeviceAPI)
 class LoopbackBlockDeviceAPI(object):
     """
@@ -1150,7 +1153,8 @@ class LoopbackBlockDeviceAPI(object):
         self._compute_instance_id = compute_instance_id
 
     @classmethod
-    def from_path(cls, root_path, compute_instance_id=None):
+    def from_path(
+            cls, root_path=DEFAULT_LOOPBACK_PATH, compute_instance_id=None):
         """
         :param bytes root_path: The path to a directory in which loop back
             backing files will be created.  The directory is created if it does
