@@ -89,17 +89,14 @@ Getting started with Flocker
 
       .. noscript-content::
 
-         Ubuntu / Debian
-         ^^^^^^^^^^^^^^^
+         Ubuntu 14.04
+         ^^^^^^^^^^^^
 
          Install the Flocker client on your Linux machine:
 
-         .. version-code-block:: console
+         .. task:: install_cli ubuntu-14.04
+            :prompt: you@laptop:~$
 
-            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://clusterhq-archive.s3.amazonaws.com/python/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
          Fedora 20
          ^^^^^^^^^
@@ -127,17 +124,13 @@ Getting started with Flocker
               brew tap clusterhq/flocker && \
               brew install flocker-|latest-installable|
 
-         Ubuntu / Debian
-         ^^^^^^^^^^^^^^^
+         Ubuntu 14.04
+         ^^^^^^^^^^^^
 
          Install the Flocker client on your Linux machine:
 
-         .. version-code-block:: console
-
-            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://clusterhq-archive.s3.amazonaws.com/python/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
+         .. task:: install_cli ubuntu-14.04
+            :prompt: you@laptop:~$
 
          Fedora 20
          ^^^^^^^^^

@@ -368,7 +368,8 @@ class ControlCredentialTests(
         subjectAltName containing the given hostname as a DNS record.
         """
         assert_has_extension(self, self.credential.credential,
-                             b"subjectAltName", b"DNS:control.example.com")
+                             b"subjectAltName",
+                             b"DNS:control-service,DNS:control.example.com")
 
     def test_subjectAltName_ipv4(self):
         """
@@ -378,7 +379,8 @@ class ControlCredentialTests(
         credential = ControlCredential.initialize(
             self.path, self.ca, begin=self.start_date, hostname=b"127.0.0.1")
         assert_has_extension(self, credential.credential,
-                             b"subjectAltName", b"IP:127.0.0.1")
+                             b"subjectAltName",
+                             b"DNS:control-service,IP:127.0.0.1")
 
 
 class RootCredentialTests(SynchronousTestCase):

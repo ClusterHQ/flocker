@@ -16,6 +16,23 @@ from ._ssh import run_remotely
 from ._effect import sequence
 
 
+_usernames = {
+    'fedora-20': 'fedora',
+    'centos-7': 'centos',
+    'ubuntu-14.04': 'ubuntu',
+}
+
+
+def get_default_username(distribution):
+    """
+    Return the username available by default on a system.
+
+    :param str distribution: Name of the operating system distribution
+    :return str: The username made available by AWS for this distribution.
+    """
+    return _usernames[distribution]
+
+
 def provision_aws(node, package_source, distribution, variants):
     """
     Provision flocker on this node.
@@ -26,11 +43,7 @@ def provision_aws(node, package_source, distribution, variants):
     :param set variants: The set of variant configurations to use when
         provisioning
     """
-    username = {
-        'fedora-20': 'fedora',
-        'centos-7': 'centos',
-        'ubuntu-14.04': 'ubuntu',
-    }[distribution]
+    username = get_default_username(distribution)
 
     commands = []
 
@@ -108,6 +121,7 @@ def aws_provisioner(access_key, secret_access_token, keyname,
         create_node_arguments=create_arguments,
         provision=provision_aws,
         default_size="m3.large",
+        get_default_user=get_default_username,
     )
 
     return provisioner
