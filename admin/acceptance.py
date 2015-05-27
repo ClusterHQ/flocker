@@ -324,6 +324,8 @@ class RunOptions(Options):
 
     optFlags = [
         ["keep", "k", "Keep VMs around, if the tests fail."],
+        ["no-pull", None,
+         "Do not pull any Docker images when provisioning nodes."],
     ]
 
     synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
@@ -464,16 +466,17 @@ def main(reactor, args, base_path, top_level):
         certificates = Certificates.generate(ca_directory, nodes[0].address,
                                              len(nodes))
 
-        yield perform(
-            make_dispatcher(reactor),
-            parallel([
-                run_remotely(
-                    username='root',
-                    address=node.address,
-                    commands=task_pull_docker_images()
-                ) for node in nodes
-            ]),
-        )
+        if not options["no-pull"]:
+            yield perform(
+                make_dispatcher(reactor),
+                parallel([
+                    run_remotely(
+                        username='root',
+                        address=node.address,
+                        commands=task_pull_docker_images()
+                    ) for node in nodes
+                ]),
+            )
 
         control_node = nodes[0]
         dataset_backend = options.dataset_backend
