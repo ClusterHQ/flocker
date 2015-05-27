@@ -309,16 +309,16 @@ class ContainerAPITests(TestCase):
                               u"mountpoint": u"/data"}],
                 u"command_line": [
                     # Run as non-root user:
-                    u"sh", u"-c",
+                    u"su", u"-", u"nobody", u"-c", u"sh", u"-c",
                     # Write something to volume we attached, and then
-                    # expose what we wrote via a hacked-up HTTP 0.9 web
-                    # server:
+                    # expose what we wrote as a web server:
                     u"""\
-mkdir /tmp/foo;
-cd /tmp/foo;
-nc -ll -p 8080 -e printenv
-"""],
-            }
+echo -n '#!/bin/sh
+echo -n "HTTP/1.1 200 OK\r\n\r\nhi"
+' > /data/script.sh;
+chmod +x /data/script.sh;
+nc -ll -p 8080 -e /data/script.sh
+                    """]}
             created = cluster.create_container(container)
             created.addCallback(lambda _: self.addCleanup(
                 cluster.remove_container, container[u"name"]))
@@ -336,10 +336,10 @@ nc -ll -p 8080 -e printenv
         def checked(cluster):
             host = cluster.nodes[0].address
             d = verify_socket(host, port)
-            d.addCallback(query, host)
+            d.addCallback(lambda _: query(host))
             return d
         creating_dataset.addCallback(checked)
-        creating_dataset.addCallback(self.assertEqual, b"hello!")
+        creating_dataset.addCallback(self.assertEqual, b"hi")
         return creating_dataset
 
 
