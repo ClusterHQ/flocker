@@ -104,7 +104,10 @@ class EBSBlockDeviceAPIInterfaceTests(
         self.addCleanup(ec2_client.connection.delete_volume,
                         requested_volume.id)
 
-        _wait_for_volume(requested_volume)
+        _wait_for_volume(requested_volume,
+                         u'',
+                         u'creating',
+                         u'available')
 
         self.assertEqual(self.api.list_volumes(), [])
 
