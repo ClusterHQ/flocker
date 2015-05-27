@@ -218,31 +218,14 @@ Getting started with Flocker
       fig.yml
       -------
 
-      .. code-block:: yaml
-
-         web:
-           image: clusterhq/flask
-           links:
-            - "redis:redis"
-           ports:
-            - "80:80"
-         redis:
-           image: redis
-           ports:
-            - "6379:6379"
-           volumes: ["/data"]
-
+      .. literalinclude:: fig.yml
+         :language: yaml
 
       deployment-node1.yml
       --------------------
 
-      .. code-block:: yaml
-
-         "version": 1
-         "nodes":
-           "172.16.255.250": ["web", "redis"]
-           "172.16.255.251": []
-
+      .. literalinclude:: deployment-node1.yml
+         :language: yaml
 
       The ``fig.yml`` file describes your distributed application.
       The ``deployment-node1.yml`` file describes which containers to deploy where.
@@ -273,12 +256,8 @@ Getting started with Flocker
       deployment-node2.yml
       --------------------
 
-      .. code-block:: yaml
-
-         "version": 1
-         "nodes":
-           "172.16.255.250": ["web"]
-           "172.16.255.251": ["redis"]
+      .. literalinclude:: deployment-node2.yml
+         :language: yaml
 
       .. code-block:: console
 
