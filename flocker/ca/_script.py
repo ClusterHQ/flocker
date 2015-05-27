@@ -269,11 +269,23 @@ class ControlCertificateOptions(PrettyOptions):
                 ca = RootCredential.from_path(self["inputpath"])
                 ControlCredential.initialize(self["outputpath"], ca,
                                              self["hostname"])
-                self._sys_module.stdout.write(
-                    b"Created control-service.crt. Copy it over to "
-                    b"/etc/flocker/control-service.crt on your control "
-                    b"service machine and make sure to chmod 0600 it."
+                output_certificate_filename = (
+                    b"control-" + self["hostname"] + b".crt")
+                output_key_filename = (
+                    b"control-" + self["hostname"] + b".key")
+                success_message = (
+                    b"Created {certificate} and {key}.\n"
+                    b"Copy these files to the directory /etc/flocker on your "
+                    b"control service machine. Rename the files to "
+                    b"control-service.crt and control-service.key and "
+                    b"set the correct permissions by running chmod 0600 on "
+                    b"both files."
+                    b"\n".format(
+                        certificate=output_certificate_filename,
+                        key=output_key_filename
+                    )
                 )
+                self._sys_module.stdout.write(success_message)
             except (
                 CertificateAlreadyExistsError, KeyAlreadyExistsError, PathError
             ) as e:
