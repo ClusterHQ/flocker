@@ -4,7 +4,7 @@
 Cluster Security & Authentication
 =================================
 
-A Flocker cluster comprises a control service and convergence agents, along with some command line tools that are provided to interact with, and manage the cluster. For more information, see :doc:`architecture`.
+A Flocker cluster comprises a control service and convergence agents, along with some command line tools that are provided to interact with, and manage the cluster. For more information, see :ref:`architecture`.
 
 Flocker uses `Transport Layer Security <http://en.wikipedia.org/wiki/Transport_Layer_Security>`_ (TLS) to authenticate components of a cluster, in a `mutual authentication  <http://en.wikipedia.org/wiki/Mutual_authentication>`_ model.
 
