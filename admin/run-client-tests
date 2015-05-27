@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
-Run the cluster acceptance tests.
+Run the client acceptance tests.
 """
 
 from _preamble import TOPLEVEL, BASEPATH
@@ -10,5 +10,5 @@ import sys
 
 if __name__ == '__main__':
     from twisted.internet.task import react
-    from admin.acceptance import main
+    from admin.client import main
     react(main, (sys.argv[1:], BASEPATH, TOPLEVEL))
