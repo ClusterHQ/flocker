@@ -33,6 +33,12 @@ def verify_socket(host, port):
     def can_connect():
         with closing(socket.socket()) as s:
             conn = s.connect_ex((host, port))
+            Message.new(
+                message_type="acceptance:verify_socket",
+                host=host,
+                port=port,
+                result=conn,
+            ).write()
             return conn == 0
 
     dl = loop_until(can_connect)
