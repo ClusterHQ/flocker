@@ -1,15 +1,22 @@
-==========
-What's New
-==========
+=============
+Release Notes
+=============
 
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
 .. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
 
-v0.5
-====
+Next Release
+============
 
 * ``flocker-deploy`` now takes an extra argument, the hostname of the control service.
+* It is now necessary to specify a dataset backend for each agent node.
+  See :ref:`post-installation-configuration`.
+* Flocker-initiated communication is secured with TLS.
+  See :ref:`authentication`.
+* Docker restart policies are adhered to.
+* New API endpoint: List the hosts currently in the cluster.
+  See :ref:`api`.
 
 v0.4
 ====
@@ -45,9 +52,9 @@ v0.3
 v0.2
 ====
 
-* Moving volumes between nodes is now done with a :doc:`two-phase push<./clustering>` that should dramatically decrease application downtime when moving large amounts of data.
-* Added support for environment variables in the :doc:`application configuration<./configuration>`.
-* Added basic support for links between containers in the :doc:`application configuration<./configuration>`.
+* Moving volumes between nodes is now done with a :ref:`two-phase push<clustering>` that should dramatically decrease application downtime when moving large amounts of data.
+* Added support for environment variables in the :ref:`application configuration<configuration>`.
+* Added basic support for links between containers in the :ref:`application configuration<configuration>`.
 
 v0.1
 ====
@@ -67,6 +74,5 @@ You can learn more about where we might be going with future releases by:
 
 * Stopping by the ``#clusterhq`` channel on ``irc.freenode.net``.
 * Visiting our GitHub repository at https://github.com/ClusterHQ/flocker.
-* Reading :doc:`../roadmap/index`.
 
 .. _`Fig`: http://www.fig.sh/yml.html
