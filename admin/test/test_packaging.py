@@ -827,18 +827,36 @@ class OmnibusPackageBuilderTests(TestCase):
     """
     Tests for ``omnibus_package_builder``.
     """
+    def _make_deb_omnibus_test(distribution):
+        """
+        Generate a test function for a deb-package based distribution.
+
+        :param Distribution distribution: The distribution for which to
+            generate the test.
+
+        :return: A function suitable for use as a test method.
+        """
+        def test(self):
+            self.assert_omnibus_steps(
+                distribution=distribution,
+                expected_category='admin',
+                expected_package_type=PackageTypes.DEB,
+            )
+        return test
+
+    test_ubuntu_14_04 = _make_deb_omnibus_test(
+        Distribution(name='ubuntu', version='14.04')
+    )
+
+    test_ubuntu_15_04 = _make_deb_omnibus_test(
+        Distribution(name='ubuntu', version='15.04')
+    )
+
     def test_centos_7(self):
         self.assert_omnibus_steps(
             distribution=Distribution(name='centos', version='7'),
             expected_category='Applications/System',
             expected_package_type=PackageTypes.RPM,
-        )
-
-    def test_ubuntu_14_04(self):
-        self.assert_omnibus_steps(
-            distribution=Distribution(name='ubuntu', version='14.04'),
-            expected_category='admin',
-            expected_package_type=PackageTypes.DEB,
         )
 
     def test_fedora_20(self):
