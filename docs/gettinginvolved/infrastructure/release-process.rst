@@ -113,7 +113,6 @@ Preparing For a Release
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
       admin/create-release-branch --flocker-version="${VERSION}"
-      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
@@ -165,7 +164,7 @@ Preparing For a Release
 
    .. prompt:: bash [vagrant@localhost]$
 
-      git push
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Ensure all the required tests pass on BuildBot:
 
