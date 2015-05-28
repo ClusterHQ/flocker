@@ -336,7 +336,7 @@ def get_clean_nodes(test_case, num_nodes):
     # Only return the desired number of nodes
     reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
 
-    getting = get_test_cluster(reactor)
+    getting = get_test_cluster(reactor, node_count=num_nodes)
 
     def api_clean_state(cluster, configuration_method,
                         state_method, delete_method):
