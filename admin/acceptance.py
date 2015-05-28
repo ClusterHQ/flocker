@@ -297,7 +297,7 @@ class LibcloudRunner(object):
         print("Generating certificates in: {}".format(certificates_path.path))
         certificates = Certificates.generate(
             certificates_path,
-            self.nodes[0],
+            self.nodes[0].address,
             len(self.nodes))
 
         cluster = Cluster(
