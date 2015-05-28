@@ -9,4 +9,3 @@ Getting Involved
    acceptance-testing
    infrastructure/index
    authors
-   
