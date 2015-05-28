@@ -64,7 +64,7 @@ def remove_known_host(reactor, hostname):
     return run(reactor, ['ssh-keygen', '-R', hostname])
 
 
-def get_trial_environment_variables(cluster):
+def get_trial_environment(cluster):
     return {
         'FLOCKER_ACCEPTANCE_CONTROL_NODE': cluster.control_node.address,
         'FLOCKER_ACCEPTANCE_AGENT_NODES':
@@ -98,7 +98,7 @@ def run_tests(reactor, cluster, trial_args):
         reactor,
         ['trial'] + list(trial_args),
         env=extend_environ(
-            **get_trial_environment_variables(cluster)
+            **get_trial_environment(cluster)
         )).addCallbacks(
             callback=lambda _: 0,
             errback=check_result,
@@ -521,15 +521,20 @@ def main(reactor, args, base_path, top_level):
             runner.stop_nodes(reactor)
         elif options['keep']:
             print "--keep specified, not destroying nodes."
-            print ("To run acceptance tests against these nodes, "
-                   "set the following environment variables: ")
+            try:
+                cluster
+            except NameError:
+                print ("Didn't finish creating the cluster.")
+            else:
+                print ("To run acceptance tests against these nodes, "
+                       "set the following environment variables: ")
 
-            environment_variables = get_trial_environment_variables(cluster)
+                environment_variables = get_trial_environment(cluster)
 
-            for environment_variable in environment_variables:
-                print "export {name}={value};".format(
-                    name=environment_variable,
-                    value=environment_variables[environment_variable],
-                )
+                for environment_variable in environment_variables:
+                    print "export {name}={value};".format(
+                        name=environment_variable,
+                        value=environment_variables[environment_variable],
+                    )
 
     raise SystemExit(result)
