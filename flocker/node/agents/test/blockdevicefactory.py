@@ -277,40 +277,18 @@ OVER_ALLOCATION_UNITS = {
 }
 
 
-def require_cloud_provider(original):
-    """
-    A decorator which gets a
-    ``FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER`` value from the
-    environment and supplies it to the decorated function as keyword
-    argument ``cloud_provider``.
-
-    :param callable original: The function to decorate.
-    :returns: The decorated function.
-    :raises: ``InvalidConfig`` if
-        FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER is not in the
-        environment.
-    """
-    @wraps(original)
-    def decorated(*args, **kwargs):
-        cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
-        if cloud_provider is None:
-            raise InvalidConfig(
-                'Supply the cloud provider on which you are running tests '
-                'using the FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER '
-                'environment variable.'
-            )
-        kwargs['cloud_provider'] = cloud_provider
-        return original(*args, **kwargs)
-
-    return decorated
-
-
-@require_cloud_provider
-def get_over_allocation(cloud_provider):
+def get_over_allocation():
     """
     Return a provider specific device over allocation unit.
+
+    :returns: An ``int`` over allocation size in bytes for a
+        particular platform. Default to ``0``.
     """
-    return int(OVER_ALLOCATION_UNITS[cloud_provider].to_Byte().value)
+    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+    if cloud_provider is None:
+        return 0
+    else:
+        return int(OVER_ALLOCATION_UNITS[cloud_provider].to_Byte().value)
 
 
 MINIMUM_ALLOCATABLE_SIZES = {
@@ -321,9 +299,15 @@ MINIMUM_ALLOCATABLE_SIZES = {
 }
 
 
-@require_cloud_provider
-def get_minimum_allocatable_size(cloud_provider):
+def get_minimum_allocatable_size():
     """
     Return a provider specific minimum_allocatable_size.
+
+    :returns: An ``int`` minimum_allocatable_size in bytes for a
+        particular platform. Default to ``1``.
     """
-    return int(MINIMUM_ALLOCATABLE_SIZES[cloud_provider].to_Byte().value)
+    cloud_provider = environ.get('FLOCKER_FUNCTIONAL_TEST_CLOUD_PROVIDER')
+    if cloud_provider is None:
+        return 1
+    else:
+        return int(MINIMUM_ALLOCATABLE_SIZES[cloud_provider].to_Byte().value)
