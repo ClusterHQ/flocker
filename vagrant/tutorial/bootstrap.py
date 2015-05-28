@@ -110,4 +110,3 @@ check_call(['chmod', 'u=rwx,g=,o=', '/etc/flocker'])
 check_call(["ssh-keygen", "-N", "", "-f", "/etc/flocker/id_rsa_flocker"])
 with file("/root/.ssh/authorized_keys", "a") as f:
     f.write(file("/etc/flocker/id_rsa_flocker.pub").read())
-# Write pre-generated certificate files
