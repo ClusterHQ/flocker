@@ -25,7 +25,7 @@ from twisted.python.runtime import platform
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
-from eliot import start_action, Message, Logger
+from eliot import start_action, write_traceback, Message, Logger
 from eliot.testing import (
     validate_logging, capture_logging,
     LoggedAction, assertHasMessage,
@@ -212,10 +212,8 @@ def detach_destroy_volumes(api):
                     if volume.attached_to is not None:
                         api.detach_volume(volume.blockdevice_id)
                     api.destroy_volume(volume.blockdevice_id)
-                except Exception as e:
-                    Message.new(u"agent:blockdevice:failedcleanup:volume",
-                                blockdevice_id=volume.blockdevice_id,
-                                error=str(e).write(Logger()))
+                except:
+                    write_traceback(Logger())
 
             time.sleep(1.0)
             volumes = api.list_volumes()
@@ -1496,8 +1494,6 @@ class IBlockDeviceAPITestsMixin(object):
             new_volume.blockdevice_id, attach_to=self.this_node,
         )
 
-        self.assertNotEqual(attached_volume, None)
-
         self._assert_volume_size(attached_volume, REALISTIC_BLOCKDEVICE_SIZE)
 
     def test_attach_attached_volume(self):
@@ -1514,8 +1510,6 @@ class IBlockDeviceAPITestsMixin(object):
         attached_volume = self.api.attach_volume(
             new_volume.blockdevice_id, attach_to=self.this_node,
         )
-
-        self.assertNotEqual(attached_volume, None)
 
         self.assertRaises(
             AlreadyAttachedVolume,
@@ -1541,8 +1535,6 @@ class IBlockDeviceAPITestsMixin(object):
             new_volume.blockdevice_id,
             attach_to=self.this_node,
         )
-
-        self.assertNotEqual(attached_volume, None)
 
         self.assertRaises(
             AlreadyAttachedVolume,
