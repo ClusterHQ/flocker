@@ -1446,19 +1446,14 @@ class IBlockDeviceAPITestsMixin(object):
         and a size.
         """
         expected_dataset_id = uuid4()
-        requested_size = self.minimum_allocatable_size
-        expected_size = allocated_size(
-            self.api.allocation_unit(),
-            requested_size
-        )
 
         new_volume = self.api.create_volume(
             dataset_id=expected_dataset_id,
-            size=requested_size,
+            size=self.minimum_allocatable_size,
         )
 
         self.assertEqual(
-            (expected_dataset_id, expected_size),
+            (expected_dataset_id, self.minimum_allocatable_size),
             (new_volume.dataset_id, new_volume.size)
         )
 
@@ -1474,17 +1469,11 @@ class IBlockDeviceAPITestsMixin(object):
             attach_to=self.this_node,
         )
 
-    def test_realistic_size_divisible_by_allocation_unit(self):
+    def test_device_size(self):
         """
-        Validate that block devices created by the API, allocate size
-        in intervals of ``allocation_unit`` when the requested size is
-        divisible by the ``allocation_unit``.
+        ``attach_volume`` results in a device with the expected size.
         """
-        requested_size = allocated_size(
-            self.api.allocation_unit(),
-            self.minimum_allocatable_size
-        )
-
+        requested_size = self.minimum_allocatable_size
         self._verify_volume_size(
             requested_size=requested_size,
             expected_volume_size=requested_size
