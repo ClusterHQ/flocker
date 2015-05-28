@@ -202,20 +202,18 @@ def _wait_for_volume(volume,
     :raises Exception: When input volume failed to reach
         expected destination status.
     """
-    start_time = time.time()
-    elapsed_time = time.time() - start_time
 
     # Wait ``VOLUME_STATE_CHANGE_TIMEOUT`` seconds for
     # volume status to transition from
     # start_status -> transient_status -> end_status.
-    while elapsed_time - start_time < VOLUME_STATE_CHANGE_TIMEOUT:
+    start_time = time.time()
+    while time.time() - start_time < VOLUME_STATE_CHANGE_TIMEOUT:
         volume.update()
         if volume.status == end_status:
             return
         elif volume.status not in [start_status, transient_status]:
             break
         time.sleep(1.0)
-        elapsed_time = time.time() - start_time
 
     # We either:
     # 1) Timed out waiting to reach ``end_status``, or,
@@ -232,7 +230,8 @@ def _wait_for_volume(volume,
         'Wait time: {!r},'
         'Time limit: {!r}.'.format(
             volume, start_status, transient_status, end_status,
-            volume.status, elapsed_time, VOLUME_STATE_CHANGE_TIMEOUT
+            volume.status, time.time() - start_time,
+            VOLUME_STATE_CHANGE_TIMEOUT
             )
         )
 
